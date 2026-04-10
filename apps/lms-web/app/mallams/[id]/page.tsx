@@ -11,7 +11,15 @@ export default async function MallamDetailPage({ params, searchParams }: { param
     const mallam = await fetchMallam(id);
 
     return (
-      <PageShell title={mallam.displayName} subtitle="Mallam deployment detail with roster health, active assignments, and coaching cues.">
+      <PageShell
+        title={mallam.displayName}
+        subtitle="Mallam deployment detail with roster health, active assignments, and coaching cues."
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/' },
+          { label: 'Mallams', href: '/mallams' },
+          { label: mallam.displayName },
+        ]}
+      >
         <FeedbackBanner message={query?.message} />
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
           <Card title={String(mallam.summary.rosterCount)} eyebrow="Roster"><div style={{ color: '#64748b' }}>Learners directly mapped to this mallam.</div></Card>

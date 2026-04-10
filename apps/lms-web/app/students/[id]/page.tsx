@@ -12,7 +12,15 @@ export default async function StudentDetailPage({ params, searchParams }: { para
     const student = await fetchStudent(id);
 
     return (
-      <PageShell title={student.name} subtitle="Learner detail view with progress, attendance, live assignments, and mallam observations in one place.">
+      <PageShell
+        title={student.name}
+        subtitle="Learner detail view with progress, attendance, live assignments, and mallam observations in one place."
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/' },
+          { label: 'Learners', href: '/students' },
+          { label: student.name },
+        ]}
+      >
         <FeedbackBanner message={query?.message} />
         <section style={{ display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 16, marginBottom: 20 }}>
           <Card title="Learner snapshot" eyebrow="Profile">

@@ -1,5 +1,6 @@
 import { CreateStudentForm, UpdateStudentForm } from '../../components/admin-forms';
 import { FeedbackBanner } from '../../components/feedback-banner';
+import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCohorts, fetchMallams, fetchPods, fetchStudents, fetchWorkboard } from '../../lib/api';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
@@ -23,7 +24,19 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
   const flaggedLearners = students.filter((student) => student.attendanceRate < 0.85).length;
 
   return (
-    <PageShell title="Learners" subtitle="Roster operations, assignment/reassignment, and readiness signals for the live admin desk.">
+    <PageShell
+      title="Learners"
+      subtitle="Roster operations, assignment/reassignment, and readiness signals for the live admin desk."
+      aside={
+        <ModalLauncher
+          buttonLabel="Add Student"
+          title="Add learner"
+          description="Create a new learner without leaving the roster view."
+        >
+          <CreateStudentForm cohorts={cohorts} pods={pods} mallams={mallams} />
+        </ModalLauncher>
+      }
+    >
       <FeedbackBanner message={query?.message} />
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
         {[
@@ -38,7 +51,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
         ))}
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
         <Card title="Learner roster" eyebrow="Profiles + quick ownership scan">
           <SimpleTable
             columns={['Learner', 'Cohort', 'Mallam', 'Pod', 'Attendance', 'Level', 'Actions']}
@@ -56,8 +69,6 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
             ])}
           />
         </Card>
-
-        <CreateStudentForm cohorts={cohorts} pods={pods} mallams={mallams} />
       </section>
 
       <section style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, marginBottom: 20 }}>

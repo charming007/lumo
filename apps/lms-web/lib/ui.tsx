@@ -1,8 +1,22 @@
 import React from 'react';
+import { Breadcrumbs, type BreadcrumbItem } from '../components/breadcrumbs';
 
-export function PageShell({ title, subtitle, children, aside }: { title: string; subtitle: string; children: React.ReactNode; aside?: React.ReactNode }) {
+export function PageShell({
+  title,
+  subtitle,
+  children,
+  aside,
+  breadcrumbs,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+  aside?: React.ReactNode;
+  breadcrumbs?: BreadcrumbItem[];
+}) {
   return (
     <main style={{ padding: 32 }}>
+      <Breadcrumbs items={breadcrumbs} currentLabel={title} />
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 24, alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 34, letterSpacing: -1, color: '#0f172a' }}>{title}</h1>

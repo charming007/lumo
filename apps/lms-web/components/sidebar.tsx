@@ -1,6 +1,17 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { navigationItems } from '../lib/navigation';
 
+function isActivePath(pathname: string, href: string) {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Sidebar() {
+  const pathname = usePathname();
+
   return (
     <aside
       style={{
@@ -25,23 +36,27 @@ export function Sidebar() {
       </div>
 
       <nav style={{ display: 'grid', gap: 10 }}>
-        {navigationItems.map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            style={{
-              textDecoration: 'none',
-              color: '#e5e7eb',
-              padding: '13px 14px',
-              borderRadius: 16,
-              background: item.href === '/' ? 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)' : 'rgba(255,255,255,0.04)',
-              fontWeight: 700,
-              border: item.href === '/' ? 'none' : '1px solid rgba(255,255,255,0.05)',
-            }}
-          >
-            {item.label}
-          </a>
-        ))}
+        {navigationItems.map((item) => {
+          const active = isActivePath(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                textDecoration: 'none',
+                color: '#e5e7eb',
+                padding: '13px 14px',
+                borderRadius: 16,
+                background: active ? 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)' : 'rgba(255,255,255,0.04)',
+                fontWeight: 700,
+                border: active ? 'none' : '1px solid rgba(255,255,255,0.05)',
+                boxShadow: active ? '0 14px 28px rgba(108, 99, 255, 0.28)' : 'none',
+              }}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
       <div style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>

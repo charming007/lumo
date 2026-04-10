@@ -1,5 +1,6 @@
 import { CreateMallamForm, UpdateMallamForm } from '../../components/admin-forms';
 import { FeedbackBanner } from '../../components/feedback-banner';
+import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
@@ -9,9 +10,21 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
   const selectedMallam = mallams.find((mallam) => mallam.id === query?.edit) ?? mallams[0];
 
   return (
-    <PageShell title="Mallams" subtitle="Mallam operations with visible roster ownership, profile drill-down, and quick admin updates.">
+    <PageShell
+      title="Mallams"
+      subtitle="Mallam operations with visible roster ownership, profile drill-down, and quick admin updates."
+      aside={
+        <ModalLauncher
+          buttonLabel="Add Mallam"
+          title="Add mallam"
+          description="Create a new mallam profile from the deployment roster without losing context."
+        >
+          <CreateMallamForm centers={centers} pods={pods} />
+        </ModalLauncher>
+      }
+    >
       <FeedbackBanner message={query?.message} />
-      <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
         <Card title="Deployment roster" eyebrow="Profile-first">
           <div style={{ display: 'grid', gap: 14 }}>
             {mallams.map((mallam) => {
@@ -36,8 +49,6 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             })}
           </div>
         </Card>
-
-        <CreateMallamForm centers={centers} pods={pods} />
       </section>
 
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
