@@ -1,0 +1,350 @@
+const repository = require('./repository');
+
+function formatAttendanceBand(rate) {
+  if (rate >= 0.9) return 'Stable attendance';
+  if (rate >= 0.8) return 'Needs occasional follow-up';
+  return 'Attendance needs support';
+}
+
+function formatReadinessLabel(level) {
+  if (level === 'beginner') return 'Voice-first beginner';
+  if (level === 'emerging') return 'Ready for guided practice';
+  return 'Confident responder';
+}
+
+function buildLearnerCode(student, cohort) {
+  const cleanedName = (student.name || 'NEW').replace(/[^A-Za-z]/g, '').toUpperCase();
+  const prefix = (cleanedName || 'NEW').slice(0, 3).padEnd(3, 'X');
+  const cohortCode = (cohort?.name || 'General Cohort')
+    .split(' ')
+    .map((part) => (part ? part[0] : ''))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+    .padEnd(2, 'G');
+  const ageCode = String(student.age || 0).padStart(2, '0');
+  return `${prefix}-${cohortCode}${ageCode}`;
+}
+
+function presentPod(pod) {
+  const center = repository.findCenterById(pod.centerId);
+  const mallams = repository
+    .listTeachers()
+    .filter((teacher) => pod.mallamIds.includes(teacher.id))
+    .map((teacher) => teacher.displayName || teacher.name);
+
+  return {
+    ...pod,
+    centerName: center?.name ?? null,
+    region: center?.region ?? null,
+    mallamNames: mallams,
+  };
+}
+
+function presentMallam(teacher) {
+  const center = repository.findCenterById(teacher.centerId);
+  const podLabels = repository
+    .listPods()
+    .filter((pod) => teacher.podIds.includes(pod.id))
+    .map((pod) => pod.label);
+
+  return {
+    ...teacher,
+    centerName: center?.name ?? null,
+    region: center?.region ?? null,
+    podLabels,
+  };
+}
+
+function presentStudent(student) {
+  const cohort = repository.findCohortById(student.cohortId);
+  const pod = repository.findPodById(student.podId);
+  const mallam = repository.findTeacherById(student.mallamId);
+
+  return {
+    ...student,
+    cohortName: cohort?.name ?? null,
+    podLabel: pod?.label ?? null,
+    mallamName: mallam?.displayName ?? mallam?.name ?? null,
+  };
+}
+
+function presentLearnerProfile(student) {
+  const cohort = repository.findCohortById(student.cohortId);
+  const pod = repository.findPodById(student.podId);
+  const progressEntries = repository.listProgress().filter((entry) => entry.studentId === student.id);
+  const attendanceEntries = repository
+    .listAttendance()
+    .filter((entry) => entry.studentId === student.id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const latestProgress = progressEntries.slice().sort((a, b) => new Date(b.lastActiveAt) - new Date(a.lastActiveAt))[0];
+  const latestAttendance = attendanceEntries[0];
+  const recommendedModule = latestProgress?.recommendedNextModuleId
+    ? repository.findModuleById(latestProgress.recommendedNextModuleId)
+    : null;
+
+  return {
+    id: student.id,
+    name: student.name,
+    age: student.age,
+    cohort: cohort?.name ?? 'Unassigned cohort',
+    streakDays: latestProgress?.lessonsCompleted ?? 0,
+    guardianName: student.guardianName || 'Unknown guardian',
+    preferredLanguage: student.preferredLanguage || 'Hausa',
+    readinessLabel: formatReadinessLabel(student.level),
+    village: student.village || pod?.label || 'Unknown village',
+    guardianPhone: student.guardianPhone || '',
+    sex: student.gender === 'male' ? 'Boy' : student.gender === 'female' ? 'Girl' : 'Unspecified',
+    baselineLevel: student.stage,
+    consentCaptured: true,
+    learnerCode: buildLearnerCode(student, cohort),
+    caregiverRelationship: student.caregiverRelationship || 'Guardian',
+    enrollmentStatus: latestProgress ? 'Active in lessons' : 'Needs first lesson',
+    attendanceBand: formatAttendanceBand(student.attendanceRate || 0),
+    supportPlan:
+      student.supportPlan ||
+      (latestProgress?.progressionStatus === 'watch'
+        ? 'Use short prompts and one hint before replaying the answer.'
+        : 'Use short prompts and praise after each spoken answer.'),
+    lastLessonSummary: latestProgress
+      ? `${latestProgress.lessonsCompleted} lessons completed in ${repository.findSubjectById(latestProgress.subjectId)?.name ?? 'recent work'}.`
+      : 'Profile created. Awaiting first lesson capture.',
+    lastAttendance: latestAttendance ? `${latestAttendance.status} on ${latestAttendance.date}` : 'No attendance recorded yet',
+    recommendedModuleId: recommendedModule?.id ?? null,
+  };
+}
+
+function presentCurriculumModule(module) {
+  const strand = repository.findStrandById(module.strandId);
+  const subject = strand ? repository.findSubjectById(strand.subjectId) : null;
+
+  return {
+    ...module,
+    strandName: strand?.name ?? null,
+    subjectId: subject?.id ?? null,
+    subjectName: subject?.name ?? null,
+  };
+}
+
+function presentLearnerModule(module) {
+  const curriculum = presentCurriculumModule(module);
+  const approvedLessons = repository
+    .listLessons()
+    .filter((lesson) => lesson.moduleId === module.id && ['approved', 'published'].includes(lesson.status));
+
+  return {
+    id: curriculum.subjectId ?? curriculum.id,
+    curriculumModuleId: curriculum.id,
+    title: curriculum.subjectName ?? curriculum.title,
+    description: `${curriculum.title} for ${curriculum.level} learners.`,
+    voicePrompt: `Open ${curriculum.title} and guide the learner one spoken step at a time.`,
+    readinessGoal: `Ready for ${curriculum.title.toLowerCase()} practice`,
+    badge: `${approvedLessons.length} lesson${approvedLessons.length === 1 ? '' : 's'}`,
+    subjectId: curriculum.subjectId,
+    subjectName: curriculum.subjectName,
+    level: curriculum.level,
+    status: curriculum.status,
+    lessonCount: approvedLessons.length,
+  };
+}
+
+function presentLearnerLesson(entry) {
+  const subject = repository.findSubjectById(entry.subjectId);
+  const module = entry.moduleId ? repository.findModuleById(entry.moduleId) : null;
+  const curriculum = module ? presentCurriculumModule(module) : null;
+  const activeAssignments = repository
+    .listAssignments()
+    .filter((assignment) => assignment.lessonId === entry.id && ['active', 'scheduled'].includes(assignment.status));
+
+  return {
+    id: entry.id,
+    moduleId: entry.subjectId,
+    curriculumModuleId: module?.id ?? null,
+    title: entry.title,
+    subject: subject?.name ?? entry.subjectId,
+    durationMinutes: entry.durationMinutes,
+    status: entry.status,
+    mascotName: 'Mallam',
+    readinessFocus: module ? `${module.title} • ${module.level}` : 'Guided voice practice',
+    scenario: `Guided ${subject?.name ?? 'learning'} session for ${module?.title ?? 'current module'}.`,
+    lessonPack: {
+      lessonId: entry.id,
+      lessonTitle: entry.title,
+      subjectId: entry.subjectId,
+      subjectName: subject?.name ?? entry.subjectId,
+      curriculumModuleId: module?.id ?? null,
+      moduleKey: entry.subjectId,
+      moduleTitle: module?.title ?? null,
+      strandName: curriculum?.strandName ?? null,
+      deliveryMode: entry.mode,
+      durationMinutes: entry.durationMinutes,
+      assignmentCount: activeAssignments.length,
+      assignmentIds: activeAssignments.map((assignment) => assignment.id),
+    },
+  };
+}
+
+function presentAssessment(assessment) {
+  const subject = repository.findSubjectById(assessment.subjectId);
+  const module = repository.findModuleById(assessment.moduleId);
+
+  return {
+    ...assessment,
+    subjectName: subject?.name ?? null,
+    moduleTitle: module?.title ?? null,
+  };
+}
+
+function presentAssignment(assignment) {
+  const cohort = repository.findCohortById(assignment.cohortId);
+  const lesson = repository.findLessonById(assignment.lessonId);
+  const teacher = repository.findTeacherById(assignment.assignedBy);
+  const pod = assignment.podId ? repository.findPodById(assignment.podId) : null;
+  const assessment = assignment.assessmentId ? repository.findAssessmentById(assignment.assessmentId) : null;
+  const subject = lesson ? repository.findSubjectById(lesson.subjectId) : null;
+  const module = lesson?.moduleId ? repository.findModuleById(lesson.moduleId) : null;
+  const curriculum = module ? presentCurriculumModule(module) : null;
+
+  return {
+    ...assignment,
+    cohortName: cohort?.name ?? null,
+    lessonTitle: lesson?.title ?? null,
+    teacherName: teacher?.displayName ?? teacher?.name ?? null,
+    podLabel: pod?.label ?? null,
+    assessmentTitle: assessment?.title ?? null,
+    learnerPayload: {
+      assignmentId: assignment.id,
+      status: assignment.status,
+      dueDate: assignment.dueDate,
+      assignedAt: assignment.assignedAt ?? null,
+      target: {
+        cohortId: cohort?.id ?? null,
+        cohortName: cohort?.name ?? null,
+        podId: pod?.id ?? cohort?.podId ?? null,
+        podLabel: pod?.label ?? null,
+      },
+      facilitator: {
+        mallamId: teacher?.id ?? null,
+        mallamName: teacher?.displayName ?? teacher?.name ?? null,
+      },
+      lessonPack: {
+        lessonId: lesson?.id ?? null,
+        lessonTitle: lesson?.title ?? null,
+        durationMinutes: lesson?.durationMinutes ?? null,
+        deliveryMode: lesson?.mode ?? null,
+        subjectId: subject?.id ?? lesson?.subjectId ?? null,
+        subjectName: subject?.name ?? null,
+        curriculumModuleId: module?.id ?? null,
+        moduleKey: subject?.id ?? lesson?.subjectId ?? null,
+        moduleTitle: module?.title ?? null,
+        level: module?.level ?? null,
+        strandName: curriculum?.strandName ?? null,
+      },
+      assessment: assessment
+        ? {
+            assessmentId: assessment.id,
+            title: assessment.title,
+            kind: assessment.kind,
+            trigger: assessment.trigger,
+            triggerLabel: assessment.triggerLabel,
+            progressionGate: assessment.progressionGate,
+            passingScore: assessment.passingScore,
+          }
+        : null,
+    },
+  };
+}
+
+function presentLearnerAssignmentPack(assignment) {
+  const base = presentAssignment(assignment);
+  const targetPodId = base.learnerPayload.target.podId;
+  const cohortId = base.learnerPayload.target.cohortId;
+  const eligibleLearners = repository
+    .listStudents()
+    .filter((student) => {
+      if (cohortId && student.cohortId === cohortId) return true;
+      if (targetPodId && student.podId === targetPodId) return true;
+      return false;
+    })
+    .map((student) => presentLearnerProfile(student));
+
+  return {
+    assignmentId: base.id,
+    status: base.status,
+    dueDate: base.dueDate,
+    cohortId,
+    cohortName: base.cohortName,
+    podId: base.learnerPayload.target.podId,
+    podLabel: base.podLabel,
+    mallamId: base.assignedBy,
+    mallamName: base.teacherName,
+    lessonPack: base.learnerPayload.lessonPack,
+    assessment: base.learnerPayload.assessment,
+    eligibleLearners,
+  };
+}
+
+function presentProgress(entry) {
+  const student = repository.findStudentById(entry.studentId);
+  const subject = repository.findSubjectById(entry.subjectId);
+  const module = entry.moduleId ? repository.findModuleById(entry.moduleId) : null;
+  const recommendedModule = entry.recommendedNextModuleId
+    ? repository.findModuleById(entry.recommendedNextModuleId)
+    : null;
+
+  return {
+    ...entry,
+    studentName: student?.name ?? null,
+    subjectName: subject?.name ?? null,
+    moduleTitle: module?.title ?? null,
+    recommendedNextModuleTitle: recommendedModule?.title ?? null,
+  };
+}
+
+function presentAttendance(entry) {
+  const student = repository.findStudentById(entry.studentId);
+
+  return {
+    ...entry,
+    studentName: student?.name ?? null,
+  };
+}
+
+function presentObservation(entry) {
+  const student = repository.findStudentById(entry.studentId);
+  const teacher = repository.findTeacherById(entry.teacherId);
+
+  return {
+    ...entry,
+    studentName: student?.name ?? null,
+    teacherName: teacher?.displayName ?? teacher?.name ?? null,
+  };
+}
+
+function presentLesson(entry) {
+  const subject = repository.findSubjectById(entry.subjectId);
+  const module = entry.moduleId ? repository.findModuleById(entry.moduleId) : null;
+
+  return {
+    ...entry,
+    subjectName: subject?.name ?? null,
+    moduleTitle: module?.title ?? null,
+  };
+}
+
+module.exports = {
+  presentPod,
+  presentMallam,
+  presentStudent,
+  presentLearnerProfile,
+  presentCurriculumModule,
+  presentLearnerModule,
+  presentLearnerLesson,
+  presentAssessment,
+  presentAssignment,
+  presentLearnerAssignmentPack,
+  presentProgress,
+  presentAttendance,
+  presentObservation,
+  presentLesson,
+};

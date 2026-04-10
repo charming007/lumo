@@ -1,0 +1,8 @@
+node_modules
+.next
+build
+dist
+.dart_tool
+.idea
+.vscode
+.vercel

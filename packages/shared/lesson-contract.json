@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lumo Lesson Contract",
+  "type": "object",
+  "required": ["id", "subject", "title", "mode", "activities"],
+  "properties": {
+    "id": { "type": "string" },
+    "subject": { "type": "string", "enum": ["english", "math", "life-skills"] },
+    "title": { "type": "string" },
+    "mode": { "type": "string", "enum": ["guided"] },
+    "targetAgeRange": { "type": "string" },
+    "voicePersona": { "type": "string" },
+    "learningObjectives": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "activities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "prompt"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["listen-repeat", "listen-answer", "tap-choice", "oral-quiz"]
+          },
+          "prompt": { "type": "string" },
+          "expectedAnswers": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "hint": { "type": "string" },
+          "successFeedback": { "type": "string" },
+          "retryFeedback": { "type": "string" }
+        }
+      }
+    }
+  }
+}

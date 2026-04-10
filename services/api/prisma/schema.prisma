@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LessonStatus {
+  DRAFT
+  APPROVED
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+model Organization {
+  id      String           @id @default(cuid())
+  name    String
+  centers LearningCenter[]
+}
+
+model LearningCenter {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  region         String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  cohorts        Cohort[]
+  teachers       Teacher[]
+}
+
+model Cohort {
+  id        String    @id @default(cuid())
+  centerId   String
+  name      String
+  ageRange  String
+  center     LearningCenter @relation(fields: [centerId], references: [id])
+  students  Student[]
+  assignments Assignment[]
+}
+
+model Teacher {
+  id       String    @id @default(cuid())
+  centerId String
+  name     String
+  role     String
+  center   LearningCenter @relation(fields: [centerId], references: [id])
+  assignments Assignment[]
+  observations Observation[]
+}
+
+model Student {
+  id             String    @id @default(cuid())
+  cohortId        String
+  name           String
+  age            Int
+  level          String
+  attendanceRate Float
+  cohort         Cohort    @relation(fields: [cohortId], references: [id])
+  progress       Progress[]
+  attendance     Attendance[]
+  observations   Observation[]
+}
+
+model Subject {
+  id       String   @id
+  name     String
+  icon     String
+  lessons  Lesson[]
+  progress Progress[]
+}
+
+model Lesson {
+  id              String      @id @default(cuid())
+  subjectId       String
+  title           String
+  durationMinutes Int
+  mode            String
+  status          LessonStatus
+  subject         Subject      @relation(fields: [subjectId], references: [id])
+  assignments     Assignment[]
+}
+
+model Assignment {
+  id         String           @id @default(cuid())
+  cohortId    String
+  lessonId    String
+  assignedBy String
+  dueDate    DateTime
+  status     AssignmentStatus
+  cohort      Cohort           @relation(fields: [cohortId], references: [id])
+  lesson      Lesson           @relation(fields: [lessonId], references: [id])
+  teacher     Teacher          @relation(fields: [assignedBy], references: [id])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  studentId String
+  date      DateTime
+  status    AttendanceStatus
+  student   Student          @relation(fields: [studentId], references: [id])
+}
+
+model Observation {
+  id        String   @id @default(cuid())
+  studentId String
+  teacherId String
+  note      String
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id])
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+}
+
+model Progress {
+  id               String   @id @default(cuid())
+  studentId        String
+  subjectId        String
+  mastery          Float
+  lessonsCompleted Int
+  lastActiveAt     DateTime
+  student          Student  @relation(fields: [studentId], references: [id])
+  subject          Subject  @relation(fields: [subjectId], references: [id])
+}
