@@ -2,11 +2,14 @@ import 'api_client.dart';
 import 'models.dart';
 import 'seed_data.dart';
 
+typedef VoiceReplay = Future<void> Function(String text, SpeakerMode mode);
+
 class LumoAppState {
   LumoAppState({LumoApiClient? apiClient})
       : _apiClient = apiClient ?? LumoApiClient();
 
   final LumoApiClient _apiClient;
+  VoiceReplay? voiceReplay;
 
   LearnerProfile? currentLearner;
   LearningModule? selectedModule;
@@ -35,6 +38,19 @@ class LumoAppState {
   String? lastSyncError;
 
   String get backendBaseUrl => _apiClient.baseUrl;
+
+  void attachVoiceReplay(VoiceReplay replay) {
+    voiceReplay = replay;
+  }
+
+  Future<void> replayVisiblePrompt(
+    String prompt, {
+    SpeakerMode mode = SpeakerMode.guiding,
+  }) async {
+    final trimmed = prompt.trim();
+    if (trimmed.isEmpty) return;
+    await voiceReplay?.call(trimmed, mode);
+  }
 
   SyncEvent? get latestSyncEvent =>
       pendingSyncEvents.isEmpty ? null : pendingSyncEvents.last;
@@ -501,24 +517,27 @@ class LumoAppState {
     }
   }
 
-  void replayCoachPrompt() {
+  Future<void> replayCoachPrompt() async {
     final session = activeSession;
     if (session == null) {
       speakerMode = SpeakerMode.guiding;
       return;
     }
+
+    final prompt = personalizePrompt(session.currentStep.coachPrompt);
     activeSession = session.copyWith(
       transcript: [
         ...session.transcript,
         SessionTurn(
           speaker: 'Mallam',
-          text: personalizePrompt(session.currentStep.coachPrompt),
+          text: prompt,
           timestamp: DateTime.now(),
         ),
       ],
       lastSupportType: 'Prompt replay',
     );
     speakerMode = SpeakerMode.guiding;
+    await replayVisiblePrompt(prompt, mode: SpeakerMode.guiding);
   }
 
   Future<void> completeLesson(LessonCardModel lesson) async {

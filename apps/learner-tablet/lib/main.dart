@@ -5,6 +5,7 @@ import 'design_shell.dart';
 import 'instructions.dart';
 import 'models.dart';
 import 'theme.dart';
+import 'voice_replay_service.dart';
 import 'widgets.dart';
 
 void main() {
@@ -20,11 +21,13 @@ class LumoApp extends StatefulWidget {
 
 class _LumoAppState extends State<LumoApp> {
   final state = LumoAppState();
+  final voiceReplayService = VoiceReplayService();
   bool showSplash = true;
 
   @override
   void initState() {
     super.initState();
+    state.attachVoiceReplay(voiceReplayService.replay);
     Future.microtask(() async {
       await state.bootstrap();
       if (!mounted) return;
@@ -37,6 +40,12 @@ class _LumoAppState extends State<LumoApp> {
     setState(() {
       showSplash = false;
     });
+  }
+
+  @override
+  void dispose() {
+    voiceReplayService.dispose();
+    super.dispose();
   }
 
   @override
@@ -164,7 +173,11 @@ class HomePage extends StatelessWidget {
                     Expanded(
                       child: MallamPanel(
                         instruction: homeInstruction,
-                        onVoiceTap: state.replayCoachPrompt,
+                        onVoiceTap: () {
+                          state.replayVisiblePrompt(
+                            'Assalamu alaikum. Choose a learner path and I will guide each lesson by voice.',
+                          );
+                        },
                         prompt:
                             'Assalamu alaikum. Choose a learner path and I will guide each lesson by voice.',
                         speakerMode: SpeakerMode.guiding,
@@ -693,6 +706,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   instruction: registrationInstruction,
                   onVoiceTap: () {
                     syncDraft();
+                    widget.state.replayVisiblePrompt(
+                      'Let us register the learner carefully so the next lesson starts at the right level.',
+                    );
                     setState(() {});
                   },
                   prompt:
@@ -1306,7 +1322,9 @@ class ModuleDetailPage extends StatelessWidget {
               Expanded(
                 child: MallamPanel(
                   instruction: modulesInstruction,
-                  onVoiceTap: state.replayCoachPrompt,
+                  onVoiceTap: () {
+                    state.replayVisiblePrompt(module.voicePrompt);
+                  },
                   prompt: module.voicePrompt,
                   speakerMode: SpeakerMode.guiding,
                   statusLabel: 'Mallam is introducing the module',
@@ -1494,7 +1512,11 @@ class SelectStudentPage extends StatelessWidget {
               Expanded(
                 child: MallamPanel(
                   instruction: selectStudentInstruction,
-                  onVoiceTap: state.replayCoachPrompt,
+                  onVoiceTap: () {
+                    state.replayVisiblePrompt(
+                      'Choose the learner and I will start at the right speaking level.',
+                    );
+                  },
                   prompt:
                       'Choose the learner and I will start at the right speaking level.',
                   speakerMode: SpeakerMode.guiding,
