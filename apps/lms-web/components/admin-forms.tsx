@@ -6,17 +6,20 @@ import {
   createMallamAction,
   createModuleAction,
   createStudentAction,
+  createSubjectAction,
   deleteAssessmentAction,
   deleteMallamAction,
   deleteModuleAction,
   deleteLessonAction,
   deleteStudentAction,
+  deleteSubjectAction,
   updateAssessmentAction,
   updateAssignmentAction,
   updateLessonAction,
   updateMallamAction,
   updateModuleAction,
   updateStudentAction,
+  updateSubjectAction,
 } from '../app/actions';
 import type { Assessment, Assignment, Center, Cohort, CurriculumModule, Lesson, Mallam, Pod, Strand, Student, Subject } from '../lib/types';
 import { ActionButton } from './action-button';
@@ -210,6 +213,55 @@ export function ReassignAssignmentForm({ assignment, cohorts, mallams }: { assig
         <FieldLabel>Status<select name="status" defaultValue={assignment.status} style={inputStyle}><option value="active">Active</option><option value="scheduled">Scheduled</option><option value="completed">Completed</option></select></FieldLabel>
       </div>
       <ActionButton label="Update assignment" pendingLabel="Updating assignment…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function CreateSubjectForm() {
+  return (
+    <form action={createSubjectAction} style={cardStyle}>
+      <h2 style={{ margin: 0 }}>Create subject</h2>
+      <SectionHint>Create the subject lane first, and optionally seed its first strand so the module flow is immediately usable.</SectionHint>
+      <FieldLabel>Subject ID<input name="id" defaultValue="science" style={inputStyle} /></FieldLabel>
+      <FieldLabel>Subject name<input name="name" defaultValue="Foundational Science" style={inputStyle} /></FieldLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <FieldLabel>Icon<input name="icon" defaultValue="biotech" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="4" style={inputStyle} /></FieldLabel>
+      </div>
+      <FieldLabel>Initial strand name<input name="initialStrandName" defaultValue="Observation & Discovery" style={inputStyle} /></FieldLabel>
+      <ActionButton label="Create subject" pendingLabel="Creating subject…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function UpdateSubjectForm({ subject, embedded = false }: { subject: Subject; embedded?: boolean }) {
+  return (
+    <div style={embedded ? embeddedCardStyle : cardStyle}>
+      <form action={updateSubjectAction} style={{ display: 'grid', gap: 12 }}>
+        <input type="hidden" name="subjectId" value={subject.id} />
+        <h2 style={{ margin: 0 }}>Update subject</h2>
+        <FieldLabel>Subject name<input name="name" defaultValue={subject.name} style={inputStyle} /></FieldLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+          <FieldLabel>Icon<input name="icon" defaultValue={subject.icon ?? ''} style={inputStyle} /></FieldLabel>
+          <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(subject.order ?? 1)} style={inputStyle} /></FieldLabel>
+        </div>
+        <ActionButton label="Save subject changes" pendingLabel="Saving subject…" style={buttonStyle} />
+      </form>
+    </div>
+  );
+}
+
+export function DeleteSubjectForm({ subject, embedded = false }: { subject: Subject; embedded?: boolean }) {
+  return (
+    <form action={deleteSubjectAction} style={embedded ? embeddedCardStyle : cardStyle}>
+      <input type="hidden" name="subjectId" value={subject.id} />
+      <div style={{ display: 'grid', gap: 10 }}>
+        <h2 style={{ margin: 0 }}>Delete subject</h2>
+        <div style={{ color: '#475569', lineHeight: 1.6 }}>
+          Remove <strong>{subject.name}</strong> from the content library? This also clears linked strands, modules, lessons, assessments, and related progress references.
+        </div>
+      </div>
+      <DeleteConfirmSubmit expectedText={subject.name} entityLabel="subject" actionLabel="Delete subject" pendingLabel="Deleting subject…" impactNote="This is a cascading delete. If you blow away a subject, its whole lane goes with it." />
     </form>
   );
 }

@@ -182,6 +182,41 @@ export async function deleteMallamAction(formData: FormData) {
   redirect('/mallams?message=Mallam%20removed%20from%20deployment');
 }
 
+export async function createSubjectAction(formData: FormData) {
+  const payload = {
+    id: String(formData.get('id') || ''),
+    name: String(formData.get('name') || ''),
+    icon: String(formData.get('icon') || 'menu_book'),
+    order: Number(formData.get('order') || 0),
+    initialStrandName: String(formData.get('initialStrandName') || ''),
+  };
+
+  await apiWrite('/api/v1/subjects', 'POST', payload);
+  revalidatePath('/content');
+  redirect('/content?message=Subject%20created%20and%20added%20to%20the%20library');
+}
+
+export async function updateSubjectAction(formData: FormData) {
+  const subjectId = String(formData.get('subjectId') || '');
+  const payload = {
+    name: String(formData.get('name') || ''),
+    icon: String(formData.get('icon') || ''),
+    order: Number(formData.get('order') || 0),
+  };
+
+  await apiWrite(`/api/v1/subjects/${subjectId}`, 'PATCH', payload);
+  revalidatePath('/content');
+  redirect('/content?message=Subject%20changes%20saved');
+}
+
+export async function deleteSubjectAction(formData: FormData) {
+  const subjectId = String(formData.get('subjectId') || '');
+
+  await apiWrite(`/api/v1/subjects/${subjectId}`, 'DELETE');
+  revalidatePath('/content');
+  redirect('/content?message=Subject%20removed%20from%20the%20library');
+}
+
 export async function createModuleAction(formData: FormData) {
   const payload = {
     strandId: String(formData.get('strandId') || ''),

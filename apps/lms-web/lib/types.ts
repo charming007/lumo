@@ -78,6 +78,8 @@ export type Mallam = {
 export type Subject = {
   id: string;
   name: string;
+  icon?: string;
+  order?: number;
 };
 
 export type Strand = {

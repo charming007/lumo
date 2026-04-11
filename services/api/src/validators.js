@@ -104,6 +104,18 @@ function validateTeacher(body, { partial = false } = {}) {
   assertAllowed('role', body.role, ['mallam-lead', 'facilitator', 'coach']);
 }
 
+function validateSubject(body, { partial = false } = {}) {
+  if (!partial) {
+    requireFields(body, ['id', 'name']);
+  }
+
+  if (!partial && repository.findSubjectById(body.id)) {
+    const error = new Error(`Subject already exists: ${body.id}`);
+    error.statusCode = 409;
+    throw error;
+  }
+}
+
 function validateModule(body, { partial = false } = {}) {
   if (!partial) {
     requireFields(body, ['strandId', 'title', 'level']);
@@ -154,6 +166,7 @@ module.exports = {
   validateProgress,
   validateStudent,
   validateTeacher,
+  validateSubject,
   validateModule,
   validateLesson,
   validateAssessment,

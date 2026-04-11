@@ -617,6 +617,41 @@ app.get('/api/v1/subjects', (_req, res) => {
   res.json(store.listSubjects());
 });
 
+app.post('/api/v1/subjects', requireRole(['admin']), (req, res, next) => {
+  try {
+    validators.validateSubject(req.body);
+    const subject = store.createSubject(req.body);
+    return res.status(201).json(subject);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/v1/subjects/:id', requireRole(['admin']), (req, res, next) => {
+  try {
+    validators.validateSubject(req.body, { partial: true });
+    const subject = store.updateSubject(req.params.id, req.body);
+
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    return res.json(subject);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.delete('/api/v1/subjects/:id', requireRole(['admin']), (req, res) => {
+  const subject = store.deleteSubject(req.params.id);
+
+  if (!subject) {
+    return res.status(404).json({ message: 'Subject not found' });
+  }
+
+  return res.status(204).send();
+});
+
 app.get('/api/v1/strands', (_req, res) => {
   res.json(store.listStrands().map(presenters.presentStrand));
 });

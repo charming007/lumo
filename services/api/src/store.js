@@ -17,6 +17,10 @@ function updateStudent(id, input) {
   return repository.updateStudent(id, input);
 }
 
+function deleteStudent(id) {
+  return repository.deleteStudent(id);
+}
+
 function listAssignments() {
   return repository.listAssignments();
 }
@@ -112,8 +116,24 @@ function updateLesson(id, input) {
   return repository.updateLesson(id, input);
 }
 
+function deleteLesson(id) {
+  return repository.deleteLesson(id);
+}
+
 function listSubjects() {
   return repository.listSubjects();
+}
+
+function createSubject(input) {
+  return repository.createSubject(input);
+}
+
+function updateSubject(id, input) {
+  return repository.updateSubject(id, input);
+}
+
+function deleteSubject(id) {
+  return repository.deleteSubject(id);
 }
 
 function listCenters() {
@@ -140,6 +160,14 @@ function updateTeacher(id, input) {
   return repository.updateTeacher(id, input);
 }
 
+function deleteTeacher(id) {
+  return repository.deleteTeacher(id);
+}
+
+function listStrands() {
+  return repository.listStrands();
+}
+
 function listModules() {
   return repository.listModules();
 }
@@ -152,8 +180,24 @@ function updateModule(id, input) {
   return repository.updateModule(id, input);
 }
 
+function deleteModule(id) {
+  return repository.deleteModule(id);
+}
+
 function listAssessments() {
   return repository.listAssessments();
+}
+
+function createAssessment(input) {
+  return repository.createAssessment(input);
+}
+
+function updateAssessment(id, input) {
+  return repository.updateAssessment(id, input);
+}
+
+function deleteAssessment(id) {
+  return repository.deleteAssessment(id);
 }
 
 function listSyncEvents() {
@@ -181,6 +225,7 @@ module.exports = {
   findStudentById,
   createStudent,
   updateStudent,
+  deleteStudent,
   listAssignments,
   findAssignmentById,
   createAssignment,
@@ -199,17 +244,27 @@ module.exports = {
   findLessonById,
   createLesson,
   updateLesson,
+  deleteLesson,
   listSubjects,
+  createSubject,
+  updateSubject,
+  deleteSubject,
   listCenters,
   listPods,
   listCohorts,
   listTeachers,
   createTeacher,
   updateTeacher,
+  deleteTeacher,
+  listStrands,
   listModules,
   createModule,
   updateModule,
+  deleteModule,
   listAssessments,
+  createAssessment,
+  updateAssessment,
+  deleteAssessment,
   listSyncEvents,
   findSyncEventByClientId,
   createSyncEvent,

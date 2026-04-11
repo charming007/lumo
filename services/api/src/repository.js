@@ -183,6 +183,71 @@ function findSubjectById(id) {
   return data.subjects.find((item) => item.id === id) || null;
 }
 
+function createSubject(input) {
+  const subject = {
+    id: input.id,
+    name: input.name,
+    icon: input.icon || 'menu_book',
+    order: Number(input.order || data.subjects.length + 1),
+  };
+
+  data.subjects.push(subject);
+
+  if (input.initialStrandName) {
+    data.strands.push({
+      id: `strand-${data.strands.length + 1}`,
+      subjectId: subject.id,
+      name: input.initialStrandName,
+      order: 1,
+    });
+  }
+
+  return subject;
+}
+
+function updateSubject(id, input) {
+  const subject = findSubjectById(id);
+
+  if (!subject) {
+    return null;
+  }
+
+  Object.assign(subject, {
+    name: input.name ?? subject.name,
+    icon: input.icon ?? subject.icon,
+    order: input.order !== undefined ? Number(input.order) : subject.order,
+  });
+
+  return subject;
+}
+
+function deleteSubject(id) {
+  const index = data.subjects.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const [subject] = data.subjects.splice(index, 1);
+  const strandIds = data.strands.filter((item) => item.subjectId === id).map((item) => item.id);
+  const moduleIds = data.modules.filter((item) => strandIds.includes(item.strandId)).map((item) => item.id);
+  const lessonIds = data.lessons.filter((item) => item.subjectId === id || moduleIds.includes(item.moduleId)).map((item) => item.id);
+  const assessmentIds = data.assessments.filter((item) => item.subjectId === id || moduleIds.includes(item.moduleId)).map((item) => item.id);
+
+  data.strands = data.strands.filter((item) => item.subjectId !== id);
+  data.modules = data.modules.filter((item) => !moduleIds.includes(item.id));
+  data.lessons = data.lessons.filter((item) => item.subjectId !== id && !moduleIds.includes(item.moduleId));
+  data.assessments = data.assessments.filter((item) => item.subjectId !== id && !moduleIds.includes(item.moduleId));
+  data.assignments = data.assignments.filter((assignment) => !lessonIds.includes(assignment.lessonId) && !assessmentIds.includes(assignment.assessmentId));
+  data.progress.forEach((record) => {
+    if (record.subjectId === id) record.subjectId = null;
+    if (record.moduleId && moduleIds.includes(record.moduleId)) record.moduleId = null;
+    if (record.recommendedNextModuleId && moduleIds.includes(record.recommendedNextModuleId)) record.recommendedNextModuleId = null;
+  });
+
+  return subject;
+}
+
 function listStrands() {
   return data.strands;
 }
@@ -549,6 +614,9 @@ module.exports = {
   deleteStudent,
   listSubjects,
   findSubjectById,
+  createSubject,
+  updateSubject,
+  deleteSubject,
   listStrands,
   findStrandById,
   listModules,
