@@ -446,6 +446,31 @@ class LumoAppState {
     );
   }
 
+  void attachLearnerAudioCapture({
+    required String path,
+    required Duration duration,
+  }) {
+    final session = activeSession;
+    if (session == null) return;
+
+    final seconds = duration.inSeconds <= 0 ? 1 : duration.inSeconds;
+    activeSession = session.copyWith(
+      audioInputMode: 'Shared mic on tablet',
+      totalAudioCaptures: session.totalAudioCaptures + 1,
+      latestLearnerAudioPath: path,
+      latestLearnerAudioDuration: duration,
+      lastSupportType: 'Learner voice captured',
+      transcript: [
+        ...session.transcript,
+        SessionTurn(
+          speaker: currentLearner?.name ?? 'Learner',
+          text: 'Voice captured locally (${seconds}s)',
+          timestamp: DateTime.now(),
+        ),
+      ],
+    );
+  }
+
   void setAudioInputMode(String mode) {
     final session = activeSession;
     if (session == null) return;
@@ -489,6 +514,7 @@ class LumoAppState {
         ),
       ],
       clearLatestLearnerResponse: true,
+      clearLatestLearnerAudio: true,
     );
     speakerMode = nextStep.speakerMode;
     return false;

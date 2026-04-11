@@ -464,6 +464,9 @@ class LessonSessionState {
   final String audioInputMode;
   final String speakerOutputMode;
   final int totalResponses;
+  final int totalAudioCaptures;
+  final String? latestLearnerAudioPath;
+  final Duration? latestLearnerAudioDuration;
   final String lastSupportType;
   final DateTime lastUpdatedAt;
 
@@ -482,6 +485,9 @@ class LessonSessionState {
     this.audioInputMode = 'Facilitator typed capture',
     this.speakerOutputMode = 'Tablet speaker',
     this.totalResponses = 0,
+    this.totalAudioCaptures = 0,
+    this.latestLearnerAudioPath,
+    this.latestLearnerAudioDuration,
     this.lastSupportType = 'Prompt replay',
     DateTime? lastUpdatedAt,
   }) : lastUpdatedAt = lastUpdatedAt ?? startedAt;
@@ -492,6 +498,10 @@ class LessonSessionState {
 
   bool get hasResponse =>
       latestLearnerResponse != null && latestLearnerResponse!.trim().isNotEmpty;
+
+  bool get hasLearnerInput =>
+      hasResponse ||
+      (latestLearnerAudioPath != null && latestLearnerAudioPath!.trim().isNotEmpty);
 
   double get progress =>
       lesson.steps.isEmpty ? 0 : (stepIndex + 1) / lesson.steps.length;
@@ -514,6 +524,9 @@ class LessonSessionState {
         'lastSupportType': lastSupportType,
         'audioInputMode': audioInputMode,
         'speakerOutputMode': speakerOutputMode,
+        'totalAudioCaptures': totalAudioCaptures,
+        'latestLearnerAudioPath': latestLearnerAudioPath,
+        'latestLearnerAudioDurationSeconds': latestLearnerAudioDuration?.inSeconds,
         'observations': facilitatorObservations,
         'transcriptTurns': transcript.length,
         'startedAt': startedAt.toIso8601String(),
@@ -537,9 +550,13 @@ class LessonSessionState {
     String? audioInputMode,
     String? speakerOutputMode,
     int? totalResponses,
+    int? totalAudioCaptures,
+    String? latestLearnerAudioPath,
+    Duration? latestLearnerAudioDuration,
     String? lastSupportType,
     DateTime? lastUpdatedAt,
     bool clearLatestLearnerResponse = false,
+    bool clearLatestLearnerAudio = false,
   }) {
     return LessonSessionState(
       lesson: lesson ?? this.lesson,
@@ -559,6 +576,13 @@ class LessonSessionState {
       audioInputMode: audioInputMode ?? this.audioInputMode,
       speakerOutputMode: speakerOutputMode ?? this.speakerOutputMode,
       totalResponses: totalResponses ?? this.totalResponses,
+      totalAudioCaptures: totalAudioCaptures ?? this.totalAudioCaptures,
+      latestLearnerAudioPath: clearLatestLearnerAudio
+          ? null
+          : (latestLearnerAudioPath ?? this.latestLearnerAudioPath),
+      latestLearnerAudioDuration: clearLatestLearnerAudio
+          ? null
+          : (latestLearnerAudioDuration ?? this.latestLearnerAudioDuration),
       lastSupportType: lastSupportType ?? this.lastSupportType,
       lastUpdatedAt: lastUpdatedAt ?? DateTime.now(),
     );

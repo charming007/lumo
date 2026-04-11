@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'app_state.dart';
+import 'audio_capture_service.dart';
 import 'design_shell.dart';
 import 'instructions.dart';
 import 'models.dart';
@@ -1696,15 +1699,23 @@ class LessonSessionPage extends StatefulWidget {
 
 class _LessonSessionPageState extends State<LessonSessionPage> {
   late final TextEditingController responseController;
+  late final AudioCaptureService audioCaptureService;
+  Timer? recordingTicker;
+  bool isRecording = false;
+  Duration currentRecordingDuration = Duration.zero;
+  String? microphoneStatus;
 
   @override
   void initState() {
     super.initState();
     responseController = TextEditingController();
+    audioCaptureService = AudioCaptureService();
   }
 
   @override
   void dispose() {
+    recordingTicker?.cancel();
+    audioCaptureService.dispose();
     responseController.dispose();
     super.dispose();
   }
@@ -1716,6 +1727,76 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     responseController.text = text;
     widget.onChanged();
     setState(() {});
+  }
+
+  Future<void> startRecording() async {
+    try {
+      await audioCaptureService.start(
+        fileStem: widget.state.currentLearner?.learnerCode ?? 'learner-voice',
+      );
+      recordingTicker?.cancel();
+      recordingTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() {
+          currentRecordingDuration += const Duration(seconds: 1);
+        });
+      });
+      widget.state.setAudioInputMode('Shared mic on tablet');
+      widget.onChanged();
+      setState(() {
+        isRecording = true;
+        currentRecordingDuration = Duration.zero;
+        microphoneStatus = 'Recording learner voice…';
+      });
+    } catch (error) {
+      setState(() {
+        isRecording = false;
+        microphoneStatus = error.toString();
+      });
+    }
+  }
+
+  Future<void> stopRecording() async {
+    recordingTicker?.cancel();
+    final result = await audioCaptureService.stop();
+    if (!mounted) return;
+
+    setState(() {
+      isRecording = false;
+    });
+
+    if (result == null) {
+      setState(() {
+        microphoneStatus = 'No learner audio was saved.';
+      });
+      return;
+    }
+
+    widget.state.attachLearnerAudioCapture(
+      path: result.path,
+      duration: result.duration,
+    );
+    widget.onChanged();
+    setState(() {
+      currentRecordingDuration = result.duration;
+      microphoneStatus =
+          'Learner voice saved locally (${formatDuration(result.duration)}).';
+    });
+  }
+
+  String formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds <= 0 ? 1 : duration.inSeconds;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    final paddedSeconds = seconds.toString().padLeft(2, '0');
+    return minutes > 0 ? '$minutes:$paddedSeconds' : '0:$paddedSeconds';
+  }
+
+  String compactPath(String path) {
+    final normalized = path.replaceAll('\\', '/');
+    final segments = normalized.split('/').where((segment) => segment.isNotEmpty).toList();
+    if (segments.length <= 2) return normalized;
+    return '…/${segments[segments.length - 2]}/${segments.last}';
   }
 
   @override
@@ -2074,13 +2155,13 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                   Expanded(
                                     child: FilledButton.tonal(
                                       onPressed: () => submitResponse(),
-                                      child: const Text('Save response'),
+                                      child: const Text('Save typed response'),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: FilledButton(
-                                      onPressed: session.hasResponse
+                                      onPressed: session.hasLearnerInput
                                           ? () async {
                                               final finished = widget.state
                                                   .advanceLessonStep();
@@ -2116,6 +2197,120 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     ),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 16),
+                              SoftPanel(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Learner microphone capture',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      microphoneStatus ??
+                                          'Record the learner on-device. Typed capture still works if the mic is unavailable.',
+                                      style: const TextStyle(
+                                        color: Color(0xFF475569),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 12,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        FilledButton.icon(
+                                          onPressed: isRecording ? null : startRecording,
+                                          icon: const Icon(Icons.mic_rounded),
+                                          label: const Text('Start recording'),
+                                        ),
+                                        FilledButton.tonalIcon(
+                                          onPressed: isRecording ? stopRecording : null,
+                                          icon: const Icon(Icons.stop_circle_outlined),
+                                          label: const Text('Stop and save'),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isRecording
+                                                ? const Color(0xFFFFF1F2)
+                                                : const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(999),
+                                            border: Border.all(
+                                              color: isRecording
+                                                  ? const Color(0xFFFDA4AF)
+                                                  : const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            isRecording
+                                                ? 'Recording ${formatDuration(currentRecordingDuration)}'
+                                                : 'Ready for learner audio',
+                                            style: TextStyle(
+                                              color: isRecording
+                                                  ? const Color(0xFFBE123C)
+                                                  : const Color(0xFF475569),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (session.latestLearnerAudioPath != null) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: const Color(0xFFE2E8F0),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            InfoRow(
+                                              label: 'Latest learner audio',
+                                              value: formatDuration(
+                                                session.latestLearnerAudioDuration ??
+                                                    Duration.zero,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              compactPath(
+                                                session.latestLearnerAudioPath!,
+                                              ),
+                                              style: const TextStyle(
+                                                color: Color(0xFF64748B),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'This accepts real learner voice input now. Transcription/STT is still not wired, so progression uses the saved audio capture itself or a typed transcript.',
+                                              style: const TextStyle(
+                                                color: Color(0xFF475569),
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 16),
                               _ResponseReviewBanner(
