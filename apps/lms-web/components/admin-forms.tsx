@@ -228,13 +228,14 @@ export function UpdateModuleForm({ modules }: { modules: CurriculumModule[] }) {
 
   return (
     <form action={updateModuleAction} style={cardStyle}>
-      <input type="hidden" name="moduleId" value={module?.id ?? ''} />
       <h2 style={{ margin: 0 }}>Update module</h2>
+      <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((entry) => <option key={entry.id} value={entry.id}>{entry.title} • {entry.subjectName ?? 'General'} • {entry.status}</option>)}</select></FieldLabel>
       <FieldLabel>Status<select name="status" defaultValue={module?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(module?.lessonCount ?? 1)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Level<select name="level" defaultValue={module?.level ?? 'beginner'} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
       </div>
+      <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>Pick the module you want to update, then save the status, lesson count, and level for that exact record.</div>
       <ActionButton label="Save module changes" pendingLabel="Saving module…" style={buttonStyle} />
     </form>
   );
@@ -262,13 +263,14 @@ export function UpdateLessonForm({ lessons }: { lessons: Lesson[] }) {
 
   return (
     <form action={updateLessonAction} style={cardStyle}>
-      <input type="hidden" name="lessonId" value={lesson?.id ?? ''} />
       <h2 style={{ margin: 0 }}>Update lesson</h2>
+      <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((entry) => <option key={entry.id} value={entry.id}>{entry.title} • {entry.moduleTitle ?? 'No module'} • {entry.status}</option>)}</select></FieldLabel>
       <FieldLabel>Status<select name="status" defaultValue={lesson?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Mode<select name="mode" defaultValue={lesson?.mode ?? 'guided'} style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option></select></FieldLabel>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue={String(lesson?.durationMinutes ?? 8)} style={inputStyle} /></FieldLabel>
       </div>
+      <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>Target the exact lesson you want instead of blindly updating whatever happens to be first in the dataset.</div>
       <ActionButton label="Save lesson changes" pendingLabel="Saving lesson…" style={buttonStyle} />
     </form>
   );
@@ -303,8 +305,8 @@ export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[
 
   return (
     <form action={updateAssessmentAction} style={cardStyle}>
-      <input type="hidden" name="assessmentId" value={assessment?.id ?? ''} />
       <h2 style={{ margin: 0 }}>Update assessment gate</h2>
+      <FieldLabel>Assessment<select name="assessmentId" defaultValue={assessment?.id ?? ''} style={inputStyle}>{assessments.map((entry) => <option key={entry.id} value={entry.id}>{entry.title} • {entry.moduleTitle ?? 'No module'} • {entry.status}</option>)}</select></FieldLabel>
       <FieldLabel>Assessment title<input name="title" defaultValue={assessment?.title ?? ''} style={inputStyle} /></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Kind<select name="kind" defaultValue={assessment?.kind ?? 'automatic'} style={inputStyle}><option value="automatic">Automatic</option><option value="manual">Manual</option></select></FieldLabel>
@@ -316,6 +318,7 @@ export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[
         <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue={String(assessment?.passingScore ?? 0.7)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue={assessment?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
       </div>
+      <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>Same deal here: choose the assessment gate first so admins don’t accidentally overwrite the wrong progression check.</div>
       <ActionButton label="Save assessment changes" pendingLabel="Saving assessment…" style={buttonStyle} />
     </form>
   );
