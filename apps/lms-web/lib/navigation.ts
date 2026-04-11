@@ -3,6 +3,7 @@ export const navigationItems = [
   { label: 'Learners', href: '/students' },
   { label: 'Mallams', href: '/mallams' },
   { label: 'Content Library', href: '/content' },
+  { label: 'English Studio', href: '/english' },
   { label: 'Assessments', href: '/assessments' },
   { label: 'Pods', href: '/pods' },
   { label: 'Analytics', href: '/reports' },
