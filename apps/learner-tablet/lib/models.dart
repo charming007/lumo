@@ -2,9 +2,31 @@ enum SpeakerMode { idle, guiding, listening, affirming, waiting }
 
 enum LessonStepType { intro, prompt, practice, reflection, celebration }
 
+enum LessonActivityType { letterIntro, imageChoice, speakAnswer }
+
 enum LessonCompletionState { ready, inProgress, complete }
 
 enum ResponseReview { pending, onTrack, needsSupport }
+
+class LessonActivity {
+  final LessonActivityType type;
+  final String prompt;
+  final String? focusText;
+  final String? supportText;
+  final List<String> choices;
+  final List<String> choiceEmoji;
+  final String? targetResponse;
+
+  const LessonActivity({
+    required this.type,
+    required this.prompt,
+    this.focusText,
+    this.supportText,
+    this.choices = const [],
+    this.choiceEmoji = const [],
+    this.targetResponse,
+  });
+}
 
 class LearnerProfile {
   final String id;
@@ -377,6 +399,7 @@ class LessonStep {
   final String facilitatorTip;
   final String realWorldCheck;
   final SpeakerMode speakerMode;
+  final LessonActivity? activity;
 
   const LessonStep({
     required this.id,
@@ -389,6 +412,7 @@ class LessonStep {
     required this.facilitatorTip,
     required this.realWorldCheck,
     required this.speakerMode,
+    this.activity,
   });
 }
 

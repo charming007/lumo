@@ -1661,6 +1661,244 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     await _speakCurrentStepIfNeeded(force: true);
   }
 
+  Future<void> _setResponseAndMaybeSubmit(String value,
+      {bool submit = false}) async {
+    responseController.text = value;
+    setState(() {});
+    if (submit) {
+      await _handleSubmittedResponse(value);
+    }
+  }
+
+  Future<void> _speakActivityText(String text,
+      {SpeakerMode mode = SpeakerMode.guiding}) async {
+    await widget.state.replayVisiblePrompt(text, mode: mode);
+    if (!mounted) return;
+    setState(() {
+      microphoneStatus = 'Mallam replayed the activity prompt.';
+    });
+  }
+
+  Widget _buildActivityPanel(LessonStep step) {
+    final activity = step.activity;
+    if (activity == null) return const SizedBox.shrink();
+
+    final prompt = widget.state.personalizePrompt(activity.prompt);
+    final focusText = activity.focusText == null
+        ? null
+        : widget.state.personalizeExpectedResponse(activity.focusText!);
+    final supportText = activity.supportText == null
+        ? null
+        : widget.state.personalizeExpectedResponse(activity.supportText!);
+    final targetResponse = activity.targetResponse == null
+        ? null
+        : widget.state.personalizeExpectedResponse(activity.targetResponse!);
+
+    Widget body;
+    switch (activity.type) {
+      case LessonActivityType.letterIntro:
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Text(
+                    focusText ?? '-',
+                    style: const TextStyle(
+                      fontSize: 44,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF312E81),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(prompt),
+                      if (supportText != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          supportText,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: focusText == null
+                      ? null
+                      : () => _speakActivityText(focusText),
+                  icon: const Icon(Icons.volume_up_rounded),
+                  label: const Text('Hear letter'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: supportText == null
+                      ? null
+                      : () => _speakActivityText(supportText),
+                  icon: const Icon(Icons.record_voice_over_rounded),
+                  label: const Text('Hear word'),
+                ),
+                ActionChip(
+                  label: Text(targetResponse ?? 'Use this answer'),
+                  onPressed: targetResponse == null
+                      ? null
+                      : () => _setResponseAndMaybeSubmit(targetResponse),
+                ),
+              ],
+            ),
+          ],
+        );
+        break;
+      case LessonActivityType.imageChoice:
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(prompt),
+            if (supportText != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                supportText,
+                style: const TextStyle(color: Color(0xFF475569)),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: List.generate(activity.choices.length, (index) {
+                final choice = activity.choices[index];
+                final emoji = index < activity.choiceEmoji.length
+                    ? activity.choiceEmoji[index]
+                    : '🖼️';
+                return InkWell(
+                  onTap: () => _setResponseAndMaybeSubmit(choice, submit: true),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 130,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFD6D3FF)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(emoji, style: const TextStyle(fontSize: 42)),
+                        const SizedBox(height: 10),
+                        Text(
+                          choice,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+        );
+        break;
+      case LessonActivityType.speakAnswer:
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(prompt),
+            if (focusText != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  focusText,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF9A3412),
+                  ),
+                ),
+              ),
+            ],
+            if (supportText != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                supportText,
+                style: const TextStyle(color: Color(0xFF475569)),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: focusText == null
+                      ? null
+                      : () => _speakActivityText(
+                            focusText,
+                            mode: SpeakerMode.affirming,
+                          ),
+                  icon: const Icon(Icons.volume_up_rounded),
+                  label: const Text('Hear target answer'),
+                ),
+                ActionChip(
+                  label: Text(targetResponse ?? 'Use target answer'),
+                  onPressed: targetResponse == null
+                      ? null
+                      : () => _setResponseAndMaybeSubmit(targetResponse),
+                ),
+              ],
+            ),
+          ],
+        );
+        break;
+    }
+
+    return SoftPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.extension_rounded, color: LumoTheme.primary),
+              const SizedBox(width: 8),
+              const Text(
+                'Interactive activity',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          body,
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleSubmittedResponse(String text,
       {bool auto = false}) async {
     final trimmed = text.trim();
@@ -1977,6 +2215,10 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                 ),
                               ),
                               const SizedBox(height: 16),
+                              if (step.activity != null) ...[
+                                _buildActivityPanel(step),
+                                const SizedBox(height: 16),
+                              ],
                               SoftPanel(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
