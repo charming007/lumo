@@ -1,4 +1,4 @@
-import { CreateModuleForm, UpdateLessonForm, UpdateModuleForm } from '../../components/admin-forms';
+import { CreateAssessmentForm, CreateModuleForm, UpdateAssessmentForm, UpdateLessonForm, UpdateModuleForm } from '../../components/admin-forms';
 import { DynamicLessonCreateForm } from '../../components/content-ops-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../lib/api';
@@ -89,6 +89,28 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
       return (left.subjectName || '').localeCompare(right.subjectName || '');
     });
+
+  const assessmentLinkedModuleIds = new Set(assessments.map((assessment) => assessment.moduleId).filter(Boolean));
+  const modulesMissingAssessment = modules.filter((module) => !assessmentLinkedModuleIds.has(module.id));
+  const reviewQueueModules = modules.filter((module) => module.status === 'review');
+  const blockedModules = modules.filter((module) => {
+    const moduleLessons = lessons.filter((lesson) => lesson.moduleTitle === module.title);
+    const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+    return readyLessonCount < module.lessonCount || !assessmentLinkedModuleIds.has(module.id);
+  });
+  const assessmentRows = assessments.map((assessment) => {
+    const linkedModule = modules.find((module) => module.id === assessment.moduleId);
+    const moduleLessons = lessons.filter((lesson) => lesson.moduleTitle === assessment.moduleTitle);
+    const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+    const gap = linkedModule ? Math.max(linkedModule.lessonCount - readyLessonCount, 0) : 0;
+
+    return {
+      ...assessment,
+      linkedModule,
+      readyLessonCount,
+      gap,
+    };
+  });
 
   return (
     <PageShell title="Content Library" subtitle="A visibly real curriculum map for Maths and English: subject lanes, strands, modules, lesson inventory, and release-readiness instead of a fake flat list.">
@@ -200,6 +222,48 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         ))}
       </section>
 
+      <section style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Release blockers" eyebrow="What still stops publish">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+              <div style={{ padding: 14, borderRadius: 18, background: '#fff7ed', border: '1px solid #fdba74' }}><div style={{ fontSize: 24, fontWeight: 800 }}>{blockedModules.length}</div><div style={{ color: '#9a3412' }}>modules blocked</div></div>
+              <div style={{ padding: 14, borderRadius: 18, background: '#fef3c7', border: '1px solid #fcd34d' }}><div style={{ fontSize: 24, fontWeight: 800 }}>{reviewQueueModules.length}</div><div style={{ color: '#92400e' }}>awaiting review</div></div>
+              <div style={{ padding: 14, borderRadius: 18, background: '#fee2e2', border: '1px solid #fca5a5' }}><div style={{ fontSize: 24, fontWeight: 800 }}>{modulesMissingAssessment.length}</div><div style={{ color: '#b91c1c' }}>missing assessment gate</div></div>
+            </div>
+            <SimpleTable
+              columns={['Module', 'Subject', 'Gap', 'Release risk']}
+              rows={blockedModules.map((module) => {
+                const moduleLessons = lessons.filter((lesson) => lesson.moduleTitle === module.title);
+                const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+                const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
+                const hasAssessment = assessmentLinkedModuleIds.has(module.id);
+
+                return [
+                  module.title,
+                  module.subjectName ?? '—',
+                  `${missingLessons} lesson gap${missingLessons === 1 ? '' : 's'}`,
+                  hasAssessment ? 'Assessment linked but content is still incomplete.' : 'No assessment gate linked yet.',
+                ];
+              })}
+            />
+          </div>
+        </Card>
+
+        <Card title="Assessment control board" eyebrow="Gatekeeping progression">
+          <SimpleTable
+            columns={['Assessment', 'Module', 'Trigger', 'Pass mark', 'Status', 'Coverage']}
+            rows={assessmentRows.map((assessment) => [
+              assessment.title,
+              assessment.moduleTitle ?? '—',
+              assessment.triggerLabel,
+              `${Math.round((assessment.passingScore ?? 0) * 100)}%`,
+              <Pill key={`${assessment.id}-status`} label={assessment.status} tone={statusPill(assessment.status).tone} text={statusPill(assessment.status).text} />,
+              assessment.gap > 0 ? `${assessment.readyLessonCount}/${assessment.linkedModule?.lessonCount ?? assessment.readyLessonCount} ready` : 'Module coverage complete',
+            ])}
+          />
+        </Card>
+      </section>
+
       <section style={{ display: 'grid', gridTemplateColumns: '0.92fr 1.08fr', gap: 16, marginBottom: 20 }}>
         <Card title="Curriculum release tracker" eyebrow="Ops visibility">
           <SimpleTable
@@ -235,6 +299,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         <UpdateModuleForm modules={modules} />
         <DynamicLessonCreateForm modules={modules} subjects={subjects} action={createLessonAction} />
         <UpdateLessonForm lessons={lessons} />
+        <CreateAssessmentForm modules={modules} subjects={subjects} />
+        <UpdateAssessmentForm assessments={assessments} />
       </section>
     </PageShell>
   );

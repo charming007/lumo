@@ -679,6 +679,31 @@ app.get('/api/v1/assessments', (_req, res) => {
   res.json(store.listAssessments().map(presenters.presentAssessment));
 });
 
+app.post('/api/v1/assessments', requireRole(['admin']), (req, res, next) => {
+  try {
+    validators.validateAssessment(req.body);
+    const assessment = store.createAssessment(req.body);
+    return res.status(201).json(presenters.presentAssessment(assessment));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/v1/assessments/:id', requireRole(['admin']), (req, res, next) => {
+  try {
+    validators.validateAssessment(req.body, { partial: true });
+    const assessment = store.updateAssessment(req.params.id, req.body);
+
+    if (!assessment) {
+      return res.status(404).json({ message: 'Assessment not found' });
+    }
+
+    return res.json(presenters.presentAssessment(assessment));
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/api/v1/assignments', (_req, res) => {
   res.json(store.listAssignments().map(presenters.presentAssignment));
 });

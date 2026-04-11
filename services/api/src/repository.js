@@ -283,6 +283,46 @@ function findAssessmentById(id) {
   return data.assessments.find((item) => item.id === id) || null;
 }
 
+function createAssessment(input) {
+  const assessment = {
+    id: `assessment-${data.assessments.length + 1}`,
+    moduleId: input.moduleId,
+    subjectId: input.subjectId,
+    title: input.title,
+    kind: input.kind || 'automatic',
+    trigger: input.trigger || 'module-complete',
+    triggerLabel: input.triggerLabel || 'After module completion',
+    progressionGate: input.progressionGate || 'foundation-a',
+    passingScore: Number(input.passingScore || 0.6),
+    status: input.status || 'draft',
+  };
+
+  data.assessments.push(assessment);
+  return assessment;
+}
+
+function updateAssessment(id, input) {
+  const assessment = findAssessmentById(id);
+
+  if (!assessment) {
+    return null;
+  }
+
+  Object.assign(assessment, {
+    moduleId: input.moduleId ?? assessment.moduleId,
+    subjectId: input.subjectId ?? assessment.subjectId,
+    title: input.title ?? assessment.title,
+    kind: input.kind ?? assessment.kind,
+    trigger: input.trigger ?? assessment.trigger,
+    triggerLabel: input.triggerLabel ?? assessment.triggerLabel,
+    progressionGate: input.progressionGate ?? assessment.progressionGate,
+    passingScore: input.passingScore !== undefined ? Number(input.passingScore) : assessment.passingScore,
+    status: input.status ?? assessment.status,
+  });
+
+  return assessment;
+}
+
 function listAssignments() {
   return data.assignments;
 }
@@ -469,6 +509,8 @@ module.exports = {
   updateLesson,
   listAssessments,
   findAssessmentById,
+  createAssessment,
+  updateAssessment,
   listAssignments,
   findAssignmentById,
   createAssignment,

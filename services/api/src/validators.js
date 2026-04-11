@@ -125,6 +125,28 @@ function validateLesson(body, { partial = false } = {}) {
   assertAllowed('status', body.status, ['draft', 'approved', 'published']);
 }
 
+function validateAssessment(body, { partial = false } = {}) {
+  if (!partial) {
+    requireFields(body, ['subjectId', 'moduleId', 'title', 'kind', 'trigger', 'triggerLabel', 'progressionGate', 'passingScore']);
+  }
+
+  assertExists('subjectId', body.subjectId, repository.findSubjectById);
+  assertExists('moduleId', body.moduleId, repository.findModuleById);
+  assertAllowed('kind', body.kind, ['automatic', 'manual']);
+  assertAllowed('trigger', body.trigger, ['module-complete', 'lesson-cluster', 'mallam-review']);
+  assertAllowed('status', body.status, ['draft', 'active', 'retired']);
+
+  if (body.passingScore !== undefined) {
+    const score = Number(body.passingScore);
+
+    if (Number.isNaN(score) || score < 0 || score > 1) {
+      const error = new Error('Invalid passingScore');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+}
+
 module.exports = {
   validateAssignment,
   validateAttendance,
@@ -134,4 +156,5 @@ module.exports = {
   validateTeacher,
   validateModule,
   validateLesson,
+  validateAssessment,
 };

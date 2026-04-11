@@ -1,18 +1,20 @@
 import type { ReactNode } from 'react';
 import {
+  createAssessmentAction,
   createLessonAction,
   createMallamAction,
   createModuleAction,
   createStudentAction,
   deleteMallamAction,
   deleteStudentAction,
+  updateAssessmentAction,
   updateAssignmentAction,
   updateLessonAction,
   updateMallamAction,
   updateModuleAction,
   updateStudentAction,
 } from '../app/actions';
-import type { Assignment, Center, Cohort, CurriculumModule, Lesson, Mallam, Pod, Student } from '../lib/types';
+import type { Assessment, Assignment, Center, Cohort, CurriculumModule, Lesson, Mallam, Pod, Student, Subject } from '../lib/types';
 import { ActionButton } from './action-button';
 
 const cardStyle = {
@@ -268,6 +270,53 @@ export function UpdateLessonForm({ lessons }: { lessons: Lesson[] }) {
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue={String(lesson?.durationMinutes ?? 8)} style={inputStyle} /></FieldLabel>
       </div>
       <ActionButton label="Save lesson changes" pendingLabel="Saving lesson…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function CreateAssessmentForm({ modules, subjects }: { modules: CurriculumModule[]; subjects: Subject[] }) {
+  const defaultModule = modules[0];
+
+  return (
+    <form action={createAssessmentAction} style={cardStyle}>
+      <h2 style={{ margin: 0 }}>Create assessment gate</h2>
+      <FieldLabel>Subject<select name="subjectId" defaultValue={defaultModule?.subjectId ?? subjects[0]?.id ?? 'english'} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
+      <FieldLabel>Module<select name="moduleId" defaultValue={defaultModule?.id} style={inputStyle}>{modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select></FieldLabel>
+      <FieldLabel>Assessment title<input name="title" defaultValue="Bridge readiness checkpoint" style={inputStyle} /></FieldLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <FieldLabel>Kind<select name="kind" defaultValue="automatic" style={inputStyle}><option value="automatic">Automatic</option><option value="manual">Manual</option></select></FieldLabel>
+        <FieldLabel>Trigger<select name="trigger" defaultValue="module-complete" style={inputStyle}><option value="module-complete">After module complete</option><option value="lesson-cluster">After lesson cluster</option><option value="mallam-review">Mallam review</option></select></FieldLabel>
+      </div>
+      <FieldLabel>Trigger label<input name="triggerLabel" defaultValue={`After ${defaultModule?.title ?? 'selected module'}`} style={inputStyle} /></FieldLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+        <FieldLabel>Progression gate<input name="progressionGate" defaultValue="bridge" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue="0.7" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
+      </div>
+      <ActionButton label="Create assessment" pendingLabel="Creating assessment…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[] }) {
+  const assessment = assessments[0];
+
+  return (
+    <form action={updateAssessmentAction} style={cardStyle}>
+      <input type="hidden" name="assessmentId" value={assessment?.id ?? ''} />
+      <h2 style={{ margin: 0 }}>Update assessment gate</h2>
+      <FieldLabel>Assessment title<input name="title" defaultValue={assessment?.title ?? ''} style={inputStyle} /></FieldLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <FieldLabel>Kind<select name="kind" defaultValue={assessment?.kind ?? 'automatic'} style={inputStyle}><option value="automatic">Automatic</option><option value="manual">Manual</option></select></FieldLabel>
+        <FieldLabel>Trigger<select name="trigger" defaultValue={assessment?.trigger ?? 'module-complete'} style={inputStyle}><option value="module-complete">After module complete</option><option value="lesson-cluster">After lesson cluster</option><option value="mallam-review">Mallam review</option></select></FieldLabel>
+      </div>
+      <FieldLabel>Trigger label<input name="triggerLabel" defaultValue={assessment?.triggerLabel ?? ''} style={inputStyle} /></FieldLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+        <FieldLabel>Progression gate<input name="progressionGate" defaultValue={assessment?.progressionGate ?? ''} style={inputStyle} /></FieldLabel>
+        <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue={String(assessment?.passingScore ?? 0.7)} style={inputStyle} /></FieldLabel>
+        <FieldLabel>Status<select name="status" defaultValue={assessment?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
+      </div>
+      <ActionButton label="Save assessment changes" pendingLabel="Saving assessment…" style={buttonStyle} />
     </form>
   );
 }

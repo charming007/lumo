@@ -118,10 +118,14 @@ export type Lesson = {
 
 export type Assessment = {
   id: string;
+  subjectId?: string | null;
+  moduleId?: string | null;
   title: string;
   kind: string;
+  trigger: string;
   triggerLabel: string;
   progressionGate: string;
+  passingScore: number;
   subjectName: string;
   moduleTitle: string;
   status: string;
