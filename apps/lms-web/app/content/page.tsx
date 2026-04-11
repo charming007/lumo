@@ -1,14 +1,17 @@
 import {
   CreateAssessmentForm,
   CreateModuleForm,
+  CreateStrandForm,
   CreateSubjectForm,
   DeleteAssessmentForm,
   DeleteLessonForm,
   DeleteModuleForm,
+  DeleteStrandForm,
   DeleteSubjectForm,
   UpdateAssessmentForm,
   UpdateLessonForm,
   UpdateModuleForm,
+  UpdateStrandForm,
   UpdateSubjectForm,
 } from '../../components/admin-forms';
 import { DynamicLessonCreateForm } from '../../components/content-ops-form';
@@ -100,6 +103,9 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <ModalLauncher buttonLabel="Create Subject" title="Create subject" description="Add a new subject lane and optionally seed its first strand.">
             <CreateSubjectForm />
           </ModalLauncher>
+          <ModalLauncher buttonLabel="Create Strand" title="Create strand" description="Add a planning lane inside the right subject before you drop modules into it.">
+            <CreateStrandForm subjects={subjects} />
+          </ModalLauncher>
           <ModalLauncher buttonLabel="Create Module" title="Create module" description="Add a module to the right strand without leaving the content board.">
             <CreateModuleForm strands={strands} />
           </ModalLauncher>
@@ -157,7 +163,17 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const strandModules = subjectModules.filter((module) => module.strandName === strand.name);
                   return (
                     <div key={strand.id} style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4 }}>{strand.name}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 4 }}>
+                        <div style={{ fontWeight: 700 }}>{strand.name}</div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <ModalLauncher buttonLabel="✏️" title={`Edit strand · ${strand.name}`} description="Rename or reorder this strand without leaving the subject lane." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                            <UpdateStrandForm strand={strand} subjects={subjects} embedded />
+                          </ModalLauncher>
+                          <ModalLauncher buttonLabel="🗑" title={`Delete strand · ${strand.name}`} description="Remove this strand and everything nested under it if it no longer belongs in the curriculum map." eyebrow="Delete strand" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
+                            <DeleteStrandForm strand={strand} embedded />
+                          </ModalLauncher>
+                        </div>
+                      </div>
                       <div style={{ color: '#64748b', lineHeight: 1.5 }}>{strandModules.length > 0 ? strandModules.map((module) => module.title).join(' • ') : 'No modules yet.'}</div>
                     </div>
                   );

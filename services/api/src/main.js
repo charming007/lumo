@@ -656,6 +656,41 @@ app.get('/api/v1/strands', (_req, res) => {
   res.json(store.listStrands().map(presenters.presentStrand));
 });
 
+app.post('/api/v1/strands', requireRole(['admin']), (req, res, next) => {
+  try {
+    validators.validateStrand(req.body);
+    const strand = store.createStrand(req.body);
+    return res.status(201).json(presenters.presentStrand(strand));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/v1/strands/:id', requireRole(['admin']), (req, res, next) => {
+  try {
+    validators.validateStrand(req.body, { partial: true });
+    const strand = store.updateStrand(req.params.id, req.body);
+
+    if (!strand) {
+      return res.status(404).json({ message: 'Strand not found' });
+    }
+
+    return res.json(presenters.presentStrand(strand));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.delete('/api/v1/strands/:id', requireRole(['admin']), (req, res) => {
+  const strand = store.deleteStrand(req.params.id);
+
+  if (!strand) {
+    return res.status(404).json({ message: 'Strand not found' });
+  }
+
+  return res.status(204).send();
+});
+
 app.get('/api/v1/curriculum/modules', (_req, res) => {
   res.json(store.listModules().map(presenters.presentCurriculumModule));
 });

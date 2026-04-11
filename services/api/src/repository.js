@@ -256,6 +256,58 @@ function findStrandById(id) {
   return data.strands.find((item) => item.id === id) || null;
 }
 
+function createStrand(input) {
+  const strand = {
+    id: `strand-${data.strands.length + 1}`,
+    subjectId: input.subjectId,
+    name: input.name,
+    order: Number(input.order || data.strands.filter((item) => item.subjectId === input.subjectId).length + 1),
+  };
+
+  data.strands.push(strand);
+  return strand;
+}
+
+function updateStrand(id, input) {
+  const strand = findStrandById(id);
+
+  if (!strand) {
+    return null;
+  }
+
+  Object.assign(strand, {
+    subjectId: input.subjectId ?? strand.subjectId,
+    name: input.name ?? strand.name,
+    order: input.order !== undefined ? Number(input.order) : strand.order,
+  });
+
+  return strand;
+}
+
+function deleteStrand(id) {
+  const index = data.strands.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const [strand] = data.strands.splice(index, 1);
+  const moduleIds = data.modules.filter((item) => item.strandId === id).map((item) => item.id);
+  const lessonIds = data.lessons.filter((item) => moduleIds.includes(item.moduleId)).map((item) => item.id);
+  const assessmentIds = data.assessments.filter((item) => moduleIds.includes(item.moduleId)).map((item) => item.id);
+
+  data.modules = data.modules.filter((item) => item.strandId !== id);
+  data.lessons = data.lessons.filter((item) => !moduleIds.includes(item.moduleId));
+  data.assessments = data.assessments.filter((item) => !moduleIds.includes(item.moduleId));
+  data.assignments = data.assignments.filter((assignment) => !lessonIds.includes(assignment.lessonId) && !assessmentIds.includes(assignment.assessmentId));
+  data.progress.forEach((record) => {
+    if (record.moduleId && moduleIds.includes(record.moduleId)) record.moduleId = null;
+    if (record.recommendedNextModuleId && moduleIds.includes(record.recommendedNextModuleId)) record.recommendedNextModuleId = null;
+  });
+
+  return strand;
+}
+
 function listModules() {
   return data.modules;
 }
@@ -619,6 +671,9 @@ module.exports = {
   deleteSubject,
   listStrands,
   findStrandById,
+  createStrand,
+  updateStrand,
+  deleteStrand,
   listModules,
   findModuleById,
   createModule,

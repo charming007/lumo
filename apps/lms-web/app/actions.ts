@@ -217,6 +217,39 @@ export async function deleteSubjectAction(formData: FormData) {
   redirect('/content?message=Subject%20removed%20from%20the%20library');
 }
 
+export async function createStrandAction(formData: FormData) {
+  const payload = {
+    subjectId: String(formData.get('subjectId') || ''),
+    name: String(formData.get('name') || ''),
+    order: Number(formData.get('order') || 0),
+  };
+
+  await apiWrite('/api/v1/strands', 'POST', payload);
+  revalidatePath('/content');
+  redirect('/content?message=Strand%20created%20and%20ready%20for%20module%20planning');
+}
+
+export async function updateStrandAction(formData: FormData) {
+  const strandId = String(formData.get('strandId') || '');
+  const payload = {
+    subjectId: String(formData.get('subjectId') || ''),
+    name: String(formData.get('name') || ''),
+    order: Number(formData.get('order') || 0),
+  };
+
+  await apiWrite(`/api/v1/strands/${strandId}`, 'PATCH', payload);
+  revalidatePath('/content');
+  redirect('/content?message=Strand%20changes%20saved');
+}
+
+export async function deleteStrandAction(formData: FormData) {
+  const strandId = String(formData.get('strandId') || '');
+
+  await apiWrite(`/api/v1/strands/${strandId}`, 'DELETE');
+  revalidatePath('/content');
+  redirect('/content?message=Strand%20removed%20from%20the%20library');
+}
+
 export async function createModuleAction(formData: FormData) {
   const payload = {
     strandId: String(formData.get('strandId') || ''),

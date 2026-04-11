@@ -5,12 +5,14 @@ import {
   createLessonAction,
   createMallamAction,
   createModuleAction,
+  createStrandAction,
   createStudentAction,
   createSubjectAction,
   deleteAssessmentAction,
   deleteMallamAction,
   deleteModuleAction,
   deleteLessonAction,
+  deleteStrandAction,
   deleteStudentAction,
   deleteSubjectAction,
   updateAssessmentAction,
@@ -18,6 +20,7 @@ import {
   updateLessonAction,
   updateMallamAction,
   updateModuleAction,
+  updateStrandAction,
   updateStudentAction,
   updateSubjectAction,
 } from '../app/actions';
@@ -262,6 +265,49 @@ export function DeleteSubjectForm({ subject, embedded = false }: { subject: Subj
         </div>
       </div>
       <DeleteConfirmSubmit expectedText={subject.name} entityLabel="subject" actionLabel="Delete subject" pendingLabel="Deleting subject…" impactNote="This is a cascading delete. If you blow away a subject, its whole lane goes with it." />
+    </form>
+  );
+}
+
+export function CreateStrandForm({ subjects }: { subjects: Subject[] }) {
+  return (
+    <form action={createStrandAction} style={cardStyle}>
+      <h2 style={{ margin: 0 }}>Create strand</h2>
+      <SectionHint>Give each subject a real planning lane before you start dumping modules into it.</SectionHint>
+      <FieldLabel>Subject<select name="subjectId" defaultValue={subjects[0]?.id} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
+      <FieldLabel>Strand name<input name="name" defaultValue="Speaking & Listening" style={inputStyle} /></FieldLabel>
+      <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="2" style={inputStyle} /></FieldLabel>
+      <ActionButton label="Create strand" pendingLabel="Creating strand…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function UpdateStrandForm({ strand, subjects, embedded = false }: { strand: Strand; subjects: Subject[]; embedded?: boolean }) {
+  return (
+    <div style={embedded ? embeddedCardStyle : cardStyle}>
+      <form action={updateStrandAction} style={{ display: 'grid', gap: 12 }}>
+        <input type="hidden" name="strandId" value={strand.id} />
+        <h2 style={{ margin: 0 }}>Update strand</h2>
+        <FieldLabel>Subject<select name="subjectId" defaultValue={strand.subjectId} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
+        <FieldLabel>Strand name<input name="name" defaultValue={strand.name} style={inputStyle} /></FieldLabel>
+        <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(strand.order ?? 1)} style={inputStyle} /></FieldLabel>
+        <ActionButton label="Save strand changes" pendingLabel="Saving strand…" style={buttonStyle} />
+      </form>
+    </div>
+  );
+}
+
+export function DeleteStrandForm({ strand, embedded = false }: { strand: Strand; embedded?: boolean }) {
+  return (
+    <form action={deleteStrandAction} style={embedded ? embeddedCardStyle : cardStyle}>
+      <input type="hidden" name="strandId" value={strand.id} />
+      <div style={{ display: 'grid', gap: 10 }}>
+        <h2 style={{ margin: 0 }}>Delete strand</h2>
+        <div style={{ color: '#475569', lineHeight: 1.6 }}>
+          Remove <strong>{strand.name}</strong> from the content library? Its modules, lessons, assessment gates, and linked release wiring go with it.
+        </div>
+      </div>
+      <DeleteConfirmSubmit expectedText={strand.name} entityLabel="strand" actionLabel="Delete strand" pendingLabel="Deleting strand…" impactNote="This is another cascade. Delete a strand and you delete its whole planning lane." />
     </form>
   );
 }

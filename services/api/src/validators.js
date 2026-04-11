@@ -116,6 +116,14 @@ function validateSubject(body, { partial = false } = {}) {
   }
 }
 
+function validateStrand(body, { partial = false } = {}) {
+  if (!partial) {
+    requireFields(body, ['subjectId', 'name']);
+  }
+
+  assertExists('subjectId', body.subjectId, repository.findSubjectById);
+}
+
 function validateModule(body, { partial = false } = {}) {
   if (!partial) {
     requireFields(body, ['strandId', 'title', 'level']);
@@ -167,6 +175,7 @@ module.exports = {
   validateStudent,
   validateTeacher,
   validateSubject,
+  validateStrand,
   validateModule,
   validateLesson,
   validateAssessment,

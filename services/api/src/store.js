@@ -168,6 +168,18 @@ function listStrands() {
   return repository.listStrands();
 }
 
+function createStrand(input) {
+  return repository.createStrand(input);
+}
+
+function updateStrand(id, input) {
+  return repository.updateStrand(id, input);
+}
+
+function deleteStrand(id) {
+  return repository.deleteStrand(id);
+}
+
 function listModules() {
   return repository.listModules();
 }
@@ -257,6 +269,9 @@ module.exports = {
   updateTeacher,
   deleteTeacher,
   listStrands,
+  createStrand,
+  updateStrand,
+  deleteStrand,
   listModules,
   createModule,
   updateModule,
