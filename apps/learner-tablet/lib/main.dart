@@ -1709,6 +1709,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   String liveTranscript = '';
   bool speechRecognitionActive = false;
   bool transcriptCapturedThisTake = false;
+  bool transcriptReviewPending = false;
 
   @override
   void initState() {
@@ -1732,6 +1733,16 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     if (text.isEmpty) return;
     widget.state.submitLearnerResponse(text);
     responseController.text = text;
+    transcriptReviewPending = false;
+    widget.onChanged();
+    setState(() {});
+  }
+
+  void clearPendingTranscriptReview({bool clearText = false}) {
+    transcriptReviewPending = false;
+    if (clearText) {
+      responseController.clear();
+    }
     widget.onChanged();
     setState(() {});
   }
@@ -1740,6 +1751,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     try {
       transcriptCapturedThisTake = false;
       liveTranscript = '';
+      transcriptReviewPending = false;
 
       await audioCaptureService.start(
         fileStem: widget.state.currentLearner?.learnerCode ?? 'learner-voice',
@@ -1809,14 +1821,14 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
     if (transcript.isNotEmpty) {
       responseController.text = transcript;
-      widget.state.submitLearnerResponse(transcript);
+      transcriptReviewPending = true;
     }
 
     widget.onChanged();
     setState(() {
       currentRecordingDuration = result.duration;
       microphoneStatus = transcript.isNotEmpty
-          ? 'Learner voice saved locally (${formatDuration(result.duration)}) and transcript captured.'
+          ? 'Learner voice saved locally (${formatDuration(result.duration)}). Review the transcript before moving on.'
           : 'Learner voice saved locally (${formatDuration(result.duration)}). No transcript was detected.';
     });
   }
@@ -1831,7 +1843,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
   String compactPath(String path) {
     final normalized = path.replaceAll('\\', '/');
-    final segments = normalized.split('/').where((segment) => segment.isNotEmpty).toList();
+    final segments =
+        normalized.split('/').where((segment) => segment.isNotEmpty).toList();
     if (segments.length <= 2) return normalized;
     return '…/${segments[segments.length - 2]}/${segments.last}';
   }
@@ -2187,6 +2200,87 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     .toList(),
                               ),
                               const SizedBox(height: 12),
+                              if (transcriptReviewPending) ...[
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: const Color(0xFFFCD34D),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: const [
+                                          Icon(
+                                            Icons.fact_check_rounded,
+                                            size: 18,
+                                            color: Color(0xFF92400E),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Review transcript before advancing',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF78350F),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Speech-to-text can miss names or code-switching. Confirm or edit the learner response first, or clear it and continue with audio-only evidence.',
+                                        style: const TextStyle(
+                                          color: Color(0xFF92400E),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          FilledButton.tonalIcon(
+                                            onPressed: () => submitResponse(),
+                                            icon: const Icon(
+                                              Icons.check_circle_rounded,
+                                            ),
+                                            label: const Text(
+                                              'Confirm transcript',
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: () =>
+                                                clearPendingTranscriptReview(),
+                                            icon: const Icon(
+                                              Icons.graphic_eq_rounded,
+                                            ),
+                                            label: const Text(
+                                              'Use audio only for now',
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: () =>
+                                                clearPendingTranscriptReview(
+                                              clearText: true,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.delete_outline_rounded,
+                                            ),
+                                            label: const Text('Clear draft'),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
                               Row(
                                 children: [
                                   Expanded(
@@ -2198,7 +2292,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: FilledButton(
-                                      onPressed: session.hasLearnerInput
+                                      onPressed: session.hasLearnerInput &&
+                                              !transcriptReviewPending
                                           ? () async {
                                               final finished = widget.state
                                                   .advanceLessonStep();
@@ -2222,6 +2317,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                                 return;
                                               }
                                               widget.onChanged();
+                                              transcriptReviewPending = false;
                                               responseController.clear();
                                               setState(() {});
                                             }
@@ -2259,16 +2355,22 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     Wrap(
                                       spacing: 12,
                                       runSpacing: 12,
-                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                       children: [
                                         FilledButton.icon(
-                                          onPressed: isRecording ? null : startRecording,
+                                          onPressed: isRecording
+                                              ? null
+                                              : startRecording,
                                           icon: const Icon(Icons.mic_rounded),
                                           label: const Text('Start recording'),
                                         ),
                                         FilledButton.tonalIcon(
-                                          onPressed: isRecording ? stopRecording : null,
-                                          icon: const Icon(Icons.stop_circle_outlined),
+                                          onPressed: isRecording
+                                              ? stopRecording
+                                              : null,
+                                          icon: const Icon(
+                                              Icons.stop_circle_outlined),
                                           label: const Text('Stop and save'),
                                         ),
                                         Container(
@@ -2280,7 +2382,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                             color: isRecording
                                                 ? const Color(0xFFFFF1F2)
                                                 : const Color(0xFFF8FAFC),
-                                            borderRadius: BorderRadius.circular(999),
+                                            borderRadius:
+                                                BorderRadius.circular(999),
                                             border: Border.all(
                                               color: isRecording
                                                   ? const Color(0xFFFDA4AF)
@@ -2301,20 +2404,23 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                         ),
                                       ],
                                     ),
-                                    if (liveTranscript.isNotEmpty || speechRecognitionActive) ...[
+                                    if (liveTranscript.isNotEmpty ||
+                                        speechRecognitionActive) ...[
                                       const SizedBox(height: 12),
                                       Container(
                                         width: double.infinity,
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFEEF2FF),
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
                                           border: Border.all(
                                             color: const Color(0xFFC7D2FE),
                                           ),
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
                                               children: [
@@ -2349,14 +2455,16 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                         ),
                                       ),
                                     ],
-                                    if (session.latestLearnerAudioPath != null) ...[
+                                    if (session.latestLearnerAudioPath !=
+                                        null) ...[
                                       const SizedBox(height: 12),
                                       Container(
                                         width: double.infinity,
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF8FAFC),
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
                                           border: Border.all(
                                             color: const Color(0xFFE2E8F0),
                                           ),
@@ -2384,7 +2492,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
-                                              transcriptCapturedThisTake || session.hasResponse
+                                              transcriptCapturedThisTake ||
+                                                      session.hasResponse
                                                   ? 'Audio capture is saved locally and the latest transcript can be edited in the response box before advancing.'
                                                   : 'Audio capture is saved locally even if speech recognition misses the words. You can still type the learner response manually.',
                                               style: const TextStyle(
