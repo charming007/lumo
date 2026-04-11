@@ -1,13 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_state.dart';
 import 'audio_capture_service.dart';
-import 'speech_transcription_service.dart';
 import 'design_shell.dart';
 import 'instructions.dart';
 import 'models.dart';
+import 'speech_transcription_service.dart';
 import 'theme.dart';
 import 'voice_replay_service.dart';
 import 'widgets.dart';
@@ -129,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Preparing Mallam, learner profiles, and offline lesson prompts...',
+                'Preparing AI Mallam, learners, and voice-first lessons...',
                 style: TextStyle(color: Color(0xFF6B7280), fontSize: 16),
                 textAlign: TextAlign.center,
               ),
@@ -159,14 +161,14 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final featuredLearner = state.currentLearner ?? state.learners.first;
-    final recommendedLesson = state.recommendedLesson;
+    final learnerCount = state.learners.length;
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               LumoTopBar(onLogoTap: () {}),
               const SizedBox(height: 20),
@@ -175,57 +177,114 @@ class HomePage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
+                      flex: 4,
                       child: MallamPanel(
                         instruction: homeInstruction,
                         onVoiceTap: () {
                           state.replayVisiblePrompt(
-                            'Assalamu alaikum. Choose a learner path and I will guide each lesson by voice.',
+                            'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
                           );
                         },
                         prompt:
-                            'Assalamu alaikum. Choose a learner path and I will guide each lesson by voice.',
+                            'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
                         speakerMode: SpeakerMode.guiding,
-                        statusLabel: 'Mallam is ready',
+                        statusLabel: 'AI Mallam is ready',
                       ),
                     ),
                     const SizedBox(width: 20),
                     Expanded(
+                      flex: 6,
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _HomeHero(
-                              state: state,
-                              featuredLearner: featuredLearner,
-                              recommendedLesson: recommendedLesson,
-                              onRefreshBackend: () async {
-                                await state.bootstrap();
-                                onChanged();
-                              },
-                              onSyncQueue: () async {
-                                await state.syncPendingEvents();
-                                onChanged();
-                              },
-                              onOpenLearners: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => AllStudentsPage(
-                                      state: state,
-                                      onChanged: onChanged,
+                            DetailCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Home',
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                );
-                              },
-                              onRegisterLearner: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => RegisterPage(
-                                      state: state,
-                                      onChanged: onChanged,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'AI Mallam will guide the learner by voice. Pick what you want to do next.',
+                                    style: TextStyle(
+                                      color: Colors.black.withValues(alpha: 0.62),
+                                      height: 1.4,
                                     ),
                                   ),
-                                );
-                              },
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _PrimaryActionCard(
+                                          title: 'Register',
+                                          subtitle:
+                                              'Open learner registration flow',
+                                          icon: Icons.person_add_alt_1_rounded,
+                                          color: LumoTheme.primary,
+                                          onTap: () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) => RegisterPage(
+                                                  state: state,
+                                                  onChanged: onChanged,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _PrimaryActionCard(
+                                          title: 'Student List',
+                                          subtitle:
+                                              'See all registered learners',
+                                          icon: Icons.groups_rounded,
+                                          color: LumoTheme.accentGreen,
+                                          onTap: () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) => AllStudentsPage(
+                                                  state: state,
+                                                  onChanged: onChanged,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: MetricTile(
+                                          label: 'Learners',
+                                          value: '$learnerCount',
+                                          icon: Icons.people_alt_rounded,
+                                          color: LumoTheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: MetricTile(
+                                          label: 'Subjects',
+                                          value: '${state.modules.length}',
+                                          icon: Icons.menu_book_rounded,
+                                          color: LumoTheme.accentOrange,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 16),
                             _BackendStatusBanner(
@@ -240,162 +299,10 @@ class HomePage extends StatelessWidget {
                               },
                             ),
                             const SizedBox(height: 16),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: DetailCard(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Profile snapshot',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                        LabelValueWrap(
-                                          items: [
-                                            ('Learner', featuredLearner.name),
-                                            (
-                                              'Learner code',
-                                              featuredLearner.learnerCode
-                                            ),
-                                            (
-                                              'Readiness',
-                                              featuredLearner.readinessLabel
-                                            ),
-                                            (
-                                              'Language',
-                                              featuredLearner.preferredLanguage
-                                            ),
-                                            (
-                                              'Attendance',
-                                              featuredLearner.attendanceBand
-                                            ),
-                                            (
-                                              'Status',
-                                              featuredLearner.enrollmentStatus
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 14),
-                                        SoftPanel(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                'Support plan',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(featuredLearner.supportPlan),
-                                              const SizedBox(height: 12),
-                                              InfoRow(
-                                                label: 'Caregiver',
-                                                value:
-                                                    '${featuredLearner.guardianName} • ${featuredLearner.caregiverRelationship}',
-                                              ),
-                                              InfoRow(
-                                                label: 'Last attendance',
-                                                value: featuredLearner
-                                                    .lastAttendance,
-                                              ),
-                                              InfoRow(
-                                                label: 'Last lesson note',
-                                                value: featuredLearner
-                                                    .lastLessonSummary,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: DetailCard(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Recommended next step',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 14),
-                                        if (recommendedLesson != null) ...[
-                                          Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              StatusPill(
-                                                text: recommendedLesson.subject,
-                                                color: LumoTheme.primary,
-                                              ),
-                                              StatusPill(
-                                                text:
-                                                    '${recommendedLesson.durationMinutes} min',
-                                                color: LumoTheme.accentOrange,
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            recommendedLesson.title,
-                                            style: const TextStyle(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(recommendedLesson.scenario),
-                                          const SizedBox(height: 12),
-                                          SoftPanel(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                InfoRow(
-                                                  label: 'Readiness focus',
-                                                  value: recommendedLesson
-                                                      .readinessFocus,
-                                                ),
-                                                InfoRow(
-                                                  label: 'First step',
-                                                  value: recommendedLesson
-                                                      .steps.first.title,
-                                                ),
-                                                InfoRow(
-                                                  label: 'Real world payoff',
-                                                  value: recommendedLesson.steps
-                                                      .first.realWorldCheck,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
                             const SectionTitle(
-                              title: 'Learning modules',
+                              title: 'Subjects',
                               subtitle:
-                                  'Pick a voice-led module with clearer learner context, readiness goals, and next actions.',
+                                  'Tap a subject to open its learning modules.',
                             ),
                             const SizedBox(height: 12),
                             GridView.builder(
@@ -407,11 +314,11 @@ class HomePage extends StatelessWidget {
                                 crossAxisCount: 2,
                                 mainAxisSpacing: 12,
                                 crossAxisSpacing: 12,
-                                childAspectRatio: 1.1,
+                                childAspectRatio: 1.08,
                               ),
                               itemBuilder: (context, index) {
                                 final module = state.modules[index];
-                                return _ModuleCard(
+                                return _SubjectCard(
                                   module: module,
                                   lessonCount: state.assignedLessons
                                       .where((lesson) =>
@@ -422,7 +329,7 @@ class HomePage extends StatelessWidget {
                                     onChanged();
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (_) => ModuleDetailPage(
+                                        builder: (_) => SubjectModulesPage(
                                           state: state,
                                           onChanged: onChanged,
                                           module: module,
@@ -477,11 +384,11 @@ class AllStudentsPage extends StatelessWidget {
                     child: SectionTitle(
                       title: 'All learners',
                       subtitle:
-                          'Tap a learner to continue with a profile-aware Mallam lesson flow.',
+                          'Tap a learner to open their learner data page.',
                     ),
                   ),
                   StatusPill(
-                    text: '${state.learners.length} active',
+                    text: '${state.learners.length} learners',
                     color: LumoTheme.accentGreen,
                   ),
                 ],
@@ -496,7 +403,7 @@ class AllStudentsPage extends StatelessWidget {
                     crossAxisCount: 3,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 1.12,
+                    childAspectRatio: 1.08,
                   ),
                   itemBuilder: (context, index) {
                     final learner = state.learners[index];
@@ -506,89 +413,400 @@ class AllStudentsPage extends StatelessWidget {
                         onChanged();
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => SelectStudentPage(
+                            builder: (_) => LearnerProfilePage(
                               state: state,
-                              onChanged: onChanged,
+                              learner: learner,
                             ),
                           ),
                         );
                       },
-                      child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+                      child: _LearnerCard(learner: learner),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class LearnerProfilePage extends StatelessWidget {
+  final LumoAppState state;
+  final LearnerProfile learner;
+
+  const LearnerProfilePage({
+    super.key,
+    required this.state,
+    required this.learner,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalXp = learner.streakDays * 25 + 100;
+    final totalMinutes = learner.streakDays * 12 + 18;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: MallamPanel(
+                  instruction:
+                      'This learner data page shows the child\'s basics, streak, XP, time spent, and a simple data export.',
+                  onVoiceTap: () {
+                    state.replayVisiblePrompt(
+                      'You are viewing ${learner.name}. This page shows streaks, total XP, total learning time, and a button to download learner data.',
+                    );
+                  },
+                  prompt:
+                      'You are viewing ${learner.name}. This page shows streaks, total XP, total learning time, and a button to download learner data.',
+                  speakerMode: SpeakerMode.guiding,
+                  statusLabel: 'AI Mallam explains this learner page',
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: DetailCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Back'),
+                          ),
+                          const Spacer(),
+                          StatusPill(
+                            text: learner.enrollmentStatus,
+                            color: LumoTheme.primary,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 34,
+                            backgroundColor: const Color(0xFFE9E7FF),
+                            child: Text(
+                              learner.name.characters.first,
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  learner.name,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${learner.learnerCode} • Age ${learner.age} • ${learner.village}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: MetricTile(
+                              label: 'Streaks',
+                              value: '${learner.streakDays} days',
+                              icon: Icons.local_fire_department_rounded,
+                              color: LumoTheme.accentOrange,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: MetricTile(
+                              label: 'Total XP',
+                              value: '$totalXp XP',
+                              icon: Icons.stars_rounded,
+                              color: LumoTheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: MetricTile(
+                              label: 'Total time',
+                              value: '$totalMinutes min',
+                              icon: Icons.schedule_rounded,
+                              color: LumoTheme.accentGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      SoftPanel(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 26,
-                                  backgroundColor: const Color(0xFFE9E7FF),
-                                  child: Text(
-                                    learner.name.characters.first,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const Spacer(),
-                                StatusPill(
-                                  text: learner.enrollmentStatus,
-                                  color: LumoTheme.primary,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              learner.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${learner.cohort} • ${learner.village}',
-                              style: const TextStyle(color: Color(0xFF6B7280)),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Age ${learner.age} • ${learner.learnerCode}',
-                              style: const TextStyle(color: Color(0xFF94A3B8)),
+                            const Text(
+                              'Basic information',
+                              style: TextStyle(fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(height: 12),
-                            LabelValueWrap(
-                              items: [
-                                ('Readiness', learner.readinessLabel),
-                                ('Attendance', learner.attendanceBand),
-                              ],
+                            InfoRow(label: 'Guardian', value: learner.guardianName),
+                            InfoRow(
+                              label: 'Relationship',
+                              value: learner.caregiverRelationship,
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              learner.lastLessonSummary,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF6B7280),
-                                height: 1.4,
-                              ),
+                            InfoRow(
+                              label: 'Language',
+                              value: learner.preferredLanguage,
+                            ),
+                            InfoRow(
+                              label: 'Readiness',
+                              value: learner.readinessLabel,
+                            ),
+                            InfoRow(
+                              label: 'Support plan',
+                              value: learner.supportPlan,
+                            ),
+                            InfoRow(
+                              label: 'Last lesson',
+                              value: learner.lastLessonSummary,
                             ),
                           ],
                         ),
                       ),
+                      const Spacer(),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final json = const JsonEncoder.withIndent('  ').convert({
+                              'learner': {
+                                'id': learner.id,
+                                'name': learner.name,
+                                'learnerCode': learner.learnerCode,
+                                'age': learner.age,
+                                'cohort': learner.cohort,
+                                'guardianName': learner.guardianName,
+                                'preferredLanguage': learner.preferredLanguage,
+                                'readinessLabel': learner.readinessLabel,
+                                'streakDays': learner.streakDays,
+                                'attendanceBand': learner.attendanceBand,
+                                'enrollmentStatus': learner.enrollmentStatus,
+                                'lastLessonSummary': learner.lastLessonSummary,
+                              },
+                            });
+                            await ClipboardBridge.copy(json);
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Learner data copied. Hook file export next if needed.',
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.download_rounded),
+                          label: const Text('Download data'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SubjectModulesPage extends StatelessWidget {
+  final LumoAppState state;
+  final VoidCallback onChanged;
+  final LearningModule module;
+
+  const SubjectModulesPage({
+    super.key,
+    required this.state,
+    required this.onChanged,
+    required this.module,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lessons = state.assignedLessons
+        .where((lesson) => lesson.moduleId == module.id)
+        .toList();
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: MallamPanel(
+                  instruction: modulesInstruction,
+                  onVoiceTap: () {
+                    state.replayVisiblePrompt(
+                      'You opened ${module.title}. Tap a module lesson to choose a learner and begin.',
                     );
                   },
+                  prompt:
+                      'You opened ${module.title}. Tap a module lesson to choose a learner and begin.',
+                  speakerMode: SpeakerMode.guiding,
+                  statusLabel: 'AI Mallam introduces the subject',
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: DetailCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Back'),
+                          ),
+                          const Spacer(),
+                          StatusPill(text: module.badge, color: LumoTheme.primary),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        module.title,
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        module.description,
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 16,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _BackendStatusBanner(state: state),
+                      const SizedBox(height: 16),
+                      if (lessons.isEmpty)
+                        const SoftPanel(
+                          child: Text('No lessons are mapped to this subject yet.'),
+                        )
+                      else
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: lessons.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final lesson = lessons[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  state.selectModule(module);
+                                  onChanged();
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => SelectStudentPage(
+                                        state: state,
+                                        onChanged: onChanged,
+                                        lesson: lesson,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(22),
+                                    border: Border.all(
+                                      color: const Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              lesson.title,
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          StatusPill(
+                                            text: '${lesson.steps.length} steps',
+                                            color: LumoTheme.accentOrange,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(lesson.readinessFocus),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        lesson.scenario,
+                                        style: const TextStyle(
+                                          color: Color(0xFF64748B),
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: InfoRow(
+                                              label: 'Duration',
+                                              value: '${lesson.durationMinutes} min',
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Text(
+                                            'Tap to choose learner',
+                                            style: TextStyle(
+                                              color: LumoTheme.primary,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -711,14 +929,14 @@ class _RegisterPageState extends State<RegisterPage> {
                   onVoiceTap: () {
                     syncDraft();
                     widget.state.replayVisiblePrompt(
-                      'Let us register the learner carefully so the next lesson starts at the right level.',
+                      'You are on the registration page. Fill in the learner details, capture consent, then save the learner profile.',
                     );
                     setState(() {});
                   },
                   prompt:
-                      'Let us register the learner carefully so the next lesson starts at the right level.',
+                      'You are on the registration page. Fill in the learner details, capture consent, then save the learner profile.',
                   speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'Mallam is preparing onboarding',
+                  statusLabel: 'AI Mallam is guiding registration',
                 ),
               ),
               const SizedBox(width: 20),
@@ -735,9 +953,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           const Spacer(),
                           StatusPill(
-                            text: draft.isValid
-                                ? 'Ready to save'
-                                : 'Needs details',
+                            text:
+                                draft.isValid ? 'Ready to save' : 'Needs details',
                             color: draft.isValid
                                 ? LumoTheme.accentGreen
                                 : LumoTheme.accentOrange,
@@ -748,7 +965,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       const SectionTitle(
                         title: 'Register learner',
                         subtitle:
-                            'Capture a simple but backend-ready profile. The goal is fast intake without losing placement detail.',
+                            'Capture a fast intake, then save the learner profile.',
                       ),
                       const SizedBox(height: 18),
                       _BackendStatusBanner(state: widget.state),
@@ -899,8 +1116,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                         ),
                                         DropdownMenuItem(
                                           value: 'Can repeat with support',
-                                          child:
-                                              Text('Can repeat with support'),
+                                          child: Text('Can repeat with support'),
                                         ),
                                         DropdownMenuItem(
                                           value: 'Answers with short sentences',
@@ -987,7 +1203,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 decoration: const InputDecoration(
                                   labelText: 'Support plan for first lessons',
                                   hintText:
-                                      'Example: Use short prompts, pause for think time, and praise every clear answer.',
+                                      'Use short prompts, pause for think time, and praise every clear answer.',
                                 ),
                               ),
                               const SizedBox(height: 18),
@@ -1004,7 +1220,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   'Consent captured for learner profile and voice session',
                                 ),
                                 subtitle: const Text(
-                                  'Required before local save and backend sync.',
+                                  'Required before save and backend sync.',
                                 ),
                                 controlAffinity:
                                     ListTileControlAffinity.leading,
@@ -1041,20 +1257,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                             value: readinessLabel,
                                           ),
                                           InfoRow(
-                                            label: 'Baseline',
-                                            value: baselineLevel,
-                                          ),
-                                          InfoRow(
                                             label: 'Recommended start',
                                             value: recommendedModule.title,
-                                          ),
-                                          InfoRow(
-                                            label: 'Placement note',
-                                            value: draft.placementSummary,
-                                          ),
-                                          InfoRow(
-                                            label: 'Risk flag',
-                                            value: draft.riskFlag,
                                           ),
                                         ],
                                       ),
@@ -1078,45 +1282,12 @@ class _RegisterPageState extends State<RegisterPage> {
                                             label: 'Missing before save',
                                             value: draft.missingFields.isEmpty
                                                 ? 'Nothing blocking this intake'
-                                                : draft.missingFields
-                                                    .join(', '),
+                                                : draft.missingFields.join(', '),
                                           ),
                                           InfoRow(
                                             label: 'Backend target',
                                             value: widget.state
                                                 .registrationContext.summary,
-                                          ),
-                                          InfoRow(
-                                            label: 'Queue after save',
-                                            value:
-                                                '${widget.state.pendingSyncEvents.length + 1} events',
-                                          ),
-                                          InfoRow(
-                                            label: 'Guardian mapping',
-                                            value:
-                                                '$caregiverRelationship • ${guardianPhoneController.text.isEmpty ? 'Phone missing' : 'Phone ready'}',
-                                          ),
-                                          const SizedBox(height: 10),
-                                          Container(
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                              border: Border.all(
-                                                color: const Color(0xFFE5E7EB),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              draft.backendPayloadPreview
-                                                  .toString(),
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: Color(0xFF475569),
-                                                height: 1.35,
-                                              ),
-                                            ),
                                           ),
                                         ],
                                       ),
@@ -1153,7 +1324,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 }
                               : null,
                           child: Text(widget.state.isRegisteringLearner
-                              ? 'Saving to backend...'
+                              ? 'Saving learner...'
                               : 'Save learner'),
                         ),
                       ),
@@ -1218,7 +1389,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                     Text(
                       state.usingFallbackData
                           ? 'Profile saved locally because backend sync was unavailable.'
-                          : 'Profile posted to the backend and is now live in the learner list.',
+                          : 'Profile posted to the backend and added to the learner list.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
@@ -1230,33 +1401,8 @@ class RegistrationSuccessPage extends StatelessWidget {
                         ('Language', learner.preferredLanguage),
                         ('Readiness', learner.readinessLabel),
                         ('Learner code', learner.learnerCode),
-                        (
-                          'Guardian',
-                          '${learner.guardianName} • ${learner.caregiverRelationship}'
-                        ),
                         ('Recommended start', recommendedModule.title),
                       ],
-                    ),
-                    const SizedBox(height: 16),
-                    SoftPanel(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InfoRow(label: 'Village', value: learner.village),
-                          InfoRow(
-                            label: 'Guardian phone',
-                            value: learner.guardianPhone,
-                          ),
-                          InfoRow(
-                            label: 'Support plan',
-                            value: learner.supportPlan,
-                          ),
-                          InfoRow(
-                            label: 'Sync queue',
-                            value: '${state.pendingSyncEvents.length} events',
-                          ),
-                        ],
-                      ),
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -1276,7 +1422,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                               onChanged();
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
-                                  builder: (_) => ModuleDetailPage(
+                                  builder: (_) => SubjectModulesPage(
                                     state: state,
                                     onChanged: onChanged,
                                     module: recommendedModule,
@@ -1284,7 +1430,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: const Text('Start first lesson'),
+                            child: const Text('Open subject'),
                           ),
                         ),
                       ],
@@ -1300,212 +1446,20 @@ class RegistrationSuccessPage extends StatelessWidget {
   }
 }
 
-class ModuleDetailPage extends StatelessWidget {
-  final LumoAppState state;
-  final VoidCallback onChanged;
-  final LearningModule module;
-
-  const ModuleDetailPage({
-    super.key,
-    required this.state,
-    required this.onChanged,
-    required this.module,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final lessons = state.lessonsForSelectedModule();
-
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: MallamPanel(
-                  instruction: modulesInstruction,
-                  onVoiceTap: () {
-                    state.replayVisiblePrompt(module.voicePrompt);
-                  },
-                  prompt: module.voicePrompt,
-                  speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'Mallam is introducing the module',
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: DetailCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Cancel'),
-                          ),
-                          const Spacer(),
-                          StatusPill(
-                            text: module.badge,
-                            color: LumoTheme.primary,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      _BackendStatusBanner(state: state),
-                      const SizedBox(height: 24),
-                      Text(
-                        module.title,
-                        style: const TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        module.description,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: MetricTile(
-                              label: 'Readiness goal',
-                              value: module.readinessGoal,
-                              icon: Icons.flag_rounded,
-                              color: LumoTheme.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: MetricTile(
-                              label: 'Lessons ready',
-                              value: '${lessons.length} offline',
-                              icon: Icons.download_done_rounded,
-                              color: LumoTheme.accentGreen,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Lesson flow',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount: lessons.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final lesson = lessons[index];
-                            return Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          lesson.title,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 17,
-                                          ),
-                                        ),
-                                      ),
-                                      StatusPill(
-                                        text: '${lesson.steps.length} steps',
-                                        color: LumoTheme.accentOrange,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(lesson.readinessFocus),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    lesson.scenario,
-                                    style: const TextStyle(
-                                      color: Color(0xFF475569),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  InfoRow(
-                                    label: 'Facilitator tip',
-                                    value: lesson.steps.first.facilitatorTip,
-                                  ),
-                                  InfoRow(
-                                    label: 'Real world check',
-                                    value: lesson.steps.first.realWorldCheck,
-                                  ),
-                                  InfoRow(
-                                    label: 'Estimated duration',
-                                    value: '${lesson.durationMinutes} min',
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => SelectStudentPage(
-                                  state: state,
-                                  onChanged: onChanged,
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Text('Select learner'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class SelectStudentPage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
+  final LessonCardModel lesson;
 
   const SelectStudentPage({
     super.key,
     required this.state,
     required this.onChanged,
+    required this.lesson,
   });
 
   @override
   Widget build(BuildContext context) {
-    final lessons = state.lessonsForSelectedModule();
-    final firstLesson =
-        lessons.isNotEmpty ? lessons.first : state.assignedLessons.first;
-
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -1518,13 +1472,13 @@ class SelectStudentPage extends StatelessWidget {
                   instruction: selectStudentInstruction,
                   onVoiceTap: () {
                     state.replayVisiblePrompt(
-                      'Choose the learner and I will start at the right speaking level.',
+                      'Choose the learner for ${lesson.title}. I will use the learner profile to guide the lesson.',
                     );
                   },
                   prompt:
-                      'Choose the learner and I will start at the right speaking level.',
+                      'Choose the learner for ${lesson.title}. I will use the learner profile to guide the lesson.',
                   speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'Mallam is waiting for learner selection',
+                  statusLabel: 'AI Mallam is waiting for learner selection',
                 ),
               ),
               const SizedBox(width: 20),
@@ -1540,16 +1494,16 @@ class SelectStudentPage extends StatelessWidget {
                         ),
                         const Spacer(),
                         StatusPill(
-                          text: state.selectedModule?.title ?? 'Any module',
+                          text: lesson.subject,
                           color: LumoTheme.primary,
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const SectionTitle(
-                      title: 'Select learner',
+                    SectionTitle(
+                      title: 'Choose learner',
                       subtitle:
-                          'Tap the learner who is ready now. Mallam will carry their support context into the session.',
+                          'Tap a learner to start ${lesson.title}.',
                     ),
                     const SizedBox(height: 16),
                     Expanded(
@@ -1567,106 +1521,19 @@ class SelectStudentPage extends StatelessWidget {
                           return GestureDetector(
                             onTap: () {
                               state.selectLearner(learner);
-                              state.startLesson(firstLesson);
+                              state.startLesson(lesson);
                               onChanged();
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => LessonSessionPage(
                                     state: state,
-                                    lesson: firstLesson,
+                                    lesson: lesson,
                                     onChanged: onChanged,
                                   ),
                                 ),
                               );
                             },
-                            child: Container(
-                              padding: const EdgeInsets.all(18),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: const Color(0xFFEAEAF4),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 28,
-                                        backgroundColor:
-                                            const Color(0xFFE9E7FF),
-                                        child: Text(
-                                          learner.name.characters.first,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      StatusPill(
-                                        text: learner.attendanceBand,
-                                        color: LumoTheme.accentOrange,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    learner.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Age ${learner.age} • ${learner.village}',
-                                    style: const TextStyle(
-                                      color: Color(0xFF6B7280),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    learner.learnerCode,
-                                    style: const TextStyle(
-                                      color: Color(0xFF94A3B8),
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    learner.readinessLabel,
-                                    style: const TextStyle(
-                                      color: LumoTheme.primary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    learner.supportPlan,
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Color(0xFF475569),
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  InfoRow(
-                                    label: 'Last attendance',
-                                    value: learner.lastAttendance,
-                                  ),
-                                ],
-                              ),
-                            ),
+                            child: _LearnerCard(learner: learner),
                           );
                         },
                       ),
@@ -1704,12 +1571,16 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   late final SpeechTranscriptionService speechTranscriptionService;
   Timer? recordingTicker;
   bool isRecording = false;
+  bool isAutoMode = true;
+  bool isSpeaking = false;
+  bool isProcessingTranscript = false;
   Duration currentRecordingDuration = Duration.zero;
   String? microphoneStatus;
   String liveTranscript = '';
   bool speechRecognitionActive = false;
   bool transcriptCapturedThisTake = false;
   bool transcriptReviewPending = false;
+  bool _promptedCurrentStep = false;
 
   @override
   void initState() {
@@ -1717,6 +1588,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     responseController = TextEditingController();
     audioCaptureService = AudioCaptureService();
     speechTranscriptionService = SpeechTranscriptionService();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakCurrentStepIfNeeded(force: true);
+    });
   }
 
   @override
@@ -1728,23 +1602,78 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     super.dispose();
   }
 
-  void submitResponse([String? value]) {
-    final text = (value ?? responseController.text).trim();
-    if (text.isEmpty) return;
-    widget.state.submitLearnerResponse(text);
-    responseController.text = text;
-    transcriptReviewPending = false;
-    widget.onChanged();
-    setState(() {});
+  Future<void> _speakCurrentStepIfNeeded({bool force = false}) async {
+    final session = widget.state.activeSession;
+    if (session == null) return;
+    if (_promptedCurrentStep && !force) return;
+    _promptedCurrentStep = true;
+    final prompt = widget.state.personalizePrompt(session.currentStep.coachPrompt);
+    setState(() {
+      isSpeaking = true;
+    });
+    await widget.state.replayVisiblePrompt(prompt, mode: SpeakerMode.guiding);
+    if (!mounted) return;
+    setState(() {
+      isSpeaking = false;
+      microphoneStatus = 'Mallam finished speaking. Listen for the learner response.';
+    });
   }
 
-  void clearPendingTranscriptReview({bool clearText = false}) {
-    transcriptReviewPending = false;
-    if (clearText) {
-      responseController.clear();
+  Future<void> _afterCorrectResponse() async {
+    final finished = widget.state.advanceLessonStep();
+    widget.onChanged();
+    if (finished) {
+      await widget.state.completeLesson(widget.lesson);
+      if (!mounted) return;
+      widget.onChanged();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => LessonCompletePage(
+            state: widget.state,
+            lesson: widget.lesson,
+          ),
+        ),
+      );
+      return;
     }
+
+    responseController.clear();
+    liveTranscript = '';
+    transcriptReviewPending = false;
+    _promptedCurrentStep = false;
+    setState(() {
+      microphoneStatus =
+          'Correct response captured. Mallam is moving to the next step.';
+    });
+    await _speakCurrentStepIfNeeded(force: true);
+  }
+
+  Future<void> _handleSubmittedResponse(String text, {bool auto = false}) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+
+    widget.state.submitLearnerResponse(trimmed);
+    responseController.text = trimmed;
+    transcriptReviewPending = false;
     widget.onChanged();
     setState(() {});
+
+    final review = widget.state.activeSession?.latestReview ?? ResponseReview.pending;
+    if (!isAutoMode) return;
+
+    if (review == ResponseReview.onTrack) {
+      await _afterCorrectResponse();
+      return;
+    }
+
+    await widget.state.replayCoachPrompt();
+    widget.onChanged();
+    if (!mounted) return;
+    setState(() {
+      microphoneStatus = auto
+          ? 'Mallam did not accept that response yet, so the prompt was repeated. Try again.'
+          : 'Mallam repeated the prompt. Try again.';
+    });
   }
 
   Future<void> startRecording() async {
@@ -1753,9 +1682,13 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       liveTranscript = '';
       transcriptReviewPending = false;
 
-      await audioCaptureService.start(
+      final audioStarted = await audioCaptureService.startSafely(
         fileStem: widget.state.currentLearner?.learnerCode ?? 'learner-voice',
       );
+      if (!audioStarted.started) {
+        throw AudioCaptureException(audioStarted.message ?? 'Unable to start microphone capture.');
+      }
+
       final speechReady = await speechTranscriptionService.start(
         onResult: (transcript, isFinal) {
           if (!mounted) return;
@@ -1767,25 +1700,28 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       );
 
       recordingTicker?.cancel();
+      currentRecordingDuration = Duration.zero;
       recordingTicker = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
         setState(() {
           currentRecordingDuration += const Duration(seconds: 1);
         });
       });
+
       widget.state.setAudioInputMode('Shared mic on tablet');
       widget.onChanged();
       setState(() {
         isRecording = true;
         speechRecognitionActive = speechReady;
-        currentRecordingDuration = Duration.zero;
         microphoneStatus = speechReady
-            ? 'Recording learner voice and live transcript…'
-            : (speechTranscriptionService.lastError ??
-                'Recording learner voice only. Speech recognition is unavailable on this device.');
+            ? 'Recording learner voice and listening for transcript...'
+            : (audioStarted.message ??
+                speechTranscriptionService.lastError ??
+                'Recording learner voice only. Speech recognition is unavailable right now.');
       });
     } catch (error) {
       await speechTranscriptionService.cancel();
+      await audioCaptureService.stop();
       setState(() {
         isRecording = false;
         speechRecognitionActive = false;
@@ -1821,16 +1757,25 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
     if (transcript.isNotEmpty) {
       responseController.text = transcript;
-      transcriptReviewPending = true;
+      transcriptReviewPending = !isAutoMode;
     }
 
     widget.onChanged();
     setState(() {
       currentRecordingDuration = result.duration;
       microphoneStatus = transcript.isNotEmpty
-          ? 'Learner voice saved locally (${formatDuration(result.duration)}). Review the transcript before moving on.'
-          : 'Learner voice saved locally (${formatDuration(result.duration)}). No transcript was detected.';
+          ? 'Learner voice saved (${formatDuration(result.duration)}).'
+          : 'Learner voice saved (${formatDuration(result.duration)}). No transcript was detected.';
     });
+
+    if (transcript.isNotEmpty && isAutoMode && !isProcessingTranscript) {
+      isProcessingTranscript = true;
+      try {
+        await _handleSubmittedResponse(transcript, auto: true);
+      } finally {
+        isProcessingTranscript = false;
+      }
+    }
   }
 
   String formatDuration(Duration duration) {
@@ -1868,8 +1813,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
               Expanded(
                 child: MallamPanel(
                   instruction: lessonInstruction,
-                  onVoiceTap: () {
-                    widget.state.replayCoachPrompt();
+                  onVoiceTap: () async {
+                    _promptedCurrentStep = false;
+                    await _speakCurrentStepIfNeeded(force: true);
                     widget.onChanged();
                     setState(() {});
                   },
@@ -1933,9 +1879,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: MetricTile(
-                              label: 'Support used',
-                              value: '${session.supportActionsUsed}',
-                              icon: Icons.support_agent_rounded,
+                              label: 'Auto mode',
+                              value: isAutoMode ? 'On' : 'Off',
+                              icon: Icons.smart_toy_rounded,
                               color: LumoTheme.accentOrange,
                             ),
                           ),
@@ -1980,172 +1926,59 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     const SizedBox(height: 12),
                                     LabelValueWrap(
                                       items: [
-                                        ('Scenario', widget.lesson.scenario),
                                         ('Expected response', expectedResponse),
-                                        (
-                                          'Facilitator tip',
-                                          step.facilitatorTip
-                                        ),
-                                        (
-                                          'Real-world check',
-                                          step.realWorldCheck,
-                                        ),
+                                        ('Facilitator tip', step.facilitatorTip),
+                                        ('Real-world check', step.realWorldCheck),
                                       ],
                                     ),
                                   ],
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: SoftPanel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Audio routing',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          DropdownButtonFormField<String>(
-                                            initialValue:
-                                                session.audioInputMode,
-                                            items: const [
-                                              DropdownMenuItem(
-                                                value:
-                                                    'Facilitator typed capture',
-                                                child: Text(
-                                                  'Facilitator typed capture',
-                                                ),
-                                              ),
-                                              DropdownMenuItem(
-                                                value: 'Mic handoff planned',
-                                                child: Text(
-                                                  'Mic handoff planned',
-                                                ),
-                                              ),
-                                              DropdownMenuItem(
-                                                value: 'Shared mic on tablet',
-                                                child: Text(
-                                                  'Shared mic on tablet',
-                                                ),
-                                              ),
-                                            ],
-                                            onChanged: (value) {
-                                              if (value == null) return;
-                                              widget.state
-                                                  .setAudioInputMode(value);
-                                              widget.onChanged();
-                                              setState(() {});
-                                            },
-                                            decoration: const InputDecoration(
-                                              labelText: 'Audio input mode',
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          DropdownButtonFormField<String>(
-                                            initialValue:
-                                                session.speakerOutputMode,
-                                            items: const [
-                                              DropdownMenuItem(
-                                                value: 'Tablet speaker',
-                                                child: Text('Tablet speaker'),
-                                              ),
-                                              DropdownMenuItem(
-                                                value:
-                                                    'External speaker paired',
-                                                child: Text(
-                                                  'External speaker paired',
-                                                ),
-                                              ),
-                                              DropdownMenuItem(
-                                                value:
-                                                    'Low-volume close coaching',
-                                                child: Text(
-                                                  'Low-volume close coaching',
-                                                ),
-                                              ),
-                                            ],
-                                            onChanged: (value) {
-                                              if (value == null) return;
-                                              widget.state
-                                                  .setSpeakerOutputMode(value);
-                                              widget.onChanged();
-                                              setState(() {});
-                                            },
-                                            decoration: const InputDecoration(
-                                              labelText: 'Speaker output mode',
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          InfoRow(
-                                            label: 'Last support action',
-                                            value: session.lastSupportType,
-                                          ),
-                                          InfoRow(
-                                            label: 'Elapsed',
-                                            value:
-                                                '${session.elapsedMinutes} min',
-                                          ),
-                                        ],
+                              SoftPanel(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Automation',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: SoftPanel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Facilitator observations',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              'Needed translation',
-                                              'Answered independently',
-                                              'Shy at first',
-                                              'Background noise',
-                                              'Needed gesture cue',
-                                            ]
-                                                .map(
-                                                  (item) => FilterChip(
-                                                    label: Text(item),
-                                                    selected: session
-                                                        .facilitatorObservations
-                                                        .contains(item),
-                                                    onSelected: (_) {
-                                                      widget.state
-                                                          .addObservation(item);
-                                                      widget.onChanged();
-                                                      setState(() {});
-                                                    },
-                                                  ),
-                                                )
-                                                .toList(),
-                                          ),
-                                        ],
+                                    const SizedBox(height: 10),
+                                    SwitchListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      value: isAutoMode,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          isAutoMode = value;
+                                          transcriptReviewPending = !value && transcriptReviewPending;
+                                        });
+                                      },
+                                      title: const Text('Auto lesson mode'),
+                                      subtitle: Text(isAutoMode
+                                          ? 'Mallam speaks the step, checks the captured answer, advances on correct responses, and repeats when the answer needs help.'
+                                          : 'Facilitator confirms each response manually.'),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      isSpeaking
+                                          ? 'Mallam is speaking now.'
+                                          : (microphoneStatus ??
+                                              'Tap AI Mallam to replay the current instruction.'),
+                                      style: const TextStyle(
+                                        color: Color(0xFF475569),
+                                        height: 1.4,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 16),
                               _CoachActionsRow(
-                                onReplay: () {
-                                  widget.state.replayCoachPrompt();
+                                onReplay: () async {
+                                  _promptedCurrentStep = false;
+                                  await _speakCurrentStepIfNeeded(force: true);
                                   widget.onChanged();
                                   setState(() {});
                                 },
@@ -2180,9 +2013,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                               TextField(
                                 controller: responseController,
                                 decoration: const InputDecoration(
-                                  labelText: 'Capture learner response',
+                                  labelText: 'Learner response',
                                   hintText:
-                                      'Type what the learner said or tap a quick response',
+                                      'Transcript or typed response appears here',
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -2194,7 +2027,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                       (suggestion) => ActionChip(
                                         label: Text(suggestion),
                                         onPressed: () =>
-                                            submitResponse(suggestion),
+                                            _handleSubmittedResponse(suggestion),
                                       ),
                                     )
                                     .toList(),
@@ -2215,29 +2048,11 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        children: const [
-                                          Icon(
-                                            Icons.fact_check_rounded,
-                                            size: 18,
-                                            color: Color(0xFF92400E),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Review transcript before advancing',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              color: Color(0xFF78350F),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Speech-to-text can miss names or code-switching. Confirm or edit the learner response first, or clear it and continue with audio-only evidence.',
-                                        style: const TextStyle(
-                                          color: Color(0xFF92400E),
-                                          height: 1.4,
+                                      const Text(
+                                        'Review transcript before advancing',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF78350F),
                                         ),
                                       ),
                                       const SizedBox(height: 10),
@@ -2246,7 +2061,10 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                         runSpacing: 8,
                                         children: [
                                           FilledButton.tonalIcon(
-                                            onPressed: () => submitResponse(),
+                                            onPressed: () =>
+                                                _handleSubmittedResponse(
+                                              responseController.text,
+                                            ),
                                             icon: const Icon(
                                               Icons.check_circle_rounded,
                                             ),
@@ -2255,24 +2073,15 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                             ),
                                           ),
                                           OutlinedButton.icon(
-                                            onPressed: () =>
-                                                clearPendingTranscriptReview(),
+                                            onPressed: () {
+                                              setState(() {
+                                                transcriptReviewPending = false;
+                                              });
+                                            },
                                             icon: const Icon(
                                               Icons.graphic_eq_rounded,
                                             ),
-                                            label: const Text(
-                                              'Use audio only for now',
-                                            ),
-                                          ),
-                                          OutlinedButton.icon(
-                                            onPressed: () =>
-                                                clearPendingTranscriptReview(
-                                              clearText: true,
-                                            ),
-                                            icon: const Icon(
-                                              Icons.delete_outline_rounded,
-                                            ),
-                                            label: const Text('Clear draft'),
+                                            label: const Text('Use audio only'),
                                           ),
                                         ],
                                       ),
@@ -2285,7 +2094,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                 children: [
                                   Expanded(
                                     child: FilledButton.tonal(
-                                      onPressed: () => submitResponse(),
+                                      onPressed: () => _handleSubmittedResponse(
+                                        responseController.text,
+                                      ),
                                       child: const Text('Save typed response'),
                                     ),
                                   ),
@@ -2295,31 +2106,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                       onPressed: session.hasLearnerInput &&
                                               !transcriptReviewPending
                                           ? () async {
-                                              final finished = widget.state
-                                                  .advanceLessonStep();
-                                              if (finished) {
-                                                await widget.state
-                                                    .completeLesson(
-                                                  widget.lesson,
-                                                );
-                                                if (!context.mounted) return;
-                                                widget.onChanged();
-                                                Navigator.of(context)
-                                                    .pushReplacement(
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        LessonCompletePage(
-                                                      state: widget.state,
-                                                      lesson: widget.lesson,
-                                                    ),
-                                                  ),
-                                                );
-                                                return;
-                                              }
-                                              widget.onChanged();
-                                              transcriptReviewPending = false;
-                                              responseController.clear();
-                                              setState(() {});
+                                              await _afterCorrectResponse();
                                             }
                                           : null,
                                       child: Text(
@@ -2345,7 +2132,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     const SizedBox(height: 8),
                                     Text(
                                       microphoneStatus ??
-                                          'Record the learner on-device. Live speech-to-text now fills the response box when available; typed capture still works if the mic is unavailable.',
+                                          'Press Start recording after Mallam speaks. The app will save audio and use live transcript when possible.',
                                       style: const TextStyle(
                                         color: Color(0xFF475569),
                                         height: 1.4,
@@ -2370,7 +2157,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                               ? stopRecording
                                               : null,
                                           icon: const Icon(
-                                              Icons.stop_circle_outlined),
+                                            Icons.stop_circle_outlined,
+                                          ),
                                           label: const Text('Stop and save'),
                                         ),
                                         Container(
@@ -2422,29 +2210,19 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.subtitles_rounded,
-                                                  size: 18,
-                                                  color: Color(0xFF4338CA),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  speechRecognitionActive
-                                                      ? 'Live transcript'
-                                                      : 'Captured transcript',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF312E81),
-                                                  ),
-                                                ),
-                                              ],
+                                            Text(
+                                              speechRecognitionActive
+                                                  ? 'Live transcript'
+                                                  : 'Captured transcript',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFF312E81),
+                                              ),
                                             ),
                                             const SizedBox(height: 8),
                                             Text(
                                               liveTranscript.isEmpty
-                                                  ? 'Listening for learner speech…'
+                                                  ? 'Listening for learner speech...'
                                                   : liveTranscript,
                                               style: const TextStyle(
                                                 color: Color(0xFF4338CA),
@@ -2455,8 +2233,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                         ),
                                       ),
                                     ],
-                                    if (session.latestLearnerAudioPath !=
-                                        null) ...[
+                                    if (session.latestLearnerAudioPath != null) ...[
                                       const SizedBox(height: 12),
                                       Container(
                                         width: double.infinity,
@@ -2490,17 +2267,6 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              transcriptCapturedThisTake ||
-                                                      session.hasResponse
-                                                  ? 'Audio capture is saved locally and the latest transcript can be edited in the response box before advancing.'
-                                                  : 'Audio capture is saved locally even if speech recognition misses the words. You can still type the learner response manually.',
-                                              style: const TextStyle(
-                                                color: Color(0xFF475569),
-                                                height: 1.4,
-                                              ),
-                                            ),
                                           ],
                                         ),
                                       ),
@@ -2509,126 +2275,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              _ResponseReviewBanner(
-                                  review: session.latestReview),
-                              const SizedBox(height: 16),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Sync payload preview',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      session
-                                          .syncPayloadPreview(
-                                            learnerCode: learner.learnerCode,
-                                          )
-                                          .toString(),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                width: double.infinity,
-                                constraints:
-                                    const BoxConstraints(minHeight: 240),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFCFCFF),
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(
-                                    color: const Color(0xFFE5E7EB),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Session transcript',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ...session.transcript.map((turn) {
-                                      final isMallam = turn.speaker == 'Mallam';
-                                      final isFacilitator =
-                                          turn.speaker == 'Facilitator';
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 10),
-                                        child: Align(
-                                          alignment: isMallam
-                                              ? Alignment.centerLeft
-                                              : Alignment.centerRight,
-                                          child: Container(
-                                            constraints: const BoxConstraints(
-                                              maxWidth: 360,
-                                            ),
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: isMallam
-                                                  ? const Color(0xFFF3F0FF)
-                                                  : isFacilitator
-                                                      ? const Color(0xFFFFF7ED)
-                                                      : const Color(0xFFEEFBF3),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    Text(
-                                                      turn.speaker,
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        color: isMallam
-                                                            ? LumoTheme.primary
-                                                            : isFacilitator
-                                                                ? LumoTheme
-                                                                    .accentOrange
-                                                                : LumoTheme
-                                                                    .accentGreen,
-                                                      ),
-                                                    ),
-                                                    const Spacer(),
-                                                    Text(
-                                                      _formatTime(
-                                                          turn.timestamp),
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        color:
-                                                            Color(0xFF64748B),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(turn.text),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }),
-                                  ],
-                                ),
-                              ),
+                              _ResponseReviewBanner(review: session.latestReview),
                             ],
                           ),
                         ),
@@ -2657,12 +2304,6 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       case SpeakerMode.idle:
         return 'Mallam is idle';
     }
-  }
-
-  String _formatTime(DateTime timestamp) {
-    final hour = timestamp.hour.toString().padLeft(2, '0');
-    final minute = timestamp.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
   }
 }
 
@@ -2745,56 +2386,7 @@ class LessonCompletePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    SoftPanel(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InfoRow(
-                            label: 'Readiness focus',
-                            value: lesson.readinessFocus,
-                          ),
-                          InfoRow(
-                            label: 'Last support action',
-                            value: session.lastSupportType,
-                          ),
-                          InfoRow(
-                            label: 'Observation summary',
-                            value: session.facilitatorObservations.isEmpty
-                                ? 'No facilitator flags captured.'
-                                : session.facilitatorObservations.join(', '),
-                          ),
-                          InfoRow(
-                            label: 'Learner record updated',
-                            value: learner.lastLessonSummary,
-                          ),
-                        ],
-                      ),
-                    ),
                     const SizedBox(height: 24),
-                    if (state.latestSyncEvent != null) ...[
-                      SoftPanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Latest queued sync event',
-                              style: TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 10),
-                            InfoRow(
-                              label: 'Event type',
-                              value: state.latestSyncEvent!.type,
-                            ),
-                            InfoRow(
-                              label: 'Payload preview',
-                              value: state.latestSyncEvent!.payload.toString(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
                     Row(
                       children: [
                         Expanded(
@@ -2812,11 +2404,11 @@ class LessonCompletePage extends StatelessWidget {
                             onPressed: () {
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
-                                  builder: (_) => ModuleDetailPage(
+                                  builder: (_) => SubjectModulesPage(
                                     state: state,
                                     onChanged: () {},
-                                    module: state.selectedModule ??
-                                        state.modules.first,
+                                    module:
+                                        state.selectedModule ?? state.modules.first,
                                   ),
                                 ),
                               );
@@ -2941,177 +2533,227 @@ class _BackendStatusBanner extends StatelessWidget {
   }
 }
 
-class _HomeHero extends StatelessWidget {
-  final LumoAppState state;
-  final LearnerProfile featuredLearner;
-  final LessonCardModel? recommendedLesson;
-  final Future<void> Function() onRefreshBackend;
-  final Future<void> Function() onSyncQueue;
-  final VoidCallback onOpenLearners;
-  final VoidCallback onRegisterLearner;
+class _PrimaryActionCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
 
-  const _HomeHero({
-    required this.state,
-    required this.featuredLearner,
-    required this.recommendedLesson,
-    required this.onRefreshBackend,
-    required this.onSyncQueue,
-    required this.onOpenLearners,
-    required this.onRegisterLearner,
+  const _PrimaryActionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFF8B7FFF)],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: color.withValues(alpha: 0.18)),
         ),
-        borderRadius: BorderRadius.circular(28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: color.withValues(alpha: 0.12),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: const TextStyle(color: Color(0xFF64748B), height: 1.35),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubjectCard extends StatelessWidget {
+  final LearningModule module;
+  final int lessonCount;
+  final VoidCallback onTap;
+
+  const _SubjectCard({
+    required this.module,
+    required this.lessonCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _modulePalette(module.id);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: palette),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: palette.first.withValues(alpha: 0.20),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                StatusPill(text: module.badge, color: Colors.white),
+                Text(
+                  '$lessonCount modules',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              module.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              module.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, height: 1.3),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Color> _modulePalette(String id) {
+    switch (id) {
+      case 'math':
+        return const [Color(0xFFFF9A62), Color(0xFFFFB347)];
+      case 'life-skills':
+        return const [Color(0xFF12B981), Color(0xFF34D399)];
+      case 'story':
+        return const [Color(0xFF0EA5E9), Color(0xFF38BDF8)];
+      case 'english':
+      default:
+        return const [Color(0xFF6C63FF), Color(0xFF8B7FFF)];
+    }
+  }
+}
+
+class _LearnerCard extends StatelessWidget {
+  final LearnerProfile learner;
+
+  const _LearnerCard({required this.learner});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFEAEAF4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Today’s learner session',
-            style: TextStyle(
-              color: Colors.white70,
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: const Color(0xFFE9E7FF),
+                child: Text(
+                  learner.name.characters.first,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Spacer(),
+              StatusPill(
+                text: learner.attendanceBand,
+                color: LumoTheme.accentOrange,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            learner.name,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Age ${learner.age} • ${learner.village}',
+            style: const TextStyle(color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            learner.learnerCode,
+            style: const TextStyle(
+              color: Color(0xFF94A3B8),
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            featuredLearner.name,
+            learner.readinessLabel,
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
+              color: LumoTheme.primary,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            '${featuredLearner.readinessLabel} • ${featuredLearner.preferredLanguage}',
+            learner.supportPlan,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
+              color: Color(0xFF475569),
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroStat(
-                  label: 'Learners',
-                  value: '${state.learners.length}',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HeroStat(
-                  label: 'Queue',
-                  value: state.syncQueueLabel,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HeroStat(
-                  label: 'Assignments',
-                  value: '${state.backendAssignmentCount}',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HeroStat(
-                  label: 'Streak',
-                  value: '${featuredLearner.streakDays} days',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Live recommendation',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  recommendedLesson?.title ?? 'No lesson ready yet',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  recommendedLesson?.scenario ??
-                      'Select a learner path to continue.',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              ActionChip(
-                avatar: const Icon(Icons.wifi_tethering_rounded, size: 18),
-                label: Text(state.backendStatusLabel),
-                onPressed: null,
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.inventory_2_rounded, size: 18),
-                label: Text(state.backendSnapshotLabel),
-                onPressed: null,
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.sync_rounded, size: 18),
-                label: Text(state.lastSyncSummaryLabel),
-                onPressed: null,
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.tonal(
-                  onPressed: onOpenLearners,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: LumoTheme.primary,
-                  ),
-                  child: const Text('Open learners'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onRegisterLearner,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white70),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Register learner'),
-                ),
-              ),
-            ],
+          const Spacer(),
+          InfoRow(
+            label: 'Last attendance',
+            value: learner.lastAttendance,
           ),
         ],
       ),
@@ -3273,137 +2915,6 @@ class _SpeakerStateBadge extends StatelessWidget {
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _HeroStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModuleCard extends StatelessWidget {
-  final LearningModule module;
-  final int lessonCount;
-  final VoidCallback onTap;
-
-  const _ModuleCard({
-    required this.module,
-    required this.lessonCount,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = _modulePalette(module.id);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: palette),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: palette.first.withValues(alpha: 0.20),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                StatusPill(text: module.badge, color: Colors.white),
-                Text(
-                  '$lessonCount lessons',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Text(
-              module.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              module.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, height: 1.3),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              module.readinessGoal,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                height: 1.25,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Color> _modulePalette(String id) {
-    switch (id) {
-      case 'math':
-        return const [Color(0xFFFF9A62), Color(0xFFFFB347)];
-      case 'life-skills':
-        return const [Color(0xFF12B981), Color(0xFF34D399)];
-      case 'story':
-        return const [Color(0xFF0EA5E9), Color(0xFF38BDF8)];
-      case 'english':
-      default:
-        return const [Color(0xFF6C63FF), Color(0xFF8B7FFF)];
-    }
-  }
-}
-
 class _ProgressMeter extends StatelessWidget {
   final int score;
 
@@ -3451,15 +2962,13 @@ class _ResponseReviewBanner extends StatelessWidget {
         );
       case ResponseReview.onTrack:
         return _banner(
-          text:
-              'Response captured. Mallam can affirm and move to the next step.',
+          text: 'Response captured. Mallam can affirm and move to the next step.',
           color: LumoTheme.accentGreen,
           background: const Color(0xFFEEFBF3),
         );
       case ResponseReview.needsSupport:
         return _banner(
-          text:
-              'Short or uncertain response. Replay the prompt or coach with a quick support action.',
+          text: 'That response needs help. Mallam should repeat or coach before moving on.',
           color: LumoTheme.accentOrange,
           background: const Color(0xFFFFF7ED),
         );
@@ -3483,5 +2992,13 @@ class _ResponseReviewBanner extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.w700, color: color),
       ),
     );
+  }
+}
+
+class ClipboardBridge {
+  static Future<void> copy(String text) async {
+    await Future<void>.delayed(Duration.zero);
+    // ignore: deprecated_member_use
+    return Clipboard.setData(ClipboardData(text: text));
   }
 }

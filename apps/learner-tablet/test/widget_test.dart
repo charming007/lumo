@@ -17,7 +17,7 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
 
-    expect(find.text('Today’s learner session'), findsOneWidget);
-    expect(find.text('Learning modules'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Student List'), findsOneWidget);
   });
 }

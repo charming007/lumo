@@ -10,6 +10,13 @@ class AudioCaptureResult {
   const AudioCaptureResult({required this.path, required this.duration});
 }
 
+class AudioStartResult {
+  final bool started;
+  final String? message;
+
+  const AudioStartResult({required this.started, this.message});
+}
+
 class AudioCaptureService {
   AudioCaptureService() : _recorder = AudioRecorder();
 
@@ -18,7 +25,7 @@ class AudioCaptureService {
 
   Future<bool> hasPermission() => _recorder.hasPermission();
 
-  Future<void> start({String? fileStem}) async {
+  Future<AudioStartResult> startSafely({String? fileStem}) async {
     final hasMicPermission = await _recorder.hasPermission();
     if (!hasMicPermission) {
       throw const AudioCaptureException(
@@ -26,22 +33,54 @@ class AudioCaptureService {
       );
     }
 
+    if (await _recorder.isRecording()) {
+      await _recorder.stop();
+    }
+
     final recordingsDir = await _recordingsDirectory();
     final safeStem = (fileStem == null || fileStem.trim().isEmpty)
         ? 'learner-voice'
         : fileStem.trim().replaceAll(RegExp(r'[^a-zA-Z0-9_-]+'), '-');
-    final filePath =
-        '${recordingsDir.path}/$safeStem-${DateTime.now().millisecondsSinceEpoch}.m4a';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-    await _recorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        bitRate: 128000,
-        sampleRate: 44100,
+    final attempts = <({RecordConfig config, String extension, String? note})>[
+      (
+        config: const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
+        extension: 'm4a',
+        note: null,
       ),
-      path: filePath,
+      (
+        config: const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        extension: 'wav',
+        note:
+            'Fallback recording mode is active because the preferred encoder was unavailable.',
+      ),
+    ];
+
+    Object? lastError;
+    for (final attempt in attempts) {
+      final filePath =
+          '${recordingsDir.path}/$safeStem-$timestamp.${attempt.extension}';
+      try {
+        await _recorder.start(attempt.config, path: filePath);
+        _recordingStartedAt = DateTime.now();
+        return AudioStartResult(started: true, message: attempt.note);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw AudioCaptureException(
+      'Unable to start learner voice capture on this device: ${lastError ?? 'unknown recorder error'}',
     );
-    _recordingStartedAt = DateTime.now();
   }
 
   Future<AudioCaptureResult?> stop() async {
