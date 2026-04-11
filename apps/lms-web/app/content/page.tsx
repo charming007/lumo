@@ -1,4 +1,5 @@
-import { CreateAssessmentForm, CreateModuleForm, DeleteAssessmentForm, DeleteLessonForm, DeleteModuleForm, UpdateAssessmentForm, UpdateLessonForm, UpdateModuleForm } from '../../components/admin-forms';
+import { CreateAssessmentForm, CreateModuleForm } from '../../components/admin-forms';
+import { UpdateAssessmentFormClient, UpdateLessonFormClient, UpdateModuleFormClient, DeleteAssessmentFormClient, DeleteLessonFormClient, DeleteModuleFormClient } from '../../components/content-admin-reactive-forms';
 import { DynamicLessonCreateForm } from '../../components/content-ops-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
@@ -297,14 +298,14 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
         <CreateModuleForm strands={strands} />
-        <UpdateModuleForm modules={modules} />
-        <DeleteModuleForm modules={modules} />
+        <UpdateModuleFormClient modules={modules} />
+        <DeleteModuleFormClient modules={modules} />
         <DynamicLessonCreateForm modules={modules} subjects={subjects} action={createLessonAction} />
-        <UpdateLessonForm lessons={lessons} />
-        <DeleteLessonForm lessons={lessons} />
+        <UpdateLessonFormClient lessons={lessons} />
+        <DeleteLessonFormClient lessons={lessons} />
         <CreateAssessmentForm modules={modules} subjects={subjects} />
-        <UpdateAssessmentForm assessments={assessments} />
-        <DeleteAssessmentForm assessments={assessments} />
+        <UpdateAssessmentFormClient assessments={assessments} />
+        <DeleteAssessmentFormClient assessments={assessments} />
       </section>
     </PageShell>
   );

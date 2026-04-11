@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { DeleteConfirmSubmit } from './delete-confirm-submit';
 import {
   createAssessmentAction,
   createLessonAction,
@@ -125,7 +126,7 @@ export function DeleteStudentForm({ student, embedded = false }: { student: Stud
           Remove <strong>{student.name}</strong> from the roster? This updates the live admin data and cannot be undone from this screen.
         </div>
       </div>
-      <ActionButton label="Delete learner" pendingLabel="Deleting learner…" style={{ ...buttonStyle, background: '#dc2626' }} />
+      <DeleteConfirmSubmit expectedText={student.name} entityLabel="learner" actionLabel="Delete learner" pendingLabel="Deleting learner…" impactNote="Guardian, attendance, and progress visibility for this learner disappear from the admin roster immediately." />
     </form>
   );
 }
@@ -189,7 +190,7 @@ export function DeleteMallamForm({ mallam, embedded = false }: { mallam: Mallam;
           Remove <strong>{mallam.displayName}</strong> from deployment? This will clear the profile from the live admin roster.
         </div>
       </div>
-      <ActionButton label="Delete mallam" pendingLabel="Deleting mallam…" style={{ ...buttonStyle, background: '#dc2626' }} />
+      <DeleteConfirmSubmit expectedText={mallam.displayName} entityLabel="mallam profile" actionLabel="Delete mallam" pendingLabel="Deleting mallam…" impactNote="Roster ownership and deployment visibility for this mallam will drop out of admin immediately." />
     </form>
   );
 }
