@@ -273,6 +273,30 @@ export async function updateAssessmentAction(formData: FormData) {
   redirect('/content?message=Assessment%20changes%20saved');
 }
 
+export async function deleteModuleAction(formData: FormData) {
+  const moduleId = String(formData.get('moduleId') || '');
+
+  await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'DELETE');
+  revalidatePath('/content');
+  redirect('/content?message=Module%20removed%20from%20the%20library');
+}
+
+export async function deleteLessonAction(formData: FormData) {
+  const lessonId = String(formData.get('lessonId') || '');
+
+  await apiWrite(`/api/v1/lessons/${lessonId}`, 'DELETE');
+  revalidatePath('/content');
+  redirect('/content?message=Lesson%20removed%20from%20the%20library');
+}
+
+export async function deleteAssessmentAction(formData: FormData) {
+  const assessmentId = String(formData.get('assessmentId') || '');
+
+  await apiWrite(`/api/v1/assessments/${assessmentId}`, 'DELETE');
+  revalidatePath('/content');
+  redirect('/content?message=Assessment%20gate%20removed');
+}
+
 export async function createAttendanceAction(formData: FormData) {
   const payload = {
     studentId: String(formData.get('studentId') || ''),

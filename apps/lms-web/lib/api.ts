@@ -16,6 +16,7 @@ import type {
   ReportsOverview,
   Student,
   StudentDetail,
+  Strand,
   Subject,
   WorkboardItem,
 } from './types';
@@ -104,6 +105,10 @@ export function fetchLessons() {
 
 export function fetchSubjects() {
   return getJson<Subject[]>('/api/v1/subjects');
+}
+
+export function fetchStrands() {
+  return getJson<Strand[]>('/api/v1/strands');
 }
 
 export function fetchCohorts() {

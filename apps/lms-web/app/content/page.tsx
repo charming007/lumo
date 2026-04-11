@@ -1,7 +1,7 @@
-import { CreateAssessmentForm, CreateModuleForm, UpdateAssessmentForm, UpdateLessonForm, UpdateModuleForm } from '../../components/admin-forms';
+import { CreateAssessmentForm, CreateModuleForm, DeleteAssessmentForm, DeleteLessonForm, DeleteModuleForm, UpdateAssessmentForm, UpdateLessonForm, UpdateModuleForm } from '../../components/admin-forms';
 import { DynamicLessonCreateForm } from '../../components/content-ops-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
-import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../lib/api';
+import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 import { createLessonAction } from '../actions';
 
@@ -25,10 +25,11 @@ function statusPill(status: string) {
 
 export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
-  const [modules, lessons, subjects, assessments] = await Promise.all([
+  const [modules, lessons, subjects, strands, assessments] = await Promise.all([
     fetchCurriculumModules(),
     fetchLessons(),
     fetchSubjects(),
+    fetchStrands(),
     fetchAssessments(),
   ]);
 
@@ -294,13 +295,16 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         </Card>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-        <CreateModuleForm />
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
+        <CreateModuleForm strands={strands} />
         <UpdateModuleForm modules={modules} />
+        <DeleteModuleForm modules={modules} />
         <DynamicLessonCreateForm modules={modules} subjects={subjects} action={createLessonAction} />
         <UpdateLessonForm lessons={lessons} />
+        <DeleteLessonForm lessons={lessons} />
         <CreateAssessmentForm modules={modules} subjects={subjects} />
         <UpdateAssessmentForm assessments={assessments} />
+        <DeleteAssessmentForm assessments={assessments} />
       </section>
     </PageShell>
   );

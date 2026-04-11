@@ -57,7 +57,7 @@ function applyCors(req, res) {
     'x-lumo-sync-batch',
     'x-lumo-client-id',
   ].join(', '));
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Expose-Headers', 'x-lumo-sync-accepted, x-lumo-sync-ignored');
   res.header('Access-Control-Max-Age', '86400');
 }
@@ -617,6 +617,10 @@ app.get('/api/v1/subjects', (_req, res) => {
   res.json(store.listSubjects());
 });
 
+app.get('/api/v1/strands', (_req, res) => {
+  res.json(store.listStrands().map(presenters.presentStrand));
+});
+
 app.get('/api/v1/curriculum/modules', (_req, res) => {
   res.json(store.listModules().map(presenters.presentCurriculumModule));
 });
@@ -644,6 +648,16 @@ app.patch('/api/v1/curriculum/modules/:id', requireRole(['admin']), (req, res, n
   } catch (error) {
     return next(error);
   }
+});
+
+app.delete('/api/v1/curriculum/modules/:id', requireRole(['admin']), (req, res) => {
+  const module = store.deleteModule(req.params.id);
+
+  if (!module) {
+    return res.status(404).json({ message: 'Module not found' });
+  }
+
+  return res.status(204).send();
 });
 
 app.get('/api/v1/lessons', (_req, res) => {
@@ -675,6 +689,16 @@ app.patch('/api/v1/lessons/:id', requireRole(['admin']), (req, res, next) => {
   }
 });
 
+app.delete('/api/v1/lessons/:id', requireRole(['admin']), (req, res) => {
+  const lesson = store.deleteLesson(req.params.id);
+
+  if (!lesson) {
+    return res.status(404).json({ message: 'Lesson not found' });
+  }
+
+  return res.status(204).send();
+});
+
 app.get('/api/v1/assessments', (_req, res) => {
   res.json(store.listAssessments().map(presenters.presentAssessment));
 });
@@ -702,6 +726,16 @@ app.patch('/api/v1/assessments/:id', requireRole(['admin']), (req, res, next) =>
   } catch (error) {
     return next(error);
   }
+});
+
+app.delete('/api/v1/assessments/:id', requireRole(['admin']), (req, res) => {
+  const assessment = store.deleteAssessment(req.params.id);
+
+  if (!assessment) {
+    return res.status(404).json({ message: 'Assessment not found' });
+  }
+
+  return res.status(204).send();
 });
 
 app.get('/api/v1/assignments', (_req, res) => {

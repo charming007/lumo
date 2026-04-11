@@ -233,6 +233,28 @@ function updateModule(id, input) {
   return module;
 }
 
+function deleteModule(id) {
+  const index = data.modules.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const [module] = data.modules.splice(index, 1);
+  const lessonIds = data.lessons.filter((lesson) => lesson.moduleId === id).map((lesson) => lesson.id);
+  const assessmentIds = data.assessments.filter((assessment) => assessment.moduleId === id).map((assessment) => assessment.id);
+
+  data.lessons = data.lessons.filter((lesson) => lesson.moduleId !== id);
+  data.assessments = data.assessments.filter((assessment) => assessment.moduleId !== id);
+  data.assignments = data.assignments.filter((assignment) => !lessonIds.includes(assignment.lessonId) && !assessmentIds.includes(assignment.assessmentId));
+  data.progress.forEach((record) => {
+    if (record.moduleId === id) record.moduleId = null;
+    if (record.recommendedNextModuleId === id) record.recommendedNextModuleId = null;
+  });
+
+  return module;
+}
+
 function listLessons() {
   return data.lessons;
 }
@@ -271,6 +293,19 @@ function updateLesson(id, input) {
     mode: input.mode ?? lesson.mode,
     status: input.status ?? lesson.status,
   });
+
+  return lesson;
+}
+
+function deleteLesson(id) {
+  const index = data.lessons.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const [lesson] = data.lessons.splice(index, 1);
+  data.assignments = data.assignments.filter((assignment) => assignment.lessonId !== id);
 
   return lesson;
 }
@@ -318,6 +353,23 @@ function updateAssessment(id, input) {
     progressionGate: input.progressionGate ?? assessment.progressionGate,
     passingScore: input.passingScore !== undefined ? Number(input.passingScore) : assessment.passingScore,
     status: input.status ?? assessment.status,
+  });
+
+  return assessment;
+}
+
+function deleteAssessment(id) {
+  const index = data.assessments.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const [assessment] = data.assessments.splice(index, 1);
+  data.assignments.forEach((assignment) => {
+    if (assignment.assessmentId === id) {
+      assignment.assessmentId = null;
+    }
   });
 
   return assessment;
@@ -503,14 +555,17 @@ module.exports = {
   findModuleById,
   createModule,
   updateModule,
+  deleteModule,
   listLessons,
   findLessonById,
   createLesson,
   updateLesson,
+  deleteLesson,
   listAssessments,
   findAssessmentById,
   createAssessment,
   updateAssessment,
+  deleteAssessment,
   listAssignments,
   findAssignmentById,
   createAssignment,

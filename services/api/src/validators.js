@@ -121,8 +121,8 @@ function validateLesson(body, { partial = false } = {}) {
 
   assertExists('subjectId', body.subjectId, repository.findSubjectById);
   assertExists('moduleId', body.moduleId, repository.findModuleById);
-  assertAllowed('mode', body.mode, ['guided', 'independent', 'group']);
-  assertAllowed('status', body.status, ['draft', 'approved', 'published']);
+  assertAllowed('mode', body.mode, ['guided', 'independent', 'group', 'practice']);
+  assertAllowed('status', body.status, ['draft', 'review', 'approved', 'published']);
 }
 
 function validateAssessment(body, { partial = false } = {}) {

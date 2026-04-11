@@ -114,6 +114,15 @@ function presentLearnerProfile(student) {
   };
 }
 
+function presentStrand(strand) {
+  const subject = repository.findSubjectById(strand.subjectId);
+
+  return {
+    ...strand,
+    subjectName: subject?.name ?? null,
+  };
+}
+
 function presentCurriculumModule(module) {
   const strand = repository.findStrandById(module.strandId);
   const subject = strand ? repository.findSubjectById(strand.subjectId) : null;
@@ -337,6 +346,7 @@ module.exports = {
   presentMallam,
   presentStudent,
   presentLearnerProfile,
+  presentStrand,
   presentCurriculumModule,
   presentLearnerModule,
   presentLearnerLesson,

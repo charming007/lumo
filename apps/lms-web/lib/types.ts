@@ -80,6 +80,14 @@ export type Subject = {
   name: string;
 };
 
+export type Strand = {
+  id: string;
+  subjectId: string;
+  subjectName: string;
+  name: string;
+  order: number;
+};
+
 export type Cohort = {
   id: string;
   name: string;

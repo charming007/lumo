@@ -5,7 +5,10 @@ import {
   createMallamAction,
   createModuleAction,
   createStudentAction,
+  deleteAssessmentAction,
   deleteMallamAction,
+  deleteModuleAction,
+  deleteLessonAction,
   deleteStudentAction,
   updateAssessmentAction,
   updateAssignmentAction,
@@ -14,7 +17,7 @@ import {
   updateModuleAction,
   updateStudentAction,
 } from '../app/actions';
-import type { Assessment, Assignment, Center, Cohort, CurriculumModule, Lesson, Mallam, Pod, Student, Subject } from '../lib/types';
+import type { Assessment, Assignment, Center, Cohort, CurriculumModule, Lesson, Mallam, Pod, Strand, Student, Subject } from '../lib/types';
 import { ActionButton } from './action-button';
 
 const cardStyle = {
@@ -53,6 +56,10 @@ const buttonStyle = {
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
+}
+
+function SectionHint({ children }: { children: ReactNode }) {
+  return <div style={{ color: '#64748b', lineHeight: 1.6, fontSize: 14 }}>{children}</div>;
 }
 
 export function CreateStudentForm({ cohorts, pods, mallams }: { cohorts: Cohort[]; pods: Pod[]; mallams: Mallam[] }) {
@@ -206,11 +213,14 @@ export function ReassignAssignmentForm({ assignment, cohorts, mallams }: { assig
   );
 }
 
-export function CreateModuleForm() {
+export function CreateModuleForm({ strands }: { strands: Strand[] }) {
+  const defaultStrand = strands[0];
+
   return (
     <form action={createModuleAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Create module</h2>
-      <FieldLabel>Strand<select name="strandId" defaultValue="strand-1" style={inputStyle}><option value="strand-1">Listening &amp; Speaking</option><option value="strand-2">Number Sense</option><option value="strand-3">Health &amp; Hygiene</option></select></FieldLabel>
+      <SectionHint>Build a real content lane by selecting the exact strand first, not some hardcoded fake default.</SectionHint>
+      <FieldLabel>Strand<select name="strandId" defaultValue={defaultStrand?.id} style={inputStyle}>{strands.map((strand) => <option key={strand.id} value={strand.id}>{strand.subjectName} • {strand.name}</option>)}</select></FieldLabel>
       <FieldLabel>Title<input name="title" defaultValue="Community Helpers" style={inputStyle} /></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Level<select name="level" defaultValue="beginner" style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
@@ -229,14 +239,27 @@ export function UpdateModuleForm({ modules }: { modules: CurriculumModule[] }) {
   return (
     <form action={updateModuleAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Update module</h2>
-      <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((entry) => <option key={entry.id} value={entry.id}>{entry.title} • {entry.subjectName ?? 'General'} • {entry.status}</option>)}</select></FieldLabel>
+      <SectionHint>Pick the exact module to edit. No more “first row wins” nonsense.</SectionHint>
+      <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
       <FieldLabel>Status<select name="status" defaultValue={module?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(module?.lessonCount ?? 1)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Level<select name="level" defaultValue={module?.level ?? 'beginner'} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
       </div>
-      <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>Pick the module you want to update, then save the status, lesson count, and level for that exact record.</div>
       <ActionButton label="Save module changes" pendingLabel="Saving module…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function DeleteModuleForm({ modules }: { modules: CurriculumModule[] }) {
+  const module = modules[0];
+
+  return (
+    <form action={deleteModuleAction} style={cardStyle}>
+      <h2 style={{ margin: 0 }}>Delete module</h2>
+      <SectionHint>This removes the module and its linked lessons, assessments, assignments, and progress references from the seeded ops dataset.</SectionHint>
+      <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
+      <ActionButton label="Delete module" pendingLabel="Deleting module…" style={{ ...buttonStyle, background: '#dc2626' }} />
     </form>
   );
 }
@@ -250,8 +273,8 @@ export function CreateLessonForm({ modules }: { modules: CurriculumModule[] }) {
       <FieldLabel>Title<input name="title" defaultValue="Who helps in our community?" style={inputStyle} /></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue="8" style={inputStyle} /></FieldLabel>
-        <FieldLabel>Mode<select name="mode" defaultValue="guided" style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option></select></FieldLabel>
-        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
+        <FieldLabel>Mode<select name="mode" defaultValue="guided" style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option><option value="practice">Practice</option></select></FieldLabel>
+        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
       </div>
       <ActionButton label="Create lesson" pendingLabel="Creating lesson…" style={buttonStyle} />
     </form>
@@ -264,14 +287,27 @@ export function UpdateLessonForm({ lessons }: { lessons: Lesson[] }) {
   return (
     <form action={updateLessonAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Update lesson</h2>
-      <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((entry) => <option key={entry.id} value={entry.id}>{entry.title} • {entry.moduleTitle ?? 'No module'} • {entry.status}</option>)}</select></FieldLabel>
-      <FieldLabel>Status<select name="status" defaultValue={lesson?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
+      <SectionHint>Pick the exact lesson to move through draft, review, approved, or published states.</SectionHint>
+      <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
+      <FieldLabel>Status<select name="status" defaultValue={lesson?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-        <FieldLabel>Mode<select name="mode" defaultValue={lesson?.mode ?? 'guided'} style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option></select></FieldLabel>
+        <FieldLabel>Mode<select name="mode" defaultValue={lesson?.mode ?? 'guided'} style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option><option value="practice">Practice</option></select></FieldLabel>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue={String(lesson?.durationMinutes ?? 8)} style={inputStyle} /></FieldLabel>
       </div>
-      <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>Target the exact lesson you want instead of blindly updating whatever happens to be first in the dataset.</div>
       <ActionButton label="Save lesson changes" pendingLabel="Saving lesson…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function DeleteLessonForm({ lessons }: { lessons: Lesson[] }) {
+  const lesson = lessons[0];
+
+  return (
+    <form action={deleteLessonAction} style={cardStyle}>
+      <h2 style={{ margin: 0 }}>Delete lesson</h2>
+      <SectionHint>This removes the lesson and clears linked assignments so the content board stays honest.</SectionHint>
+      <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
+      <ActionButton label="Delete lesson" pendingLabel="Deleting lesson…" style={{ ...buttonStyle, background: '#dc2626' }} />
     </form>
   );
 }
@@ -306,7 +342,8 @@ export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[
   return (
     <form action={updateAssessmentAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Update assessment gate</h2>
-      <FieldLabel>Assessment<select name="assessmentId" defaultValue={assessment?.id ?? ''} style={inputStyle}>{assessments.map((entry) => <option key={entry.id} value={entry.id}>{entry.title} • {entry.moduleTitle ?? 'No module'} • {entry.status}</option>)}</select></FieldLabel>
+      <SectionHint>Target the exact assessment gate instead of silently editing the first one in the list.</SectionHint>
+      <FieldLabel>Assessment<select name="assessmentId" defaultValue={assessment?.id ?? ''} style={inputStyle}>{assessments.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
       <FieldLabel>Assessment title<input name="title" defaultValue={assessment?.title ?? ''} style={inputStyle} /></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Kind<select name="kind" defaultValue={assessment?.kind ?? 'automatic'} style={inputStyle}><option value="automatic">Automatic</option><option value="manual">Manual</option></select></FieldLabel>
@@ -318,8 +355,20 @@ export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[
         <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue={String(assessment?.passingScore ?? 0.7)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue={assessment?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
       </div>
-      <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>Same deal here: choose the assessment gate first so admins don’t accidentally overwrite the wrong progression check.</div>
       <ActionButton label="Save assessment changes" pendingLabel="Saving assessment…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function DeleteAssessmentForm({ assessments }: { assessments: Assessment[] }) {
+  const assessment = assessments[0];
+
+  return (
+    <form action={deleteAssessmentAction} style={cardStyle}>
+      <h2 style={{ margin: 0 }}>Delete assessment gate</h2>
+      <SectionHint>This removes the assessment gate and detaches it from any scheduled assignments.</SectionHint>
+      <FieldLabel>Assessment<select name="assessmentId" defaultValue={assessment?.id ?? ''} style={inputStyle}>{assessments.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
+      <ActionButton label="Delete assessment" pendingLabel="Deleting assessment…" style={{ ...buttonStyle, background: '#dc2626' }} />
     </form>
   );
 }
