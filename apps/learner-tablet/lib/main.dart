@@ -213,7 +213,8 @@ class HomePage extends StatelessWidget {
                                   Text(
                                     'AI Mallam will guide the learner by voice. Pick what you want to do next.',
                                     style: TextStyle(
-                                      color: Colors.black.withValues(alpha: 0.62),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.62),
                                       height: 1.4,
                                     ),
                                   ),
@@ -568,7 +569,8 @@ class LearnerProfilePage extends StatelessWidget {
                               style: TextStyle(fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(height: 12),
-                            InfoRow(label: 'Guardian', value: learner.guardianName),
+                            InfoRow(
+                                label: 'Guardian', value: learner.guardianName),
                             InfoRow(
                               label: 'Relationship',
                               value: learner.caregiverRelationship,
@@ -598,7 +600,8 @@ class LearnerProfilePage extends StatelessWidget {
                         child: FilledButton.icon(
                           onPressed: () async {
                             final messenger = ScaffoldMessenger.of(context);
-                            final json = const JsonEncoder.withIndent('  ').convert({
+                            final json =
+                                const JsonEncoder.withIndent('  ').convert({
                               'learner': {
                                 'id': learner.id,
                                 'name': learner.name,
@@ -691,7 +694,8 @@ class SubjectModulesPage extends StatelessWidget {
                             child: const Text('Back'),
                           ),
                           const Spacer(),
-                          StatusPill(text: module.badge, color: LumoTheme.primary),
+                          StatusPill(
+                              text: module.badge, color: LumoTheme.primary),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -716,7 +720,8 @@ class SubjectModulesPage extends StatelessWidget {
                       const SizedBox(height: 16),
                       if (lessons.isEmpty)
                         const SoftPanel(
-                          child: Text('No lessons are mapped to this subject yet.'),
+                          child: Text(
+                              'No lessons are mapped to this subject yet.'),
                         )
                       else
                         Expanded(
@@ -750,7 +755,8 @@ class SubjectModulesPage extends StatelessWidget {
                                     ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
@@ -764,7 +770,8 @@ class SubjectModulesPage extends StatelessWidget {
                                             ),
                                           ),
                                           StatusPill(
-                                            text: '${lesson.steps.length} steps',
+                                            text:
+                                                '${lesson.steps.length} steps',
                                             color: LumoTheme.accentOrange,
                                           ),
                                         ],
@@ -785,7 +792,8 @@ class SubjectModulesPage extends StatelessWidget {
                                           Expanded(
                                             child: InfoRow(
                                               label: 'Duration',
-                                              value: '${lesson.durationMinutes} min',
+                                              value:
+                                                  '${lesson.durationMinutes} min',
                                             ),
                                           ),
                                           const SizedBox(width: 12),
@@ -953,8 +961,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           const Spacer(),
                           StatusPill(
-                            text:
-                                draft.isValid ? 'Ready to save' : 'Needs details',
+                            text: draft.isValid
+                                ? 'Ready to save'
+                                : 'Needs details',
                             color: draft.isValid
                                 ? LumoTheme.accentGreen
                                 : LumoTheme.accentOrange,
@@ -1116,7 +1125,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                         ),
                                         DropdownMenuItem(
                                           value: 'Can repeat with support',
-                                          child: Text('Can repeat with support'),
+                                          child:
+                                              Text('Can repeat with support'),
                                         ),
                                         DropdownMenuItem(
                                           value: 'Answers with short sentences',
@@ -1282,7 +1292,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                             label: 'Missing before save',
                                             value: draft.missingFields.isEmpty
                                                 ? 'Nothing blocking this intake'
-                                                : draft.missingFields.join(', '),
+                                                : draft.missingFields
+                                                    .join(', '),
                                           ),
                                           InfoRow(
                                             label: 'Backend target',
@@ -1502,8 +1513,7 @@ class SelectStudentPage extends StatelessWidget {
                     const SizedBox(height: 20),
                     SectionTitle(
                       title: 'Choose learner',
-                      subtitle:
-                          'Tap a learner to start ${lesson.title}.',
+                      subtitle: 'Tap a learner to start ${lesson.title}.',
                     ),
                     const SizedBox(height: 16),
                     Expanded(
@@ -1607,7 +1617,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     if (session == null) return;
     if (_promptedCurrentStep && !force) return;
     _promptedCurrentStep = true;
-    final prompt = widget.state.personalizePrompt(session.currentStep.coachPrompt);
+    final prompt =
+        widget.state.personalizePrompt(session.currentStep.coachPrompt);
     setState(() {
       isSpeaking = true;
     });
@@ -1615,7 +1626,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     if (!mounted) return;
     setState(() {
       isSpeaking = false;
-      microphoneStatus = 'Mallam finished speaking. Listen for the learner response.';
+      microphoneStatus = isAutoMode
+          ? 'Mallam finished speaking. Start recording and let the learner answer now.'
+          : 'Mallam finished speaking. Listen for the learner response.';
     });
   }
 
@@ -1648,31 +1661,53 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     await _speakCurrentStepIfNeeded(force: true);
   }
 
-  Future<void> _handleSubmittedResponse(String text, {bool auto = false}) async {
+  Future<void> _handleSubmittedResponse(String text,
+      {bool auto = false}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
-    widget.state.submitLearnerResponse(trimmed);
+    final outcome = widget.state.submitLearnerResponse(trimmed);
     responseController.text = trimmed;
     transcriptReviewPending = false;
     widget.onChanged();
     setState(() {});
 
-    final review = widget.state.activeSession?.latestReview ?? ResponseReview.pending;
-    if (!isAutoMode) return;
+    if (!isAutoMode) {
+      setState(() {
+        microphoneStatus = outcome.automationStatus;
+      });
+      return;
+    }
 
-    if (review == ResponseReview.onTrack) {
+    if (outcome.accepted) {
       await _afterCorrectResponse();
       return;
     }
 
-    await widget.state.replayCoachPrompt();
+    final supportType = outcome.attemptNumber >= 2 ? 'model' : 'hint';
+    final supportPrompt = widget.state.buildCoachSupportPrompt(
+      supportType: supportType,
+      step: widget.state.activeSession!.currentStep,
+    );
+    widget.state.useCoachSupport(supportType);
     widget.onChanged();
+    setState(() {
+      isSpeaking = true;
+      microphoneStatus = outcome.attemptNumber >= 2
+          ? 'Mallam is modeling the answer and keeping the learner on this step.'
+          : 'Mallam is replaying the prompt with a hint. Let the learner try again.';
+    });
+    await widget.state.replayVisiblePrompt(
+      supportPrompt,
+      mode:
+          supportType == 'model' ? SpeakerMode.affirming : SpeakerMode.guiding,
+    );
     if (!mounted) return;
     setState(() {
-      microphoneStatus = auto
-          ? 'Mallam did not accept that response yet, so the prompt was repeated. Try again.'
-          : 'Mallam repeated the prompt. Try again.';
+      isSpeaking = false;
+      microphoneStatus = outcome.attemptNumber >= 2
+          ? 'Model answer played. Start recording when the learner repeats it.'
+          : 'Hint given. Start recording for the learner’s next try.';
     });
   }
 
@@ -1686,7 +1721,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         fileStem: widget.state.currentLearner?.learnerCode ?? 'learner-voice',
       );
       if (!audioStarted.started) {
-        throw AudioCaptureException(audioStarted.message ?? 'Unable to start microphone capture.');
+        throw AudioCaptureException(
+            audioStarted.message ?? 'Unable to start microphone capture.');
       }
 
       final speechReady = await speechTranscriptionService.start(
@@ -1927,8 +1963,14 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     LabelValueWrap(
                                       items: [
                                         ('Expected response', expectedResponse),
-                                        ('Facilitator tip', step.facilitatorTip),
-                                        ('Real-world check', step.realWorldCheck),
+                                        (
+                                          'Facilitator tip',
+                                          step.facilitatorTip
+                                        ),
+                                        (
+                                          'Real-world check',
+                                          step.realWorldCheck
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -1952,7 +1994,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                       onChanged: (value) {
                                         setState(() {
                                           isAutoMode = value;
-                                          transcriptReviewPending = !value && transcriptReviewPending;
+                                          transcriptReviewPending =
+                                              !value && transcriptReviewPending;
                                         });
                                       },
                                       title: const Text('Auto lesson mode'),
@@ -1964,7 +2007,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     Text(
                                       isSpeaking
                                           ? 'Mallam is speaking now.'
-                                          : (microphoneStatus ??
+                                          : (widget.state.activeSession
+                                                  ?.automationStatus ??
+                                              microphoneStatus ??
                                               'Tap AI Mallam to replay the current instruction.'),
                                       style: const TextStyle(
                                         color: Color(0xFF475569),
@@ -2027,7 +2072,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                       (suggestion) => ActionChip(
                                         label: Text(suggestion),
                                         onPressed: () =>
-                                            _handleSubmittedResponse(suggestion),
+                                            _handleSubmittedResponse(
+                                                suggestion),
                                       ),
                                     )
                                     .toList(),
@@ -2233,7 +2279,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                         ),
                                       ),
                                     ],
-                                    if (session.latestLearnerAudioPath != null) ...[
+                                    if (session.latestLearnerAudioPath !=
+                                        null) ...[
                                       const SizedBox(height: 12),
                                       Container(
                                         width: double.infinity,
@@ -2275,7 +2322,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              _ResponseReviewBanner(review: session.latestReview),
+                              _ResponseReviewBanner(
+                                  review: session.latestReview),
                             ],
                           ),
                         ),
@@ -2407,8 +2455,8 @@ class LessonCompletePage extends StatelessWidget {
                                   builder: (_) => SubjectModulesPage(
                                     state: state,
                                     onChanged: () {},
-                                    module:
-                                        state.selectedModule ?? state.modules.first,
+                                    module: state.selectedModule ??
+                                        state.modules.first,
                                   ),
                                 ),
                               );
@@ -2962,13 +3010,15 @@ class _ResponseReviewBanner extends StatelessWidget {
         );
       case ResponseReview.onTrack:
         return _banner(
-          text: 'Response captured. Mallam can affirm and move to the next step.',
+          text:
+              'Response captured. Mallam can affirm and move to the next step.',
           color: LumoTheme.accentGreen,
           background: const Color(0xFFEEFBF3),
         );
       case ResponseReview.needsSupport:
         return _banner(
-          text: 'That response needs help. Mallam should repeat or coach before moving on.',
+          text:
+              'That response needs help. Mallam should repeat or coach before moving on.',
           color: LumoTheme.accentOrange,
           background: const Color(0xFFFFF7ED),
         );

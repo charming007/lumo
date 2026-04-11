@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'api_client.dart';
 import 'models.dart';
 import 'seed_data.dart';
@@ -311,6 +313,8 @@ class LumoAppState {
       speakerMode: openingStep.speakerMode,
       startedAt: now,
       lastUpdatedAt: now,
+      automationStatus:
+          'Mallam is opening the lesson and preparing the first voice prompt.',
       transcript: [
         SessionTurn(
           speaker: 'Mallam',
@@ -322,28 +326,29 @@ class LumoAppState {
     speakerMode = activeSession!.speakerMode;
   }
 
-  void submitLearnerResponse(String response) {
+  ResponseOutcome submitLearnerResponse(String response) {
     final session = activeSession;
-    if (session == null) return;
+    if (session == null) return const ResponseOutcome.ignored();
 
     final trimmed = response.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return const ResponseOutcome.ignored();
 
-    final expected = personalizeExpectedResponse(
-      session.currentStep.expectedResponse,
-    ).toLowerCase();
-    final normalized = trimmed.toLowerCase();
-    final review =
-        expected.contains(normalized) || normalized.contains(expected)
-            ? ResponseReview.onTrack
-            : (trimmed.split(' ').length >= 2 || trimmed.length >= 6)
-                ? ResponseReview.onTrack
-                : ResponseReview.needsSupport;
+    final evaluation = evaluateLearnerResponse(trimmed);
+    final nextAttempts = session.attemptsThisStep + 1;
+    final review = evaluation.review;
+    final supportType = review == ResponseReview.needsSupport
+        ? (nextAttempts >= 2 ? 'Model answer played' : 'Hint given')
+        : 'Learner answered independently';
+    final automationStatus = review == ResponseReview.onTrack
+        ? 'Mallam accepted the answer and is ready to continue.'
+        : nextAttempts >= 2
+            ? 'Mallam is modeling the correct answer and keeping the learner on this step.'
+            : 'Mallam is replaying the prompt with a hint so the learner can try again.';
 
     activeSession = session.copyWith(
       latestLearnerResponse: trimmed,
       latestReview: review,
-      attemptsThisStep: session.attemptsThisStep + 1,
+      attemptsThisStep: nextAttempts,
       totalResponses: session.totalResponses + 1,
       speakerMode: review == ResponseReview.needsSupport
           ? SpeakerMode.guiding
@@ -357,13 +362,112 @@ class LumoAppState {
           timestamp: DateTime.now(),
         ),
       ],
-      lastSupportType: review == ResponseReview.needsSupport
-          ? 'Needs more support'
-          : 'Learner answered independently',
+      lastSupportType: supportType,
+      automationStatus: automationStatus,
     );
     speakerMode = review == ResponseReview.needsSupport
         ? SpeakerMode.guiding
         : SpeakerMode.affirming;
+    return ResponseOutcome(
+      review: review,
+      attemptNumber: nextAttempts,
+      accepted: review == ResponseReview.onTrack,
+      usedAlias: evaluation.usedAlias,
+      similarityScore: evaluation.similarityScore,
+      supportType: supportType,
+      automationStatus: automationStatus,
+    );
+  }
+
+  ResponseEvaluation evaluateLearnerResponse(String response) {
+    final session = activeSession;
+    if (session == null) {
+      return const ResponseEvaluation(
+        review: ResponseReview.pending,
+        similarityScore: 0,
+      );
+    }
+
+    final step = session.currentStep;
+    final normalizedResponse = _normalizeForComparison(response);
+    final expected = personalizeExpectedResponse(step.expectedResponse);
+    final normalizedExpected = _normalizeForComparison(expected);
+    final aliases = step.acceptableResponses
+        .map(personalizeExpectedResponse)
+        .map(_normalizeForComparison)
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    final allTargets = <String>{normalizedExpected, ...aliases}
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    final exactOrContains = allTargets.any(
+      (target) =>
+          target == normalizedResponse ||
+          target.contains(normalizedResponse) ||
+          normalizedResponse.contains(target),
+    );
+    if (exactOrContains) {
+      return ResponseEvaluation(
+        review: ResponseReview.onTrack,
+        similarityScore: 1,
+        usedAlias: aliases.contains(normalizedResponse),
+      );
+    }
+
+    final similarity = allTargets.isEmpty
+        ? 0.0
+        : allTargets
+            .map((target) => _tokenSimilarity(normalizedResponse, target))
+            .reduce(max);
+    final wordCount = normalizedResponse.isEmpty
+        ? 0
+        : normalizedResponse.split(' ').where((word) => word.isNotEmpty).length;
+    final isLenientPass = wordCount >= 3 && similarity >= 0.72;
+
+    return ResponseEvaluation(
+      review:
+          isLenientPass ? ResponseReview.onTrack : ResponseReview.needsSupport,
+      similarityScore: similarity,
+      usedAlias: false,
+    );
+  }
+
+  String buildCoachSupportPrompt({
+    required String supportType,
+    required LessonStep step,
+  }) {
+    final learnerName = currentLearner?.name ?? 'the learner';
+    final expected = personalizeExpectedResponse(step.expectedResponse);
+    final prompt = personalizePrompt(step.coachPrompt);
+
+    switch (supportType) {
+      case 'hint':
+        return 'Try again, $learnerName. Listen carefully: $prompt Hint: the answer should sound like $expected';
+      case 'model':
+        return 'Let us say it together, $learnerName. $expected';
+      default:
+        return prompt;
+    }
+  }
+
+  String _normalizeForComparison(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  double _tokenSimilarity(String left, String right) {
+    final leftTokens = left.split(' ').where((item) => item.isNotEmpty).toSet();
+    final rightTokens =
+        right.split(' ').where((item) => item.isNotEmpty).toSet();
+    if (leftTokens.isEmpty || rightTokens.isEmpty) return 0;
+    final overlap = leftTokens.intersection(rightTokens).length;
+    final union = leftTokens.union(rightTokens).length;
+    return union == 0 ? 0 : overlap / union;
   }
 
   void useCoachSupport(String supportType) {
@@ -378,14 +482,12 @@ class LumoAppState {
 
     switch (supportType) {
       case 'hint':
-        text =
-            'Hint for $learnerName: listen for the key answer — ${personalizeExpectedResponse(step.expectedResponse)}';
+        text = buildCoachSupportPrompt(supportType: 'hint', step: step);
         nextMode = SpeakerMode.guiding;
         label = 'Hint given';
         break;
       case 'model':
-        text =
-            'Model answer: ${personalizeExpectedResponse(step.expectedResponse)}';
+        text = buildCoachSupportPrompt(supportType: 'model', step: step);
         nextMode = SpeakerMode.affirming;
         label = 'Model answer played';
         break;
@@ -418,6 +520,7 @@ class LumoAppState {
       speakerMode: nextMode,
       supportActionsUsed: session.supportActionsUsed + 1,
       lastSupportType: label,
+      automationStatus: 'Mallam action: $label.',
       transcript: [
         ...session.transcript,
         SessionTurn(speaker: 'Mallam', text: text, timestamp: DateTime.now()),
@@ -460,6 +563,8 @@ class LumoAppState {
       latestLearnerAudioPath: path,
       latestLearnerAudioDuration: duration,
       lastSupportType: 'Learner voice captured',
+      automationStatus:
+          'Learner voice captured. Mallam is checking the answer.',
       transcript: [
         ...session.transcript,
         SessionTurn(
@@ -505,6 +610,8 @@ class LumoAppState {
       latestReview: ResponseReview.pending,
       attemptsThisStep: 0,
       lastSupportType: 'Prompt replay',
+      automationStatus:
+          'Mallam moved to the next step and is preparing the next prompt.',
       transcript: [
         ...session.transcript,
         SessionTurn(
@@ -561,6 +668,8 @@ class LumoAppState {
         ),
       ],
       lastSupportType: 'Prompt replay',
+      automationStatus:
+          'Mallam replayed the prompt and is waiting for the learner response.',
     );
     speakerMode = SpeakerMode.guiding;
     await replayVisiblePrompt(prompt, mode: SpeakerMode.guiding);
@@ -692,4 +801,45 @@ class LumoAppState {
     final minute = value.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
+}
+
+class ResponseEvaluation {
+  final ResponseReview review;
+  final double similarityScore;
+  final bool usedAlias;
+
+  const ResponseEvaluation({
+    required this.review,
+    required this.similarityScore,
+    this.usedAlias = false,
+  });
+}
+
+class ResponseOutcome {
+  final ResponseReview review;
+  final int attemptNumber;
+  final bool accepted;
+  final bool usedAlias;
+  final double similarityScore;
+  final String supportType;
+  final String automationStatus;
+
+  const ResponseOutcome({
+    required this.review,
+    required this.attemptNumber,
+    required this.accepted,
+    required this.usedAlias,
+    required this.similarityScore,
+    required this.supportType,
+    required this.automationStatus,
+  });
+
+  const ResponseOutcome.ignored()
+      : review = ResponseReview.pending,
+        attemptNumber = 0,
+        accepted = false,
+        usedAlias = false,
+        similarityScore = 0,
+        supportType = 'Ignored',
+        automationStatus = 'No learner response was captured.';
 }

@@ -130,6 +130,11 @@ const assignedLessonsSeed = [
         instruction:
             'Mallam greets first, pauses, and lets the learner answer with their name.',
         expectedResponse: 'Wa alaikum salam. My name is Abdullahi.',
+        acceptableResponses: [
+          'Wa alaikum salam',
+          'My name is Abdullahi',
+          'I am Abdullahi',
+        ],
         coachPrompt:
             'Assalamu alaikum. Welcome to Lumo. Please tell me your name clearly.',
         facilitatorTip:
@@ -145,6 +150,7 @@ const assignedLessonsSeed = [
         instruction:
             'The learner repeats their name in one full sentence and steadier voice.',
         expectedResponse: 'My name is ____.',
+        acceptableResponses: ['I am ____.', 'My name is ____'],
         coachPrompt: 'Good job. Now say the full sentence: My name is Aisha.',
         facilitatorTip:
             'Model once, then ask for a slower second try if the first answer is rushed.',
@@ -159,6 +165,7 @@ const assignedLessonsSeed = [
         instruction:
             'Mallam praises effort and checks if the learner is ready to continue.',
         expectedResponse: 'Yes, I am ready.',
+        acceptableResponses: ['I am ready', 'Yes'],
         coachPrompt: 'Excellent speaking. Are you ready for the next question?',
         facilitatorTip:
             'If the learner is shy, nod and smile before replaying the question.',
@@ -187,6 +194,7 @@ const assignedLessonsSeed = [
         instruction:
             'Mallam counts the first five oranges and invites the learner to join.',
         expectedResponse: '1, 2, 3, 4, 5',
+        acceptableResponses: ['1 2 3 4 5', 'one two three four five'],
         coachPrompt: 'Let us count the oranges together from one to five.',
         facilitatorTip:
             'Tap five fingers on the table if the learner needs visual rhythm.',
@@ -201,6 +209,7 @@ const assignedLessonsSeed = [
         instruction:
             'The learner listens to a number line and gives the missing next number.',
         expectedResponse: '6',
+        acceptableResponses: ['six'],
         coachPrompt: 'One, two, three, four, five... what comes next?',
         facilitatorTip:
             'Hold up the next finger quietly before giving a verbal hint.',
@@ -215,6 +224,7 @@ const assignedLessonsSeed = [
         instruction:
             'The learner says a complete confidence sentence about counting.',
         expectedResponse: 'I can count to ten.',
+        acceptableResponses: ['I can count to 10', 'I can count'],
         coachPrompt: 'Well done. Tell me with confidence: I can count to ten.',
         facilitatorTip:
             'Use a thumbs-up first so the learner shifts from guessing into celebration.',
@@ -243,6 +253,10 @@ const assignedLessonsSeed = [
         instruction:
             'Mallam ties handwashing to eating time and using the toilet.',
         expectedResponse: 'Before eating and after toilet.',
+        acceptableResponses: [
+          'Before eating and after using the toilet',
+          'Before eating and after toilet',
+        ],
         coachPrompt:
             'We wash our hands before eating and after using the toilet. Say it with me.',
         facilitatorTip:
@@ -258,6 +272,10 @@ const assignedLessonsSeed = [
         instruction:
             'The learner repeats the handwashing steps in the correct order.',
         expectedResponse: 'Water, soap, rub, rinse, dry.',
+        acceptableResponses: [
+          'Water soap rub rinse dry',
+          'Soap, rub, rinse, dry'
+        ],
         coachPrompt: 'Say the steps with me: water, soap, rub, rinse, dry.',
         facilitatorTip:
             'Mime each action once instead of interrupting with too many words.',
@@ -272,6 +290,7 @@ const assignedLessonsSeed = [
         instruction:
             'The learner finishes with a simple personal commitment sentence.',
         expectedResponse: 'I will wash my hands every day.',
+        acceptableResponses: ['I will wash my hands', 'I will wash every day'],
         coachPrompt: 'Now say: I will wash my hands every day.',
         facilitatorTip:
             'Pause after “I will” so the learner owns the final promise.',
@@ -300,6 +319,7 @@ const assignedLessonsSeed = [
         instruction:
             'Mallam tells a one-line story and asks the learner to notice the object.',
         expectedResponse: 'A red cup.',
+        acceptableResponses: ['Red cup', 'She carried a red cup'],
         coachPrompt:
             'Listen: Zainab carried a red cup to her mother. What did Zainab carry?',
         facilitatorTip:
@@ -314,6 +334,7 @@ const assignedLessonsSeed = [
         title: 'Say who received it',
         instruction: 'The learner adds the second detail from the same story.',
         expectedResponse: 'She carried it to her mother.',
+        acceptableResponses: ['Her mother', 'She carried it to mother'],
         coachPrompt: 'Good. Who did she carry it to?',
         facilitatorTip: 'If needed, offer the first word “mother...” and wait.',
         realWorldCheck:
@@ -327,6 +348,10 @@ const assignedLessonsSeed = [
         instruction:
             'The learner combines both details into one short retell sentence.',
         expectedResponse: 'Zainab carried a red cup to her mother.',
+        acceptableResponses: [
+          'She carried a red cup to her mother',
+          'Zainab took the red cup to her mother',
+        ],
         coachPrompt: 'Excellent. Now tell the full story in one sentence.',
         facilitatorTip:
             'Accept a near match if the learner preserves the key meaning.',

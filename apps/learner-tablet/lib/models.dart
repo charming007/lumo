@@ -309,7 +309,8 @@ class RegistrationDraft {
         'fullName': name.trim(),
         'age': int.tryParse(age.trim()),
         'sex': sex,
-        'cohort': cohort.trim().isEmpty ? 'Assigned from backend' : cohort.trim(),
+        'cohort':
+            cohort.trim().isEmpty ? 'Assigned from backend' : cohort.trim(),
         'village': village.trim(),
         'guardian': {
           'name': guardianName.trim(),
@@ -346,7 +347,8 @@ class LearningModule {
   });
 
   factory LearningModule.fromBackend(Map<String, dynamic> json) {
-    final subjectId = json['subjectId']?.toString() ?? json['id']?.toString() ?? 'module';
+    final subjectId =
+        json['subjectId']?.toString() ?? json['id']?.toString() ?? 'module';
     final subjectName = json['subjectName']?.toString();
     final title = json['title']?.toString() ?? 'Learning module';
     final level = json['level']?.toString() ?? 'beginner';
@@ -370,6 +372,7 @@ class LessonStep {
   final String title;
   final String instruction;
   final String expectedResponse;
+  final List<String> acceptableResponses;
   final String coachPrompt;
   final String facilitatorTip;
   final String realWorldCheck;
@@ -381,6 +384,7 @@ class LessonStep {
     required this.title,
     required this.instruction,
     required this.expectedResponse,
+    this.acceptableResponses = const [],
     required this.coachPrompt,
     required this.facilitatorTip,
     required this.realWorldCheck,
@@ -428,8 +432,8 @@ class LessonCardModel {
       mascotName: json['mascotName']?.toString() ?? 'Mallam',
       readinessFocus:
           json['readinessFocus']?.toString() ?? 'Guided voice practice',
-      scenario: json['scenario']?.toString() ??
-          'Guided $subject session for $title.',
+      scenario:
+          json['scenario']?.toString() ?? 'Guided $subject session for $title.',
       steps: _defaultLessonSteps(title: title, subject: subject),
     );
   }
@@ -468,6 +472,7 @@ class LessonSessionState {
   final String? latestLearnerAudioPath;
   final Duration? latestLearnerAudioDuration;
   final String lastSupportType;
+  final String automationStatus;
   final DateTime lastUpdatedAt;
 
   const LessonSessionState({
@@ -489,6 +494,7 @@ class LessonSessionState {
     this.latestLearnerAudioPath,
     this.latestLearnerAudioDuration,
     this.lastSupportType = 'Prompt replay',
+    this.automationStatus = 'Mallam is ready to begin.',
     DateTime? lastUpdatedAt,
   }) : lastUpdatedAt = lastUpdatedAt ?? startedAt;
 
@@ -501,7 +507,8 @@ class LessonSessionState {
 
   bool get hasLearnerInput =>
       hasResponse ||
-      (latestLearnerAudioPath != null && latestLearnerAudioPath!.trim().isNotEmpty);
+      (latestLearnerAudioPath != null &&
+          latestLearnerAudioPath!.trim().isNotEmpty);
 
   double get progress =>
       lesson.steps.isEmpty ? 0 : (stepIndex + 1) / lesson.steps.length;
@@ -526,7 +533,8 @@ class LessonSessionState {
         'speakerOutputMode': speakerOutputMode,
         'totalAudioCaptures': totalAudioCaptures,
         'latestLearnerAudioPath': latestLearnerAudioPath,
-        'latestLearnerAudioDurationSeconds': latestLearnerAudioDuration?.inSeconds,
+        'latestLearnerAudioDurationSeconds':
+            latestLearnerAudioDuration?.inSeconds,
         'observations': facilitatorObservations,
         'transcriptTurns': transcript.length,
         'startedAt': startedAt.toIso8601String(),
@@ -554,6 +562,7 @@ class LessonSessionState {
     String? latestLearnerAudioPath,
     Duration? latestLearnerAudioDuration,
     String? lastSupportType,
+    String? automationStatus,
     DateTime? lastUpdatedAt,
     bool clearLatestLearnerResponse = false,
     bool clearLatestLearnerAudio = false,
@@ -584,6 +593,7 @@ class LessonSessionState {
           ? null
           : (latestLearnerAudioDuration ?? this.latestLearnerAudioDuration),
       lastSupportType: lastSupportType ?? this.lastSupportType,
+      automationStatus: automationStatus ?? this.automationStatus,
       lastUpdatedAt: lastUpdatedAt ?? DateTime.now(),
     );
   }
@@ -633,10 +643,9 @@ class BackendMallam {
   });
 
   factory BackendMallam.fromJson(Map<String, dynamic> json) {
-    final podIds = (json['podIds'] as List?)
-            ?.map((item) => item.toString())
-            .toList() ??
-        const <String>[];
+    final podIds =
+        (json['podIds'] as List?)?.map((item) => item.toString()).toList() ??
+            const <String>[];
 
     return BackendMallam(
       id: json['id']?.toString() ?? 'mallam-unknown',
@@ -660,12 +669,14 @@ class RegistrationContext {
   factory RegistrationContext.fromJson(Map<String, dynamic> json) {
     final cohorts = (json['cohorts'] as List?)
             ?.whereType<Map>()
-            .map((item) => BackendCohort.fromJson(Map<String, dynamic>.from(item)))
+            .map((item) =>
+                BackendCohort.fromJson(Map<String, dynamic>.from(item)))
             .toList() ??
         const <BackendCohort>[];
     final mallams = (json['mallams'] as List?)
             ?.whereType<Map>()
-            .map((item) => BackendMallam.fromJson(Map<String, dynamic>.from(item)))
+            .map((item) =>
+                BackendMallam.fromJson(Map<String, dynamic>.from(item)))
             .toList() ??
         const <BackendMallam>[];
     final defaultTargetJson = json['defaultTarget'];
@@ -837,6 +848,7 @@ List<LessonStep> _defaultLessonSteps({
       instruction:
           'Mallam welcomes the learner and frames the activity in one short sentence.',
       expectedResponse: 'I am ready.',
+      acceptableResponses: ['Ready', 'Yes, I am ready'],
       coachPrompt: 'We are starting $title. Say: I am ready.',
       facilitatorTip:
           'Use a calm voice and make sure the learner is settled before the next prompt.',
@@ -850,10 +862,9 @@ List<LessonStep> _defaultLessonSteps({
       instruction:
           'The learner gives one short spoken answer connected to the lesson topic.',
       expectedResponse: 'I can answer about $subject.',
-      coachPrompt:
-          'Listen carefully, then say: I can answer about $subject.',
-      facilitatorTip:
-          'If needed, model once and ask for a slower second try.',
+      acceptableResponses: ['I can answer', 'I know $subject'],
+      coachPrompt: 'Listen carefully, then say: I can answer about $subject.',
+      facilitatorTip: 'If needed, model once and ask for a slower second try.',
       realWorldCheck:
           'The learner can give one clear spoken response without guessing wildly.',
       speakerMode: SpeakerMode.listening,
@@ -865,10 +876,12 @@ List<LessonStep> _defaultLessonSteps({
       instruction:
           'Mallam celebrates the attempt and checks confidence before ending.',
       expectedResponse: 'I did it.',
+      acceptableResponses: ['I did it', 'I can do it'],
       coachPrompt: 'Well done. Say: I did it.',
       facilitatorTip:
           'Praise effort first, then move on while the learner still feels successful.',
-      realWorldCheck: 'The learner finishes the voice loop on a confident note.',
+      realWorldCheck:
+          'The learner finishes the voice loop on a confident note.',
       speakerMode: SpeakerMode.affirming,
     ),
   ];
