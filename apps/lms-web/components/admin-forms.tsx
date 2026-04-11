@@ -25,6 +25,11 @@ const cardStyle = {
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)',
 } as const;
 
+const embeddedCardStyle = {
+  display: 'grid',
+  gap: 12,
+} as const;
+
 const inputStyle = {
   border: '1px solid #d1d5db',
   borderRadius: 12,
@@ -74,9 +79,9 @@ export function CreateStudentForm({ cohorts, pods, mallams }: { cohorts: Cohort[
   );
 }
 
-export function UpdateStudentForm({ student, cohorts, pods, mallams, title = 'Reassign learner' }: { student: Student; cohorts: Cohort[]; pods: Pod[]; mallams: Mallam[]; title?: string }) {
+export function UpdateStudentForm({ student, cohorts, pods, mallams, title = 'Reassign learner', embedded = false }: { student: Student; cohorts: Cohort[]; pods: Pod[]; mallams: Mallam[]; title?: string; embedded?: boolean }) {
   return (
-    <div style={cardStyle}>
+    <div style={embedded ? embeddedCardStyle : cardStyle}>
       <form action={updateStudentAction} style={{ display: 'grid', gap: 12 }}>
         <input type="hidden" name="studentId" value={student.id} />
         <h2 style={{ margin: 0 }}>{title}</h2>
@@ -97,11 +102,22 @@ export function UpdateStudentForm({ student, cohorts, pods, mallams, title = 'Re
           <ActionButton label="Save learner changes" pendingLabel="Saving learner…" style={buttonStyle} />
         </div>
       </form>
-      <form action={deleteStudentAction} style={{ marginTop: 12 }}>
-        <input type="hidden" name="studentId" value={student.id} />
-        <ActionButton label="Remove learner" pendingLabel="Removing learner…" style={{ ...buttonStyle, background: '#dc2626' }} />
-      </form>
     </div>
+  );
+}
+
+export function DeleteStudentForm({ student, embedded = false }: { student: Student; embedded?: boolean }) {
+  return (
+    <form action={deleteStudentAction} style={embedded ? embeddedCardStyle : cardStyle}>
+      <input type="hidden" name="studentId" value={student.id} />
+      <div style={{ display: 'grid', gap: 10 }}>
+        <h2 style={{ margin: 0 }}>Delete learner</h2>
+        <div style={{ color: '#475569', lineHeight: 1.6 }}>
+          Remove <strong>{student.name}</strong> from the roster? This updates the live admin data and cannot be undone from this screen.
+        </div>
+      </div>
+      <ActionButton label="Delete learner" pendingLabel="Deleting learner…" style={{ ...buttonStyle, background: '#dc2626' }} />
+    </form>
   );
 }
 
@@ -127,9 +143,9 @@ export function CreateMallamForm({ centers, pods }: { centers: Center[]; pods: P
   );
 }
 
-export function UpdateMallamForm({ mallam, centers }: { mallam: Mallam; centers: Center[] }) {
+export function UpdateMallamForm({ mallam, centers, embedded = false }: { mallam: Mallam; centers: Center[]; embedded?: boolean }) {
   return (
-    <div style={cardStyle}>
+    <div style={embedded ? embeddedCardStyle : cardStyle}>
       <form action={updateMallamAction} style={{ display: 'grid', gap: 12 }}>
         <input type="hidden" name="mallamId" value={mallam.id} />
         <h2 style={{ margin: 0 }}>Update mallam</h2>
@@ -150,11 +166,22 @@ export function UpdateMallamForm({ mallam, centers }: { mallam: Mallam; centers:
           <ActionButton label="Save mallam changes" pendingLabel="Saving mallam…" style={buttonStyle} />
         </div>
       </form>
-      <form action={deleteMallamAction} style={{ marginTop: 12 }}>
-        <input type="hidden" name="mallamId" value={mallam.id} />
-        <ActionButton label="Remove mallam" pendingLabel="Removing mallam…" style={{ ...buttonStyle, background: '#dc2626' }} />
-      </form>
     </div>
+  );
+}
+
+export function DeleteMallamForm({ mallam, embedded = false }: { mallam: Mallam; embedded?: boolean }) {
+  return (
+    <form action={deleteMallamAction} style={embedded ? embeddedCardStyle : cardStyle}>
+      <input type="hidden" name="mallamId" value={mallam.id} />
+      <div style={{ display: 'grid', gap: 10 }}>
+        <h2 style={{ margin: 0 }}>Delete mallam</h2>
+        <div style={{ color: '#475569', lineHeight: 1.6 }}>
+          Remove <strong>{mallam.displayName}</strong> from deployment? This will clear the profile from the live admin roster.
+        </div>
+      </div>
+      <ActionButton label="Delete mallam" pendingLabel="Deleting mallam…" style={{ ...buttonStyle, background: '#dc2626' }} />
+    </form>
   );
 }
 

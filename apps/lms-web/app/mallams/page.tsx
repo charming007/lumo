@@ -1,13 +1,20 @@
-import { CreateMallamForm, UpdateMallamForm } from '../../components/admin-forms';
+import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../components/admin-forms';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
-export default async function MallamsPage({ searchParams }: { searchParams?: Promise<{ message?: string; edit?: string }> }) {
+const actionButtonStyle = {
+  borderRadius: 12,
+  padding: '10px 12px',
+  fontSize: 13,
+  fontWeight: 700,
+  boxShadow: 'none',
+};
+
+export default async function MallamsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
   const [mallams, students, centers, pods] = await Promise.all([fetchMallams(), fetchStudents(), fetchCenters(), fetchPods()]);
-  const selectedMallam = mallams.find((mallam) => mallam.id === query?.edit) ?? mallams[0];
 
   return (
     <PageShell
@@ -35,14 +42,34 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
                     <div>
                       <a href={`/mallams/${mallam.id}`} style={{ fontWeight: 800, color: '#0f172a', textDecoration: 'none' }}>{mallam.displayName}</a>
                       <div style={{ color: '#64748b', marginTop: 4 }}>{mallam.centerName ?? mallam.region} • {mallam.podLabels.join(', ') || 'No pod mapped yet'}</div>
-                      <a href={`/mallams?edit=${mallam.id}`} style={{ color: '#0f766e', fontSize: 13, fontWeight: 700, textDecoration: 'none', marginTop: 8, display: 'inline-block' }}>Edit in form</a>
                     </div>
                     <Pill label={mallam.status} tone={mallam.status === 'active' ? '#DCFCE7' : '#FEF3C7'} text={mallam.status === 'active' ? '#166534' : '#92400E'} />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, color: '#334155' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, color: '#334155', marginBottom: 14 }}>
                     <div><strong>{roster.length}</strong><div style={{ color: '#64748b' }}>Rostered learners</div></div>
                     <div><strong>{mallam.certificationLevel}</strong><div style={{ color: '#64748b' }}>Certification</div></div>
                     <div><strong>{mallam.role}</strong><div style={{ color: '#64748b' }}>Deployment role</div></div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <a href={`/mallams/${mallam.id}`} style={{ color: '#4f46e5', fontWeight: 700, textDecoration: 'none' }}>View profile</a>
+                    <ModalLauncher
+                      buttonLabel="Edit"
+                      title={`Edit mallam · ${mallam.displayName}`}
+                      description="Update mallam profile, deployment metadata, and coverage without leaving this roster."
+                      eyebrow="Edit mallam"
+                      triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
+                    >
+                      <UpdateMallamForm mallam={mallam} centers={centers} embedded />
+                    </ModalLauncher>
+                    <ModalLauncher
+                      buttonLabel="Delete"
+                      title={`Delete mallam · ${mallam.displayName}`}
+                      description="Remove this mallam from the deployment roster if the profile should no longer appear in admin."
+                      eyebrow="Delete mallam"
+                      triggerStyle={{ ...actionButtonStyle, background: '#fee2e2', color: '#b91c1c' }}
+                    >
+                      <DeleteMallamForm mallam={mallam} embedded />
+                    </ModalLauncher>
                   </div>
                 </div>
               );
@@ -51,7 +78,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
         </Card>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <section style={{ display: 'grid', gap: 16 }}>
         <SimpleTable
           columns={['Name', 'Center', 'Region', 'Pods', 'Learners', 'Certification', 'Status', 'Actions']}
           rows={mallams.map((mallam) => [
@@ -62,20 +89,29 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             String(students.filter((student) => student.mallamId === mallam.id).length),
             mallam.certificationLevel,
             <Pill key={`${mallam.id}-status`} label={mallam.status} tone={mallam.status === 'active' ? '#DCFCE7' : '#FEF3C7'} text={mallam.status === 'active' ? '#166534' : '#92400E'} />,
-            <div key={`${mallam.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div key={`${mallam.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a href={`/mallams/${mallam.id}`} style={{ color: '#4f46e5', fontWeight: 700, textDecoration: 'none' }}>View profile</a>
-              <a href={`/mallams?edit=${mallam.id}`} style={{ color: '#0f766e', fontWeight: 700, textDecoration: 'none' }}>Edit mallam</a>
+              <ModalLauncher
+                buttonLabel="Edit mallam"
+                title={`Edit mallam · ${mallam.displayName}`}
+                description="Update mallam profile, deployment metadata, and coverage without leaving this list."
+                eyebrow="Edit mallam"
+                triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
+              >
+                <UpdateMallamForm mallam={mallam} centers={centers} embedded />
+              </ModalLauncher>
+              <ModalLauncher
+                buttonLabel="Delete mallam"
+                title={`Delete mallam · ${mallam.displayName}`}
+                description="Remove this mallam from the deployment roster if the profile should no longer appear in admin."
+                eyebrow="Delete mallam"
+                triggerStyle={{ ...actionButtonStyle, background: '#fee2e2', color: '#b91c1c' }}
+              >
+                <DeleteMallamForm mallam={mallam} embedded />
+              </ModalLauncher>
             </div>,
           ])}
         />
-
-        {selectedMallam ? (
-          <UpdateMallamForm mallam={selectedMallam} centers={centers} />
-        ) : (
-          <Card title="Update mallam" eyebrow="No mallam available yet">
-            <div style={{ color: '#64748b', lineHeight: 1.6 }}>Create a mallam first to unlock edit controls.</div>
-          </Card>
-        )}
       </section>
     </PageShell>
   );

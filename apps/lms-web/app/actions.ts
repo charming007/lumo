@@ -117,7 +117,7 @@ export async function updateStudentAction(formData: FormData) {
   revalidatePath('/students');
   revalidatePath('/mallams');
   revalidatePath(`/students/${studentId}`);
-  redirect(`/students?message=Learner%20updated&edit=${studentId}`);
+  redirect('/students?message=Learner%20updated');
 }
 
 export async function deleteStudentAction(formData: FormData) {
@@ -169,7 +169,7 @@ export async function updateMallamAction(formData: FormData) {
   revalidatePath('/');
   revalidatePath('/mallams');
   revalidatePath(`/mallams/${mallamId}`);
-  redirect(`/mallams?message=Mallam%20updated&edit=${mallamId}`);
+  redirect('/mallams?message=Mallam%20updated');
 }
 
 export async function deleteMallamAction(formData: FormData) {
@@ -236,6 +236,41 @@ export async function updateLessonAction(formData: FormData) {
   await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', payload);
   revalidatePath('/content');
   redirect('/content?message=Lesson%20changes%20saved');
+}
+
+export async function createAssessmentAction(formData: FormData) {
+  const payload = {
+    subjectId: String(formData.get('subjectId') || ''),
+    moduleId: String(formData.get('moduleId') || ''),
+    title: String(formData.get('title') || ''),
+    kind: String(formData.get('kind') || 'automatic'),
+    trigger: String(formData.get('trigger') || 'module-complete'),
+    triggerLabel: String(formData.get('triggerLabel') || ''),
+    progressionGate: String(formData.get('progressionGate') || 'foundation-a'),
+    passingScore: Number(formData.get('passingScore') || 0.6),
+    status: String(formData.get('status') || 'draft'),
+  };
+
+  await apiWrite('/api/v1/assessments', 'POST', payload);
+  revalidatePath('/content');
+  redirect('/content?message=Assessment%20created%20and%20linked%20to%20a%20release%20gate');
+}
+
+export async function updateAssessmentAction(formData: FormData) {
+  const assessmentId = String(formData.get('assessmentId') || '');
+  const payload = {
+    title: String(formData.get('title') || ''),
+    kind: String(formData.get('kind') || ''),
+    trigger: String(formData.get('trigger') || ''),
+    triggerLabel: String(formData.get('triggerLabel') || ''),
+    progressionGate: String(formData.get('progressionGate') || ''),
+    passingScore: Number(formData.get('passingScore') || 0),
+    status: String(formData.get('status') || ''),
+  };
+
+  await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', payload);
+  revalidatePath('/content');
+  redirect('/content?message=Assessment%20changes%20saved');
 }
 
 export async function createAttendanceAction(formData: FormData) {

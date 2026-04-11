@@ -1,4 +1,4 @@
-import { CreateStudentForm, UpdateStudentForm } from '../../components/admin-forms';
+import { CreateStudentForm, DeleteStudentForm, UpdateStudentForm } from '../../components/admin-forms';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCohorts, fetchMallams, fetchPods, fetchStudents, fetchWorkboard } from '../../lib/api';
@@ -10,7 +10,15 @@ function tone(status: string) {
   return ['#E0E7FF', '#3730A3'] as const;
 }
 
-export default async function StudentsPage({ searchParams }: { searchParams?: Promise<{ message?: string; edit?: string }> }) {
+const actionButtonStyle = {
+  borderRadius: 12,
+  padding: '10px 12px',
+  fontSize: 13,
+  fontWeight: 700,
+  boxShadow: 'none',
+};
+
+export default async function StudentsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
   const [students, workboard, cohorts, pods, mallams] = await Promise.all([
     fetchStudents(),
@@ -20,7 +28,6 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
     fetchMallams(),
   ]);
 
-  const selectedStudent = students.find((student) => student.id === query?.edit) ?? students[0];
   const flaggedLearners = students.filter((student) => student.attendanceRate < 0.85).length;
 
   return (
@@ -62,16 +69,33 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
               student.podLabel ?? '—',
               `${Math.round(student.attendanceRate * 100)}%`,
               `${student.level} · ${student.stage}`,
-              <div key={`${student.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div key={`${student.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <a href={`/students/${student.id}`} style={{ color: '#4f46e5', fontWeight: 700, textDecoration: 'none' }}>View profile</a>
-                <a href={`/students?edit=${student.id}`} style={{ color: '#0f766e', fontWeight: 700, textDecoration: 'none' }}>Edit learner</a>
+                <ModalLauncher
+                  buttonLabel="Edit learner"
+                  title={`Edit learner · ${student.name}`}
+                  description="Update roster placement, owner, and learner profile details without leaving this list."
+                  eyebrow="Edit learner"
+                  triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
+                >
+                  <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} embedded />
+                </ModalLauncher>
+                <ModalLauncher
+                  buttonLabel="Delete learner"
+                  title={`Delete learner · ${student.name}`}
+                  description="Use this only when the learner record should be removed from the active admin roster."
+                  eyebrow="Delete learner"
+                  triggerStyle={{ ...actionButtonStyle, background: '#fee2e2', color: '#b91c1c' }}
+                >
+                  <DeleteStudentForm student={student} embedded />
+                </ModalLauncher>
               </div>,
             ])}
           />
         </Card>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ display: 'grid', marginBottom: 20 }}>
         <Card title="Learner support queue" eyebrow="Actionable">
           <SimpleTable
             columns={['Learner', 'Focus area', 'Attendance', 'Mastery', 'Progression', 'Next module']}
@@ -88,14 +112,6 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
             })}
           />
         </Card>
-
-        {selectedStudent ? (
-          <UpdateStudentForm student={selectedStudent} cohorts={cohorts} pods={pods} mallams={mallams} title={`Edit learner · ${selectedStudent.name}`} />
-        ) : (
-          <Card title="Edit learner" eyebrow="No learner available yet">
-            <div style={{ color: '#64748b', lineHeight: 1.6 }}>Create a learner first to unlock edit controls.</div>
-          </Card>
-        )}
       </section>
     </PageShell>
   );

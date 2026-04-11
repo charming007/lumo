@@ -1,37 +1,39 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+
+const defaultTriggerStyle: CSSProperties = {
+  background: 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)',
+  color: 'white',
+  border: 0,
+  borderRadius: 16,
+  padding: '14px 18px',
+  fontWeight: 800,
+  fontSize: 14,
+  cursor: 'pointer',
+  boxShadow: '0 16px 30px rgba(108, 99, 255, 0.25)',
+};
 
 export function ModalLauncher({
   buttonLabel,
   title,
   description,
+  eyebrow = 'Create record',
+  triggerStyle,
   children,
 }: {
   buttonLabel: string;
   title: string;
   description?: string;
+  eyebrow?: string;
+  triggerStyle?: CSSProperties;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        style={{
-          background: 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)',
-          color: 'white',
-          border: 0,
-          borderRadius: 16,
-          padding: '14px 18px',
-          fontWeight: 800,
-          fontSize: 14,
-          cursor: 'pointer',
-          boxShadow: '0 16px 30px rgba(108, 99, 255, 0.25)',
-        }}
-      >
+      <button type="button" onClick={() => setOpen(true)} style={{ ...defaultTriggerStyle, ...triggerStyle }}>
         {buttonLabel}
       </button>
 
@@ -66,7 +68,7 @@ export function ModalLauncher({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
-                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', marginBottom: 8 }}>Create record</div>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', marginBottom: 8 }}>{eyebrow}</div>
                 <h2 style={{ margin: 0, fontSize: 28, color: '#0f172a' }}>{title}</h2>
                 {description ? <p style={{ margin: '8px 0 0', color: '#64748b', lineHeight: 1.6 }}>{description}</p> : null}
               </div>
