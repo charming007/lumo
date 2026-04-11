@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'app_state.dart';
 import 'audio_capture_service.dart';
+import 'speech_transcription_service.dart';
 import 'design_shell.dart';
 import 'instructions.dart';
 import 'models.dart';
@@ -1700,21 +1701,27 @@ class LessonSessionPage extends StatefulWidget {
 class _LessonSessionPageState extends State<LessonSessionPage> {
   late final TextEditingController responseController;
   late final AudioCaptureService audioCaptureService;
+  late final SpeechTranscriptionService speechTranscriptionService;
   Timer? recordingTicker;
   bool isRecording = false;
   Duration currentRecordingDuration = Duration.zero;
   String? microphoneStatus;
+  String liveTranscript = '';
+  bool speechRecognitionActive = false;
+  bool transcriptCapturedThisTake = false;
 
   @override
   void initState() {
     super.initState();
     responseController = TextEditingController();
     audioCaptureService = AudioCaptureService();
+    speechTranscriptionService = SpeechTranscriptionService();
   }
 
   @override
   void dispose() {
     recordingTicker?.cancel();
+    speechTranscriptionService.cancel();
     audioCaptureService.dispose();
     responseController.dispose();
     super.dispose();
@@ -1731,9 +1738,22 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
   Future<void> startRecording() async {
     try {
+      transcriptCapturedThisTake = false;
+      liveTranscript = '';
+
       await audioCaptureService.start(
         fileStem: widget.state.currentLearner?.learnerCode ?? 'learner-voice',
       );
+      final speechReady = await speechTranscriptionService.start(
+        onResult: (transcript, isFinal) {
+          if (!mounted) return;
+          setState(() {
+            liveTranscript = transcript;
+            transcriptCapturedThisTake = transcript.trim().isNotEmpty;
+          });
+        },
+      );
+
       recordingTicker?.cancel();
       recordingTicker = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
@@ -1745,12 +1765,19 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       widget.onChanged();
       setState(() {
         isRecording = true;
+        speechRecognitionActive = speechReady;
         currentRecordingDuration = Duration.zero;
-        microphoneStatus = 'Recording learner voice…';
+        microphoneStatus = speechReady
+            ? 'Recording learner voice and live transcript…'
+            : (speechTranscriptionService.lastError ??
+                'Recording learner voice only. Speech recognition is unavailable on this device.');
       });
     } catch (error) {
+      await speechTranscriptionService.cancel();
       setState(() {
         isRecording = false;
+        speechRecognitionActive = false;
+        liveTranscript = '';
         microphoneStatus = error.toString();
       });
     }
@@ -1758,11 +1785,14 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
   Future<void> stopRecording() async {
     recordingTicker?.cancel();
+    await speechTranscriptionService.stop();
+    final transcript = liveTranscript.trim();
     final result = await audioCaptureService.stop();
     if (!mounted) return;
 
     setState(() {
       isRecording = false;
+      speechRecognitionActive = false;
     });
 
     if (result == null) {
@@ -1776,11 +1806,18 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       path: result.path,
       duration: result.duration,
     );
+
+    if (transcript.isNotEmpty) {
+      responseController.text = transcript;
+      widget.state.submitLearnerResponse(transcript);
+    }
+
     widget.onChanged();
     setState(() {
       currentRecordingDuration = result.duration;
-      microphoneStatus =
-          'Learner voice saved locally (${formatDuration(result.duration)}).';
+      microphoneStatus = transcript.isNotEmpty
+          ? 'Learner voice saved locally (${formatDuration(result.duration)}) and transcript captured.'
+          : 'Learner voice saved locally (${formatDuration(result.duration)}). No transcript was detected.';
     });
   }
 
@@ -2212,7 +2249,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                     const SizedBox(height: 8),
                                     Text(
                                       microphoneStatus ??
-                                          'Record the learner on-device. Typed capture still works if the mic is unavailable.',
+                                          'Record the learner on-device. Live speech-to-text now fills the response box when available; typed capture still works if the mic is unavailable.',
                                       style: const TextStyle(
                                         color: Color(0xFF475569),
                                         height: 1.4,
@@ -2264,6 +2301,54 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                         ),
                                       ],
                                     ),
+                                    if (liveTranscript.isNotEmpty || speechRecognitionActive) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEEF2FF),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: const Color(0xFFC7D2FE),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.subtitles_rounded,
+                                                  size: 18,
+                                                  color: Color(0xFF4338CA),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  speechRecognitionActive
+                                                      ? 'Live transcript'
+                                                      : 'Captured transcript',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF312E81),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              liveTranscript.isEmpty
+                                                  ? 'Listening for learner speech…'
+                                                  : liveTranscript,
+                                              style: const TextStyle(
+                                                color: Color(0xFF4338CA),
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     if (session.latestLearnerAudioPath != null) ...[
                                       const SizedBox(height: 12),
                                       Container(
@@ -2299,7 +2384,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
-                                              'This accepts real learner voice input now. Transcription/STT is still not wired, so progression uses the saved audio capture itself or a typed transcript.',
+                                              transcriptCapturedThisTake || session.hasResponse
+                                                  ? 'Audio capture is saved locally and the latest transcript can be edited in the response box before advancing.'
+                                                  : 'Audio capture is saved locally even if speech recognition misses the words. You can still type the learner response manually.',
                                               style: const TextStyle(
                                                 color: Color(0xFF475569),
                                                 height: 1.4,

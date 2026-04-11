@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Lumo needs microphone access to capture learner voice responses during lessons.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Lumo uses on-device speech recognition to turn learner responses into editable text during lessons.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
