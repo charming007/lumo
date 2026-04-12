@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -10,12 +11,14 @@ class LumoApiClient {
         baseUrl = (baseUrl ??
                 const String.fromEnvironment(
                   'LUMO_API_BASE_URL',
-                  defaultValue: 'http://localhost:4000',
+                  defaultValue:
+                      'https://lumo-api-production-303a.up.railway.app',
                 ))
             .replaceAll(RegExp(r'/+$'), '');
 
   final http.Client _client;
   final String baseUrl;
+  static const Duration _requestTimeout = Duration(seconds: 12);
 
   Map<String, String> get _jsonHeaders => const {
         'Content-Type': 'application/json',
@@ -23,9 +26,12 @@ class LumoApiClient {
       };
 
   Future<LumoBootstrap> fetchBootstrap() async {
-    final response = await _client.get(
-      Uri.parse('$baseUrl/api/v1/learner-app/bootstrap'),
-      headers: _jsonHeaders,
+    final response = await _send(
+      () => _client.get(
+        Uri.parse('$baseUrl/api/v1/learner-app/bootstrap'),
+        headers: _jsonHeaders,
+      ),
+      action: 'load learner app bootstrap',
     );
 
     _ensureOk(response, 'load learner app bootstrap');
@@ -63,31 +69,54 @@ class LumoApiClient {
   Future<LearnerProfile> registerLearner({
     required RegistrationDraft draft,
   }) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/api/v1/learner-app/learners'),
-      headers: _jsonHeaders,
-      body: jsonEncode(draft.backendPayloadPreview),
+    final response = await _send(
+      () => _client.post(
+        Uri.parse('$baseUrl/api/v1/learner-app/learners'),
+        headers: _jsonHeaders,
+        body: jsonEncode(draft.backendPayloadPreview),
+      ),
+      action: 'register learner',
     );
 
     _ensureOk(response, 'register learner');
     return LearnerProfile.fromBackend(_decodeObject(response.body));
   }
 
+  Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
+    final response = await _send(
+      () => _client.get(
+        Uri.parse('$baseUrl/api/v1/learner-app/modules/$moduleId'),
+        headers: _jsonHeaders,
+      ),
+      action: 'load module details for $moduleId',
+    );
+
+    _ensureOk(response, 'load module details for $moduleId');
+    final decoded = _decodeObject(response.body);
+    return LumoModuleBundle(
+      module: LearningModule.fromBackend(decoded),
+      lessons: _asList(decoded['lessons']).map(LessonCardModel.fromBackend).toList(),
+    );
+  }
+
   Future<LumoSyncResult> syncEvents(List<SyncEvent> events) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/api/v1/learner-app/sync'),
-      headers: _jsonHeaders,
-      body: jsonEncode({
-        'events': events
-            .map(
-              (event) => {
-                'id': event.id,
-                'type': event.type,
-                ...event.payload,
-              },
-            )
-            .toList(),
-      }),
+    final response = await _send(
+      () => _client.post(
+        Uri.parse('$baseUrl/api/v1/learner-app/sync'),
+        headers: _jsonHeaders,
+        body: jsonEncode({
+          'events': events
+              .map(
+                (event) => {
+                  'id': event.id,
+                  'type': event.type,
+                  ...event.payload,
+                },
+              )
+              .toList(),
+        }),
+      ),
+      action: 'sync learner events',
     );
 
     _ensureOk(response, 'sync learner events');
@@ -111,6 +140,24 @@ class LumoApiClient {
       throw Exception('Expected an object response from API.');
     }
     return Map<String, dynamic>.from(decoded);
+  }
+
+  Future<http.Response> _send(
+    Future<http.Response> Function() request, {
+    required String action,
+  }) async {
+    try {
+      return await request().timeout(_requestTimeout);
+    } on Exception catch (error) {
+      if (error is http.ClientException) {
+        throw Exception('Unable to $action: ${error.message}');
+      }
+      if (error is FormatException) {
+        throw Exception('Unable to $action: invalid backend response.');
+      }
+      if (error is! TimeoutException) rethrow;
+      throw Exception('Unable to $action: request timed out after ${_requestTimeout.inSeconds}s.');
+    }
   }
 
   void _ensureOk(http.Response response, String action) {
