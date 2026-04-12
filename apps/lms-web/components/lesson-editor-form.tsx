@@ -62,6 +62,43 @@ function safeStringify(value: unknown) {
   return JSON.stringify(value);
 }
 
+function parseActivityChoices(choiceLines: string) {
+  return choiceLines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [idRaw, labelRaw, correctnessRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+      const id = idRaw || `choice-${index + 1}`;
+      const label = labelRaw || id;
+      const isCorrect = ['correct', 'true', 'yes', '1'].includes((correctnessRaw || '').toLowerCase());
+      const mediaKind = mediaKindRaw || '';
+      const mediaValue = mediaValueRaw || '';
+      return {
+        id,
+        label,
+        isCorrect,
+        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: mediaValue.includes(',') ? mediaValue.split(',').map((item) => item.trim()).filter(Boolean) : mediaValue } } : {}),
+      };
+    });
+}
+
+function parseActivityMedia(mediaLines: string) {
+  return mediaLines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [kindRaw, valueRaw] = line.split('|').map((part) => part.trim());
+      const kind = kindRaw || 'image';
+      const value = valueRaw || '';
+      return {
+        kind,
+        value: value.includes(',') ? value.split(',').map((item) => item.trim()).filter(Boolean) : value,
+      };
+    });
+}
+
 function makeActivityDraft(index: number) {
   return {
     id: `activity-${Date.now()}-${index + 1}`,
@@ -74,6 +111,8 @@ function makeActivityDraft(index: number) {
     expectedAnswers: '',
     tags: '',
     facilitatorNotes: '',
+    choiceLines: '',
+    mediaLines: '',
   };
 }
 
@@ -122,6 +161,14 @@ export function LessonEditorForm({
           expectedAnswers: (step.expectedAnswers ?? []).join(', '),
           tags: (step.tags ?? []).join(', '),
           facilitatorNotes: (step.facilitatorNotes ?? []).join('\n'),
+          choiceLines: (step.choices ?? []).map((choice, choiceIndex) => {
+            const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
+            const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
+              ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
+              : '';
+            return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
+          }).join('\n'),
+          mediaLines: (step.media ?? []).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
         }))
       : [makeActivityDraft(0)],
   );
@@ -190,6 +237,8 @@ export function LessonEditorForm({
       expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
       tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
       facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
+      choices: parseActivityChoices(draft.choiceLines),
+      media: parseActivityMedia(draft.mediaLines),
     })),
     [activityDrafts],
   );
@@ -359,6 +408,8 @@ export function LessonEditorForm({
                     </div>
                     <div style={{ color: '#475569', fontSize: 14 }}>{step.detail || step.prompt || 'Add learner-facing guidance for this step.'}</div>
                     <div style={{ color: '#64748B', fontSize: 12 }}>{typeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
+                    {step.choices && step.choices.length > 0 ? <div style={{ color: '#7C3AED', fontSize: 12, fontWeight: 700 }}>{step.choices.length} choice option{step.choices.length === 1 ? '' : 's'}</div> : null}
+                    {step.media && step.media.length > 0 ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{step.media.length} media cue{step.media.length === 1 ? '' : 's'}</div> : null}
                   </div>
                 ))}
               </div>
@@ -480,6 +531,16 @@ export function LessonEditorForm({
                   <FieldLabel>
                     Facilitator notes (one per line)
                     <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={2} style={inputStyle} />
+                  </FieldLabel>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <FieldLabel>
+                    Choices (id|label|correct/wrong|mediaKind|mediaValue per line)
+                    <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={4} style={inputStyle} />
+                  </FieldLabel>
+                  <FieldLabel>
+                    Media cues (kind|value per line)
+                    <textarea value={activity.mediaLines} onChange={(event) => updateActivity(index, { mediaLines: event.target.value })} rows={4} style={inputStyle} />
                   </FieldLabel>
                 </div>
               </div>

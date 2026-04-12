@@ -62,6 +62,24 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
                 </div>
                 <div style={{ color: '#475569', lineHeight: 1.6 }}>{step.detail ?? step.prompt}</div>
                 <div style={{ marginTop: 8, color: '#64748B' }}>{step.type} • Evidence: {step.evidence ?? '—'}</div>
+                {step.choices && step.choices.length > 0 ? (
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {step.choices.map((choice) => (
+                      <span key={choice.id} style={{ padding: '6px 10px', borderRadius: 999, background: choice.isCorrect ? '#DCFCE7' : '#F8FAFC', color: choice.isCorrect ? '#166534' : '#334155', fontWeight: 700, fontSize: 12 }}>
+                        {choice.label}{choice.isCorrect ? ' ✓' : ''}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {step.media && step.media.length > 0 ? (
+                  <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+                    {step.media.map((item, index) => (
+                      <div key={`${step.id}-media-${index}`} style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>
+                        Media cue: {item.kind} • {Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '—')}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

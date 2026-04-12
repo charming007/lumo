@@ -151,6 +151,18 @@ export type CurriculumModule = {
   strandName: string;
 };
 
+export type LessonActivityMedia = {
+  kind?: string;
+  value?: string | string[] | null;
+};
+
+export type LessonActivityChoice = {
+  id: string;
+  label: string;
+  isCorrect?: boolean;
+  media?: LessonActivityMedia | null;
+};
+
 export type LessonActivityStep = {
   id: string;
   type: string;
@@ -161,8 +173,8 @@ export type LessonActivityStep = {
   detail?: string;
   evidence?: string;
   expectedAnswers?: string[];
-  media?: Array<Record<string, unknown>>;
-  choices?: Array<Record<string, unknown>>;
+  media?: LessonActivityMedia[];
+  choices?: LessonActivityChoice[];
   tags?: string[];
   facilitatorNotes?: string[];
 };
