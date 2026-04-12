@@ -23,6 +23,7 @@ const inputStyle = {
   fontSize: 14,
   width: '100%',
   background: 'white',
+  minWidth: 0,
 } as const;
 
 const buttonStyle = {
@@ -47,6 +48,24 @@ const ghostButtonStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+} as const;
+
+const autoFitTwoUp = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: 16,
+} as const;
+
+const autoFitFields = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: 12,
+} as const;
+
+const autoFitCompactFields = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: 10,
 } as const;
 
 const typeOptions = [
@@ -101,7 +120,7 @@ type ActivityDraft = {
 };
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
+  return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14, minWidth: 0 }}>{children}</label>;
 }
 
 function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}): ActivityDraft {
@@ -318,8 +337,8 @@ export function EnglishStudioAuthoringForm({
       <input type="hidden" name="lessonAssessment" value={JSON.stringify(lessonAssessment)} />
       <input type="hidden" name="activitySteps" value={JSON.stringify(activitySteps)} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 320px', minWidth: 0 }}>
           <h2 style={{ margin: 0 }}>Author English lesson</h2>
           <div style={{ color: '#64748b', lineHeight: 1.6, marginTop: 8 }}>
             This is finally a real authoring surface: start from a usable English preset, edit the activity spine, tune assessment and localization, then create the lesson without the usual fake-title nonsense.
@@ -342,7 +361,7 @@ export function EnglishStudioAuthoringForm({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 0.7fr 0.8fr', gap: 12 }}>
+      <div style={autoFitFields}>
         <FieldLabel>
           English module
           <select name="moduleId" value={moduleId} onChange={(event) => setModuleId(event.target.value)} style={inputStyle}>
@@ -368,15 +387,15 @@ export function EnglishStudioAuthoringForm({
         </FieldLabel>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-        <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 16, padding: 14 }}><strong>{activeModule?.level ?? '—'}</strong><div style={{ color: '#475569', marginTop: 4 }}>Target level</div></div>
-        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 16, padding: 14 }}><strong>{activeModule?.status ?? '—'}</strong><div style={{ color: '#475569', marginTop: 4 }}>Module readiness</div></div>
-        <div style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 16, padding: 14 }}><strong>{assessmentTitle}</strong><div style={{ color: '#475569', marginTop: 4 }}>Assessment link</div></div>
-        <div style={{ background: readinessTone.bg, border: `1px solid ${readinessTone.border}`, borderRadius: 16, padding: 14, color: readinessTone.text }}><strong>{readiness.readinessScore}/5 checks passed</strong><div style={{ marginTop: 4 }}>Recommended status: {recommendedStatus}</div></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 16, padding: 14, minWidth: 0 }}><strong>{activeModule?.level ?? '—'}</strong><div style={{ color: '#475569', marginTop: 4 }}>Target level</div></div>
+        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 16, padding: 14, minWidth: 0 }}><strong>{activeModule?.status ?? '—'}</strong><div style={{ color: '#475569', marginTop: 4 }}>Module readiness</div></div>
+        <div style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 16, padding: 14, minWidth: 0 }}><strong>{assessmentTitle}</strong><div style={{ color: '#475569', marginTop: 4 }}>Assessment link</div></div>
+        <div style={{ background: readinessTone.bg, border: `1px solid ${readinessTone.border}`, borderRadius: 16, padding: 14, color: readinessTone.text, minWidth: 0 }}><strong>{readiness.readinessScore}/5 checks passed</strong><div style={{ marginTop: 4 }}>Recommended status: {recommendedStatus}</div></div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr', gap: 16 }}>
-        <div style={{ display: 'grid', gap: 12 }}>
+      <div style={autoFitTwoUp}>
+        <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
           <FieldLabel>
             Publish state
             <select name="status" value={status} onChange={(event) => setStatus(event.target.value)} style={inputStyle}>
@@ -395,7 +414,7 @@ export function EnglishStudioAuthoringForm({
 
           <div style={{ padding: 16, borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', marginBottom: 8 }}>Localization</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div style={{ ...autoFitCompactFields, marginBottom: 10 }}>
               <FieldLabel>
                 Support language code
                 <input value={supportLanguage} onChange={(event) => setSupportLanguage(event.target.value)} style={inputStyle} />
@@ -413,7 +432,7 @@ export function EnglishStudioAuthoringForm({
 
           <div style={{ padding: 16, borderRadius: 18, background: '#F5F3FF', border: '1px solid #DDD6FE' }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#6D28D9', marginBottom: 8 }}>Assessment pack</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 170px', gap: 10, marginBottom: 10 }}>
+            <div style={{ ...autoFitCompactFields, marginBottom: 10 }}>
               <FieldLabel>
                 Assessment title
                 <input value={assessmentTitle} readOnly style={{ ...inputStyle, background: '#f8fafc', color: '#475569' }} />
@@ -434,10 +453,10 @@ export function EnglishStudioAuthoringForm({
           </div>
         </div>
 
-        <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
           <div style={{ padding: 16, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-              <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B' }}>Live lesson preview</div>
                 <div style={{ color: '#0f172a', fontWeight: 800, marginTop: 4 }}>{title || 'Untitled English lesson'}</div>
               </div>
@@ -470,8 +489,8 @@ export function EnglishStudioAuthoringForm({
           </div>
 
           <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-              <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 280px', minWidth: 0 }}>
                 <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Editable activity spine</div>
                 <div style={{ color: '#475569', marginTop: 4 }}>This is the real bit now: add, reorder, duplicate, and clean up the English lesson flow before the record exists.</div>
               </div>
@@ -480,8 +499,8 @@ export function EnglishStudioAuthoringForm({
 
             <div style={{ display: 'grid', gap: 12 }}>
               {activityDrafts.map((activity, index) => (
-                <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
@@ -491,7 +510,7 @@ export function EnglishStudioAuthoringForm({
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 110px', gap: 10 }}>
+                  <div style={autoFitCompactFields}>
                     <FieldLabel>
                       Step title
                       <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
@@ -518,7 +537,7 @@ export function EnglishStudioAuthoringForm({
                     <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={3} style={inputStyle} />
                   </FieldLabel>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={autoFitCompactFields}>
                     <FieldLabel>
                       Evidence
                       <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
@@ -529,7 +548,7 @@ export function EnglishStudioAuthoringForm({
                     </FieldLabel>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={autoFitCompactFields}>
                     <FieldLabel>
                       Tags
                       <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />

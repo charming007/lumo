@@ -55,9 +55,10 @@ export function ModalLauncher({
         >
           <div
             style={{
-              width: 'min(760px, 100%)',
+              width: 'min(1180px, calc(100vw - 32px))',
               maxHeight: 'calc(100vh - 48px)',
               overflowY: 'auto',
+              overflowX: 'hidden',
               background: '#f8fafc',
               borderRadius: 28,
               padding: 24,

@@ -21,6 +21,7 @@ const inputStyle = {
   fontSize: 14,
   width: '100%',
   background: 'white',
+  minWidth: 0,
 } as const;
 
 const buttonStyle = {
@@ -43,6 +44,24 @@ const ghostButtonStyle = {
   cursor: 'pointer',
 } as const;
 
+const autoFitTwoUp = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: 16,
+} as const;
+
+const autoFitFields = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: 12,
+} as const;
+
+const autoFitCompactFields = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: 10,
+} as const;
+
 const typeLabelMap: Record<string, string> = {
   listen_repeat: 'Listen & repeat',
   speak_answer: 'Speak answer',
@@ -55,7 +74,7 @@ const typeLabelMap: Record<string, string> = {
 };
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
+  return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14, minWidth: 0 }}>{children}</label>;
 }
 
 function safeStringify(value: unknown) {
@@ -299,8 +318,8 @@ export function LessonEditorForm({
       <input type="hidden" name="lessonAssessment" value={safeStringify(lessonAssessment)} />
       <input type="hidden" name="activitySteps" value={safeStringify(activitySteps)} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 320px', minWidth: 0 }}>
           <h2 style={{ margin: 0 }}>Edit lesson authoring pack</h2>
           <div style={{ color: '#64748b', lineHeight: 1.6, marginTop: 8 }}>
             This edits the real payload: objectives, localization, assessment items, and activity steps. Now it also lets authors shape the flow instead of babysitting a dumb JSON blob.
@@ -312,7 +331,7 @@ export function LessonEditorForm({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px 140px', gap: 12 }}>
+      <div style={autoFitFields}>
         <FieldLabel>
           Subject
           <select value={subjectId} onChange={(event) => {
@@ -345,7 +364,7 @@ export function LessonEditorForm({
         </FieldLabel>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr 0.8fr', gap: 12 }}>
+      <div style={autoFitFields}>
         <FieldLabel>
           Lesson title
           <input name="title" value={title} onChange={(event) => setTitle(event.target.value)} style={inputStyle} />
@@ -370,15 +389,15 @@ export function LessonEditorForm({
         <input name="voicePersona" value={voicePersona} onChange={(event) => setVoicePersona(event.target.value)} style={inputStyle} />
       </FieldLabel>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 16 }}>
+      <div style={autoFitTwoUp}>
         <FieldLabel>
           Learning objectives (one per line)
           <textarea value={learningObjectivesText} onChange={(event) => setLearningObjectivesText(event.target.value)} rows={6} style={inputStyle} />
         </FieldLabel>
 
-        <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-            <div>
+        <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 12, minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Live learner preview</div>
               <div style={{ color: '#0f172a', fontWeight: 800, marginTop: 4 }}>{title || 'Untitled lesson'}</div>
             </div>
@@ -405,8 +424,8 @@ export function LessonEditorForm({
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Learner flow</div>
               <div style={{ display: 'grid', gap: 8 }}>
                 {activitySteps.map((step, index) => (
-                  <div key={step.id} style={{ display: 'grid', gap: 4, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                  <div key={step.id} style={{ display: 'grid', gap: 4, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0', minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                       <strong>{index + 1}. {step.title || step.prompt}</strong>
                       <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes || 0} min</span>
                     </div>
@@ -422,11 +441,11 @@ export function LessonEditorForm({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={{ display: 'grid', gap: 12 }}>
+      <div style={autoFitTwoUp}>
+        <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
           <div style={{ padding: 18, borderRadius: 18, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#1D4ED8', marginBottom: 10 }}>Localization</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div style={{ ...autoFitCompactFields, marginBottom: 12 }}>
               <FieldLabel>
                 Support language code
                 <input value={supportLanguage} onChange={(event) => setSupportLanguage(event.target.value)} style={inputStyle} />
@@ -444,7 +463,7 @@ export function LessonEditorForm({
 
           <div style={{ padding: 18, borderRadius: 18, background: '#F5F3FF', border: '1px solid #DDD6FE' }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#6D28D9', marginBottom: 10 }}>Assessment pack</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: 12, marginBottom: 12 }}>
+            <div style={{ ...autoFitCompactFields, marginBottom: 12 }}>
               <FieldLabel>
                 Assessment title
                 <input value={assessmentTitle} onChange={(event) => setAssessmentTitle(event.target.value)} style={inputStyle} />
@@ -465,9 +484,9 @@ export function LessonEditorForm({
           </div>
         </div>
 
-        <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-            <div>
+        <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 14, minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 280px', minWidth: 0 }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Activity spine</div>
               <div style={{ color: '#475569', marginTop: 4 }}>Add, duplicate, reorder, and trim steps without wrecking the lesson payload.</div>
             </div>
@@ -476,8 +495,8 @@ export function LessonEditorForm({
 
           <div style={{ display: 'grid', gap: 12 }}>
             {activityDrafts.map((activity, index) => (
-              <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+              <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
@@ -486,7 +505,7 @@ export function LessonEditorForm({
                     <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 120px', gap: 10 }}>
+                <div style={autoFitCompactFields}>
                   <FieldLabel>
                     Step title
                     <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value, prompt: event.target.value })} style={inputStyle} />
@@ -517,7 +536,7 @@ export function LessonEditorForm({
                   Detail
                   <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={3} style={inputStyle} />
                 </FieldLabel>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={autoFitCompactFields}>
                   <FieldLabel>
                     Evidence
                     <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
@@ -527,7 +546,7 @@ export function LessonEditorForm({
                     <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={autoFitCompactFields}>
                   <FieldLabel>
                     Tags (comma separated)
                     <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
@@ -537,7 +556,7 @@ export function LessonEditorForm({
                     <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={2} style={inputStyle} />
                   </FieldLabel>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={autoFitCompactFields}>
                   <FieldLabel>
                     Choices (id|label|correct/wrong|mediaKind|mediaValue per line)
                     <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={4} style={inputStyle} />
