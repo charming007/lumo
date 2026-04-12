@@ -8,17 +8,72 @@ import 'models.dart';
 class LumoApiClient {
   LumoApiClient({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
-        baseUrl = (baseUrl ??
-                const String.fromEnvironment(
-                  'LUMO_API_BASE_URL',
-                  defaultValue:
-                      'https://lumo-api-production-303a.up.railway.app',
-                ))
-            .replaceAll(RegExp(r'/+$'), '');
+        baseUrl = normalizeBaseUrl(
+          baseUrl ??
+              const String.fromEnvironment(
+                'LUMO_API_BASE_URL',
+                defaultValue: 'https://lumo-api-production-303a.up.railway.app',
+              ),
+        );
 
   final http.Client _client;
   final String baseUrl;
   static const Duration _requestTimeout = Duration(seconds: 12);
+
+  static String normalizeBaseUrl(String rawBaseUrl) {
+    final trimmed = rawBaseUrl.trim();
+    if (trimmed.isEmpty) {
+      return 'https://lumo-api-production-303a.up.railway.app';
+    }
+
+    final withScheme = trimmed.contains('://') ? trimmed : 'https://$trimmed';
+    final parsed = Uri.tryParse(withScheme);
+    if (parsed == null || parsed.host.isEmpty) {
+      return withScheme.replaceAll(RegExp(r'/+$'), '');
+    }
+
+    final segments =
+        parsed.pathSegments.where((segment) => segment.isNotEmpty).toList();
+    final normalizedSegments = _stripApiSuffix(segments);
+    final normalizedPath =
+        normalizedSegments.isEmpty ? '' : '/${normalizedSegments.join('/')}';
+    final authority =
+        parsed.hasPort ? '${parsed.host}:${parsed.port}' : parsed.host;
+    final normalized = '${parsed.scheme}://$authority$normalizedPath';
+
+    final rendered = normalized.replaceAll(RegExp(r'/+$'), '');
+    return rendered.isEmpty
+        ? 'https://lumo-api-production-303a.up.railway.app'
+        : rendered;
+  }
+
+  static List<String> _stripApiSuffix(List<String> segments) {
+    if (segments.isEmpty) return const [];
+
+    final suffixes = <List<String>>[
+      ['api', 'v1', 'learner-app', 'bootstrap'],
+      ['api', 'v1', 'learner-app'],
+      ['api', 'v1'],
+      ['bootstrap'],
+    ];
+
+    for (final suffix in suffixes) {
+      if (segments.length < suffix.length) continue;
+      final tail = segments.sublist(segments.length - suffix.length);
+      var matches = true;
+      for (var index = 0; index < suffix.length; index++) {
+        if (tail[index] != suffix[index]) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        return segments.sublist(0, segments.length - suffix.length);
+      }
+    }
+
+    return segments;
+  }
 
   Map<String, String> get _jsonHeaders => const {
         'Content-Type': 'application/json',
