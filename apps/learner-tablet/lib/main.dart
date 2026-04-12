@@ -3736,6 +3736,15 @@ class LessonCompletePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final learner = state.currentLearner!;
     final session = state.activeSession!;
+    final nextLesson = state.nextLessonAfterCompletion(
+      learner,
+      completedLessonId: lesson.id,
+    );
+    final recommendedModule = state.recommendedModuleForLearner(learner);
+    final routeSummary = state.nextLessonRouteSummaryForLearner(
+      learner,
+      completedLessonId: lesson.id,
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -3801,6 +3810,44 @@ class LessonCompletePage extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 20),
+                    SoftPanel(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.route_rounded,
+                                  color: LumoTheme.primary),
+                              SizedBox(width: 8),
+                              Text(
+                                'Next lesson routing',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(routeSummary),
+                          const SizedBox(height: 12),
+                          LabelValueWrap(
+                            items: [
+                              (
+                                'Backend route',
+                                state.backendRoutingSummaryForLearner(learner),
+                              ),
+                              ('Recommended module', recommendedModule.title),
+                              (
+                                'Next lesson',
+                                nextLesson?.title ?? 'Open module to choose',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     Row(
                       children: [
@@ -3817,18 +3864,34 @@ class LessonCompletePage extends StatelessWidget {
                         Expanded(
                           child: FilledButton(
                             onPressed: () {
+                              state.selectLearner(learner);
+                              state.selectModule(recommendedModule);
+                              if (nextLesson != null) {
+                                state.startLesson(nextLesson);
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonSessionPage(
+                                      state: state,
+                                      lesson: nextLesson,
+                                      onChanged: () {},
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
                                   builder: (_) => SubjectModulesPage(
                                     state: state,
                                     onChanged: () {},
-                                    module: state.selectedModule ??
-                                        state.modules.first,
+                                    module: recommendedModule,
                                   ),
                                 ),
                               );
                             },
-                            child: const Text('Next lesson path'),
+                            child: Text(nextLesson == null
+                                ? 'Open recommended module'
+                                : 'Start next routed lesson'),
                           ),
                         ),
                       ],

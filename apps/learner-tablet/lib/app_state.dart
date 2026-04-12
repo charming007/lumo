@@ -367,13 +367,104 @@ class LumoAppState {
     return matches;
   }
 
-  LessonCardModel? nextAssignedLessonForLearner(LearnerProfile? learner) {
+  LessonCardModel? nextAssignedLessonForLearner(
+    LearnerProfile? learner, {
+    String? excludingLessonId,
+  }) {
     final resumableLesson = resumableLessonForLearner(learner);
-    if (resumableLesson != null) return resumableLesson;
+    if (resumableLesson != null && resumableLesson.id != excludingLessonId) {
+      return resumableLesson;
+    }
 
-    final rankedLessons = lessonsForLearner(learner);
-    if (rankedLessons.isEmpty) return null;
-    return rankedLessons.first;
+    final rankedLessons = lessonsForLearner(learner)
+        .where((lesson) => lesson.id != excludingLessonId)
+        .toList();
+    if (rankedLessons.isNotEmpty) return rankedLessons.first;
+
+    if (learner == null) return null;
+    final recommendedModule = recommendedModuleForLearner(learner);
+    final moduleFallback = assignedLessons.firstWhere(
+      (lesson) =>
+          lesson.moduleId == recommendedModule.id &&
+          lesson.id != excludingLessonId,
+      orElse: () => assignedLessons.firstWhere(
+        (lesson) => lesson.id != excludingLessonId,
+        orElse: () => assignedLessons.first,
+      ),
+    );
+    return moduleFallback.id == excludingLessonId ? null : moduleFallback;
+  }
+
+  LessonCardModel? nextLessonAfterCompletion(
+    LearnerProfile? learner, {
+    required String completedLessonId,
+  }) {
+    if (learner == null) return null;
+
+    final resumableSession = resumableRuntimeSessionForLearner(learner);
+    final resumableLesson = lessonForBackendSession(resumableSession);
+    if (resumableLesson != null && resumableLesson.id != completedLessonId) {
+      return resumableLesson;
+    }
+
+    final assignmentPack = nextAssignmentPackForLearner(learner);
+    if (assignmentPack != null &&
+        assignmentPack.lessonId != completedLessonId) {
+      final assignmentLesson =
+          assignedLessons.cast<LessonCardModel?>().firstWhere(
+                (lesson) => lesson?.id == assignmentPack.lessonId,
+                orElse: () => null,
+              );
+      if (assignmentLesson != null) return assignmentLesson;
+    }
+
+    final recommendedModuleId = recommendedModuleForLearner(learner).id;
+    final recommendedModuleLesson =
+        assignedLessons.cast<LessonCardModel?>().firstWhere(
+              (lesson) =>
+                  lesson != null &&
+                  lesson.moduleId == recommendedModuleId &&
+                  lesson.id != completedLessonId,
+              orElse: () => null,
+            );
+    if (recommendedModuleLesson != null) return recommendedModuleLesson;
+
+    return nextAssignedLessonForLearner(
+      learner,
+      excludingLessonId: completedLessonId,
+    );
+  }
+
+  String nextLessonRouteSummaryForLearner(
+    LearnerProfile? learner, {
+    String? completedLessonId,
+  }) {
+    if (learner == null) return 'Choose a learner to continue.';
+
+    final resumableSession = resumableRuntimeSessionForLearner(learner);
+    final resumableLesson = resumableLessonForLearner(learner);
+    if (resumableSession != null &&
+        resumableLesson != null &&
+        resumableLesson.id != completedLessonId) {
+      return 'Resume ${resumableLesson.title} from ${resumableSession.progressLabel.toLowerCase()}.';
+    }
+
+    final nextLesson = completedLessonId == null
+        ? nextAssignedLessonForLearner(learner)
+        : nextLessonAfterCompletion(
+            learner,
+            completedLessonId: completedLessonId,
+          );
+    if (nextLesson == null) {
+      return 'No next lesson is ready yet. Open ${recommendedModuleForLearner(learner).title} to keep going.';
+    }
+
+    final routeSource = nextAssignmentPackForLearner(learner);
+    final viaLabel =
+        routeSource != null && routeSource.lessonId == nextLesson.id
+            ? 'from the live backend assignment'
+            : 'from ${recommendedModuleForLearner(learner).title}';
+    return 'Next up: ${nextLesson.title} • routed $viaLabel.';
   }
 
   int assignedLessonCountForModule({
@@ -1045,6 +1136,7 @@ class LumoAppState {
     );
 
     await syncPendingEvents();
+    await refreshLearnerRuntimeSessions(updatedLearner);
   }
 
   Future<void> syncPendingEvents() async {

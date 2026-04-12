@@ -154,6 +154,52 @@ void main() {
       );
     });
 
+    test('routes away from the completed lesson when continuing', () {
+      final state = LumoAppState();
+      final currentLesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      final nextLesson = state.nextLessonAfterCompletion(
+        beginner,
+        completedLessonId: currentLesson.id,
+      );
+
+      expect(nextLesson, isNotNull);
+      expect(nextLesson!.id, isNot(currentLesson.id));
+      expect(
+        state.nextLessonRouteSummaryForLearner(
+          beginner,
+          completedLessonId: currentLesson.id,
+        ),
+        contains('Next up:'),
+      );
+    });
+
+    test('falls back to backend recommended module after lesson completion',
+        () {
+      final state = LumoAppState();
+      final learner = beginner.copyWith(backendRecommendedModuleId: 'math');
+      final completedLesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      final nextLesson = state.nextLessonAfterCompletion(
+        learner,
+        completedLessonId: completedLesson.id,
+      );
+
+      expect(nextLesson, isNotNull);
+      expect(nextLesson!.moduleId, 'math');
+      expect(
+        state.nextLessonRouteSummaryForLearner(
+          learner,
+          completedLessonId: completedLesson.id,
+        ),
+        contains('Math'),
+      );
+    });
+
     test('maps registration cohort to backend mallam target', () {
       final state = LumoAppState();
       state.registrationContext = RegistrationContext(
