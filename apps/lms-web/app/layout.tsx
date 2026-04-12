@@ -1,6 +1,7 @@
 import { AppShell } from '../components/shell';
 import { DemoBanner } from '../components/demo-banner';
 import { fetchMeta } from '../lib/api';
+import { API_BASE_SOURCE } from '../lib/config';
 
 export const metadata = {
   title: 'Lumo LMS',
@@ -14,7 +15,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body style={{ margin: 0, fontFamily: 'Inter, Arial, sans-serif', background: '#f5f7fb' }}>
         <AppShell>
-          <DemoBanner role={meta.actor.role} mode={meta.mode} />
+          <DemoBanner role={meta.actor.role} mode={meta.mode} apiSource={API_BASE_SOURCE} />
           {children}
         </AppShell>
       </body>
