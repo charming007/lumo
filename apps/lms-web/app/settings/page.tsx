@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { fetchMeta, fetchRewardsLeaderboard, fetchWorkboard } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { MetaResponse, RewardSnapshot, WorkboardItem } from '../../lib/types';
@@ -48,6 +49,16 @@ export default async function SettingsPage() {
     <PageShell
       title="Settings"
       subtitle="Operational controls for reward logic, progression policy, voice defaults, and the visual rules that keep the LMS from drifting back into placeholder-land."
+      aside={
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Link href="/rewards" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+            Open rewards board
+          </Link>
+          <a href="/LMS_DASHBOARD_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
+            Open LMS guide
+          </a>
+        </div>
+      }
     >
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>

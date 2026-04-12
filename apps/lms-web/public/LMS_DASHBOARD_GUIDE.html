@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumo LMS Dashboard Guide</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --brand: #4f46e5;
+      --brand-2: #7c3aed;
+      --good: #166534;
+      --good-bg: #dcfce7;
+      --warn: #92400e;
+      --warn-bg: #fef3c7;
+      --info: #1d4ed8;
+      --info-bg: #dbeafe;
+      --soft: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(124,58,237,0.10), transparent 26%),
+        radial-gradient(circle at top left, rgba(79,70,229,0.10), transparent 32%),
+        var(--bg);
+      line-height: 1.65;
+    }
+
+    .wrap {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f172a, #312e81 60%, #4f46e5);
+      color: white;
+      padding: 36px;
+      border-radius: 28px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.3rem);
+      line-height: 1.05;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 860px;
+      color: rgba(255,255,255,0.88);
+      font-size: 1.05rem;
+    }
+
+    .badge-row, .chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .badge, .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+    .badge { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.14); }
+    .chip { background: var(--soft); color: var(--muted); border: 1px solid var(--line); }
+    .chip.good { background: var(--good-bg); color: var(--good); border-color: #bbf7d0; }
+    .chip.warn { background: var(--warn-bg); color: var(--warn); border-color: #fcd34d; }
+    .chip.info { background: var(--info-bg); color: var(--info); border-color: #93c5fd; }
+
+    .grid { display: grid; gap: 18px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+    }
+
+    .card h2, .card h3 {
+      margin-top: 0;
+      line-height: 1.2;
+    }
+
+    .kpi {
+      padding: 18px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, #fff, #f8fafc);
+      border: 1px solid var(--line);
+    }
+    .kpi .label { color: var(--muted); font-size: 0.92rem; }
+    .kpi .value { font-size: 1.8rem; font-weight: 800; margin-top: 6px; }
+
+    .section-title {
+      margin: 34px 0 14px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.74rem;
+      font-weight: 800;
+      color: var(--brand-2);
+    }
+
+    .flow, pre {
+      margin: 0;
+      padding: 18px;
+      border-radius: 18px;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: auto;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    ul, ol { padding-left: 1.2rem; }
+    li + li { margin-top: 8px; }
+
+    .callout {
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    .callout.good { background: #ecfdf5; border-color: #bbf7d0; }
+    .callout.warn { background: #fff7ed; border-color: #fed7aa; }
+    .callout.info { background: #eff6ff; border-color: #bfdbfe; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .footer-note {
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .sticky-nav {
+      position: sticky;
+      top: 18px;
+    }
+
+    .toc a {
+      display: block;
+      padding: 8px 0;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px dashed #e5e7eb;
+    }
+    .toc a:hover { color: var(--brand); }
+
+    @media (max-width: 900px) {
+      .grid.two, .grid.three, .grid.four { grid-template-columns: 1fr; }
+      .sticky-nav { position: static; }
+    }
+
+    @media print {
+      body { background: white; }
+      .wrap { max-width: none; padding: 0; }
+      .hero, .card, .kpi { box-shadow: none; }
+      .sticky-nav { position: static; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="badge-row" style="margin-bottom: 14px;">
+        <span class="badge">Lumo LMS</span>
+        <span class="badge">Admin handbook</span>
+        <span class="badge">Print / export ready</span>
+      </div>
+      <h1>LMS Dashboard Guide</h1>
+      <p>A visual, practical handbook for understanding the LMS dashboard, especially <strong>Content Library</strong> and <strong>English Curriculum Studio</strong>: how they connect, how the curriculum is structured, how admins use the system, and how new lessons get created properly.</p>
+    </section>
+
+    <div class="grid" style="grid-template-columns: 280px 1fr; align-items: start;">
+      <aside class="card sticky-nav toc">
+        <div class="eyebrow">Contents</div>
+        <a href="#overview">1. LMS purpose</a>
+        <a href="#architecture">2. Big picture</a>
+        <a href="#dashboard">3. Dashboard</a>
+        <a href="#content-library">4. Content Library</a>
+        <a href="#statuses">5. Statuses & blockers</a>
+        <a href="#english-studio">6. English Studio</a>
+        <a href="#lesson-creation">7. How admins create lessons</a>
+        <a href="#workflow">8. Recommended workflow</a>
+        <a href="#updates">9. How to update this guide</a>
+      </aside>
+
+      <main class="grid">
+        <section class="card" id="overview">
+          <div class="eyebrow">1. LMS purpose</div>
+          <h2>What this LMS is actually for</h2>
+          <p>The Lumo LMS is not just a stats page. It is the operational control surface for learner delivery, content structure, release safety, mallam oversight, and lesson publishing.</p>
+          <div class="chip-row">
+            <span class="chip">Dashboard</span>
+            <span class="chip">Learners</span>
+            <span class="chip">Mallams</span>
+            <span class="chip info">Content Library</span>
+            <span class="chip good">English Studio</span>
+            <span class="chip">Rewards</span>
+            <span class="chip">Assessments</span>
+            <span class="chip">Pods</span>
+            <span class="chip">Analytics</span>
+            <span class="chip">Settings</span>
+          </div>
+        </section>
+
+        <section class="card" id="architecture">
+          <div class="eyebrow">2. Big picture</div>
+          <h2>How the LMS fits together</h2>
+          <pre class="flow">Dashboard
+   ↓ surfaces urgency and operational health
+Learners / Mallams / Pods
+   ↓ show who is learning, teaching, and delivering
+Content Library
+   ↓ defines the official curriculum structure
+   Subject → Strand → Module → Lesson → Assessment gate
+English Studio
+   ↓ gives English-specific authoring + readiness checks
+Rewards
+   ↓ turns XP, badges, and level pacing into visible admin decisions
+Assignments / Pod delivery
+   ↓ push approved content into cohorts and pods
+Reports / Analytics
+   ↓ measure outcomes and operational gaps</pre>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

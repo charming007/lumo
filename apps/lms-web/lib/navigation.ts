@@ -4,6 +4,7 @@ export const navigationItems = [
   { label: 'Mallams', href: '/mallams' },
   { label: 'Content Library', href: '/content' },
   { label: 'English Studio', href: '/english' },
+  { label: 'Rewards', href: '/rewards' },
   { label: 'Assessments', href: '/assessments' },
   { label: 'Pods', href: '/pods' },
   { label: 'Analytics', href: '/reports' },

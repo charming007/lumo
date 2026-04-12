@@ -23,6 +23,7 @@ import type {
 } from './types';
 
 import { API_BASE } from './config';
+import type { RewardCatalog } from './rewards';
 
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -126,6 +127,10 @@ export function fetchCenters() {
 
 export function fetchStudentRewards(id: string) {
   return getJson<RewardSnapshot>(`/api/v1/students/${id}/rewards`);
+}
+
+export function fetchRewardsCatalog() {
+  return getJson<RewardCatalog>('/api/v1/rewards/catalog');
 }
 
 export function fetchRewardsLeaderboard(limit = 10) {
