@@ -1,6 +1,10 @@
-import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons } from '../../lib/api';
+import { EnglishStudioAuthoringForm } from '../../components/english-studio-authoring-form';
+import { FeedbackBanner } from '../../components/feedback-banner';
+import { ModalLauncher } from '../../components/modal-launcher';
+import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../lib/api';
 import { buildEnglishLessonBlueprints, buildEnglishOpsSummary } from '../../lib/english-curriculum';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
+import { createLessonAction } from '../actions';
 
 function statusTone(status: string) {
   if (status === 'published' || status === 'approved') return { tone: '#DCFCE7', text: '#166534' };
@@ -15,19 +19,30 @@ function releaseTone(label: string) {
   return { tone: '#F3E8FF', text: '#7E22CE' };
 }
 
-export default async function EnglishCurriculumPage() {
-  const [modules, lessons, assessments, assignments] = await Promise.all([
+function readinessTone(score: number) {
+  if (score >= 5) return { tone: '#DCFCE7', text: '#166534' };
+  if (score >= 3) return { tone: '#FEF3C7', text: '#92400E' };
+  return { tone: '#FEE2E2', text: '#991B1B' };
+}
+
+export default async function EnglishCurriculumPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  const query = await searchParams;
+  const [modules, lessons, assessments, assignments, subjects] = await Promise.all([
     fetchCurriculumModules(),
     fetchLessons(),
     fetchAssessments(),
     fetchAssignments(),
+    fetchSubjects(),
   ]);
 
   const blueprints = buildEnglishLessonBlueprints({ modules, lessons, assessments });
   const summary = buildEnglishOpsSummary({ modules, lessons, assignments });
+  const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
   const topBlueprint = blueprints[0];
   const releaseQueue = blueprints.filter((item) => item.releaseLabel !== 'pod-ready');
   const podReady = blueprints.filter((item) => item.releaseLabel === 'pod-ready');
+  const readinessBoard = [...blueprints].sort((left, right) => left.readinessScore - right.readinessScore || left.lessonTitle.localeCompare(right.lessonTitle));
+  const modulesMissingAssessments = englishModules.filter((module) => !assessments.some((assessment) => assessment.moduleId === module.id || assessment.moduleTitle === module.title));
   const byModule = Array.from(
     blueprints.reduce((map, blueprint) => {
       if (!map.has(blueprint.moduleTitle)) map.set(blueprint.moduleTitle, [] as typeof blueprints);
@@ -39,21 +54,25 @@ export default async function EnglishCurriculumPage() {
   return (
     <PageShell
       title="English Curriculum Studio"
-      subtitle="A proper visible slice for authoring and reviewing structured English lesson activities from LMS — not just loose lessons in a table."
+      subtitle="Activity-based English authoring with a visible readiness board, so editors can plan a real lesson spine before they hit publish."
       breadcrumbs={[{ label: 'Content Library', href: '/content' }]}
       aside={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <div style={{ background: '#0f172a', color: 'white', padding: '12px 14px', borderRadius: 16, fontWeight: 800 }}>Interactive curriculum lane</div>
-          <div style={{ background: '#EEF2FF', color: '#3730A3', padding: '12px 14px', borderRadius: 16, fontWeight: 800 }}>English authoring focus</div>
+          <ModalLauncher buttonLabel="Author English lesson" title="Author English lesson" description="Build the lesson from an activity spine, inspect readiness, then create it in the live content lane." eyebrow="English studio">
+            <EnglishStudioAuthoringForm subjects={subjects} modules={modules} assessments={assessments} action={createLessonAction} />
+          </ModalLauncher>
         </div>
       }
     >
+      <FeedbackBanner message={query?.message} />
+
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
         {[
           { label: 'English modules', value: String(summary.moduleCount), note: 'Modules currently mapped into the English lane.' },
-          { label: 'Structured lessons', value: String(summary.lessonCount), note: 'Lesson records now surfaced as activity blueprints.' },
+          { label: 'Structured lessons', value: String(summary.lessonCount), note: 'Lesson records surfaced as lesson blueprints with readiness checks.' },
           { label: 'Ready for release', value: String(summary.publishedLessons), note: 'Approved or published lessons that can move into pods.' },
-          { label: 'Live assignments', value: String(summary.liveAssignments), note: 'Delivery load already tied to English content.' },
+          { label: 'Modules missing gates', value: String(modulesMissingAssessments.length), note: 'Modules still pretending they can publish without assessment control.' },
         ].map((item) => (
           <Card key={item.label} title={item.value} eyebrow={item.label}>
             <div style={{ color: '#64748b' }}>{item.note}</div>
@@ -62,7 +81,7 @@ export default async function EnglishCurriculumPage() {
       </section>
 
       {topBlueprint ? (
-        <section style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, marginBottom: 20 }}>
+        <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 16, marginBottom: 20 }}>
           <Card title={topBlueprint.lessonTitle} eyebrow="Featured lesson blueprint">
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -70,6 +89,7 @@ export default async function EnglishCurriculumPage() {
                 <Pill label={`${topBlueprint.durationMinutes} min`} tone="#F8FAFC" text="#334155" />
                 <Pill label={topBlueprint.mode} tone="#ECFDF5" text="#166534" />
                 <Pill label={topBlueprint.releaseLabel} tone={releaseTone(topBlueprint.releaseLabel).tone} text={releaseTone(topBlueprint.releaseLabel).text} />
+                <Pill label={`${topBlueprint.readinessScore}/5 checks`} tone={readinessTone(topBlueprint.readinessScore).tone} text={readinessTone(topBlueprint.readinessScore).text} />
               </div>
               <div style={{ padding: 18, borderRadius: 20, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                 <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Learning objective</div>
@@ -94,17 +114,14 @@ export default async function EnglishCurriculumPage() {
           </Card>
 
           <div style={{ display: 'grid', gap: 16 }}>
-            <Card title="Authoring health" eyebrow="What needs attention">
+            <Card title="Publish control" eyebrow="Readiness before bravado">
               <div style={{ display: 'grid', gap: 12 }}>
-                <div style={{ padding: 14, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
-                  <strong>{summary.modulesMissingLessons}</strong> module{summary.modulesMissingLessons === 1 ? '' : 's'} still have fewer lessons than planned. The curriculum map is pretending harder than it should.
-                </div>
-                <div style={{ padding: 14, borderRadius: 16, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-                  <strong>{summary.lessonsInReview}</strong> lesson{summary.lessonsInReview === 1 ? '' : 's'} are waiting on sign-off before they can be released to learner pods.
-                </div>
-                <div style={{ padding: 14, borderRadius: 16, background: '#ECFDF5', border: '1px solid #BBF7D0' }}>
-                  <strong>{podReady.length}</strong> lesson blueprint{podReady.length === 1 ? '' : 's'} are pod-ready right now.
-                </div>
+                {topBlueprint.readinessChecks.map((check) => (
+                  <div key={check.label} style={{ padding: 14, borderRadius: 16, background: check.passed ? '#ECFDF5' : '#FEF2F2', border: `1px solid ${check.passed ? '#BBF7D0' : '#FECACA'}` }}>
+                    <strong style={{ color: check.passed ? '#166534' : '#991B1B' }}>{check.passed ? 'Ready' : 'Blocked'}</strong>
+                    <div style={{ color: '#475569', marginTop: 6, lineHeight: 1.6 }}>{check.label}</div>
+                  </div>
+                ))}
               </div>
             </Card>
 
@@ -140,6 +157,31 @@ export default async function EnglishCurriculumPage() {
           />
         </Card>
 
+        <Card title="Readiness board" eyebrow="Publish only when the checks pass">
+          <SimpleTable
+            columns={['Lesson', 'Readiness', 'Assessment', 'Immediate blocker']}
+            rows={readinessBoard.map((item) => [
+              item.lessonTitle,
+              <Pill key={`${item.lessonId}-readiness`} label={`${item.readinessScore}/5`} tone={readinessTone(item.readinessScore).tone} text={readinessTone(item.readinessScore).text} />,
+              item.assessmentTitle ?? 'No linked gate',
+              item.readinessChecks.find((check) => !check.passed)?.label ?? 'Clear to publish',
+            ])}
+          />
+        </Card>
+      </section>
+
+      <section style={{ display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Modules missing assessment control" eyebrow="Fix these before release">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {modulesMissingAssessments.length > 0 ? modulesMissingAssessments.map((module) => (
+              <div key={module.id} style={{ padding: 14, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+                <strong>{module.title}</strong>
+                <div style={{ color: '#64748b', marginTop: 6 }}>{module.level} • {module.status} • No assessment gate linked yet.</div>
+              </div>
+            )) : <div style={{ padding: 14, borderRadius: 16, background: '#ECFDF5', border: '1px solid #BBF7D0', color: '#166534', fontWeight: 700 }}>Every English module has an assessment gate. Finally.</div>}
+          </div>
+        </Card>
+
         <Card title="Pod-ready lesson set" eyebrow="Can ship now">
           <SimpleTable
             columns={['Lesson', 'Vocabulary focus', 'Assessment', 'Mode']}
@@ -167,6 +209,7 @@ export default async function EnglishCurriculumPage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <Pill label={blueprint.level} tone="#EEF2FF" text="#3730A3" />
                       <Pill label={blueprint.status} tone={statusTone(blueprint.status).tone} text={statusTone(blueprint.status).text} />
+                      <Pill label={`${blueprint.readinessScore}/5 checks`} tone={readinessTone(blueprint.readinessScore).tone} text={readinessTone(blueprint.readinessScore).text} />
                     </div>
                   </div>
 

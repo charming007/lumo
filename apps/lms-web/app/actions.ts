@@ -279,6 +279,7 @@ export async function updateModuleAction(formData: FormData) {
 }
 
 export async function createLessonAction(formData: FormData) {
+  const returnPath = String(formData.get('returnPath') || '/content');
   const payload = {
     subjectId: String(formData.get('subjectId') || ''),
     moduleId: String(formData.get('moduleId') || ''),
@@ -290,11 +291,13 @@ export async function createLessonAction(formData: FormData) {
 
   await apiWrite('/api/v1/lessons', 'POST', payload);
   revalidatePath('/content');
-  redirect('/content?message=Lesson%20created%20with%20updated%20metadata%20context');
+  revalidatePath('/english');
+  redirect(`${returnPath}?message=Lesson%20created%20with%20updated%20metadata%20context`);
 }
 
 export async function updateLessonAction(formData: FormData) {
   const lessonId = String(formData.get('lessonId') || '');
+  const returnPath = String(formData.get('returnPath') || '/content');
   const payload = {
     status: String(formData.get('status') || ''),
     mode: String(formData.get('mode') || ''),
@@ -303,7 +306,8 @@ export async function updateLessonAction(formData: FormData) {
 
   await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', payload);
   revalidatePath('/content');
-  redirect('/content?message=Lesson%20changes%20saved');
+  revalidatePath('/english');
+  redirect(`${returnPath}?message=Lesson%20changes%20saved`);
 }
 
 export async function createAssessmentAction(formData: FormData) {

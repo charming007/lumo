@@ -24,6 +24,8 @@ export type EnglishLessonBlueprint = {
   assessmentTrigger: string | null;
   releaseRisk: string;
   releaseLabel: string;
+  readinessChecks: { label: string; passed: boolean }[];
+  readinessScore: number;
 };
 
 function titleWords(title: string) {
@@ -33,12 +35,12 @@ function titleWords(title: string) {
     .filter(Boolean);
 }
 
-function toTopic(title: string) {
+export function toTopic(title: string) {
   const cleaned = title.replace(/^(lesson\s*\d+[:\-]?\s*)/i, '').trim();
   return cleaned || title;
 }
 
-function inferVocabulary(title: string) {
+export function inferVocabulary(title: string) {
   const words = titleWords(title)
     .filter((word) => word.length > 3)
     .slice(0, 3);
@@ -54,6 +56,91 @@ function releaseMeta(status: string) {
   return { releaseRisk: 'Still rough. Authoring is ahead of release.', releaseLabel: 'draft' };
 }
 
+export function buildEnglishObjective(title: string) {
+  const topic = toTopic(title);
+  return `Learners can talk about ${topic.toLowerCase()} using short spoken English with supported sentence frames.`;
+}
+
+export function buildEnglishActivities({
+  title,
+  durationMinutes,
+  mode,
+  assessmentTitle,
+}: {
+  title: string;
+  durationMinutes: number;
+  mode: string;
+  assessmentTitle?: string | null;
+}) {
+  const topic = toTopic(title);
+  const vocabularyFocus = inferVocabulary(title);
+
+  return [
+    {
+      title: 'Warm welcome + retrieval',
+      duration: '3 min',
+      type: 'Hook',
+      detail: `Open with a fast oral recall tied to ${topic.toLowerCase()} so learners hear the target language immediately.`,
+      evidence: 'Whole-group response confidence',
+    },
+    {
+      title: 'Model and echo',
+      duration: `${Math.max(4, Math.round(durationMinutes * 0.22))} min`,
+      type: 'Explicit teaching',
+      detail: `Mallam models the key phrase, gesture, and pronunciation pattern for ${vocabularyFocus.join(', ')}. Learners echo in rhythm.`,
+      evidence: 'Clear pronunciation on repeated lines',
+    },
+    {
+      title: 'Guided pair talk',
+      duration: `${Math.max(4, Math.round(durationMinutes * 0.28))} min`,
+      type: 'Structured practice',
+      detail: 'Pairs use a sentence frame and swap turns twice. Pod aide listens for full answers rather than single words.',
+      evidence: 'Turn-taking with complete sentence frames',
+    },
+    {
+      title: 'Interactive task',
+      duration: `${Math.max(4, Math.round(durationMinutes * 0.3))} min`,
+      type: mode === 'group' ? 'Collaborative activity' : mode === 'independent' ? 'Independent task' : 'Small-group task',
+      detail: `Learners complete a visible task linked to ${topic.toLowerCase()} — picture sort, speaking prompt, or matching card — while the mallam records who needed support.`,
+      evidence: 'Task completion with light prompting',
+    },
+    {
+      title: 'Exit check',
+      duration: '2 min',
+      type: 'Assessment for learning',
+      detail: assessmentTitle
+        ? `Close with one check aligned to ${assessmentTitle}. Capture whether learners are ready for the module gate.`
+        : 'Close with a quick oral check so the next lesson is not flying blind.',
+      evidence: 'Named learners demonstrate the target phrase',
+    },
+  ];
+}
+
+export function buildReadinessChecks({
+  status,
+  moduleStatus,
+  hasAssessment,
+  lessonTitle,
+  durationMinutes,
+}: {
+  status: string;
+  moduleStatus?: string | null;
+  hasAssessment: boolean;
+  lessonTitle: string;
+  durationMinutes: number;
+}) {
+  const checks = [
+    { label: 'Lesson title is specific enough to map to a real speaking task', passed: toTopic(lessonTitle).trim().length >= 8 },
+    { label: 'Duration is long enough for modelling, practice, and exit evidence', passed: durationMinutes >= 8 },
+    { label: 'Module lane is not stuck in draft', passed: moduleStatus === 'review' || moduleStatus === 'published' },
+    { label: 'Assessment gate exists for the module', passed: hasAssessment },
+    { label: 'Lesson status matches publish intent', passed: status === 'approved' || status === 'published' },
+  ];
+
+  const readinessScore = checks.filter((check) => check.passed).length;
+  return { checks, readinessScore };
+}
+
 export function buildEnglishLessonBlueprints({
   modules,
   lessons,
@@ -64,7 +151,6 @@ export function buildEnglishLessonBlueprints({
   assessments: Assessment[];
 }): EnglishLessonBlueprint[] {
   const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
-  const englishModuleIds = new Set(englishModules.map((module) => module.id));
   const englishLessons = lessons.filter(
     (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => module.title === lesson.moduleTitle),
   );
@@ -72,9 +158,15 @@ export function buildEnglishLessonBlueprints({
   return englishLessons.map((lesson) => {
     const module = englishModules.find((item) => item.title === lesson.moduleTitle);
     const linkedAssessment = assessments.find((assessment) => assessment.moduleId === module?.id || assessment.moduleTitle === lesson.moduleTitle) ?? null;
-    const topic = toTopic(lesson.title);
     const vocabularyFocus = inferVocabulary(lesson.title);
     const release = releaseMeta(lesson.status);
+    const readiness = buildReadinessChecks({
+      status: lesson.status,
+      moduleStatus: module?.status,
+      hasAssessment: Boolean(linkedAssessment),
+      lessonTitle: lesson.title,
+      durationMinutes: lesson.durationMinutes,
+    });
 
     return {
       lessonId: lesson.id,
@@ -85,51 +177,20 @@ export function buildEnglishLessonBlueprints({
       status: lesson.status,
       mode: lesson.mode,
       durationMinutes: lesson.durationMinutes,
-      objective: `Learners can talk about ${topic.toLowerCase()} using short spoken English with supported sentence frames.`,
+      objective: buildEnglishObjective(lesson.title),
       vocabularyFocus,
-      activities: [
-        {
-          title: 'Warm welcome + retrieval',
-          duration: '3 min',
-          type: 'Hook',
-          detail: `Open with a fast oral recall tied to ${topic.toLowerCase()} so learners hear the target language immediately.`,
-          evidence: 'Whole-group response confidence',
-        },
-        {
-          title: 'Model and echo',
-          duration: `${Math.max(4, Math.round(lesson.durationMinutes * 0.22))} min`,
-          type: 'Explicit teaching',
-          detail: `Mallam models the key phrase, gesture, and pronunciation pattern for ${vocabularyFocus.join(', ')}. Learners echo in rhythm.`,
-          evidence: 'Clear pronunciation on repeated lines',
-        },
-        {
-          title: 'Guided pair talk',
-          duration: `${Math.max(4, Math.round(lesson.durationMinutes * 0.28))} min`,
-          type: 'Structured practice',
-          detail: `Pairs use a sentence frame and swap turns twice. Pod aide listens for full answers rather than single words.`,
-          evidence: 'Turn-taking with complete sentence frames',
-        },
-        {
-          title: 'Interactive task',
-          duration: `${Math.max(4, Math.round(lesson.durationMinutes * 0.3))} min`,
-          type: lesson.mode === 'group' ? 'Collaborative activity' : lesson.mode === 'independent' ? 'Independent task' : 'Small-group task',
-          detail: `Learners complete a visible task linked to ${topic.toLowerCase()} — picture sort, speaking prompt, or matching card — while the mallam records who needed support.`,
-          evidence: 'Task completion with light prompting',
-        },
-        {
-          title: 'Exit check',
-          duration: '2 min',
-          type: 'Assessment for learning',
-          detail: linkedAssessment
-            ? `Close with one check aligned to ${linkedAssessment.title}. Capture whether learners are ready for the module gate.`
-            : 'Close with a quick oral check so the next lesson is not flying blind.',
-          evidence: 'Named learners demonstrate the target phrase',
-        },
-      ],
+      activities: buildEnglishActivities({
+        title: lesson.title,
+        durationMinutes: lesson.durationMinutes,
+        mode: lesson.mode,
+        assessmentTitle: linkedAssessment?.title ?? null,
+      }),
       assessmentTitle: linkedAssessment?.title ?? null,
       assessmentTrigger: linkedAssessment?.triggerLabel ?? null,
       releaseRisk: release.releaseRisk,
       releaseLabel: release.releaseLabel,
+      readinessChecks: readiness.checks,
+      readinessScore: readiness.readinessScore,
     };
   });
 }
