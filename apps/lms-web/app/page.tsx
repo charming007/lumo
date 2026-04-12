@@ -25,11 +25,23 @@ const FALLBACK_INSIGHT: DashboardInsight = {
 };
 
 function assignmentEmptyRow(message: string): ReactNode[][] {
-  return [[<span key={message} style={{ color: '#64748b' }}>{message}</span>, '', '', '', '']];
+  return [[<span key={message} style={{ color: '#64748b', lineHeight: 1.6 }}>{message}</span>, '', '', '', '']];
 }
 
 function workboardEmptyRow(message: string): ReactNode[][] {
-  return [[<span key={message} style={{ color: '#64748b' }}>{message}</span>, '', '', '', '', '', '']];
+  return [[<span key={message} style={{ color: '#64748b', lineHeight: 1.6 }}>{message}</span>, '', '', '', '', '', '']];
+}
+
+function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
+  const palette = tone === 'warning'
+    ? { background: '#fff7ed', border: '#fed7aa', text: '#9a3412' }
+    : { background: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
+
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, lineHeight: 1.6 }}>
+      {message}
+    </div>
+  );
 }
 
 export default async function HomePage() {
@@ -43,6 +55,12 @@ export default async function HomePage() {
   ]);
 
   const summary = summaryResult.status === 'fulfilled' ? summaryResult.value : EMPTY_SUMMARY;
+  const assignmentsFeedFailed = assignmentsResult.status === 'rejected';
+  const insightsFeedFailed = insightsResult.status === 'rejected';
+  const workboardFeedFailed = workboardResult.status === 'rejected';
+  const studentsFeedFailed = studentsResult.status === 'rejected';
+  const mallamsFeedFailed = mallamsResult.status === 'rejected';
+
   const assignments: Assignment[] = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const insights: DashboardInsight[] = insightsResult.status === 'fulfilled' ? insightsResult.value : [];
   const workboard: WorkboardItem[] = workboardResult.status === 'fulfilled' ? workboardResult.value : [];
@@ -103,6 +121,7 @@ export default async function HomePage() {
       <section style={{ ...responsiveGrid(360), marginBottom: 20 }}>
         <Card title="Leadership cues" eyebrow="Priorities">
           <div style={{ display: 'grid', gap: 14 }}>
+            {insightsFeedFailed ? sectionAlert('The insights feed failed, so leadership cues are temporarily stale. Summary cards still loaded; retry once the API recovers.', 'warning') : null}
             {insights.length ? insights.map((item) => (
               <div key={item.priority} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 8, alignItems: 'center' }}>
@@ -113,32 +132,40 @@ export default async function HomePage() {
                 <div style={{ color: '#64748b', lineHeight: 1.6 }}>{item.detail}</div>
               </div>
             )) : (
-              <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#64748b', lineHeight: 1.6 }}>
-                No dashboard insights are available right now. The page stays up instead of faceplanting, which is frankly the more important feature during a demo.
-              </div>
+              sectionAlert(
+                insightsFeedFailed
+                  ? 'No insight cards are rendering because the insights feed is down.'
+                  : 'No dashboard insights are available right now. The page stays up instead of faceplanting, which is frankly the more important feature during a demo.'
+              )
             )}
           </div>
         </Card>
 
         <div style={{ display: 'grid', gap: 16 }}>
           <Card title="Live assignments" eyebrow="Delivery">
-            <SimpleTable
-              columns={['Lesson', 'Cohort', 'Pod', 'Assessment', 'Due']}
-              rows={assignments.length ? assignments.map((assignment) => [
-                assignment.lessonTitle,
-                assignment.cohortName,
-                assignment.podLabel ?? '—',
-                assignment.assessmentTitle ?? '—',
-                assignment.dueDate,
-              ]) : assignmentEmptyRow('Assignments are unavailable right now.')}
-            />
+            <div style={{ display: 'grid', gap: 12 }}>
+              {assignmentsFeedFailed ? sectionAlert('The assignments feed failed. Delivery totals above may still be real, but the live assignment table could not refresh.', 'warning') : null}
+              <SimpleTable
+                columns={['Lesson', 'Cohort', 'Pod', 'Assessment', 'Due']}
+                rows={assignments.length ? assignments.map((assignment) => [
+                  assignment.lessonTitle,
+                  assignment.cohortName,
+                  assignment.podLabel ?? '—',
+                  assignment.assessmentTitle ?? '—',
+                  assignment.dueDate,
+                ]) : assignmentEmptyRow(assignmentsFeedFailed ? 'Assignments feed unavailable — retry once the API is back.' : 'No live assignments are queued right now.')}
+              />
+            </div>
           </Card>
           <Card title="Escalations to clear" eyebrow="Admin watchlist">
             <div style={{ display: 'grid', gap: 12 }}>
+              {studentsFeedFailed || mallamsFeedFailed ? sectionAlert(`Escalation coverage is partial: ${[studentsFeedFailed ? 'students' : null, mallamsFeedFailed ? 'mallams' : null].filter(Boolean).join(' + ')} feed ${studentsFeedFailed && mallamsFeedFailed ? 'are' : 'is'} unavailable.`, 'warning') : null}
               {!atRiskLearners.length && !trainingMallams.length ? (
-                <div style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b' }}>
-                  No escalation data is available right now.
-                </div>
+                sectionAlert(
+                  studentsFeedFailed || mallamsFeedFailed
+                    ? 'No escalation cards can be trusted until the missing feed recovers.'
+                    : 'No active escalations right now. Attendance and mallam status both look clear.'
+                )
               ) : null}
               {atRiskLearners.map((student) => (
                 <div key={student.id} style={{ padding: 14, borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa' }}>
@@ -156,18 +183,21 @@ export default async function HomePage() {
       </section>
 
       <Card title="Learner workboard" eyebrow="Readiness queue">
-        <SimpleTable
-          columns={['Learner', 'Mallam', 'Cohort', 'Attendance', 'Mastery', 'Status', 'Next move']}
-          rows={workboard.length ? workboard.map((item) => [
-            item.studentName,
-            item.mallamName ?? '—',
-            item.cohortName ?? '—',
-            `${Math.round(item.attendanceRate * 100)}%`,
-            `${Math.round(item.mastery * 100)}% in ${item.focus}`,
-            <Pill key={`${item.id}-status`} label={item.progressionStatus} tone={item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF'} text={item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3'} />,
-            item.recommendedNextModuleTitle ?? '—',
-          ]) : workboardEmptyRow('Workboard data is unavailable right now.')}
-        />
+        <div style={{ display: 'grid', gap: 12 }}>
+          {workboardFeedFailed ? sectionAlert('The workboard feed failed, so learner progression rows below are not current.', 'warning') : null}
+          <SimpleTable
+            columns={['Learner', 'Mallam', 'Cohort', 'Attendance', 'Mastery', 'Status', 'Next move']}
+            rows={workboard.length ? workboard.map((item) => [
+              item.studentName,
+              item.mallamName ?? '—',
+              item.cohortName ?? '—',
+              `${Math.round(item.attendanceRate * 100)}%`,
+              `${Math.round(item.mastery * 100)}% in ${item.focus}`,
+              <Pill key={`${item.id}-status`} label={item.progressionStatus} tone={item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF'} text={item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3'} />,
+              item.recommendedNextModuleTitle ?? '—',
+            ]) : workboardEmptyRow(workboardFeedFailed ? 'Workboard feed unavailable — retry once learner progression data is back.' : 'No learners are queued in the readiness workboard right now.')}
+          />
+        </div>
       </Card>
     </PageShell>
   );
