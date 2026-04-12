@@ -246,6 +246,7 @@ export function LessonCreateForm({
   initialSubjectId,
   initialModuleId,
   duplicateLessonId,
+  returnPath = '/content',
 }: {
   subjects: Subject[];
   modules: CurriculumModule[];
@@ -254,6 +255,7 @@ export function LessonCreateForm({
   initialSubjectId?: string;
   initialModuleId?: string;
   duplicateLessonId?: string;
+  returnPath?: string;
 }) {
   const duplicateLesson = lessons.find((item) => item.id === duplicateLessonId) ?? null;
   const duplicateSubjectId = duplicateLesson?.subjectId
@@ -364,7 +366,7 @@ export function LessonCreateForm({
 
   return (
     <form action={action} style={cardStyle}>
-      <input type="hidden" name="returnPath" value="/content" />
+      <input type="hidden" name="returnPath" value={returnPath} />
       <input type="hidden" name="subjectId" value={subjectId} />
       <input type="hidden" name="learningObjectives" value={safeStringify(learningObjectives)} />
       <input type="hidden" name="localization" value={safeStringify(localization)} />

@@ -79,6 +79,7 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
           initialSubjectId={scopedSubjectId}
           initialModuleId={scopedModuleId}
           duplicateLessonId={duplicateLessonId}
+          returnPath={returnPath}
         />
 
         <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>

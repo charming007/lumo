@@ -9,4 +9,5 @@ export const navigationItems = [
   { label: 'Pods', href: '/pods' },
   { label: 'Analytics', href: '/reports' },
   { label: 'Settings', href: '/settings' },
+  { label: 'Guide', href: '/guide' },
 ];
