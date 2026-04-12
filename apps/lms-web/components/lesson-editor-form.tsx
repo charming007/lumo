@@ -32,12 +32,49 @@ const buttonStyle = {
   fontWeight: 700,
 } as const;
 
+const ghostButtonStyle = {
+  borderRadius: 12,
+  padding: '10px 12px',
+  fontSize: 13,
+  fontWeight: 700,
+  border: '1px solid #dbe3f0',
+  background: 'white',
+  color: '#334155',
+  cursor: 'pointer',
+} as const;
+
+const typeLabelMap: Record<string, string> = {
+  listen_repeat: 'Listen & repeat',
+  speak_answer: 'Speak answer',
+  word_build: 'Word build',
+  image_choice: 'Image choice',
+  oral_quiz: 'Oral quiz',
+  listen_answer: 'Listen answer',
+  tap_choice: 'Tap choice',
+  letter_intro: 'Letter intro',
+};
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
 }
 
 function safeStringify(value: unknown) {
   return JSON.stringify(value);
+}
+
+function makeActivityDraft(index: number) {
+  return {
+    id: `activity-${Date.now()}-${index + 1}`,
+    title: `Activity ${index + 1}`,
+    prompt: `Activity ${index + 1}`,
+    type: 'speak_answer',
+    durationMinutes: '2',
+    detail: '',
+    evidence: '',
+    expectedAnswers: '',
+    tags: '',
+    facilitatorNotes: '',
+  };
 }
 
 export function LessonEditorForm({
@@ -73,18 +110,20 @@ export function LessonEditorForm({
       .join('\n'),
   );
   const [activityDrafts, setActivityDrafts] = useState(
-    (lesson.activitySteps ?? lesson.activities ?? []).map((step, index) => ({
-      id: step.id || `activity-${index + 1}`,
-      title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
-      prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
-      type: step.type ?? 'speak_answer',
-      durationMinutes: String(step.durationMinutes ?? 2),
-      detail: step.detail ?? '',
-      evidence: step.evidence ?? '',
-      expectedAnswers: (step.expectedAnswers ?? []).join(', '),
-      tags: (step.tags ?? []).join(', '),
-      facilitatorNotes: (step.facilitatorNotes ?? []).join('\n'),
-    })),
+    (lesson.activitySteps ?? lesson.activities ?? []).length > 0
+      ? (lesson.activitySteps ?? lesson.activities ?? []).map((step, index) => ({
+          id: step.id || `activity-${index + 1}`,
+          title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
+          prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
+          type: step.type ?? 'speak_answer',
+          durationMinutes: String(step.durationMinutes ?? 2),
+          detail: step.detail ?? '',
+          evidence: step.evidence ?? '',
+          expectedAnswers: (step.expectedAnswers ?? []).join(', '),
+          tags: (step.tags ?? []).join(', '),
+          facilitatorNotes: (step.facilitatorNotes ?? []).join('\n'),
+        }))
+      : [makeActivityDraft(0)],
   );
 
   const filteredModules = useMemo(() => {
@@ -124,7 +163,7 @@ export function LessonEditorForm({
       kind: assessmentKind,
       items: assessmentItemsText
         .split('\n')
-        .map((line, index) => line.trim())
+        .map((line) => line.trim())
         .filter(Boolean)
         .map((line, index) => {
           const [prompt, evidence = 'teacher-check'] = line.split('|').map((part) => part.trim());
@@ -155,6 +194,48 @@ export function LessonEditorForm({
     [activityDrafts],
   );
 
+  const totalActivityMinutes = useMemo(
+    () => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0),
+    [activitySteps],
+  );
+
+  const updateActivity = (index: number, patch: Partial<(typeof activityDrafts)[number]>) => {
+    setActivityDrafts((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
+  };
+
+  const moveActivity = (index: number, direction: -1 | 1) => {
+    setActivityDrafts((current) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= current.length) return current;
+      const next = [...current];
+      const [item] = next.splice(index, 1);
+      next.splice(targetIndex, 0, item);
+      return next;
+    });
+  };
+
+  const duplicateActivity = (index: number) => {
+    setActivityDrafts((current) => {
+      const next = [...current];
+      const source = current[index];
+      next.splice(index + 1, 0, {
+        ...source,
+        id: `${source.id}-copy-${Date.now()}`,
+        title: `${source.title} copy`,
+        prompt: `${source.prompt} copy`,
+      });
+      return next;
+    });
+  };
+
+  const removeActivity = (index: number) => {
+    setActivityDrafts((current) => (current.length === 1 ? [makeActivityDraft(0)] : current.filter((_, itemIndex) => itemIndex !== index)));
+  };
+
+  const addActivity = () => {
+    setActivityDrafts((current) => [...current, makeActivityDraft(current.length)]);
+  };
+
   return (
     <form action={action} style={cardStyle}>
       <input type="hidden" name="lessonId" value={lesson.id} />
@@ -169,7 +250,7 @@ export function LessonEditorForm({
         <div>
           <h2 style={{ margin: 0 }}>Edit lesson authoring pack</h2>
           <div style={{ color: '#64748b', lineHeight: 1.6, marginTop: 8 }}>
-            This edits the real payload: objectives, localization, assessment items, and activity steps. Finally, an authoring surface that does more than polish a status pill.
+            This edits the real payload: objectives, localization, assessment items, and activity steps. Now it also lets authors shape the flow instead of babysitting a dumb JSON blob.
           </div>
         </div>
         <div style={{ minWidth: 180, padding: 16, borderRadius: 18, background: readinessCount >= 5 ? '#DCFCE7' : readinessCount >= 3 ? '#FEF3C7' : '#FEE2E2', color: readinessCount >= 5 ? '#166534' : readinessCount >= 3 ? '#92400E' : '#991B1B', fontWeight: 800 }}>
@@ -236,10 +317,55 @@ export function LessonEditorForm({
         <input name="voicePersona" value={voicePersona} onChange={(event) => setVoicePersona(event.target.value)} style={inputStyle} />
       </FieldLabel>
 
-      <FieldLabel>
-        Learning objectives (one per line)
-        <textarea value={learningObjectivesText} onChange={(event) => setLearningObjectivesText(event.target.value)} rows={4} style={inputStyle} />
-      </FieldLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 16 }}>
+        <FieldLabel>
+          Learning objectives (one per line)
+          <textarea value={learningObjectivesText} onChange={(event) => setLearningObjectivesText(event.target.value)} rows={6} style={inputStyle} />
+        </FieldLabel>
+
+        <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Live learner preview</div>
+              <div style={{ color: '#0f172a', fontWeight: 800, marginTop: 4 }}>{title || 'Untitled lesson'}</div>
+            </div>
+            <div style={{ textAlign: 'right', color: '#475569', fontSize: 13 }}>
+              <div>{activitySteps.length} steps</div>
+              <div>{totalActivityMinutes} min activity spine</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ padding: '6px 10px', borderRadius: 999, background: '#E0E7FF', color: '#3730A3', fontWeight: 700, fontSize: 12 }}>{mode}</span>
+            <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F1F5F9', color: '#334155', fontWeight: 700, fontSize: 12 }}>{targetAgeRange || 'Age band unset'}</span>
+            <span style={{ padding: '6px 10px', borderRadius: 999, background: '#EEF2FF', color: '#4338CA', fontWeight: 700, fontSize: 12 }}>{voicePersona || 'Voice persona pending'}</span>
+          </div>
+
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Objective snapshot</div>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#475569', lineHeight: 1.7 }}>
+                {learningObjectives.length > 0 ? learningObjectives.map((objective) => <li key={objective}>{objective}</li>) : <li>Add at least one clear objective.</li>}
+              </ul>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Learner flow</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {activitySteps.map((step, index) => (
+                  <div key={step.id} style={{ display: 'grid', gap: 4, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                      <strong>{index + 1}. {step.title || step.prompt}</strong>
+                      <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes || 0} min</span>
+                    </div>
+                    <div style={{ color: '#475569', fontSize: 14 }}>{step.detail || step.prompt || 'Add learner-facing guidance for this step.'}</div>
+                    <div style={{ color: '#64748B', fontSize: 12 }}>{typeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={{ display: 'grid', gap: 12 }}>
@@ -284,19 +410,35 @@ export function LessonEditorForm({
           </div>
         </div>
 
-        <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-          <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 10 }}>Activity spine</div>
+        <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Activity spine</div>
+              <div style={{ color: '#475569', marginTop: 4 }}>Add, duplicate, reorder, and trim steps without wrecking the lesson payload.</div>
+            </div>
+            <button type="button" onClick={addActivity} style={{ ...ghostButtonStyle, background: '#ede9fe', color: '#5b21b6', border: '1px solid #ddd6fe' }}>+ Add step</button>
+          </div>
+
           <div style={{ display: 'grid', gap: 12 }}>
             {activityDrafts.map((activity, index) => (
               <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                  <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
+                    <button type="button" onClick={() => moveActivity(index, 1)} disabled={index === activityDrafts.length - 1} style={{ ...ghostButtonStyle, opacity: index === activityDrafts.length - 1 ? 0.45 : 1 }}>↓ Move</button>
+                    <button type="button" onClick={() => duplicateActivity(index)} style={ghostButtonStyle}>Duplicate</button>
+                    <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
+                  </div>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 120px', gap: 10 }}>
                   <FieldLabel>
                     Step title
-                    <input value={activity.title} onChange={(event) => setActivityDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value, prompt: event.target.value } : item))} style={inputStyle} />
+                    <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value, prompt: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                   <FieldLabel>
                     Type
-                    <select value={activity.type} onChange={(event) => setActivityDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, type: event.target.value } : item))} style={inputStyle}>
+                    <select value={activity.type} onChange={(event) => updateActivity(index, { type: event.target.value })} style={inputStyle}>
                       <option value="listen_repeat">Listen repeat</option>
                       <option value="speak_answer">Speak answer</option>
                       <option value="word_build">Word build</option>
@@ -309,27 +451,37 @@ export function LessonEditorForm({
                   </FieldLabel>
                   <FieldLabel>
                     Minutes
-                    <input value={activity.durationMinutes} onChange={(event) => setActivityDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, durationMinutes: event.target.value } : item))} style={inputStyle} />
+                    <input value={activity.durationMinutes} onChange={(event) => updateActivity(index, { durationMinutes: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                 </div>
                 <FieldLabel>
+                  Learner prompt
+                  <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={2} style={inputStyle} />
+                </FieldLabel>
+                <FieldLabel>
                   Detail
-                  <textarea value={activity.detail} onChange={(event) => setActivityDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, detail: event.target.value } : item))} rows={3} style={inputStyle} />
+                  <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={3} style={inputStyle} />
                 </FieldLabel>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <FieldLabel>
                     Evidence
-                    <input value={activity.evidence} onChange={(event) => setActivityDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, evidence: event.target.value } : item))} style={inputStyle} />
+                    <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                   <FieldLabel>
                     Expected answers (comma separated)
-                    <input value={activity.expectedAnswers} onChange={(event) => setActivityDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, expectedAnswers: event.target.value } : item))} style={inputStyle} />
+                    <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                 </div>
-                <FieldLabel>
-                  Facilitator notes (one per line)
-                  <textarea value={activity.facilitatorNotes} onChange={(event) => setActivityDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, facilitatorNotes: event.target.value } : item))} rows={2} style={inputStyle} />
-                </FieldLabel>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <FieldLabel>
+                    Tags (comma separated)
+                    <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
+                  </FieldLabel>
+                  <FieldLabel>
+                    Facilitator notes (one per line)
+                    <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={2} style={inputStyle} />
+                  </FieldLabel>
+                </div>
               </div>
             ))}
           </div>
