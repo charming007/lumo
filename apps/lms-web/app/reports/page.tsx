@@ -1,11 +1,46 @@
+import type { DashboardInsight, ReportsOverview } from '../../lib/types';
 import { fetchDashboardInsights, fetchReportsOverview } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill } from '../../lib/ui';
 
+const EMPTY_REPORT: ReportsOverview = {
+  totalStudents: 0,
+  totalTeachers: 0,
+  totalCenters: 0,
+  activePods: 0,
+  totalAssignments: 0,
+  assignmentsDueThisWeek: 0,
+  presentToday: 0,
+  averageAttendance: 0,
+  podsNeedingAttention: 0,
+  averageMastery: 0,
+  readinessCount: 0,
+  onTrackCount: 0,
+  watchCount: 0,
+};
+
+const FALLBACK_INSIGHT: DashboardInsight = {
+  priority: 'Reporting feed offline',
+  headline: 'Executive reporting is temporarily unavailable',
+  detail: 'The reports route still loads so operators can confirm the LMS is up, but live narrative data needs the API connection to recover.',
+  metric: 'API retry needed',
+};
+
 export default async function ReportsPage() {
-  const [report, insights] = await Promise.all([fetchReportsOverview(), fetchDashboardInsights()]);
+  const [reportResult, insightsResult] = await Promise.allSettled([fetchReportsOverview(), fetchDashboardInsights()]);
+  const report = reportResult.status === 'fulfilled' ? reportResult.value : EMPTY_REPORT;
+  const insights = insightsResult.status === 'fulfilled' ? insightsResult.value : [];
+  const failedSources = [
+    reportResult.status === 'rejected' ? 'report metrics' : null,
+    insightsResult.status === 'rejected' ? 'executive narrative' : null,
+  ].filter(Boolean);
 
   return (
     <PageShell title="Reports" subtitle="Program, donor, and government-ready reporting with clearer operational signals instead of fluffy placeholders.">
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Reports is running in degraded mode: {failedSources.join(' + ')} {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
+        </div>
+      ) : null}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
         <Card title="Program overview" eyebrow="Coverage">
           <MetricList
@@ -41,7 +76,7 @@ export default async function ReportsPage() {
 
       <Card title="Executive narrative" eyebrow="What changed">
         <div style={{ display: 'grid', gap: 14 }}>
-          {insights.map((item) => (
+          {(insights.length ? insights : [FALLBACK_INSIGHT]).map((item) => (
             <div key={item.priority} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: 18, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
               <div>
                 <div style={{ fontWeight: 800, marginBottom: 6 }}>{item.priority}</div>
