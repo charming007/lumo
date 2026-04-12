@@ -3289,9 +3289,17 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
     });
   }
 
-  List<Widget> _layoutChildrenForColumn() {
-    return List.generate(children.length, (index) {
-      final child = children[index];
+  List<Widget> _layoutChildrenForColumn(double viewportHeight) {
+    final stackedSource = children.reversed.toList(growable: false);
+
+    return List.generate(stackedSource.length, (index) {
+      final child = stackedSource[index];
+      final isPane = switch (child) {
+        ResponsivePane() => true,
+        Expanded() => true,
+        Flexible() => true,
+        _ => false,
+      };
       final columnChild = switch (child) {
         ResponsivePane() => child.child,
         Expanded() => child.child,
@@ -3300,7 +3308,12 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
       };
       return KeyedSubtree(
         key: ValueKey('responsive-column-$index'),
-        child: columnChild,
+        child: isPane
+            ? SizedBox(
+                height: viewportHeight,
+                child: columnChild,
+              )
+            : columnChild,
       );
     });
   }
@@ -3320,7 +3333,9 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
           );
         }
 
-        final stackedChildren = _layoutChildrenForColumn();
+        final stackedChildren = _layoutChildrenForColumn(
+          constraints.maxHeight,
+        );
         return ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(
             scrollbars: false,
