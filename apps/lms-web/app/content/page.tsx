@@ -113,7 +113,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <Link href="/content/lessons/new" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
             Open lesson studio
           </Link>
-          <Link href="/guide" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+          <Link href="/guide#content-library" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
             Open LMS guide
           </Link>
           <ModalLauncher buttonLabel="Quick create lesson" title="Quick create lesson" description="Need a fast record only? Use the compact form. For actual authoring, use the full lesson studio.">

@@ -54,7 +54,7 @@ export default async function SettingsPage() {
           <Link href="/rewards" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
             Open rewards board
           </Link>
-          <Link href="/guide" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
+          <Link href="/guide#guardrails" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
             Open LMS guide
           </Link>
         </div>
