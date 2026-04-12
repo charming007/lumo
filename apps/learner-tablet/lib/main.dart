@@ -4021,13 +4021,9 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
   List<Widget> _layoutChildrenForRow() {
     return List.generate(children.length, (index) {
       final child = children[index];
-      final rowChild = child is ResponsivePane
+      return child is ResponsivePane
           ? Expanded(flex: child.flex, child: child.child)
           : child;
-      return KeyedSubtree(
-        key: ValueKey('responsive-row-$index'),
-        child: rowChild,
-      );
     });
   }
 
@@ -4048,15 +4044,12 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
         Flexible() => child.child,
         _ => child,
       };
-      return KeyedSubtree(
-        key: ValueKey('responsive-column-$index'),
-        child: isPane
-            ? ConstrainedBox(
-                constraints: BoxConstraints(minHeight: viewportHeight * 0.72),
-                child: columnChild,
-              )
-            : columnChild,
-      );
+      return isPane
+          ? SizedBox(
+              height: viewportHeight * 0.72,
+              child: columnChild,
+            )
+          : columnChild;
     });
   }
 

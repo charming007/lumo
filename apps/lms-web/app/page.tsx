@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { fetchAssignments, fetchDashboardInsights, fetchDashboardSummary, fetchMallams, fetchStudents, fetchWorkboard } from '../lib/api';
+import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchStudents, fetchWorkboard } from '../lib/api';
 import { InsightPanel } from '../components/insight-panel';
 import { KpiStrip } from '../components/kpi-strip';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
-import type { Assignment, DashboardInsight, DashboardSummary, Mallam, Student, WorkboardItem } from '../lib/types';
+import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Student, WorkboardItem } from '../lib/types';
 
 const EMPTY_SUMMARY: DashboardSummary = {
   activeLearners: 0,
@@ -45,13 +45,16 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
 }
 
 export default async function HomePage() {
-  const [summaryResult, assignmentsResult, insightsResult, workboardResult, studentsResult, mallamsResult] = await Promise.allSettled([
+  const [summaryResult, assignmentsResult, insightsResult, workboardResult, studentsResult, mallamsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
     fetchDashboardSummary(),
     fetchAssignments(),
     fetchDashboardInsights(),
     fetchWorkboard(),
     fetchStudents(),
     fetchMallams(),
+    fetchCurriculumModules(),
+    fetchLessons(),
+    fetchAssessments(),
   ]);
 
   const summary = summaryResult.status === 'fulfilled' ? summaryResult.value : EMPTY_SUMMARY;
@@ -66,6 +69,9 @@ export default async function HomePage() {
   const workboard: WorkboardItem[] = workboardResult.status === 'fulfilled' ? workboardResult.value : [];
   const students: Student[] = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
   const mallams: Mallam[] = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+  const modules: CurriculumModule[] = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const lessons: Lesson[] = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const assessments: Assessment[] = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
 
   const failedSources = [
     { label: 'summary', result: summaryResult },
@@ -74,6 +80,9 @@ export default async function HomePage() {
     { label: 'workboard', result: workboardResult },
     { label: 'students', result: studentsResult },
     { label: 'mallams', result: mallamsResult },
+    { label: 'modules', result: modulesResult },
+    { label: 'lessons', result: lessonsResult },
+    { label: 'assessments', result: assessmentsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
 
   const stats = [
@@ -90,6 +99,33 @@ export default async function HomePage() {
   const topInsight = insights[0] ?? FALLBACK_INSIGHT;
   const atRiskLearners = students.filter((student) => student.attendanceRate < 0.85);
   const trainingMallams = mallams.filter((mallam) => mallam.status !== 'active');
+  const assessmentLinkedModuleIds = new Set(assessments.map((assessment) => assessment.moduleId).filter(Boolean));
+  const releaseBlockers = modules
+    .map((module) => {
+      const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+      const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+      const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
+      const hasAssessmentGate = assessmentLinkedModuleIds.has(module.id);
+      const blockerCount = missingLessons + (hasAssessmentGate ? 0 : 1);
+
+      if (!blockerCount) {
+        return null;
+      }
+
+      return {
+        id: module.id,
+        title: module.title,
+        subjectName: module.subjectName ?? '—',
+        missingLessons,
+        hasAssessmentGate,
+        blockerCount,
+      };
+    })
+    .filter((module): module is NonNullable<typeof module> => Boolean(module))
+    .sort((left, right) => right.blockerCount - left.blockerCount || right.missingLessons - left.missingLessons || left.title.localeCompare(right.title));
+
+  const releaseFeedsFailed = modulesResult.status === 'rejected' || lessonsResult.status === 'rejected' || assessmentsResult.status === 'rejected';
+  const publishReadyModules = modules.length - releaseBlockers.length;
   const partialOutageMessage = failedSources.length
     ? `Dashboard degraded gracefully: ${failedSources.join(', ')} data ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.`
     : null;
@@ -182,23 +218,57 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <Card title="Learner workboard" eyebrow="Readiness queue">
-        <div style={{ display: 'grid', gap: 12 }}>
-          {workboardFeedFailed ? sectionAlert('The workboard feed failed, so learner progression rows below are not current.', 'warning') : null}
-          <SimpleTable
-            columns={['Learner', 'Mallam', 'Cohort', 'Attendance', 'Mastery', 'Status', 'Next move']}
-            rows={workboard.length ? workboard.map((item) => [
-              item.studentName,
-              item.mallamName ?? '—',
-              item.cohortName ?? '—',
-              `${Math.round(item.attendanceRate * 100)}%`,
-              `${Math.round(item.mastery * 100)}% in ${item.focus}`,
-              <Pill key={`${item.id}-status`} label={item.progressionStatus} tone={item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF'} text={item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3'} />,
-              item.recommendedNextModuleTitle ?? '—',
-            ]) : workboardEmptyRow(workboardFeedFailed ? 'Workboard feed unavailable — retry once learner progression data is back.' : 'No learners are queued in the readiness workboard right now.')}
-          />
+      <section style={{ ...responsiveGrid(320), marginTop: 20 }}>
+        <Card title="Learner workboard" eyebrow="Readiness queue">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {workboardFeedFailed ? sectionAlert('The workboard feed failed, so learner progression rows below are not current.', 'warning') : null}
+            <SimpleTable
+              columns={['Learner', 'Mallam', 'Cohort', 'Attendance', 'Mastery', 'Status', 'Next move']}
+              rows={workboard.length ? workboard.map((item) => [
+                item.studentName,
+                item.mallamName ?? '—',
+                item.cohortName ?? '—',
+                `${Math.round(item.attendanceRate * 100)}%`,
+                `${Math.round(item.mastery * 100)}% in ${item.focus}`,
+                <Pill key={`${item.id}-status`} label={item.progressionStatus} tone={item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF'} text={item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3'} />,
+                item.recommendedNextModuleTitle ?? '—',
+              ]) : workboardEmptyRow(workboardFeedFailed ? 'Workboard feed unavailable — retry once learner progression data is back.' : 'No learners are queued in the readiness workboard right now.')}
+            />
+          </div>
+        </Card>
+
+        <div style={{ display: 'grid', gap: 16 }}>
+          <Card title="Content release blockers" eyebrow="Deployment readiness">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <MetricList
+                items={[
+                  { label: 'Modules publish-ready', value: String(Math.max(publishReadyModules, 0)) },
+                  { label: 'Modules blocked', value: String(releaseBlockers.length) },
+                  { label: 'Missing lesson gaps', value: String(releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0)) },
+                  { label: 'Missing assessment gates', value: String(releaseBlockers.filter((module) => !module.hasAssessmentGate).length) },
+                ]}
+              />
+              {releaseFeedsFailed ? sectionAlert('Release readiness is partially blind because one or more curriculum feeds failed. The dashboard stays up, but do not trust blocker counts until modules, lessons, and assessments all load.', 'warning') : null}
+              {!releaseBlockers.length ? sectionAlert(releaseFeedsFailed ? 'No blocker rows can be trusted until the missing curriculum feeds recover.' : 'No content blockers right now. The LMS finally has permission to stop being dramatic about release readiness.') : null}
+            </div>
+          </Card>
+
+          <Card title="Top blockers to clear" eyebrow="Admin watchlist">
+            <div style={{ display: 'grid', gap: 12 }}>
+              {releaseFeedsFailed ? sectionAlert('Blocker rows below may be incomplete because a curriculum feed is missing.', 'warning') : null}
+              <SimpleTable
+                columns={['Module', 'Subject', 'Gaps', 'Release risk']}
+                rows={releaseBlockers.length ? releaseBlockers.slice(0, 5).map((module) => [
+                  module.title,
+                  module.subjectName,
+                  module.missingLessons > 0 ? `${module.missingLessons} lesson gap${module.missingLessons === 1 ? '' : 's'}` : 'Lessons complete',
+                  module.hasAssessmentGate ? 'Assessment linked; content still incomplete.' : 'Missing assessment gate before publish.',
+                ]) : [[<span key="release-clear" style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseFeedsFailed ? 'Curriculum feeds unavailable — retry once content data is back.' : 'No blocker rows to clear. Content release lane is clean.'}</span>, '', '', '']]}
+              />
+            </div>
+          </Card>
         </div>
-      </Card>
+      </section>
     </PageShell>
   );
 }
