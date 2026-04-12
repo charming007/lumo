@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -101,8 +102,49 @@ class AudioCaptureService {
   Future<void> dispose() => _recorder.dispose();
 
   Future<Directory> _recordingsDirectory() async {
-    final baseDir = await getApplicationDocumentsDirectory();
-    final dir = Directory('${baseDir.path}/learner_recordings');
+    try {
+      final baseDir = await getApplicationDocumentsDirectory();
+      return _ensureDirectory('${baseDir.path}/learner_recordings');
+    } on MissingPluginException {
+      return _fallbackRecordingsDirectory();
+    } catch (_) {
+      return _fallbackRecordingsDirectory();
+    }
+  }
+
+  Future<Directory> _fallbackRecordingsDirectory() async {
+    final home = Platform.environment['HOME'];
+    final userProfile = Platform.environment['USERPROFILE'];
+    final appData = Platform.environment['APPDATA'];
+
+    final candidates = <String>[
+      if (Platform.isMacOS && home != null)
+        '$home/Library/Application Support/Lumo Learner/learner_recordings',
+      if (Platform.isWindows && appData != null)
+        '$appData\\Lumo Learner\\learner_recordings',
+      if (Platform.isWindows && userProfile != null)
+        '$userProfile\\AppData\\Roaming\\Lumo Learner\\learner_recordings',
+      if ((Platform.isLinux || Platform.isAndroid) && home != null)
+        '$home/.local/share/lumo_learner/learner_recordings',
+      if (home != null) '$home/lumo_learner_recordings',
+      '${Directory.systemTemp.path}/lumo_learner_recordings',
+    ];
+
+    for (final path in candidates) {
+      try {
+        return await _ensureDirectory(path);
+      } catch (_) {
+        continue;
+      }
+    }
+
+    throw const AudioCaptureException(
+      'Unable to prepare a local folder for learner recordings on this device.',
+    );
+  }
+
+  Future<Directory> _ensureDirectory(String path) async {
+    final dir = Directory(path);
     if (!dir.existsSync()) {
       await dir.create(recursive: true);
     }
