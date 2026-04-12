@@ -20,7 +20,7 @@ const actionButtonStyle = {
 
 export default async function StudentsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
-  const [students, workboard, cohorts, pods, mallams] = await Promise.all([
+  const [studentsResult, workboardResult, cohortsResult, podsResult, mallamsResult] = await Promise.allSettled([
     fetchStudents(),
     fetchWorkboard(),
     fetchCohorts(),
@@ -28,6 +28,21 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
     fetchMallams(),
   ]);
 
+  const students = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
+  const workboard = workboardResult.status === 'fulfilled' ? workboardResult.value : [];
+  const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+
+  const failedSources = [
+    { label: 'learners', result: studentsResult },
+    { label: 'workboard', result: workboardResult },
+    { label: 'cohorts', result: cohortsResult },
+    { label: 'pods', result: podsResult },
+    { label: 'mallams', result: mallamsResult },
+  ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
+
+  const rosterDependenciesReady = cohorts.length > 0 && pods.length > 0 && mallams.length > 0;
   const flaggedLearners = students.filter((student) => student.attendanceRate < 0.85).length;
 
   return (
@@ -35,16 +50,27 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
       title="Learners"
       subtitle="Roster operations, assignment/reassignment, and readiness signals for the live admin desk."
       aside={
-        <ModalLauncher
-          buttonLabel="Add Student"
-          title="Add learner"
-          description="Create a new learner without leaving the roster view."
-        >
-          <CreateStudentForm cohorts={cohorts} pods={pods} mallams={mallams} />
-        </ModalLauncher>
+        rosterDependenciesReady ? (
+          <ModalLauncher
+            buttonLabel="Add Student"
+            title="Add learner"
+            description="Create a new learner without leaving the roster view."
+          >
+            <CreateStudentForm cohorts={cohorts} pods={pods} mallams={mallams} />
+          </ModalLauncher>
+        ) : (
+          <div style={{ padding: '12px 14px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, maxWidth: 340 }}>
+            Add learner is temporarily unavailable until cohorts, pods, and mallams load.
+          </div>
+        )
       }
     >
       <FeedbackBanner message={query?.message} />
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Learner roster is running in degraded mode: {failedSources.join(', ')} data {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
+        </div>
+      ) : null}
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
           { label: 'Learners live', value: String(students.length), note: 'Across the current seeded cohorts' },
@@ -62,7 +88,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
         <Card title="Learner roster" eyebrow="Profiles + quick ownership scan">
           <SimpleTable
             columns={['Learner', 'Cohort', 'Mallam', 'Pod', 'Attendance', 'Level', 'Actions']}
-            rows={students.map((student) => [
+            rows={students.length ? students.map((student) => [
               <strong key={student.id}>{student.name}</strong>,
               student.cohortName ?? '—',
               student.mallamName ?? '—',
@@ -71,15 +97,17 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
               `${student.level} · ${student.stage}`,
               <div key={`${student.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <a href={`/students/${student.id}`} style={{ color: '#4f46e5', fontWeight: 700, textDecoration: 'none' }}>View profile</a>
-                <ModalLauncher
-                  buttonLabel="Edit learner"
-                  title={`Edit learner · ${student.name}`}
-                  description="Update roster placement, owner, and learner profile details without leaving this list."
-                  eyebrow="Edit learner"
-                  triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
-                >
-                  <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} embedded />
-                </ModalLauncher>
+                {rosterDependenciesReady ? (
+                  <ModalLauncher
+                    buttonLabel="Edit learner"
+                    title={`Edit learner · ${student.name}`}
+                    description="Update roster placement, owner, and learner profile details without leaving this list."
+                    eyebrow="Edit learner"
+                    triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
+                  >
+                    <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} embedded />
+                  </ModalLauncher>
+                ) : null}
                 <ModalLauncher
                   buttonLabel="Delete learner"
                   title={`Delete learner · ${student.name}`}
@@ -90,7 +118,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
                   <DeleteStudentForm student={student} embedded />
                 </ModalLauncher>
               </div>,
-            ])}
+            ]) : [[<span key="no-students" style={{ color: '#64748b' }}>Learner roster data is unavailable right now.</span>, '', '', '', '', '', '']]}
           />
         </Card>
       </section>
@@ -99,7 +127,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
         <Card title="Learner support queue" eyebrow="Actionable">
           <SimpleTable
             columns={['Learner', 'Focus area', 'Attendance', 'Mastery', 'Progression', 'Next module']}
-            rows={workboard.map((item) => {
+            rows={workboard.length ? workboard.map((item) => {
               const [pillTone, pillText] = tone(item.progressionStatus);
               return [
                 item.studentName,
@@ -109,7 +137,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
                 <Pill key={item.id} label={item.progressionStatus} tone={pillTone} text={pillText} />,
                 item.recommendedNextModuleTitle ?? '—',
               ];
-            })}
+            }) : [[<span key="no-workboard" style={{ color: '#64748b' }}>Workboard data is unavailable right now.</span>, '', '', '', '', '']]}
           />
         </Card>
       </section>
