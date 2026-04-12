@@ -315,11 +315,24 @@ export async function createLessonAction(formData: FormData) {
     activitySteps: parseJsonField<Array<Record<string, unknown>>>(formData, 'activitySteps', []),
   };
 
-  const lesson = await apiWrite<{ id: string }>('/api/v1/lessons', 'POST', payload);
+  const lesson = await apiWrite<{ id: string; title?: string; moduleId?: string; subjectId?: string }>('/api/v1/lessons', 'POST', payload);
   revalidatePath('/content');
   revalidatePath('/english');
   revalidatePath(`/content/lessons/${lesson.id}`);
-  redirect(`/content/lessons/${lesson.id}?message=Lesson%20created.%20Keep%20authoring%20or%20ship%20it%20when%20ready.&from=${encodeURIComponent(returnPath)}`);
+
+  const lessonTitle = lesson.title ?? payload.title;
+  const moduleId = lesson.moduleId ?? payload.moduleId;
+  const subjectId = lesson.subjectId ?? payload.subjectId;
+  const successParams = new URLSearchParams({
+    createdLessonId: lesson.id,
+    createdLessonTitle: lessonTitle,
+    moduleId,
+    subjectId,
+    from: returnPath,
+    message: 'Lesson created. Pick your next move below.',
+  });
+
+  redirect(`/content/lessons/new?${successParams.toString()}`);
 }
 
 export async function updateLessonAction(formData: FormData) {

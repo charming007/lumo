@@ -23,7 +23,7 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
   );
 }
 
-export default async function NewLessonPage({ searchParams }: { searchParams?: Promise<{ subjectId?: string; moduleId?: string; duplicate?: string; from?: string; message?: string }> }) {
+export default async function NewLessonPage({ searchParams }: { searchParams?: Promise<{ subjectId?: string; moduleId?: string; duplicate?: string; from?: string; message?: string; createdLessonId?: string; createdLessonTitle?: string }> }) {
   const query = await searchParams;
   const [subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
     fetchSubjects(),
@@ -46,6 +46,8 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
   const scopedSubjectId = query?.subjectId ?? '';
   const scopedModuleId = query?.moduleId ?? '';
   const duplicateLessonId = query?.duplicate ?? '';
+  const createdLessonId = query?.createdLessonId ?? '';
+  const createdLessonTitle = query?.createdLessonTitle ?? '';
   const duplicateLesson = lessons.find((lesson) => lesson.id === duplicateLessonId) ?? null;
   const activeModule = modules.find((module) => module.id === scopedModuleId)
     ?? modules.find((module) => module.id === duplicateLesson?.moduleId)
@@ -86,6 +88,36 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           Lesson Studio is running in degraded mode: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
         </div>
+      ) : null}
+
+      {createdLessonId ? (
+        <section style={{ marginBottom: 20, padding: 22, borderRadius: 24, background: 'linear-gradient(135deg, #ecfdf5 0%, #eef2ff 100%)', border: '1px solid #bbf7d0', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div style={{ maxWidth: 760 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#166534', marginBottom: 8 }}>Lesson created</div>
+              <h2 style={{ margin: 0, fontSize: 28, color: '#0f172a' }}>{createdLessonTitle || 'New lesson pack'} is live</h2>
+              <p style={{ margin: '10px 0 0', color: '#475569', lineHeight: 1.7 }}>
+                The create step is done. No more dumping authors onto a dead-looking page right after submit — choose the next move that actually makes sense.
+              </p>
+            </div>
+            <Pill label={`Lesson ID: ${createdLessonId}`} tone="#DCFCE7" text="#166534" />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
+            <Link href={`/content/lessons/${createdLessonId}?from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+              Open lesson pack
+            </Link>
+            <Link href={`${returnPath}?message=${encodeURIComponent(`Lesson ${createdLessonTitle || 'created'} is ready in the library`)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+              Back to library
+            </Link>
+            <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(scopedSubjectId || activeModule?.subjectId || '')}&moduleId=${encodeURIComponent(scopedModuleId || activeModule?.id || '')}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: 'white', color: '#334155', textDecoration: 'none', border: '1px solid #cbd5e1' }}>
+              Create another lesson
+            </Link>
+            <Link href={`/content/lessons/new?duplicate=${createdLessonId}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: 'white', color: '#5b21b6', textDecoration: 'none', border: '1px solid #ddd6fe' }}>
+              Duplicate this pack
+            </Link>
+          </div>
+        </section>
       ) : null}
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
