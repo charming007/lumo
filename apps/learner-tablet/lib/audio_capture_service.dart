@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -38,7 +39,6 @@ class AudioCaptureService {
       await _recorder.stop();
     }
 
-    final recordingsDir = await _recordingsDirectory();
     final safeStem = (fileStem == null || fileStem.trim().isEmpty)
         ? 'learner-voice'
         : fileStem.trim().replaceAll(RegExp(r'[^a-zA-Z0-9_-]+'), '-');
@@ -68,9 +68,12 @@ class AudioCaptureService {
 
     Object? lastError;
     for (final attempt in attempts) {
-      final filePath =
-          '${recordingsDir.path}/$safeStem-$timestamp.${attempt.extension}';
       try {
+        final filePath = await _recordingTargetPath(
+          safeStem: safeStem,
+          timestamp: timestamp,
+          extension: attempt.extension,
+        );
         await _recorder.start(attempt.config, path: filePath);
         _recordingStartedAt = DateTime.now();
         return AudioStartResult(started: true, message: attempt.note);
@@ -101,6 +104,19 @@ class AudioCaptureService {
 
   Future<void> dispose() => _recorder.dispose();
 
+  Future<String> _recordingTargetPath({
+    required String safeStem,
+    required int timestamp,
+    required String extension,
+  }) async {
+    if (kIsWeb) {
+      return '$safeStem-$timestamp.$extension';
+    }
+
+    final recordingsDir = await _recordingsDirectory();
+    return '${recordingsDir.path}/$safeStem-$timestamp.$extension';
+  }
+
   Future<Directory> _recordingsDirectory() async {
     try {
       final baseDir = await getApplicationDocumentsDirectory();
@@ -113,6 +129,12 @@ class AudioCaptureService {
   }
 
   Future<Directory> _fallbackRecordingsDirectory() async {
+    if (kIsWeb) {
+      throw const AudioCaptureException(
+        'Browser recording does not use a local recordings folder.',
+      );
+    }
+
     final home = Platform.environment['HOME'];
     final userProfile = Platform.environment['USERPROFILE'];
     final appData = Platform.environment['APPDATA'];
