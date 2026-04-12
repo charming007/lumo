@@ -478,6 +478,7 @@ class SessionTurn {
 }
 
 class LessonSessionState {
+  final String sessionId;
   final LessonCardModel lesson;
   final int stepIndex;
   final LessonCompletionState completionState;
@@ -500,6 +501,7 @@ class LessonSessionState {
   final DateTime lastUpdatedAt;
 
   const LessonSessionState({
+    required this.sessionId,
     required this.lesson,
     this.stepIndex = 0,
     this.completionState = LessonCompletionState.ready,
@@ -543,6 +545,7 @@ class LessonSessionState {
   }
 
   Map<String, dynamic> syncPayloadPreview({required String learnerCode}) => {
+        'sessionId': sessionId,
         'learnerCode': learnerCode,
         'lessonId': lesson.id,
         'moduleId': lesson.moduleId,
@@ -568,6 +571,7 @@ class LessonSessionState {
       };
 
   LessonSessionState copyWith({
+    String? sessionId,
     LessonCardModel? lesson,
     int? stepIndex,
     LessonCompletionState? completionState,
@@ -592,6 +596,7 @@ class LessonSessionState {
     bool clearLatestLearnerAudio = false,
   }) {
     return LessonSessionState(
+      sessionId: sessionId ?? this.sessionId,
       lesson: lesson ?? this.lesson,
       stepIndex: stepIndex ?? this.stepIndex,
       completionState: completionState ?? this.completionState,

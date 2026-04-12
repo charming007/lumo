@@ -2085,17 +2085,41 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: MallamPanel(
-                  instruction: lessonInstruction,
-                  onVoiceTap: () async {
-                    _promptedCurrentStep = false;
-                    await _speakCurrentStepIfNeeded(force: true);
-                    widget.onChanged();
-                    setState(() {});
-                  },
-                  prompt: widget.state.personalizePrompt(step.coachPrompt),
-                  speakerMode: session.speakerMode,
-                  statusLabel: _speakerModeLabel(session.speakerMode),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: MallamPanel(
+                        instruction: lessonInstruction,
+                        onVoiceTap: () async {
+                          _promptedCurrentStep = false;
+                          await _speakCurrentStepIfNeeded(force: true);
+                          widget.onChanged();
+                          setState(() {});
+                        },
+                        prompt:
+                            widget.state.personalizePrompt(step.coachPrompt),
+                        speakerMode: session.speakerMode,
+                        statusLabel: _speakerModeLabel(session.speakerMode),
+                        secondaryStatus:
+                            'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
+                        voiceButtonLabel: 'Replay Mallam',
+                        speakerOutputMode: session.speakerOutputMode,
+                        voiceHint: isSpeaking
+                            ? 'Mallam is active on the left while the learner task stays visible on the right.'
+                            : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _LessonStageStrip(
+                      session: session,
+                      lesson: widget.lesson,
+                    ),
+                    const SizedBox(height: 16),
+                    _LessonTranscriptPanel(
+                      session: session,
+                      learnerName: learner.name,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 20),
@@ -2714,6 +2738,153 @@ class LessonCompletePage extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LessonStageStrip extends StatelessWidget {
+  final LessonSessionState session;
+  final LessonCardModel lesson;
+
+  const _LessonStageStrip({
+    required this.session,
+    required this.lesson,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Lesson map',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: List.generate(lesson.steps.length, (index) {
+              final item = lesson.steps[index];
+              final isActive = index == session.stepIndex;
+              final isDone = index < session.stepIndex;
+              final color = isActive
+                  ? LumoTheme.primary
+                  : (isDone ? LumoTheme.accentGreen : const Color(0xFF94A3B8));
+              final icon = isDone
+                  ? Icons.check_rounded
+                  : (isActive
+                      ? Icons.play_arrow_rounded
+                      : Icons.radio_button_unchecked_rounded);
+
+              return Container(
+                constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: color.withValues(alpha: 0.18)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(icon, color: color, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Step ${index + 1}',
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.title,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LessonTranscriptPanel extends StatelessWidget {
+  final LessonSessionState session;
+  final String learnerName;
+
+  const _LessonTranscriptPanel({
+    required this.session,
+    required this.learnerName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final turns =
+        session.transcript.reversed.take(4).toList().reversed.toList();
+    return SoftPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Live exchange',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              StatusPill(
+                text: '${session.transcript.length} turns',
+                color: LumoTheme.primary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...turns.map((turn) {
+            final isMallam = turn.speaker == 'Mallam';
+            final speaker = isMallam ? 'Mallam' : learnerName;
+            final color = isMallam ? LumoTheme.primary : LumoTheme.accentGreen;
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    speaker,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(turn.text),
+                ],
+              ),
+            );
+          }),
+        ],
       ),
     );
   }

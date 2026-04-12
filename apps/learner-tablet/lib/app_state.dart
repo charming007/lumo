@@ -307,7 +307,9 @@ class LumoAppState {
   void startLesson(LessonCardModel lesson) {
     final openingStep = lesson.steps.first;
     final now = DateTime.now();
+    final sessionId = 'session-${now.millisecondsSinceEpoch}';
     activeSession = LessonSessionState(
+      sessionId: sessionId,
       lesson: lesson,
       completionState: LessonCompletionState.inProgress,
       speakerMode: openingStep.speakerMode,
@@ -324,6 +326,16 @@ class LumoAppState {
       ],
     );
     speakerMode = activeSession!.speakerMode;
+    _queueSessionEvent(
+      type: 'lesson_session_started',
+      session: activeSession!,
+      extra: {
+        'lessonId': lesson.id,
+        'moduleId': lesson.moduleId,
+        'stepId': openingStep.id,
+        'stepTitle': openingStep.title,
+      },
+    );
   }
 
   ResponseOutcome submitLearnerResponse(String response) {
@@ -334,6 +346,7 @@ class LumoAppState {
     if (trimmed.isEmpty) return const ResponseOutcome.ignored();
 
     final evaluation = evaluateLearnerResponse(trimmed);
+    final step = session.currentStep;
     final nextAttempts = session.attemptsThisStep + 1;
     final review = evaluation.review;
     final supportType = review == ResponseReview.needsSupport
@@ -368,6 +381,19 @@ class LumoAppState {
     speakerMode = review == ResponseReview.needsSupport
         ? SpeakerMode.guiding
         : SpeakerMode.affirming;
+    _queueSessionEvent(
+      type: 'learner_response_captured',
+      session: activeSession!,
+      extra: {
+        'stepId': step.id,
+        'stepTitle': step.title,
+        'response': trimmed,
+        'review': review.name,
+        'attemptNumber': nextAttempts,
+        'similarityScore': evaluation.similarityScore,
+        'usedAlias': evaluation.usedAlias,
+      },
+    );
     return ResponseOutcome(
       review: review,
       attemptNumber: nextAttempts,
@@ -527,6 +553,16 @@ class LumoAppState {
       ],
     );
     speakerMode = nextMode;
+    _queueSessionEvent(
+      type: 'coach_support_used',
+      session: activeSession!,
+      extra: {
+        'stepId': step.id,
+        'stepTitle': step.title,
+        'supportType': supportType,
+        'label': label,
+      },
+    );
   }
 
   void addObservation(String observation) {
@@ -574,6 +610,16 @@ class LumoAppState {
         ),
       ],
     );
+    _queueSessionEvent(
+      type: 'learner_audio_captured',
+      session: activeSession!,
+      extra: {
+        'stepId': session.currentStep.id,
+        'stepTitle': session.currentStep.title,
+        'audioPath': path,
+        'durationSeconds': seconds,
+      },
+    );
   }
 
   void setAudioInputMode(String mode) {
@@ -597,6 +643,15 @@ class LumoAppState {
         completionState: LessonCompletionState.complete,
         speakerMode: SpeakerMode.affirming,
         lastSupportType: 'Lesson completed',
+      );
+      _queueSessionEvent(
+        type: 'lesson_step_completed',
+        session: activeSession!,
+        extra: {
+          'stepId': session.currentStep.id,
+          'stepTitle': session.currentStep.title,
+          'isLastStep': true,
+        },
       );
       speakerMode = SpeakerMode.affirming;
       return true;
@@ -624,6 +679,16 @@ class LumoAppState {
       clearLatestLearnerAudio: true,
     );
     speakerMode = nextStep.speakerMode;
+    _queueSessionEvent(
+      type: 'lesson_step_advanced',
+      session: activeSession!,
+      extra: {
+        'stepId': nextStep.id,
+        'stepTitle': nextStep.title,
+        'stepIndex': nextStepIndex + 1,
+        'stepsTotal': session.lesson.steps.length,
+      },
+    );
     return false;
   }
 
@@ -794,6 +859,34 @@ class LumoAppState {
         steps: seed.steps,
       );
     }).toList();
+  }
+
+  void _queueSessionEvent({
+    required String type,
+    required LessonSessionState session,
+    Map<String, dynamic> extra = const {},
+  }) {
+    final learnerCode = currentLearner?.learnerCode;
+    if (learnerCode == null || learnerCode.trim().isEmpty) return;
+
+    pendingSyncEvents.add(
+      SyncEvent(
+        id: 'sync-${pendingSyncEvents.length + 1}',
+        type: type,
+        payload: {
+          'sessionId': session.sessionId,
+          'learnerCode': learnerCode,
+          'lessonId': session.lesson.id,
+          'moduleId': session.lesson.moduleId,
+          'stepIndex': session.stepIndex + 1,
+          'stepsTotal': session.lesson.steps.length,
+          'completionState': session.completionState.name,
+          'automationStatus': session.automationStatus,
+          'capturedAt': DateTime.now().toIso8601String(),
+          ...extra,
+        },
+      ),
+    );
   }
 
   String _formatTime(DateTime value) {
