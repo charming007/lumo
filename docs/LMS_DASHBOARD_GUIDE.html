@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumo LMS Dashboard Guide</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --brand: #4f46e5;
+      --brand-2: #7c3aed;
+      --good: #166534;
+      --good-bg: #dcfce7;
+      --warn: #92400e;
+      --warn-bg: #fef3c7;
+      --info: #1d4ed8;
+      --info-bg: #dbeafe;
+      --soft: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(124,58,237,0.10), transparent 26%),
+        radial-gradient(circle at top left, rgba(79,70,229,0.10), transparent 32%),
+        var(--bg);
+      line-height: 1.65;
+    }
+
+    .wrap {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f172a, #312e81 60%, #4f46e5);
+      color: white;
+      padding: 36px;
+      border-radius: 28px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.3rem);
+      line-height: 1.05;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 860px;
+      color: rgba(255,255,255,0.88);
+      font-size: 1.05rem;
+    }
+
+    .badge-row, .chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .badge, .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+    .badge { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.14); }
+    .chip { background: var(--soft); color: var(--muted); border: 1px solid var(--line); }
+    .chip.good { background: var(--good-bg); color: var(--good); border-color: #bbf7d0; }
+    .chip.warn { background: var(--warn-bg); color: var(--warn); border-color: #fcd34d; }
+    .chip.info { background: var(--info-bg); color: var(--info); border-color: #93c5fd; }
+
+    .grid { display: grid; gap: 18px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+    }
+
+    .card h2, .card h3 {
+      margin-top: 0;
+      line-height: 1.2;
+    }
+
+    .kpi {
+      padding: 18px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, #fff, #f8fafc);
+      border: 1px solid var(--line);
+    }
+    .kpi .label { color: var(--muted); font-size: 0.92rem; }
+    .kpi .value { font-size: 1.8rem; font-weight: 800; margin-top: 6px; }
+
+    .section-title {
+      margin: 34px 0 14px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.74rem;
+      font-weight: 800;
+      color: var(--brand-2);
+    }
+
+    .flow, pre {
+      margin: 0;
+      padding: 18px;
+      border-radius: 18px;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: auto;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    ul, ol { padding-left: 1.2rem; }
+    li + li { margin-top: 8px; }
+
+    .callout {
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    .callout.good { background: #ecfdf5; border-color: #bbf7d0; }
+    .callout.warn { background: #fff7ed; border-color: #fed7aa; }
+    .callout.info { background: #eff6ff; border-color: #bfdbfe; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .footer-note {
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .sticky-nav {
+      position: sticky;
+      top: 18px;
+    }
+
+    .toc a {
+      display: block;
+      padding: 8px 0;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px dashed #e5e7eb;
+    }
+    .toc a:hover { color: var(--brand); }
+
+    @media (max-width: 900px) {
+      .grid.two, .grid.three, .grid.four { grid-template-columns: 1fr; }
+      .sticky-nav { position: static; }
+    }
+
+    @media print {
+      body { background: white; }
+      .wrap { max-width: none; padding: 0; }
+      .hero, .card, .kpi { box-shadow: none; }
+      .sticky-nav { position: static; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="badge-row" style="margin-bottom: 14px;">
+        <span class="badge">Lumo LMS</span>
+        <span class="badge">Admin handbook</span>
+        <span class="badge">Print / export ready</span>
+      </div>
+      <h1>LMS Dashboard Guide</h1>
+      <p>A visual, practical handbook for understanding the LMS dashboard, especially <strong>Content Library</strong> and <strong>English Curriculum Studio</strong>: how they connect, how the curriculum is structured, how admins use the system, and how new lessons get created properly.</p>
+    </section>
+
+    <div class="grid" style="grid-template-columns: 280px 1fr; align-items: start;">
+      <aside class="card sticky-nav toc">
+        <div class="eyebrow">Contents</div>
+        <a href="#overview">1. LMS purpose</a>
+        <a href="#architecture">2. Big picture</a>
+        <a href="#dashboard">3. Dashboard</a>
+        <a href="#content-library">4. Content Library</a>
+        <a href="#statuses">5. Statuses & blockers</a>
+        <a href="#english-studio">6. English Studio</a>
+        <a href="#lesson-creation">7. How admins create lessons</a>
+        <a href="#workflow">8. Recommended workflow</a>
+        <a href="#updates">9. How to update this guide</a>
+      </aside>
+
+      <main class="grid">
+        <section class="card" id="overview">
+          <div class="eyebrow">1. LMS purpose</div>
+          <h2>What this LMS is actually for</h2>
+          <p>The Lumo LMS is not just a stats page. It is the operational control surface for learner delivery, content structure, release safety, mallam oversight, and lesson publishing.</p>
+          <div class="chip-row">
+            <span class="chip">Dashboard</span>
+            <span class="chip">Learners</span>
+            <span class="chip">Mallams</span>
+            <span class="chip info">Content Library</span>
+            <span class="chip good">English Studio</span>
+            <span class="chip">Assessments</span>
+            <span class="chip">Pods</span>
+            <span class="chip">Analytics</span>
+            <span class="chip">Settings</span>
+          </div>
+        </section>
+
+        <section class="card" id="architecture">
+          <div class="eyebrow">2. Big picture</div>
+          <h2>How the LMS fits together</h2>
+          <pre class="flow">Dashboard
+   ↓ surfaces urgency and operational health
+Learners / Mallams / Pods
+   ↓ show who is learning, teaching, and delivering
+Content Library
+   ↓ defines the official curriculum structure
+   Subject → Strand → Module → Lesson → Assessment gate
+English Studio
+   ↓ gives English-specific authoring + readiness checks
+Assignments / Pod delivery
+   ↓ push approved content into cohorts and pods
+Reports / Analytics
+   ↓ measure outcomes and operational gaps</pre>
+          <div class="grid two" style="margin-top: 18px;">
+            <div class="callout info">
+              <strong>Canonical structure</strong>
+              <pre style="margin-top: 10px;">Subject
+└── Strand
+    └── Module
+        ├── Lesson 1
+        ├── Lesson 2
+        ├── Lesson 3
+        └── Assessment gate</pre>
+            </div>
+            <div class="callout">
+              <strong>Why this matters</strong>
+              <ul>
+                <li>Subjects are curriculum lanes.</li>
+                <li>Strands organize planning themes.</li>
+                <li>Modules package lesson sequences.</li>
+                <li>Lessons are the actual learning units.</li>
+                <li>Assessment gates control progression.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="dashboard">
+          <div class="eyebrow">3. Dashboard</div>
+          <h2>The admin cockpit</h2>
+          <div class="grid four">
+            <div class="kpi"><div class="label">Active learners</div><div class="value">KPI</div></div>
+            <div class="kpi"><div class="label">Mallams / Pods / Assignments</div><div class="value">KPI</div></div>
+            <div class="kpi"><div class="label">Ready to progress</div><div class="value">KPI</div></div>
+            <div class="kpi"><div class="label">Sync success</div><div class="value">KPI</div></div>
+          </div>
+          <div class="grid two" style="margin-top: 18px;">
+            <div>
+              <h3>What the current dashboard shows</h3>
+              <ul>
+                <li>KPI strip: active learners, mallams, active pods, ready to progress, assignments live, assessments live, lessons completed, sync success.</li>
+                <li>Operations pulse: centers live, assignments running, assessment gates active, learners ready for progression.</li>
+                <li>Leadership cues: priority insights with metrics and explanatory detail.</li>
+                <li>Live assignments: lesson, cohort, pod, assessment, due date.</li>
+                <li>Escalations: weak attendance and mallams not yet fully active.</li>
+                <li>Learner workboard: attendance, mastery, progression status, and recommended next module.</li>
+              </ul>
+            </div>
+            <div class="callout warn">
+              <strong>The five admin questions this page answers</strong>
+              <ol>
+                <li>Are learners active?</li>
+                <li>Are mallams and pods healthy?</li>
+                <li>What is blocked right now?</li>
+                <li>Who is ready to progress?</li>
+                <li>Where should ops intervene first?</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="content-library">
+          <div class="eyebrow">4. Content Library</div>
+          <h2>The formal curriculum operations board</h2>
+          <p>If the dashboard tells you <em>what needs attention</em>, Content Library tells you <em>what exists, how it is structured, and what is actually release-ready</em>.</p>
+
+          <div class="grid three">
+            <div class="callout"><strong>Create Subject</strong><br/>Adds a curriculum lane.</div>
+            <div class="callout"><strong>Create Strand</strong><br/>Adds a planning lane inside a subject.</div>
+            <div class="callout"><strong>Create Module</strong><br/>Adds a module inside the right strand.</div>
+            <div class="callout"><strong>Create Lesson</strong><br/>Creates a lesson in the correct module.</div>
+            <div class="callout"><strong>Create Assessment</strong><br/>Adds a progression gate.</div>
+            <div class="callout info"><strong>Why it’s better</strong><br/>Admins can manage content from one board instead of scattered forms.</div>
+          </div>
+
+          <h3 class="section-title">What the page contains</h3>
+          <table>
+            <thead>
+              <tr><th>Section</th><th>Purpose</th><th>What admins do there</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Summary cards</td><td>Quick readiness snapshot</td><td>See subject, module, lesson, and assessment totals</td></tr>
+              <tr><td>Subject lanes</td><td>Top-level curriculum organization</td><td>Edit/delete subjects and inspect strands, module count, lesson count</td></tr>
+              <tr><td>Strand groups</td><td>Planning structure inside subjects</td><td>Keep curriculum organized instead of flat</td></tr>
+              <tr><td>Module cards</td><td>Operational release units</td><td>Check lesson count, readiness, assessment link, release note</td></tr>
+              <tr><td>Lesson entries</td><td>Actual learning units</td><td>Edit status, mode, and duration or remove bad entries</td></tr>
+              <tr><td>Assessment gate panel</td><td>Progression control</td><td>Confirm every module has a real gate</td></tr>
+              <tr><td>Release blockers</td><td>Readiness truth serum</td><td>Find missing lessons and missing gates before publishing</td></tr>
+              <tr><td>Assessment control board</td><td>Cross-curriculum gate review</td><td>Audit pass marks, triggers, and status</td></tr>
+              <tr><td>Release tracker / Lesson inventory</td><td>Scan-friendly lists</td><td>Audit the curriculum without opening nested cards</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card" id="statuses">
+          <div class="eyebrow">5. Statuses & blockers</div>
+          <h2>Readiness is not a vibe</h2>
+          <div class="grid three">
+            <div class="callout">
+              <strong>Module status</strong>
+              <ul>
+                <li><strong>draft</strong> — exists, not release-safe</li>
+                <li><strong>review</strong> — nearing sign-off</li>
+                <li><strong>published</strong> — live-ready</li>
+              </ul>
+            </div>
+            <div class="callout">
+              <strong>Lesson status</strong>
+              <ul>
+                <li><strong>draft</strong></li>
+                <li><strong>review</strong></li>
+                <li><strong>approved</strong></li>
+                <li><strong>published</strong></li>
+              </ul>
+            </div>
+            <div class="callout">
+              <strong>Assessment status</strong>
+              <ul>
+                <li><strong>draft</strong></li>
+                <li><strong>active</strong></li>
+                <li><strong>retired</strong></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="callout warn" style="margin-top: 18px;">
+            <strong>Release-safe content needs all of this</strong>
+            <ul>
+              <li>Enough approved/published lessons to match the module’s planned count</li>
+              <li>A linked assessment gate</li>
+              <li>A sane module status</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="card" id="english-studio">
+          <div class="eyebrow">6. English Studio</div>
+          <h2>English-specific authoring with a real lesson spine</h2>
+          <p>English Studio is connected to Content Library, but it serves a different job: it helps admins author stronger English lessons with structure, readiness checks, and visible assessment linkage.</p>
+
+          <div class="grid two">
+            <div class="callout info">
+              <strong>Relationship to Content Library</strong>
+              <pre style="margin-top: 10px;">Content Library
+  = canonical curriculum structure
+  = subjects, strands, modules, lessons, assessments
+
+English Studio
+  = English-specific authoring layer
+  = reads English modules + linked assessments
+  = generates blueprints + readiness views
+  = writes lessons back into the live content lane</pre>
+            </div>
+            <div>
+              <h3>What English Studio shows</h3>
+              <ul>
+                <li>Summary cards: English modules, structured lessons, ready for release, modules missing gates</li>
+                <li>Featured lesson blueprint</li>
+                <li>Publish control panel</li>
+                <li>Assessment wiring</li>
+                <li>Release queue</li>
+                <li>Readiness board</li>
+                <li>Modules missing assessment control</li>
+                <li>Pod-ready lesson set</li>
+                <li>Structured activity map</li>
+              </ul>
+            </div>
+          </div>
+
+          <h3 class="section-title">Current English lesson blueprint spine</h3>
+          <div class="grid five"></div>
+          <div class="grid" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
+            <div class="callout"><strong>1.</strong><br/>Warm welcome + retrieval</div>
+            <div class="callout"><strong>2.</strong><br/>Model and echo</div>
+            <div class="callout"><strong>3.</strong><br/>Guided pair talk</div>
+            <div class="callout"><strong>4.</strong><br/>Interactive task</div>
+            <div class="callout"><strong>5.</strong><br/>Exit check</div>
+          </div>
+
+          <div class="callout good" style="margin-top: 18px;">
+            <strong>What this fixes</strong><br/>
+            It stops English authoring from becoming “enter a title and hope it somehow counts as curriculum design.”
+          </div>
+        </section>
+
+        <section class="card" id="lesson-creation">
+          <div class="eyebrow">7. Lesson creation</div>
+          <h2>How admins create lessons</h2>
+          <div class="grid two">
+            <div class="callout">
+              <strong>Path A — Generic lesson creation via Content Library</strong>
+              <ol>
+                <li>Open Content Library</li>
+                <li>Click Create Lesson</li>
+                <li>Choose subject</li>
+                <li>Choose module</li>
+                <li>Enter title</li>
+                <li>Set duration</li>
+                <li>Choose mode</li>
+                <li>Submit</li>
+                <li>Review inside the module lane</li>
+                <li>Move through draft → review → approved → published</li>
+              </ol>
+            </div>
+            <div class="callout good">
+              <strong>Path B — English-specific authoring via English Studio</strong>
+              <ol>
+                <li>Open English Studio</li>
+                <li>Click Author English lesson</li>
+                <li>Select English module</li>
+                <li>Enter title</li>
+                <li>Set duration</li>
+                <li>Choose mode</li>
+                <li>Review objective and vocabulary focus</li>
+                <li>Review the generated activity spine</li>
+                <li>Check readiness controls</li>
+                <li>Set publish state</li>
+                <li>Submit Create English lesson</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="workflow">
+          <div class="eyebrow">8. Recommended workflow</div>
+          <h2>How to run this LMS without shipping nonsense</h2>
+          <div class="grid two">
+            <div>
+              <h3>Curriculum ops</h3>
+              <ol>
+                <li>Create or confirm the subject</li>
+                <li>Create strands</li>
+                <li>Create modules with intended lesson counts</li>
+                <li>Add assessment gates</li>
+                <li>Create lessons</li>
+                <li>Move lessons through review and approval</li>
+                <li>Check Release blockers</li>
+                <li>Only then publish and assign</li>
+              </ol>
+            </div>
+            <div>
+              <h3>English content teams</h3>
+              <ol>
+                <li>Confirm the English module exists</li>
+                <li>Confirm the module has an assessment gate</li>
+                <li>Use English Studio to author</li>
+                <li>Check readiness score and blockers</li>
+                <li>Approve/publish only when checks pass</li>
+                <li>Verify the lesson appears correctly in Content Library</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="updates">
+          <div class="eyebrow">9. Update guide</div>
+          <h2>How to keep this document current as the LMS evolves</h2>
+          <div class="grid two">
+            <div class="callout">
+              <strong>Source files to review when features change</strong>
+              <ul>
+                <li><code>apps/lms-web/app/page.tsx</code></li>
+                <li><code>apps/lms-web/app/content/page.tsx</code></li>
+                <li><code>apps/lms-web/app/english/page.tsx</code></li>
+                <li><code>apps/lms-web/components/english-studio-authoring-form.tsx</code></li>
+                <li><code>apps/lms-web/components/content-admin-reactive-forms.tsx</code></li>
+                <li><code>apps/lms-web/lib/navigation.ts</code></li>
+                <li><code>apps/lms-web/lib/english-curriculum.ts</code></li>
+                <li><code>apps/lms-web/lib/types.ts</code></li>
+              </ul>
+            </div>
+            <div class="callout info">
+              <strong>Maintenance checklist</strong>
+              <ol>
+                <li>Update navigation changes</li>
+                <li>Update dashboard KPI or panel changes</li>
+                <li>Update content model changes</li>
+                <li>Update lesson creation workflow changes</li>
+                <li>Update English Studio blueprint/readiness logic changes</li>
+                <li>Refresh both the Markdown source and HTML export</li>
+              </ol>
+            </div>
+          </div>
+          <p class="footer-note">This HTML file is the shareable/downloadable artifact. The matching <code>LMS_DASHBOARD_GUIDE.md</code> file is the easier source to maintain over time.</p>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

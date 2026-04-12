@@ -30,6 +30,11 @@ Pilot-ready MVP for Almajiri children in northern Nigeria (ages 8–12), focused
 
 Scaffold + planning phase.
 
+## LMS documentation
+
+- `docs/LMS_DASHBOARD_GUIDE.md` — maintainable source guide for LMS/admin onboarding
+- `docs/LMS_DASHBOARD_GUIDE.html` — print/export-friendly visual handbook for download or PDF export
+
 ## Next milestones
 
 1. Finalize product blueprint
