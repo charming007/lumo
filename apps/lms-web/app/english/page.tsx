@@ -117,7 +117,6 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
           {quickAuthoringBlocker}
         </div>
       ) : null}
-
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
         {[
           { label: 'English modules', value: String(summary.moduleCount), note: 'Modules currently mapped into the English lane.' },
