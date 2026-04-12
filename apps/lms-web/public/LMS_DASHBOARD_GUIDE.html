@@ -215,9 +215,10 @@
         <a href="#content-library">4. Content Library</a>
         <a href="#statuses">5. Statuses & blockers</a>
         <a href="#english-studio">6. English Studio</a>
-        <a href="#lesson-creation">7. How admins create lessons</a>
-        <a href="#workflow">8. Recommended workflow</a>
-        <a href="#updates">9. How to update this guide</a>
+        <a href="#system-flow">7. End-to-end system flow</a>
+        <a href="#lesson-creation">8. How admins create lessons</a>
+        <a href="#workflow">9. Recommended workflow</a>
+        <a href="#updates">10. How to update this guide</a>
       </aside>
 
       <main class="grid">
@@ -436,8 +437,64 @@ English Studio
           </div>
         </section>
 
+        <section class="card" id="system-flow">
+          <div class="eyebrow">7. End-to-end system flow</div>
+          <h2>How Content Library, English Studio, assignments, learner runtime, and rewards work together</h2>
+          <p>This is the operating loop admins actually need to understand: curriculum structure becomes authorable lessons, authorable lessons become assignments, assignments become learner activity, and learner activity feeds progress and rewards back into the LMS.</p>
+
+          <div class="callout info">
+            <pre style="margin-top: 0;">Content Library
+  = official curriculum spine
+  = subject → strand → module → lesson → assessment gate
+English Studio
+  = English-specific authoring and readiness layer
+Assignments
+  = delivery wrapper for approved content
+Learner runtime
+  = completion, mastery, progression, and intervention signals
+Rewards &amp; Progression
+  = XP, badges, levels, and admin follow-up views</pre>
+          </div>
+
+          <table>
+            <thead>
+              <tr><th>Stage</th><th>What happens</th><th>Why admins should care</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Curriculum structure</td><td>Content Library defines the real subject, strand, module, lesson, and assessment relationships.</td><td>If the structure is sloppy, assignments, progress, and rewards all inherit that mess.</td></tr>
+              <tr><td>English authoring</td><td>English Studio reads the module and assessment context, adds objectives, vocabulary, activity sequence, and readiness checks, then writes the lesson back into the live content lane.</td><td>English quality improves without breaking the canonical curriculum structure.</td></tr>
+              <tr><td>Assignment delivery</td><td>Approved lessons get mapped to cohorts, pods, mallams, and due windows.</td><td>Assignments are the delivery wrapper around real curriculum objects — not a separate content universe.</td></tr>
+              <tr><td>Learner runtime</td><td>Learners complete lessons and generate attendance, completion, mastery, progression, and next-module signals.</td><td>This is the evidence layer admins use for workboards, interventions, and progression decisions.</td></tr>
+              <tr><td>Rewards feedback</td><td>XP, badges, and levels reflect verified milestones and manual corrections when needed.</td><td>Rewards motivate and make momentum visible, but they should never replace assessment or mastery logic.</td></tr>
+              <tr><td>Admin loop</td><td>Dashboard, Progress, Rewards, learner pages, and workboards surface the results back to operators.</td><td>The LMS becomes a feedback loop instead of a pile of disconnected admin pages.</td></tr>
+            </tbody>
+          </table>
+
+          <div class="grid two" style="margin-top: 18px;">
+            <div class="callout">
+              <strong>The simplest mental model</strong>
+              <ol>
+                <li>Content Library decides the structure.</li>
+                <li>English Studio improves English lesson quality.</li>
+                <li>Assignments deliver approved content.</li>
+                <li>Learner runtime produces progress evidence.</li>
+                <li>Rewards turn milestones into visible feedback.</li>
+                <li>Dashboard, Progress, and Rewards show admins what to fix next.</li>
+              </ol>
+            </div>
+            <div class="callout warn">
+              <strong>Important discipline</strong>
+              <ul>
+                <li>Assessment and mastery decide progression safety.</li>
+                <li>Rewards reinforce effort and milestones.</li>
+                <li>Manual XP or badge adjustments are for recovery and correction, not for faking readiness.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <section class="card" id="lesson-creation">
-          <div class="eyebrow">7. Lesson creation</div>
+          <div class="eyebrow">8. Lesson creation</div>
           <h2>How admins create lessons</h2>
           <div class="grid two">
             <div class="callout">
@@ -475,7 +532,7 @@ English Studio
         </section>
 
         <section class="card" id="workflow">
-          <div class="eyebrow">8. Recommended workflow</div>
+          <div class="eyebrow">9. Recommended workflow</div>
           <h2>How to run this LMS without shipping nonsense</h2>
           <div class="grid two">
             <div>
@@ -506,7 +563,7 @@ English Studio
         </section>
 
         <section class="card" id="updates">
-          <div class="eyebrow">9. Update guide</div>
+          <div class="eyebrow">10. Update guide</div>
           <h2>How to keep this document current as the LMS evolves</h2>
           <div class="grid two">
             <div class="callout">

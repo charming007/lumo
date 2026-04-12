@@ -50,6 +50,7 @@ const sectionLinks = [
   ['dashboard', 'Dashboard'],
   ['content-library', 'Content Library'],
   ['english-studio', 'English Studio'],
+  ['system-flow', 'How content, delivery, progress, and rewards connect'],
   ['lesson-studio', 'Lesson Studio'],
   ['workflow', 'Recommended workflow'],
   ['guardrails', 'UI guardrails'],
@@ -62,7 +63,8 @@ const workflow = [
   'Use English Studio for English blueprinting and readiness checks.',
   'Use Lesson Studio for the full authoring pack and final structure edits.',
   'Push lessons through review, approved, and published only when the checks are real.',
-  'Use the Dashboard and rewards/progression views to monitor delivery after release.',
+  'Create assignments only after the module, lessons, and gate are genuinely release-safe.',
+  'Use the Dashboard, Progress, and Rewards surfaces to monitor learner runtime after release.',
 ] as const;
 
 export default function GuidePage() {
@@ -150,6 +152,52 @@ Lesson Studio
 Reports / Analytics
    ↓ measure outcomes and operational gaps`}
           </pre>
+        </Card>
+      </section>
+
+      <section id="system-flow" style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
+        <Card title="How Content Library, English Studio, assignments, learner progress, and rewards fit together" eyebrow="End-to-end system flow">
+          <pre style={{ margin: 0, padding: 18, borderRadius: 18, background: '#0f172a', color: '#e2e8f0', overflow: 'auto', lineHeight: 1.7 }}>
+{`Content Library
+   ↓ defines the official curriculum spine
+   Subject → Strand → Module → Lesson → Assessment gate
+English Studio
+   ↓ turns English modules into structured, release-checked lesson blueprints
+Assignments
+   ↓ deliver approved lessons to real cohorts, pods, and mallams
+Learner runtime
+   ↓ produces completion, mastery, progression, and intervention signals
+Rewards & Progression
+   ↓ convert verified milestones into XP, badges, levels, and admin follow-up
+Dashboard / learner views / workboards
+   ↓ show the feedback loop back to LMS operators`}
+          </pre>
+          <div style={{ ...responsiveGrid(240), marginTop: 16 }}>
+            <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>1. Structure first</div>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>Content Library makes the subject, strand, module, lesson, and assessment relationships real. If that spine is broken, the rest of the flow is built on nonsense.</div>
+            </div>
+            <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>2. English authoring tightens quality</div>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>English Studio reads that curriculum context, adds objectives, vocabulary, activity sequencing, and readiness checks, then writes the lesson back into the live content lane.</div>
+            </div>
+            <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>3. Delivery wraps curriculum in assignments</div>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>Assignments are not separate magic. They are the delivery wrapper around approved lessons and modules, mapped to cohorts, pods, mallams, and due windows.</div>
+            </div>
+            <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>4. Learner runtime generates evidence</div>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>Once work is live, the LMS starts surfacing completion, mastery, progression status, next-module recommendations, and who needs intervention right now.</div>
+            </div>
+            <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>5. Rewards are feedback, not fake promotion</div>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>XP, badges, and levels reinforce verified milestones and show up back in rewards boards, learner records, and workboards. They should support motivation, not replace mastery or assessment gates.</div>
+            </div>
+            <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>6. Admin views close the loop</div>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>Dashboard, Progress, Rewards, learner pages, and workboards all feed the same operating loop: design content, deliver it, observe results, then intervene with evidence instead of guesses.</div>
+            </div>
+          </div>
         </Card>
       </section>
 

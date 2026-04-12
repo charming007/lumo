@@ -348,6 +348,29 @@ So this board helps ops teams answer:
 - Which assessments are active versus stale?
 - Which gate needs correction before deployment?
 
+## 8A) Rewards & progression admin controls
+
+The rewards board is now more than a read-only leaderboard.
+
+### Admin write actions available
+
+Operators can now:
+
+- award manual XP adjustments to a learner,
+- attach a badge during a manual reward correction,
+- label the reason for the manual reward so the adjustment is legible later.
+
+### What this control is for
+
+Use it for:
+
+- backfilling a missed reward after an offline sync gap,
+- granting a verified badge that should have fired but did not,
+- making small corrective XP adjustments with an explicit reason.
+
+Do **not** use it as a lazy substitute for readiness or curriculum decisions.
+If the issue is progression, use the progression override controls instead of bribing the learner with points.
+
 ---
 
 ## 9) Curriculum release tracker and lesson inventory
@@ -444,6 +467,152 @@ That split is good design.
 
 ---
 
+## 11A) End-to-end flow: how Content Library, English Studio, assignments, learner runtime, and Rewards fit together
+
+This is the operational chain admins actually need to understand.
+
+```text
+Content Library
+  ↓ defines the official curriculum spine
+  Subject → Strand → Module → Lesson → Assessment gate
+English Studio
+  ↓ strengthens English lessons with objectives, vocabulary, activity sequence, readiness checks, and assessment awareness
+Assignments
+  ↓ map approved lessons/modules to real cohorts, pods, and mallams
+Learner runtime
+  ↓ learners complete lessons, generate progress, and hit progression checks
+Rewards
+  ↓ XP, badges, and levels reflect verified participation and milestones
+LMS admin surfaces
+  ↓ dashboard, progress, rewards, learner pages, and workboards show the feedback loop
+```
+
+### 1. Content authoring starts in the curriculum spine
+
+Everything begins in **Content Library**. This is where admins decide the official structure:
+
+- which **subject** the content belongs to,
+- which **strand** organizes the theme,
+- which **module** packages the sequence,
+- which **lessons** belong in that module,
+- which **assessment gate** controls progression out of it.
+
+This matters because assignments, learner progress, and rewards only make sense when the curriculum structure is real.
+If a lesson is floating around without a properly wired module and assessment gate, the rest of the system is basically being asked to trust a lie.
+
+### 2. English Studio turns English modules into teachable lesson blueprints
+
+For English content, **English Studio** sits on top of that structure.
+It does not replace Content Library; it uses the module and assessment context already defined there.
+
+English Studio helps authors tighten the lesson before it ships by adding or validating:
+
+- the learning objective,
+- vocabulary focus,
+- activity spine and pacing,
+- readiness checks,
+- linked assessment awareness,
+- release risk and publish intent.
+
+So the relationship is simple:
+
+- **Content Library** decides where the lesson lives in the curriculum.
+- **English Studio** improves how the English lesson is authored and whether it is actually ready.
+
+When the lesson is created from English Studio, it writes back into the live LMS content lane so it shows up in the same module inventory as every other real lesson.
+
+### 3. Modules, lessons, and assessments become assignment-ready delivery units
+
+Once a module has enough approved or published lessons and a real assessment gate, ops can treat it as delivery-ready.
+That is when the system moves from authoring to **assignment delivery**.
+
+In practice, admins use the content and assignment surfaces to decide:
+
+- which lesson or module is ready to go live,
+- which cohort should receive it,
+- which pod and mallam are responsible,
+- what due date or delivery window applies,
+- which assessment should be visible as the progression checkpoint.
+
+The important connection is this: **assignments are not separate from curriculum.**
+They are the delivery wrapper around curriculum objects that were created and approved upstream.
+
+### 4. Learner runtime produces the signals that drive progress and intervention
+
+When learners actually work through assigned lessons, the LMS starts collecting the signals admins care about:
+
+- lesson completion,
+- attendance and participation,
+- mastery snapshots,
+- lessons completed inside a module,
+- progression status,
+- recommended next module,
+- assessment readiness or gate completion.
+
+Those signals show up back in the LMS through:
+
+- the **Dashboard** workboard and escalation views,
+- the **Progress** page and progression override controls,
+- learner detail pages,
+- mallam views and delivery follow-up.
+
+This is the point of the whole system: curriculum structure becomes real learner activity, and learner activity becomes operational evidence.
+
+### 5. Rewards are downstream feedback, not a substitute for mastery
+
+The **Rewards & Progression** surfaces sit downstream from learner runtime.
+XP, badges, and levels should reflect meaningful activity and verified progress, not random admin vibes.
+
+In the current LMS flow, rewards can respond to things like:
+
+- lesson completion,
+- consistency or streaks,
+- milestone behaviors,
+- verified admin corrections when something was missed.
+
+That means rewards provide a second feedback loop:
+
+- learners see momentum through **XP, badges, and levels**,
+- admins and facilitators see that reward state in **leaderboards, workboards, and learner records**.
+
+But the system should stay disciplined:
+
+- **assessment and mastery** decide progression safety,
+- **rewards** reinforce effort and milestones,
+- **manual reward adjustments** are for recovery or correction, not for faking readiness.
+
+### 6. How the feedback returns to LMS/admin views
+
+Once learners complete work and reward signals update, that information loops back into admin decision-making.
+
+Admins can then see, in one ecosystem:
+
+- which modules are structurally ready in **Content Library**,
+- which English lessons are high quality and release-safe in **English Studio**,
+- which assignments are live in delivery views,
+- which learners are progressing or stalling in **Progress** and learner pages,
+- which reward patterns are emerging in **Rewards & Progression**,
+- which problems need intervention on the **Dashboard**.
+
+That is the real end-to-end picture: the LMS is not a set of disconnected pages.
+It is a loop where **curriculum design → lesson authoring → assignment delivery → learner activity → progress/reward signals → admin intervention** all feed one another.
+
+### 7. The simplest mental model for new admins
+
+If someone is onboarding fast, give them this version:
+
+1. **Content Library** decides the curriculum structure.
+2. **English Studio** improves English lesson quality inside that structure.
+3. **Assignments** send approved content to real learners and pods.
+4. **Learner runtime** creates progress evidence.
+5. **Rewards** turn meaningful milestones into visible motivation signals.
+6. **Dashboard / Progress / Rewards / learner pages** show admins what to fix next.
+
+If one part is weak, the next part gets noisy.
+Bad structure creates bad assignments.
+Bad assignments create muddy learner data.
+Muddy learner data makes both progression and rewards less trustworthy.
+
 ## 12) What English Studio shows
 
 ### A. Summary cards
@@ -497,7 +666,19 @@ These tables help editors separate:
 - what is nearly ready,
 - what can actually ship.
 
-### F. Modules missing assessment control
+### F. Progression override board
+
+The Progress page now includes a per-learner **Progression override** form that lets admins:
+
+- change progression status,
+- change the recommended next module,
+- record the override reason,
+- preserve the latest override actor and timestamp in the progress record.
+
+This matters because readiness decisions need an audit trail.
+Without a written reason, the next operator is left guessing whether a learner was promoted for mastery, support need, or someone just winging it.
+
+### G. Modules missing assessment control
 
 This section calls out English modules with no linked assessment gate.
 
