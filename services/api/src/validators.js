@@ -186,6 +186,16 @@ function validateProgress(body, { partial = false } = {}) {
   assertExists('moduleId', body.moduleId, repository.findModuleById);
   assertExists('recommendedNextModuleId', body.recommendedNextModuleId, repository.findModuleById);
   assertAllowed('progressionStatus', body.progressionStatus, ['on-track', 'watch', 'ready']);
+
+  if (body.override !== undefined && body.override !== null) {
+    if (typeof body.override !== 'object' || Array.isArray(body.override)) {
+      const error = new Error('Invalid override payload');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    assertAllowed('override.status', body.override.status, ['on-track', 'watch', 'ready']);
+  }
 }
 
 function validateStudent(body, { partial = false } = {}) {

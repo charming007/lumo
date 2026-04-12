@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
-import type { CurriculumModule, Lesson, Subject } from '../lib/types';
+import type { CurriculumModule, Lesson, LessonActivityStep, Subject } from '../lib/types';
 
 const cardStyle = {
   background: 'white',
@@ -219,7 +219,7 @@ function parseActivityMedia(mediaLines: string) {
 function buildDraftsFromLesson(lesson?: Lesson | null) {
   if (!lesson) return [makeActivityDraft(0)];
 
-  const source = asArray<any>(lesson.activitySteps ?? lesson.activities);
+  const source = asArray<LessonActivityStep>(lesson.activitySteps ?? lesson.activities);
   if (!source.length) return [makeActivityDraft(0)];
 
   return source.map((step, index) => makeActivityDraft(index, {

@@ -360,6 +360,14 @@ Operators can now:
 - attach a badge during a manual reward correction,
 - label the reason for the manual reward so the adjustment is legible later.
 
+The Rewards board also now supports the same scoping controls admins expect on the rest of the LMS surfaces:
+
+- free-text search,
+- cohort scope,
+- pod scope,
+- mallam scope,
+- progression-status scope.
+
 ### What this control is for
 
 Use it for:
@@ -674,6 +682,15 @@ The Progress page now includes a per-learner **Progression override** form that 
 - change the recommended next module,
 - record the override reason,
 - preserve the latest override actor and timestamp in the progress record.
+
+The board also now supports the same practical admin filters ops needs elsewhere:
+
+- free-text search,
+- cohort scope,
+- pod scope,
+- mallam scope,
+- subject scope,
+- progression-status scope.
 
 This matters because readiness decisions need an audit trail.
 Without a written reason, the next operator is left guessing whether a learner was promoted for mastery, support need, or someone just winging it.

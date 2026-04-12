@@ -247,16 +247,29 @@ export type AttendanceRecord = {
   status: string;
 };
 
+export type ProgressOverride = {
+  status?: string | null;
+  reason?: string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  updatedAt?: string | null;
+};
+
 export type ProgressRecord = {
   id: string;
+  studentId?: string;
   studentName: string;
+  subjectId?: string;
   subjectName: string;
   mastery: number;
   lessonsCompleted: number;
   progressionStatus: string;
+  moduleId?: string | null;
   moduleTitle?: string | null;
+  recommendedNextModuleId?: string | null;
   recommendedNextModuleTitle?: string | null;
   lastActiveAt?: string | null;
+  override?: ProgressOverride | null;
 };
 
 export type ObservationRecord = {

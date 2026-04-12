@@ -2,6 +2,24 @@ const repository = require('./repository');
 const presenters = require('./presenters');
 const rewards = require('./rewards');
 
+function parseDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function inRange(value, { since = null, until = null } = {}) {
+  const current = parseDate(value);
+  if (!current) return true;
+  if (since && current < since) return false;
+  if (until && current > until) return false;
+  return true;
+}
+
+function buildScopedStudentSet({ cohortId = null, podId = null, mallamId = null } = {}) {
+  return repository.listStudents().filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId));
+}
+
 function buildOverviewReport() {
   const attendance = repository.listAttendance();
   const progress = repository.listProgress();
@@ -243,14 +261,18 @@ function buildMallamProfile(mallamId) {
   };
 }
 
-function buildRuntimeAnalytics({ learnerId = null, lessonId = null, limit = 50 } = {}) {
+function buildRuntimeAnalytics({ learnerId = null, lessonId = null, cohortId = null, podId = null, mallamId = null, since = null, until = null, limit = 50 } = {}) {
+  const scopedStudents = buildScopedStudentSet({ cohortId, podId, mallamId });
+  const scopedStudentIds = new Set(scopedStudents.map((student) => student.id));
+  const sinceDate = parseDate(since);
+  const untilDate = parseDate(until);
   const sessions = repository
     .listLessonSessions()
-    .filter((entry) => (!learnerId || entry.studentId === learnerId) && (!lessonId || entry.lessonId === lessonId))
+    .filter((entry) => (!learnerId || entry.studentId === learnerId) && (!lessonId || entry.lessonId === lessonId) && (!scopedStudentIds.size || scopedStudentIds.has(entry.studentId)) && inRange(entry.lastActivityAt, { since: sinceDate, until: untilDate }))
     .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
   const sessionEvents = repository
     .listSessionEventLog()
-    .filter((entry) => (!learnerId || entry.studentId === learnerId) && (!lessonId || entry.lessonId === lessonId))
+    .filter((entry) => (!learnerId || entry.studentId === learnerId) && (!lessonId || entry.lessonId === lessonId) && (!scopedStudentIds.size || scopedStudentIds.has(entry.studentId)) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const completed = sessions.filter((entry) => entry.status === 'completed').length;
   const inProgress = sessions.filter((entry) => entry.status === 'in_progress').length;
@@ -277,44 +299,50 @@ function buildRuntimeAnalytics({ learnerId = null, lessonId = null, limit = 50 }
       totalResponses,
       totalSupportActions: totalSupport,
       generatedAt: new Date().toISOString(),
+      cohortId,
+      podId,
+      mallamId,
+      since,
+      until,
     },
     recentSessions: sessions.slice(0, limit).map(presenters.presentLessonSession),
     recentEvents: sessionEvents.slice(0, limit),
   };
 }
 
-function buildProgressionRollup({ cohortId = null, podId = null } = {}) {
-  const students = repository.listStudents().filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId));
+function buildProgressionRollup({ cohortId = null, podId = null, mallamId = null, subjectId = null, since = null, until = null } = {}) {
+  const students = buildScopedStudentSet({ cohortId, podId, mallamId });
   const studentIds = new Set(students.map((student) => student.id));
-  const progressEntries = repository.listProgress().filter((entry) => studentIds.has(entry.studentId));
-  const rewardsLeaderboard = students
-    .map((student) => ({ student: presenters.presentStudent(student), rewards: rewards.buildLearnerRewards(student.id) }))
-    .sort((a, b) => (b.rewards?.totalXp || 0) - (a.rewards?.totalXp || 0))
-    .slice(0, 10)
-    .map(({ student, rewards: rewardSnapshot }) => ({
-      learnerId: student.id,
-      learnerName: student.name,
-      cohortName: student.cohortName,
-      podLabel: student.podLabel,
-      totalXp: rewardSnapshot?.totalXp || 0,
-      level: rewardSnapshot?.level || 1,
-      badgesUnlocked: rewardSnapshot?.badgesUnlocked || 0,
-    }));
+  const sinceDate = parseDate(since);
+  const untilDate = parseDate(until);
+  const progressEntries = repository
+    .listProgress()
+    .filter((entry) => studentIds.has(entry.studentId) && (!subjectId || entry.subjectId === subjectId) && inRange(entry.lastActiveAt, { since: sinceDate, until: untilDate }));
+  const runtimeSummary = buildRuntimeAnalytics({ cohortId, podId, mallamId, since, until, limit: 10 }).summary;
+  const rewardsLeaderboard = rewards
+    .buildScopedLeaderboard({ cohortId, podId, limit: 10 })
+    .filter((entry) => !studentIds.size || studentIds.has(entry.learnerId));
+  const overrides = repository
+    .listProgressionOverrides()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }));
 
   return {
-    scope: { cohortId, podId, learnerCount: students.length },
+    scope: { cohortId, podId, mallamId, subjectId, since, until, learnerCount: students.length },
     progression: {
       ready: progressEntries.filter((entry) => entry.progressionStatus === 'ready').length,
       watch: progressEntries.filter((entry) => entry.progressionStatus === 'watch').length,
       onTrack: progressEntries.filter((entry) => entry.progressionStatus === 'on-track').length,
       averageMastery: progressEntries.length ? progressEntries.reduce((sum, entry) => sum + Number(entry.mastery || 0), 0) / progressEntries.length : 0,
       totalLessonsCompleted: progressEntries.reduce((sum, entry) => sum + Number(entry.lessonsCompleted || 0), 0),
+      overridesApplied: overrides.filter((entry) => entry.action === 'override').length,
+      overridesRevoked: overrides.filter((entry) => entry.action === 'revoked').length,
     },
-    runtime: buildRuntimeAnalytics({ learnerId: null, lessonId: null, limit: 10 }).summary,
+    runtime: runtimeSummary,
     rewards: {
       leaderboard: rewardsLeaderboard,
-      totalXpAwarded: repository.listRewardTransactions().filter((entry) => studentIds.has(entry.studentId)).reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
+      totalXpAwarded: repository.listRewardTransactions().filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate })).reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
     },
+    overrides: overrides.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 20),
   };
 }
 

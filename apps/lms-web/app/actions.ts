@@ -438,15 +438,46 @@ export async function createProgressAction(formData: FormData) {
 
 export async function updateProgressAction(formData: FormData) {
   const progressId = String(formData.get('progressId') || '');
+  const progressionStatus = String(formData.get('progressionStatus') || 'on-track');
+  const overrideReason = String(formData.get('overrideReason') || '').trim();
   const payload = {
     mastery: Number(formData.get('mastery') || 0),
     lessonsCompleted: Number(formData.get('lessonsCompleted') || 0),
-    progressionStatus: String(formData.get('progressionStatus') || 'on-track'),
+    progressionStatus,
     recommendedNextModuleId: String(formData.get('recommendedNextModuleId') || ''),
+    override: overrideReason
+      ? {
+          status: progressionStatus,
+          reason: overrideReason,
+          actorName: 'Pilot Admin',
+          actorRole: 'admin',
+        }
+      : null,
   };
 
-  await apiWrite(`/api/v1/progress/${progressId}`, 'PATCH', payload, 'teacher');
+  await apiWrite(`/api/v1/progress/${progressId}`, 'PATCH', payload, 'admin');
   revalidatePath('/progress');
   revalidatePath('/students');
-  redirect('/progress?message=Progress%20record%20updated');
+  redirect(`/progress?message=${overrideReason ? 'Progression%20override%20saved' : 'Progress%20record%20updated'}`);
+}
+
+export async function awardStudentRewardAction(formData: FormData) {
+  const studentId = String(formData.get('studentId') || '');
+  const xpDelta = Number(formData.get('xpDelta') || 0);
+  const badgeId = String(formData.get('badgeId') || '').trim();
+  const label = String(formData.get('label') || '').trim();
+  const payload = {
+    xpDelta,
+    badgeId: badgeId || null,
+    label: label || null,
+    metadata: {
+      source: 'lms-web-admin',
+      awardedBy: 'Pilot Admin',
+    },
+  };
+
+  await apiWrite(`/api/v1/students/${studentId}/rewards`, 'POST', payload, 'admin');
+  revalidatePath('/rewards');
+  revalidatePath('/students');
+  redirect('/rewards?message=Reward%20adjustment%20saved');
 }

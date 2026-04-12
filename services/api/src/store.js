@@ -244,6 +244,31 @@ function createSyncEvent(input) {
   return repository.createSyncEvent(input);
 }
 
+
+function listRewardTransactions() {
+  return repository.listRewardTransactions();
+}
+
+function listProgressionOverrides() {
+  return repository.listProgressionOverrides();
+}
+
+function createProgressionOverride(input) {
+  return repository.createProgressionOverride(input);
+}
+
+function updateProgressionOverride(id, input) {
+  return repository.updateProgressionOverride(id, input);
+}
+
+function listSessionRepairs() {
+  return repository.listSessionRepairs();
+}
+
+function createSessionRepair(input) {
+  return repository.createSessionRepair(input);
+}
+
 function getStoreMeta() {
   const data = require('./data');
 
@@ -252,7 +277,11 @@ function getStoreMeta() {
     persistenceReady: true,
     syncEventCount: listSyncEvents().length,
     dataFile: data.__meta?.file ?? null,
+    storageKind: data.__meta?.storageKind ?? 'file',
+    storageNote: data.__meta?.storageNote ?? null,
     runtimeSessionCount: listLessonSessions().length,
+    progressionOverrideCount: listProgressionOverrides().length,
+    sessionRepairCount: listSessionRepairs().length,
   };
 }
 
