@@ -608,6 +608,7 @@ class LearnerProfilePage extends StatelessWidget {
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
     final recommendedModule = state.recommendedModuleForLearner(learner);
     final recentSessions = state.recentRuntimeSessionsForLearner(learner);
+    final resumableSession = state.resumableRuntimeSessionForLearner(learner);
 
     return Scaffold(
       body: SafeArea(
@@ -990,6 +991,65 @@ class LearnerProfilePage extends StatelessWidget {
                                               ),
                                             ],
                                           ),
+                                          if (session.status ==
+                                              'in_progress') ...[
+                                            const SizedBox(height: 12),
+                                            Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: FilledButton.tonalIcon(
+                                                onPressed: () {
+                                                  final resumeLesson = state
+                                                      .lessonForBackendSession(
+                                                    session,
+                                                  );
+                                                  if (resumeLesson == null) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Backend session found, but its lesson is not loaded on this tablet yet.',
+                                                        ),
+                                                      ),
+                                                    );
+                                                    return;
+                                                  }
+
+                                                  state.selectLearner(learner);
+                                                  state.selectModule(
+                                                    state.modules.firstWhere(
+                                                      (module) =>
+                                                          module.id ==
+                                                          resumeLesson.moduleId,
+                                                      orElse: () =>
+                                                          state.modules.first,
+                                                    ),
+                                                  );
+                                                  state.startLesson(
+                                                    resumeLesson,
+                                                    resumeFrom: session,
+                                                  );
+                                                  Navigator.of(context).push(
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          LessonSessionPage(
+                                                        state: state,
+                                                        lesson: resumeLesson,
+                                                        onChanged: () {},
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                icon: const Icon(
+                                                  Icons
+                                                      .play_circle_fill_rounded,
+                                                ),
+                                                label: const Text(
+                                                  'Resume from backend session',
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -1068,7 +1128,10 @@ class LearnerProfilePage extends StatelessWidget {
                                               orElse: () => state.modules.first,
                                             ),
                                           );
-                                          state.startLesson(nextLesson);
+                                          state.startLesson(
+                                            nextLesson,
+                                            resumeFrom: resumableSession,
+                                          );
                                           Navigator.of(context).push(
                                             MaterialPageRoute(
                                               builder: (_) => LessonSessionPage(
@@ -1079,10 +1142,16 @@ class LearnerProfilePage extends StatelessWidget {
                                             ),
                                           );
                                         },
-                                        icon: const Icon(
-                                            Icons.play_arrow_rounded),
-                                        label:
-                                            const Text('Start assigned lesson'),
+                                        icon: Icon(
+                                          resumableSession == null
+                                              ? Icons.play_arrow_rounded
+                                              : Icons.play_circle_fill_rounded,
+                                        ),
+                                        label: Text(
+                                          resumableSession == null
+                                              ? 'Start assigned lesson'
+                                              : 'Resume assigned lesson',
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -2327,6 +2396,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   bool transcriptCapturedThisTake = false;
   bool transcriptReviewPending = false;
   bool _promptedCurrentStep = false;
+  String _latestFinalTranscript = '';
 
   @override
   void initState() {
@@ -2773,6 +2843,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       await speechTranscriptionService.cancel();
       transcriptCapturedThisTake = false;
       liveTranscript = '';
+      _latestFinalTranscript = '';
       transcriptReviewPending = false;
 
       final audioStarted = await audioCaptureService.startSafely(
@@ -2786,9 +2857,15 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       final speechReady = await speechTranscriptionService.start(
         onResult: (transcript, isFinal) {
           if (!mounted) return;
+          final cleaned = transcript.trim();
+          if (cleaned.isEmpty) return;
           setState(() {
-            liveTranscript = transcript;
-            transcriptCapturedThisTake = transcript.trim().isNotEmpty;
+            liveTranscript = cleaned;
+            if (isFinal) {
+              _latestFinalTranscript = cleaned;
+            }
+            transcriptCapturedThisTake =
+                cleaned.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').length >= 2;
           });
         },
       );
@@ -2820,6 +2897,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         isRecording = false;
         speechRecognitionActive = false;
         liveTranscript = '';
+        _latestFinalTranscript = '';
         microphoneStatus = error.toString();
       });
     }
@@ -2828,7 +2906,10 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   Future<void> stopRecording({bool markReadyForResume = true}) async {
     recordingTicker?.cancel();
     await speechTranscriptionService.stop();
-    final transcript = liveTranscript.trim();
+    final transcript = (_latestFinalTranscript.isNotEmpty
+            ? _latestFinalTranscript
+            : liveTranscript)
+        .trim();
     final result = await audioCaptureService.stop();
     if (!mounted) return;
 

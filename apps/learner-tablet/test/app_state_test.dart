@@ -118,6 +118,42 @@ void main() {
       expect(state.recommendedModuleForLearner(learner).id, 'math');
     });
 
+    test('prefers resumable backend runtime lesson before fresh routing', () {
+      final state = LumoAppState();
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'math',
+      );
+
+      state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+        BackendLessonSession(
+          id: 'runtime-1',
+          sessionId: 'session-1',
+          studentId: beginner.id,
+          learnerCode: beginner.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          status: 'in_progress',
+          completionState: 'inProgress',
+          automationStatus: 'Mallam is waiting for the next response.',
+          currentStepIndex: 2,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: 1,
+          supportActionsUsed: 0,
+          audioCaptures: 1,
+          facilitatorObservations: 0,
+        ),
+      ];
+
+      expect(state.resumableRuntimeSessionForLearner(beginner), isNotNull);
+      expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
+      expect(state.nextAssignedLessonForLearner(beginner)?.id, lesson.id);
+      expect(
+        state.runtimeSessionSummaryForLearner(beginner),
+        contains('Resume ready'),
+      );
+    });
+
     test('maps registration cohort to backend mallam target', () {
       final state = LumoAppState();
       state.registrationContext = RegistrationContext(
@@ -303,6 +339,42 @@ void main() {
       expect(state.pendingSyncEvents, isEmpty);
       expect(state.lastSyncAcceptedCount, 1);
       state.dispose();
+    });
+
+    test('resumes lesson state from backend runtime session metadata', () {
+      final state = LumoAppState();
+      state.currentLearner = beginner;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+      final runtimeSession = BackendLessonSession(
+        id: 'runtime-1',
+        sessionId: 'session-42',
+        studentId: beginner.id,
+        learnerCode: beginner.learnerCode,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        moduleId: lesson.moduleId,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Mallam is waiting for the next response.',
+        currentStepIndex: 2,
+        stepsTotal: lesson.steps.length,
+        responsesCaptured: 3,
+        supportActionsUsed: 1,
+        audioCaptures: 2,
+        facilitatorObservations: 1,
+      );
+
+      state.startLesson(lesson, resumeFrom: runtimeSession);
+
+      expect(state.activeSession, isNotNull);
+      expect(state.activeSession!.sessionId, 'session-42');
+      expect(state.activeSession!.stepIndex, 1);
+      expect(state.activeSession!.totalResponses, 3);
+      expect(state.activeSession!.supportActionsUsed, 1);
+      expect(state.activeSession!.totalAudioCaptures, 2);
+      expect(state.activeSession!.automationStatus, contains('Resume from'));
     });
   });
 }

@@ -353,6 +353,9 @@ class LumoAppState {
   }
 
   LessonCardModel? nextAssignedLessonForLearner(LearnerProfile? learner) {
+    final resumableLesson = resumableLessonForLearner(learner);
+    if (resumableLesson != null) return resumableLesson;
+
     final rankedLessons = lessonsForLearner(learner);
     if (rankedLessons.isEmpty) return null;
     return rankedLessons.first;
@@ -489,19 +492,53 @@ class LumoAppState {
     return learner;
   }
 
-  void startLesson(LessonCardModel lesson) {
-    final openingStep = lesson.steps.first;
+  void startLesson(
+    LessonCardModel lesson, {
+    BackendLessonSession? resumeFrom,
+  }) {
     final now = DateTime.now();
-    final sessionId = 'session-${now.millisecondsSinceEpoch}';
+    final isResuming = resumeFrom != null;
+    final resumedStepIndex = isResuming
+        ? max(
+            0,
+            min(
+              lesson.steps.length - 1,
+              (resumeFrom.currentStepIndex <= 0
+                      ? 1
+                      : resumeFrom.currentStepIndex) -
+                  1,
+            ),
+          )
+        : 0;
+    final openingStep = lesson.steps[resumedStepIndex];
+    final sessionId =
+        resumeFrom?.sessionId ?? 'session-${now.millisecondsSinceEpoch}';
+    final startedAt = resumeFrom?.startedAt ?? now;
+    final learnerName = currentLearner?.name ?? 'the learner';
+    final resumePrompt = isResuming
+        ? 'Mallam is resuming ${lesson.title} with $learnerName from ${resumeFrom!.progressLabel.toLowerCase()}.'
+        : 'Mallam is opening the lesson and preparing the first voice prompt.';
+
     activeSession = LessonSessionState(
       sessionId: sessionId,
       lesson: lesson,
+      stepIndex: resumedStepIndex,
       completionState: LessonCompletionState.inProgress,
       speakerMode: openingStep.speakerMode,
-      startedAt: now,
+      startedAt: startedAt,
       lastUpdatedAt: now,
-      automationStatus:
-          'Mallam is opening the lesson and preparing the first voice prompt.',
+      totalResponses: resumeFrom?.responsesCaptured ?? 0,
+      supportActionsUsed: resumeFrom?.supportActionsUsed ?? 0,
+      totalAudioCaptures: resumeFrom?.audioCaptures ?? 0,
+      facilitatorObservations: List<String>.filled(
+        resumeFrom?.facilitatorObservations ?? 0,
+        'Backend observation logged',
+      ),
+      automationStatus: isResuming
+          ? (resumeFrom.automationStatus.trim().isEmpty
+              ? resumePrompt
+              : '${resumeFrom.automationStatus} Resume from ${resumeFrom.progressLabel.toLowerCase()}.')
+          : resumePrompt,
       transcript: [
         SessionTurn(
           speaker: 'Mallam',
@@ -519,6 +556,9 @@ class LumoAppState {
         'moduleId': lesson.moduleId,
         'stepId': openingStep.id,
         'stepTitle': openingStep.title,
+        'resumedFromSessionId': resumeFrom?.sessionId,
+        'resumedFromStepIndex': resumeFrom?.currentStepIndex,
+        'resumeMode': isResuming ? 'backend-runtime-session' : 'fresh-start',
       },
     );
     _attemptSyncSoon();
@@ -1045,6 +1085,40 @@ class LumoAppState {
     return recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
   }
 
+  BackendLessonSession? resumableRuntimeSessionForLearner(
+    LearnerProfile? learner,
+  ) {
+    final sessions = recentRuntimeSessionsForLearner(learner);
+    for (final session in sessions) {
+      if (session.status == 'in_progress') return session;
+    }
+    return null;
+  }
+
+  LessonCardModel? lessonForBackendSession(BackendLessonSession? session) {
+    if (session == null) return null;
+
+    final directLesson = assignedLessons.cast<LessonCardModel?>().firstWhere(
+          (lesson) => lesson?.id == session.lessonId,
+          orElse: () => null,
+        );
+    if (directLesson != null) return directLesson;
+
+    final moduleMatch = assignedLessons.cast<LessonCardModel?>().firstWhere(
+          (lesson) =>
+              lesson != null &&
+              (lesson.moduleId == session.moduleId ||
+                  lesson.title.toLowerCase() ==
+                      (session.lessonTitle ?? '').toLowerCase()),
+          orElse: () => null,
+        );
+    return moduleMatch;
+  }
+
+  LessonCardModel? resumableLessonForLearner(LearnerProfile? learner) {
+    return lessonForBackendSession(resumableRuntimeSessionForLearner(learner));
+  }
+
   String runtimeSessionSummaryForLearner(LearnerProfile? learner) {
     final sessions = recentRuntimeSessionsForLearner(learner);
     if (sessions.isEmpty) {
@@ -1054,13 +1128,15 @@ class LumoAppState {
       return 'No backend runtime sessions have been loaded yet.';
     }
 
-    final latest = sessions.first;
+    final resumable = resumableRuntimeSessionForLearner(learner);
+    final latest = resumable ?? sessions.first;
     final activityTime =
         latest.lastActivityAt ?? latest.completedAt ?? latest.startedAt;
     final activityLabel =
         activityTime == null ? 'time pending' : _formatTime(activityTime);
     final lessonLabel = latest.lessonTitle ?? 'Live lesson session';
-    return '${latest.statusLabel} • $lessonLabel • ${latest.progressLabel} • updated $activityLabel';
+    final resumeLabel = resumable == null ? '' : 'Resume ready • ';
+    return '$resumeLabel${latest.statusLabel} • $lessonLabel • ${latest.progressLabel} • updated $activityLabel';
   }
 
   Future<void> refreshLearnerRuntimeSessions(
