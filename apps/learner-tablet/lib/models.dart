@@ -17,6 +17,8 @@ enum LessonCompletionState { ready, inProgress, complete }
 
 enum ResponseReview { pending, onTrack, needsSupport }
 
+enum PracticeMode { standard, repeatAfterMe, independentCheck }
+
 class LessonActivityChoice {
   final String id;
   final String label;
@@ -841,6 +843,7 @@ class LessonSessionState {
   final Duration? latestLearnerAudioDuration;
   final String lastSupportType;
   final String automationStatus;
+  final PracticeMode practiceMode;
   final DateTime lastUpdatedAt;
 
   const LessonSessionState({
@@ -864,6 +867,7 @@ class LessonSessionState {
     this.latestLearnerAudioDuration,
     this.lastSupportType = 'Prompt replay',
     this.automationStatus = 'Mallam is ready to begin.',
+    this.practiceMode = PracticeMode.standard,
     DateTime? lastUpdatedAt,
   }) : lastUpdatedAt = lastUpdatedAt ?? startedAt;
 
@@ -901,6 +905,7 @@ class LessonSessionState {
         'lastSupportType': lastSupportType,
         'audioInputMode': audioInputMode,
         'speakerOutputMode': speakerOutputMode,
+        'practiceMode': practiceMode.name,
         'totalAudioCaptures': totalAudioCaptures,
         'latestLearnerAudioPath': latestLearnerAudioPath,
         'latestLearnerAudioDurationSeconds':
@@ -934,6 +939,7 @@ class LessonSessionState {
     Duration? latestLearnerAudioDuration,
     String? lastSupportType,
     String? automationStatus,
+    PracticeMode? practiceMode,
     DateTime? lastUpdatedAt,
     bool clearLatestLearnerResponse = false,
     bool clearLatestLearnerAudio = false,
@@ -966,6 +972,7 @@ class LessonSessionState {
           : (latestLearnerAudioDuration ?? this.latestLearnerAudioDuration),
       lastSupportType: lastSupportType ?? this.lastSupportType,
       automationStatus: automationStatus ?? this.automationStatus,
+      practiceMode: practiceMode ?? this.practiceMode,
       lastUpdatedAt: lastUpdatedAt ?? DateTime.now(),
     );
   }

@@ -682,14 +682,27 @@ class LumoAppState {
     final step = session.currentStep;
     final nextAttempts = session.attemptsThisStep + 1;
     final review = evaluation.review;
+    final practiceMode = session.practiceMode;
     final supportType = review == ResponseReview.needsSupport
-        ? (nextAttempts >= 2 ? 'Model answer played' : 'Hint given')
-        : 'Learner answered independently';
+        ? (practiceMode == PracticeMode.repeatAfterMe
+            ? 'Repeat with Mallam'
+            : nextAttempts >= 2
+                ? 'Model answer played'
+                : 'Hint given')
+        : practiceMode == PracticeMode.independentCheck
+            ? 'Learner answered independently'
+            : 'Learner answered on track';
     final automationStatus = review == ResponseReview.onTrack
-        ? 'Mallam accepted the answer and is ready to continue.'
-        : nextAttempts >= 2
-            ? 'Mallam is modeling the correct answer and keeping the learner on this step.'
-            : 'Mallam is replaying the prompt with a hint so the learner can try again.';
+        ? (practiceMode == PracticeMode.repeatAfterMe
+            ? 'Mallam heard a clear repeat and is ready to continue.'
+            : practiceMode == PracticeMode.independentCheck
+                ? 'Mallam accepted an independent answer and is ready to continue.'
+                : 'Mallam accepted the answer and is ready to continue.')
+        : practiceMode == PracticeMode.repeatAfterMe
+            ? 'Mallam will replay the target answer and ask the learner to repeat it again.'
+            : nextAttempts >= 2
+                ? 'Mallam is modeling the correct answer and keeping the learner on this step.'
+                : 'Mallam is replaying the prompt with a hint so the learner can try again.';
 
     activeSession = session.copyWith(
       latestLearnerResponse: trimmed,
@@ -749,6 +762,7 @@ class LumoAppState {
     }
 
     final step = session.currentStep;
+    final practiceMode = session.practiceMode;
     final normalizedResponse = _normalizeForComparison(response);
     final expected = personalizeExpectedResponse(step.expectedResponse);
     final normalizedExpected = _normalizeForComparison(expected);
@@ -765,8 +779,9 @@ class LumoAppState {
     final exactOrContains = allTargets.any(
       (target) =>
           target == normalizedResponse ||
-          target.contains(normalizedResponse) ||
-          normalizedResponse.contains(target),
+          (practiceMode != PracticeMode.repeatAfterMe &&
+              (target.contains(normalizedResponse) ||
+                  normalizedResponse.contains(target))),
     );
     if (exactOrContains) {
       return ResponseEvaluation(
@@ -784,11 +799,24 @@ class LumoAppState {
     final wordCount = normalizedResponse.isEmpty
         ? 0
         : normalizedResponse.split(' ').where((word) => word.isNotEmpty).length;
-    final isLenientPass = wordCount >= 3 && similarity >= 0.72;
+
+    final requiredSimilarity = switch (practiceMode) {
+      PracticeMode.repeatAfterMe => 0.88,
+      PracticeMode.independentCheck => 0.65,
+      PracticeMode.standard => 0.72,
+    };
+    final requiredWords = switch (practiceMode) {
+      PracticeMode.repeatAfterMe => 1,
+      PracticeMode.independentCheck => 2,
+      PracticeMode.standard => 3,
+    };
+    final passedBySimilarity =
+        wordCount >= requiredWords && similarity >= requiredSimilarity;
 
     return ResponseEvaluation(
-      review:
-          isLenientPass ? ResponseReview.onTrack : ResponseReview.needsSupport,
+      review: passedBySimilarity
+          ? ResponseReview.onTrack
+          : ResponseReview.needsSupport,
       similarityScore: similarity,
       usedAlias: false,
     );
@@ -979,6 +1007,66 @@ class LumoAppState {
     final session = activeSession;
     if (session == null) return;
     activeSession = session.copyWith(speakerOutputMode: mode);
+  }
+
+  void setPracticeMode(PracticeMode mode) {
+    final session = activeSession;
+    if (session == null) return;
+    activeSession = session.copyWith(
+      practiceMode: mode,
+      automationStatus: switch (mode) {
+        PracticeMode.repeatAfterMe =>
+          'Repeat mode is active. Mallam expects the learner to echo the target answer clearly.',
+        PracticeMode.independentCheck =>
+          'Independent check mode is active. Mallam expects a freer spoken answer with lighter support.',
+        PracticeMode.standard =>
+          'Standard practice mode is active. Mallam will guide and support as needed.',
+      },
+    );
+  }
+
+  Future<void> repeatCurrentStep({bool slow = false}) async {
+    final session = activeSession;
+    if (session == null) return;
+    final prompt = personalizePrompt(session.currentStep.coachPrompt);
+    final spoken = slow ? 'Slow repeat: $prompt' : prompt;
+    activeSession = session.copyWith(
+      speakerMode: SpeakerMode.guiding,
+      lastSupportType: slow ? 'Slow repeat' : 'Prompt replay',
+      automationStatus: slow
+          ? 'Mallam is repeating the step slowly for practice.'
+          : 'Mallam replayed the current step for another try.',
+      transcript: [
+        ...session.transcript,
+        SessionTurn(speaker: 'Mallam', text: spoken, timestamp: DateTime.now()),
+      ],
+    );
+    speakerMode = SpeakerMode.guiding;
+    _queueSessionEvent(
+      type: 'lesson_step_repeated',
+      session: activeSession!,
+      extra: {
+        'stepId': session.currentStep.id,
+        'stepTitle': session.currentStep.title,
+        'slow': slow,
+      },
+    );
+    await replayVisiblePrompt(spoken, mode: SpeakerMode.guiding);
+  }
+
+  String get degradedModeSummary {
+    final flags = <String>[];
+    if (usingFallbackData) flags.add('backend offline');
+    if (pendingSyncEvents.isNotEmpty) {
+      flags.add('${pendingSyncEvents.length} event(s) queued locally');
+    }
+    if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
+      flags.add('sync retry pending');
+    }
+    if (flags.isEmpty) {
+      return 'Live mode: backend and lesson sync are available.';
+    }
+    return 'Degraded mode: ${flags.join(' • ')}. Keep teaching, store audio locally, and sync when the connection returns.';
   }
 
   bool advanceLessonStep() {

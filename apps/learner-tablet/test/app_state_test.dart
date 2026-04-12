@@ -422,5 +422,31 @@ void main() {
       expect(state.activeSession!.totalAudioCaptures, 2);
       expect(state.activeSession!.automationStatus, contains('Resume from'));
     });
+
+    test('repeat-after-me mode uses stricter matching and can be toggled', () {
+      final state = LumoAppState();
+      state.currentLearner = beginner;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      state.startLesson(lesson);
+      state.setPracticeMode(PracticeMode.repeatAfterMe);
+
+      expect(state.activeSession!.practiceMode, PracticeMode.repeatAfterMe);
+      final evaluation = state.evaluateLearnerResponse('ready');
+      expect(evaluation.review, ResponseReview.needsSupport);
+    });
+
+    test('degraded mode summary reflects queued offline work', () {
+      final state = LumoAppState();
+      state.usingFallbackData = true;
+      state.pendingSyncEvents.add(
+        const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+      );
+
+      expect(state.degradedModeSummary, contains('Degraded mode'));
+      expect(state.degradedModeSummary, contains('queued locally'));
+    });
   });
 }

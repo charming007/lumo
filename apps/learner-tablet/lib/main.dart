@@ -2485,6 +2485,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   bool _resumedSession = false;
   String _latestFinalTranscript = '';
   String _recordingModeLabel = 'Standard recorder';
+  int _consecutiveTranscriptMisses = 0;
 
   @override
   void initState() {
@@ -2961,7 +2962,13 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       return;
     }
 
-    final supportType = outcome.attemptNumber >= 2 ? 'model' : 'hint';
+    final practiceMode =
+        widget.state.activeSession?.practiceMode ?? PracticeMode.standard;
+    final supportType = practiceMode == PracticeMode.repeatAfterMe
+        ? 'slow'
+        : outcome.attemptNumber >= 2
+            ? 'model'
+            : 'hint';
     await _runCoachSupport(supportType);
   }
 
@@ -3077,8 +3084,11 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     );
 
     if (transcript.isNotEmpty) {
+      _consecutiveTranscriptMisses = 0;
       responseController.text = transcript;
       transcriptReviewPending = !isAutoMode;
+    } else {
+      _consecutiveTranscriptMisses += 1;
     }
 
     widget.onChanged();
@@ -3263,6 +3273,64 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                         backgroundColor: const Color(0xFFE9E7FF),
                       ),
                       const SizedBox(height: 16),
+                      SoftPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Practice mode',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              widget.state.degradedModeSummary,
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: PracticeMode.values.map((mode) {
+                                final selected = session.practiceMode == mode;
+                                final label = switch (mode) {
+                                  PracticeMode.standard => 'Standard',
+                                  PracticeMode.repeatAfterMe => 'Repeat',
+                                  PracticeMode.independentCheck => 'Independent',
+                                };
+                                return ChoiceChip(
+                                  label: Text(label),
+                                  selected: selected,
+                                  onSelected: (_) {
+                                    widget.state.setPracticeMode(mode);
+                                    widget.onChanged();
+                                    setState(() {
+                                      microphoneStatus = widget.state
+                                              .activeSession?.automationStatus ??
+                                          microphoneStatus;
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              session.practiceMode == PracticeMode.repeatAfterMe
+                                  ? 'Best for explicit practice loops: Mallam expects a close echo and will slow-repeat when ASR or the learner misses it.'
+                                  : session.practiceMode == PracticeMode.independentCheck
+                                      ? 'Best for freer answers: lighter matching, less hand-holding.'
+                                      : 'Balanced guided practice with hints before stronger support.',
+                              style: const TextStyle(
+                                color: Color(0xFF64748B),
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Expanded(
                         child: SingleChildScrollView(
                           child: Column(
@@ -3429,9 +3497,19 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                               _CoachActionsRow(
                                 onReplay: () async {
                                   _promptedCurrentStep = false;
-                                  await _speakCurrentStepIfNeeded(force: true);
+                                  await widget.state.repeatCurrentStep();
+                                  if (!mounted) return;
+                                  setState(() {
+                                    microphoneStatus =
+                                        'Mallam replayed the current step and can reopen the mic.';
+                                  });
+                                  if (isAutoMode) {
+                                    await _startRecordingIfPossible(
+                                      fallbackMessage:
+                                          'Mallam replayed the current step. The mic is reopening for the learner.',
+                                    );
+                                  }
                                   widget.onChanged();
-                                  setState(() {});
                                 },
                                 onHint: () => _runCoachSupport('hint'),
                                 onModel: () => _runCoachSupport('model'),
@@ -3672,8 +3750,10 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                             ),
                                             const SizedBox(height: 8),
                                             Text(
-                                              speechTranscriptionService
-                                                  .availabilityLabel,
+                                              _consecutiveTranscriptMisses >= 2
+                                                  ? 'Transcript help missed $_consecutiveTranscriptMisses takes in a row. Stay in audio-first mode, use Repeat or Model answer, and sync later if the network is flaky. ${speechTranscriptionService.availabilityLabel}'
+                                                  : speechTranscriptionService
+                                                      .availabilityLabel,
                                               style: const TextStyle(
                                                 color: Color(0xFF92400E),
                                                 height: 1.4,

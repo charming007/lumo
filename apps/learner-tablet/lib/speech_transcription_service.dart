@@ -64,21 +64,39 @@ class SpeechTranscriptionService {
       await _speech.stop();
     }
 
-    await _speech.listen(
-      onResult: (SpeechRecognitionResult result) {
-        final text = result.recognizedWords.trim();
-        if (text.isEmpty) return;
-        onResult(text, result.finalResult);
-      },
-      listenOptions: SpeechListenOptions(
-        partialResults: true,
-        cancelOnError: false,
-        listenMode: ListenMode.confirmation,
-        onDevice: !kIsWeb,
-      ),
-      pauseFor: const Duration(seconds: 3),
-      listenFor: const Duration(minutes: 2),
-    );
+    try {
+      await _speech.listen(
+        onResult: (SpeechRecognitionResult result) {
+          final text = result.recognizedWords.trim();
+          if (text.isEmpty) return;
+          onResult(text, result.finalResult);
+        },
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: false,
+          listenMode: ListenMode.dictation,
+          onDevice: !kIsWeb,
+        ),
+        pauseFor: const Duration(seconds: 4),
+        listenFor: const Duration(minutes: 2),
+      );
+    } catch (_) {
+      await _speech.listen(
+        onResult: (SpeechRecognitionResult result) {
+          final text = result.recognizedWords.trim();
+          if (text.isEmpty) return;
+          onResult(text, result.finalResult);
+        },
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: false,
+          listenMode: ListenMode.confirmation,
+          onDevice: false,
+        ),
+        pauseFor: const Duration(seconds: 3),
+        listenFor: const Duration(minutes: 1),
+      );
+    }
     onStatus?.call(_lastStatus);
     return true;
   }
@@ -98,8 +116,8 @@ class SpeechTranscriptionService {
     if (lower.contains('permission')) {
       return 'Speech recognition permission was denied. Audio capture can still run, but transcript help is unavailable until mic permissions are allowed.';
     }
-    if (lower.contains('network')) {
-      return 'Speech recognition needs a stable connection on this device right now. Audio will still be saved locally.';
+    if (lower.contains('network') || lower.contains('timeout')) {
+      return 'Speech recognition needs a steadier connection right now. Lumo will keep saving audio locally so the lesson can continue.';
     }
     if (lower.contains('notavailable') || lower.contains('not available')) {
       return availabilityLabel;
