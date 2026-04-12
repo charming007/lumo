@@ -243,10 +243,87 @@ function buildMallamProfile(mallamId) {
   };
 }
 
+function buildRuntimeAnalytics({ learnerId = null, lessonId = null, limit = 50 } = {}) {
+  const sessions = repository
+    .listLessonSessions()
+    .filter((entry) => (!learnerId || entry.studentId === learnerId) && (!lessonId || entry.lessonId === lessonId))
+    .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
+  const sessionEvents = repository
+    .listSessionEventLog()
+    .filter((entry) => (!learnerId || entry.studentId === learnerId) && (!lessonId || entry.lessonId === lessonId))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const completed = sessions.filter((entry) => entry.status === 'completed').length;
+  const inProgress = sessions.filter((entry) => entry.status === 'in_progress').length;
+  const abandoned = sessions.filter((entry) => entry.status === 'abandoned').length;
+  const totalResponses = sessions.reduce((sum, entry) => sum + Number(entry.responsesCaptured || 0), 0);
+  const totalSupport = sessions.reduce((sum, entry) => sum + Number(entry.supportActionsUsed || 0), 0);
+  const avgProgressRatio = sessions.length
+    ? sessions.reduce((sum, entry) => {
+      const ratio = entry.stepsTotal > 0 ? Number(entry.currentStepIndex || 0) / Number(entry.stepsTotal || 1) : 0;
+      return sum + Math.max(0, Math.min(1, ratio));
+    }, 0) / sessions.length
+    : 0;
+
+  return {
+    summary: {
+      learnerId,
+      lessonId,
+      totalSessions: sessions.length,
+      completedSessions: completed,
+      inProgressSessions: inProgress,
+      abandonedSessions: abandoned,
+      completionRate: sessions.length ? completed / sessions.length : 0,
+      averageProgressRatio: avgProgressRatio,
+      totalResponses,
+      totalSupportActions: totalSupport,
+      generatedAt: new Date().toISOString(),
+    },
+    recentSessions: sessions.slice(0, limit).map(presenters.presentLessonSession),
+    recentEvents: sessionEvents.slice(0, limit),
+  };
+}
+
+function buildProgressionRollup({ cohortId = null, podId = null } = {}) {
+  const students = repository.listStudents().filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId));
+  const studentIds = new Set(students.map((student) => student.id));
+  const progressEntries = repository.listProgress().filter((entry) => studentIds.has(entry.studentId));
+  const rewardsLeaderboard = students
+    .map((student) => ({ student: presenters.presentStudent(student), rewards: rewards.buildLearnerRewards(student.id) }))
+    .sort((a, b) => (b.rewards?.totalXp || 0) - (a.rewards?.totalXp || 0))
+    .slice(0, 10)
+    .map(({ student, rewards: rewardSnapshot }) => ({
+      learnerId: student.id,
+      learnerName: student.name,
+      cohortName: student.cohortName,
+      podLabel: student.podLabel,
+      totalXp: rewardSnapshot?.totalXp || 0,
+      level: rewardSnapshot?.level || 1,
+      badgesUnlocked: rewardSnapshot?.badgesUnlocked || 0,
+    }));
+
+  return {
+    scope: { cohortId, podId, learnerCount: students.length },
+    progression: {
+      ready: progressEntries.filter((entry) => entry.progressionStatus === 'ready').length,
+      watch: progressEntries.filter((entry) => entry.progressionStatus === 'watch').length,
+      onTrack: progressEntries.filter((entry) => entry.progressionStatus === 'on-track').length,
+      averageMastery: progressEntries.length ? progressEntries.reduce((sum, entry) => sum + Number(entry.mastery || 0), 0) / progressEntries.length : 0,
+      totalLessonsCompleted: progressEntries.reduce((sum, entry) => sum + Number(entry.lessonsCompleted || 0), 0),
+    },
+    runtime: buildRuntimeAnalytics({ learnerId: null, lessonId: null, limit: 10 }).summary,
+    rewards: {
+      leaderboard: rewardsLeaderboard,
+      totalXpAwarded: repository.listRewardTransactions().filter((entry) => studentIds.has(entry.studentId)).reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
+    },
+  };
+}
+
 module.exports = {
   buildOverviewReport,
   buildDashboardInsights,
   buildWorkboard,
   buildStudentProfile,
   buildMallamProfile,
+  buildRuntimeAnalytics,
+  buildProgressionRollup,
 };

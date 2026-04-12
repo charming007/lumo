@@ -245,10 +245,14 @@ function createSyncEvent(input) {
 }
 
 function getStoreMeta() {
+  const data = require('./data');
+
   return {
     mode: getDbMode(),
     persistenceReady: true,
     syncEventCount: listSyncEvents().length,
+    dataFile: data.__meta?.file ?? null,
+    runtimeSessionCount: listLessonSessions().length,
   };
 }
 

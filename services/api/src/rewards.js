@@ -250,6 +250,25 @@ function buildRewardsCatalog() {
   };
 }
 
+function awardManualReward({ studentId, xpDelta, badgeId = null, label, metadata = {} }) {
+  const transaction = repository.createRewardTransaction({
+    studentId,
+    kind: badgeId ? 'manual_badge' : 'manual',
+    xpDelta: Number(xpDelta || 0),
+    badgeId,
+    label: label || (badgeId ? 'Manual badge award' : 'Manual reward update'),
+    metadata,
+  });
+
+  const badgeAward = badgeId ? maybeAwardBadge({ studentId, badgeId, metadata }) : null;
+
+  return {
+    transaction,
+    badgeAward,
+    snapshot: buildLearnerRewards(studentId),
+  };
+}
+
 function buildLeaderboard(limit = 10) {
   return repository
     .listStudents()
@@ -274,4 +293,5 @@ module.exports = {
   buildLearnerRewards,
   buildLeaderboard,
   awardLessonCompletion,
+  awardManualReward,
 };

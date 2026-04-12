@@ -531,8 +531,13 @@ app.post('/api/v1/learner-app/learners', (req, res, next) => {
 
 app.get('/api/v1/learner-app/sessions', (req, res) => {
   const learnerCode = req.query.learnerCode ? String(req.query.learnerCode) : null;
+  const learnerId = req.query.learnerId ? String(req.query.learnerId) : null;
   const limit = Number(req.query.limit || 20);
-  const student = learnerCode ? findStudentByLearnerCode(learnerCode) : null;
+  const student = learnerId
+    ? store.findStudentById(learnerId)
+    : learnerCode
+      ? findStudentByLearnerCode(learnerCode)
+      : null;
 
   const sessions = store
     .listLessonSessions()
@@ -544,10 +549,28 @@ app.get('/api/v1/learner-app/sessions', (req, res) => {
   return res.json({
     sessions,
     meta: {
-      learnerId: student?.id ?? null,
+      learnerId: student?.id ?? learnerId ?? null,
       learnerCode,
       count: sessions.length,
     },
+  });
+});
+
+app.get('/api/v1/learner-app/sessions/:sessionId', (req, res) => {
+  const session = store.findLessonSessionBySessionId(req.params.sessionId);
+
+  if (!session) {
+    return res.status(404).json({ message: 'Session not found' });
+  }
+
+  const events = store
+    .listSessionEventLog()
+    .filter((entry) => entry.sessionId === req.params.sessionId)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  return res.json({
+    session: presenters.presentLessonSession(session),
+    events,
   });
 });
 
@@ -687,6 +710,25 @@ app.get('/api/v1/dashboard/workboard', (_req, res) => {
   res.json(reporting.buildWorkboard());
 });
 
+app.get('/api/v1/dashboard/runtime', (req, res) => {
+  res.json(
+    reporting.buildRuntimeAnalytics({
+      learnerId: req.query.learnerId ? String(req.query.learnerId) : null,
+      lessonId: req.query.lessonId ? String(req.query.lessonId) : null,
+      limit: Number(req.query.limit || 50),
+    }),
+  );
+});
+
+app.get('/api/v1/dashboard/progression-rollup', (req, res) => {
+  res.json(
+    reporting.buildProgressionRollup({
+      cohortId: req.query.cohortId ? String(req.query.cohortId) : null,
+      podId: req.query.podId ? String(req.query.podId) : null,
+    }),
+  );
+});
+
 app.get('/api/v1/centers', (_req, res) => {
   res.json(store.listCenters());
 });
@@ -809,6 +851,36 @@ app.get('/api/v1/students/:id/rewards', (req, res) => {
   }
 
   return res.json(snapshot);
+});
+
+app.post('/api/v1/students/:id/rewards', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const student = store.findStudentById(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    const xpDelta = Number(req.body?.xpDelta || 0);
+
+    if (!Number.isFinite(xpDelta)) {
+      const error = new Error('Invalid xpDelta');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const result = rewards.awardManualReward({
+      studentId: req.params.id,
+      xpDelta,
+      badgeId: req.body?.badgeId || null,
+      label: req.body?.label || null,
+      metadata: req.body?.metadata && typeof req.body.metadata === 'object' ? req.body.metadata : {},
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.get('/api/v1/rewards/catalog', (_req, res) => {

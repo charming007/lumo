@@ -1,5 +1,10 @@
 const data = require('./data');
 
+function commit(value) {
+  data.persist();
+  return value;
+}
+
 function cloneActivitySteps(input = []) {
   return (input || []).map((step, index) => ({
     order: step.order !== undefined ? Number(step.order) : index + 1,
@@ -62,7 +67,7 @@ function createTeacher(input) {
   };
 
   data.teachers.push(teacher);
-  return teacher;
+  return commit(teacher);
 }
 
 function updateTeacher(id, input) {
@@ -84,7 +89,7 @@ function updateTeacher(id, input) {
     certificationLevel: input.certificationLevel ?? teacher.certificationLevel,
   });
 
-  return teacher;
+  return commit(teacher);
 }
 
 function deleteTeacher(id) {
@@ -105,7 +110,7 @@ function deleteTeacher(id) {
   data.assignments = data.assignments.filter((assignment) => assignment.assignedBy !== id);
   data.observations = data.observations.filter((observation) => observation.teacherId !== id);
 
-  return teacher;
+  return commit(teacher);
 }
 
 function listStudents() {
@@ -139,7 +144,7 @@ function createStudent(input) {
   };
 
   data.students.push(student);
-  return student;
+  return commit(student);
 }
 
 function updateStudent(id, input) {
@@ -169,7 +174,7 @@ function updateStudent(id, input) {
     deviceAccess: input.deviceAccess ?? student.deviceAccess,
   });
 
-  return student;
+  return commit(student);
 }
 
 function deleteStudent(id) {
@@ -187,7 +192,7 @@ function deleteStudent(id) {
   data.assignments = data.assignments.filter((assignment) => assignment.studentId !== id);
   data.syncEvents = data.syncEvents.filter((event) => event.learnerId !== id);
 
-  return student;
+  return commit(student);
 }
 
 function listSubjects() {
@@ -217,7 +222,7 @@ function createSubject(input) {
     });
   }
 
-  return subject;
+  return commit(subject);
 }
 
 function updateSubject(id, input) {
@@ -260,7 +265,7 @@ function deleteSubject(id) {
     if (record.recommendedNextModuleId && moduleIds.includes(record.recommendedNextModuleId)) record.recommendedNextModuleId = null;
   });
 
-  return subject;
+  return commit(subject);
 }
 
 function listStrands() {
@@ -280,7 +285,7 @@ function createStrand(input) {
   };
 
   data.strands.push(strand);
-  return strand;
+  return commit(strand);
 }
 
 function updateStrand(id, input) {
@@ -296,7 +301,7 @@ function updateStrand(id, input) {
     order: input.order !== undefined ? Number(input.order) : strand.order,
   });
 
-  return strand;
+  return commit(strand);
 }
 
 function deleteStrand(id) {
@@ -320,7 +325,7 @@ function deleteStrand(id) {
     if (record.recommendedNextModuleId && moduleIds.includes(record.recommendedNextModuleId)) record.recommendedNextModuleId = null;
   });
 
-  return strand;
+  return commit(strand);
 }
 
 function listModules() {
@@ -343,7 +348,7 @@ function createModule(input) {
   };
 
   data.modules.push(module);
-  return module;
+  return commit(module);
 }
 
 function updateModule(id, input) {
@@ -362,7 +367,7 @@ function updateModule(id, input) {
     status: input.status ?? module.status,
   });
 
-  return module;
+  return commit(module);
 }
 
 function deleteModule(id) {
@@ -384,7 +389,7 @@ function deleteModule(id) {
     if (record.recommendedNextModuleId === id) record.recommendedNextModuleId = null;
   });
 
-  return module;
+  return commit(module);
 }
 
 function listLessons() {
@@ -415,7 +420,7 @@ function createLesson(input) {
   };
 
   data.lessons.push(lesson);
-  return lesson;
+  return commit(lesson);
 }
 
 function updateLesson(id, input) {
@@ -453,7 +458,7 @@ function updateLesson(id, input) {
       : lesson.activitySteps ?? normalizeLessonActivities(lesson),
   });
 
-  return lesson;
+  return commit(lesson);
 }
 
 function deleteLesson(id) {
@@ -466,7 +471,7 @@ function deleteLesson(id) {
   const [lesson] = data.lessons.splice(index, 1);
   data.assignments = data.assignments.filter((assignment) => assignment.lessonId !== id);
 
-  return lesson;
+  return commit(lesson);
 }
 
 function listAssessments() {
@@ -493,7 +498,7 @@ function createAssessment(input) {
   };
 
   data.assessments.push(assessment);
-  return assessment;
+  return commit(assessment);
 }
 
 function updateAssessment(id, input) {
@@ -518,7 +523,7 @@ function updateAssessment(id, input) {
       : assessment.items ?? [],
   });
 
-  return assessment;
+  return commit(assessment);
 }
 
 function deleteAssessment(id) {
@@ -535,7 +540,7 @@ function deleteAssessment(id) {
     }
   });
 
-  return assessment;
+  return commit(assessment);
 }
 
 function listAssignments() {
@@ -560,7 +565,7 @@ function createAssignment(input) {
   };
 
   data.assignments.push(assignment);
-  return assignment;
+  return commit(assignment);
 }
 
 function updateAssignment(id, input) {
@@ -583,7 +588,7 @@ function updateAssignment(id, input) {
     assignedAt: input.assignedAt ?? assignment.assignedAt,
   });
 
-  return assignment;
+  return commit(assignment);
 }
 
 function listAttendance() {
@@ -599,7 +604,7 @@ function createAttendance(input) {
   };
 
   data.attendance.push(record);
-  return record;
+  return commit(record);
 }
 
 function listProgress() {
@@ -624,7 +629,7 @@ function createProgress(input) {
   };
 
   data.progress.push(record);
-  return record;
+  return commit(record);
 }
 
 function updateProgress(id, input) {
@@ -644,7 +649,7 @@ function updateProgress(id, input) {
     lastActiveAt: new Date().toISOString(),
   });
 
-  return record;
+  return commit(record);
 }
 
 function upsertProgress(input) {
@@ -679,7 +684,7 @@ function createObservation(input) {
   };
 
   data.observations.push(record);
-  return record;
+  return commit(record);
 }
 
 function listSyncEvents() {
@@ -706,7 +711,7 @@ function createSyncEvent(input) {
   };
 
   data.syncEvents.push(record);
-  return record;
+  return commit(record);
 }
 
 function listLessonSessions() {
@@ -746,7 +751,7 @@ function upsertLessonSession(input) {
     };
 
     data.lessonSessions.push(record);
-    return record;
+    return commit(record);
   }
 
   Object.assign(existing, {
@@ -770,7 +775,7 @@ function upsertLessonSession(input) {
     completedAt: input.completedAt !== undefined ? input.completedAt : existing.completedAt,
   });
 
-  return existing;
+  return commit(existing);
 }
 
 function listSessionEventLog() {
@@ -790,7 +795,7 @@ function createSessionEventLog(input) {
   };
 
   data.sessionEventLog.push(record);
-  return record;
+  return commit(record);
 }
 
 function listRewardTransactions() {
@@ -813,7 +818,7 @@ function createRewardTransaction(input) {
   };
 
   data.rewardTransactions.push(record);
-  return record;
+  return commit(record);
 }
 
 module.exports = {
