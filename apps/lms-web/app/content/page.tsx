@@ -46,15 +46,72 @@ function iconButtonStyle(background: string, color: string) {
   return { ...actionButtonStyle, background, color };
 }
 
-export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+function normalizeFilterValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
+}
+
+function matchesQuery(values: Array<string | null | undefined>, query: string) {
+  if (!query) return true;
+  const haystack = values.filter(Boolean).join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+
+export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
   const query = await searchParams;
-  const [modules, lessons, subjects, strands, assessments] = await Promise.all([
+  const [modulesResult, lessonsResult, subjectsResult, strandsResult, assessmentsResult] = await Promise.allSettled([
     fetchCurriculumModules(),
     fetchLessons(),
     fetchSubjects(),
     fetchStrands(),
     fetchAssessments(),
   ]);
+
+  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const strands = strandsResult.status === 'fulfilled' ? strandsResult.value : [];
+  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const failedSources = [
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    strandsResult.status === 'rejected' ? 'strands' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+  ].filter(Boolean);
+
+  const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
+  const subjectFilter = normalizeFilterValue(query?.subject).trim();
+  const statusFilter = normalizeFilterValue(query?.status).trim();
+  const viewFilter = normalizeFilterValue(query?.view).trim();
+  const subjectFilterName = subjects.find((subject) => subject.id === subjectFilter)?.name;
+
+  const filteredModules = modules.filter((module) => {
+    const subjectMatches = !subjectFilter || module.subjectId === subjectFilter || module.subjectName === subjectFilterName;
+    const statusMatches = !statusFilter || module.status === statusFilter;
+    const viewMatches = !viewFilter || viewFilter === 'modules' || viewFilter === 'blocked';
+    const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
+    return subjectMatches && statusMatches && viewMatches && queryMatches;
+  });
+
+  const filteredLessons = lessons.filter((lesson) => {
+    const lessonSubjectId = lesson.subjectId ?? subjects.find((subject) => subject.name === lesson.subjectName)?.id;
+    const moduleForLesson = modules.find((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle);
+    const subjectMatches = !subjectFilter || lessonSubjectId === subjectFilter || lesson.subjectName === subjectFilterName || moduleForLesson?.subjectId === subjectFilter;
+    const statusMatches = !statusFilter || lesson.status === statusFilter;
+    const viewMatches = !viewFilter || viewFilter === 'lessons';
+    const queryMatches = matchesQuery([lesson.title, lesson.subjectName, lesson.moduleTitle, lesson.mode, lesson.status, lesson.targetAgeRange], searchText);
+    return subjectMatches && statusMatches && viewMatches && queryMatches;
+  });
+
+  const filteredAssessments = assessments.filter((assessment) => {
+    const assessmentSubjectId = assessment.subjectId ?? subjects.find((subject) => subject.name === assessment.subjectName)?.id;
+    const subjectMatches = !subjectFilter || assessmentSubjectId === subjectFilter || assessment.subjectName === subjectFilterName;
+    const statusMatches = !statusFilter || assessment.status === statusFilter;
+    const viewMatches = !viewFilter || viewFilter === 'assessments' || viewFilter === 'blocked';
+    const queryMatches = matchesQuery([assessment.title, assessment.moduleTitle, assessment.subjectName, assessment.triggerLabel, assessment.kind, assessment.status], searchText);
+    return subjectMatches && statusMatches && viewMatches && queryMatches;
+  });
 
   const subjectSummaries = subjects
     .map((subject) => {
@@ -95,6 +152,16 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     return readyLessonCount < module.lessonCount || !assessmentLinkedModuleIds.has(module.id);
   });
 
+  const filteredBlockedModules = blockedModules.filter((module) => {
+    const subjectMatches = !subjectFilter || module.subjectId === subjectFilter || module.subjectName === subjectFilterName;
+    const viewMatches = !viewFilter || viewFilter === 'blocked';
+    const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
+    return subjectMatches && viewMatches && queryMatches;
+  });
+
+  const activeResultCount = filteredModules.length + filteredLessons.length + filteredAssessments.length + filteredBlockedModules.length;
+  const filtersActive = Boolean(searchText || subjectFilter || statusFilter || viewFilter);
+
   return (
     <PageShell
       title="Content Library"
@@ -126,6 +193,80 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       }
     >
       <FeedbackBanner message={query?.message} />
+
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Content library degraded gracefully: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        </div>
+      ) : null}
+
+      <section style={{ marginBottom: 20, padding: 18, borderRadius: 24, background: 'white', border: '1px solid #e5e7eb', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
+        <form style={{ display: 'grid', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Library filters</div>
+              <div style={{ color: '#475569', lineHeight: 1.6, maxWidth: 700 }}>
+                Search across modules, lessons, assessments, and blockers without scrolling like a maniac. Filter by subject, publish state, or board view when ops needs a real answer fast.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+                Clear filters
+              </Link>
+              <button type="submit" style={{ borderRadius: 12, padding: '10px 12px', fontWeight: 700, background: '#4F46E5', color: 'white', border: 0, cursor: 'pointer' }}>
+                Apply filters
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) repeat(3, minmax(160px, 0.7fr))', gap: 12 }}>
+            <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+              Search title, module, strand, trigger, or status
+              <input name="q" defaultValue={searchText} placeholder="Try English, published, story, oral…" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
+            </label>
+            <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+              Subject
+              <select name="subject" defaultValue={subjectFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All subjects</option>
+                {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+              Status
+              <select name="status" defaultValue={statusFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">Any status</option>
+                {['draft', 'review', 'approved', 'published', 'active'].map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+              Focus view
+              <select name="view" defaultValue={viewFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">Whole board</option>
+                <option value="modules">Modules only</option>
+                <option value="lessons">Lessons only</option>
+                <option value="assessments">Assessments only</option>
+                <option value="blocked">Release blockers only</option>
+              </select>
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Pill label={`${activeResultCount} matching items`} tone="#EEF2FF" text="#3730A3" />
+            {subjectFilterName ? <Pill label={`Subject: ${subjectFilterName}`} tone="#ECFDF5" text="#166534" /> : null}
+            {statusFilter ? <Pill label={`Status: ${statusFilter}`} tone="#FEF3C7" text="#92400E" /> : null}
+            {viewFilter ? <Pill label={`View: ${viewFilter}`} tone="#F3E8FF" text="#7E22CE" /> : null}
+            {searchText ? <Pill label={`Query: ${searchText}`} tone="#F8FAFC" text="#334155" /> : null}
+          </div>
+        </form>
+      </section>
+
+      {filtersActive ? (
+        <div style={{ marginBottom: 20, padding: '14px 16px', borderRadius: 16, background: activeResultCount > 0 ? '#eef2ff' : '#fff7ed', border: `1px solid ${activeResultCount > 0 ? '#c7d2fe' : '#fed7aa'}`, color: activeResultCount > 0 ? '#3730a3' : '#9a3412', fontWeight: 700 }}>
+          {activeResultCount > 0
+            ? `Showing ${activeResultCount} matching records across the filtered board.`
+            : 'No records match those filters yet. Loosen the query or clear the filters instead of assuming the library is empty.'}
+        </div>
+      ) : null}
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
@@ -192,7 +333,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       </section>
 
       <section style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
-        {strandGroups.map((group) => (
+        {strandGroups
+          .map((group) => ({ ...group, modules: group.modules.filter((module) => filteredModules.some((filteredModule) => filteredModule.id === module.id)) }))
+          .filter((group) => group.modules.length > 0)
+          .map((group) => (
           <Card key={group.key} title={group.strandName} eyebrow={group.subjectName || 'Curriculum strand'}>
             <div style={{ display: 'grid', gap: 14 }}>
               {group.modules.map((module) => {
@@ -295,7 +439,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         <Card title="Release blockers" eyebrow="What still stops publish">
           <SimpleTable
             columns={['Module', 'Subject', 'Gap', 'Release risk']}
-            rows={blockedModules.map((module) => {
+            rows={filteredBlockedModules.map((module) => {
               const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
               const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
               const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
@@ -314,7 +458,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         <Card title="Assessment control board" eyebrow="Gatekeeping progression">
           <SimpleTable
             columns={['Assessment', 'Module', 'Trigger', 'Pass mark', 'Status', 'Actions']}
-            rows={assessments.map((assessment) => [
+            rows={filteredAssessments.map((assessment) => [
               assessment.title,
               assessment.moduleTitle ?? '—',
               assessment.triggerLabel,
@@ -337,7 +481,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         <Card title="Curriculum release tracker" eyebrow="Ops visibility">
           <SimpleTable
             columns={['Subject', 'Strand', 'Module', 'Level', 'Lessons', 'Status', 'Actions']}
-            rows={modules.map((module) => [
+            rows={filteredModules.map((module) => [
               module.subjectName ?? '—',
               module.strandName,
               module.title,
@@ -359,7 +503,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         <Card title="Lesson inventory" eyebrow="Deployment-ready detail">
           <SimpleTable
             columns={['Lesson', 'Subject', 'Module', 'Mode', 'Duration', 'Status', 'Actions']}
-            rows={lessons.map((lesson) => [
+            rows={filteredLessons.map((lesson) => [
               lesson.title,
               lesson.subjectName ?? '—',
               lesson.moduleTitle ?? '—',

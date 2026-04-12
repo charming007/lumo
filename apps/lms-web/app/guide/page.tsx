@@ -164,14 +164,14 @@ Reports / Analytics
         <div id="content-library">
           <Card title="Content Library" eyebrow="Canonical structure">
             <div style={{ color: '#64748b', lineHeight: 1.7 }}>
-              This is the formal curriculum board. Subjects, strands, modules, lessons, and assessment gates live here. If it is not wired here, it is not structurally real.
+              This is the formal curriculum board. Subjects, strands, modules, lessons, and assessment gates live here. If it is not wired here, it is not structurally real. The board now includes real filters for subject, status, focused view, and free-text search so ops can answer concrete inventory questions without scrolling through the whole damn library.
             </div>
           </Card>
         </div>
         <div id="english-studio">
           <Card title="English Studio" eyebrow="English authoring">
             <div style={{ color: '#64748b', lineHeight: 1.7 }}>
-              English Studio is not a duplicate content page. It is the English-specific authoring layer for blueprints, readiness checks, and release visibility.
+              English Studio is not a duplicate content page. It is the English-specific authoring layer for blueprints, readiness checks, editable activity spines, localization packs, and release visibility before a lesson record gets shipped.
             </div>
           </Card>
         </div>
@@ -210,6 +210,7 @@ Reports / Analytics
               ['Navigation must stay explicit', 'Every admin surface should make location, action, and next step obvious.'],
               ['Empty states must be honest', 'If a feed is missing, say which feed failed. No fake wallpaper.'],
               ['Authoring beats metadata', 'Quick edits are fine for status tweaks; real curriculum work belongs in English Studio and Lesson Studio.'],
+              ['Inventory needs search, not scavenger hunts', 'Content ops should be able to slice the board by subject, status, and focused view instead of eyeballing giant tables.'],
               ['Destructive actions need friction', 'Typed confirmation and impact notes stay because cascading deletes are serious.'],
             ].map(([title, detail]) => (
               <div key={title} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>

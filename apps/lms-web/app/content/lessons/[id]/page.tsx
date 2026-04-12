@@ -12,6 +12,18 @@ function statusTone(status: string) {
   return { tone: '#E0E7FF', text: '#3730A3' };
 }
 
+function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
+  const palette = tone === 'warning'
+    ? { background: '#fff7ed', border: '#fed7aa', text: '#9a3412' }
+    : { background: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
+
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, lineHeight: 1.6 }}>
+      {message}
+    </div>
+  );
+}
+
 export default async function LessonDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ from?: string; message?: string }> }) {
   const { id } = await params;
   const query = await searchParams;
@@ -24,12 +36,23 @@ export default async function LessonDetailPage({ params, searchParams }: { param
     notFound();
   }
 
-  const [subjects, modules, lessons, assessments] = await Promise.all([
+  const [subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchCurriculumModules(),
     fetchLessons(),
     fetchAssessments(),
   ]);
+
+  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const failedSources = [
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+  ].filter(Boolean);
 
   const activeModule = modules.find((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle) ?? null;
   const relatedAssessments = assessments.filter((assessment) => assessment.moduleId === activeModule?.id || assessment.moduleTitle === activeModule?.title);
@@ -42,6 +65,7 @@ export default async function LessonDetailPage({ params, searchParams }: { param
     ['Activity spine built', (lesson.activitySteps?.length ?? lesson.activities?.length ?? 0) >= 3],
   ];
   const readinessScore = readinessChecks.filter(([, passed]) => passed).length;
+  const editorDependenciesReady = subjects.length > 0 && modules.length > 0 && lessonsResult.status === 'fulfilled';
 
   return (
     <PageShell
@@ -66,20 +90,37 @@ export default async function LessonDetailPage({ params, searchParams }: { param
     >
       <FeedbackBanner message={query?.message} />
 
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Lesson detail is running in degraded mode: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        </div>
+      ) : null}
+
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         <Card title={`${readinessScore}/5`} eyebrow="Release readiness">
           <div style={{ color: '#64748b' }}>This is the fast smell test before someone tries to publish half-baked curriculum.</div>
         </Card>
         <Card title={activeModule?.title ?? 'Unmapped'} eyebrow="Current module">
-          <div style={{ color: '#64748b' }}>{activeModule ? `${activeModule.subjectName} • ${activeModule.level} • ${activeModule.status}` : 'This lesson is not mapped to a known module right now.'}</div>
+          <div style={{ color: '#64748b' }}>{activeModule ? `${activeModule.subjectName} • ${activeModule.level} • ${activeModule.status}` : failedSources.length ? 'Module context is temporarily unavailable because the supporting feed failed.' : 'This lesson is not mapped to a known module right now.'}</div>
         </Card>
         <Card title={String(relatedAssessments.length)} eyebrow="Assessment gates">
-          <div style={{ color: '#64748b' }}>{relatedAssessments.length ? 'Progression checks linked to this module are visible below.' : 'No module gate exists yet. That needs fixing before this lane acts release-safe.'}</div>
+          <div style={{ color: '#64748b' }}>{relatedAssessments.length ? 'Progression checks linked to this module are visible below.' : assessmentsResult.status === 'rejected' ? 'Assessment gate data is temporarily unavailable.' : 'No module gate exists yet. That needs fixing before this lane acts release-safe.'}</div>
         </Card>
       </section>
 
       <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 16, marginBottom: 20 }}>
-        <LessonEditorForm lesson={lesson} subjects={subjects} modules={modules} action={updateLessonAction} returnPath={returnPath} />
+        {editorDependenciesReady ? (
+          <LessonEditorForm lesson={lesson} subjects={subjects} modules={modules} action={updateLessonAction} returnPath={returnPath} />
+        ) : (
+          <Card title="Editor temporarily unavailable" eyebrow="Missing dependencies">
+            {sectionAlert(
+              failedSources.length
+                ? 'The lesson editor is paused until subjects, modules, and lesson baselines load again. Better a visible warning than a dead route.'
+                : 'Editing needs subjects, modules, and lesson baselines before the form can render.',
+              'warning'
+            )}
+          </Card>
+        )}
 
         <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
           <Card title="Authoring checkpoints" eyebrow="Publish discipline">
@@ -104,9 +145,12 @@ export default async function LessonDetailPage({ params, searchParams }: { param
                   <div style={{ color: '#64748b', lineHeight: 1.6 }}>{assessment.triggerLabel || assessment.trigger} • Pass score {Math.round(assessment.passingScore * 100)}%</div>
                 </div>
               )) : (
-                <div style={{ padding: 14, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', fontWeight: 700 }}>
-                  No assessment gate linked to this module. That’s not a real release path; it’s wishful thinking.
-                </div>
+                sectionAlert(
+                  assessmentsResult.status === 'rejected'
+                    ? 'Assessment gate wiring is unavailable because the assessment feed failed.'
+                    : 'No assessment gate linked to this module. That’s not a real release path; it’s wishful thinking.',
+                  assessmentsResult.status === 'rejected' ? 'warning' : 'neutral'
+                )
               )}
             </div>
           </Card>
@@ -125,9 +169,12 @@ export default async function LessonDetailPage({ params, searchParams }: { param
                   </Link>
                 </div>
               )) : (
-                <div style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748b' }}>
-                  No sibling packs found in this module yet.
-                </div>
+                sectionAlert(
+                  lessonsResult.status === 'rejected'
+                    ? 'Sibling lesson packs are unavailable because the lesson feed failed.'
+                    : 'No sibling packs found in this module yet.',
+                  lessonsResult.status === 'rejected' ? 'warning' : 'neutral'
+                )
               )}
             </div>
           </Card>

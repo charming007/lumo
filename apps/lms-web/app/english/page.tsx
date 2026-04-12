@@ -26,15 +26,41 @@ function readinessTone(score: number) {
   return { tone: '#FEE2E2', text: '#991B1B' };
 }
 
+function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
+  const palette = tone === 'warning'
+    ? { background: '#fff7ed', border: '#fed7aa', text: '#9a3412' }
+    : { background: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
+
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, lineHeight: 1.6 }}>
+      {message}
+    </div>
+  );
+}
+
 export default async function EnglishCurriculumPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
-  const [modules, lessons, assessments, assignments, subjects] = await Promise.all([
+  const [modulesResult, lessonsResult, assessmentsResult, assignmentsResult, subjectsResult] = await Promise.allSettled([
     fetchCurriculumModules(),
     fetchLessons(),
     fetchAssessments(),
     fetchAssignments(),
     fetchSubjects(),
   ]);
+
+  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
+  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+
+  const failedSources = [
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    assignmentsResult.status === 'rejected' ? 'assignments' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+  ].filter(Boolean);
 
   const blueprints = buildEnglishLessonBlueprints({ modules, lessons, assessments });
   const summary = buildEnglishOpsSummary({ modules, lessons, assignments });
@@ -69,6 +95,12 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
       }
     >
       <FeedbackBanner message={query?.message} />
+
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          English curriculum view degraded gracefully: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        </div>
+      ) : null}
 
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
         {[
@@ -147,34 +179,39 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
                     </div>
                   </div>
                 ))}
+                {!blueprints.length ? sectionAlert('No English lesson blueprints are available right now.', failedSources.length ? 'warning' : 'neutral') : null}
               </div>
             </Card>
           </div>
         </section>
-      ) : null}
+      ) : (
+        <div style={{ marginBottom: 20 }}>
+          {sectionAlert(failedSources.length ? 'English lesson data is partially unavailable, so the featured blueprint is hidden until the feed recovers.' : 'No English lesson blueprint exists yet. Create one from the lesson studio.', failedSources.length ? 'warning' : 'neutral')}
+        </div>
+      )}
 
       <section style={{ display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 16, marginBottom: 20 }}>
         <Card title="Release queue" eyebrow="Editorial board">
           <SimpleTable
             columns={['Lesson', 'Module', 'Status', 'Release note']}
-            rows={releaseQueue.map((item) => [
+            rows={releaseQueue.length ? releaseQueue.map((item) => [
               item.lessonTitle,
               item.moduleTitle,
               <Pill key={`${item.lessonId}-status`} label={item.status} tone={statusTone(item.status).tone} text={statusTone(item.status).text} />,
               item.releaseRisk,
-            ])}
+            ]) : [[sectionAlert(failedSources.length ? 'Release queue unavailable because one or more feeds failed.' : 'No queued English lessons right now.', failedSources.length ? 'warning' : 'neutral'), '', '', '']]}
           />
         </Card>
 
         <Card title="Readiness board" eyebrow="Publish only when the checks pass">
           <SimpleTable
             columns={['Lesson', 'Readiness', 'Assessment', 'Immediate blocker']}
-            rows={readinessBoard.map((item) => [
+            rows={readinessBoard.length ? readinessBoard.map((item) => [
               item.lessonTitle,
               <Pill key={`${item.lessonId}-readiness`} label={`${item.readinessScore}/5`} tone={readinessTone(item.readinessScore).tone} text={readinessTone(item.readinessScore).text} />,
               item.assessmentTitle ?? 'No linked gate',
               item.readinessChecks.find((check) => !check.passed)?.label ?? 'Clear to publish',
-            ])}
+            ]) : [[sectionAlert(failedSources.length ? 'Readiness board unavailable because lesson data failed to load.' : 'No English lessons are ready for readiness scoring yet.', failedSources.length ? 'warning' : 'neutral'), '', '', '']]}
           />
         </Card>
       </section>
@@ -187,25 +224,25 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
                 <strong>{module.title}</strong>
                 <div style={{ color: '#64748b', marginTop: 6 }}>{module.level} • {module.status} • No assessment gate linked yet.</div>
               </div>
-            )) : <div style={{ padding: 14, borderRadius: 16, background: '#ECFDF5', border: '1px solid #BBF7D0', color: '#166534', fontWeight: 700 }}>Every English module has an assessment gate. Finally.</div>}
+            )) : <div style={{ padding: 14, borderRadius: 16, background: '#ECFDF5', border: '1px solid #BBF7D0', color: '#166534', fontWeight: 700 }}>{failedSources.length ? 'No missing-gate modules are visible from the data that loaded. Retry once all feeds recover before trusting that verdict.' : 'Every English module has an assessment gate. Finally.'}</div>}
           </div>
         </Card>
 
         <Card title="Pod-ready lesson set" eyebrow="Can ship now">
           <SimpleTable
             columns={['Lesson', 'Vocabulary focus', 'Assessment', 'Mode']}
-            rows={podReady.map((item) => [
+            rows={podReady.length ? podReady.map((item) => [
               item.lessonTitle,
               item.vocabularyFocus.join(', '),
               item.assessmentTitle ?? 'Quick oral exit check',
               item.mode,
-            ])}
+            ]) : [[sectionAlert(failedSources.length ? 'Pod-ready lesson set unavailable because lesson or assessment feeds failed.' : 'No English lessons are pod-ready yet.', failedSources.length ? 'warning' : 'neutral'), '', '', '']]}
           />
         </Card>
       </section>
 
       <section style={{ display: 'grid', gap: 16 }}>
-        {byModule.map(([moduleTitle, moduleBlueprints]) => (
+        {byModule.length ? byModule.map(([moduleTitle, moduleBlueprints]) => (
           <Card key={moduleTitle} title={moduleTitle} eyebrow="Structured activity map">
             <div style={{ display: 'grid', gap: 14 }}>
               {moduleBlueprints.map((blueprint) => (
@@ -242,7 +279,7 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
               ))}
             </div>
           </Card>
-        ))}
+        )) : sectionAlert(failedSources.length ? 'The activity map is hidden because not enough English content data loaded.' : 'No English modules are mapped yet.', failedSources.length ? 'warning' : 'neutral')}
       </section>
     </PageShell>
   );

@@ -11,14 +11,37 @@ function statusTone(status: string) {
   return { tone: '#E0E7FF', text: '#3730A3' };
 }
 
+function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
+  const palette = tone === 'warning'
+    ? { background: '#fff7ed', border: '#fed7aa', text: '#9a3412' }
+    : { background: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
+
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, lineHeight: 1.6 }}>
+      {message}
+    </div>
+  );
+}
+
 export default async function NewLessonPage({ searchParams }: { searchParams?: Promise<{ subjectId?: string; moduleId?: string; duplicate?: string; from?: string; message?: string }> }) {
   const query = await searchParams;
-  const [subjects, modules, lessons, assessments] = await Promise.all([
+  const [subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchCurriculumModules(),
     fetchLessons(),
     fetchAssessments(),
   ]);
+
+  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const failedSources = [
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+  ].filter(Boolean);
 
   const scopedSubjectId = query?.subjectId ?? '';
   const scopedModuleId = query?.moduleId ?? '';
@@ -35,6 +58,7 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
     ? lessons.filter((lesson) => lesson.moduleId === activeModule.id || lesson.moduleTitle === activeModule.title)
     : [];
   const returnPath = query?.from || '/content';
+  const authoringDependenciesReady = subjects.length > 0 && modules.length > 0 && lessonsResult.status === 'fulfilled';
 
   return (
     <PageShell
@@ -58,6 +82,12 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
     >
       <FeedbackBanner message={query?.message} />
 
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Lesson Studio is running in degraded mode: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        </div>
+      ) : null}
+
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         <Card title={String(subjects.length)} eyebrow="Subjects available">
           <div style={{ color: '#64748b' }}>Pick the right lane first so this lesson lands in the proper curriculum spine.</div>
@@ -71,16 +101,26 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
       </section>
 
       <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 16, marginBottom: 20 }}>
-        <LessonCreateForm
-          subjects={subjects}
-          modules={modules}
-          lessons={lessons}
-          action={createLessonAction}
-          initialSubjectId={scopedSubjectId}
-          initialModuleId={scopedModuleId}
-          duplicateLessonId={duplicateLessonId}
-          returnPath={returnPath}
-        />
+        {authoringDependenciesReady ? (
+          <LessonCreateForm
+            subjects={subjects}
+            modules={modules}
+            lessons={lessons}
+            action={createLessonAction}
+            initialSubjectId={scopedSubjectId}
+            initialModuleId={scopedModuleId}
+            duplicateLessonId={duplicateLessonId}
+            returnPath={returnPath}
+          />
+        ) : (
+          <Card title="Authoring temporarily unavailable" eyebrow="Missing dependencies">
+            {sectionAlert(
+              failedSources.length
+                ? 'The lesson form is paused until subjects, modules, and lesson baselines load again. Keeping the route alive is better than exploding during a demo.'
+                : 'Create flow needs subjects, modules, and lesson baselines before it can open.'
+              , 'warning')}
+          </Card>
+        )}
 
         <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
           <Card title={activeModule?.title ?? 'No module selected yet'} eyebrow="Current authoring lane">
@@ -97,7 +137,7 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
                   </div>
                 </>
               ) : (
-                <div style={{ color: '#64748b' }}>Pick a module to see its publishing context.</div>
+                sectionAlert(failedSources.length ? 'Module context is unavailable because the module feed failed.' : 'Pick a module to see its publishing context.', failedSources.length ? 'warning' : 'neutral')
               )}
             </div>
           </Card>
@@ -113,9 +153,12 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
                   <div style={{ color: '#64748b', lineHeight: 1.6 }}>{assessment.triggerLabel || assessment.trigger} • Gate: {assessment.progressionGate}</div>
                 </div>
               )) : (
-                <div style={{ padding: 14, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', fontWeight: 700 }}>
-                  No assessment gate is linked to this module yet. Shipping lessons into that lane without a progression check is sloppy.
-                </div>
+                sectionAlert(
+                  assessmentsResult.status === 'rejected'
+                    ? 'Assessment gate context is unavailable because the feed failed.'
+                    : 'No assessment gate is linked to this module yet. Shipping lessons into that lane without a progression check is sloppy.',
+                  assessmentsResult.status === 'rejected' ? 'warning' : 'neutral'
+                )
               )}
             </div>
           </Card>
@@ -134,9 +177,12 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
                   </Link>
                 </div>
               )) : (
-                <div style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748b' }}>
-                  No lessons exist in this module yet. Good. Build the first proper pack instead of another placeholder record.
-                </div>
+                sectionAlert(
+                  lessonsResult.status === 'rejected'
+                    ? 'Existing lesson baseline is unavailable because the lesson feed failed.'
+                    : 'No lessons exist in this module yet. Good. Build the first proper pack instead of another placeholder record.',
+                  lessonsResult.status === 'rejected' ? 'warning' : 'neutral'
+                )
               )}
             </div>
           </Card>
