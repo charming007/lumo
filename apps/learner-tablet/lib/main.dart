@@ -449,8 +449,9 @@ class LearnerProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalXp = learner.streakDays * 25 + 100;
-    final totalMinutes = learner.streakDays * 12 + 18;
+    final rewards = learner.rewards;
+    final totalXp = learner.totalXp;
+    final totalMinutes = learner.estimatedTotalMinutes;
 
     return Scaffold(
       body: SafeArea(
@@ -554,15 +555,81 @@ class LearnerProfilePage extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: MetricTile(
-                              label: 'Total time',
-                              value: '$totalMinutes min',
-                              icon: Icons.schedule_rounded,
+                              label: rewards == null ? 'Total time' : 'Points',
+                              value: rewards == null
+                                  ? '$totalMinutes min'
+                                  : '${rewards.points} pts',
+                              icon: rewards == null
+                                  ? Icons.schedule_rounded
+                                  : Icons.workspace_premium_rounded,
                               color: LumoTheme.accentGreen,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 18),
+                      if (rewards != null) ...[
+                        SoftPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Live rewards snapshot',
+                                style: TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 12),
+                              InfoRow(
+                                label: 'Level',
+                                value:
+                                    '${rewards.levelLabel} • Level ${rewards.level}',
+                              ),
+                              InfoRow(
+                                label: 'Points',
+                                value: '${rewards.points} points',
+                              ),
+                              InfoRow(
+                                label: 'Next level',
+                                value: rewards.nextLevelLabel == null
+                                    ? 'Current top level'
+                                    : '${rewards.nextLevelLabel} (${rewards.xpForNextLevel} XP to go)',
+                              ),
+                              const SizedBox(height: 12),
+                              LinearProgressIndicator(
+                                value: rewards.progressToNextLevel.clamp(0, 1),
+                                minHeight: 10,
+                                borderRadius: const BorderRadius.all(
+                                    Radius.circular(999)),
+                                color: LumoTheme.accentGreen,
+                                backgroundColor: const Color(0xFFD1FAE5),
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: rewards.badges.isEmpty
+                                    ? const [
+                                        StatusPill(
+                                          text: 'No badges yet',
+                                          color: Color(0xFF94A3B8),
+                                        ),
+                                      ]
+                                    : rewards.badges
+                                        .take(4)
+                                        .map(
+                                          (badge) => StatusPill(
+                                            text: badge.title,
+                                            color: badge.earned
+                                                ? LumoTheme.accentGreen
+                                                : LumoTheme.accentOrange,
+                                          ),
+                                        )
+                                        .toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
                       SoftPanel(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

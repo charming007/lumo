@@ -251,6 +251,10 @@ class LearnerProfile {
     );
   }
 
+  int get totalXp => rewards?.totalXp ?? (streakDays * 25 + 100);
+
+  int get estimatedTotalMinutes => streakDays * 12 + 18;
+
   LearnerProfile copyWith({
     String? id,
     String? name,

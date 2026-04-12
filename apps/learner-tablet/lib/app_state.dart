@@ -151,6 +151,8 @@ class LumoAppState {
       backendAssignmentCount = data.assignmentCount;
       lastSyncError = null;
 
+      await _hydrateModuleBundles(mergedModules);
+
       if (currentLearner != null && learners.isNotEmpty) {
         currentLearner = learners.firstWhere(
           (item) => item.id == currentLearner!.id,
@@ -168,6 +170,49 @@ class LumoAppState {
       backendError = error.toString().replaceFirst('Exception: ', '');
     } finally {
       isBootstrapping = false;
+    }
+  }
+
+  Future<void> _hydrateModuleBundles(List<LearningModule> sourceModules) async {
+    if (usingFallbackData || sourceModules.isEmpty) return;
+
+    final hydratedModules = <LearningModule>[];
+    final hydratedLessons = <LessonCardModel>[];
+
+    for (final module in sourceModules) {
+      try {
+        final bundle = await _apiClient.fetchModuleBundle(module.id);
+        hydratedModules.add(bundle.module);
+        if (bundle.lessons.isNotEmpty) {
+          hydratedLessons.addAll(bundle.lessons);
+        }
+      } catch (_) {
+        hydratedModules.add(module);
+      }
+    }
+
+    modules
+      ..clear()
+      ..addAll(hydratedModules);
+
+    if (hydratedLessons.isNotEmpty) {
+      final fallbackByModule = <String, List<LessonCardModel>>{};
+      for (final lesson in assignedLessonsSeed) {
+        fallbackByModule.putIfAbsent(lesson.moduleId, () => []).add(lesson);
+      }
+
+      final liveModuleIds =
+          hydratedLessons.map((item) => item.moduleId).toSet();
+      final mergedLessons = <LessonCardModel>[
+        ...hydratedLessons,
+        ...fallbackByModule.entries
+            .where((entry) => !liveModuleIds.contains(entry.key))
+            .expand((entry) => entry.value),
+      ];
+
+      assignedLessons
+        ..clear()
+        ..addAll(mergedLessons);
     }
   }
 
