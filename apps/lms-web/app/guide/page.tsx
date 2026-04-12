@@ -52,6 +52,7 @@ const sectionLinks = [
   ['english-studio', 'English Studio'],
   ['system-flow', 'How content, delivery, progress, and rewards connect'],
   ['lesson-studio', 'Lesson Studio'],
+  ['interactive-authoring', 'Interactive / option-based lesson tutorial'],
   ['workflow', 'Recommended workflow'],
   ['guardrails', 'UI guardrails'],
   ['printable-guide', 'Printable handbook'],
@@ -228,7 +229,7 @@ Dashboard / learner views / workboards
       <section id="lesson-studio" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
         <Card title="Lesson Studio" eyebrow="Full authoring lane">
           <div style={{ color: '#64748b', lineHeight: 1.7, marginBottom: 12 }}>
-            Use the full lesson editor when you need more than metadata. This is where the real payload gets shaped: objectives, localization, assessment items, activity steps, duration, mode, and voice persona.
+            Use the full lesson editor when you need more than metadata. This is where the real payload gets shaped: objectives, localization, assessment items, activity steps, duration, mode, voice persona, and interactive answer options.
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Link href="/content/lessons/new" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
@@ -237,6 +238,61 @@ Dashboard / learner views / workboards
             <Link href="/content" style={{ color: '#64748b', fontWeight: 700, textDecoration: 'none' }}>
               Back to content library
             </Link>
+          </div>
+        </Card>
+
+        <Card title="When to use which authoring route" eyebrow="Quick routing">
+          <div style={{ display: 'grid', gap: 10, color: '#475569', lineHeight: 1.7 }}>
+            <div><strong>Content Library</strong> — create the lesson record in the right module.</div>
+            <div><strong>English Studio</strong> — generate an English blueprint with readiness checks.</div>
+            <div><strong>Lesson Studio</strong> — build or refine the full interactive lesson pack, including step flow, expected answers, choices, media, and assessment items.</div>
+          </div>
+        </Card>
+      </section>
+
+      <section id="interactive-authoring" style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
+        <Card title="Interactive / option-based lesson tutorial" eyebrow="Lesson Studio walkthrough">
+          <div style={{ display: 'grid', gap: 16 }}>
+            <div style={{ color: '#475569', lineHeight: 1.7 }}>
+              If the lesson includes choices, taps, prompts, hints, expected answers, or a step-by-step learner flow, do not stop at the quick create form. Open <strong>Lesson Studio</strong> and build the real lesson pack.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              {[
+                ['1. Start in the right lane', 'Begin from Content Library or jump in from English Studio. Pick the correct subject and module first so the lesson lands in the real curriculum spine.'],
+                ['2. Create the lesson shell', 'Add title, duration, mode, age band, and voice persona. Use a template, duplicate a lesson, or start clean.'],
+                ['3. Build the activity spine', 'Add, reorder, duplicate, and remove steps. Each step needs a title, type, learner prompt, detail, duration, and evidence expectation.'],
+                ['4. Add options / choices', 'For image-choice or tap-choice steps, use one line per option in the format id|label|correct/wrong|mediaKind|mediaValue. Mark the correct option explicitly.'],
+                ['5. Define expected answers + hints', 'Use Expected answers for what counts as correct, Evidence for what staff should confirm, and Facilitator notes for hints, retries, and coaching moves.'],
+                ['6. Add assessment items', 'Create the lesson assessment pack with prompt|evidence lines and keep it aligned to the step-level evidence inside the lesson flow.'],
+                ['7. Check readiness before publish', 'Make sure the title is clear, duration is credible, objectives exist, the assessment is attached, the activity spine is complete, and the module/gate context is real.'],
+                ['8. Understand learner app flow', 'After approval, the lesson can be assigned to pods and opened in the learner tablet app, where prompts, choice options, speaking responses, feedback, completion, and sync all follow from this authored payload.'],
+              ].map(([title, detail]) => (
+                <div key={title} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+                  <div style={{ fontWeight: 800, marginBottom: 8 }}>{title}</div>
+                  <div style={{ color: '#64748b', lineHeight: 1.6 }}>{detail}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ padding: 18, borderRadius: 18, background: '#0f172a', color: '#e2e8f0', overflow: 'auto' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#c4b5fd', marginBottom: 8 }}>Choice format</div>
+                <pre style={{ margin: 0, background: 'transparent', padding: 0, color: 'inherit', whiteSpace: 'pre-wrap' }}>{`choice-1|Go to the market|correct|image|market.png
+choice-2|Go to sleep|wrong|image|sleep.png
+choice-3|Go to school|wrong|image|school.png`}</pre>
+              </div>
+              <div style={{ padding: 18, borderRadius: 18, background: '#0f172a', color: '#e2e8f0', overflow: 'auto' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#93c5fd', marginBottom: 8 }}>Learner runtime flow</div>
+                <pre style={{ margin: 0, background: 'transparent', padding: 0, color: 'inherit', whiteSpace: 'pre-wrap' }}>{`Facilitator opens tablet app
+→ selects learner
+→ opens assigned lesson
+→ learner responds by speaking or tapping
+→ feedback appears
+→ completion summary is saved
+→ progress syncs later if offline`}</pre>
+              </div>
+            </div>
           </div>
         </Card>
 

@@ -747,11 +747,11 @@ This matters because it gives authors a repeatable pattern for oral-language les
 
 ## 14) How an admin creates a lesson today
 
-There are two main paths.
+There are now three practical authoring paths, depending on how much structure you need.
 
-### Path A — generic lesson creation from Content Library
+### Path A — quick lesson creation from Content Library
 
-Use this when creating any curriculum lesson.
+Use this when you only need to create the lesson record in the right curriculum lane.
 
 **Steps:**
 
@@ -764,11 +764,12 @@ Use this when creating any curriculum lesson.
 7. Choose delivery mode.
 8. Submit.
 9. Review the lesson inside the module lane.
-10. Update status as it moves from draft → review → approved → published.
+10. Open the lesson in **Lesson Studio** if it needs full authoring.
+11. Update status as it moves from draft → review → approved → published.
 
-### Path B — English-specific lesson creation from English Studio
+### Path B — English-specific creation from English Studio
 
-Use this when creating an English lesson and you want better structure.
+Use this when creating an English lesson and you want generated structure before you refine it.
 
 **Steps:**
 
@@ -780,13 +781,224 @@ Use this when creating an English lesson and you want better structure.
 6. Choose delivery mode.
 7. Review the generated objective.
 8. Review vocabulary focus.
-9. Review the generated activity spine.
+9. Review or edit the activity spine.
 10. Review readiness checks.
 11. Set the publish state.
 12. Submit **Create English lesson**.
-13. The lesson is written back into the live content lane and can then be managed in Content Library.
+13. If needed, open the resulting lesson in **Lesson Studio** for detailed activity and assessment editing.
+14. The lesson is written back into the live content lane and can then be managed in Content Library.
 
-### Why English Studio is the better path for English
+### Path C — full interactive authoring in Lesson Studio
+
+Use this when the lesson needs the real payload, not just metadata.
+This is the best path for interactive or option-based lessons, lessons with branching activity steps, and lessons that need explicit answer expectations, media, and assessment logic.
+
+#### Where to start
+
+You can enter Lesson Studio from two places:
+
+- **Content Library → Create Lesson** when you want a full lesson pack from the start.
+- **English Studio → Open full lesson studio** when you already used English blueprinting but need more detailed authoring control.
+
+Lesson Studio is the right surface when you need to define:
+
+- learning objectives,
+- localization/support language notes,
+- lesson assessment items,
+- the step-by-step learner activity flow,
+- choice options and correct answers,
+- facilitator guidance and evidence expectations.
+
+#### Step 1 — create or open the lesson pack
+
+Inside **Lesson Studio**:
+
+1. Pick the correct **subject**.
+2. Pick the correct **module**.
+3. Enter a clear **lesson title**.
+4. Set the planned **duration**.
+5. Choose the **delivery mode**.
+6. Set target age and voice persona if relevant.
+7. Start from a quick template, duplicate an existing lesson, or build from scratch.
+
+If you are authoring an option-based lesson, do not stop at the top-level fields.
+The real work is in the activity spine.
+
+#### Step 2 — add the interactive activity steps
+
+Use the **Activity spine** controls to build the learner journey.
+You can:
+
+- add a new step,
+- duplicate a step,
+- move a step up or down,
+- remove weak steps,
+- preview the total activity timing.
+
+Each step should have:
+
+- a **step title**,
+- a **type**,
+- a **learner prompt**,
+- a short **detail** or learner-facing instruction,
+- a **duration**,
+- an **evidence** field that says what success looks like.
+
+Common step types already supported in the authoring editor include:
+
+- listen repeat,
+- speak answer,
+- word build,
+- image choice,
+- oral quiz,
+- listen answer,
+- tap choice,
+- letter intro.
+
+A good lesson usually has at least 3 meaningful steps.
+That is why the readiness checks treat a thin or empty activity spine as a blocker.
+
+#### Step 3 — add options / choices for interactive steps
+
+For step types like **image choice** or **tap choice**, use the **Choices** field.
+Choices are entered one per line using this structure:
+
+```text
+id|label|correct/wrong|mediaKind|mediaValue
+```
+
+Example:
+
+```text
+choice-1|Go to the market|correct|image|market.png
+choice-2|Go to sleep|wrong|image|sleep.png
+choice-3|Go to school|wrong|image|school.png
+```
+
+What each part means:
+
+- **id** — internal identifier for the option,
+- **label** — what the facilitator or learner sees,
+- **correct/wrong** — whether that option is the right answer,
+- **mediaKind** — optional media type such as image,
+- **mediaValue** — optional file/value for that media.
+
+This is how the lesson stores real interactive answer options instead of vague notes in a free-text box.
+
+#### Step 4 — define expected answers, hints, and feedback intent
+
+For each activity step, add **Expected answers** so the teaching team knows what counts as success.
+These are especially useful for:
+
+- speak answer,
+- oral quiz,
+- listen answer,
+- word build,
+- choice-based tasks that have one or more correct targets.
+
+Use **Expected answers** for the exact answer or acceptable answer set.
+Use **Evidence** for what the facilitator should confirm happened.
+Use **Facilitator notes** for hints, coaching moves, scaffolds, retries, or support-language prompts.
+
+A clean pattern is:
+
+- **Prompt** = what the learner hears or sees,
+- **Expected answers** = what a correct learner response looks like,
+- **Evidence** = what staff should observe or capture,
+- **Facilitator notes** = what to do if the learner struggles.
+
+That means hints and feedback are not random commentary.
+They are attached to the step where support is actually needed.
+
+#### Step 5 — add media cues when the learner needs visual or audio support
+
+Use **Media cues** for any step that depends on an image, card, or other prompt.
+Media cues are entered one per line using:
+
+```text
+kind|value
+```
+
+Example:
+
+```text
+image|market.png
+image|school.png
+audio|prompt-1.mp3
+```
+
+This keeps interactive prompts tied to the lesson flow instead of being buried elsewhere.
+
+#### Step 6 — build the assessment pack
+
+The **Assessment pack** is where you define how the lesson is checked.
+
+Add:
+
+- an **assessment title**,
+- the **assessment kind** (observational, oral, or automatic),
+- one or more **assessment items** using `prompt|evidence` per line.
+
+Example:
+
+```text
+Can the learner pick the correct option?|teacher-check
+Can the learner explain the choice in one sentence?|spoken-response
+```
+
+Use lesson-level assessment items to capture the end-of-lesson proof, and use activity-level evidence fields to capture proof inside the lesson flow.
+Those two levels should reinforce each other.
+
+#### Step 7 — check readiness before publishing
+
+Before publishing an interactive lesson, review the readiness checks in Lesson Studio.
+The current checks look for things like:
+
+- clear title,
+- enough duration,
+- learning objectives present,
+- assessment attached,
+- activity spine built.
+
+For practical release safety, also confirm:
+
+- the lesson sits in the correct module,
+- the module is not stuck in draft,
+- the total step timing roughly matches lesson duration,
+- choice-based activities clearly mark the correct option,
+- expected answers and facilitator notes are complete enough for another operator to run the lesson without guessing,
+- the module has a linked assessment gate if progression depends on it.
+
+If those checks are weak, the lesson should stay in draft or review.
+Publishing a half-wired interactive lesson just creates nonsense downstream.
+
+#### Step 8 — understand how it flows into the learner app
+
+Once created and approved, the lesson becomes part of the same LMS delivery chain:
+
+1. The lesson sits inside the module in **Content Library**.
+2. It can be assigned to cohorts, pods, and mallams through the LMS delivery flow.
+3. In the learner runtime, the learner opens the assigned lesson on the tablet.
+4. The app plays prompts, shows options or supporting media, and records spoken or tapped responses.
+5. Immediate feedback and completion signals feed progress tracking.
+6. Completion and assessment evidence loop back into LMS progress, dashboard, and reward views.
+
+The learner-side flow is simple on purpose:
+
+```text
+Facilitator opens tablet app
+→ selects learner
+→ opens assigned lesson
+→ learner responds by speaking or tapping
+→ feedback appears
+→ completion summary is saved
+→ progress syncs back later if offline
+```
+
+So Lesson Studio is not just a fancy editor.
+It is the place where the learner experience gets defined before it reaches the shared-tablet app.
+
+### Why English Studio is still the better first pass for English
 
 Because it adds:
 
@@ -795,6 +1007,8 @@ Because it adds:
 - module readiness context,
 - linked assessment awareness,
 - a stronger quality bar.
+
+Then **Lesson Studio** takes over when you need detailed interactive authoring.
 
 ---
 
@@ -912,6 +1126,8 @@ Primary source files:
 - `apps/lms-web/app/content/page.tsx`
 - `apps/lms-web/app/english/page.tsx`
 - `apps/lms-web/components/english-studio-authoring-form.tsx`
+- `apps/lms-web/components/lesson-create-form.tsx`
+- `apps/lms-web/components/lesson-editor-form.tsx`
 - `apps/lms-web/components/content-admin-reactive-forms.tsx`
 - `apps/lms-web/lib/navigation.ts`
 - `apps/lms-web/lib/english-curriculum.ts`

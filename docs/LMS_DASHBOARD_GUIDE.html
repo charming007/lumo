@@ -203,7 +203,7 @@
         <span class="badge">Print / export ready</span>
       </div>
       <h1>LMS Dashboard Guide</h1>
-      <p>A visual, practical handbook for understanding the LMS dashboard, especially <strong>Content Library</strong>, <strong>English Curriculum Studio</strong>, <strong>Mallam operations</strong>, and <strong>Analytics</strong>: how they connect, how the curriculum is structured, how admins use the system, and how new lessons get created properly.</p>
+      <p>A visual, practical handbook for understanding the LMS dashboard, especially <strong>Content Library</strong> and <strong>English Curriculum Studio</strong>: how they connect, how the curriculum is structured, how admins use the system, and how new lessons get created properly.</p>
     </section>
 
     <div class="grid" style="grid-template-columns: 280px 1fr; align-items: start;">
@@ -215,12 +215,10 @@
         <a href="#content-library">4. Content Library</a>
         <a href="#statuses">5. Statuses & blockers</a>
         <a href="#english-studio">6. English Studio</a>
-        <a href="#mallam-ops">7. Mallam operations</a>
-        <a href="#analytics">8. Analytics</a>
-        <a href="#system-flow">9. End-to-end system flow</a>
-        <a href="#lesson-creation">10. How admins create lessons</a>
-        <a href="#workflow">11. Recommended workflow</a>
-        <a href="#updates">12. How to update this guide</a>
+        <a href="#system-flow">7. End-to-end system flow</a>
+        <a href="#lesson-creation">8. How admins create lessons</a>
+        <a href="#workflow">9. Recommended workflow</a>
+        <a href="#updates">10. How to update this guide</a>
       </aside>
 
       <main class="grid">
@@ -439,45 +437,6 @@ English Studio
           </div>
         </section>
 
-        <section class="card" id="mallam-ops">
-          <div class="eyebrow">7. Mallam operations</div>
-          <h2>Use the mallam board like an operating surface, not a phonebook</h2>
-          <div class="grid two">
-            <div class="callout info">
-              <strong>What the mallam board now needs to answer</strong>
-              <ul>
-                <li>Which center, pod, or certification group needs attention?</li>
-                <li>Who is active, still in training, or on leave?</li>
-                <li>Whose learner load is getting heavy?</li>
-                <li>Where is attendance slipping under one operator’s roster?</li>
-              </ul>
-            </div>
-            <div class="callout warn">
-              <strong>What admins should watch</strong>
-              <ul>
-                <li>Training or leave-status mallams who still carry live rosters</li>
-                <li>At-risk learners clustering under one mallam</li>
-                <li>Thin pod coverage creating bad assignment distribution</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section class="card" id="analytics">
-          <div class="eyebrow">8. Analytics</div>
-          <h2>Analytics should show contribution, risk, and delivery pressure</h2>
-          <table>
-            <thead>
-              <tr><th>View</th><th>Why it matters</th><th>What admins should read from it</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Pod health matrix</td><td>Shows delivery quality by pod</td><td>Attendance, mastery, readiness, watchlist count, and assignment load should be read together, not in isolation.</td></tr>
-              <tr><td>Mallam contribution board</td><td>Shows which operators are moving learners forward</td><td>Use roster size, readiness count, watchlist count, and status together before deciding who needs coaching or redistribution.</td></tr>
-              <tr><td>Risk-ranked intervention cards</td><td>Surfaces where follow-up should start</td><td>Pods with weak attendance and rising watch counts should move to the top of the queue.</td></tr>
-            </tbody>
-          </table>
-        </section>
-
         <section class="card" id="system-flow">
           <div class="eyebrow">7. End-to-end system flow</div>
           <h2>How Content Library, English Studio, assignments, learner runtime, and rewards work together</h2>
@@ -537,20 +496,16 @@ Rewards &amp; Progression
         <section class="card" id="lesson-creation">
           <div class="eyebrow">8. Lesson creation</div>
           <h2>How admins create lessons</h2>
-          <div class="grid two">
+          <div class="grid two" style="margin-bottom: 18px;">
             <div class="callout">
-              <strong>Path A — Generic lesson creation via Content Library</strong>
+              <strong>Path A — Quick lesson creation via Content Library</strong>
               <ol>
                 <li>Open Content Library</li>
                 <li>Click Create Lesson</li>
-                <li>Choose subject</li>
-                <li>Choose module</li>
-                <li>Enter title</li>
-                <li>Set duration</li>
-                <li>Choose mode</li>
-                <li>Submit</li>
-                <li>Review inside the module lane</li>
-                <li>Move through draft → review → approved → published</li>
+                <li>Choose subject and module</li>
+                <li>Enter title, duration, and mode</li>
+                <li>Submit the lesson record</li>
+                <li>Open Lesson Studio if the lesson needs full interactive authoring</li>
               </ol>
             </div>
             <div class="callout good">
@@ -558,16 +513,46 @@ Rewards &amp; Progression
               <ol>
                 <li>Open English Studio</li>
                 <li>Click Author English lesson</li>
-                <li>Select English module</li>
-                <li>Enter title</li>
-                <li>Set duration</li>
-                <li>Choose mode</li>
-                <li>Review objective and vocabulary focus</li>
-                <li>Review the generated activity spine</li>
-                <li>Check readiness controls</li>
-                <li>Set publish state</li>
-                <li>Submit Create English lesson</li>
+                <li>Select module, title, duration, and mode</li>
+                <li>Review objective, vocabulary, and generated activity spine</li>
+                <li>Check readiness controls and publish state</li>
+                <li>Create the lesson, then open Lesson Studio if you need deeper control</li>
               </ol>
+            </div>
+          </div>
+
+          <div class="callout info" style="margin-bottom: 18px;">
+            <strong>Path C — Full interactive authoring in Lesson Studio</strong>
+            <p style="margin: 10px 0 0;">Use Lesson Studio when the lesson needs the real payload: activity steps, choice options, expected answers, hints, media, and lesson-level assessment items. This is the correct route for interactive or option-based lessons.</p>
+          </div>
+
+          <div class="grid two">
+            <div>
+              <h3>Interactive / option-based lesson walkthrough</h3>
+              <ol>
+                <li><strong>Start in the right lane:</strong> open Lesson Studio from Content Library or jump in from English Studio.</li>
+                <li><strong>Create the lesson shell:</strong> set subject, module, title, duration, mode, age band, and voice persona.</li>
+                <li><strong>Build the activity spine:</strong> add, duplicate, reorder, or remove steps. Each step needs a title, type, prompt, detail, duration, and evidence field.</li>
+                <li><strong>Add choices for interactive steps:</strong> for image-choice or tap-choice tasks, add one option per line in the format <code>id|label|correct/wrong|mediaKind|mediaValue</code>.</li>
+                <li><strong>Define expected answers and hints:</strong> use Expected answers for what counts as correct, Evidence for what staff should confirm, and Facilitator notes for hints, retries, and coaching moves.</li>
+                <li><strong>Build the assessment pack:</strong> add an assessment title, kind, and assessment items using <code>prompt|evidence</code> lines.</li>
+                <li><strong>Check readiness before publish:</strong> confirm title, duration, objectives, assessment, and activity spine are complete, and that the module and gate context are actually real.</li>
+              </ol>
+            </div>
+            <div>
+              <h3>Choice format and learner flow</h3>
+              <pre>choice-1|Go to the market|correct|image|market.png
+choice-2|Go to sleep|wrong|image|sleep.png
+choice-3|Go to school|wrong|image|school.png</pre>
+              <div class="callout" style="margin-top: 12px;">
+                <strong>How this reaches the learner app</strong>
+                <ol>
+                  <li>The lesson is saved into the module in Content Library.</li>
+                  <li>Ops can assign it to cohorts, pods, and mallams.</li>
+                  <li>On the learner tablet, the facilitator selects the learner and opens the assigned lesson.</li>
+                  <li>The app plays prompts, shows options or media, accepts spoken or tapped responses, gives feedback, and saves completion for sync.</li>
+                </ol>
+              </div>
             </div>
           </div>
         </section>
