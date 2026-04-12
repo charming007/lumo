@@ -1499,14 +1499,22 @@ class _RegisterPageState extends State<RegisterPage> {
   late String baselineLevel;
   late String caregiverRelationship;
   late bool consentCaptured;
+  late String selectedMallamId;
 
   @override
   void initState() {
     super.initState();
     var draft = widget.state.registrationDraft;
     final defaultTarget = widget.state.registrationContext.defaultTarget;
-    if (draft.cohort.trim().isEmpty && defaultTarget != null) {
-      draft = draft.copyWith(cohort: defaultTarget.cohort.name);
+    if (defaultTarget != null) {
+      draft = draft.copyWith(
+        cohort: draft.cohort.trim().isEmpty
+            ? defaultTarget.cohort.name
+            : draft.cohort,
+        mallamId: draft.mallamId.trim().isEmpty
+            ? defaultTarget.mallam.id
+            : draft.mallamId,
+      );
       widget.state.updateDraft(draft);
     }
     nameController = TextEditingController(text: draft.name);
@@ -1522,6 +1530,7 @@ class _RegisterPageState extends State<RegisterPage> {
     baselineLevel = draft.baselineLevel;
     caregiverRelationship = draft.caregiverRelationship;
     consentCaptured = draft.consentCaptured;
+    selectedMallamId = draft.mallamId;
   }
 
   @override
@@ -1552,6 +1561,7 @@ class _RegisterPageState extends State<RegisterPage> {
         consentCaptured: consentCaptured,
         caregiverRelationship: caregiverRelationship,
         supportPlan: supportPlanController.text,
+        mallamId: selectedMallamId,
       ),
     );
   }
@@ -1572,6 +1582,7 @@ class _RegisterPageState extends State<RegisterPage> {
       consentCaptured: consentCaptured,
       caregiverRelationship: caregiverRelationship,
       supportPlan: supportPlanController.text,
+      mallamId: selectedMallamId,
     );
     final recommendedModule = widget.state.recommendedModuleForDraft;
     final registrationTarget = widget.state.registrationTargetForDraft;
@@ -1726,6 +1737,46 @@ class _RegisterPageState extends State<RegisterPage> {
                                           const SizedBox(width: 12),
                                       ],
                                     ],
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              Builder(
+                                builder: (context) {
+                                  final mallams =
+                                      widget.state.registrationContext.mallams;
+                                  final hasSelectedMallam = mallams.any(
+                                    (mallam) => mallam.id == selectedMallamId,
+                                  );
+
+                                  if (mallams.isEmpty) {
+                                    return const SizedBox.shrink();
+                                  }
+
+                                  return DropdownButtonFormField<String>(
+                                    initialValue: hasSelectedMallam
+                                        ? selectedMallamId
+                                        : null,
+                                    items: mallams
+                                        .map(
+                                          (mallam) => DropdownMenuItem(
+                                            value: mallam.id,
+                                            child: Text(mallam.name),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      setState(() {
+                                        selectedMallamId = value;
+                                        syncDraft();
+                                      });
+                                    },
+                                    decoration: const InputDecoration(
+                                      labelText: 'Assign mallam',
+                                      helperText:
+                                          'Choose the mallam responsible for this learner.',
+                                    ),
                                   );
                                 },
                               ),
@@ -2004,11 +2055,11 @@ class _RegisterPageState extends State<RegisterPage> {
                               const SizedBox(height: 8),
                               _RegistrationReadinessStrip(draft: draft),
                               const SizedBox(height: 18),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: SoftPanel(
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final compact = constraints.maxWidth < 760;
+                                  final panels = [
+                                    SoftPanel(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -2039,10 +2090,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                         ],
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: SoftPanel(
+                                    SoftPanel(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -2072,11 +2120,48 @@ class _RegisterPageState extends State<RegisterPage> {
                                               value: registrationTarget
                                                   .cohort.podId,
                                             ),
+                                          if (registrationTarget != null)
+                                            InfoRow(
+                                              label: 'Assigned mallam',
+                                              value: registrationTarget
+                                                  .mallam.name,
+                                            ),
                                         ],
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ];
+
+                                  if (compact) {
+                                    return Column(
+                                      children: [
+                                        for (var i = 0;
+                                            i < panels.length;
+                                            i++) ...[
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: panels[i],
+                                          ),
+                                          if (i < panels.length - 1)
+                                            const SizedBox(height: 12),
+                                        ],
+                                      ],
+                                    );
+                                  }
+
+                                  return Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      for (var i = 0;
+                                          i < panels.length;
+                                          i++) ...[
+                                        Expanded(child: panels[i]),
+                                        if (i < panels.length - 1)
+                                          const SizedBox(width: 12),
+                                      ],
+                                    ],
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -3578,8 +3663,8 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
       return KeyedSubtree(
         key: ValueKey('responsive-column-$index'),
         child: isPane
-            ? SizedBox(
-                height: viewportHeight,
+            ? ConstrainedBox(
+                constraints: BoxConstraints(minHeight: viewportHeight * 0.72),
                 child: columnChild,
               )
             : columnChild,

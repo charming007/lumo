@@ -133,12 +133,12 @@ class LumoAppState {
         ..clear()
         ..addAll(data.learners.isEmpty ? learnerProfilesSeed : data.learners);
 
-      final mergedModules = <LearningModule>[
+      final mergedModules = _dedupeModules([
         ...data.modules,
         ...learningModules.where(
           (seed) => !data.modules.any((item) => item.id == seed.id),
         ),
-      ];
+      ]);
       modules
         ..clear()
         ..addAll(mergedModules);
@@ -208,7 +208,7 @@ class LumoAppState {
 
     modules
       ..clear()
-      ..addAll(hydratedModules);
+      ..addAll(_dedupeModules(hydratedModules));
 
     if (hydratedLessons.isNotEmpty) {
       final fallbackByModule = <String, List<LessonCardModel>>{};
@@ -229,6 +229,21 @@ class LumoAppState {
         ..clear()
         ..addAll(mergedLessons);
     }
+  }
+
+  List<LearningModule> _dedupeModules(List<LearningModule> source) {
+    final byKey = <String, LearningModule>{};
+
+    for (final module in source) {
+      final normalizedId = module.id.trim().toLowerCase();
+      final normalizedTitle = module.title.trim().toLowerCase();
+      final key = normalizedId.isNotEmpty ? normalizedId : normalizedTitle;
+      if (!byKey.containsKey(key)) {
+        byKey[key] = module;
+      }
+    }
+
+    return byKey.values.toList();
   }
 
   LearnerProfile? get suggestedLearnerForHome {
@@ -410,6 +425,7 @@ class LumoAppState {
     if (!registrationContext.isReady) return null;
     return registrationContext.resolveTargetForCohortName(
       registrationDraft.cohort,
+      preferredMallamId: registrationDraft.mallamId,
     );
   }
 
@@ -516,7 +532,7 @@ class LumoAppState {
     final startedAt = resumeFrom?.startedAt ?? now;
     final learnerName = currentLearner?.name ?? 'the learner';
     final resumePrompt = isResuming
-        ? 'Mallam is resuming ${lesson.title} with $learnerName from ${resumeFrom!.progressLabel.toLowerCase()}.'
+        ? 'Mallam is resuming ${lesson.title} with $learnerName from ${resumeFrom.progressLabel.toLowerCase()}.'
         : 'Mallam is opening the lesson and preparing the first voice prompt.';
 
     activeSession = LessonSessionState(

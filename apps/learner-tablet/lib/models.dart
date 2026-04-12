@@ -325,6 +325,7 @@ class RegistrationDraft {
   final bool consentCaptured;
   final String caregiverRelationship;
   final String supportPlan;
+  final String mallamId;
 
   const RegistrationDraft({
     this.name = '',
@@ -340,6 +341,7 @@ class RegistrationDraft {
     this.consentCaptured = false,
     this.caregiverRelationship = 'Mother',
     this.supportPlan = 'Use short prompts and repeat once when needed.',
+    this.mallamId = '',
   });
 
   RegistrationDraft copyWith({
@@ -356,6 +358,7 @@ class RegistrationDraft {
     bool? consentCaptured,
     String? caregiverRelationship,
     String? supportPlan,
+    String? mallamId,
   }) {
     return RegistrationDraft(
       name: name ?? this.name,
@@ -372,6 +375,7 @@ class RegistrationDraft {
       caregiverRelationship:
           caregiverRelationship ?? this.caregiverRelationship,
       supportPlan: supportPlan ?? this.supportPlan,
+      mallamId: mallamId ?? this.mallamId,
     );
   }
 
@@ -708,14 +712,16 @@ class LearningModule {
     final subjectName = json['subjectName']?.toString();
     final title = json['title']?.toString() ?? 'Learning module';
     final level = json['level']?.toString() ?? 'beginner';
+    final moduleTitle =
+        subjectName?.trim().isNotEmpty == true ? subjectName!.trim() : title;
 
     return LearningModule(
       id: subjectId,
-      title: subjectName == null ? title : '$subjectName · $title',
+      title: moduleTitle,
       description:
-          'Live curriculum module from backend for ${subjectName ?? 'Lumo'} learners.',
+          'Live ${title.toLowerCase()} path for ${moduleTitle.toLowerCase()} learners.',
       voicePrompt:
-          'We are opening the live curriculum module "$title". Follow Mallam one step at a time.',
+          'We are opening $moduleTitle. Follow Mallam one step at a time.',
       readinessGoal: _moduleGoal(level, subjectId),
       badge: 'Live backend',
     );
@@ -1043,16 +1049,24 @@ class RegistrationContext {
     return null;
   }
 
-  RegistrationTarget? resolveTargetForCohortName(String? cohortName) {
+  RegistrationTarget? resolveTargetForCohortName(
+    String? cohortName, {
+    String? preferredMallamId,
+  }) {
     final cohort = findCohortByName(cohortName);
     if (cohort == null) {
-      return defaultTarget ?? (isReady ? resolveTarget() : null);
+      return defaultTarget ??
+          (isReady
+              ? resolveTarget(preferredMallamId: preferredMallamId)
+              : null);
     }
 
-    final mallam = mallams.firstWhere(
-      (item) => item.podIds.contains(cohort.podId),
-      orElse: () => defaultTarget?.mallam ?? mallams.first,
-    );
+    final preferredMallam = findMallamById(preferredMallamId);
+    final mallam = preferredMallam ??
+        mallams.firstWhere(
+          (item) => item.podIds.contains(cohort.podId),
+          orElse: () => defaultTarget?.mallam ?? mallams.first,
+        );
     return RegistrationTarget(cohort: cohort, mallam: mallam);
   }
 
@@ -1096,6 +1110,15 @@ class RegistrationContext {
     );
   }
 
+  BackendMallam? findMallamById(String? mallamId) {
+    final normalized = mallamId?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) return null;
+    for (final mallam in mallams) {
+      if (mallam.id.trim().toLowerCase() == normalized) return mallam;
+    }
+    return null;
+  }
+
   bool get isReady => cohorts.isNotEmpty && mallams.isNotEmpty;
 
   String get summary {
@@ -1104,17 +1127,22 @@ class RegistrationContext {
     return '${target.cohort.name} • ${target.mallam.name}';
   }
 
-  RegistrationTarget resolveTarget() {
-    if (defaultTarget != null) return defaultTarget!;
+  RegistrationTarget resolveTarget({String? preferredMallamId}) {
+    if (defaultTarget != null &&
+        (preferredMallamId == null || preferredMallamId.trim().isEmpty)) {
+      return defaultTarget!;
+    }
     if (cohorts.isEmpty || mallams.isEmpty) {
       throw StateError('Registration context is not ready.');
     }
 
-    final cohort = cohorts.first;
-    final mallam = mallams.firstWhere(
-      (item) => item.podIds.contains(cohort.podId),
-      orElse: () => mallams.first,
-    );
+    final cohort = defaultTarget?.cohort ?? cohorts.first;
+    final preferredMallam = findMallamById(preferredMallamId);
+    final mallam = preferredMallam ??
+        mallams.firstWhere(
+          (item) => item.podIds.contains(cohort.podId),
+          orElse: () => defaultTarget?.mallam ?? mallams.first,
+        );
 
     return RegistrationTarget(cohort: cohort, mallam: mallam);
   }
