@@ -319,15 +319,25 @@ export async function updateLessonAction(formData: FormData) {
   const lessonId = String(formData.get('lessonId') || '');
   const returnPath = String(formData.get('returnPath') || '/content');
   const payload = {
+    subjectId: String(formData.get('subjectId') || '') || undefined,
+    moduleId: String(formData.get('moduleId') || '') || undefined,
+    title: String(formData.get('title') || '') || undefined,
     status: String(formData.get('status') || ''),
     mode: String(formData.get('mode') || ''),
     durationMinutes: Number(formData.get('durationMinutes') || 0),
+    targetAgeRange: String(formData.get('targetAgeRange') || '') || null,
+    voicePersona: String(formData.get('voicePersona') || '') || null,
+    learningObjectives: parseJsonField<string[]>(formData, 'learningObjectives', []),
+    localization: parseJsonField<Record<string, unknown> | null>(formData, 'localization', null),
+    lessonAssessment: parseJsonField<Record<string, unknown> | null>(formData, 'lessonAssessment', null),
+    activitySteps: parseJsonField<Array<Record<string, unknown>>>(formData, 'activitySteps', []),
   };
 
   await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', payload);
   revalidatePath('/content');
   revalidatePath('/english');
-  redirect(`${returnPath}?message=Lesson%20changes%20saved`);
+  revalidatePath(`/content/lessons/${lessonId}`);
+  redirect(`${returnPath}?message=Lesson%20authoring%20pack%20saved`);
 }
 
 export async function createAssessmentAction(formData: FormData) {

@@ -803,6 +803,16 @@ app.get('/api/v1/lessons', (_req, res) => {
   res.json(store.listLessons().map(presenters.presentLesson));
 });
 
+app.get('/api/v1/lessons/:id', (req, res) => {
+  const lesson = store.findLessonById(req.params.id);
+
+  if (!lesson) {
+    return res.status(404).json({ message: 'Lesson not found' });
+  }
+
+  return res.json(presenters.presentLesson(lesson));
+});
+
 app.post('/api/v1/lessons', requireRole(['admin']), (req, res, next) => {
   try {
     validators.validateLesson(req.body);

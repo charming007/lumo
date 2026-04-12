@@ -104,6 +104,10 @@ export function fetchLessons() {
   return getJson<Lesson[]>('/api/v1/lessons');
 }
 
+export function fetchLesson(id: string) {
+  return getJson<Lesson>(`/api/v1/lessons/${id}`);
+}
+
 export function fetchSubjects() {
   return getJson<Subject[]>('/api/v1/subjects');
 }

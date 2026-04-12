@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   CreateAssessmentForm,
   CreateModuleForm,
@@ -221,6 +222,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                               <div>
                                 <div style={{ fontWeight: 700 }}>{lesson.title}</div>
                                 <div style={{ color: '#64748b' }}>{lesson.mode} • {lesson.durationMinutes} min</div>
+                                <Link href={`/content/lessons/${lesson.id}`} style={{ display: 'inline-flex', marginTop: 8, color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open authoring editor →</Link>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                 <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
@@ -356,7 +358,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               `${lesson.durationMinutes} min`,
               <Pill key={`${lesson.id}-status`} label={lesson.status} tone={statusPill(lesson.status).tone} text={statusPill(lesson.status).text} />,
               <div key={`${lesson.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <ModalLauncher buttonLabel="Edit lesson" title={`Edit lesson · ${lesson.title}`} description="Update lesson metadata from the inventory table." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                <Link href={`/content/lessons/${lesson.id}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none', textAlign: 'center' }}>
+                  Open full editor
+                </Link>
+                <ModalLauncher buttonLabel="Quick edit" title={`Quick edit · ${lesson.title}`} description="Use the compact editor for status/mode/duration only. For actual authoring, open the full lesson editor." eyebrow="Quick edit" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                   <UpdateLessonForm lessons={[lesson]} />
                 </ModalLauncher>
                 <ModalLauncher buttonLabel="Delete lesson" title={`Delete lesson · ${lesson.title}`} description="Remove this lesson from the inventory if it no longer belongs here." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
