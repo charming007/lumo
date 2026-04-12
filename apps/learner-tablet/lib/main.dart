@@ -165,6 +165,9 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final learnerCount = state.learners.length;
+    final currentLearner = state.currentLearner;
+    final nextAssignedLesson =
+        state.nextAssignedLessonForLearner(currentLearner);
 
     return Scaffold(
       body: SafeArea(
@@ -314,6 +317,55 @@ class HomePage extends StatelessWidget {
                                       ),
                                     ],
                                   ),
+                                  if (currentLearner != null) ...[
+                                    const SizedBox(height: 18),
+                                    _CurrentLearnerBanner(
+                                      learner: currentLearner,
+                                      nextLesson: nextAssignedLesson,
+                                      backendSummary:
+                                          state.backendRoutingSummaryForLearner(
+                                        currentLearner,
+                                      ),
+                                      onOpenProfile: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => LearnerProfilePage(
+                                              state: state,
+                                              learner: currentLearner,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      onContinue: nextAssignedLesson == null
+                                          ? null
+                                          : () {
+                                              state.selectModule(
+                                                state.modules.firstWhere(
+                                                  (module) =>
+                                                      module.id ==
+                                                      nextAssignedLesson
+                                                          .moduleId,
+                                                  orElse: () =>
+                                                      state.modules.first,
+                                                ),
+                                              );
+                                              state.startLesson(
+                                                nextAssignedLesson,
+                                              );
+                                              onChanged();
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      LessonSessionPage(
+                                                    state: state,
+                                                    lesson: nextAssignedLesson,
+                                                    onChanged: onChanged,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -984,9 +1036,12 @@ class SubjectModulesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lessons = state.assignedLessons
-        .where((lesson) => lesson.moduleId == module.id)
-        .toList();
+    final selectedLearner = state.currentLearner;
+    final lessons = selectedLearner == null
+        ? state.assignedLessons
+            .where((lesson) => lesson.moduleId == module.id)
+            .toList()
+        : state.lessonsForLearnerAndModule(selectedLearner, module.id);
 
     return Scaffold(
       body: SafeArea(
@@ -1046,6 +1101,28 @@ class SubjectModulesPage extends StatelessWidget {
                       const SizedBox(height: 16),
                       _BackendStatusBanner(state: state),
                       const SizedBox(height: 16),
+                      if (selectedLearner != null) ...[
+                        _CurrentLearnerBanner(
+                          learner: selectedLearner,
+                          nextLesson: state.nextAssignedLessonForLearner(
+                            selectedLearner,
+                          ),
+                          backendSummary: state.backendRoutingSummaryForLearner(
+                            selectedLearner,
+                          ),
+                          onOpenProfile: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => LearnerProfilePage(
+                                  state: state,
+                                  learner: selectedLearner,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       if (lessons.isEmpty)
                         const SoftPanel(
                           child: Text(
@@ -1063,6 +1140,19 @@ class SubjectModulesPage extends StatelessWidget {
                                 onTap: () {
                                   state.selectModule(module);
                                   onChanged();
+                                  if (selectedLearner != null) {
+                                    state.startLesson(lesson);
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => LessonSessionPage(
+                                          state: state,
+                                          lesson: lesson,
+                                          onChanged: onChanged,
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (_) => SelectStudentPage(
@@ -1883,8 +1973,24 @@ class RegistrationSuccessPage extends StatelessWidget {
                         Expanded(
                           child: FilledButton(
                             onPressed: () {
+                              final nextLesson =
+                                  state.nextAssignedLessonForLearner(learner);
+                              state.selectLearner(learner);
                               state.selectModule(recommendedModule);
                               onChanged();
+                              if (nextLesson != null) {
+                                state.startLesson(nextLesson);
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonSessionPage(
+                                      state: state,
+                                      lesson: nextLesson,
+                                      onChanged: onChanged,
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
                                   builder: (_) => SubjectModulesPage(
@@ -1895,7 +2001,12 @@ class RegistrationSuccessPage extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: const Text('Open subject'),
+                            child: Text(
+                              state.nextAssignedLessonForLearner(learner) ==
+                                      null
+                                  ? 'Open subject'
+                                  : 'Start assigned lesson',
+                            ),
                           ),
                         ),
                       ],
@@ -3165,13 +3276,33 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
     this.crossAxisAlignment = CrossAxisAlignment.center,
   });
 
-  List<Widget> _layoutChildren() {
-    return children.map((child) {
-      if (child is ResponsivePane) {
-        return Expanded(flex: child.flex, child: child.child);
-      }
-      return child;
-    }).toList();
+  List<Widget> _layoutChildrenForRow() {
+    return List.generate(children.length, (index) {
+      final child = children[index];
+      final rowChild = child is ResponsivePane
+          ? Expanded(flex: child.flex, child: child.child)
+          : child;
+      return KeyedSubtree(
+        key: ValueKey('responsive-row-$index'),
+        child: rowChild,
+      );
+    });
+  }
+
+  List<Widget> _layoutChildrenForColumn() {
+    return List.generate(children.length, (index) {
+      final child = children[index];
+      final columnChild = switch (child) {
+        ResponsivePane() => child.child,
+        Expanded() => child.child,
+        Flexible() => child.child,
+        _ => child,
+      };
+      return KeyedSubtree(
+        key: ValueKey('responsive-column-$index'),
+        child: columnChild,
+      );
+    });
   }
 
   @override
@@ -3181,32 +3312,29 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final hasRoom = constraints.maxWidth >= breakpoint;
-        final minHeight =
-            constraints.maxHeight.isFinite ? constraints.maxHeight : 0.0;
-        final laidOutChildren = _layoutChildren();
 
         if (hasRoom) {
           return Row(
             crossAxisAlignment: crossAxisAlignment,
-            children: laidOutChildren,
+            children: _layoutChildrenForRow(),
           );
         }
 
+        final stackedChildren = _layoutChildrenForColumn();
         return ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(
             scrollbars: false,
           ),
           child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: breakpoint,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: minHeight),
-                child: Row(
-                  crossAxisAlignment: crossAxisAlignment,
-                  children: laidOutChildren,
-                ),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < stackedChildren.length; i++) ...[
+                  stackedChildren[i],
+                  if (i < stackedChildren.length - 1)
+                    const SizedBox(height: 20),
+                ],
+              ],
             ),
           ),
         );
@@ -3644,6 +3772,98 @@ class _PrimaryActionCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CurrentLearnerBanner extends StatelessWidget {
+  final LearnerProfile learner;
+  final LessonCardModel? nextLesson;
+  final String backendSummary;
+  final VoidCallback onOpenProfile;
+  final VoidCallback? onContinue;
+
+  const _CurrentLearnerBanner({
+    required this.learner,
+    required this.nextLesson,
+    required this.backendSummary,
+    required this.onOpenProfile,
+    this.onContinue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFC7D2FE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Current learner: ${learner.name}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF312E81),
+                  ),
+                ),
+              ),
+              StatusPill(
+                text:
+                    nextLesson == null ? 'Profile ready' : 'Ready to continue',
+                color: nextLesson == null
+                    ? LumoTheme.accentOrange
+                    : LumoTheme.accentGreen,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            backendSummary,
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
+          ),
+          if (nextLesson != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Next lesson: ${nextLesson!.title}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E1B4B),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onOpenProfile,
+                icon: const Icon(Icons.badge_rounded),
+                label: const Text('Open learner profile'),
+              ),
+              if (onContinue != null)
+                FilledButton.icon(
+                  onPressed: onContinue,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: Text(
+                    nextLesson == null
+                        ? 'Open learner flow'
+                        : 'Continue lesson',
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
