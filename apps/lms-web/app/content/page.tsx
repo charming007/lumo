@@ -110,7 +110,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <ModalLauncher buttonLabel="Create Module" title="Create module" description="Add a module to the right strand without leaving the content board.">
             <CreateModuleForm strands={strands} />
           </ModalLauncher>
-          <ModalLauncher buttonLabel="Create Lesson" title="Create lesson" description="Create a lesson in the correct subject and module lane.">
+          <Link href="/content/lessons/new" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+            Open lesson studio
+          </Link>
+          <ModalLauncher buttonLabel="Quick create lesson" title="Quick create lesson" description="Need a fast record only? Use the compact form. For actual authoring, use the full lesson studio.">
             <DynamicLessonCreateForm modules={modules} subjects={subjects} action={createLessonAction} />
           </ModalLauncher>
           <ModalLauncher buttonLabel="Create Assessment" title="Create assessment gate" description="Attach a progression gate to a module from the same board.">
@@ -222,7 +225,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                               <div>
                                 <div style={{ fontWeight: 700 }}>{lesson.title}</div>
                                 <div style={{ color: '#64748b' }}>{lesson.mode} • {lesson.durationMinutes} min</div>
-                                <Link href={`/content/lessons/${lesson.id}`} style={{ display: 'inline-flex', marginTop: 8, color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open authoring editor →</Link>
+                                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+                                  <Link href={`/content/lessons/${lesson.id}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open authoring editor →</Link>
+                                  <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&duplicate=${lesson.id}`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
+                                </div>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                 <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
@@ -360,6 +366,9 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               <div key={`${lesson.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <Link href={`/content/lessons/${lesson.id}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none', textAlign: 'center' }}>
                   Open full editor
+                </Link>
+                <Link href={`/content/lessons/new?duplicate=${lesson.id}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                  Duplicate as new
                 </Link>
                 <ModalLauncher buttonLabel="Quick edit" title={`Quick edit · ${lesson.title}`} description="Use the compact editor for status/mode/duration only. For actual authoring, open the full lesson editor." eyebrow="Quick edit" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                   <UpdateLessonForm lessons={[lesson]} />

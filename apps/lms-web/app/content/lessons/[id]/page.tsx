@@ -25,12 +25,16 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
       breadcrumbs={[
         { label: 'Content Library', href: '/content' },
         { label: 'Lesson inventory', href: '/content' },
+        { label: lesson.title, href: `/content/lessons/${lesson.id}` },
       ]}
       aside={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Pill label={lesson.subjectName ?? 'Unknown subject'} />
           <Pill label={lesson.moduleTitle ?? 'Unmapped module'} tone="#F8FAFC" text="#334155" />
           <Pill label={lesson.status} tone={statusTone(lesson.status).tone} text={statusTone(lesson.status).text} />
+          <Link href={`/content/lessons/new?duplicate=${lesson.id}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', fontWeight: 700 }}>
+            Duplicate as new
+          </Link>
         </div>
       }
     >
