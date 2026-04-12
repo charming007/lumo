@@ -29,6 +29,8 @@ class LumoAppState {
   final List<LearningModule> modules = List.of(learningModules);
   final List<LessonCardModel> assignedLessons = List.of(assignedLessonsSeed);
   final List<LearnerAssignmentPack> assignmentPacks = [];
+  final Map<String, List<BackendLessonSession>>
+      recentRuntimeSessionsByLearnerId = {};
 
   bool isBootstrapping = false;
   bool isRegisteringLearner = false;
@@ -43,6 +45,7 @@ class LumoAppState {
   int lastSyncAcceptedCount = 0;
   int lastSyncIgnoredCount = 0;
   String? lastSyncError;
+  String? learnerRuntimeError;
 
   String get backendBaseUrl => _apiClient.baseUrl;
 
@@ -167,6 +170,9 @@ class LumoAppState {
                 (item) => item.id == existingLearnerId,
                 orElse: () => suggestedLearnerForHome ?? learners.first,
               );
+        if (currentLearner != null) {
+          unawaited(refreshLearnerRuntimeSessions(currentLearner!));
+        }
       }
       if (selectedModule != null && modules.isNotEmpty) {
         selectedModule = modules.firstWhere(
@@ -242,6 +248,7 @@ class LumoAppState {
 
   void selectLearner(LearnerProfile learner) {
     currentLearner = learner;
+    unawaited(refreshLearnerRuntimeSessions(learner));
   }
 
   void selectModule(LearningModule module) {
@@ -1003,6 +1010,7 @@ class LumoAppState {
           result.raw['contractVersion']?.toString() ?? backendContractVersion;
       lastSyncError = null;
       backendError = null;
+      _applySyncedRuntimeSessions(result.raw);
       _applyBackendSyncResults(result.raw);
       if (pendingSyncEvents.isNotEmpty) {
         _attemptSyncSoon();
@@ -1028,6 +1036,49 @@ class LumoAppState {
     final contract = backendContractVersion ?? 'contract unknown';
     if (generatedAt == null) return contract;
     return '$contract • snapshot ${_formatTime(generatedAt)}';
+  }
+
+  List<BackendLessonSession> recentRuntimeSessionsForLearner(
+    LearnerProfile? learner,
+  ) {
+    if (learner == null) return const [];
+    return recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
+  }
+
+  String runtimeSessionSummaryForLearner(LearnerProfile? learner) {
+    final sessions = recentRuntimeSessionsForLearner(learner);
+    if (sessions.isEmpty) {
+      if (learnerRuntimeError != null) {
+        return 'Recent runtime history could not load: $learnerRuntimeError';
+      }
+      return 'No backend runtime sessions have been loaded yet.';
+    }
+
+    final latest = sessions.first;
+    final activityTime =
+        latest.lastActivityAt ?? latest.completedAt ?? latest.startedAt;
+    final activityLabel =
+        activityTime == null ? 'time pending' : _formatTime(activityTime);
+    final lessonLabel = latest.lessonTitle ?? 'Live lesson session';
+    return '${latest.statusLabel} • $lessonLabel • ${latest.progressLabel} • updated $activityLabel';
+  }
+
+  Future<void> refreshLearnerRuntimeSessions(
+    LearnerProfile learner, {
+    int limit = 5,
+  }) async {
+    if (usingFallbackData || learner.learnerCode.trim().isEmpty) return;
+
+    try {
+      final sessions = await _apiClient.fetchRecentSessions(
+        learnerCode: learner.learnerCode,
+        limit: limit,
+      );
+      recentRuntimeSessionsByLearnerId[learner.id] = sessions;
+      learnerRuntimeError = null;
+    } catch (error) {
+      learnerRuntimeError = error.toString().replaceFirst('Exception: ', '');
+    }
   }
 
   String get lastSyncSummaryLabel {
@@ -1104,6 +1155,42 @@ class LumoAppState {
         .replaceAll('____', learner.name)
         .replaceAll('Aisha', learner.name)
         .replaceAll('Abdullahi', learner.name);
+  }
+
+  void _applySyncedRuntimeSessions(Map<String, dynamic> raw) {
+    final results = raw['results'];
+    if (results is! List) return;
+
+    for (final item in results.whereType<Map>()) {
+      final sessionJson = item['session'];
+      if (sessionJson is! Map) continue;
+
+      final session = BackendLessonSession.fromJson(
+        Map<String, dynamic>.from(sessionJson),
+      );
+      if (session.studentId.trim().isEmpty) continue;
+
+      final learnerIndex = learners.indexWhere(
+        (entry) => entry.id == session.studentId,
+      );
+      if (learnerIndex == -1) continue;
+
+      final learnerId = learners[learnerIndex].id;
+      final existing = List<BackendLessonSession>.from(
+        recentRuntimeSessionsByLearnerId[learnerId] ?? const [],
+      )..removeWhere((entry) => entry.sessionId == session.sessionId);
+      recentRuntimeSessionsByLearnerId[learnerId] = [session, ...existing]
+        ..sort((left, right) {
+          final rightTime =
+              right.lastActivityAt ?? right.completedAt ?? right.startedAt;
+          final leftTime =
+              left.lastActivityAt ?? left.completedAt ?? left.startedAt;
+          if (leftTime == null && rightTime == null) return 0;
+          if (leftTime == null) return 1;
+          if (rightTime == null) return -1;
+          return rightTime.compareTo(leftTime);
+        });
+    }
   }
 
   void _applyBackendSyncResults(Map<String, dynamic> raw) {

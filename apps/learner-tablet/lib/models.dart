@@ -518,6 +518,110 @@ class LumoModuleBundle {
   });
 }
 
+class BackendLessonSession {
+  final String id;
+  final String sessionId;
+  final String studentId;
+  final String? learnerCode;
+  final String? lessonId;
+  final String? lessonTitle;
+  final String? moduleId;
+  final String? moduleTitle;
+  final String status;
+  final String completionState;
+  final String automationStatus;
+  final int currentStepIndex;
+  final int stepsTotal;
+  final int responsesCaptured;
+  final int supportActionsUsed;
+  final int audioCaptures;
+  final int facilitatorObservations;
+  final String? latestReview;
+  final DateTime? startedAt;
+  final DateTime? lastActivityAt;
+  final DateTime? completedAt;
+
+  const BackendLessonSession({
+    required this.id,
+    required this.sessionId,
+    required this.studentId,
+    this.learnerCode,
+    this.lessonId,
+    this.lessonTitle,
+    this.moduleId,
+    this.moduleTitle,
+    required this.status,
+    required this.completionState,
+    required this.automationStatus,
+    required this.currentStepIndex,
+    required this.stepsTotal,
+    required this.responsesCaptured,
+    required this.supportActionsUsed,
+    required this.audioCaptures,
+    required this.facilitatorObservations,
+    this.latestReview,
+    this.startedAt,
+    this.lastActivityAt,
+    this.completedAt,
+  });
+
+  factory BackendLessonSession.fromJson(Map<String, dynamic> json) {
+    return BackendLessonSession(
+      id: json['id']?.toString() ??
+          json['sessionId']?.toString() ??
+          'runtime-session',
+      sessionId: json['sessionId']?.toString() ??
+          json['id']?.toString() ??
+          'runtime-session',
+      studentId: json['studentId']?.toString() ?? '',
+      learnerCode: json['learnerCode']?.toString(),
+      lessonId: json['lessonId']?.toString(),
+      lessonTitle: json['lessonTitle']?.toString(),
+      moduleId: json['moduleId']?.toString(),
+      moduleTitle: json['moduleTitle']?.toString(),
+      status: json['status']?.toString() ?? 'in_progress',
+      completionState: json['completionState']?.toString() ?? 'inProgress',
+      automationStatus: json['automationStatus']?.toString() ?? 'guided',
+      currentStepIndex: _asInt(json['currentStepIndex']) ?? 0,
+      stepsTotal: _asInt(json['stepsTotal']) ?? 0,
+      responsesCaptured: _asInt(json['responsesCaptured']) ?? 0,
+      supportActionsUsed: _asInt(json['supportActionsUsed']) ?? 0,
+      audioCaptures: _asInt(json['audioCaptures']) ?? 0,
+      facilitatorObservations: _asInt(json['facilitatorObservations']) ?? 0,
+      latestReview: json['latestReview']?.toString(),
+      startedAt: DateTime.tryParse(json['startedAt']?.toString() ?? ''),
+      lastActivityAt:
+          DateTime.tryParse(json['lastActivityAt']?.toString() ?? ''),
+      completedAt: DateTime.tryParse(json['completedAt']?.toString() ?? ''),
+    );
+  }
+
+  double get progressRatio {
+    if (stepsTotal <= 0) return 0;
+    final ratio = currentStepIndex / stepsTotal;
+    if (ratio < 0) return 0;
+    if (ratio > 1) return 1;
+    return ratio;
+  }
+
+  String get statusLabel {
+    switch (status) {
+      case 'completed':
+        return 'Completed';
+      case 'abandoned':
+        return 'Abandoned';
+      default:
+        return 'In progress';
+    }
+  }
+
+  String get progressLabel {
+    if (stepsTotal <= 0) return 'Step tracking pending';
+    final stepNumber = currentStepIndex <= 0 ? 1 : currentStepIndex;
+    return 'Step $stepNumber of $stepsTotal';
+  }
+}
+
 class LearnerAssignmentPack {
   final String assignmentId;
   final String lessonId;

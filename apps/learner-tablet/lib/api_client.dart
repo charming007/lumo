@@ -166,6 +166,28 @@ class LumoApiClient {
     );
   }
 
+  Future<List<BackendLessonSession>> fetchRecentSessions({
+    required String learnerCode,
+    int limit = 5,
+  }) async {
+    final encodedLearnerCode = Uri.encodeQueryComponent(learnerCode);
+    final response = await _send(
+      () => _client.get(
+        Uri.parse(
+          '$baseUrl/api/v1/learner-app/sessions?learnerCode=$encodedLearnerCode&limit=$limit',
+        ),
+        headers: _jsonHeaders,
+      ),
+      action: 'load learner runtime sessions',
+    );
+
+    _ensureOk(response, 'load learner runtime sessions');
+    final decoded = _decodeObject(response.body);
+    return _asList(decoded['sessions'])
+        .map(BackendLessonSession.fromJson)
+        .toList();
+  }
+
   Future<LumoSyncResult> syncEvents(List<SyncEvent> events) async {
     final response = await _send(
       () => _client.post(

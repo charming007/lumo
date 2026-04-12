@@ -126,8 +126,10 @@ void main() {
           BackendCohort(id: 'cohort-2', name: 'Cohort B', podId: 'pod-2'),
         ],
         mallams: const [
-          BackendMallam(id: 'mallam-1', name: 'Mallam Idris', podIds: ['pod-1']),
-          BackendMallam(id: 'mallam-2', name: 'Mallama Zarah', podIds: ['pod-2']),
+          BackendMallam(
+              id: 'mallam-1', name: 'Mallam Idris', podIds: ['pod-1']),
+          BackendMallam(
+              id: 'mallam-2', name: 'Mallama Zarah', podIds: ['pod-2']),
         ],
       );
       state.updateDraft(
@@ -148,6 +150,118 @@ void main() {
       expect(target!.cohort.id, 'cohort-2');
       expect(target.mallam.id, 'mallam-2');
       expect(state.registrationTargetSummary, contains('Mallama Zarah'));
+    });
+
+    test('loads recent backend runtime sessions for the selected learner',
+        () async {
+      final state = LumoAppState(
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/sessions') {
+              return http.Response(
+                jsonEncode({
+                  'sessions': [
+                    {
+                      'id': 'runtime-session-1',
+                      'sessionId': 'session-1',
+                      'studentId': beginner.id,
+                      'learnerCode': beginner.learnerCode,
+                      'lessonTitle': 'Alphabet warm-up',
+                      'status': 'in_progress',
+                      'completionState': 'inProgress',
+                      'automationStatus':
+                          'Mallam is waiting for the next response.',
+                      'currentStepIndex': 2,
+                      'stepsTotal': 4,
+                      'responsesCaptured': 1,
+                      'supportActionsUsed': 0,
+                      'audioCaptures': 1,
+                      'facilitatorObservations': 0,
+                      'lastActivityAt': '2026-04-12T10:00:00.000Z',
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      )..usingFallbackData = false;
+
+      await state.refreshLearnerRuntimeSessions(beginner);
+
+      final sessions = state.recentRuntimeSessionsForLearner(beginner);
+      expect(sessions, hasLength(1));
+      expect(sessions.first.lessonTitle, 'Alphabet warm-up');
+      expect(state.runtimeSessionSummaryForLearner(beginner),
+          contains('Step 2 of 4'));
+    });
+
+    test('applies synced runtime session updates into learner history',
+        () async {
+      final state = LumoAppState(
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/sync') {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              final events = body['events'] as List<dynamic>;
+              return http.Response(
+                jsonEncode({
+                  'accepted': events.length,
+                  'ignored': 0,
+                  'syncedAt': '2026-04-12T10:00:00.000Z',
+                  'results': [
+                    {
+                      'type': 'lesson_session_started',
+                      'learnerCode': beginner.learnerCode,
+                      'session': {
+                        'id': 'runtime-session-1',
+                        'sessionId': 'session-1',
+                        'studentId': beginner.id,
+                        'learnerCode': beginner.learnerCode,
+                        'lessonTitle': 'Alphabet warm-up',
+                        'status': 'in_progress',
+                        'completionState': 'inProgress',
+                        'automationStatus':
+                            'Mallam is waiting for the next response.',
+                        'currentStepIndex': 1,
+                        'stepsTotal': 4,
+                        'responsesCaptured': 0,
+                        'supportActionsUsed': 0,
+                        'audioCaptures': 0,
+                        'facilitatorObservations': 0,
+                        'lastActivityAt': '2026-04-12T10:00:00.000Z',
+                      },
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      state.usingFallbackData = false;
+      state.learners
+        ..clear()
+        ..add(beginner);
+      state.currentLearner = beginner;
+
+      state.startLesson(state.assignedLessons.first);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final sessions = state.recentRuntimeSessionsForLearner(beginner);
+      expect(sessions, isNotEmpty);
+      expect(sessions.first.sessionId, 'session-1');
+      expect(sessions.first.progressLabel, 'Step 1 of 4');
+      state.dispose();
     });
 
     test('auto-syncs queued lesson events when backend is live', () async {

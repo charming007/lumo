@@ -607,6 +607,7 @@ class LearnerProfilePage extends StatelessWidget {
     final nextLesson = state.nextAssignedLessonForLearner(learner);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
     final recommendedModule = state.recommendedModuleForLearner(learner);
+    final recentSessions = state.recentRuntimeSessionsForLearner(learner);
 
     return Scaffold(
       body: SafeArea(
@@ -883,6 +884,116 @@ class LearnerProfilePage extends StatelessWidget {
                                 value: nextAssignmentPack.assessmentTitle ??
                                     'No assessment gate',
                               ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SoftPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Recent backend runtime',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                                StatusPill(
+                                  text: recentSessions.isEmpty
+                                      ? 'Waiting for sync'
+                                      : '${recentSessions.length} session(s)',
+                                  color: recentSessions.isEmpty
+                                      ? LumoTheme.accentOrange
+                                      : LumoTheme.accentGreen,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              state.runtimeSessionSummaryForLearner(learner),
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                height: 1.4,
+                              ),
+                            ),
+                            if (recentSessions.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              ...recentSessions.take(3).map(
+                                    (session) => Container(
+                                      width: double.infinity,
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  session.lessonTitle ??
+                                                      'Live runtime session',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF0F172A),
+                                                  ),
+                                                ),
+                                              ),
+                                              StatusPill(
+                                                text: session.statusLabel,
+                                                color: session.status ==
+                                                        'completed'
+                                                    ? LumoTheme.accentGreen
+                                                    : LumoTheme.accentOrange,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            session.automationStatus,
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Wrap(
+                                            spacing: 10,
+                                            runSpacing: 8,
+                                            children: [
+                                              _MiniMetricChip(
+                                                icon: Icons.route_rounded,
+                                                label: session.progressLabel,
+                                              ),
+                                              _MiniMetricChip(
+                                                icon: Icons
+                                                    .record_voice_over_rounded,
+                                                label:
+                                                    '${session.responsesCaptured} responses',
+                                              ),
+                                              _MiniMetricChip(
+                                                icon: Icons
+                                                    .tips_and_updates_rounded,
+                                                label:
+                                                    '${session.supportActionsUsed} supports',
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                             ],
                           ],
                         ),
@@ -3864,6 +3975,40 @@ class _PrimaryActionCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MiniMetricChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MiniMetricChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF475569)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
+          ),
+        ],
       ),
     );
   }
