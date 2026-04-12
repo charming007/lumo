@@ -179,7 +179,7 @@ class HomePage extends StatelessWidget {
                 child: _ResponsiveWorkspaceRow(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
+                    ResponsivePane(
                       flex: 4,
                       child: MallamPanel(
                         instruction: homeInstruction,
@@ -194,8 +194,7 @@ class HomePage extends StatelessWidget {
                         statusLabel: 'AI Mallam is ready',
                       ),
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
+                    ResponsivePane(
                       flex: 6,
                       child: SingleChildScrollView(
                         child: Column(
@@ -222,10 +221,11 @@ class HomePage extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 20),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _PrimaryActionCard(
+                                  LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final compact = constraints.maxWidth < 720;
+                                      final cards = [
+                                        _PrimaryActionCard(
                                           title: 'Register',
                                           subtitle:
                                               'Open learner registration flow',
@@ -242,10 +242,7 @@ class HomePage extends StatelessWidget {
                                             );
                                           },
                                         ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: _PrimaryActionCard(
+                                        _PrimaryActionCard(
                                           title: 'Student List',
                                           subtitle:
                                               'See all registered learners',
@@ -262,8 +259,33 @@ class HomePage extends StatelessWidget {
                                             );
                                           },
                                         ),
-                                      ),
-                                    ],
+                                      ];
+
+                                      if (compact) {
+                                        return Column(
+                                          children: [
+                                            for (var i = 0; i < cards.length; i++) ...[
+                                              SizedBox(
+                                                width: double.infinity,
+                                                child: cards[i],
+                                              ),
+                                              if (i < cards.length - 1)
+                                                const SizedBox(height: 12),
+                                            ],
+                                          ],
+                                        );
+                                      }
+
+                                      return Row(
+                                        children: [
+                                          for (var i = 0; i < cards.length; i++) ...[
+                                            Expanded(child: cards[i]),
+                                            if (i < cards.length - 1)
+                                              const SizedBox(width: 12),
+                                          ],
+                                        ],
+                                      );
+                                    },
                                   ),
                                   const SizedBox(height: 20),
                                   Row(
@@ -309,37 +331,47 @@ class HomePage extends StatelessWidget {
                                   'Tap a subject to open its learning modules.',
                             ),
                             const SizedBox(height: 12),
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: state.modules.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                childAspectRatio: 1.08,
-                              ),
-                              itemBuilder: (context, index) {
-                                final module = state.modules[index];
-                                return _SubjectCard(
-                                  module: module,
-                                  lessonCount:
-                                      state.assignedLessonCountForModule(
-                                    module: module,
-                                    learner: state.currentLearner,
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final crossAxisCount = _adaptiveGridCount(
+                                  constraints.maxWidth,
+                                  minTileWidth: 260,
+                                  maxCount: 3,
+                                );
+
+                                return GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: state.modules.length,
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossAxisCount,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
+                                    childAspectRatio: 1.08,
                                   ),
-                                  onTap: () {
-                                    state.selectModule(module);
-                                    onChanged();
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => SubjectModulesPage(
-                                          state: state,
-                                          onChanged: onChanged,
-                                          module: module,
-                                        ),
+                                  itemBuilder: (context, index) {
+                                    final module = state.modules[index];
+                                    return _SubjectCard(
+                                      module: module,
+                                      lessonCount:
+                                          state.assignedLessonCountForModule(
+                                        module: module,
+                                        learner: state.currentLearner,
                                       ),
+                                      onTap: () {
+                                        state.selectModule(module);
+                                        onChanged();
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => SubjectModulesPage(
+                                              state: state,
+                                              onChanged: onChanged,
+                                              module: module,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     );
                                   },
                                 );
@@ -402,33 +434,43 @@ class AllStudentsPage extends StatelessWidget {
               _BackendStatusBanner(state: state),
               const SizedBox(height: 16),
               Expanded(
-                child: GridView.builder(
-                  itemCount: state.learners.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.08,
-                  ),
-                  itemBuilder: (context, index) {
-                    final learner = state.learners[index];
-                    return GestureDetector(
-                      onTap: () {
-                        state.selectLearner(learner);
-                        onChanged();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => LearnerProfilePage(
-                              state: state,
-                              learner: learner,
-                            ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = _adaptiveGridCount(
+                      constraints.maxWidth,
+                      minTileWidth: 280,
+                      maxCount: 3,
+                    );
+
+                    return GridView.builder(
+                      itemCount: state.learners.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: constraints.maxWidth < 900 ? 0.82 : 1.02,
+                      ),
+                      itemBuilder: (context, index) {
+                        final learner = state.learners[index];
+                        return GestureDetector(
+                          onTap: () {
+                            state.selectLearner(learner);
+                            onChanged();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => LearnerProfilePage(
+                                  state: state,
+                                  learner: learner,
+                                ),
+                              ),
+                            );
+                          },
+                          child: _LearnerCard(
+                            learner: learner,
+                            state: state,
                           ),
                         );
                       },
-                      child: _LearnerCard(
-                        learner: learner,
-                        state: state,
-                      ),
                     );
                   },
                 ),
@@ -468,7 +510,7 @@ class LearnerProfilePage extends StatelessWidget {
           child: _ResponsiveWorkspaceRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
+              ResponsivePane(
                 child: MallamPanel(
                   instruction:
                       'This learner data page shows the child\'s basics, streak, XP, time spent, and a simple data export.',
@@ -483,8 +525,7 @@ class LearnerProfilePage extends StatelessWidget {
                   statusLabel: 'AI Mallam explains this learner page',
                 ),
               ),
-              const SizedBox(width: 20),
-              Expanded(
+              ResponsivePane(
                 child: DetailCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,28 +582,23 @@ class LearnerProfilePage extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: MetricTile(
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 640;
+                          final tiles = [
+                            MetricTile(
                               label: 'Streaks',
                               value: '${learner.streakDays} days',
                               icon: Icons.local_fire_department_rounded,
                               color: LumoTheme.accentOrange,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: MetricTile(
+                            MetricTile(
                               label: 'Total XP',
                               value: '$totalXp XP',
                               icon: Icons.stars_rounded,
                               color: LumoTheme.primary,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: MetricTile(
+                            MetricTile(
                               label: rewards == null ? 'Total time' : 'Points',
                               value: rewards == null
                                   ? '$totalMinutes min'
@@ -572,8 +608,28 @@ class LearnerProfilePage extends StatelessWidget {
                                   : Icons.workspace_premium_rounded,
                               color: LumoTheme.accentGreen,
                             ),
-                          ),
-                        ],
+                          ];
+
+                          if (compact) {
+                            return Column(
+                              children: [
+                                for (var i = 0; i < tiles.length; i++) ...[
+                                  SizedBox(width: double.infinity, child: tiles[i]),
+                                  if (i < tiles.length - 1) const SizedBox(height: 12),
+                                ],
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              for (var i = 0; i < tiles.length; i++) ...[
+                                Expanded(child: tiles[i]),
+                                if (i < tiles.length - 1) const SizedBox(width: 12),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 18),
                       if (rewards != null) ...[
@@ -1193,7 +1249,7 @@ class _RegisterPageState extends State<RegisterPage> {
           child: _ResponsiveWorkspaceRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
+              ResponsivePane(
                 child: MallamPanel(
                   instruction: registrationInstruction,
                   onVoiceTap: () {
@@ -1209,8 +1265,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   statusLabel: 'AI Mallam is guiding registration',
                 ),
               ),
-              const SizedBox(width: 20),
-              Expanded(
+              ResponsivePane(
                 child: DetailCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1255,10 +1310,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final compact = constraints.maxWidth < 720;
+                                  final fields = [
+                                    TextField(
                                       controller: ageController,
                                       keyboardType: TextInputType.number,
                                       onChanged: (_) => setState(syncDraft),
@@ -1266,18 +1322,40 @@ class _RegisterPageState extends State<RegisterPage> {
                                         labelText: 'Age',
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextField(
+                                    TextField(
                                       controller: cohortController,
                                       onChanged: (_) => setState(syncDraft),
                                       decoration: const InputDecoration(
                                         labelText: 'Cohort',
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ];
+
+                                  if (compact) {
+                                    return Column(
+                                      children: [
+                                        for (var i = 0; i < fields.length; i++) ...[
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: fields[i],
+                                          ),
+                                          if (i < fields.length - 1)
+                                            const SizedBox(height: 12),
+                                        ],
+                                      ],
+                                    );
+                                  }
+
+                                  return Row(
+                                    children: [
+                                      for (var i = 0; i < fields.length; i++) ...[
+                                        Expanded(child: fields[i]),
+                                        if (i < fields.length - 1)
+                                          const SizedBox(width: 12),
+                                      ],
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 12),
                               TextField(
@@ -1288,10 +1366,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: DropdownButtonFormField<String>(
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final compact = constraints.maxWidth < 720;
+                                  final fields = [
+                                    DropdownButtonFormField<String>(
                                       initialValue: caregiverRelationship,
                                       items: const [
                                         DropdownMenuItem(
@@ -1326,10 +1405,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                         labelText: 'Relationship',
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextField(
+                                    TextField(
                                       controller: guardianPhoneController,
                                       keyboardType: TextInputType.phone,
                                       onChanged: (_) => setState(syncDraft),
@@ -1337,8 +1413,33 @@ class _RegisterPageState extends State<RegisterPage> {
                                         labelText: 'Guardian phone',
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ];
+
+                                  if (compact) {
+                                    return Column(
+                                      children: [
+                                        for (var i = 0; i < fields.length; i++) ...[
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: fields[i],
+                                          ),
+                                          if (i < fields.length - 1)
+                                            const SizedBox(height: 12),
+                                        ],
+                                      ],
+                                    );
+                                  }
+
+                                  return Row(
+                                    children: [
+                                      for (var i = 0; i < fields.length; i++) ...[
+                                        Expanded(child: fields[i]),
+                                        if (i < fields.length - 1)
+                                          const SizedBox(width: 12),
+                                      ],
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 12),
                               TextField(
@@ -1349,10 +1450,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: DropdownButtonFormField<String>(
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final compact = constraints.maxWidth < 720;
+                                  final fields = [
+                                    DropdownButtonFormField<String>(
                                       initialValue: sex,
                                       items: const [
                                         DropdownMenuItem(
@@ -1375,10 +1477,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                         labelText: 'Sex',
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: DropdownButtonFormField<String>(
+                                    DropdownButtonFormField<String>(
                                       initialValue: baselineLevel,
                                       items: const [
                                         DropdownMenuItem(
@@ -1408,8 +1507,33 @@ class _RegisterPageState extends State<RegisterPage> {
                                         labelText: 'Baseline',
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ];
+
+                                  if (compact) {
+                                    return Column(
+                                      children: [
+                                        for (var i = 0; i < fields.length; i++) ...[
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: fields[i],
+                                          ),
+                                          if (i < fields.length - 1)
+                                            const SizedBox(height: 12),
+                                        ],
+                                      ],
+                                    );
+                                  }
+
+                                  return Row(
+                                    children: [
+                                      for (var i = 0; i < fields.length; i++) ...[
+                                        Expanded(child: fields[i]),
+                                        if (i < fields.length - 1)
+                                          const SizedBox(width: 12),
+                                      ],
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String>(
@@ -1740,7 +1864,7 @@ class SelectStudentPage extends StatelessWidget {
           child: _ResponsiveWorkspaceRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
+              ResponsivePane(
                 child: MallamPanel(
                   instruction: selectStudentInstruction,
                   onVoiceTap: () {
@@ -1754,8 +1878,7 @@ class SelectStudentPage extends StatelessWidget {
                   statusLabel: 'AI Mallam is waiting for learner selection',
                 ),
               ),
-              const SizedBox(width: 20),
-              Expanded(
+              ResponsivePane(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -1779,36 +1902,46 @@ class SelectStudentPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     Expanded(
-                      child: GridView.builder(
-                        itemCount: state.learners.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.12,
-                        ),
-                        itemBuilder: (context, index) {
-                          final learner = state.learners[index];
-                          return GestureDetector(
-                            onTap: () {
-                              state.selectLearner(learner);
-                              state.startLesson(lesson);
-                              onChanged();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => LessonSessionPage(
-                                    state: state,
-                                    lesson: lesson,
-                                    onChanged: onChanged,
-                                  ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final crossAxisCount = _adaptiveGridCount(
+                            constraints.maxWidth,
+                            minTileWidth: 280,
+                            maxCount: 2,
+                          );
+
+                          return GridView.builder(
+                            itemCount: state.learners.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              childAspectRatio: 1.12,
+                            ),
+                            itemBuilder: (context, index) {
+                              final learner = state.learners[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  state.selectLearner(learner);
+                                  state.startLesson(lesson);
+                                  onChanged();
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => LessonSessionPage(
+                                        state: state,
+                                        lesson: lesson,
+                                        onChanged: onChanged,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: _LearnerCard(
+                                  learner: learner,
+                                  state: state,
                                 ),
                               );
                             },
-                            child: _LearnerCard(
-                              learner: learner,
-                              state: state,
-                            ),
                           );
                         },
                       ),
@@ -2457,36 +2590,51 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                         'Learner: ${learner.name} • ${learner.readinessLabel}',
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: MetricTile(
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 640;
+                          final tiles = [
+                            MetricTile(
                               label: 'Progress',
                               value:
                                   '${session.stepIndex + 1}/${widget.lesson.steps.length}',
                               icon: Icons.alt_route_rounded,
                               color: LumoTheme.primary,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: MetricTile(
+                            MetricTile(
                               label: 'Responses',
                               value: '${session.totalResponses}',
                               icon: Icons.chat_bubble_outline_rounded,
                               color: LumoTheme.accentGreen,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: MetricTile(
+                            MetricTile(
                               label: 'Auto mode',
                               value: isAutoMode ? 'On' : 'Off',
                               icon: Icons.smart_toy_rounded,
                               color: LumoTheme.accentOrange,
                             ),
-                          ),
-                        ],
+                          ];
+
+                          if (compact) {
+                            return Column(
+                              children: [
+                                for (var i = 0; i < tiles.length; i++) ...[
+                                  SizedBox(width: double.infinity, child: tiles[i]),
+                                  if (i < tiles.length - 1) const SizedBox(height: 12),
+                                ],
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              for (var i = 0; i < tiles.length; i++) ...[
+                                Expanded(child: tiles[i]),
+                                if (i < tiles.length - 1) const SizedBox(width: 12),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
                       LinearProgressIndicator(
@@ -2924,6 +3072,20 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   }
 }
 
+class ResponsivePane extends StatelessWidget {
+  final int flex;
+  final Widget child;
+
+  const ResponsivePane({
+    super.key,
+    this.flex = 1,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
 class _ResponsiveWorkspaceRow extends StatelessWidget {
   final List<Widget> children;
   final CrossAxisAlignment crossAxisAlignment;
@@ -2931,6 +3093,15 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
     required this.children,
     this.crossAxisAlignment = CrossAxisAlignment.center,
   });
+
+  List<Widget> _layoutChildren() {
+    return children.map((child) {
+      if (child is ResponsivePane) {
+        return Expanded(flex: child.flex, child: child.child);
+      }
+      return child;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2942,11 +3113,12 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
         final minHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight
             : 0.0;
+        final laidOutChildren = _layoutChildren();
 
         if (hasRoom) {
           return Row(
             crossAxisAlignment: crossAxisAlignment,
-            children: children,
+            children: laidOutChildren,
           );
         }
 
@@ -2962,7 +3134,7 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
                 constraints: BoxConstraints(minHeight: minHeight),
                 child: Row(
                   crossAxisAlignment: crossAxisAlignment,
-                  children: children,
+                  children: laidOutChildren,
                 ),
               ),
             ),
@@ -2971,6 +3143,16 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
       },
     );
   }
+}
+
+int _adaptiveGridCount(
+  double maxWidth, {
+  required double minTileWidth,
+  int maxCount = 4,
+}) {
+  if (maxWidth <= 0) return 1;
+  final rawCount = (maxWidth / minTileWidth).floor();
+  return rawCount.clamp(1, maxCount);
 }
 
 class LessonCompletePage extends StatelessWidget {
@@ -3509,24 +3691,49 @@ class _LearnerCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: const Color(0xFFE9E7FF),
-                child: Text(
-                  learner.name.characters.first,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Spacer(),
-              StatusPill(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 380;
+              final status = StatusPill(
                 text: nextPack == null ? learner.attendanceBand : 'Backend assigned',
                 color: nextPack == null
                     ? LumoTheme.accentOrange
                     : LumoTheme.accentGreen,
-              ),
-            ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: const Color(0xFFE9E7FF),
+                      child: Text(
+                        learner.name.characters.first,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    status,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: const Color(0xFFE9E7FF),
+                    child: Text(
+                      learner.name.characters.first,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const Spacer(),
+                  status,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
           Text(
@@ -3606,41 +3813,41 @@ class _RegistrationReadinessStrip extends StatelessWidget {
       ('Consent', draft.consentCaptured),
     ];
 
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: items
           .map(
-            (item) => Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: item.$2
-                        ? const Color(0xFFEEFBF3)
-                        : const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        item.$2
-                            ? Icons.check_circle_rounded
-                            : Icons.radio_button_unchecked_rounded,
-                        color: item.$2
-                            ? LumoTheme.accentGreen
-                            : LumoTheme.accentOrange,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        item.$1,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
+            (item) => SizedBox(
+              width: 132,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: item.$2
+                      ? const Color(0xFFEEFBF3)
+                      : const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      item.$2
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      color: item.$2
+                          ? LumoTheme.accentGreen
+                          : LumoTheme.accentOrange,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.$1,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
               ),
             ),

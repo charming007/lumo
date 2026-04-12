@@ -1,0 +1,11 @@
+node_modules
+.vercel
+.git
+apps/learner-tablet/build
+apps/learner-tablet/.dart_tool
+apps/learner-tablet/.flutter-plugins
+apps/learner-tablet/.flutter-plugins-dependencies
+apps/learner-tablet/macos/Flutter/ephemeral
+apps/learner-tablet/linux/flutter/ephemeral
+apps/learner-tablet/windows/flutter/ephemeral
+apps/lms-web/.next

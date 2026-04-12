@@ -31,4 +31,32 @@ void main() {
     expect(find.text('Student List'), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsWidgets);
   });
+
+  testWidgets('student list stays usable on portrait tablet widths', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(800, 1280));
+
+    await tester.tap(find.text('Student List'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('All learners'), findsOneWidget);
+    expect(find.textContaining('learners'), findsWidgets);
+  });
+
+  testWidgets('registration flow stays usable on portrait tablet widths', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(800, 1280));
+
+    await tester.tap(find.text('Register'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Register learner'), findsOneWidget);
+    expect(find.text('Save learner'), findsOneWidget);
+    expect(find.text('Identity'), findsOneWidget);
+    expect(find.text('Consent'), findsOneWidget);
+  });
 }

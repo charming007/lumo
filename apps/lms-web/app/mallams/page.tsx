@@ -14,27 +14,57 @@ const actionButtonStyle = {
 
 export default async function MallamsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
-  const [mallams, students, centers, pods] = await Promise.all([fetchMallams(), fetchStudents(), fetchCenters(), fetchPods()]);
+  const [mallamsResult, studentsResult, centersResult, podsResult] = await Promise.allSettled([
+    fetchMallams(),
+    fetchStudents(),
+    fetchCenters(),
+    fetchPods(),
+  ]);
+
+  const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+  const students = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
+  const centers = centersResult.status === 'fulfilled' ? centersResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+
+  const failedSources = [
+    { label: 'mallams', result: mallamsResult },
+    { label: 'learners', result: studentsResult },
+    { label: 'centers', result: centersResult },
+    { label: 'pods', result: podsResult },
+  ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
+
+  const rosterDependenciesReady = centers.length > 0 && pods.length > 0;
 
   return (
     <PageShell
       title="Mallams"
       subtitle="Mallam operations with visible roster ownership, profile drill-down, and quick admin updates."
       aside={
-        <ModalLauncher
-          buttonLabel="Add Mallam"
-          title="Add mallam"
-          description="Create a new mallam profile from the deployment roster without losing context."
-        >
-          <CreateMallamForm centers={centers} pods={pods} />
-        </ModalLauncher>
+        rosterDependenciesReady ? (
+          <ModalLauncher
+            buttonLabel="Add Mallam"
+            title="Add mallam"
+            description="Create a new mallam profile from the deployment roster without losing context."
+          >
+            <CreateMallamForm centers={centers} pods={pods} />
+          </ModalLauncher>
+        ) : (
+          <div style={{ padding: '12px 14px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, maxWidth: 340 }}>
+            Add mallam is temporarily unavailable until centers and pods load.
+          </div>
+        )
       }
     >
       <FeedbackBanner message={query?.message} />
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Mallam roster is running in degraded mode: {failedSources.join(', ')} data {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
+        </div>
+      ) : null}
       <section style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
         <Card title="Deployment roster" eyebrow="Profile-first">
           <div style={{ display: 'grid', gap: 14 }}>
-            {mallams.map((mallam) => {
+            {mallams.length ? mallams.map((mallam) => {
               const roster = students.filter((student) => student.mallamId === mallam.id);
               return (
                 <div key={mallam.id} style={{ padding: 18, borderRadius: 18, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
@@ -52,15 +82,17 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <a href={`/mallams/${mallam.id}`} style={{ color: '#4f46e5', fontWeight: 700, textDecoration: 'none' }}>View profile</a>
-                    <ModalLauncher
-                      buttonLabel="Edit"
-                      title={`Edit mallam · ${mallam.displayName}`}
-                      description="Update mallam profile, deployment metadata, and coverage without leaving this roster."
-                      eyebrow="Edit mallam"
-                      triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
-                    >
-                      <UpdateMallamForm mallam={mallam} centers={centers} embedded />
-                    </ModalLauncher>
+                    {rosterDependenciesReady ? (
+                      <ModalLauncher
+                        buttonLabel="Edit"
+                        title={`Edit mallam · ${mallam.displayName}`}
+                        description="Update mallam profile, deployment metadata, and coverage without leaving this roster."
+                        eyebrow="Edit mallam"
+                        triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
+                      >
+                        <UpdateMallamForm mallam={mallam} centers={centers} embedded />
+                      </ModalLauncher>
+                    ) : null}
                     <ModalLauncher
                       buttonLabel="Delete"
                       title={`Delete mallam · ${mallam.displayName}`}
@@ -73,7 +105,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
                   </div>
                 </div>
               );
-            })}
+            }) : <div style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b' }}>Mallam roster data is unavailable right now.</div>}
           </div>
         </Card>
       </section>
@@ -81,7 +113,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
       <section style={{ display: 'grid', gap: 16 }}>
         <SimpleTable
           columns={['Name', 'Center', 'Region', 'Pods', 'Learners', 'Certification', 'Status', 'Actions']}
-          rows={mallams.map((mallam) => [
+          rows={mallams.length ? mallams.map((mallam) => [
             <strong key={mallam.id}>{mallam.displayName}</strong>,
             mallam.centerName ?? '—',
             mallam.region,
@@ -91,15 +123,17 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             <Pill key={`${mallam.id}-status`} label={mallam.status} tone={mallam.status === 'active' ? '#DCFCE7' : '#FEF3C7'} text={mallam.status === 'active' ? '#166534' : '#92400E'} />,
             <div key={`${mallam.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a href={`/mallams/${mallam.id}`} style={{ color: '#4f46e5', fontWeight: 700, textDecoration: 'none' }}>View profile</a>
-              <ModalLauncher
-                buttonLabel="Edit mallam"
-                title={`Edit mallam · ${mallam.displayName}`}
-                description="Update mallam profile, deployment metadata, and coverage without leaving this list."
-                eyebrow="Edit mallam"
-                triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
-              >
-                <UpdateMallamForm mallam={mallam} centers={centers} embedded />
-              </ModalLauncher>
+              {rosterDependenciesReady ? (
+                <ModalLauncher
+                  buttonLabel="Edit mallam"
+                  title={`Edit mallam · ${mallam.displayName}`}
+                  description="Update mallam profile, deployment metadata, and coverage without leaving this list."
+                  eyebrow="Edit mallam"
+                  triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
+                >
+                  <UpdateMallamForm mallam={mallam} centers={centers} embedded />
+                </ModalLauncher>
+              ) : null}
               <ModalLauncher
                 buttonLabel="Delete mallam"
                 title={`Delete mallam · ${mallam.displayName}`}
@@ -110,7 +144,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
                 <DeleteMallamForm mallam={mallam} embedded />
               </ModalLauncher>
             </div>,
-          ])}
+          ]) : [[<span key="no-mallams" style={{ color: '#64748b' }}>Mallam roster data is unavailable right now.</span>, '', '', '', '', '', '', '']]}
         />
       </section>
     </PageShell>
