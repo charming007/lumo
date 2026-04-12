@@ -2,7 +2,7 @@ import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../comp
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
-import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
+import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const actionButtonStyle = {
   borderRadius: 12,
@@ -45,7 +45,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
                     </div>
                     <Pill label={mallam.status} tone={mallam.status === 'active' ? '#DCFCE7' : '#FEF3C7'} text={mallam.status === 'active' ? '#166534' : '#92400E'} />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, color: '#334155', marginBottom: 14 }}>
+                  <div style={{ ...responsiveGrid(180), color: '#334155', marginBottom: 14 }}>
                     <div><strong>{roster.length}</strong><div style={{ color: '#64748b' }}>Rostered learners</div></div>
                     <div><strong>{mallam.certificationLevel}</strong><div style={{ color: '#64748b' }}>Certification</div></div>
                     <div><strong>{mallam.role}</strong><div style={{ color: '#64748b' }}>Deployment role</div></div>

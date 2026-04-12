@@ -176,7 +176,7 @@ class HomePage extends StatelessWidget {
               LumoTopBar(onLogoTap: () {}),
               const SizedBox(height: 20),
               Expanded(
-                child: Row(
+                child: _ResponsiveWorkspaceRow(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
@@ -465,7 +465,7 @@ class LearnerProfilePage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Row(
+          child: _ResponsiveWorkspaceRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -926,7 +926,7 @@ class SubjectModulesPage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Row(
+          child: _ResponsiveWorkspaceRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -1190,7 +1190,7 @@ class _RegisterPageState extends State<RegisterPage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Row(
+          child: _ResponsiveWorkspaceRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -1737,7 +1737,7 @@ class SelectStudentPage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Row(
+          child: _ResponsiveWorkspaceRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -2384,7 +2384,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Row(
+          child: _ResponsiveWorkspaceRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -2921,6 +2921,55 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       case SpeakerMode.idle:
         return 'Mallam is idle';
     }
+  }
+}
+
+class _ResponsiveWorkspaceRow extends StatelessWidget {
+  final List<Widget> children;
+  final CrossAxisAlignment crossAxisAlignment;
+  const _ResponsiveWorkspaceRow({
+    required this.children,
+    this.crossAxisAlignment = CrossAxisAlignment.center,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const breakpoint = 1180.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hasRoom = constraints.maxWidth >= breakpoint;
+        final minHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : 0.0;
+
+        if (hasRoom) {
+          return Row(
+            crossAxisAlignment: crossAxisAlignment,
+            children: children,
+          );
+        }
+
+        return ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+            scrollbars: false,
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: breakpoint,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: minHeight),
+                child: Row(
+                  crossAxisAlignment: crossAxisAlignment,
+                  children: children,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

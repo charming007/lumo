@@ -8,6 +8,8 @@ export function Topbar() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 16,
         marginBottom: 20,
         border: '1px solid #e8edf5',
         boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)',

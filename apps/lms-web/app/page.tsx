@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { fetchAssignments, fetchDashboardInsights, fetchDashboardSummary, fetchMallams, fetchStudents, fetchWorkboard } from '../lib/api';
 import { InsightPanel } from '../components/insight-panel';
 import { KpiStrip } from '../components/kpi-strip';
-import { Card, MetricList, PageShell, Pill, SimpleTable } from '../lib/ui';
+import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, DashboardInsight, DashboardSummary, Mallam, Student, WorkboardItem } from '../lib/types';
 
 const EMPTY_SUMMARY: DashboardSummary = {
@@ -86,7 +86,7 @@ export default async function HomePage() {
 
       <KpiStrip items={stats} />
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <InsightPanel headline={topInsight.headline} detail={topInsight.detail} metric={topInsight.metric} />
         <Card title="Operations pulse" eyebrow="This week">
           <MetricList
@@ -100,7 +100,7 @@ export default async function HomePage() {
         </Card>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '0.92fr 1.08fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ ...responsiveGrid(360), marginBottom: 20 }}>
         <Card title="Leadership cues" eyebrow="Priorities">
           <div style={{ display: 'grid', gap: 14 }}>
             {insights.length ? insights.map((item) => (

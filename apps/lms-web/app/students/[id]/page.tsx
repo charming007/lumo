@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { ObservationForm } from '../../../components/observation-form';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { fetchStudent } from '../../../lib/api';
-import { Card, PageShell, Pill, SimpleTable } from '../../../lib/ui';
+import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
@@ -22,9 +22,9 @@ export default async function StudentDetailPage({ params, searchParams }: { para
         ]}
       >
         <FeedbackBanner message={query?.message} />
-        <section style={{ display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 16, marginBottom: 20 }}>
+        <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
           <Card title="Learner snapshot" eyebrow="Profile">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+            <div style={{ ...responsiveGrid(180), gap: 12 }}>
               {[
                 ['Cohort', student.cohortName ?? '—'],
                 ['Mallam', student.mallamName ?? '—'],
@@ -42,7 +42,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
           </Card>
 
           <Card title="Intervention summary" eyebrow="What to do next">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginBottom: 16 }}>
+            <div style={{ ...responsiveGrid(160), gap: 12, marginBottom: 16 }}>
               <div style={{ padding: 14, borderRadius: 16, background: '#eef2ff' }}><strong>{Math.round(student.summary.attendanceRate * 100)}%</strong><div style={{ color: '#64748b' }}>Attendance</div></div>
               <div style={{ padding: 14, borderRadius: 16, background: '#ecfeff' }}><strong>{student.summary.latestMastery !== null ? `${Math.round(student.summary.latestMastery * 100)}%` : '—'}</strong><div style={{ color: '#64748b' }}>Latest mastery</div></div>
               <div style={{ padding: 14, borderRadius: 16, background: '#fef3c7' }}><strong>{student.summary.activeAssignments}</strong><div style={{ color: '#64748b' }}>Active assignments</div></div>
@@ -55,7 +55,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
           </Card>
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16, marginBottom: 20 }}>
+        <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
           <Card title="Progress timeline" eyebrow="Mastery + readiness">
             <SimpleTable
               columns={['Subject', 'Module', 'Mastery', 'Lessons', 'Progression', 'Next module']}
@@ -73,7 +73,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
           <ObservationForm studentId={student.id} />
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <section style={{ ...responsiveGrid(320) }}>
           <Card title="Attendance history" eyebrow="Recent sessions">
             <SimpleTable columns={['Date', 'Status']} rows={student.attendance.map((item) => [item.date, item.status])} />
           </Card>

@@ -15,10 +15,10 @@ export function Sidebar() {
   return (
     <aside
       style={{
-        width: 278,
+        minWidth: 0,
         background: 'linear-gradient(180deg, #0f172a 0%, #111827 100%)',
         color: 'white',
-        padding: 24,
+        padding: 'clamp(18px, 3vw, 24px)',
         display: 'flex',
         flexDirection: 'column',
         gap: 22,

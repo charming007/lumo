@@ -19,7 +19,7 @@ import { DynamicLessonCreateForm } from '../../components/content-ops-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
-import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
+import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { createLessonAction } from '../actions';
 
 const subjectPalette: Record<string, { tone: string; text: string; accent: string }> = {
@@ -124,7 +124,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     >
       <FeedbackBanner message={query?.message} />
 
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
+      <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
           { label: 'Subjects', value: String(subjects.length), note: 'Visible lanes with edit and delete controls.' },
           { label: 'Modules', value: String(modules.length), note: 'Structured by strand, not dumped into a fake flat list.' },
@@ -135,7 +135,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         ))}
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
+      <section style={{ ...responsiveGrid(280), marginBottom: 20 }}>
         {subjectSummaries.map(({ subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, publishedModules, readyLessons }) => (
           <Card key={subject.id} title={subject.name} eyebrow="Subject lane">
             <div style={{ display: 'grid', gap: 14 }}>
@@ -216,7 +216,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16 }}>
+                    <div style={responsiveGrid(320)}>
                       <div style={{ display: 'grid', gap: 10 }}>
                         {moduleLessons.map((lesson) => {
                           const lessonPill = statusPill(lesson.status);
@@ -288,7 +288,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         ))}
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <Card title="Release blockers" eyebrow="What still stops publish">
           <SimpleTable
             columns={['Module', 'Subject', 'Gap', 'Release risk']}
@@ -330,7 +330,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         </Card>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '0.92fr 1.08fr', gap: 16 }}>
+      <section style={responsiveGrid(320)}>
         <Card title="Curriculum release tracker" eyebrow="Ops visibility">
           <SimpleTable
             columns={['Subject', 'Strand', 'Module', 'Level', 'Lessons', 'Status', 'Actions']}

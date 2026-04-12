@@ -1,6 +1,12 @@
 import React from 'react';
 import { Breadcrumbs, type BreadcrumbItem } from '../components/breadcrumbs';
 
+export const responsiveGrid = (minWidth: number) => ({
+  display: 'grid',
+  gridTemplateColumns: `repeat(auto-fit, minmax(min(${minWidth}px, 100%), 1fr))`,
+  gap: 16,
+}) as const;
+
 export function PageShell({
   title,
   subtitle,
@@ -15,11 +21,11 @@ export function PageShell({
   breadcrumbs?: BreadcrumbItem[];
 }) {
   return (
-    <main style={{ padding: 32 }}>
+    <main style={{ padding: 'clamp(18px, 4vw, 32px)', minWidth: 0 }}>
       <Breadcrumbs items={breadcrumbs} currentLabel={title} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 24, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 34, letterSpacing: -1, color: '#0f172a' }}>{title}</h1>
+          <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 34px)', letterSpacing: -1, color: '#0f172a' }}>{title}</h1>
           <p style={{ margin: '10px 0 0', color: '#556070', maxWidth: 760, lineHeight: 1.6 }}>{subtitle}</p>
         </div>
         {aside}

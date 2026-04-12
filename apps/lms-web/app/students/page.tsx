@@ -2,7 +2,7 @@ import { CreateStudentForm, DeleteStudentForm, UpdateStudentForm } from '../../c
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCohorts, fetchMallams, fetchPods, fetchStudents, fetchWorkboard } from '../../lib/api';
-import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
+import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function tone(status: string) {
   if (status === 'ready') return ['#DCFCE7', '#166534'] as const;
@@ -45,7 +45,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
       }
     >
       <FeedbackBanner message={query?.message} />
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
+      <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
           { label: 'Learners live', value: String(students.length), note: 'Across the current seeded cohorts' },
           { label: 'Below attendance comfort zone', value: String(flaggedLearners), note: 'Needs guardian follow-up or scheduling fix' },

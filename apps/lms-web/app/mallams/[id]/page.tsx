@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { fetchMallam } from '../../../lib/api';
-import { Card, PageShell, Pill, SimpleTable } from '../../../lib/ui';
+import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 export default async function MallamDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
@@ -21,14 +21,14 @@ export default async function MallamDetailPage({ params, searchParams }: { param
         ]}
       >
         <FeedbackBanner message={query?.message} />
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
+        <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
           <Card title={String(mallam.summary.rosterCount)} eyebrow="Roster"><div style={{ color: '#64748b' }}>Learners directly mapped to this mallam.</div></Card>
           <Card title={String(mallam.summary.activeAssignments)} eyebrow="Active assignments"><div style={{ color: '#64748b' }}>Delivery blocks owned right now.</div></Card>
           <Card title={`${Math.round(mallam.summary.averageAttendance * 100)}%`} eyebrow="Avg attendance"><div style={{ color: '#64748b' }}>Across the current roster.</div></Card>
           <Card title={String(mallam.summary.watchCount)} eyebrow="Watchlist"><div style={{ color: '#64748b' }}>Learners needing tighter coaching support.</div></Card>
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
           <Card title="Deployment profile" eyebrow="Readiness">
             <div style={{ display: 'grid', gap: 12 }}>
               {[
@@ -52,7 +52,7 @@ export default async function MallamDetailPage({ params, searchParams }: { param
           </Card>
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16 }}>
+        <section style={{ ...responsiveGrid(320) }}>
           <Card title="Roster detail" eyebrow="Learner ownership">
             <SimpleTable columns={['Learner', 'Cohort', 'Pod', 'Attendance', 'Level']} rows={mallam.roster.map((student) => [student.name, student.cohortName ?? '—', student.podLabel ?? '—', `${Math.round(student.attendanceRate * 100)}%`, `${student.level} · ${student.stage}`])} />
           </Card>

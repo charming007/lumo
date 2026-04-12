@@ -1,8 +1,10 @@
+import { responsiveGrid } from '../lib/ui';
+
 type Item = { label: string; value: string; tone?: string };
 
 export function KpiStrip({ items }: { items: Item[] }) {
   return (
-    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
+    <section style={{ ...responsiveGrid(180), marginBottom: 20 }}>
       {items.map((item) => (
         <div
           key={item.label}

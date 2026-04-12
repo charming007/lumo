@@ -61,6 +61,15 @@ const buttonStyle = {
   cursor: 'pointer',
 } as const;
 
+const responsiveGrid = (minWidth: number) => ({
+  display: 'grid',
+  gridTemplateColumns: `repeat(auto-fit, minmax(min(${minWidth}px, 100%), 1fr))`,
+  gap: 12,
+}) as const;
+
+const twoColumnGrid = responsiveGrid(220);
+const threeColumnGrid = responsiveGrid(180);
+
 function FieldLabel({ children }: { children: ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
 }
@@ -74,19 +83,19 @@ export function CreateStudentForm({ cohorts, pods, mallams }: { cohorts: Cohort[
     <form action={createStudentAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Add learner</h2>
       <FieldLabel>Name<input name="name" defaultValue="Safiya" style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Age<input name="age" type="number" min="5" max="18" defaultValue="10" style={inputStyle} /></FieldLabel>
         <FieldLabel>Gender<select name="gender" defaultValue="female" style={inputStyle}><option value="female">Female</option><option value="male">Male</option><option value="unspecified">Unspecified</option></select></FieldLabel>
       </div>
       <FieldLabel>Cohort<select name="cohortId" defaultValue={cohorts[0]?.id} style={inputStyle}>{cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select></FieldLabel>
       <FieldLabel>Pod<select name="podId" defaultValue={pods[0]?.id} style={inputStyle}>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}</select></FieldLabel>
       <FieldLabel>Mallam<select name="mallamId" defaultValue={mallams[0]?.id} style={inputStyle}>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName}</option>)}</select></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Level<select name="level" defaultValue="beginner" style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
         <FieldLabel>Stage<input name="stage" defaultValue="foundation-a" style={inputStyle} /></FieldLabel>
       </div>
       <FieldLabel>Guardian<input name="guardianName" defaultValue="Parent contact pending" style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Attendance rate<input name="attendanceRate" type="number" step="0.01" min="0" max="1" defaultValue="0.85" style={inputStyle} /></FieldLabel>
         <FieldLabel>Device access<select name="deviceAccess" defaultValue="shared-tablet" style={inputStyle}><option value="shared-tablet">Shared tablet</option><option value="family-phone">Family phone</option><option value="center-device">Center device</option></select></FieldLabel>
       </div>
@@ -105,12 +114,12 @@ export function UpdateStudentForm({ student, cohorts, pods, mallams, title = 'Re
         <FieldLabel>Cohort<select name="cohortId" defaultValue={student.cohortId} style={inputStyle}>{cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select></FieldLabel>
         <FieldLabel>Pod<select name="podId" defaultValue={student.podId} style={inputStyle}>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}</select></FieldLabel>
         <FieldLabel>Mallam<select name="mallamId" defaultValue={student.mallamId} style={inputStyle}>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName}</option>)}</select></FieldLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <div style={twoColumnGrid}>
           <FieldLabel>Level<select name="level" defaultValue={student.level} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
           <FieldLabel>Stage<input name="stage" defaultValue={student.stage} style={inputStyle} /></FieldLabel>
         </div>
         <FieldLabel>Guardian<input name="guardianName" defaultValue={student.guardianName ?? ''} style={inputStyle} /></FieldLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <div style={twoColumnGrid}>
           <FieldLabel>Attendance rate<input name="attendanceRate" type="number" step="0.01" min="0" max="1" defaultValue={String(student.attendanceRate)} style={inputStyle} /></FieldLabel>
           <FieldLabel>Device access<select name="deviceAccess" defaultValue={student.deviceAccess} style={inputStyle}><option value="shared-tablet">Shared tablet</option><option value="family-phone">Family phone</option><option value="center-device">Center device</option></select></FieldLabel>
         </div>
@@ -146,11 +155,11 @@ export function CreateMallamForm({ centers, pods }: { centers: Center[]; pods: P
       <FieldLabel>Center<select name="centerId" defaultValue={centers[0]?.id} style={inputStyle}>{centers.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></FieldLabel>
       <FieldLabel>Pod IDs (comma separated)<input name="podIds" defaultValue={pods[0]?.id ?? ''} style={inputStyle} /></FieldLabel>
       <FieldLabel>Languages<input name="languages" defaultValue="Hausa, English" style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Role<select name="role" defaultValue="mallam-lead" style={inputStyle}><option value="mallam-lead">Mallam lead</option><option value="facilitator">Facilitator</option><option value="coach">Coach</option></select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="training">Training</option><option value="leave">Leave</option></select></FieldLabel>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Learner load<input name="learnerCount" type="number" defaultValue="18" style={inputStyle} /></FieldLabel>
         <FieldLabel>Certification<input name="certificationLevel" defaultValue="Level 1" style={inputStyle} /></FieldLabel>
       </div>
@@ -170,11 +179,11 @@ export function UpdateMallamForm({ mallam, centers, embedded = false }: { mallam
         <FieldLabel>Center<select name="centerId" defaultValue={mallam.centerId} style={inputStyle}>{centers.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></FieldLabel>
         <FieldLabel>Pod IDs (comma separated)<input name="podIds" defaultValue={(mallam.podIds ?? []).join(', ')} style={inputStyle} /></FieldLabel>
         <FieldLabel>Languages<input name="languages" defaultValue={(mallam.languages ?? []).join(', ')} style={inputStyle} /></FieldLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <div style={twoColumnGrid}>
           <FieldLabel>Role<select name="role" defaultValue={mallam.role} style={inputStyle}><option value="mallam-lead">Mallam lead</option><option value="facilitator">Facilitator</option><option value="coach">Coach</option></select></FieldLabel>
           <FieldLabel>Status<select name="status" defaultValue={mallam.status} style={inputStyle}><option value="active">Active</option><option value="training">Training</option><option value="leave">Leave</option></select></FieldLabel>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <div style={twoColumnGrid}>
           <FieldLabel>Learner load<input name="learnerCount" type="number" defaultValue={String(mallam.learnerCount)} style={inputStyle} /></FieldLabel>
           <FieldLabel>Certification<input name="certificationLevel" defaultValue={mallam.certificationLevel} style={inputStyle} /></FieldLabel>
         </div>
@@ -211,7 +220,7 @@ export function ReassignAssignmentForm({ assignment, cohorts, mallams }: { assig
       </div>
       <FieldLabel>Target cohort<select name="cohortId" defaultValue={cohorts.find((item) => item.name === assignment.cohortName)?.id} style={inputStyle}>{cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select></FieldLabel>
       <FieldLabel>Assign to mallam<select name="assignedBy" defaultValue={mallams.find((item) => item.displayName === assignment.teacherName)?.id} style={inputStyle}>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName}</option>)}</select></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Due date<input name="dueDate" defaultValue={assignment.dueDate} style={inputStyle} /></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue={assignment.status} style={inputStyle}><option value="active">Active</option><option value="scheduled">Scheduled</option><option value="completed">Completed</option></select></FieldLabel>
       </div>
@@ -227,7 +236,7 @@ export function CreateSubjectForm() {
       <SectionHint>Create the subject lane first, and optionally seed its first strand so the module flow is immediately usable.</SectionHint>
       <FieldLabel>Subject ID<input name="id" defaultValue="science" style={inputStyle} /></FieldLabel>
       <FieldLabel>Subject name<input name="name" defaultValue="Foundational Science" style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Icon<input name="icon" defaultValue="biotech" style={inputStyle} /></FieldLabel>
         <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="4" style={inputStyle} /></FieldLabel>
       </div>
@@ -244,7 +253,7 @@ export function UpdateSubjectForm({ subject, embedded = false }: { subject: Subj
         <input type="hidden" name="subjectId" value={subject.id} />
         <h2 style={{ margin: 0 }}>Update subject</h2>
         <FieldLabel>Subject name<input name="name" defaultValue={subject.name} style={inputStyle} /></FieldLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+        <div style={twoColumnGrid}>
           <FieldLabel>Icon<input name="icon" defaultValue={subject.icon ?? ''} style={inputStyle} /></FieldLabel>
           <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(subject.order ?? 1)} style={inputStyle} /></FieldLabel>
         </div>
@@ -321,7 +330,7 @@ export function CreateModuleForm({ strands }: { strands: Strand[] }) {
       <SectionHint>Build a real content lane by selecting the exact strand first, not some hardcoded fake default.</SectionHint>
       <FieldLabel>Strand<select name="strandId" defaultValue={defaultStrand?.id} style={inputStyle}>{strands.map((strand) => <option key={strand.id} value={strand.id}>{strand.subjectName} • {strand.name}</option>)}</select></FieldLabel>
       <FieldLabel>Title<input name="title" defaultValue="Community Helpers" style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+      <div style={threeColumnGrid}>
         <FieldLabel>Level<select name="level" defaultValue="beginner" style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue="6" style={inputStyle} /></FieldLabel>
         <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="3" style={inputStyle} /></FieldLabel>
@@ -341,7 +350,7 @@ export function UpdateModuleForm({ modules }: { modules: CurriculumModule[] }) {
       <SectionHint>Pick the exact module to edit. No more “first row wins” nonsense.</SectionHint>
       <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
       <FieldLabel>Status<select name="status" defaultValue={module?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(module?.lessonCount ?? 1)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Level<select name="level" defaultValue={module?.level ?? 'beginner'} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
       </div>
@@ -370,7 +379,7 @@ export function CreateLessonForm({ modules }: { modules: CurriculumModule[] }) {
       <FieldLabel>Subject<select name="subjectId" defaultValue="english" style={inputStyle}><option value="english">Foundational English</option><option value="math">Basic Numeracy</option><option value="life-skills">Life Skills</option></select></FieldLabel>
       <FieldLabel>Module<select name="moduleId" defaultValue={modules[0]?.id} style={inputStyle}>{modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select></FieldLabel>
       <FieldLabel>Title<input name="title" defaultValue="Who helps in our community?" style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+      <div style={threeColumnGrid}>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue="8" style={inputStyle} /></FieldLabel>
         <FieldLabel>Mode<select name="mode" defaultValue="guided" style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option><option value="practice">Practice</option></select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
@@ -389,7 +398,7 @@ export function UpdateLessonForm({ lessons }: { lessons: Lesson[] }) {
       <SectionHint>Pick the exact lesson to move through draft, review, approved, or published states.</SectionHint>
       <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
       <FieldLabel>Status<select name="status" defaultValue={lesson?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Mode<select name="mode" defaultValue={lesson?.mode ?? 'guided'} style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option><option value="practice">Practice</option></select></FieldLabel>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue={String(lesson?.durationMinutes ?? 8)} style={inputStyle} /></FieldLabel>
       </div>
@@ -420,12 +429,12 @@ export function CreateAssessmentForm({ modules, subjects }: { modules: Curriculu
       <FieldLabel>Subject<select name="subjectId" defaultValue={defaultModule?.subjectId ?? subjects[0]?.id ?? 'english'} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
       <FieldLabel>Module<select name="moduleId" defaultValue={defaultModule?.id} style={inputStyle}>{modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select></FieldLabel>
       <FieldLabel>Assessment title<input name="title" defaultValue="Bridge readiness checkpoint" style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Kind<select name="kind" defaultValue="automatic" style={inputStyle}><option value="automatic">Automatic</option><option value="manual">Manual</option></select></FieldLabel>
         <FieldLabel>Trigger<select name="trigger" defaultValue="module-complete" style={inputStyle}><option value="module-complete">After module complete</option><option value="lesson-cluster">After lesson cluster</option><option value="mallam-review">Mallam review</option></select></FieldLabel>
       </div>
       <FieldLabel>Trigger label<input name="triggerLabel" defaultValue={`After ${defaultModule?.title ?? 'selected module'}`} style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+      <div style={threeColumnGrid}>
         <FieldLabel>Progression gate<input name="progressionGate" defaultValue="bridge" style={inputStyle} /></FieldLabel>
         <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue="0.7" style={inputStyle} /></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
@@ -444,12 +453,12 @@ export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[
       <SectionHint>Target the exact assessment gate instead of silently editing the first one in the list.</SectionHint>
       <FieldLabel>Assessment<select name="assessmentId" defaultValue={assessment?.id ?? ''} style={inputStyle}>{assessments.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
       <FieldLabel>Assessment title<input name="title" defaultValue={assessment?.title ?? ''} style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={twoColumnGrid}>
         <FieldLabel>Kind<select name="kind" defaultValue={assessment?.kind ?? 'automatic'} style={inputStyle}><option value="automatic">Automatic</option><option value="manual">Manual</option></select></FieldLabel>
         <FieldLabel>Trigger<select name="trigger" defaultValue={assessment?.trigger ?? 'module-complete'} style={inputStyle}><option value="module-complete">After module complete</option><option value="lesson-cluster">After lesson cluster</option><option value="mallam-review">Mallam review</option></select></FieldLabel>
       </div>
       <FieldLabel>Trigger label<input name="triggerLabel" defaultValue={assessment?.triggerLabel ?? ''} style={inputStyle} /></FieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+      <div style={threeColumnGrid}>
         <FieldLabel>Progression gate<input name="progressionGate" defaultValue={assessment?.progressionGate ?? ''} style={inputStyle} /></FieldLabel>
         <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue={String(assessment?.passingScore ?? 0.7)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue={assessment?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
