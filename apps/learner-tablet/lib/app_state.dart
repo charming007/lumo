@@ -999,9 +999,11 @@ class LumoAppState {
       lastSyncedAt = result.syncedAt ?? DateTime.now();
       lastSyncAcceptedCount = result.accepted;
       lastSyncIgnoredCount = result.ignored;
+      backendContractVersion =
+          result.raw['contractVersion']?.toString() ?? backendContractVersion;
       lastSyncError = null;
       backendError = null;
-      _applyRewardSnapshotsFromSync(result.raw);
+      _applyBackendSyncResults(result.raw);
       if (pendingSyncEvents.isNotEmpty) {
         _attemptSyncSoon();
       }
@@ -1104,28 +1106,145 @@ class LumoAppState {
         .replaceAll('Abdullahi', learner.name);
   }
 
-  void _applyRewardSnapshotsFromSync(Map<String, dynamic> raw) {
+  void _applyBackendSyncResults(Map<String, dynamic> raw) {
     final results = raw['results'];
     if (results is! List) return;
 
     for (final item in results.whereType<Map>()) {
       final rewardsJson = item['rewards'];
-      final learnerId =
-          rewardsJson is Map ? rewardsJson['learnerId']?.toString() : null;
-      if (learnerId == null || rewardsJson is! Map) continue;
+      final progressJson = item['progress'];
+      final learnerId = _resolveLearnerIdForSyncResult(
+        item: item,
+        rewardsJson: rewardsJson,
+        progressJson: progressJson,
+      );
+      if (learnerId == null) continue;
 
-      final snapshot =
-          RewardSnapshot.fromJson(Map<String, dynamic>.from(rewardsJson));
       final learnerIndex =
           learners.indexWhere((entry) => entry.id == learnerId);
-      if (learnerIndex != -1) {
-        learners[learnerIndex] =
-            learners[learnerIndex].copyWith(rewards: snapshot);
-      }
+      if (learnerIndex == -1) continue;
+
+      final existingLearner = learners[learnerIndex];
+      final rewardSnapshot = rewardsJson is Map
+          ? RewardSnapshot.fromJson(Map<String, dynamic>.from(rewardsJson))
+          : existingLearner.rewards;
+      final updatedLearner = existingLearner.copyWith(
+        rewards: rewardSnapshot,
+        backendRecommendedModuleId:
+            _readRecommendedModuleIdFromProgress(progressJson) ??
+                existingLearner.backendRecommendedModuleId,
+        enrollmentStatus: _readEnrollmentStatusFromProgress(progressJson) ??
+            existingLearner.enrollmentStatus,
+        supportPlan:
+            _readSupportPlanFromProgress(progressJson, existingLearner) ??
+                existingLearner.supportPlan,
+        lastLessonSummary:
+            _readLessonSummaryFromProgress(progressJson, existingLearner) ??
+                existingLearner.lastLessonSummary,
+      );
+
+      learners[learnerIndex] = updatedLearner;
       if (currentLearner?.id == learnerId) {
-        currentLearner = currentLearner!.copyWith(rewards: snapshot);
+        currentLearner = updatedLearner;
       }
     }
+  }
+
+  String? _resolveLearnerIdForSyncResult({
+    required Map item,
+    required Object? rewardsJson,
+    required Object? progressJson,
+  }) {
+    final rewardLearnerId =
+        rewardsJson is Map ? rewardsJson['learnerId']?.toString() : null;
+    if (rewardLearnerId != null && rewardLearnerId.trim().isNotEmpty) {
+      return rewardLearnerId;
+    }
+
+    final progressLearnerId =
+        progressJson is Map ? progressJson['studentId']?.toString() : null;
+    if (progressLearnerId != null && progressLearnerId.trim().isNotEmpty) {
+      return progressLearnerId;
+    }
+
+    final learnerCode = item['learnerCode']?.toString();
+    if (learnerCode == null || learnerCode.trim().isEmpty) return null;
+    final learner = learners.cast<LearnerProfile?>().firstWhere(
+          (entry) => entry?.learnerCode == learnerCode,
+          orElse: () => null,
+        );
+    return learner?.id;
+  }
+
+  String? _readRecommendedModuleIdFromProgress(Object? progressJson) {
+    if (progressJson is! Map) return null;
+    final raw = progressJson['recommendedNextModuleId']?.toString();
+    if (raw == null || raw.trim().isEmpty) return null;
+
+    final directMatch = modules.cast<LearningModule?>().firstWhere(
+          (module) => module?.id == raw,
+          orElse: () => null,
+        );
+    if (directMatch != null) return directMatch.id;
+
+    final normalized = raw.toLowerCase();
+    final subjectMatch = modules.cast<LearningModule?>().firstWhere(
+          (module) =>
+              module != null &&
+              (module.id.toLowerCase() == normalized ||
+                  module.title.toLowerCase().contains(normalized)),
+          orElse: () => null,
+        );
+    return subjectMatch?.id;
+  }
+
+  String? _readEnrollmentStatusFromProgress(Object? progressJson) {
+    if (progressJson is! Map) return null;
+    final progressionStatus = progressJson['progressionStatus']?.toString();
+    return progressionStatus == 'watch'
+        ? 'Needs guided support'
+        : 'Active in lessons';
+  }
+
+  String? _readSupportPlanFromProgress(
+    Object? progressJson,
+    LearnerProfile learner,
+  ) {
+    if (progressJson is! Map) return null;
+    final progressionStatus = progressJson['progressionStatus']?.toString();
+    if (progressionStatus == 'watch') {
+      return 'Use short prompts and one hint before replaying the answer.';
+    }
+    if (progressionStatus == 'on-track') {
+      return 'Use short prompts and praise after each spoken answer.';
+    }
+    return learner.supportPlan;
+  }
+
+  String? _readLessonSummaryFromProgress(
+    Object? progressJson,
+    LearnerProfile learner,
+  ) {
+    if (progressJson is! Map) return null;
+    final lessonsCompletedRaw = progressJson['lessonsCompleted'];
+    final lessonsCompleted = lessonsCompletedRaw is int
+        ? lessonsCompletedRaw
+        : int.tryParse(lessonsCompletedRaw?.toString() ?? '');
+    if (lessonsCompleted == null) return learner.lastLessonSummary;
+
+    final moduleId = _readRecommendedModuleIdFromProgress(progressJson);
+    final moduleTitle = moduleId == null
+        ? null
+        : modules
+            .cast<LearningModule?>()
+            .firstWhere(
+              (module) => module?.id == moduleId,
+              orElse: () => null,
+            )
+            ?.title;
+    return moduleTitle == null
+        ? '$lessonsCompleted lesson(s) completed in the live backend runtime.'
+        : '$lessonsCompleted lesson(s) completed. Backend now routes ${learner.name} toward $moduleTitle.';
   }
 
   void _queueSessionEvent({
