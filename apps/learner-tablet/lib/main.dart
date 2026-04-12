@@ -53,6 +53,7 @@ class _LumoAppState extends State<LumoApp> {
 
   @override
   void dispose() {
+    state.dispose();
     voiceReplayService.dispose();
     super.dispose();
   }
@@ -2243,19 +2244,12 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     _promptedCurrentStep = true;
     final prompt =
         widget.state.personalizePrompt(session.currentStep.coachPrompt);
-    await _prepareForMallamSpeech();
-    if (!mounted) return;
-    setState(() {
-      isSpeaking = true;
-    });
-    await widget.state.replayVisiblePrompt(prompt, mode: SpeakerMode.guiding);
-    if (!mounted) return;
-    setState(() {
-      isSpeaking = false;
-      microphoneStatus = isAutoMode
-          ? 'Mallam finished speaking. Start recording and let the learner answer now.'
-          : 'Mallam finished speaking. Listen for the learner response.';
-    });
+    await _speakAndMaybeAutoRecord(
+      prompt,
+      mode: SpeakerMode.guiding,
+      autoReadyMessage:
+          'Mallam finished speaking. Start recording and let the learner answer now.',
+    );
   }
 
   Future<void> _prepareForMallamSpeech() async {
@@ -2264,6 +2258,91 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     }
     await speechTranscriptionService.cancel();
     await widget.state.stopVoiceReplay();
+  }
+
+  Future<void> _speakAndMaybeAutoRecord(
+    String text, {
+    SpeakerMode mode = SpeakerMode.guiding,
+    String? autoReadyMessage,
+  }) async {
+    await _prepareForMallamSpeech();
+    if (!mounted) return;
+    setState(() {
+      isSpeaking = true;
+      microphoneStatus = 'Mallam is speaking now.';
+    });
+    await widget.state.replayVisiblePrompt(text, mode: mode);
+    if (!mounted) return;
+    setState(() {
+      isSpeaking = false;
+      microphoneStatus = isAutoMode
+          ? (autoReadyMessage ??
+              'Mallam finished speaking. The mic will start for the learner now.')
+          : 'Mallam finished speaking. Listen for the learner response.';
+    });
+    if (isAutoMode) {
+      await _startRecordingIfPossible(
+        fallbackMessage: autoReadyMessage,
+      );
+    }
+  }
+
+  Future<void> _startRecordingIfPossible({String? fallbackMessage}) async {
+    if (!mounted || isRecording || isSpeaking) return;
+    try {
+      await startRecording();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        microphoneStatus = fallbackMessage ??
+            microphoneStatus ??
+            'Mallam finished speaking. Start recording when the learner is ready.';
+      });
+    }
+  }
+
+  Future<void> _runCoachSupport(String supportType) async {
+    final session = widget.state.activeSession;
+    if (session == null) return;
+
+    widget.state.useCoachSupport(supportType);
+    widget.onChanged();
+    setState(() {
+      if (supportType == 'model') {
+        responseController.text = widget.state.personalizeExpectedResponse(
+          session.currentStep.expectedResponse,
+        );
+      }
+    });
+
+    final supportPrompt = widget.state.activeSession?.transcript.last.text ??
+        widget.state.buildCoachSupportPrompt(
+          supportType: supportType,
+          step: session.currentStep,
+        );
+    final mode = supportType == 'model'
+        ? SpeakerMode.affirming
+        : supportType == 'wait'
+            ? SpeakerMode.waiting
+            : SpeakerMode.guiding;
+    final status = switch (supportType) {
+      'hint' => 'Hint given. The mic will start for the learner’s next try.',
+      'model' =>
+        'Model answer played. The mic will start for the learner to repeat it.',
+      'slow' =>
+        'Slow repeat played. The mic will start for the learner response.',
+      'translate' =>
+        'Translated support played. The mic will start for the learner response.',
+      'wait' =>
+        'Think time is over. The mic will start when the learner is ready.',
+      _ => 'Support played. The mic will start for the learner response.',
+    };
+
+    await _speakAndMaybeAutoRecord(
+      supportPrompt,
+      mode: mode,
+      autoReadyMessage: status,
+    );
   }
 
   Future<void> _afterCorrectResponse() async {
@@ -2306,17 +2385,11 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
   Future<void> _speakActivityText(String text,
       {SpeakerMode mode = SpeakerMode.guiding}) async {
-    await _prepareForMallamSpeech();
-    if (!mounted) return;
-    setState(() {
-      isSpeaking = true;
-    });
-    await widget.state.replayVisiblePrompt(text, mode: mode);
-    if (!mounted) return;
-    setState(() {
-      isSpeaking = false;
-      microphoneStatus = 'Mallam replayed the activity prompt.';
-    });
+    await _speakAndMaybeAutoRecord(
+      text,
+      mode: mode,
+      autoReadyMessage: 'Mallam replayed the activity prompt.',
+    );
   }
 
   Widget _buildActivityPanel(LessonStep step) {
@@ -2572,30 +2645,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     }
 
     final supportType = outcome.attemptNumber >= 2 ? 'model' : 'hint';
-    final supportPrompt = widget.state.buildCoachSupportPrompt(
-      supportType: supportType,
-      step: widget.state.activeSession!.currentStep,
-    );
-    widget.state.useCoachSupport(supportType);
-    widget.onChanged();
-    setState(() {
-      isSpeaking = true;
-      microphoneStatus = outcome.attemptNumber >= 2
-          ? 'Mallam is modeling the answer and keeping the learner on this step.'
-          : 'Mallam is replaying the prompt with a hint. Let the learner try again.';
-    });
-    await widget.state.replayVisiblePrompt(
-      supportPrompt,
-      mode:
-          supportType == 'model' ? SpeakerMode.affirming : SpeakerMode.guiding,
-    );
-    if (!mounted) return;
-    setState(() {
-      isSpeaking = false;
-      microphoneStatus = outcome.attemptNumber >= 2
-          ? 'Model answer played. Start recording when the learner repeats it.'
-          : 'Hint given. Start recording for the learner’s next try.';
-    });
+    await _runCoachSupport(supportType);
   }
 
   Future<void> startRecording() async {
@@ -2973,32 +3023,12 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                   widget.onChanged();
                                   setState(() {});
                                 },
-                                onHint: () {
-                                  widget.state.useCoachSupport('hint');
-                                  widget.onChanged();
-                                  setState(() {});
-                                },
-                                onModel: () {
-                                  widget.state.useCoachSupport('model');
-                                  responseController.text = expectedResponse;
-                                  widget.onChanged();
-                                  setState(() {});
-                                },
-                                onSlow: () {
-                                  widget.state.useCoachSupport('slow');
-                                  widget.onChanged();
-                                  setState(() {});
-                                },
-                                onWait: () {
-                                  widget.state.useCoachSupport('wait');
-                                  widget.onChanged();
-                                  setState(() {});
-                                },
-                                onTranslate: () {
-                                  widget.state.useCoachSupport('translate');
-                                  widget.onChanged();
-                                  setState(() {});
-                                },
+                                onHint: () => _runCoachSupport('hint'),
+                                onModel: () => _runCoachSupport('model'),
+                                onSlow: () => _runCoachSupport('slow'),
+                                onWait: () => _runCoachSupport('wait'),
+                                onTranslate: () =>
+                                    _runCoachSupport('translate'),
                               ),
                               const SizedBox(height: 16),
                               TextField(
@@ -4259,12 +4289,12 @@ class _RegistrationReadinessStrip extends StatelessWidget {
 }
 
 class _CoachActionsRow extends StatelessWidget {
-  final VoidCallback onReplay;
-  final VoidCallback onHint;
-  final VoidCallback onModel;
-  final VoidCallback onSlow;
-  final VoidCallback onWait;
-  final VoidCallback onTranslate;
+  final Future<void> Function() onReplay;
+  final Future<void> Function() onHint;
+  final Future<void> Function() onModel;
+  final Future<void> Function() onSlow;
+  final Future<void> Function() onWait;
+  final Future<void> Function() onTranslate;
 
   const _CoachActionsRow({
     required this.onReplay,
@@ -4282,32 +4312,32 @@ class _CoachActionsRow extends StatelessWidget {
       runSpacing: 10,
       children: [
         FilledButton.tonalIcon(
-          onPressed: onReplay,
+          onPressed: () => onReplay(),
           icon: const Icon(Icons.volume_up_rounded),
           label: const Text('Replay'),
         ),
         FilledButton.tonalIcon(
-          onPressed: onSlow,
+          onPressed: () => onSlow(),
           icon: const Icon(Icons.slow_motion_video_rounded),
           label: const Text('Slow repeat'),
         ),
         FilledButton.tonalIcon(
-          onPressed: onHint,
+          onPressed: () => onHint(),
           icon: const Icon(Icons.lightbulb_rounded),
           label: const Text('Give hint'),
         ),
         FilledButton.tonalIcon(
-          onPressed: onModel,
+          onPressed: () => onModel(),
           icon: const Icon(Icons.record_voice_over_rounded),
           label: const Text('Model answer'),
         ),
         FilledButton.tonalIcon(
-          onPressed: onWait,
+          onPressed: () => onWait(),
           icon: const Icon(Icons.timelapse_rounded),
           label: const Text('Think time'),
         ),
         FilledButton.tonalIcon(
-          onPressed: onTranslate,
+          onPressed: () => onTranslate(),
           icon: const Icon(Icons.translate_rounded),
           label: const Text('Translate cue'),
         ),
