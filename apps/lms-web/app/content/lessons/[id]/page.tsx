@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { FeedbackBanner } from '../../../../components/feedback-banner';
+import { notFound } from 'next/navigation';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
-import { fetchCurriculumModules, fetchLesson, fetchSubjects } from '../../../../lib/api';
-import { Card, PageShell, Pill } from '../../../../lib/ui';
+import { FeedbackBanner } from '../../../../components/feedback-banner';
+import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { Card, PageShell, Pill, responsiveGrid } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
 
 function statusTone(status: string) {
@@ -11,143 +12,127 @@ function statusTone(status: string) {
   return { tone: '#E0E7FF', text: '#3730A3' };
 }
 
-function normalizeSearchParam(value?: string | string[]) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-export default async function LessonDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams?: Promise<{ message?: string; from?: string }>;
-}) {
+export default async function LessonDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ from?: string; message?: string }> }) {
   const { id } = await params;
   const query = await searchParams;
-  const [lesson, subjects, modules] = await Promise.all([
-    fetchLesson(id),
+  const returnPath = query?.from || '/content';
+
+  let lesson;
+  try {
+    lesson = await fetchLesson(id);
+  } catch {
+    notFound();
+  }
+
+  const [subjects, modules, lessons, assessments] = await Promise.all([
     fetchSubjects(),
     fetchCurriculumModules(),
+    fetchLessons(),
+    fetchAssessments(),
   ]);
 
-  const message = normalizeSearchParam(query?.message);
-  const returnPath = normalizeSearchParam(query?.from) || '/content';
-  const localization = lesson.localization as {
-    locale?: string;
-    supportLanguage?: string;
-    supportLanguageLabel?: string;
-    notes?: string[];
-  } | null;
-  const assessmentItems = lesson.lessonAssessment?.items ?? [];
+  const activeModule = modules.find((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle) ?? null;
+  const relatedAssessments = assessments.filter((assessment) => assessment.moduleId === activeModule?.id || assessment.moduleTitle === activeModule?.title);
+  const siblingLessons = lessons.filter((item) => item.id !== lesson.id && (item.moduleId === activeModule?.id || item.moduleTitle === activeModule?.title));
+  const readinessChecks: Array<[string, boolean]> = [
+    ['Clear title', lesson.title.trim().length >= 8],
+    ['Enough duration', Number(lesson.durationMinutes) >= 8],
+    ['Objectives present', (lesson.learningObjectives?.length ?? 0) > 0],
+    ['Assessment attached', (lesson.lessonAssessment?.items?.length ?? 0) > 0],
+    ['Activity spine built', (lesson.activitySteps?.length ?? lesson.activities?.length ?? 0) >= 3],
+  ];
+  const readinessScore = readinessChecks.filter(([, passed]) => passed).length;
 
   return (
     <PageShell
       title={lesson.title}
-      subtitle="Full lesson authoring editor for objectives, localization, assessment prompts, and activity steps. This is the real content surface, not the toy status-only edit form."
+      subtitle="Edit the real lesson payload without leaving the LMS: structure, localization, evidence, assessment items, and the exact learner flow."
       breadcrumbs={[
-        { label: 'Content Library', href: '/content' },
-        { label: 'Lesson inventory', href: '/content' },
-        { label: lesson.title, href: `/content/lessons/${lesson.id}` },
+        { label: 'Dashboard', href: '/' },
+        { label: returnPath === '/english' ? 'English Curriculum Studio' : 'Content Library', href: returnPath },
+        { label: 'Lesson Studio', href: `/content/lessons/new?from=${encodeURIComponent(returnPath)}` },
+        { label: lesson.title },
       ]}
       aside={
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Pill label={lesson.subjectName ?? 'Unknown subject'} />
-          <Pill label={lesson.moduleTitle ?? 'Unmapped module'} tone="#F8FAFC" text="#334155" />
-          <Pill label={lesson.status} tone={statusTone(lesson.status).tone} text={statusTone(lesson.status).text} />
-          <Link href={`/content/lessons/new?duplicate=${lesson.id}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', fontWeight: 700 }}>
-            Duplicate as new
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Link href={returnPath} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+            Back to board
+          </Link>
+          <Link href={`/content/lessons/new?duplicate=${lesson.id}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+            Duplicate lesson
           </Link>
         </div>
       }
     >
-      <FeedbackBanner message={message} />
+      <FeedbackBanner message={query?.message} />
 
-      <section style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: 16, marginBottom: 20 }}>
-        <div style={{ display: 'grid', gap: 16 }}>
-          <Card title="Lesson payload snapshot" eyebrow="What this pack already carries">
-            <div style={{ display: 'grid', gap: 12 }}>
-              <div><strong>Duration:</strong> {lesson.durationMinutes} min</div>
-              <div><strong>Mode:</strong> {lesson.mode}</div>
-              <div><strong>Voice persona:</strong> {lesson.voicePersona ?? '—'}</div>
-              <div><strong>Target age:</strong> {lesson.targetAgeRange ?? '—'}</div>
-              <div><strong>Objectives:</strong></div>
-              <ul style={{ margin: 0, paddingLeft: 18, color: '#475569', lineHeight: 1.7 }}>
-                {(lesson.learningObjectives ?? []).map((objective) => <li key={objective}>{objective}</li>)}
-              </ul>
-            </div>
-          </Card>
-
-          <Card title="Authoring contract" eyebrow="The metadata that actually drives delivery">
-            <div style={{ display: 'grid', gap: 14 }}>
-              <div style={{ padding: 14, borderRadius: 16, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
-                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#1D4ED8', marginBottom: 8 }}>Localization</div>
-                <div style={{ color: '#334155', lineHeight: 1.7 }}>
-                  <strong>{localization?.supportLanguageLabel ?? 'Support language unset'}</strong>
-                  {localization?.supportLanguage ? ` (${localization.supportLanguage})` : ''}
-                  <div style={{ marginTop: 6 }}>Locale: {localization?.locale ?? 'en-NG'}</div>
-                </div>
-                {localization?.notes?.length ? (
-                  <ul style={{ margin: '10px 0 0', paddingLeft: 18, color: '#475569', lineHeight: 1.7 }}>
-                    {localization.notes.map((note) => <li key={note}>{note}</li>)}
-                  </ul>
-                ) : <div style={{ marginTop: 10, color: '#64748b' }}>No localization notes yet.</div>}
-              </div>
-
-              <div style={{ padding: 14, borderRadius: 16, background: '#F5F3FF', border: '1px solid #DDD6FE' }}>
-                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#6D28D9', marginBottom: 8 }}>Assessment pack</div>
-                <div style={{ color: '#334155', lineHeight: 1.7 }}>
-                  <strong>{lesson.lessonAssessment?.title ?? 'Assessment title unset'}</strong>
-                  <div style={{ marginTop: 6 }}>Kind: {lesson.lessonAssessment?.kind ?? 'observational'} • {assessmentItems.length} item{assessmentItems.length === 1 ? '' : 's'}</div>
-                </div>
-                {assessmentItems.length ? (
-                  <ul style={{ margin: '10px 0 0', paddingLeft: 18, color: '#475569', lineHeight: 1.7 }}>
-                    {assessmentItems.map((item) => <li key={item.id}>{item.prompt}{item.evidence ? ` • ${item.evidence}` : ''}</li>)}
-                  </ul>
-                ) : <div style={{ marginTop: 10, color: '#64748b' }}>No assessment items wired yet.</div>}
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        <Card title="Delivery contract" eyebrow="What learner-facing clients will receive">
-          <div style={{ display: 'grid', gap: 12 }}>
-            {(lesson.activitySteps ?? []).map((step) => (
-              <div key={step.id} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
-                  <strong>{step.title ?? step.prompt}</strong>
-                  <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes ?? 0} min</span>
-                </div>
-                <div style={{ color: '#475569', lineHeight: 1.6 }}>{step.detail ?? step.prompt}</div>
-                <div style={{ marginTop: 8, color: '#64748B' }}>{step.type} • Evidence: {step.evidence ?? '—'}</div>
-                {step.choices && step.choices.length > 0 ? (
-                  <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {step.choices.map((choice) => (
-                      <span key={choice.id} style={{ padding: '6px 10px', borderRadius: 999, background: choice.isCorrect ? '#DCFCE7' : '#F8FAFC', color: choice.isCorrect ? '#166534' : '#334155', fontWeight: 700, fontSize: 12 }}>
-                        {choice.label}{choice.isCorrect ? ' ✓' : ''}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                {step.media && step.media.length > 0 ? (
-                  <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
-                    {step.media.map((item, index) => (
-                      <div key={`${step.id}-media-${index}`} style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>
-                        Media cue: {item.kind} • {Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '—')}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
+      <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
+        <Card title={`${readinessScore}/5`} eyebrow="Release readiness">
+          <div style={{ color: '#64748b' }}>This is the fast smell test before someone tries to publish half-baked curriculum.</div>
+        </Card>
+        <Card title={activeModule?.title ?? 'Unmapped'} eyebrow="Current module">
+          <div style={{ color: '#64748b' }}>{activeModule ? `${activeModule.subjectName} • ${activeModule.level} • ${activeModule.status}` : 'This lesson is not mapped to a known module right now.'}</div>
+        </Card>
+        <Card title={String(relatedAssessments.length)} eyebrow="Assessment gates">
+          <div style={{ color: '#64748b' }}>{relatedAssessments.length ? 'Progression checks linked to this module are visible below.' : 'No module gate exists yet. That needs fixing before this lane acts release-safe.'}</div>
         </Card>
       </section>
 
-      <LessonEditorForm lesson={lesson} subjects={subjects} modules={modules} action={updateLessonAction} returnPath={`/content/lessons/${lesson.id}`} />
+      <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 16, marginBottom: 20 }}>
+        <LessonEditorForm lesson={lesson} subjects={subjects} modules={modules} action={updateLessonAction} returnPath={returnPath} />
 
-      <div style={{ marginTop: 18 }}>
-        <Link href={returnPath} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>← Back to {returnPath === '/english' ? 'English curriculum studio' : 'content library'}</Link>
-      </div>
+        <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+          <Card title="Authoring checkpoints" eyebrow="Publish discipline">
+            <div style={{ display: 'grid', gap: 12 }}>
+              {readinessChecks.map(([label, passed]) => (
+                <div key={label} style={{ padding: 14, borderRadius: 16, background: passed ? '#ECFDF5' : '#FEF2F2', border: `1px solid ${passed ? '#BBF7D0' : '#FECACA'}` }}>
+                  <strong style={{ color: passed ? '#166534' : '#991B1B' }}>{passed ? 'Ready' : 'Blocked'}</strong>
+                  <div style={{ color: '#475569', marginTop: 6, lineHeight: 1.6 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card title="Assessment wiring" eyebrow="This lesson's module gates">
+            <div style={{ display: 'grid', gap: 12 }}>
+              {relatedAssessments.length ? relatedAssessments.map((assessment) => (
+                <div key={assessment.id} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                    <strong>{assessment.title}</strong>
+                    <Pill label={assessment.status} tone={statusTone(assessment.status).tone} text={statusTone(assessment.status).text} />
+                  </div>
+                  <div style={{ color: '#64748b', lineHeight: 1.6 }}>{assessment.triggerLabel || assessment.trigger} • Pass score {Math.round(assessment.passingScore * 100)}%</div>
+                </div>
+              )) : (
+                <div style={{ padding: 14, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', fontWeight: 700 }}>
+                  No assessment gate linked to this module. That’s not a real release path; it’s wishful thinking.
+                </div>
+              )}
+            </div>
+          </Card>
+
+          <Card title="Sibling lesson packs" eyebrow="Same module context">
+            <div style={{ display: 'grid', gap: 10 }}>
+              {siblingLessons.length ? siblingLessons.slice(0, 6).map((sibling) => (
+                <div key={sibling.id} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+                    <strong>{sibling.title}</strong>
+                    <Pill label={sibling.status} tone={statusTone(sibling.status).tone} text={statusTone(sibling.status).text} />
+                  </div>
+                  <div style={{ color: '#64748b', marginBottom: 8 }}>{sibling.durationMinutes} min • {sibling.mode}</div>
+                  <Link href={`/content/lessons/${sibling.id}?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>
+                    Open sibling pack →
+                  </Link>
+                </div>
+              )) : (
+                <div style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748b' }}>
+                  No sibling packs found in this module yet.
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      </section>
     </PageShell>
   );
 }

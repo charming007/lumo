@@ -20,6 +20,9 @@ const labelMap: Record<string, string> = {
   assignments: 'Assignments',
   attendance: 'Attendance',
   progress: 'Progress',
+  english: 'English Studio',
+  rewards: 'Rewards',
+  lessons: 'Lesson Studio',
 };
 
 function prettify(segment: string) {
