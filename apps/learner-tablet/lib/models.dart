@@ -187,6 +187,7 @@ class LearnerProfile {
   final String supportPlan;
   final String lastLessonSummary;
   final String lastAttendance;
+  final String? backendRecommendedModuleId;
   final RewardSnapshot? rewards;
 
   const LearnerProfile({
@@ -210,6 +211,7 @@ class LearnerProfile {
     this.supportPlan = 'Short prompts and praise after every answer.',
     this.lastLessonSummary = 'No lesson captured yet.',
     this.lastAttendance = 'Checked in today',
+    this.backendRecommendedModuleId,
     this.rewards,
   });
 
@@ -245,6 +247,7 @@ class LearnerProfile {
       lastLessonSummary:
           'Live backend profile loaded${podLabel == null ? '.' : ' from $podLabel.'}',
       lastAttendance: _attendanceStatus(json['attendanceRate']),
+      backendRecommendedModuleId: json['recommendedModuleId']?.toString(),
       rewards: rewardsJson is Map
           ? RewardSnapshot.fromJson(Map<String, dynamic>.from(rewardsJson))
           : null,
@@ -276,6 +279,7 @@ class LearnerProfile {
     String? supportPlan,
     String? lastLessonSummary,
     String? lastAttendance,
+    String? backendRecommendedModuleId,
     RewardSnapshot? rewards,
   }) {
     return LearnerProfile(
@@ -300,6 +304,8 @@ class LearnerProfile {
       supportPlan: supportPlan ?? this.supportPlan,
       lastLessonSummary: lastLessonSummary ?? this.lastLessonSummary,
       lastAttendance: lastAttendance ?? this.lastAttendance,
+      backendRecommendedModuleId:
+          backendRecommendedModuleId ?? this.backendRecommendedModuleId,
       rewards: rewards ?? this.rewards,
     );
   }
@@ -510,6 +516,68 @@ class LumoModuleBundle {
     required this.module,
     this.lessons = const [],
   });
+}
+
+class LearnerAssignmentPack {
+  final String assignmentId;
+  final String lessonId;
+  final String moduleId;
+  final String? curriculumModuleId;
+  final String lessonTitle;
+  final String? cohortName;
+  final String? mallamName;
+  final String? dueDate;
+  final String? assessmentTitle;
+  final List<String> eligibleLearnerIds;
+
+  const LearnerAssignmentPack({
+    required this.assignmentId,
+    required this.lessonId,
+    required this.moduleId,
+    this.curriculumModuleId,
+    required this.lessonTitle,
+    this.cohortName,
+    this.mallamName,
+    this.dueDate,
+    this.assessmentTitle,
+    this.eligibleLearnerIds = const [],
+  });
+
+  factory LearnerAssignmentPack.fromJson(Map<String, dynamic> json) {
+    final lessonPack = json['lessonPack'];
+    final assessment = json['assessment'];
+    final eligibleLearners = (json['eligibleLearners'] as List?)
+            ?.whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList() ??
+        const <Map<String, dynamic>>[];
+
+    return LearnerAssignmentPack(
+      assignmentId: json['assignmentId']?.toString() ?? 'assignment-unknown',
+      lessonId: lessonPack is Map
+          ? lessonPack['lessonId']?.toString() ?? 'lesson-unknown'
+          : 'lesson-unknown',
+      moduleId: lessonPack is Map
+          ? lessonPack['moduleKey']?.toString() ??
+              lessonPack['subjectId']?.toString() ??
+              'english'
+          : 'english',
+      curriculumModuleId: lessonPack is Map
+          ? lessonPack['curriculumModuleId']?.toString()
+          : null,
+      lessonTitle: lessonPack is Map
+          ? lessonPack['lessonTitle']?.toString() ?? 'Assigned lesson'
+          : 'Assigned lesson',
+      cohortName: json['cohortName']?.toString(),
+      mallamName: json['mallamName']?.toString(),
+      dueDate: json['dueDate']?.toString(),
+      assessmentTitle: assessment is Map ? assessment['title']?.toString() : null,
+      eligibleLearnerIds: eligibleLearners
+          .map((item) => item['id']?.toString())
+          .whereType<String>()
+          .toList(),
+    );
+  }
 }
 
 class LearningModule {

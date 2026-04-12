@@ -26,6 +26,7 @@ class LumoAppState {
   final List<LearnerProfile> learners = List.of(learnerProfilesSeed);
   final List<LearningModule> modules = List.of(learningModules);
   final List<LessonCardModel> assignedLessons = List.of(assignedLessonsSeed);
+  final List<LearnerAssignmentPack> assignmentPacks = [];
 
   bool isBootstrapping = false;
   bool isRegisteringLearner = false;
@@ -142,6 +143,9 @@ class LumoAppState {
         ..addAll(data.lessons.isEmpty ? assignedLessonsSeed : data.lessons);
 
       registrationContext = data.registrationContext;
+      assignmentPacks
+        ..clear()
+        ..addAll(data.assignmentPacks);
       usingFallbackData = false;
       lastSyncedAt = DateTime.now();
       backendGeneratedAt = data.generatedAt == null
@@ -237,7 +241,9 @@ class LumoAppState {
     if (learner == null) return assignedLessons;
 
     final preferredModuleIds = _preferredModuleIdsForLearner(learner);
-    final ranked = List<LessonCardModel>.from(assignedLessons)
+    final backendAssigned = backendAssignedLessonsForLearner(learner);
+    final backendLessonIds = backendAssigned.map((item) => item.id).toSet();
+    final rankedFallback = List<LessonCardModel>.from(assignedLessons)
       ..sort((left, right) {
         final leftRank = preferredModuleIds.indexOf(left.moduleId);
         final rightRank = preferredModuleIds.indexOf(right.moduleId);
@@ -251,7 +257,59 @@ class LumoAppState {
         return left.title.compareTo(right.title);
       });
 
-    return ranked;
+    return [
+      ...backendAssigned,
+      ...rankedFallback.where((lesson) => !backendLessonIds.contains(lesson.id)),
+    ];
+  }
+
+  List<LessonCardModel> backendAssignedLessonsForLearner(
+    LearnerProfile? learner,
+  ) {
+    if (learner == null || assignmentPacks.isEmpty) return const [];
+
+    final eligibleAssignments = assignmentPacks.where(
+      (pack) => pack.eligibleLearnerIds.contains(learner.id),
+    );
+
+    final lessonsById = {for (final lesson in assignedLessons) lesson.id: lesson};
+    final ordered = <LessonCardModel>[];
+    final seen = <String>{};
+
+    for (final pack in eligibleAssignments) {
+      final lesson = lessonsById[pack.lessonId];
+      if (lesson == null || seen.contains(lesson.id)) continue;
+      ordered.add(lesson);
+      seen.add(lesson.id);
+    }
+
+    return ordered;
+  }
+
+  LearnerAssignmentPack? nextAssignmentPackForLearner(LearnerProfile? learner) {
+    if (learner == null) return null;
+    for (final pack in assignmentPacks) {
+      if (pack.eligibleLearnerIds.contains(learner.id)) return pack;
+    }
+    return null;
+  }
+
+  String backendRoutingSummaryForLearner(LearnerProfile learner) {
+    final pack = nextAssignmentPackForLearner(learner);
+    if (pack == null) {
+      final recommended = recommendedModuleLabelForLearner(learner);
+      return 'No live assignment pack yet. Fall back to $recommended.';
+    }
+
+    final due = pack.dueDate == null || pack.dueDate!.trim().isEmpty
+        ? 'No due date'
+        : 'Due ${pack.dueDate!.split('T').first}';
+    final mallam = pack.mallamName ?? 'Mallam pending';
+    final cohort = pack.cohortName ?? learner.cohort;
+    final assessment = pack.assessmentTitle == null
+        ? 'No assessment gate'
+        : 'Assessment: ${pack.assessmentTitle}';
+    return '$cohort • $mallam • $due • $assessment';
   }
 
   List<LessonCardModel> lessonsForLearnerAndModule(
@@ -928,15 +986,35 @@ class LumoAppState {
     return '${lessons.length} assigned lesson(s) • start with ${nextLesson.title}';
   }
 
-  String recommendedModuleLabelForLearner(LearnerProfile learner) {
+  LearningModule recommendedModuleForLearner(LearnerProfile learner) {
+    final backendModuleId = learner.backendRecommendedModuleId;
+    final backendModule = modules.cast<LearningModule?>().firstWhere(
+          (item) => item?.id == backendModuleId,
+          orElse: () => null,
+        );
+    if (backendModule != null) return backendModule;
+
+    final nextPack = nextAssignmentPackForLearner(learner);
+    if (nextPack != null) {
+      final assignedModule = modules.cast<LearningModule?>().firstWhere(
+            (item) => item?.id == nextPack.moduleId,
+            orElse: () => null,
+          );
+      if (assignedModule != null) return assignedModule;
+    }
+
     final preferredModuleIds = _preferredModuleIdsForLearner(learner);
     final preferredModuleId =
         preferredModuleIds.isEmpty ? null : preferredModuleIds.first;
-    final module = modules.cast<LearningModule?>().firstWhere(
+    return modules.cast<LearningModule?>().firstWhere(
           (item) => item?.id == preferredModuleId,
           orElse: () => modules.isEmpty ? null : modules.first,
-        );
-    return module?.title ?? 'Assigned subject';
+        ) ??
+        learningModules.first;
+  }
+
+  String recommendedModuleLabelForLearner(LearnerProfile learner) {
+    return recommendedModuleForLearner(learner).title;
   }
 
   List<String> _preferredModuleIdsForLearner(LearnerProfile learner) {

@@ -425,7 +425,10 @@ class AllStudentsPage extends StatelessWidget {
                           ),
                         );
                       },
-                      child: _LearnerCard(learner: learner),
+                      child: _LearnerCard(
+                        learner: learner,
+                        state: state,
+                      ),
                     );
                   },
                 ),
@@ -455,6 +458,8 @@ class LearnerProfilePage extends StatelessWidget {
     final totalMinutes = learner.estimatedTotalMinutes;
     final assignedLessons = state.lessonsForLearner(learner).take(3).toList();
     final nextLesson = state.nextAssignedLessonForLearner(learner);
+    final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
+    final recommendedModule = state.recommendedModuleForLearner(learner);
 
     return Scaffold(
       body: SafeArea(
@@ -664,6 +669,56 @@ class LearnerProfilePage extends StatelessWidget {
                               label: 'Last lesson',
                               value: learner.lastLessonSummary,
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SoftPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Backend routing',
+                                    style: TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                                StatusPill(
+                                  text: nextAssignmentPack == null
+                                      ? 'Fallback routing'
+                                      : 'Live assignment',
+                                  color: nextAssignmentPack == null
+                                      ? LumoTheme.accentOrange
+                                      : LumoTheme.accentGreen,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              state.backendRoutingSummaryForLearner(learner),
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            InfoRow(
+                              label: 'Recommended module',
+                              value: recommendedModule.title,
+                            ),
+                            if (nextAssignmentPack != null) ...[
+                              InfoRow(
+                                label: 'Assigned lesson',
+                                value: nextAssignmentPack.lessonTitle,
+                              ),
+                              InfoRow(
+                                label: 'Assessment',
+                                value: nextAssignmentPack.assessmentTitle ??
+                                    'No assessment gate',
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -1572,7 +1627,7 @@ class RegistrationSuccessPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recommendedModule = state.recommendedModuleForDraft;
+    final recommendedModule = state.recommendedModuleForLearner(learner);
 
     return Scaffold(
       body: SafeArea(
@@ -1750,7 +1805,10 @@ class SelectStudentPage extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: _LearnerCard(learner: learner),
+                            child: _LearnerCard(
+                              learner: learner,
+                              state: state,
+                            ),
                           );
                         },
                       ),
@@ -3378,11 +3436,13 @@ class _SubjectCard extends StatelessWidget {
 
 class _LearnerCard extends StatelessWidget {
   final LearnerProfile learner;
+  final LumoAppState? state;
 
-  const _LearnerCard({required this.learner});
+  const _LearnerCard({required this.learner, this.state});
 
   @override
   Widget build(BuildContext context) {
+    final nextPack = state?.nextAssignmentPackForLearner(learner);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -3412,8 +3472,10 @@ class _LearnerCard extends StatelessWidget {
               ),
               const Spacer(),
               StatusPill(
-                text: learner.attendanceBand,
-                color: LumoTheme.accentOrange,
+                text: nextPack == null ? learner.attendanceBand : 'Backend assigned',
+                color: nextPack == null
+                    ? LumoTheme.accentOrange
+                    : LumoTheme.accentGreen,
               ),
             ],
           ),
@@ -3448,7 +3510,7 @@ class _LearnerCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            learner.supportPlan,
+            nextPack == null ? learner.supportPlan : nextPack.lessonTitle,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -3456,6 +3518,19 @@ class _LearnerCard extends StatelessWidget {
               height: 1.35,
             ),
           ),
+          if (nextPack != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              state!.backendRoutingSummaryForLearner(learner),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
           const Spacer(),
           InfoRow(
             label: 'Last attendance',

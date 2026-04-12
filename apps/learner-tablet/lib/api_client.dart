@@ -103,6 +103,8 @@ class LumoApiClient {
       learners: learnersJson.map(LearnerProfile.fromBackend).toList(),
       modules: modulesJson.map(LearningModule.fromBackend).toList(),
       lessons: lessonsJson.map(LessonCardModel.fromBackend).toList(),
+      assignmentPacks:
+          assignmentsJson.map(LearnerAssignmentPack.fromJson).toList(),
       registrationContext: registrationContext is Map
           ? RegistrationContext(
               cohorts: _asList(registrationContext['cohorts'])
@@ -235,6 +237,7 @@ class LumoBootstrap {
   final List<LearnerProfile> learners;
   final List<LearningModule> modules;
   final List<LessonCardModel> lessons;
+  final List<LearnerAssignmentPack> assignmentPacks;
   final RegistrationContext registrationContext;
   final String? generatedAt;
   final String? contractVersion;
@@ -244,6 +247,7 @@ class LumoBootstrap {
     required this.learners,
     required this.modules,
     required this.lessons,
+    this.assignmentPacks = const [],
     this.registrationContext = const RegistrationContext(),
     this.generatedAt,
     this.contractVersion,

@@ -76,5 +76,41 @@ void main() {
       expect(summary, contains(nextLesson!.title));
       expect(summary, contains('assigned lesson'));
     });
+
+    test('prefers backend assignment packs over heuristic lesson order', () {
+      final state = LumoAppState();
+      final storyLesson = state.assignedLessons
+          .firstWhere((lesson) => lesson.moduleId == 'story');
+
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-1',
+          lessonId: storyLesson.id,
+          moduleId: storyLesson.moduleId,
+          lessonTitle: storyLesson.title,
+          cohortName: beginner.cohort,
+          mallamName: 'Mallam Idris',
+          dueDate: '2026-04-20T10:00:00.000Z',
+          assessmentTitle: 'Story check',
+          eligibleLearnerIds: [beginner.id],
+        ),
+      );
+
+      final lessons = state.lessonsForLearner(beginner);
+      final nextPack = state.nextAssignmentPackForLearner(beginner);
+
+      expect(nextPack, isNotNull);
+      expect(lessons.first.id, storyLesson.id);
+      expect(state.backendRoutingSummaryForLearner(beginner),
+          contains('Mallam Idris'));
+    });
+
+    test('uses backend recommended module when available', () {
+      final state = LumoAppState();
+      final learner = beginner.copyWith(backendRecommendedModuleId: 'math');
+
+      expect(state.recommendedModuleLabelForLearner(learner), contains('Math'));
+      expect(state.recommendedModuleForLearner(learner).id, 'math');
+    });
   });
 }
