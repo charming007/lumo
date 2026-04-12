@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import type { Assessment, CurriculumModule, Subject } from '../lib/types';
@@ -10,7 +11,7 @@ const cardStyle = {
   borderRadius: 20,
   padding: 24,
   display: 'grid',
-  gap: 14,
+  gap: 16,
   border: '1px solid #eef2f7',
   boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)',
 } as const;
@@ -33,8 +34,113 @@ const buttonStyle = {
   fontWeight: 700,
 } as const;
 
+const ghostButtonStyle = {
+  borderRadius: 12,
+  padding: '10px 12px',
+  fontSize: 13,
+  fontWeight: 700,
+  border: '1px solid #dbe3f0',
+  background: 'white',
+  color: '#334155',
+  cursor: 'pointer',
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+} as const;
+
+const typeOptions = [
+  { value: 'listen_repeat', label: 'Listen repeat' },
+  { value: 'speak_answer', label: 'Speak answer' },
+  { value: 'word_build', label: 'Word build' },
+  { value: 'image_choice', label: 'Image choice' },
+  { value: 'oral_quiz', label: 'Oral quiz' },
+  { value: 'listen_answer', label: 'Listen answer' },
+  { value: 'tap_choice', label: 'Tap choice' },
+  { value: 'letter_intro', label: 'Letter intro' },
+];
+
+const templatePresets = [
+  {
+    id: 'conversation',
+    label: 'Conversation warm-up',
+    title: 'Talk about people who help us',
+    mode: 'guided',
+    durationMinutes: 12,
+    activityTypes: ['listen_repeat', 'speak_answer', 'word_build', 'image_choice', 'oral_quiz'],
+  },
+  {
+    id: 'phonics',
+    label: 'Phonics sprint',
+    title: 'Letter sound S and simple words',
+    mode: 'guided',
+    durationMinutes: 10,
+    activityTypes: ['letter_intro', 'listen_repeat', 'word_build', 'image_choice', 'oral_quiz'],
+  },
+  {
+    id: 'story',
+    label: 'Story listening',
+    title: 'Listen to a short story and answer',
+    mode: 'group',
+    durationMinutes: 14,
+    activityTypes: ['listen_answer', 'speak_answer', 'image_choice', 'oral_quiz', 'speak_answer'],
+  },
+] as const;
+
+type ActivityDraft = {
+  id: string;
+  title: string;
+  type: string;
+  durationMinutes: string;
+  prompt: string;
+  detail: string;
+  evidence: string;
+  expectedAnswers: string;
+  tags: string;
+  facilitatorNotes: string;
+};
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
+}
+
+function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}): ActivityDraft {
+  return {
+    id: `english-activity-${Date.now()}-${index + 1}`,
+    title: `Activity ${index + 1}`,
+    type: 'speak_answer',
+    durationMinutes: '2',
+    prompt: '',
+    detail: '',
+    evidence: '',
+    expectedAnswers: '',
+    tags: 'english',
+    facilitatorNotes: '',
+    ...overrides,
+  };
+}
+
+function toDraftsFromGeneratedActivities(
+  activities: ReturnType<typeof buildEnglishActivities>,
+  activityTypes: readonly string[],
+  vocabulary: string[],
+  mode: string,
+  assessmentTitle: string | null,
+  level: string | undefined,
+) {
+  return activities.map((activity, index) => makeActivityDraft(index, {
+    title: activity.title,
+    type: activityTypes[index] ?? 'speak_answer',
+    durationMinutes: String(Number.parseInt(activity.duration, 10) || 2),
+    prompt: activity.title,
+    detail: activity.detail,
+    evidence: activity.evidence,
+    expectedAnswers: vocabulary.join(', '),
+    tags: [mode, 'english', level ?? 'beginner'].join(', '),
+    facilitatorNotes: assessmentTitle
+      ? `Keep evidence aligned to ${assessmentTitle}.\nPush for full spoken responses before support.`
+      : 'Capture one clear oral evidence point before exit.',
+  }));
 }
 
 export function EnglishStudioAuthoringForm({
@@ -50,22 +156,45 @@ export function EnglishStudioAuthoringForm({
 }) {
   const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? subjects[0];
   const englishModules = modules.filter((module) => module.subjectId === englishSubject?.id || module.subjectName?.toLowerCase().includes('english'));
+  const starterPreset = templatePresets[0];
   const [moduleId, setModuleId] = useState(englishModules[0]?.id ?? '');
-  const [title, setTitle] = useState('Talk about people who help us');
-  const [durationMinutes, setDurationMinutes] = useState('12');
-  const [mode, setMode] = useState('guided');
-  const [status, setStatus] = useState('draft');
+  const [title, setTitle] = useState<string>(starterPreset.title);
+  const [durationMinutes, setDurationMinutes] = useState<string>(String(starterPreset.durationMinutes));
+  const [mode, setMode] = useState<string>(starterPreset.mode);
+  const [status, setStatus] = useState<string>('draft');
+  const [supportLanguage, setSupportLanguage] = useState('ha');
+  const [supportLanguageLabel, setSupportLanguageLabel] = useState('Hausa');
+  const [localizationNotesText, setLocalizationNotesText] = useState('Anchor examples in familiar community contexts.\nKeep prompts short and repeatable.');
+  const [assessmentKind, setAssessmentKind] = useState('observational');
+  const [assessmentItemsText, setAssessmentItemsText] = useState('Can the learner say one complete sentence about the topic?|spoken-response\nCan the learner use at least one target word correctly?|teacher-check');
 
   const activeModule = englishModules.find((module) => module.id === moduleId) ?? englishModules[0];
   const activeAssessment = assessments.find((assessment) => assessment.moduleId === activeModule?.id || assessment.moduleTitle === activeModule?.title) ?? null;
   const objective = buildEnglishObjective(title);
   const vocabulary = inferVocabulary(title);
-  const activities = buildEnglishActivities({
+  const generatedActivities = useMemo(() => buildEnglishActivities({
     title,
     durationMinutes: Number(durationMinutes) || 8,
     mode,
     assessmentTitle: activeAssessment?.title ?? null,
-  });
+  }), [title, durationMinutes, mode, activeAssessment?.title]);
+
+  const [activityDrafts, setActivityDrafts] = useState<ActivityDraft[]>(() => toDraftsFromGeneratedActivities(
+    buildEnglishActivities({
+      title: starterPreset.title,
+      durationMinutes: starterPreset.durationMinutes,
+      mode: starterPreset.mode,
+      assessmentTitle: null,
+    }),
+    starterPreset.activityTypes,
+    inferVocabulary(starterPreset.title),
+    starterPreset.mode,
+    null,
+    englishModules[0]?.level,
+  ));
+
+  const targetAgeRange = activeModule?.level === 'confident' ? '8-11' : activeModule?.level === 'emerging' ? '7-10' : '6-9';
+  const voicePersona = mode === 'group' ? 'discussion-coach-a' : mode === 'independent' ? 'calm-guide-a' : mode === 'practice' ? 'practice-coach-a' : 'friendly-guide-a';
   const readiness = buildReadinessChecks({
     status,
     moduleStatus: activeModule?.status,
@@ -75,50 +204,108 @@ export function EnglishStudioAuthoringForm({
   });
   const recommendedStatus = readiness.readinessScore >= 5 ? 'published' : readiness.readinessScore >= 4 ? 'approved' : readiness.readinessScore >= 3 ? 'review' : 'draft';
   const learningObjectives = useMemo(() => [objective, `Use ${vocabulary.join(', ')} in supported speaking turns.`], [objective, vocabulary]);
-  const targetAgeRange = activeModule?.level === 'confident' ? '8-11' : activeModule?.level === 'emerging' ? '7-10' : '6-9';
-  const voicePersona = mode === 'group' ? 'discussion-coach-a' : mode === 'independent' ? 'calm-guide-a' : 'friendly-guide-a';
   const localization = useMemo(() => ({
     locale: 'en-NG',
-    supportLanguage: 'ha',
-    supportLanguageLabel: 'Hausa',
-    notes: [`Anchor examples in familiar community contexts for ${title.toLowerCase()}.`],
-  }), [title]);
+    supportLanguage,
+    supportLanguageLabel,
+    notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
+  }), [supportLanguage, supportLanguageLabel, localizationNotesText]);
+  const assessmentTitle = activeAssessment?.title ?? `${title} quick check`;
   const lessonAssessment = useMemo(() => ({
-    title: activeAssessment?.title ?? `${title} quick check`,
-    kind: 'observational',
-    items: [
-      {
-        id: 'spoken-sentence-check',
-        prompt: `Can the learner say one complete sentence about ${title.toLowerCase()}?`,
-        evidence: 'spoken-response',
-      },
-      {
-        id: 'vocabulary-usage-check',
-        prompt: `Can the learner use ${vocabulary[0] ?? 'the target vocabulary'} correctly in context?`,
-        evidence: 'teacher-check',
-      },
-    ],
-  }), [activeAssessment?.title, title, vocabulary]);
-  const activityTypeMap = ['listen_repeat', 'speak_answer', 'word_build', 'image_choice', 'oral_quiz'] as const;
-  const activitySteps = useMemo(() => activities.map((activity, index) => ({
-    id: `english-${index + 1}`,
+    title: assessmentTitle,
+    kind: assessmentKind,
+    items: assessmentItemsText.split('\n').map((line, index) => {
+      const [prompt, evidence = 'teacher-check'] = line.split('|').map((part) => part.trim());
+      return { id: `english-assessment-${index + 1}`, prompt, evidence };
+    }).filter((item) => item.prompt),
+  }), [assessmentTitle, assessmentKind, assessmentItemsText]);
+
+  const activitySteps = useMemo(() => activityDrafts.map((draft, index) => ({
+    id: draft.id || `english-${index + 1}`,
     order: index + 1,
-    type: activityTypeMap[index] ?? 'speak_answer',
-    prompt: activity.title,
-    title: activity.title,
-    durationMinutes: Number.parseInt(activity.duration, 10) || 0,
-    detail: activity.detail,
-    evidence: activity.evidence,
-    expectedAnswers: vocabulary,
-    tags: [mode, activeModule?.level ?? 'beginner'],
-    facilitatorNotes: [`Run as ${mode} delivery.`, activeAssessment?.title ? `Keep evidence aligned to ${activeAssessment.title}.` : 'Capture one quick oral evidence point before exit.'],
-  })), [activities, mode, activeAssessment?.title, activeModule?.level, vocabulary]);
+    type: draft.type,
+    prompt: draft.prompt || draft.title,
+    title: draft.title,
+    durationMinutes: Number(draft.durationMinutes) || 0,
+    detail: draft.detail,
+    evidence: draft.evidence,
+    expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
+    tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
+    facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
+  })), [activityDrafts]);
+
+  const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, item) => sum + (item.durationMinutes || 0), 0), [activitySteps]);
 
   const readinessTone = useMemo(() => {
     if (readiness.readinessScore >= 5) return { bg: '#DCFCE7', border: '#86EFAC', text: '#166534' };
     if (readiness.readinessScore >= 3) return { bg: '#FEF3C7', border: '#FCD34D', text: '#92400E' };
     return { bg: '#FEE2E2', border: '#FCA5A5', text: '#991B1B' };
   }, [readiness.readinessScore]);
+
+  const updateActivity = (index: number, patch: Partial<ActivityDraft>) => {
+    setActivityDrafts((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
+  };
+
+  const moveActivity = (index: number, direction: -1 | 1) => {
+    setActivityDrafts((current) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= current.length) return current;
+      const next = [...current];
+      const [item] = next.splice(index, 1);
+      next.splice(targetIndex, 0, item);
+      return next;
+    });
+  };
+
+  const duplicateActivity = (index: number) => {
+    setActivityDrafts((current) => {
+      const next = [...current];
+      const source = current[index];
+      next.splice(index + 1, 0, { ...source, id: `${source.id}-copy-${Date.now()}`, title: `${source.title} copy` });
+      return next;
+    });
+  };
+
+  const removeActivity = (index: number) => {
+    setActivityDrafts((current) => (current.length === 1 ? [makeActivityDraft(0)] : current.filter((_, itemIndex) => itemIndex !== index)));
+  };
+
+  const addActivity = () => setActivityDrafts((current) => [...current, makeActivityDraft(current.length, {
+    expectedAnswers: vocabulary.join(', '),
+    tags: [mode, 'english', activeModule?.level ?? 'beginner'].join(', '),
+  })]);
+
+  const regenerateFromBlueprint = () => {
+    setActivityDrafts(toDraftsFromGeneratedActivities(
+      generatedActivities,
+      starterPreset.activityTypes,
+      vocabulary,
+      mode,
+      activeAssessment?.title ?? null,
+      activeModule?.level,
+    ));
+  };
+
+  const applyPreset = (preset: typeof templatePresets[number]) => {
+    const presetActivities = buildEnglishActivities({
+      title: preset.title,
+      durationMinutes: preset.durationMinutes,
+      mode: preset.mode,
+      assessmentTitle: activeAssessment?.title ?? null,
+    });
+
+    setTitle(preset.title);
+    setMode(preset.mode);
+    setDurationMinutes(String(preset.durationMinutes));
+    setActivityDrafts(toDraftsFromGeneratedActivities(
+      presetActivities,
+      preset.activityTypes,
+      inferVocabulary(preset.title),
+      preset.mode,
+      activeAssessment?.title ?? null,
+      activeModule?.level,
+    ));
+  };
 
   return (
     <form action={action} style={cardStyle}>
@@ -130,10 +317,32 @@ export function EnglishStudioAuthoringForm({
       <input type="hidden" name="localization" value={JSON.stringify(localization)} />
       <input type="hidden" name="lessonAssessment" value={JSON.stringify(lessonAssessment)} />
       <input type="hidden" name="activitySteps" value={JSON.stringify(activitySteps)} />
-      <h2 style={{ margin: 0 }}>Author English lesson</h2>
-      <div style={{ color: '#64748b', lineHeight: 1.6 }}>This is the missing piece: author against a real activity spine, see the readiness signals before publish, then create the lesson without pretending a title-only form is curriculum design.</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 0.8fr 0.8fr', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Author English lesson</h2>
+          <div style={{ color: '#64748b', lineHeight: 1.6, marginTop: 8 }}>
+            This is finally a real authoring surface: start from a usable English preset, edit the activity spine, tune assessment and localization, then create the lesson without the usual fake-title nonsense.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={regenerateFromBlueprint} style={ghostButtonStyle}>Reset spine from generator</button>
+          <Link href={`/content/lessons/new?subjectId=${englishSubject?.id ?? ''}&moduleId=${moduleId}`} style={{ ...ghostButtonStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+            Open full lesson studio
+          </Link>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b' }}>Quick starts</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {templatePresets.map((preset) => (
+            <button key={preset.id} type="button" onClick={() => applyPreset(preset)} style={ghostButtonStyle}>{preset.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 0.7fr 0.8fr', gap: 12 }}>
         <FieldLabel>
           English module
           <select name="moduleId" value={moduleId} onChange={(event) => setModuleId(event.target.value)} style={inputStyle}>
@@ -162,63 +371,176 @@ export function EnglishStudioAuthoringForm({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
         <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 16, padding: 14 }}><strong>{activeModule?.level ?? '—'}</strong><div style={{ color: '#475569', marginTop: 4 }}>Target level</div></div>
         <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 16, padding: 14 }}><strong>{activeModule?.status ?? '—'}</strong><div style={{ color: '#475569', marginTop: 4 }}>Module readiness</div></div>
-        <div style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 16, padding: 14 }}><strong>{activeAssessment?.title ?? 'No gate yet'}</strong><div style={{ color: '#475569', marginTop: 4 }}>Assessment link</div></div>
+        <div style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 16, padding: 14 }}><strong>{assessmentTitle}</strong><div style={{ color: '#475569', marginTop: 4 }}>Assessment link</div></div>
         <div style={{ background: readinessTone.bg, border: `1px solid ${readinessTone.border}`, borderRadius: 16, padding: 14, color: readinessTone.text }}><strong>{readiness.readinessScore}/5 checks passed</strong><div style={{ marginTop: 4 }}>Recommended status: {recommendedStatus}</div></div>
       </div>
 
-      <FieldLabel>
-        Publish state
-        <select name="status" value={status} onChange={(event) => setStatus(event.target.value)} style={inputStyle}>
-          <option value="draft">Draft</option>
-          <option value="review">In review</option>
-          <option value="approved">Approved</option>
-          <option value="published">Published</option>
-        </select>
-      </FieldLabel>
-
-      <div style={{ padding: 16, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', marginBottom: 8 }}>Generated learning objective</div>
-        <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>{objective}</div>
-        <div style={{ color: '#64748b' }}>Vocabulary focus: {vocabulary.join(' • ')}</div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16 }}>
-        <div style={{ display: 'grid', gap: 10 }}>
-          {activities.map((activity) => (
-            <div key={activity.title} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-                <strong>{activity.title}</strong>
-                <span style={{ color: '#7c3aed', fontWeight: 700 }}>{activity.duration}</span>
-              </div>
-              <div style={{ color: '#475569', lineHeight: 1.6 }}>{activity.detail}</div>
-              <div style={{ color: '#64748b', marginTop: 8 }}>Evidence: {activity.evidence}</div>
-            </div>
-          ))}
-        </div>
-
+      <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr', gap: 16 }}>
         <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ padding: 16, borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', marginBottom: 8 }}>Readiness control</div>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {readiness.checks.map((check) => (
-                <div key={check.label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontWeight: 800, color: check.passed ? '#166534' : '#b91c1c' }}>{check.passed ? '✓' : '!'}</span>
-                  <span style={{ color: '#334155', lineHeight: 1.5 }}>{check.label}</span>
-                </div>
-              ))}
-            </div>
+          <FieldLabel>
+            Publish state
+            <select name="status" value={status} onChange={(event) => setStatus(event.target.value)} style={inputStyle}>
+              <option value="draft">Draft</option>
+              <option value="review">In review</option>
+              <option value="approved">Approved</option>
+              <option value="published">Published</option>
+            </select>
+          </FieldLabel>
+
+          <div style={{ padding: 16, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', marginBottom: 8 }}>Generated learning objective</div>
+            <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>{objective}</div>
+            <div style={{ color: '#64748b', lineHeight: 1.6 }}>Vocabulary focus: {vocabulary.join(' • ')}</div>
           </div>
 
           <div style={{ padding: 16, borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', marginBottom: 8 }}>Editor note</div>
-            <div style={{ color: '#334155', lineHeight: 1.6 }}>
-              {recommendedStatus === 'published'
-                ? 'Nothing obvious blocks release. Publish if the wording actually matches the intended classroom task.'
-                : recommendedStatus === 'approved'
-                  ? 'Close, but keep it queued until pod ops confirm timing.'
-                  : recommendedStatus === 'review'
-                    ? 'This deserves review, not bravado. The structure exists, but the release controls are still mixed.'
-                    : 'Keep this in draft. The lane is not ready and pretending otherwise is how bad content ships.'}
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', marginBottom: 8 }}>Localization</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <FieldLabel>
+                Support language code
+                <input value={supportLanguage} onChange={(event) => setSupportLanguage(event.target.value)} style={inputStyle} />
+              </FieldLabel>
+              <FieldLabel>
+                Support language label
+                <input value={supportLanguageLabel} onChange={(event) => setSupportLanguageLabel(event.target.value)} style={inputStyle} />
+              </FieldLabel>
+            </div>
+            <FieldLabel>
+              Localization notes
+              <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={inputStyle} />
+            </FieldLabel>
+          </div>
+
+          <div style={{ padding: 16, borderRadius: 18, background: '#F5F3FF', border: '1px solid #DDD6FE' }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#6D28D9', marginBottom: 8 }}>Assessment pack</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 170px', gap: 10, marginBottom: 10 }}>
+              <FieldLabel>
+                Assessment title
+                <input value={assessmentTitle} readOnly style={{ ...inputStyle, background: '#f8fafc', color: '#475569' }} />
+              </FieldLabel>
+              <FieldLabel>
+                Kind
+                <select value={assessmentKind} onChange={(event) => setAssessmentKind(event.target.value)} style={inputStyle}>
+                  <option value="observational">Observational</option>
+                  <option value="oral">Oral</option>
+                  <option value="automatic">Automatic</option>
+                </select>
+              </FieldLabel>
+            </div>
+            <FieldLabel>
+              Assessment items (prompt|evidence per line)
+              <textarea value={assessmentItemsText} onChange={(event) => setAssessmentItemsText(event.target.value)} rows={5} style={inputStyle} />
+            </FieldLabel>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ padding: 16, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B' }}>Live lesson preview</div>
+                <div style={{ color: '#0f172a', fontWeight: 800, marginTop: 4 }}>{title || 'Untitled English lesson'}</div>
+              </div>
+              <div style={{ textAlign: 'right', color: '#475569', fontSize: 13 }}>
+                <div>{activitySteps.length} steps</div>
+                <div>{totalActivityMinutes} min activity spine</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              <span style={{ padding: '6px 10px', borderRadius: 999, background: '#E0E7FF', color: '#3730A3', fontWeight: 700, fontSize: 12 }}>{mode}</span>
+              <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F1F5F9', color: '#334155', fontWeight: 700, fontSize: 12 }}>{targetAgeRange}</span>
+              <span style={{ padding: '6px 10px', borderRadius: 999, background: '#EEF2FF', color: '#4338CA', fontWeight: 700, fontSize: 12 }}>{voicePersona}</span>
+              <span style={{ padding: '6px 10px', borderRadius: 999, background: totalActivityMinutes === (Number(durationMinutes) || 0) ? '#DCFCE7' : '#FEF3C7', color: totalActivityMinutes === (Number(durationMinutes) || 0) ? '#166534' : '#92400E', fontWeight: 700, fontSize: 12 }}>
+                {totalActivityMinutes === (Number(durationMinutes) || 0) ? 'Timing aligned' : 'Timing mismatch'}
+              </span>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', marginBottom: 8 }}>Readiness control</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {readiness.checks.map((check) => (
+                  <div key={check.label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: 10, borderRadius: 14, background: check.passed ? '#ECFDF5' : '#FEF2F2', border: `1px solid ${check.passed ? '#BBF7D0' : '#FECACA'}` }}>
+                    <span style={{ fontWeight: 800, color: check.passed ? '#166534' : '#b91c1c' }}>{check.passed ? '✓' : '!'}</span>
+                    <span style={{ color: '#334155', lineHeight: 1.5 }}>{check.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Editable activity spine</div>
+                <div style={{ color: '#475569', marginTop: 4 }}>This is the real bit now: add, reorder, duplicate, and clean up the English lesson flow before the record exists.</div>
+              </div>
+              <button type="button" onClick={addActivity} style={{ ...ghostButtonStyle, background: '#ede9fe', color: '#5b21b6', border: '1px solid #ddd6fe' }}>+ Add step</button>
+            </div>
+
+            <div style={{ display: 'grid', gap: 12 }}>
+              {activityDrafts.map((activity, index) => (
+                <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                    <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
+                      <button type="button" onClick={() => moveActivity(index, 1)} disabled={index === activityDrafts.length - 1} style={{ ...ghostButtonStyle, opacity: index === activityDrafts.length - 1 ? 0.45 : 1 }}>↓ Move</button>
+                      <button type="button" onClick={() => duplicateActivity(index)} style={ghostButtonStyle}>Duplicate</button>
+                      <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 110px', gap: 10 }}>
+                    <FieldLabel>
+                      Step title
+                      <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
+                    </FieldLabel>
+                    <FieldLabel>
+                      Type
+                      <select value={activity.type} onChange={(event) => updateActivity(index, { type: event.target.value })} style={inputStyle}>
+                        {typeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    </FieldLabel>
+                    <FieldLabel>
+                      Minutes
+                      <input value={activity.durationMinutes} onChange={(event) => updateActivity(index, { durationMinutes: event.target.value })} style={inputStyle} />
+                    </FieldLabel>
+                  </div>
+
+                  <FieldLabel>
+                    Learner prompt
+                    <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={2} style={inputStyle} />
+                  </FieldLabel>
+
+                  <FieldLabel>
+                    Detail
+                    <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={3} style={inputStyle} />
+                  </FieldLabel>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <FieldLabel>
+                      Evidence
+                      <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
+                    </FieldLabel>
+                    <FieldLabel>
+                      Expected answers
+                      <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
+                    </FieldLabel>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <FieldLabel>
+                      Tags
+                      <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
+                    </FieldLabel>
+                    <FieldLabel>
+                      Facilitator notes
+                      <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={2} style={inputStyle} />
+                    </FieldLabel>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

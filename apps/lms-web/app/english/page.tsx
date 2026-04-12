@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { EnglishStudioAuthoringForm } from '../../components/english-studio-authoring-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
@@ -85,12 +86,18 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
         <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 16, marginBottom: 20 }}>
           <Card title={topBlueprint.lessonTitle} eyebrow="Featured lesson blueprint">
             <div style={{ display: 'grid', gap: 16 }}>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Pill label={topBlueprint.moduleTitle} />
                 <Pill label={`${topBlueprint.durationMinutes} min`} tone="#F8FAFC" text="#334155" />
                 <Pill label={topBlueprint.mode} tone="#ECFDF5" text="#166534" />
                 <Pill label={topBlueprint.releaseLabel} tone={releaseTone(topBlueprint.releaseLabel).tone} text={releaseTone(topBlueprint.releaseLabel).text} />
                 <Pill label={`${topBlueprint.readinessScore}/5 checks`} tone={readinessTone(topBlueprint.readinessScore).tone} text={readinessTone(topBlueprint.readinessScore).text} />
+                <Link href={`/content/lessons/${topBlueprint.lessonId}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#EEF2FF', color: '#3730A3', fontWeight: 700, textDecoration: 'none' }}>
+                  Edit full lesson
+                </Link>
+                <Link href={`/content/lessons/new?duplicate=${topBlueprint.lessonId}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#F5F3FF', color: '#6D28D9', fontWeight: 700, textDecoration: 'none' }}>
+                  Duplicate pack
+                </Link>
               </div>
               <div style={{ padding: 18, borderRadius: 20, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                 <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Learning objective</div>
@@ -207,10 +214,16 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
                       <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{blueprint.lessonTitle}</div>
                       <div style={{ color: '#64748b' }}>{blueprint.objective}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
                       <Pill label={blueprint.level} tone="#EEF2FF" text="#3730A3" />
                       <Pill label={blueprint.status} tone={statusTone(blueprint.status).tone} text={statusTone(blueprint.status).text} />
                       <Pill label={`${blueprint.readinessScore}/5 checks`} tone={readinessTone(blueprint.readinessScore).tone} text={readinessTone(blueprint.readinessScore).text} />
+                      <Link href={`/content/lessons/${blueprint.lessonId}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#EEF2FF', color: '#3730A3', fontWeight: 700, textDecoration: 'none' }}>
+                        Open editor
+                      </Link>
+                      <Link href={`/content/lessons/new?duplicate=${blueprint.lessonId}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#F5F3FF', color: '#6D28D9', fontWeight: 700, textDecoration: 'none' }}>
+                        Duplicate
+                      </Link>
                     </div>
                   </div>
 
