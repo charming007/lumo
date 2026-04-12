@@ -214,10 +214,10 @@ function presentLearnerModule(module) {
     .filter((lesson) => lesson.moduleId === module.id && ['approved', 'published'].includes(lesson.status));
 
   return {
-    id: curriculum.subjectId ?? curriculum.id,
+    id: curriculum.id,
     curriculumModuleId: curriculum.id,
-    title: curriculum.subjectName ?? curriculum.title,
-    description: `${curriculum.title} for ${curriculum.level} learners.`,
+    title: curriculum.title,
+    description: `${curriculum.title} • ${curriculum.subjectName ?? 'Learning'} • ${curriculum.level} learners.`,
     voicePrompt: `Open ${curriculum.title} and guide the learner one spoken step at a time.`,
     readinessGoal: `Ready for ${curriculum.title.toLowerCase()} practice`,
     badge: `${approvedLessons.length} lesson${approvedLessons.length === 1 ? '' : 's'}`,
@@ -238,10 +238,11 @@ function presentLearnerLesson(entry) {
     .listAssignments()
     .filter((assignment) => assignment.lessonId === entry.id && ['active', 'scheduled'].includes(assignment.status));
   const contract = buildLessonContract(entry);
+  const learnerModuleId = module?.id ?? entry.moduleId ?? entry.subjectId;
 
   return {
     id: entry.id,
-    moduleId: entry.subjectId,
+    moduleId: learnerModuleId,
     curriculumModuleId: module?.id ?? null,
     title: entry.title,
     subject: subject?.name ?? entry.subjectId,
@@ -263,7 +264,7 @@ function presentLearnerLesson(entry) {
       subjectId: entry.subjectId,
       subjectName: subject?.name ?? entry.subjectId,
       curriculumModuleId: module?.id ?? null,
-      moduleKey: entry.subjectId,
+      moduleKey: learnerModuleId,
       moduleTitle: module?.title ?? null,
       strandName: curriculum?.strandName ?? null,
       deliveryMode: entry.mode,
@@ -337,7 +338,7 @@ function presentAssignment(assignment) {
         subjectId: subject?.id ?? lesson?.subjectId ?? null,
         subjectName: subject?.name ?? null,
         curriculumModuleId: module?.id ?? null,
-        moduleKey: subject?.id ?? lesson?.subjectId ?? null,
+        moduleKey: module?.id ?? lesson?.moduleId ?? subject?.id ?? lesson?.subjectId ?? null,
         moduleTitle: module?.title ?? null,
         level: module?.level ?? null,
         strandName: curriculum?.strandName ?? null,
