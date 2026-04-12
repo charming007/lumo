@@ -2,11 +2,47 @@ enum SpeakerMode { idle, guiding, listening, affirming, waiting }
 
 enum LessonStepType { intro, prompt, practice, reflection, celebration }
 
-enum LessonActivityType { letterIntro, imageChoice, speakAnswer }
+enum LessonActivityType {
+  letterIntro,
+  listenRepeat,
+  imageChoice,
+  speakAnswer,
+  wordBuild,
+  tapChoice,
+  listenAnswer,
+  oralQuiz,
+}
 
 enum LessonCompletionState { ready, inProgress, complete }
 
 enum ResponseReview { pending, onTrack, needsSupport }
+
+class LessonActivityChoice {
+  final String id;
+  final String label;
+  final bool isCorrect;
+  final String? mediaKind;
+  final String? mediaValue;
+
+  const LessonActivityChoice({
+    required this.id,
+    required this.label,
+    this.isCorrect = false,
+    this.mediaKind,
+    this.mediaValue,
+  });
+
+  factory LessonActivityChoice.fromBackend(Map<String, dynamic> json) {
+    final media = json['media'];
+    return LessonActivityChoice(
+      id: json['id']?.toString() ?? json['label']?.toString() ?? 'choice',
+      label: json['label']?.toString() ?? 'Choice',
+      isCorrect: json['isCorrect'] == true,
+      mediaKind: media is Map ? media['kind']?.toString() : null,
+      mediaValue: media is Map ? media['value']?.toString() : null,
+    );
+  }
+}
 
 class LessonActivity {
   final LessonActivityType type;
@@ -16,6 +52,12 @@ class LessonActivity {
   final List<String> choices;
   final List<String> choiceEmoji;
   final String? targetResponse;
+  final List<String> expectedAnswers;
+  final String? successFeedback;
+  final String? retryFeedback;
+  final String? mediaKind;
+  final String? mediaValue;
+  final List<LessonActivityChoice> choiceItems;
 
   const LessonActivity({
     required this.type,
@@ -25,6 +67,12 @@ class LessonActivity {
     this.choices = const [],
     this.choiceEmoji = const [],
     this.targetResponse,
+    this.expectedAnswers = const [],
+    this.successFeedback,
+    this.retryFeedback,
+    this.mediaKind,
+    this.mediaValue,
+    this.choiceItems = const [],
   });
 }
 
@@ -445,6 +493,7 @@ class LessonCardModel {
     final moduleId = json['moduleId']?.toString() ?? 'english';
     final title = json['title']?.toString() ?? 'Guided lesson';
     final subject = json['subject']?.toString() ?? 'Learning';
+    final activitySteps = _readBackendActivitySteps(json);
 
     return LessonCardModel(
       id: json['id']?.toString() ?? 'lesson-unknown',
@@ -458,7 +507,9 @@ class LessonCardModel {
           json['readinessFocus']?.toString() ?? 'Guided voice practice',
       scenario:
           json['scenario']?.toString() ?? 'Guided $subject session for $title.',
-      steps: _defaultLessonSteps(title: title, subject: subject),
+      steps: activitySteps.isEmpty
+          ? _defaultLessonSteps(title: title, subject: subject)
+          : activitySteps,
     );
   }
 }
@@ -863,6 +914,152 @@ String _moduleGoal(String level, String subjectId) {
   return level == 'emerging'
       ? 'Ready for guided spoken practice'
       : 'Ready for simple spoken responses';
+}
+
+List<LessonStep> _readBackendActivitySteps(Map<String, dynamic> json) {
+  final rawSteps = (json['activitySteps'] as List?) ?? (json['activities'] as List?);
+  if (rawSteps == null) return const [];
+
+  final items = rawSteps
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+
+  items.sort((left, right) {
+    final leftOrder = _asInt(left['order']) ?? 0;
+    final rightOrder = _asInt(right['order']) ?? 0;
+    return leftOrder.compareTo(rightOrder);
+  });
+
+  return items.map(_lessonStepFromBackend).toList();
+}
+
+LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
+  final typeValue = json['type']?.toString() ?? 'listen_repeat';
+  final activityType = _lessonActivityTypeFromBackend(typeValue);
+  final expectedAnswers = (json['expectedAnswers'] as List?)
+          ?.map((item) => item.toString())
+          .where((item) => item.trim().isNotEmpty)
+          .toList() ??
+      const <String>[];
+  final choices = (json['choices'] as List?)
+          ?.whereType<Map>()
+          .map((item) => LessonActivityChoice.fromBackend(
+                Map<String, dynamic>.from(item),
+              ))
+          .toList() ??
+      const <LessonActivityChoice>[];
+  final media = (json['media'] as List?)?.whereType<Map>().toList() ?? const [];
+  final mediaMap = media.isEmpty ? null : Map<String, dynamic>.from(media.first);
+  final prompt = json['prompt']?.toString() ?? 'Follow Mallam and answer.';
+  final expectedResponse = expectedAnswers.isEmpty
+      ? choices.firstWhere(
+          (item) => item.isCorrect,
+          orElse: () => choices.isEmpty
+              ? const LessonActivityChoice(id: 'answer', label: 'I am ready')
+              : choices.first,
+        ).label
+      : expectedAnswers.first;
+  final hint = json['hint']?.toString();
+  final successFeedback = json['successFeedback']?.toString();
+  final retryFeedback = json['retryFeedback']?.toString();
+  final focusText = mediaMap?['value']?.toString();
+  final supportText = hint ?? successFeedback ?? retryFeedback;
+
+  return LessonStep(
+    id: json['id']?.toString() ?? typeValue,
+    type: _lessonStepTypeForActivity(activityType),
+    title: _titleForBackendActivity(typeValue),
+    instruction: prompt,
+    expectedResponse: expectedResponse,
+    acceptableResponses: expectedAnswers.skip(1).toList(),
+    coachPrompt: prompt,
+    facilitatorTip: hint ?? 'Use the backend lesson cue and keep the learner moving.',
+    realWorldCheck: successFeedback ?? 'Check whether the learner completed the backend activity clearly.',
+    speakerMode: _speakerModeForActivity(activityType),
+    activity: LessonActivity(
+      type: activityType,
+      prompt: prompt,
+      focusText: focusText,
+      supportText: supportText,
+      choices: choices.map((item) => item.label).toList(),
+      choiceEmoji: choices.map((item) => _emojiForChoice(item)).toList(),
+      targetResponse: expectedResponse,
+      expectedAnswers: expectedAnswers,
+      successFeedback: successFeedback,
+      retryFeedback: retryFeedback,
+      mediaKind: mediaMap?['kind']?.toString(),
+      mediaValue: focusText,
+      choiceItems: choices,
+    ),
+  );
+}
+
+LessonActivityType _lessonActivityTypeFromBackend(String value) {
+  switch (value) {
+    case 'letter_intro':
+      return LessonActivityType.letterIntro;
+    case 'image_choice':
+      return LessonActivityType.imageChoice;
+    case 'speak_answer':
+      return LessonActivityType.speakAnswer;
+    case 'word_build':
+      return LessonActivityType.wordBuild;
+    case 'tap_choice':
+      return LessonActivityType.tapChoice;
+    case 'listen_answer':
+      return LessonActivityType.listenAnswer;
+    case 'oral_quiz':
+      return LessonActivityType.oralQuiz;
+    case 'listen_repeat':
+    default:
+      return LessonActivityType.listenRepeat;
+  }
+}
+
+LessonStepType _lessonStepTypeForActivity(LessonActivityType type) {
+  switch (type) {
+    case LessonActivityType.letterIntro:
+    case LessonActivityType.listenRepeat:
+      return LessonStepType.intro;
+    case LessonActivityType.imageChoice:
+    case LessonActivityType.wordBuild:
+    case LessonActivityType.tapChoice:
+    case LessonActivityType.listenAnswer:
+      return LessonStepType.practice;
+    case LessonActivityType.speakAnswer:
+    case LessonActivityType.oralQuiz:
+      return LessonStepType.reflection;
+  }
+}
+
+SpeakerMode _speakerModeForActivity(LessonActivityType type) {
+  switch (type) {
+    case LessonActivityType.letterIntro:
+    case LessonActivityType.listenRepeat:
+      return SpeakerMode.guiding;
+    case LessonActivityType.imageChoice:
+    case LessonActivityType.wordBuild:
+    case LessonActivityType.tapChoice:
+    case LessonActivityType.listenAnswer:
+    case LessonActivityType.speakAnswer:
+    case LessonActivityType.oralQuiz:
+      return SpeakerMode.listening;
+  }
+}
+
+String _titleForBackendActivity(String value) {
+  return value
+      .split('_')
+      .where((part) => part.isNotEmpty)
+      .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
+}
+
+String _emojiForChoice(LessonActivityChoice choice) {
+  if (choice.mediaKind == 'image') return '🖼️';
+  if (choice.mediaKind == 'audio') return '🔊';
+  return choice.isCorrect ? '✅' : '🔹';
 }
 
 List<LessonStep> _defaultLessonSteps({

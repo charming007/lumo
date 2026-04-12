@@ -1711,7 +1711,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Text(
-                    focusText ?? '-',
+                    focusText ?? activity.mediaValue ?? '-',
                     style: const TextStyle(
                       fontSize: 44,
                       fontWeight: FontWeight.w900,
@@ -1746,9 +1746,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
               runSpacing: 8,
               children: [
                 FilledButton.tonalIcon(
-                  onPressed: focusText == null
+                  onPressed: focusText == null && activity.mediaValue == null
                       ? null
-                      : () => _speakActivityText(focusText),
+                      : () => _speakActivityText(focusText ?? activity.mediaValue!),
                   icon: const Icon(Icons.volume_up_rounded),
                   label: const Text('Hear letter'),
                 ),
@@ -1757,7 +1757,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                       ? null
                       : () => _speakActivityText(supportText),
                   icon: const Icon(Icons.record_voice_over_rounded),
-                  label: const Text('Hear word'),
+                  label: const Text('Hear cue'),
                 ),
                 ActionChip(
                   label: Text(targetResponse ?? 'Use this answer'),
@@ -1771,6 +1771,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         );
         break;
       case LessonActivityType.imageChoice:
+      case LessonActivityType.tapChoice:
         body = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1820,11 +1821,15 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         );
         break;
       case LessonActivityType.speakAnswer:
+      case LessonActivityType.listenRepeat:
+      case LessonActivityType.listenAnswer:
+      case LessonActivityType.wordBuild:
+      case LessonActivityType.oralQuiz:
         body = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(prompt),
-            if (focusText != null) ...[
+            if (focusText != null || activity.mediaValue != null) ...[
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -1834,7 +1839,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
-                  focusText,
+                  focusText ?? activity.mediaValue!,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -1856,10 +1861,10 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
               runSpacing: 8,
               children: [
                 FilledButton.tonalIcon(
-                  onPressed: focusText == null
+                  onPressed: targetResponse == null
                       ? null
                       : () => _speakActivityText(
-                            focusText,
+                            targetResponse,
                             mode: SpeakerMode.affirming,
                           ),
                   icon: const Icon(Icons.volume_up_rounded),

@@ -132,9 +132,7 @@ class LumoAppState {
 
       assignedLessons
         ..clear()
-        ..addAll(data.lessons.isEmpty
-            ? assignedLessonsSeed
-            : _mergeLessonsWithSeed(data.lessons));
+        ..addAll(data.lessons.isEmpty ? assignedLessonsSeed : data.lessons);
 
       registrationContext = data.registrationContext;
       usingFallbackData = false;
@@ -833,32 +831,6 @@ class LumoAppState {
         .replaceAll('____', learner.name)
         .replaceAll('Aisha', learner.name)
         .replaceAll('Abdullahi', learner.name);
-  }
-
-  List<LessonCardModel> _mergeLessonsWithSeed(
-      List<LessonCardModel> liveLessons) {
-    return liveLessons.map((liveLesson) {
-      final seedMatch = assignedLessonsSeed.where(
-        (seed) =>
-            seed.id == liveLesson.id || seed.moduleId == liveLesson.moduleId,
-      );
-
-      if (seedMatch.isEmpty) return liveLesson;
-      final seed = seedMatch.first;
-
-      return LessonCardModel(
-        id: liveLesson.id,
-        moduleId: liveLesson.moduleId,
-        title: liveLesson.title,
-        subject: liveLesson.subject,
-        durationMinutes: liveLesson.durationMinutes,
-        status: liveLesson.status,
-        mascotName: liveLesson.mascotName,
-        readinessFocus: liveLesson.readinessFocus,
-        scenario: liveLesson.scenario,
-        steps: seed.steps,
-      );
-    }).toList();
   }
 
   void _queueSessionEvent({
