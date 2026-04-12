@@ -512,7 +512,7 @@ class AllStudentsPage extends StatelessWidget {
                         mainAxisSpacing: 12,
                         crossAxisSpacing: 12,
                         childAspectRatio:
-                            constraints.maxWidth < 900 ? 0.82 : 1.02,
+                            constraints.maxWidth < 900 ? 0.60 : 0.90,
                       ),
                       itemBuilder: (context, index) {
                         final learner = state.learners[index];
@@ -4138,7 +4138,7 @@ class _LearnerCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             nextPack == null ? learner.supportPlan : nextPack.lessonTitle,
-            maxLines: 3,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF475569),
@@ -4149,7 +4149,7 @@ class _LearnerCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               state!.backendRoutingSummaryForLearner(learner),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFF64748B),
