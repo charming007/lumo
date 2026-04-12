@@ -14,6 +14,7 @@ import type {
   Pod,
   ProgressRecord,
   ReportsOverview,
+  RewardSnapshot,
   Student,
   StudentDetail,
   Strand,
@@ -117,4 +118,12 @@ export function fetchCohorts() {
 
 export function fetchCenters() {
   return getJson<Center[]>('/api/v1/centers');
+}
+
+export function fetchStudentRewards(id: string) {
+  return getJson<RewardSnapshot>(`/api/v1/students/${id}/rewards`);
+}
+
+export function fetchRewardsLeaderboard(limit = 10) {
+  return getJson<RewardSnapshot[]>(`/api/v1/rewards/leaderboard?limit=${limit}`);
 }

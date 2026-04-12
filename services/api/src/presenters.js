@@ -1,4 +1,5 @@
 const repository = require('./repository');
+const rewards = require('./rewards');
 
 function formatAttendanceBand(rate) {
   if (rate >= 0.9) return 'Stable attendance';
@@ -119,6 +120,10 @@ function presentMallam(teacher) {
   };
 }
 
+function presentRewardSnapshot(studentId) {
+  return rewards.buildLearnerRewards(studentId);
+}
+
 function presentStudent(student) {
   const cohort = repository.findCohortById(student.cohortId);
   const pod = repository.findPodById(student.podId);
@@ -129,6 +134,7 @@ function presentStudent(student) {
     cohortName: cohort?.name ?? null,
     podLabel: pod?.label ?? null,
     mallamName: mallam?.displayName ?? mallam?.name ?? null,
+    rewards: presentRewardSnapshot(student.id),
   };
 }
 
@@ -145,6 +151,8 @@ function presentLearnerProfile(student) {
   const recommendedModule = latestProgress?.recommendedNextModuleId
     ? repository.findModuleById(latestProgress.recommendedNextModuleId)
     : null;
+
+  const rewardSnapshot = presentRewardSnapshot(student.id);
 
   return {
     id: student.id,
@@ -174,6 +182,7 @@ function presentLearnerProfile(student) {
       : 'Profile created. Awaiting first lesson capture.',
     lastAttendance: latestAttendance ? `${latestAttendance.status} on ${latestAttendance.date}` : 'No attendance recorded yet',
     recommendedModuleId: recommendedModule?.id ?? null,
+    rewards: rewardSnapshot,
   };
 }
 

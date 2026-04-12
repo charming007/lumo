@@ -756,6 +756,34 @@ const progress = [
 
 const syncEvents = [];
 
+const rewardTransactions = [
+  {
+    id: 'reward-1',
+    studentId: 'student-1',
+    kind: 'lesson_completed',
+    xpDelta: 24,
+    label: 'Early practice boost',
+    createdAt: '2026-04-09T09:30:00Z',
+  },
+  {
+    id: 'reward-2',
+    studentId: 'student-1',
+    kind: 'badge_awarded',
+    badgeId: 'first-lesson',
+    xpDelta: 0,
+    label: 'First Light',
+    createdAt: '2026-04-09T09:31:00Z',
+  },
+  {
+    id: 'reward-3',
+    studentId: 'student-3',
+    kind: 'lesson_completed',
+    xpDelta: 15,
+    label: 'Math momentum',
+    createdAt: '2026-04-08T13:10:00Z',
+  },
+];
+
 module.exports = {
   organizations,
   centers,
@@ -773,4 +801,5 @@ module.exports = {
   observations,
   progress,
   syncEvents,
+  rewardTransactions,
 };

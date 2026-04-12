@@ -647,6 +647,22 @@ function updateProgress(id, input) {
   return record;
 }
 
+function upsertProgress(input) {
+  const existing = data.progress.find(
+    (item) => item.studentId === input.studentId && item.subjectId === input.subjectId,
+  );
+
+  if (!existing) {
+    return createProgress(input);
+  }
+
+  return updateProgress(existing.id, {
+    ...input,
+    lessonsCompleted: Math.max(Number(existing.lessonsCompleted || 0), Number(input.lessonsCompleted || 0)),
+    mastery: input.mastery !== undefined ? Number(input.mastery) : existing.mastery,
+  });
+}
+
 function listObservations() {
   return data.observations;
 }
@@ -690,6 +706,29 @@ function createSyncEvent(input) {
   };
 
   data.syncEvents.push(record);
+  return record;
+}
+
+function listRewardTransactions() {
+  return data.rewardTransactions;
+}
+
+function createRewardTransaction(input) {
+  const record = {
+    id: `reward-${data.rewardTransactions.length + 1}`,
+    studentId: input.studentId,
+    lessonId: input.lessonId || null,
+    moduleId: input.moduleId || null,
+    subjectId: input.subjectId || null,
+    kind: input.kind || 'manual',
+    xpDelta: Number(input.xpDelta || 0),
+    badgeId: input.badgeId || null,
+    label: input.label || 'Reward update',
+    metadata: input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null,
+    createdAt: input.createdAt || new Date().toISOString(),
+  };
+
+  data.rewardTransactions.push(record);
   return record;
 }
 
@@ -745,9 +784,12 @@ module.exports = {
   findProgressById,
   createProgress,
   updateProgress,
+  upsertProgress,
   listObservations,
   createObservation,
   listSyncEvents,
   findSyncEventByClientId,
   createSyncEvent,
+  listRewardTransactions,
+  createRewardTransaction,
 };

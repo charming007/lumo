@@ -743,12 +743,31 @@ class LumoAppState {
     final session = activeSession;
     if (learner == null || session == null) return;
 
+    final existingRewards = learner.rewards;
     final updatedLearner = learner.copyWith(
       streakDays: learner.streakDays + 1,
       enrollmentStatus: 'Active in lessons',
       lastLessonSummary:
           '${lesson.title}: ${session.totalResponses} responses captured, ${session.supportActionsUsed} support actions, ${session.facilitatorObservations.isEmpty ? 'no facilitator flags' : session.facilitatorObservations.join(', ')}.',
       lastAttendance: 'Completed ${lesson.subject} today',
+      rewards: existingRewards == null
+          ? null
+          : RewardSnapshot(
+              learnerId: existingRewards.learnerId,
+              totalXp: existingRewards.totalXp + 12,
+              points: existingRewards.points + 12,
+              level: existingRewards.level,
+              levelLabel: existingRewards.levelLabel,
+              nextLevel: existingRewards.nextLevel,
+              nextLevelLabel: existingRewards.nextLevelLabel,
+              xpIntoLevel: existingRewards.xpIntoLevel + 12,
+              xpForNextLevel: existingRewards.xpForNextLevel > 12
+                  ? existingRewards.xpForNextLevel - 12
+                  : 0,
+              progressToNextLevel: existingRewards.progressToNextLevel,
+              badgesUnlocked: existingRewards.badgesUnlocked,
+              badges: existingRewards.badges,
+            ),
     );
 
     final learnerIndex = learners.indexWhere((item) => item.id == learner.id);
@@ -785,6 +804,7 @@ class LumoAppState {
       lastSyncIgnoredCount = result.ignored;
       lastSyncError = null;
       backendError = null;
+      _applyRewardSnapshotsFromSync(result.raw);
     } catch (error) {
       final message = error.toString().replaceFirst('Exception: ', '');
       lastSyncError = message;
@@ -831,6 +851,26 @@ class LumoAppState {
         .replaceAll('____', learner.name)
         .replaceAll('Aisha', learner.name)
         .replaceAll('Abdullahi', learner.name);
+  }
+
+  void _applyRewardSnapshotsFromSync(Map<String, dynamic> raw) {
+    final results = raw['results'];
+    if (results is! List) return;
+
+    for (final item in results.whereType<Map>()) {
+      final rewardsJson = item['rewards'];
+      final learnerId = rewardsJson is Map ? rewardsJson['learnerId']?.toString() : null;
+      if (learnerId == null || rewardsJson is! Map) continue;
+
+      final snapshot = RewardSnapshot.fromJson(Map<String, dynamic>.from(rewardsJson));
+      final learnerIndex = learners.indexWhere((entry) => entry.id == learnerId);
+      if (learnerIndex != -1) {
+        learners[learnerIndex] = learners[learnerIndex].copyWith(rewards: snapshot);
+      }
+      if (currentLearner?.id == learnerId) {
+        currentLearner = currentLearner!.copyWith(rewards: snapshot);
+      }
+    }
   }
 
   void _queueSessionEvent({

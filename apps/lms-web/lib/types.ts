@@ -17,6 +17,36 @@ export type DashboardInsight = {
   metric: string;
 };
 
+export type RewardBadge = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  category: string;
+  earned: boolean;
+  progress: number;
+  target: number;
+};
+
+export type RewardSnapshot = {
+  learnerId: string;
+  learnerName?: string;
+  cohortId?: string;
+  totalXp: number;
+  points: number;
+  level: number;
+  levelLabel: string;
+  nextLevel?: number | null;
+  nextLevelLabel?: string | null;
+  nextLevelXp?: number | null;
+  xpIntoLevel: number;
+  xpForNextLevel: number;
+  progressToNextLevel: number;
+  badgesUnlocked: number;
+  badges: RewardBadge[];
+  recentTransactions: Array<Record<string, unknown>>;
+};
+
 export type WorkboardItem = {
   id: string;
   studentName: string;
@@ -28,6 +58,10 @@ export type WorkboardItem = {
   progressionStatus: string;
   focus: string;
   recommendedNextModuleTitle?: string | null;
+  totalXp: number;
+  level: number;
+  levelLabel: string;
+  badgesUnlocked: number;
 };
 
 export type Assignment = {
@@ -57,6 +91,7 @@ export type Student = {
   cohortName?: string | null;
   podLabel?: string | null;
   mallamName?: string | null;
+  rewards?: RewardSnapshot | null;
 };
 
 export type Mallam = {
@@ -204,6 +239,7 @@ export type StudentDetail = Student & {
     latestObservationAt: string | null;
   };
   recommendedActions: string[];
+  rewards?: RewardSnapshot | null;
 };
 
 export type MallamDetail = Mallam & {

@@ -76,6 +76,95 @@ class LessonActivity {
   });
 }
 
+class RewardBadge {
+  final String id;
+  final String title;
+  final String description;
+  final String icon;
+  final String category;
+  final bool earned;
+  final int progress;
+  final int target;
+
+  const RewardBadge({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.category,
+    required this.earned,
+    required this.progress,
+    required this.target,
+  });
+
+  factory RewardBadge.fromJson(Map<String, dynamic> json) {
+    return RewardBadge(
+      id: json['id']?.toString() ?? 'badge-unknown',
+      title: json['title']?.toString() ?? 'Badge',
+      description: json['description']?.toString() ?? '',
+      icon: json['icon']?.toString() ?? 'military_tech',
+      category: json['category']?.toString() ?? 'milestone',
+      earned: json['earned'] == true,
+      progress: _asInt(json['progress']) ?? 0,
+      target: _asInt(json['target']) ?? 1,
+    );
+  }
+}
+
+class RewardSnapshot {
+  final String learnerId;
+  final int totalXp;
+  final int points;
+  final int level;
+  final String levelLabel;
+  final int? nextLevel;
+  final String? nextLevelLabel;
+  final int xpIntoLevel;
+  final int xpForNextLevel;
+  final double progressToNextLevel;
+  final int badgesUnlocked;
+  final List<RewardBadge> badges;
+
+  const RewardSnapshot({
+    required this.learnerId,
+    required this.totalXp,
+    required this.points,
+    required this.level,
+    required this.levelLabel,
+    this.nextLevel,
+    this.nextLevelLabel,
+    required this.xpIntoLevel,
+    required this.xpForNextLevel,
+    required this.progressToNextLevel,
+    required this.badgesUnlocked,
+    this.badges = const [],
+  });
+
+  factory RewardSnapshot.fromJson(Map<String, dynamic> json) {
+    final badges = (json['badges'] as List?)
+            ?.whereType<Map>()
+            .map((item) => RewardBadge.fromJson(Map<String, dynamic>.from(item)))
+            .toList() ??
+        const <RewardBadge>[];
+
+    return RewardSnapshot(
+      learnerId: json['learnerId']?.toString() ?? '',
+      totalXp: _asInt(json['totalXp']) ?? 0,
+      points: _asInt(json['points']) ?? _asInt(json['totalXp']) ?? 0,
+      level: _asInt(json['level']) ?? 1,
+      levelLabel: json['levelLabel']?.toString() ?? 'Starter',
+      nextLevel: _asInt(json['nextLevel']),
+      nextLevelLabel: json['nextLevelLabel']?.toString(),
+      xpIntoLevel: _asInt(json['xpIntoLevel']) ?? 0,
+      xpForNextLevel: _asInt(json['xpForNextLevel']) ?? 0,
+      progressToNextLevel:
+          double.tryParse(json['progressToNextLevel']?.toString() ?? '') ?? 0,
+      badgesUnlocked: _asInt(json['badgesUnlocked']) ?? 0,
+      badges: badges,
+    );
+  }
+}
+
 class LearnerProfile {
   final String id;
   final String name;
@@ -97,6 +186,7 @@ class LearnerProfile {
   final String supportPlan;
   final String lastLessonSummary;
   final String lastAttendance;
+  final RewardSnapshot? rewards;
 
   const LearnerProfile({
     required this.id,
@@ -119,6 +209,7 @@ class LearnerProfile {
     this.supportPlan = 'Short prompts and praise after every answer.',
     this.lastLessonSummary = 'No lesson captured yet.',
     this.lastAttendance = 'Checked in today',
+    this.rewards,
   });
 
   factory LearnerProfile.fromBackend(Map<String, dynamic> json) {
@@ -128,6 +219,8 @@ class LearnerProfile {
     final cohortName = json['cohortName']?.toString();
     final name = json['name']?.toString() ?? 'Learner';
     final age = _asInt(json['age']) ?? 0;
+
+    final rewardsJson = json['rewards'];
 
     return LearnerProfile(
       id: json['id']?.toString() ?? 'student-unknown',
@@ -151,6 +244,9 @@ class LearnerProfile {
       lastLessonSummary:
           'Live backend profile loaded${podLabel == null ? '.' : ' from $podLabel.'}',
       lastAttendance: _attendanceStatus(json['attendanceRate']),
+      rewards: rewardsJson is Map
+          ? RewardSnapshot.fromJson(Map<String, dynamic>.from(rewardsJson))
+          : null,
     );
   }
 
@@ -175,6 +271,7 @@ class LearnerProfile {
     String? supportPlan,
     String? lastLessonSummary,
     String? lastAttendance,
+    RewardSnapshot? rewards,
   }) {
     return LearnerProfile(
       id: id ?? this.id,
@@ -198,6 +295,7 @@ class LearnerProfile {
       supportPlan: supportPlan ?? this.supportPlan,
       lastLessonSummary: lastLessonSummary ?? this.lastLessonSummary,
       lastAttendance: lastAttendance ?? this.lastAttendance,
+      rewards: rewards ?? this.rewards,
     );
   }
 }

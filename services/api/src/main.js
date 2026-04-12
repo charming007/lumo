@@ -4,6 +4,7 @@ const store = require('./store');
 const presenters = require('./presenters');
 const validators = require('./validators');
 const reporting = require('./reporting');
+const rewards = require('./rewards');
 const seed = require('./seed');
 const { getActor, requireRole } = require('./auth');
 
@@ -181,7 +182,11 @@ function buildLearnerAppBootstrap() {
     sync: {
       acceptedEventCount: store.listSyncEvents().length,
       lastCursor: lastSync?.id ?? null,
-      supports: ['idempotent-client-event-id', 'batch-receipts', 'progress-upsert'],
+      supports: ['idempotent-client-event-id', 'batch-receipts', 'progress-upsert', 'rewards-on-sync'],
+    },
+    rewards: {
+      catalog: rewards.buildRewardsCatalog(),
+      leaderboard: rewards.buildLeaderboard(5),
     },
     meta: {
       learnerCount: learners.length,
@@ -191,8 +196,8 @@ function buildLearnerAppBootstrap() {
       assignmentPackCount: assignments.length,
       assessmentCount: assessments.length,
       generatedAt: new Date().toISOString(),
-      contractVersion: 'learner-app-v2.2',
-      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'lesson-localization', 'assessment-packs'],
+      contractVersion: 'learner-app-v2.3',
+      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'lesson-localization', 'assessment-packs', 'learner-rewards'],
     },
   };
 }
@@ -286,6 +291,16 @@ function syncLearnerAppEvents(events = [], options = {}) {
         recommendedNextModuleId: moduleId,
       });
 
+      const rewardResult = rewards.awardLessonCompletion({
+        studentId: student.id,
+        lessonId: lesson?.id || payload.lessonId || null,
+        moduleId,
+        subjectId,
+        review: payload.review,
+        supportActionsUsed: payload.supportActionsUsed,
+        observationsCount: Array.isArray(payload.observations) ? payload.observations.length : 0,
+      });
+
       if (Array.isArray(payload.observations)) {
         payload.observations
           .filter((item) => item && item.trim())
@@ -305,6 +320,8 @@ function syncLearnerAppEvents(events = [], options = {}) {
         type,
         status: 'accepted',
         progress: presenters.presentProgress(progressRecord),
+        rewards: rewardResult.snapshot,
+        rewardDelta: rewardResult.delta,
       };
 
       const receipt = store.createSyncEvent({
@@ -351,7 +368,7 @@ function syncLearnerAppEvents(events = [], options = {}) {
     syncedAt: new Date().toISOString(),
     batchId,
     cursor: store.listSyncEvents().slice(-1)[0]?.id ?? null,
-    contractVersion: 'learner-app-v2.2',
+    contractVersion: 'learner-app-v2.3',
   };
 }
 
@@ -644,6 +661,25 @@ app.get('/api/v1/students/:id', (req, res) => {
   }
 
   return res.json(profile);
+});
+
+app.get('/api/v1/students/:id/rewards', (req, res) => {
+  const snapshot = rewards.buildLearnerRewards(req.params.id);
+
+  if (!snapshot) {
+    return res.status(404).json({ message: 'Student not found' });
+  }
+
+  return res.json(snapshot);
+});
+
+app.get('/api/v1/rewards/catalog', (_req, res) => {
+  res.json(rewards.buildRewardsCatalog());
+});
+
+app.get('/api/v1/rewards/leaderboard', (req, res) => {
+  const limit = Number(req.query.limit || 10);
+  res.json(rewards.buildLeaderboard(Number.isFinite(limit) ? limit : 10));
 });
 
 app.get('/api/v1/subjects', (_req, res) => {

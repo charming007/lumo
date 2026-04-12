@@ -1,5 +1,6 @@
 const repository = require('./repository');
 const presenters = require('./presenters');
+const rewards = require('./rewards');
 
 function buildOverviewReport() {
   const attendance = repository.listAttendance();
@@ -66,6 +67,7 @@ function buildWorkboard() {
     const recommended = entry.recommendedNextModuleId
       ? repository.findModuleById(entry.recommendedNextModuleId)
       : null;
+    const rewardSnapshot = rewards.buildLearnerRewards(entry.studentId);
 
     return {
       id: entry.id,
@@ -78,6 +80,10 @@ function buildWorkboard() {
       progressionStatus: entry.progressionStatus,
       focus: subject?.name ?? 'Learning support',
       recommendedNextModuleTitle: recommended?.title ?? null,
+      totalXp: rewardSnapshot?.totalXp ?? 0,
+      level: rewardSnapshot?.level ?? 1,
+      levelLabel: rewardSnapshot?.levelLabel ?? 'Starter',
+      badgesUnlocked: rewardSnapshot?.badgesUnlocked ?? 0,
     };
   });
 }
@@ -156,6 +162,7 @@ function buildStudentProfile(studentId) {
       latestObservationAt: latestObservation?.createdAt ?? null,
     },
     recommendedActions,
+    rewards: rewards.buildLearnerRewards(studentId),
   };
 }
 
