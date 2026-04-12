@@ -125,12 +125,26 @@ class LumoApiClient {
 
   Future<LearnerProfile> registerLearner({
     required RegistrationDraft draft,
+    RegistrationTarget? registrationTarget,
   }) async {
+    final payload = {
+      ...draft.backendPayloadPreview,
+      if (registrationTarget != null) ...{
+        'backendTarget': {
+          'cohortId': registrationTarget.cohort.id,
+          'cohortName': registrationTarget.cohort.name,
+          'podId': registrationTarget.cohort.podId,
+          'mallamId': registrationTarget.mallam.id,
+          'mallamName': registrationTarget.mallam.name,
+        },
+      },
+    };
+
     final response = await _send(
       () => _client.post(
         Uri.parse('$baseUrl/api/v1/learner-app/learners'),
         headers: _jsonHeaders,
-        body: jsonEncode(draft.backendPayloadPreview),
+        body: jsonEncode(payload),
       ),
       action: 'register learner',
     );

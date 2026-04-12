@@ -223,7 +223,8 @@ class HomePage extends StatelessWidget {
                                   const SizedBox(height: 20),
                                   LayoutBuilder(
                                     builder: (context, constraints) {
-                                      final compact = constraints.maxWidth < 720;
+                                      final compact =
+                                          constraints.maxWidth < 720;
                                       final cards = [
                                         _PrimaryActionCard(
                                           title: 'Register',
@@ -264,7 +265,9 @@ class HomePage extends StatelessWidget {
                                       if (compact) {
                                         return Column(
                                           children: [
-                                            for (var i = 0; i < cards.length; i++) ...[
+                                            for (var i = 0;
+                                                i < cards.length;
+                                                i++) ...[
                                               SizedBox(
                                                 width: double.infinity,
                                                 child: cards[i],
@@ -278,7 +281,9 @@ class HomePage extends StatelessWidget {
 
                                       return Row(
                                         children: [
-                                          for (var i = 0; i < cards.length; i++) ...[
+                                          for (var i = 0;
+                                              i < cards.length;
+                                              i++) ...[
                                             Expanded(child: cards[i]),
                                             if (i < cards.length - 1)
                                               const SizedBox(width: 12),
@@ -448,7 +453,8 @@ class AllStudentsPage extends StatelessWidget {
                         crossAxisCount: crossAxisCount,
                         mainAxisSpacing: 12,
                         crossAxisSpacing: 12,
-                        childAspectRatio: constraints.maxWidth < 900 ? 0.82 : 1.02,
+                        childAspectRatio:
+                            constraints.maxWidth < 900 ? 0.82 : 1.02,
                       ),
                       itemBuilder: (context, index) {
                         final learner = state.learners[index];
@@ -614,8 +620,10 @@ class LearnerProfilePage extends StatelessWidget {
                             return Column(
                               children: [
                                 for (var i = 0; i < tiles.length; i++) ...[
-                                  SizedBox(width: double.infinity, child: tiles[i]),
-                                  if (i < tiles.length - 1) const SizedBox(height: 12),
+                                  SizedBox(
+                                      width: double.infinity, child: tiles[i]),
+                                  if (i < tiles.length - 1)
+                                    const SizedBox(height: 12),
                                 ],
                               ],
                             );
@@ -625,7 +633,8 @@ class LearnerProfilePage extends StatelessWidget {
                             children: [
                               for (var i = 0; i < tiles.length; i++) ...[
                                 Expanded(child: tiles[i]),
-                                if (i < tiles.length - 1) const SizedBox(width: 12),
+                                if (i < tiles.length - 1)
+                                  const SizedBox(width: 12),
                               ],
                             ],
                           );
@@ -738,7 +747,8 @@ class LearnerProfilePage extends StatelessWidget {
                                 const Expanded(
                                   child: Text(
                                     'Backend routing',
-                                    style: TextStyle(fontWeight: FontWeight.w800),
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w800),
                                   ),
                                 ),
                                 StatusPill(
@@ -1175,7 +1185,12 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-    final draft = widget.state.registrationDraft;
+    var draft = widget.state.registrationDraft;
+    final defaultTarget = widget.state.registrationContext.defaultTarget;
+    if (draft.cohort.trim().isEmpty && defaultTarget != null) {
+      draft = draft.copyWith(cohort: defaultTarget.cohort.name);
+      widget.state.updateDraft(draft);
+    }
     nameController = TextEditingController(text: draft.name);
     ageController = TextEditingController(text: draft.age);
     cohortController = TextEditingController(text: draft.cohort);
@@ -1241,6 +1256,7 @@ class _RegisterPageState extends State<RegisterPage> {
       supportPlan: supportPlanController.text,
     );
     final recommendedModule = widget.state.recommendedModuleForDraft;
+    final registrationTarget = widget.state.registrationTargetForDraft;
 
     return Scaffold(
       body: SafeArea(
@@ -1313,6 +1329,12 @@ class _RegisterPageState extends State<RegisterPage> {
                               LayoutBuilder(
                                 builder: (context, constraints) {
                                   final compact = constraints.maxWidth < 720;
+                                  final backendCohorts =
+                                      widget.state.registrationContext.cohorts;
+                                  final cohortValue =
+                                      cohortController.text.trim().isEmpty
+                                          ? null
+                                          : cohortController.text.trim();
                                   final fields = [
                                     TextField(
                                       controller: ageController,
@@ -1322,19 +1344,49 @@ class _RegisterPageState extends State<RegisterPage> {
                                         labelText: 'Age',
                                       ),
                                     ),
-                                    TextField(
-                                      controller: cohortController,
-                                      onChanged: (_) => setState(syncDraft),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Cohort',
-                                      ),
-                                    ),
+                                    backendCohorts.isEmpty
+                                        ? TextField(
+                                            controller: cohortController,
+                                            onChanged: (_) =>
+                                                setState(syncDraft),
+                                            decoration: const InputDecoration(
+                                              labelText: 'Cohort',
+                                            ),
+                                          )
+                                        : DropdownButtonFormField<String>(
+                                            initialValue: backendCohorts.any(
+                                              (cohort) =>
+                                                  cohort.name == cohortValue,
+                                            )
+                                                ? cohortValue
+                                                : null,
+                                            items: backendCohorts
+                                                .map(
+                                                  (cohort) => DropdownMenuItem(
+                                                    value: cohort.name,
+                                                    child: Text(cohort.name),
+                                                  ),
+                                                )
+                                                .toList(),
+                                            onChanged: (value) {
+                                              if (value == null) return;
+                                              setState(() {
+                                                cohortController.text = value;
+                                                syncDraft();
+                                              });
+                                            },
+                                            decoration: const InputDecoration(
+                                              labelText: 'Backend cohort',
+                                            ),
+                                          ),
                                   ];
 
                                   if (compact) {
                                     return Column(
                                       children: [
-                                        for (var i = 0; i < fields.length; i++) ...[
+                                        for (var i = 0;
+                                            i < fields.length;
+                                            i++) ...[
                                           SizedBox(
                                             width: double.infinity,
                                             child: fields[i],
@@ -1348,7 +1400,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
                                   return Row(
                                     children: [
-                                      for (var i = 0; i < fields.length; i++) ...[
+                                      for (var i = 0;
+                                          i < fields.length;
+                                          i++) ...[
                                         Expanded(child: fields[i]),
                                         if (i < fields.length - 1)
                                           const SizedBox(width: 12),
@@ -1418,7 +1472,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                   if (compact) {
                                     return Column(
                                       children: [
-                                        for (var i = 0; i < fields.length; i++) ...[
+                                        for (var i = 0;
+                                            i < fields.length;
+                                            i++) ...[
                                           SizedBox(
                                             width: double.infinity,
                                             child: fields[i],
@@ -1432,7 +1488,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
                                   return Row(
                                     children: [
-                                      for (var i = 0; i < fields.length; i++) ...[
+                                      for (var i = 0;
+                                          i < fields.length;
+                                          i++) ...[
                                         Expanded(child: fields[i]),
                                         if (i < fields.length - 1)
                                           const SizedBox(width: 12),
@@ -1512,7 +1570,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                   if (compact) {
                                     return Column(
                                       children: [
-                                        for (var i = 0; i < fields.length; i++) ...[
+                                        for (var i = 0;
+                                            i < fields.length;
+                                            i++) ...[
                                           SizedBox(
                                             width: double.infinity,
                                             child: fields[i],
@@ -1526,7 +1586,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
                                   return Row(
                                     children: [
-                                      for (var i = 0; i < fields.length; i++) ...[
+                                      for (var i = 0;
+                                          i < fields.length;
+                                          i++) ...[
                                         Expanded(child: fields[i]),
                                         if (i < fields.length - 1)
                                           const SizedBox(width: 12),
@@ -1684,8 +1746,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                           InfoRow(
                                             label: 'Backend target',
                                             value: widget.state
-                                                .registrationContext.summary,
+                                                .registrationTargetSummary,
                                           ),
+                                          if (registrationTarget != null)
+                                            InfoRow(
+                                              label: 'Assigned pod',
+                                              value: registrationTarget
+                                                  .cohort.podId,
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -2619,8 +2687,10 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                             return Column(
                               children: [
                                 for (var i = 0; i < tiles.length; i++) ...[
-                                  SizedBox(width: double.infinity, child: tiles[i]),
-                                  if (i < tiles.length - 1) const SizedBox(height: 12),
+                                  SizedBox(
+                                      width: double.infinity, child: tiles[i]),
+                                  if (i < tiles.length - 1)
+                                    const SizedBox(height: 12),
                                 ],
                               ],
                             );
@@ -2630,7 +2700,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                             children: [
                               for (var i = 0; i < tiles.length; i++) ...[
                                 Expanded(child: tiles[i]),
-                                if (i < tiles.length - 1) const SizedBox(width: 12),
+                                if (i < tiles.length - 1)
+                                  const SizedBox(width: 12),
                               ],
                             ],
                           );
@@ -3110,9 +3181,8 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final hasRoom = constraints.maxWidth >= breakpoint;
-        final minHeight = constraints.maxHeight.isFinite
-            ? constraints.maxHeight
-            : 0.0;
+        final minHeight =
+            constraints.maxHeight.isFinite ? constraints.maxHeight : 0.0;
         final laidOutChildren = _layoutChildren();
 
         if (hasRoom) {
@@ -3695,7 +3765,9 @@ class _LearnerCard extends StatelessWidget {
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 380;
               final status = StatusPill(
-                text: nextPack == null ? learner.attendanceBand : 'Backend assigned',
+                text: nextPack == null
+                    ? learner.attendanceBand
+                    : 'Backend assigned',
                 color: nextPack == null
                     ? LumoTheme.accentOrange
                     : LumoTheme.accentGreen,

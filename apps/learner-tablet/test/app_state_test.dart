@@ -112,5 +112,37 @@ void main() {
       expect(state.recommendedModuleLabelForLearner(learner), contains('Math'));
       expect(state.recommendedModuleForLearner(learner).id, 'math');
     });
+
+    test('maps registration cohort to backend mallam target', () {
+      final state = LumoAppState();
+      state.registrationContext = RegistrationContext(
+        cohorts: const [
+          BackendCohort(id: 'cohort-1', name: 'Cohort A', podId: 'pod-1'),
+          BackendCohort(id: 'cohort-2', name: 'Cohort B', podId: 'pod-2'),
+        ],
+        mallams: const [
+          BackendMallam(id: 'mallam-1', name: 'Mallam Idris', podIds: ['pod-1']),
+          BackendMallam(id: 'mallam-2', name: 'Mallama Zarah', podIds: ['pod-2']),
+        ],
+      );
+      state.updateDraft(
+        const RegistrationDraft(
+          name: 'Amina',
+          age: '7',
+          cohort: 'Cohort B',
+          guardianName: 'Zainab',
+          village: 'Pod 2',
+          guardianPhone: '0800000000',
+          consentCaptured: true,
+        ),
+      );
+
+      final target = state.registrationTargetForDraft;
+
+      expect(target, isNotNull);
+      expect(target!.cohort.id, 'cohort-2');
+      expect(target.mallam.id, 'mallam-2');
+      expect(state.registrationTargetSummary, contains('Mallama Zarah'));
+    });
   });
 }

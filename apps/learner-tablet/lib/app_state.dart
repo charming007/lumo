@@ -259,7 +259,8 @@ class LumoAppState {
 
     return [
       ...backendAssigned,
-      ...rankedFallback.where((lesson) => !backendLessonIds.contains(lesson.id)),
+      ...rankedFallback
+          .where((lesson) => !backendLessonIds.contains(lesson.id)),
     ];
   }
 
@@ -272,7 +273,9 @@ class LumoAppState {
       (pack) => pack.eligibleLearnerIds.contains(learner.id),
     );
 
-    final lessonsById = {for (final lesson in assignedLessons) lesson.id: lesson};
+    final lessonsById = {
+      for (final lesson in assignedLessons) lesson.id: lesson
+    };
     final ordered = <LessonCardModel>[];
     final seen = <String>{};
 
@@ -373,6 +376,19 @@ class LumoAppState {
     registrationDraft = draft;
   }
 
+  RegistrationTarget? get registrationTargetForDraft {
+    if (!registrationContext.isReady) return null;
+    return registrationContext.resolveTargetForCohortName(
+      registrationDraft.cohort,
+    );
+  }
+
+  String get registrationTargetSummary {
+    final target = registrationTargetForDraft;
+    if (target == null) return registrationContext.summary;
+    return '${target.cohort.name} • ${target.mallam.name}';
+  }
+
   Future<LearnerProfile> registerLearner() async {
     if (usingFallbackData) {
       final learner = _registerLearnerLocally();
@@ -385,6 +401,7 @@ class LumoAppState {
     try {
       final learner = await _apiClient.registerLearner(
         draft: registrationDraft,
+        registrationTarget: registrationTargetForDraft,
       );
       learners.insert(0, learner);
       currentLearner = learner;
@@ -1007,9 +1024,9 @@ class LumoAppState {
     final preferredModuleId =
         preferredModuleIds.isEmpty ? null : preferredModuleIds.first;
     return modules.cast<LearningModule?>().firstWhere(
-          (item) => item?.id == preferredModuleId,
-          orElse: () => modules.isEmpty ? null : modules.first,
-        ) ??
+              (item) => item?.id == preferredModuleId,
+              orElse: () => modules.isEmpty ? null : modules.first,
+            ) ??
         learningModules.first;
   }
 

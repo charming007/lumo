@@ -571,7 +571,8 @@ class LearnerAssignmentPack {
       cohortName: json['cohortName']?.toString(),
       mallamName: json['mallamName']?.toString(),
       dueDate: json['dueDate']?.toString(),
-      assessmentTitle: assessment is Map ? assessment['title']?.toString() : null,
+      assessmentTitle:
+          assessment is Map ? assessment['title']?.toString() : null,
       eligibleLearnerIds: eligibleLearners
           .map((item) => item['id']?.toString())
           .whereType<String>()
@@ -926,6 +927,30 @@ class RegistrationContext {
     this.mallams = const [],
     this.defaultTarget,
   });
+
+  BackendCohort? findCohortByName(String? cohortName) {
+    final normalized = cohortName?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) return null;
+    for (final cohort in cohorts) {
+      if (cohort.name.trim().toLowerCase() == normalized) {
+        return cohort;
+      }
+    }
+    return null;
+  }
+
+  RegistrationTarget? resolveTargetForCohortName(String? cohortName) {
+    final cohort = findCohortByName(cohortName);
+    if (cohort == null) {
+      return defaultTarget ?? (isReady ? resolveTarget() : null);
+    }
+
+    final mallam = mallams.firstWhere(
+      (item) => item.podIds.contains(cohort.podId),
+      orElse: () => defaultTarget?.mallam ?? mallams.first,
+    );
+    return RegistrationTarget(cohort: cohort, mallam: mallam);
+  }
 
   factory RegistrationContext.fromJson(Map<String, dynamic> json) {
     final cohorts = (json['cohorts'] as List?)
