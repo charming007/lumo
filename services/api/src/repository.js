@@ -822,6 +822,32 @@ function listRewardTransactions() {
   return data.rewardTransactions;
 }
 
+function findRewardTransactionById(id) {
+  return data.rewardTransactions.find((item) => item.id === id) || null;
+}
+
+function listRewardAdjustments() {
+  return data.rewardAdjustments;
+}
+
+function createRewardAdjustment(input) {
+  const record = {
+    id: `reward-adjustment-${data.rewardAdjustments.length + 1}`,
+    transactionId: input.transactionId,
+    studentId: input.studentId,
+    action: input.action || 'corrected',
+    reason: input.reason || '',
+    note: input.note || '',
+    actorName: input.actorName || 'Unknown actor',
+    actorRole: input.actorRole || 'admin',
+    before: input.before && typeof input.before === 'object' ? { ...input.before } : null,
+    after: input.after && typeof input.after === 'object' ? { ...input.after } : null,
+    createdAt: input.createdAt || new Date().toISOString(),
+  };
+
+  data.rewardAdjustments.push(record);
+  return commit(record);
+}
 
 function listProgressionOverrides() {
   return data.progressionOverrides;
@@ -973,6 +999,9 @@ module.exports = {
   listSessionEventLog,
   createSessionEventLog,
   listRewardTransactions,
+  findRewardTransactionById,
+  listRewardAdjustments,
+  createRewardAdjustment,
   createRewardTransaction,
   listProgressionOverrides,
   createProgressionOverride,

@@ -50,6 +50,10 @@ function listRewardTransactions() {
   return repository.listRewardTransactions();
 }
 
+function listRewardAdjustments() {
+  return repository.listRewardAdjustments();
+}
+
 function getLevelForXp(totalXp) {
   const safeXp = Number(totalXp || 0);
   let current = LEVEL_THRESHOLDS[0];
@@ -242,7 +246,6 @@ function awardLessonCompletion({ studentId, lessonId, moduleId, subjectId, revie
   };
 }
 
-
 function buildScopedStudentSet({ cohortId = null, podId = null, mallamId = null } = {}) {
   return repository
     .listStudents()
@@ -327,6 +330,131 @@ function buildLeaderboard(limit = 10) {
     .slice(0, limit);
 }
 
+function buildRewardOpsSummary({ cohortId = null, podId = null, mallamId = null } = {}) {
+  const students = buildScopedStudentSet({ cohortId, podId, mallamId });
+  const studentIds = new Set(students.map((student) => student.id));
+  const transactions = repository.listRewardTransactions().filter((item) => studentIds.has(item.studentId));
+  const adjustments = repository.listRewardAdjustments().filter((item) => studentIds.has(item.studentId));
+
+  return {
+    learnerCount: students.length,
+    transactionCount: transactions.length,
+    totalXpAwarded: transactions.reduce((sum, item) => sum + Number(item.xpDelta || 0), 0),
+    correctionCount: adjustments.filter((item) => item.action === 'corrected').length,
+    revocationCount: adjustments.filter((item) => item.action === 'revoked').length,
+    lastAdjustedAt: adjustments.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]?.createdAt ?? null,
+  };
+}
+
+function correctRewardTransaction(transactionId, { xpDelta, label, reason, note, actorName, actorRole, metadata } = {}) {
+  const existing = repository.findRewardTransactionById(transactionId);
+  if (!existing) {
+    const error = new Error('Reward transaction not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const nextXpDelta = Number(xpDelta);
+  if (!Number.isFinite(nextXpDelta)) {
+    const error = new Error('Invalid xpDelta');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const correctionDelta = nextXpDelta - Number(existing.xpDelta || 0);
+  const correction = repository.createRewardTransaction({
+    studentId: existing.studentId,
+    lessonId: existing.lessonId || null,
+    moduleId: existing.moduleId || null,
+    subjectId: existing.subjectId || null,
+    kind: 'correction',
+    xpDelta: correctionDelta,
+    badgeId: existing.badgeId || null,
+    label: label || `Correction for ${existing.label || existing.id}`,
+    metadata: {
+      ...((metadata && typeof metadata === 'object') ? metadata : {}),
+      sourceTransactionId: existing.id,
+      sourceKind: existing.kind,
+      correctedToXpDelta: nextXpDelta,
+      reason: reason || 'manual_correction',
+    },
+  });
+
+  const adjustment = repository.createRewardAdjustment({
+    transactionId: existing.id,
+    studentId: existing.studentId,
+    action: 'corrected',
+    reason: reason || 'manual_correction',
+    note: note || '',
+    actorName,
+    actorRole,
+    before: existing,
+    after: correction,
+  });
+
+  return {
+    source: existing,
+    correction,
+    adjustment,
+    snapshot: buildLearnerRewards(existing.studentId),
+  };
+}
+
+function revokeRewardTransaction(transactionId, { reason, note, actorName, actorRole, metadata } = {}) {
+  const existing = repository.findRewardTransactionById(transactionId);
+  if (!existing) {
+    const error = new Error('Reward transaction not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const alreadyRevoked = repository
+    .listRewardAdjustments()
+    .some((item) => item.transactionId === existing.id && item.action === 'revoked');
+
+  if (alreadyRevoked) {
+    const error = new Error('Reward transaction already revoked');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const reversal = repository.createRewardTransaction({
+    studentId: existing.studentId,
+    lessonId: existing.lessonId || null,
+    moduleId: existing.moduleId || null,
+    subjectId: existing.subjectId || null,
+    kind: 'revocation',
+    xpDelta: Number(existing.xpDelta || 0) * -1,
+    badgeId: existing.badgeId || null,
+    label: `Revocation for ${existing.label || existing.id}`,
+    metadata: {
+      ...((metadata && typeof metadata === 'object') ? metadata : {}),
+      sourceTransactionId: existing.id,
+      sourceKind: existing.kind,
+      reason: reason || 'manual_revocation',
+    },
+  });
+
+  const adjustment = repository.createRewardAdjustment({
+    transactionId: existing.id,
+    studentId: existing.studentId,
+    action: 'revoked',
+    reason: reason || 'manual_revocation',
+    note: note || '',
+    actorName,
+    actorRole,
+    before: existing,
+    after: reversal,
+  });
+
+  return {
+    source: existing,
+    reversal,
+    adjustment,
+    snapshot: buildLearnerRewards(existing.studentId),
+  };
+}
+
 module.exports = {
   XP_RULES,
   BADGE_DEFINITIONS,
@@ -336,6 +464,11 @@ module.exports = {
   buildLeaderboard,
   buildRewardHistory,
   buildScopedLeaderboard,
+  buildRewardOpsSummary,
+  listRewardTransactions,
+  listRewardAdjustments,
   awardLessonCompletion,
   awardManualReward,
+  correctRewardTransaction,
+  revokeRewardTransaction,
 };

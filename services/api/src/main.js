@@ -796,6 +796,16 @@ app.get('/api/v1/mallams/:id', (req, res) => {
   return res.json(profile);
 });
 
+app.get('/api/v1/mallams/:id/summary', (req, res) => {
+  const summary = reporting.buildMallamSummary(req.params.id);
+
+  if (!summary) {
+    return res.status(404).json({ message: 'Mallam not found' });
+  }
+
+  return res.json(summary);
+});
+
 app.post('/api/v1/mallams', requireRole(['admin']), (req, res, next) => {
   try {
     validators.validateTeacher(req.body);
@@ -922,6 +932,14 @@ app.post('/api/v1/students/:id/rewards', requireRole(['admin', 'teacher']), (req
 
 app.get('/api/v1/rewards/catalog', (_req, res) => {
   res.json(rewards.buildRewardsCatalog());
+});
+
+app.get('/api/v1/rewards/summary', (req, res) => {
+  res.json(rewards.buildRewardOpsSummary({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+  }));
 });
 
 app.get('/api/v1/rewards/leaderboard', (req, res) => {
@@ -1258,6 +1276,59 @@ app.get('/api/v1/students/:id/rewards/history', (req, res) => {
   return res.json(history);
 });
 
+app.get('/api/v1/rewards/adjustments', (req, res) => {
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+  const action = coerceOptionalString(req.query.action);
+  const items = rewards
+    .listRewardAdjustments()
+    .filter((entry) => (!learner || entry.studentId === learner.id) && (!action || entry.action === action))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  return res.json({
+    items,
+    meta: {
+      learnerId: learner?.id ?? coerceOptionalString(req.query.learnerId),
+      learnerCode: coerceOptionalString(req.query.learnerCode),
+      action,
+      count: items.length,
+    },
+  });
+});
+
+app.post('/api/v1/rewards/transactions/:id/correct', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const result = rewards.correctRewardTransaction(req.params.id, {
+      xpDelta: req.body?.xpDelta,
+      label: req.body?.label,
+      reason: req.body?.reason,
+      note: req.body?.note,
+      metadata: req.body?.metadata,
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/rewards/transactions/:id/revoke', requireRole(['admin']), (req, res, next) => {
+  try {
+    const result = rewards.revokeRewardTransaction(req.params.id, {
+      reason: req.body?.reason,
+      note: req.body?.note,
+      metadata: req.body?.metadata,
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.post('/api/v1/progress/:id/override', requireRole(['admin', 'teacher']), (req, res, next) => {
   try {
     const record = store.findProgressById(req.params.id);
@@ -1485,6 +1556,16 @@ app.post('/api/v1/observations', requireRole(['admin', 'teacher', 'facilitator']
 
 app.get('/api/v1/reports/overview', (_req, res) => {
   res.json(reporting.buildOverviewReport());
+});
+
+app.get('/api/v1/reports/ngo-summary', (req, res) => {
+  res.json(reporting.buildNgoSummary({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    since: coerceOptionalString(req.query.since),
+    until: coerceOptionalString(req.query.until),
+  }));
 });
 
 app.use((error, _req, res, _next) => {

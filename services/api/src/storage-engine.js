@@ -10,10 +10,29 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function writeJsonFile(filePath, value) {
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+}
+
+function quarantineCorruptFile(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const corruptPath = `${filePath}.corrupt-${stamp}`;
+  fs.renameSync(filePath, corruptPath);
+  return corruptPath;
+}
+
 function safeReadJson(filePath, fallback) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch (error) {
+    if (fs.existsSync(filePath)) {
+      const quarantined = quarantineCorruptFile(filePath);
+      if (quarantined) {
+        writeJsonFile(filePath, fallback);
+      }
+    }
+
     return clone(fallback);
   }
 }
@@ -28,7 +47,7 @@ function createFileStorageEngine(filePath) {
       ensureDir(resolvedFile);
 
       if (!fs.existsSync(resolvedFile)) {
-        fs.writeFileSync(resolvedFile, JSON.stringify(seedData, null, 2));
+        writeJsonFile(resolvedFile, seedData);
         return clone(seedData);
       }
 
@@ -37,7 +56,13 @@ function createFileStorageEngine(filePath) {
     write(snapshot) {
       ensureDir(resolvedFile);
       const tempFile = `${resolvedFile}.tmp`;
-      fs.writeFileSync(tempFile, JSON.stringify(snapshot, null, 2));
+      const backupFile = `${resolvedFile}.bak`;
+      writeJsonFile(tempFile, snapshot);
+
+      if (fs.existsSync(resolvedFile)) {
+        fs.copyFileSync(resolvedFile, backupFile);
+      }
+
       fs.renameSync(tempFile, resolvedFile);
     },
   };

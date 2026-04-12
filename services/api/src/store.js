@@ -249,6 +249,18 @@ function listRewardTransactions() {
   return repository.listRewardTransactions();
 }
 
+function findRewardTransactionById(id) {
+  return repository.findRewardTransactionById(id);
+}
+
+function listRewardAdjustments() {
+  return repository.listRewardAdjustments();
+}
+
+function createRewardAdjustment(input) {
+  return repository.createRewardAdjustment(input);
+}
+
 function listProgressionOverrides() {
   return repository.listProgressionOverrides();
 }
@@ -280,6 +292,7 @@ function getStoreMeta() {
     storageKind: data.__meta?.storageKind ?? 'file',
     storageNote: data.__meta?.storageNote ?? null,
     runtimeSessionCount: listLessonSessions().length,
+    rewardAdjustmentCount: listRewardAdjustments().length,
     progressionOverrideCount: listProgressionOverrides().length,
     sessionRepairCount: listSessionRepairs().length,
   };
@@ -341,5 +354,9 @@ module.exports = {
   createSessionEventLog,
   findSyncEventByClientId,
   createSyncEvent,
+  listRewardTransactions,
+  findRewardTransactionById,
+  listRewardAdjustments,
+  createRewardAdjustment,
   getStoreMeta,
 };

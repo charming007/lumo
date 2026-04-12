@@ -196,6 +196,33 @@ function buildStudentProfile(studentId) {
   };
 }
 
+function buildMallamSummary(mallamId) {
+  const profile = buildMallamProfile(mallamId);
+
+  if (!profile) {
+    return null;
+  }
+
+  const rewardSummary = rewards.buildRewardOpsSummary({ mallamId });
+  const runtimeSummary = buildRuntimeAnalytics({ mallamId, limit: 5 }).summary;
+  const progressionRollup = buildProgressionRollup({ mallamId });
+
+  return {
+    mallam: {
+      id: profile.id,
+      name: profile.displayName || profile.name,
+      centerName: profile.centerName,
+      podLabels: profile.podLabels,
+    },
+    summary: profile.summary,
+    rewards: rewardSummary,
+    runtime: runtimeSummary,
+    progression: progressionRollup.progression,
+    topLearners: rewards.buildScopedLeaderboard({ mallamId, limit: 5 }),
+    recommendedActions: profile.recommendedActions,
+  };
+}
+
 function buildMallamProfile(mallamId) {
   const teacher = repository.findTeacherById(mallamId);
 
@@ -310,6 +337,63 @@ function buildRuntimeAnalytics({ learnerId = null, lessonId = null, cohortId = n
   };
 }
 
+function buildNgoSummary({ cohortId = null, podId = null, mallamId = null, since = null, until = null } = {}) {
+  const scopedStudents = buildScopedStudentSet({ cohortId, podId, mallamId });
+  const studentIds = new Set(scopedStudents.map((student) => student.id));
+  const sinceDate = parseDate(since);
+  const untilDate = parseDate(until);
+  const progressEntries = repository
+    .listProgress()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.lastActiveAt, { since: sinceDate, until: untilDate }));
+  const sessions = repository
+    .listLessonSessions()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.lastActivityAt, { since: sinceDate, until: untilDate }));
+  const assignments = repository
+    .listAssignments()
+    .filter((entry) => (!cohortId || entry.cohortId === cohortId) && (!podId || entry.podId === podId));
+  const teachers = repository
+    .listTeachers()
+    .filter((teacher) => !mallamId || teacher.id === mallamId);
+  const attendanceAverage = scopedStudents.length
+    ? scopedStudents.reduce((sum, student) => sum + Number(student.attendanceRate || 0), 0) / scopedStudents.length
+    : 0;
+  const subjectBreakdown = repository.listSubjects().map((subject) => {
+    const subjectProgress = progressEntries.filter((entry) => entry.subjectId === subject.id);
+    return {
+      subjectId: subject.id,
+      subjectName: subject.name,
+      learnerCount: new Set(subjectProgress.map((entry) => entry.studentId)).size,
+      averageMastery: subjectProgress.length ? subjectProgress.reduce((sum, entry) => sum + Number(entry.mastery || 0), 0) / subjectProgress.length : 0,
+      lessonsCompleted: subjectProgress.reduce((sum, entry) => sum + Number(entry.lessonsCompleted || 0), 0),
+    };
+  });
+
+  return {
+    scope: { cohortId, podId, mallamId, since, until, learnerCount: scopedStudents.length },
+    totals: {
+      learners: scopedStudents.length,
+      centers: new Set(scopedStudents.map((student) => repository.findCohortById(student.cohortId)?.centerId).filter(Boolean)).size,
+      pods: new Set(scopedStudents.map((student) => student.podId).filter(Boolean)).size,
+      mallams: new Set(scopedStudents.map((student) => student.mallamId).filter(Boolean)).size,
+      activeAssignments: assignments.filter((item) => item.status === 'active').length,
+      lessonsCompleted: progressEntries.reduce((sum, entry) => sum + Number(entry.lessonsCompleted || 0), 0),
+      completedSessions: sessions.filter((entry) => entry.status === 'completed').length,
+      attendanceAverage,
+      averageMastery: progressEntries.length ? progressEntries.reduce((sum, entry) => sum + Number(entry.mastery || 0), 0) / progressEntries.length : 0,
+      totalXpAwarded: repository.listRewardTransactions().filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate })).reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
+    },
+    progression: {
+      ready: progressEntries.filter((entry) => entry.progressionStatus === 'ready').length,
+      watch: progressEntries.filter((entry) => entry.progressionStatus === 'watch').length,
+      onTrack: progressEntries.filter((entry) => entry.progressionStatus === 'on-track').length,
+    },
+    rewardOps: rewards.buildRewardOpsSummary({ cohortId, podId, mallamId }),
+    subjectBreakdown,
+    mallamSnapshots: teachers.map((teacher) => buildMallamSummary(teacher.id)).filter(Boolean),
+    topLearners: rewards.buildScopedLeaderboard({ cohortId, podId, mallamId, limit: 10 }),
+  };
+}
+
 function buildProgressionRollup({ cohortId = null, podId = null, mallamId = null, subjectId = null, since = null, until = null } = {}) {
   const students = buildScopedStudentSet({ cohortId, podId, mallamId });
   const studentIds = new Set(students.map((student) => student.id));
@@ -352,6 +436,8 @@ module.exports = {
   buildWorkboard,
   buildStudentProfile,
   buildMallamProfile,
+  buildMallamSummary,
+  buildNgoSummary,
   buildRuntimeAnalytics,
   buildProgressionRollup,
 };

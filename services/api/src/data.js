@@ -120,6 +120,7 @@ const seed = {
     { id: 'reward-2', studentId: 'student-1', kind: 'badge_awarded', badgeId: 'first-lesson', xpDelta: 0, label: 'First Light', createdAt: '2026-04-09T09:31:00Z' },
     { id: 'reward-3', studentId: 'student-3', kind: 'lesson_completed', xpDelta: 15, label: 'Math momentum', createdAt: '2026-04-08T13:10:00Z' },
   ],
+  rewardAdjustments: [],
   progressionOverrides: [],
   sessionRepairs: [],
 };

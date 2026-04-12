@@ -88,6 +88,43 @@ Sync semantics now include:
 
 `lesson_completed` events create or update progress snapshots and create observation records when observation notes are included.
 
+## Added backend reporting + reward ops endpoints
+
+### `GET /api/v1/mallams/:id/summary`
+Returns a mallam-facing operational summary with:
+- roster and assignment summary
+- runtime session rollup
+- progression rollup
+- reward operations summary
+- top learners
+- recommended next actions
+
+### `GET /api/v1/reports/ngo-summary`
+Returns NGO/stakeholder-facing impact rollups across the current scope with:
+- learner / center / pod / mallam totals
+- attendance and mastery averages
+- lessons completed and completed session counts
+- reward operations summary
+- subject breakdowns
+- per-mallam snapshots
+- top learners leaderboard
+
+Optional filters:
+- `cohortId`
+- `podId`
+- `mallamId`
+- `since`
+- `until`
+
+### Reward correction + revocation
+- `GET /api/v1/rewards/summary`
+- `GET /api/v1/rewards/adjustments`
+- `POST /api/v1/rewards/transactions/:id/correct`
+- `POST /api/v1/rewards/transactions/:id/revoke`
+
+Corrections create compensating reward transactions instead of mutating history in place.
+Revocations create a full negative reversal and record a reward-adjustment audit entry.
+
 ### `GET /api/v1/learner-app/modules`
 Returns published learner modules mapped to the tablet contract.
 
