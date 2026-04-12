@@ -324,10 +324,11 @@ class HomePage extends StatelessWidget {
                                 final module = state.modules[index];
                                 return _SubjectCard(
                                   module: module,
-                                  lessonCount: state.assignedLessons
-                                      .where((lesson) =>
-                                          lesson.moduleId == module.id)
-                                      .length,
+                                  lessonCount:
+                                      state.assignedLessonCountForModule(
+                                    module: module,
+                                    learner: state.currentLearner,
+                                  ),
                                   onTap: () {
                                     state.selectModule(module);
                                     onChanged();
@@ -452,6 +453,8 @@ class LearnerProfilePage extends StatelessWidget {
     final rewards = learner.rewards;
     final totalXp = learner.totalXp;
     final totalMinutes = learner.estimatedTotalMinutes;
+    final assignedLessons = state.lessonsForLearner(learner).take(3).toList();
+    final nextLesson = state.nextAssignedLessonForLearner(learner);
 
     return Scaffold(
       body: SafeArea(
@@ -661,6 +664,140 @@ class LearnerProfilePage extends StatelessWidget {
                               label: 'Last lesson',
                               value: learner.lastLessonSummary,
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SoftPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Assigned lessons',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                                StatusPill(
+                                  text: '${assignedLessons.length} shown',
+                                  color: LumoTheme.accentOrange,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              state.assignedLessonSummaryForLearner(learner),
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (nextLesson != null)
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Continue learning',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF312E81),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '${nextLesson.title} • ${nextLesson.durationMinutes} min',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(nextLesson.readinessFocus),
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: FilledButton.icon(
+                                        onPressed: () {
+                                          state.selectLearner(learner);
+                                          state.selectModule(
+                                            state.modules.firstWhere(
+                                              (module) =>
+                                                  module.id ==
+                                                  nextLesson.moduleId,
+                                              orElse: () => state.modules.first,
+                                            ),
+                                          );
+                                          state.startLesson(nextLesson);
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => LessonSessionPage(
+                                                state: state,
+                                                lesson: nextLesson,
+                                                onChanged: () {},
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(
+                                            Icons.play_arrow_rounded),
+                                        label:
+                                            const Text('Start assigned lesson'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (assignedLessons.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              ...assignedLessons.map(
+                                (lesson) => Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: const Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        lesson.title,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${lesson.subject} • ${lesson.durationMinutes} min',
+                                        style: const TextStyle(
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        lesson.scenario,
+                                        style: const TextStyle(height: 1.35),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

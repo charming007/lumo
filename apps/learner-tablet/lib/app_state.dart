@@ -233,25 +233,58 @@ class LumoAppState {
     return filtered.isEmpty ? assignedLessons : filtered;
   }
 
+  List<LessonCardModel> lessonsForLearner(LearnerProfile? learner) {
+    if (learner == null) return assignedLessons;
+
+    final preferredModuleIds = _preferredModuleIdsForLearner(learner);
+    final ranked = List<LessonCardModel>.from(assignedLessons)
+      ..sort((left, right) {
+        final leftRank = preferredModuleIds.indexOf(left.moduleId);
+        final rightRank = preferredModuleIds.indexOf(right.moduleId);
+        final normalizedLeft =
+            leftRank == -1 ? preferredModuleIds.length : leftRank;
+        final normalizedRight =
+            rightRank == -1 ? preferredModuleIds.length : rightRank;
+        if (normalizedLeft != normalizedRight) {
+          return normalizedLeft.compareTo(normalizedRight);
+        }
+        return left.title.compareTo(right.title);
+      });
+
+    return ranked;
+  }
+
+  List<LessonCardModel> lessonsForLearnerAndModule(
+    LearnerProfile? learner,
+    String moduleId,
+  ) {
+    final matches = lessonsForLearner(learner)
+        .where((lesson) => lesson.moduleId == moduleId)
+        .toList();
+    return matches;
+  }
+
+  LessonCardModel? nextAssignedLessonForLearner(LearnerProfile? learner) {
+    final rankedLessons = lessonsForLearner(learner);
+    if (rankedLessons.isEmpty) return null;
+    return rankedLessons.first;
+  }
+
+  int assignedLessonCountForModule({
+    required LearningModule module,
+    LearnerProfile? learner,
+  }) {
+    final matches = lessonsForLearnerAndModule(learner, module.id);
+    return matches.isEmpty
+        ? assignedLessons.where((lesson) => lesson.moduleId == module.id).length
+        : matches.length;
+  }
+
   LessonCardModel? get recommendedLesson {
     final learner = currentLearner;
     if (learner != null) {
-      if (learner.readinessLabel == 'Voice-first beginner') {
-        return assignedLessons.firstWhere(
-          (lesson) => lesson.moduleId == 'english',
-          orElse: () => assignedLessons.first,
-        );
-      }
-      if (learner.readinessLabel == 'Ready for guided practice') {
-        return assignedLessons.firstWhere(
-          (lesson) => lesson.moduleId == 'math',
-          orElse: () => assignedLessons.first,
-        );
-      }
-      return assignedLessons.firstWhere(
-        (lesson) => lesson.moduleId == 'story',
-        orElse: () => assignedLessons.first,
-      );
+      return nextAssignedLessonForLearner(learner) ??
+          (assignedLessons.isNotEmpty ? assignedLessons.first : null);
     }
 
     final lessonPool = lessonsForSelectedModule();
@@ -886,6 +919,36 @@ class LumoAppState {
     }
     return 'Last sync ${_formatTime(lastSyncAttemptAt!)} • '
         '$lastSyncAcceptedCount accepted / $lastSyncIgnoredCount ignored';
+  }
+
+  String assignedLessonSummaryForLearner(LearnerProfile? learner) {
+    final lessons = lessonsForLearner(learner);
+    if (lessons.isEmpty) return 'No assigned lessons yet.';
+    final nextLesson = lessons.first;
+    return '${lessons.length} assigned lesson(s) • start with ${nextLesson.title}';
+  }
+
+  String recommendedModuleLabelForLearner(LearnerProfile learner) {
+    final preferredModuleIds = _preferredModuleIdsForLearner(learner);
+    final preferredModuleId =
+        preferredModuleIds.isEmpty ? null : preferredModuleIds.first;
+    final module = modules.cast<LearningModule?>().firstWhere(
+          (item) => item?.id == preferredModuleId,
+          orElse: () => modules.isEmpty ? null : modules.first,
+        );
+    return module?.title ?? 'Assigned subject';
+  }
+
+  List<String> _preferredModuleIdsForLearner(LearnerProfile learner) {
+    switch (learner.readinessLabel) {
+      case 'Confident responder':
+        return const ['story', 'life-skills', 'english', 'math'];
+      case 'Ready for guided practice':
+        return const ['math', 'english', 'life-skills', 'story'];
+      case 'Voice-first beginner':
+      default:
+        return const ['english', 'life-skills', 'math', 'story'];
+    }
   }
 
   String personalizePrompt(String text) {
