@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:lumo_learner_tablet/api_client.dart';
 import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/models.dart';
 
@@ -143,6 +148,47 @@ void main() {
       expect(target!.cohort.id, 'cohort-2');
       expect(target.mallam.id, 'mallam-2');
       expect(state.registrationTargetSummary, contains('Mallama Zarah'));
+    });
+
+    test('auto-syncs queued lesson events when backend is live', () async {
+      var syncCalls = 0;
+      final state = LumoAppState(
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/sync') {
+              syncCalls += 1;
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              final events = body['events'] as List<dynamic>;
+              return http.Response(
+                jsonEncode({
+                  'accepted': events.length,
+                  'ignored': 0,
+                  'syncedAt': '2026-04-12T10:00:00.000Z',
+                  'results': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      state.usingFallbackData = false;
+      state.backendError = null;
+      state.currentLearner = beginner;
+
+      final lesson = state.assignedLessons.first;
+      state.startLesson(lesson);
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(syncCalls, 1);
+      expect(state.pendingSyncEvents, isEmpty);
+      expect(state.lastSyncAcceptedCount, 1);
+      state.dispose();
     });
   });
 }

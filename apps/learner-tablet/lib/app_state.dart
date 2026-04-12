@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'api_client.dart';
@@ -14,6 +15,7 @@ class LumoAppState {
   final LumoApiClient _apiClient;
   VoiceReplay? voiceReplay;
   VoiceReplayStop? voiceReplayStop;
+  Timer? _syncRetryTimer;
 
   LearnerProfile? currentLearner;
   LearningModule? selectedModule;
@@ -512,6 +514,7 @@ class LumoAppState {
         'stepTitle': openingStep.title,
       },
     );
+    _attemptSyncSoon();
   }
 
   ResponseOutcome submitLearnerResponse(String response) {
@@ -570,6 +573,7 @@ class LumoAppState {
         'usedAlias': evaluation.usedAlias,
       },
     );
+    _attemptSyncSoon();
     return ResponseOutcome(
       review: review,
       attemptNumber: nextAttempts,
@@ -739,6 +743,7 @@ class LumoAppState {
         'label': label,
       },
     );
+    _attemptSyncSoon();
   }
 
   void addObservation(String observation) {
@@ -759,6 +764,16 @@ class LumoAppState {
         ),
       ],
     );
+    _queueSessionEvent(
+      type: 'facilitator_observation_added',
+      session: activeSession!,
+      extra: {
+        'stepId': session.currentStep.id,
+        'stepTitle': session.currentStep.title,
+        'observation': observation,
+      },
+    );
+    _attemptSyncSoon();
   }
 
   void attachLearnerAudioCapture({
@@ -796,6 +811,7 @@ class LumoAppState {
         'durationSeconds': seconds,
       },
     );
+    _attemptSyncSoon();
   }
 
   void setAudioInputMode(String mode) {
@@ -829,6 +845,7 @@ class LumoAppState {
           'isLastStep': true,
         },
       );
+      _attemptSyncSoon();
       speakerMode = SpeakerMode.affirming;
       return true;
     }
@@ -865,6 +882,7 @@ class LumoAppState {
         'stepsTotal': session.lesson.steps.length,
       },
     );
+    _attemptSyncSoon();
     return false;
   }
 
@@ -971,6 +989,7 @@ class LumoAppState {
       return;
     }
 
+    _syncRetryTimer?.cancel();
     final snapshot = List<SyncEvent>.from(pendingSyncEvents);
     isSyncingEvents = true;
     lastSyncAttemptAt = DateTime.now();
@@ -983,10 +1002,14 @@ class LumoAppState {
       lastSyncError = null;
       backendError = null;
       _applyRewardSnapshotsFromSync(result.raw);
+      if (pendingSyncEvents.isNotEmpty) {
+        _attemptSyncSoon();
+      }
     } catch (error) {
       final message = error.toString().replaceFirst('Exception: ', '');
       lastSyncError = message;
       backendError = message;
+      _scheduleSyncRetry();
     } finally {
       isSyncingEvents = false;
     }
@@ -1131,6 +1154,24 @@ class LumoAppState {
         },
       ),
     );
+    _attemptSyncSoon();
+  }
+
+  void dispose() {
+    _syncRetryTimer?.cancel();
+  }
+
+  void _scheduleSyncRetry() {
+    _syncRetryTimer?.cancel();
+    if (usingFallbackData || pendingSyncEvents.isEmpty) return;
+    _syncRetryTimer = Timer(const Duration(seconds: 3), () {
+      unawaited(syncPendingEvents());
+    });
+  }
+
+  void _attemptSyncSoon() {
+    if (usingFallbackData || pendingSyncEvents.isEmpty) return;
+    Future.microtask(() => unawaited(syncPendingEvents()));
   }
 
   String _formatTime(DateTime value) {

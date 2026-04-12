@@ -106,13 +106,8 @@ class LumoApiClient {
       assignmentPacks:
           assignmentsJson.map(LearnerAssignmentPack.fromJson).toList(),
       registrationContext: registrationContext is Map
-          ? RegistrationContext(
-              cohorts: _asList(registrationContext['cohorts'])
-                  .map(BackendCohort.fromJson)
-                  .toList(),
-              mallams: _asList(registrationContext['mallams'])
-                  .map(BackendMallam.fromJson)
-                  .toList(),
+          ? RegistrationContext.fromJson(
+              Map<String, dynamic>.from(registrationContext),
             )
           : const RegistrationContext(),
       generatedAt: meta is Map ? meta['generatedAt']?.toString() : null,
