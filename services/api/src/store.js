@@ -216,6 +216,26 @@ function listSyncEvents() {
   return repository.listSyncEvents();
 }
 
+function listLessonSessions() {
+  return repository.listLessonSessions();
+}
+
+function findLessonSessionBySessionId(sessionId) {
+  return repository.findLessonSessionBySessionId(sessionId);
+}
+
+function upsertLessonSession(input) {
+  return repository.upsertLessonSession(input);
+}
+
+function listSessionEventLog() {
+  return repository.listSessionEventLog();
+}
+
+function createSessionEventLog(input) {
+  return repository.createSessionEventLog(input);
+}
+
 function findSyncEventByClientId(clientId) {
   return repository.findSyncEventByClientId(clientId);
 }
@@ -281,6 +301,11 @@ module.exports = {
   updateAssessment,
   deleteAssessment,
   listSyncEvents,
+  listLessonSessions,
+  findLessonSessionBySessionId,
+  upsertLessonSession,
+  listSessionEventLog,
+  createSessionEventLog,
   findSyncEventByClientId,
   createSyncEvent,
   getStoreMeta,

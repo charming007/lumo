@@ -211,9 +211,88 @@ function buildSyncReceipt(event, result, batchId) {
     eventId: event.id || event.clientId || null,
     batchId: batchId || null,
     type: event.type || event.eventType || 'unknown',
-    learnerId: result?.student?.id || result?.progress?.studentId || null,
+    learnerId: result?.student?.id || result?.progress?.studentId || result?.session?.studentId || null,
     result,
   };
+}
+
+function mapCompletionStateToStatus(completionState) {
+  if (completionState === 'completed') return 'completed';
+  if (completionState === 'abandoned') return 'abandoned';
+  return 'in_progress';
+}
+
+function upsertRuntimeSessionFromEvent(student, payload, type) {
+  if (!payload.sessionId) {
+    const error = new Error('Missing sessionId for learner runtime event');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existing = store.findLessonSessionBySessionId(payload.sessionId);
+  const currentStepIndex = Number(payload.stepIndex || existing?.currentStepIndex || 0);
+  const stepsTotal = Number(payload.stepsTotal || existing?.stepsTotal || 0);
+  const updates = {
+    sessionId: payload.sessionId,
+    studentId: student.id,
+    learnerCode: payload.learnerCode || null,
+    lessonId: payload.lessonId || existing?.lessonId || null,
+    moduleId: payload.moduleId || existing?.moduleId || null,
+    completionState: payload.completionState || existing?.completionState || 'inProgress',
+    automationStatus: payload.automationStatus || existing?.automationStatus || 'guided',
+    currentStepIndex,
+    stepsTotal,
+    latestReview: payload.review || existing?.latestReview || null,
+    lastEventType: type,
+    startedAt: existing?.startedAt || payload.capturedAt || new Date().toISOString(),
+    lastActivityAt: payload.capturedAt || new Date().toISOString(),
+  };
+
+  if (type === 'lesson_session_started') {
+    updates.status = 'in_progress';
+  }
+
+  if (type === 'learner_response_captured') {
+    updates.responsesCaptured = Number(existing?.responsesCaptured || 0) + 1;
+    updates.latestReview = payload.review || existing?.latestReview || null;
+  }
+
+  if (type === 'coach_support_used') {
+    updates.supportActionsUsed = Number(existing?.supportActionsUsed || 0) + 1;
+  }
+
+  if (type === 'facilitator_observation_added') {
+    updates.facilitatorObservations = Number(existing?.facilitatorObservations || 0) + 1;
+  }
+
+  if (type === 'learner_audio_captured') {
+    updates.audioCaptures = Number(existing?.audioCaptures || 0) + 1;
+  }
+
+  if (type === 'lesson_step_completed' || type === 'lesson_step_advanced') {
+    updates.currentStepIndex = Math.max(currentStepIndex, Number(existing?.currentStepIndex || 0));
+  }
+
+  if (type === 'lesson_completed') {
+    updates.status = mapCompletionStateToStatus(payload.completionState || 'completed');
+    updates.completionState = payload.completionState || 'completed';
+    updates.completedAt = payload.capturedAt || new Date().toISOString();
+    updates.currentStepIndex = Math.max(currentStepIndex, stepsTotal, Number(existing?.currentStepIndex || 0));
+  }
+
+  const session = store.upsertLessonSession(updates);
+
+  store.createSessionEventLog({
+    sessionId: session.sessionId,
+    studentId: student.id,
+    lessonId: session.lessonId,
+    moduleId: session.moduleId,
+    type,
+    payload,
+    createdAt: payload.capturedAt || new Date().toISOString(),
+  });
+
+  return presenters.presentLessonSession(session);
 }
 
 function syncLearnerAppEvents(events = [], options = {}) {
@@ -248,6 +327,41 @@ function syncLearnerAppEvents(events = [], options = {}) {
         type,
         status: 'accepted',
         student: presenters.presentLearnerProfile(student),
+      };
+
+      const receipt = store.createSyncEvent({
+        clientId,
+        batchId,
+        type,
+        learnerId: student.id,
+        payloadHash: hashPayload(payload),
+        result: buildSyncReceipt(event, result, batchId),
+      });
+
+      return {
+        ...result,
+        receiptId: receipt.id,
+        syncedAt: receipt.appliedAt || receipt.receivedAt || null,
+      };
+    }
+
+    if (['lesson_session_started', 'learner_response_captured', 'coach_support_used', 'facilitator_observation_added', 'learner_audio_captured', 'lesson_step_completed', 'lesson_step_advanced'].includes(type)) {
+      const student = payload.studentId
+        ? store.findStudentById(payload.studentId)
+        : findStudentByLearnerCode(payload.learnerCode);
+
+      if (!student) {
+        const error = new Error(`Unknown learner for sync event: ${payload.learnerCode || payload.studentId || 'missing identifier'}`);
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const session = upsertRuntimeSessionFromEvent(student, payload, type);
+      const result = {
+        index,
+        type,
+        status: 'accepted',
+        session,
       };
 
       const receipt = store.createSyncEvent({
@@ -315,10 +429,12 @@ function syncLearnerAppEvents(events = [], options = {}) {
           });
       }
 
+      const session = payload.sessionId ? upsertRuntimeSessionFromEvent(student, payload, type) : null;
       const result = {
         index,
         type,
         status: 'accepted',
+        session,
         progress: presenters.presentProgress(progressRecord),
         rewards: rewardResult.snapshot,
         rewardDelta: rewardResult.delta,
@@ -411,6 +527,28 @@ app.post('/api/v1/learner-app/learners', (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+});
+
+app.get('/api/v1/learner-app/sessions', (req, res) => {
+  const learnerCode = req.query.learnerCode ? String(req.query.learnerCode) : null;
+  const limit = Number(req.query.limit || 20);
+  const student = learnerCode ? findStudentByLearnerCode(learnerCode) : null;
+
+  const sessions = store
+    .listLessonSessions()
+    .filter((item) => !student || item.studentId === student.id)
+    .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))
+    .slice(0, Math.max(1, Math.min(limit, 100)))
+    .map(presenters.presentLessonSession);
+
+  return res.json({
+    sessions,
+    meta: {
+      learnerId: student?.id ?? null,
+      learnerCode,
+      count: sessions.length,
+    },
+  });
 });
 
 app.post('/api/v1/learner-app/sync', (req, res, next) => {

@@ -709,6 +709,90 @@ function createSyncEvent(input) {
   return record;
 }
 
+function listLessonSessions() {
+  return data.lessonSessions;
+}
+
+function findLessonSessionBySessionId(sessionId) {
+  if (!sessionId) return null;
+  return data.lessonSessions.find((item) => item.sessionId === sessionId) || null;
+}
+
+function upsertLessonSession(input) {
+  const existing = findLessonSessionBySessionId(input.sessionId);
+
+  if (!existing) {
+    const record = {
+      id: `runtime-session-${data.lessonSessions.length + 1}`,
+      sessionId: input.sessionId,
+      studentId: input.studentId,
+      learnerCode: input.learnerCode || null,
+      lessonId: input.lessonId || null,
+      moduleId: input.moduleId || null,
+      status: input.status || 'in_progress',
+      completionState: input.completionState || 'inProgress',
+      automationStatus: input.automationStatus || 'guided',
+      currentStepIndex: Number(input.currentStepIndex || 0),
+      stepsTotal: Number(input.stepsTotal || 0),
+      responsesCaptured: Number(input.responsesCaptured || 0),
+      supportActionsUsed: Number(input.supportActionsUsed || 0),
+      audioCaptures: Number(input.audioCaptures || 0),
+      facilitatorObservations: Number(input.facilitatorObservations || 0),
+      latestReview: input.latestReview || null,
+      lastEventType: input.lastEventType || null,
+      startedAt: input.startedAt || new Date().toISOString(),
+      lastActivityAt: input.lastActivityAt || input.startedAt || new Date().toISOString(),
+      completedAt: input.completedAt || null,
+    };
+
+    data.lessonSessions.push(record);
+    return record;
+  }
+
+  Object.assign(existing, {
+    studentId: input.studentId ?? existing.studentId,
+    learnerCode: input.learnerCode ?? existing.learnerCode,
+    lessonId: input.lessonId ?? existing.lessonId,
+    moduleId: input.moduleId ?? existing.moduleId,
+    status: input.status ?? existing.status,
+    completionState: input.completionState ?? existing.completionState,
+    automationStatus: input.automationStatus ?? existing.automationStatus,
+    currentStepIndex: input.currentStepIndex !== undefined ? Number(input.currentStepIndex) : existing.currentStepIndex,
+    stepsTotal: input.stepsTotal !== undefined ? Number(input.stepsTotal) : existing.stepsTotal,
+    responsesCaptured: input.responsesCaptured !== undefined ? Number(input.responsesCaptured) : existing.responsesCaptured,
+    supportActionsUsed: input.supportActionsUsed !== undefined ? Number(input.supportActionsUsed) : existing.supportActionsUsed,
+    audioCaptures: input.audioCaptures !== undefined ? Number(input.audioCaptures) : existing.audioCaptures,
+    facilitatorObservations: input.facilitatorObservations !== undefined ? Number(input.facilitatorObservations) : existing.facilitatorObservations,
+    latestReview: input.latestReview !== undefined ? input.latestReview : existing.latestReview,
+    lastEventType: input.lastEventType ?? existing.lastEventType,
+    startedAt: input.startedAt ?? existing.startedAt,
+    lastActivityAt: input.lastActivityAt ?? existing.lastActivityAt,
+    completedAt: input.completedAt !== undefined ? input.completedAt : existing.completedAt,
+  });
+
+  return existing;
+}
+
+function listSessionEventLog() {
+  return data.sessionEventLog;
+}
+
+function createSessionEventLog(input) {
+  const record = {
+    id: `runtime-event-${data.sessionEventLog.length + 1}`,
+    sessionId: input.sessionId,
+    studentId: input.studentId || null,
+    lessonId: input.lessonId || null,
+    moduleId: input.moduleId || null,
+    type: input.type || 'unknown',
+    payload: input.payload && typeof input.payload === 'object' ? { ...input.payload } : null,
+    createdAt: input.createdAt || new Date().toISOString(),
+  };
+
+  data.sessionEventLog.push(record);
+  return record;
+}
+
 function listRewardTransactions() {
   return data.rewardTransactions;
 }
@@ -790,6 +874,11 @@ module.exports = {
   listSyncEvents,
   findSyncEventByClientId,
   createSyncEvent,
+  listLessonSessions,
+  findLessonSessionBySessionId,
+  upsertLessonSession,
+  listSessionEventLog,
+  createSessionEventLog,
   listRewardTransactions,
   createRewardTransaction,
 };

@@ -88,6 +88,15 @@ function buildWorkboard() {
   });
 }
 
+function buildRecentLearnerSessions(studentId, limit = 10) {
+  return repository
+    .listLessonSessions()
+    .filter((item) => item.studentId === studentId)
+    .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))
+    .slice(0, limit)
+    .map(presenters.presentLessonSession);
+}
+
 function buildStudentProfile(studentId) {
   const student = repository.findStudentById(studentId);
 
@@ -115,6 +124,7 @@ function buildStudentProfile(studentId) {
     .filter((assignment) => assignment.status === 'active' && assignment.cohortId === student.cohortId)
     .map(presenters.presentAssignment)
     .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+  const sessions = buildRecentLearnerSessions(studentId);
 
   const latestProgress = [...progress].sort((a, b) => (a.lastActiveAt < b.lastActiveAt ? 1 : -1))[0] || null;
   const latestObservation = observations[0] || null;
@@ -149,11 +159,13 @@ function buildStudentProfile(studentId) {
     attendance,
     observations,
     assignments: activeAssignments,
+    recentSessions: sessions,
     summary: {
       attendanceRate,
       presentDays,
       attendanceSessions: attendance.length,
       activeAssignments: activeAssignments.length,
+      recentSessions: sessions.length,
       latestProgressionStatus: latestProgress?.progressionStatus ?? 'unknown',
       latestMastery: latestProgress?.mastery ?? null,
       focusSubject: latestProgress?.subjectName ?? null,

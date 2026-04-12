@@ -756,6 +756,10 @@ const progress = [
 
 const syncEvents = [];
 
+const lessonSessions = [];
+
+const sessionEventLog = [];
+
 const rewardTransactions = [
   {
     id: 'reward-1',
@@ -801,5 +805,7 @@ module.exports = {
   observations,
   progress,
   syncEvents,
+  lessonSessions,
+  sessionEventLog,
   rewardTransactions,
 };

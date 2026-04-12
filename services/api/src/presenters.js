@@ -454,6 +454,20 @@ function presentLesson(entry) {
   };
 }
 
+function presentLessonSession(entry) {
+  const student = entry.studentId ? repository.findStudentById(entry.studentId) : null;
+  const lesson = entry.lessonId ? repository.findLessonById(entry.lessonId) : null;
+  const module = entry.moduleId ? repository.findModuleById(entry.moduleId) : null;
+
+  return {
+    ...entry,
+    studentName: student?.name ?? null,
+    lessonTitle: lesson?.title ?? null,
+    moduleTitle: module?.title ?? null,
+    progressRatio: entry.stepsTotal > 0 ? Math.max(0, Math.min(1, Number(entry.currentStepIndex || 0) / Number(entry.stepsTotal))) : 0,
+  };
+}
+
 module.exports = {
   presentPod,
   presentMallam,
@@ -470,4 +484,5 @@ module.exports = {
   presentAttendance,
   presentObservation,
   presentLesson,
+  presentLessonSession,
 };
