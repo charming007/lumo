@@ -1,6 +1,6 @@
 # Lumo LMS Dashboard Guide
 
-_Last updated: 2026-04-12_
+_Last updated: 2026-04-13_
 
 A practical, visual guide to the **Lumo LMS dashboard**, with extra focus on **Content Library** and **English Curriculum Studio**.
 
@@ -836,6 +836,25 @@ Watch for:
 - pod delivery strain,
 - assignments without healthy completion.
 
+### In Mallams
+
+Watch for:
+
+- training or leave-status mallams who still carry live rosters,
+- learner loads that are too high for the current pod coverage,
+- average attendance dropping under safe operating range,
+- too many at-risk learners clustered under one operator,
+- pod assignments piling onto the same person because the roster was never redistributed properly.
+
+### In Analytics
+
+Watch for:
+
+- pods with weak attendance plus rising watchlist counts,
+- mallams whose rosters have low mastery and low readiness at the same time,
+- delivery boards where a few operators own nearly all live assignments,
+- pods with zero live assignments because content release or deployment broke upstream.
+
 ### In Content Library
 
 Watch for:
@@ -867,6 +886,7 @@ Start here:
 2. **Content Library** — understand how curriculum is structured.
 3. **English Studio** — understand how English lessons are authored and checked.
 4. **Assessments / Pods / Analytics** — understand release and delivery impact.
+5. **Mallams** — use the deployment filters, watchlist signals, and learner-load view to see who needs coaching support versus simple roster redistribution.
 
 ### If you need to find a content problem fast
 
