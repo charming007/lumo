@@ -157,11 +157,14 @@ class LumoAppState {
 
       await _hydrateModuleBundles(mergedModules);
 
-      if (currentLearner != null && learners.isNotEmpty) {
-        currentLearner = learners.firstWhere(
-          (item) => item.id == currentLearner!.id,
-          orElse: () => learners.first,
-        );
+      if (learners.isNotEmpty) {
+        final existingLearnerId = currentLearner?.id;
+        currentLearner = existingLearnerId == null
+            ? suggestedLearnerForHome
+            : learners.firstWhere(
+                (item) => item.id == existingLearnerId,
+                orElse: () => suggestedLearnerForHome ?? learners.first,
+              );
       }
       if (selectedModule != null && modules.isNotEmpty) {
         selectedModule = modules.firstWhere(
@@ -218,6 +221,21 @@ class LumoAppState {
         ..clear()
         ..addAll(mergedLessons);
     }
+  }
+
+  LearnerProfile? get suggestedLearnerForHome {
+    if (currentLearner != null) return currentLearner;
+    if (learners.isEmpty) return null;
+
+    for (final pack in assignmentPacks) {
+      for (final learnerId in pack.eligibleLearnerIds) {
+        for (final learner in learners) {
+          if (learner.id == learnerId) return learner;
+        }
+      }
+    }
+
+    return learners.first;
   }
 
   void selectLearner(LearnerProfile learner) {

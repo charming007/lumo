@@ -166,8 +166,8 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final learnerCount = state.learners.length;
     final currentLearner = state.currentLearner;
-    final nextAssignedLesson =
-        state.nextAssignedLessonForLearner(currentLearner);
+    final homeLearner = currentLearner ?? state.suggestedLearnerForHome;
+    final nextAssignedLesson = state.nextAssignedLessonForLearner(homeLearner);
 
     return Scaffold(
       body: SafeArea(
@@ -317,21 +317,26 @@ class HomePage extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  if (currentLearner != null) ...[
+                                  if (homeLearner != null) ...[
                                     const SizedBox(height: 18),
                                     _CurrentLearnerBanner(
-                                      learner: currentLearner,
+                                      title: currentLearner == null
+                                          ? 'Ready now: ${homeLearner.name}'
+                                          : 'Current learner: ${homeLearner.name}',
+                                      learner: homeLearner,
                                       nextLesson: nextAssignedLesson,
                                       backendSummary:
                                           state.backendRoutingSummaryForLearner(
-                                        currentLearner,
+                                        homeLearner,
                                       ),
                                       onOpenProfile: () {
+                                        state.selectLearner(homeLearner);
+                                        onChanged();
                                         Navigator.of(context).push(
                                           MaterialPageRoute(
                                             builder: (_) => LearnerProfilePage(
                                               state: state,
-                                              learner: currentLearner,
+                                              learner: homeLearner,
                                             ),
                                           ),
                                         );
@@ -339,6 +344,7 @@ class HomePage extends StatelessWidget {
                                       onContinue: nextAssignedLesson == null
                                           ? null
                                           : () {
+                                              state.selectLearner(homeLearner);
                                               state.selectModule(
                                                 state.modules.firstWhere(
                                                   (module) =>
@@ -526,6 +532,46 @@ class AllStudentsPage extends StatelessWidget {
                           child: _LearnerCard(
                             learner: learner,
                             state: state,
+                            isActive: state.currentLearner?.id == learner.id,
+                            onSetActive: () {
+                              state.selectLearner(learner);
+                              onChanged();
+                            },
+                            onOpenProfile: () {
+                              state.selectLearner(learner);
+                              onChanged();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => LearnerProfilePage(
+                                    state: state,
+                                    learner: learner,
+                                  ),
+                                ),
+                              );
+                            },
+                            onStartLesson: () {
+                              final nextLesson =
+                                  state.nextAssignedLessonForLearner(learner);
+                              if (nextLesson == null) return;
+                              state.selectLearner(learner);
+                              state.selectModule(
+                                state.modules.firstWhere(
+                                  (module) => module.id == nextLesson.moduleId,
+                                  orElse: () => state.modules.first,
+                                ),
+                              );
+                              state.startLesson(nextLesson);
+                              onChanged();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => LessonSessionPage(
+                                    state: state,
+                                    lesson: nextLesson,
+                                    onChanged: onChanged,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         );
                       },
@@ -1103,6 +1149,7 @@ class SubjectModulesPage extends StatelessWidget {
                       const SizedBox(height: 16),
                       if (selectedLearner != null) ...[
                         _CurrentLearnerBanner(
+                          title: 'Current learner: ${selectedLearner.name}',
                           learner: selectedLearner,
                           nextLesson: state.nextAssignedLessonForLearner(
                             selectedLearner,
@@ -3793,6 +3840,7 @@ class _PrimaryActionCard extends StatelessWidget {
 }
 
 class _CurrentLearnerBanner extends StatelessWidget {
+  final String title;
   final LearnerProfile learner;
   final LessonCardModel? nextLesson;
   final String backendSummary;
@@ -3800,6 +3848,7 @@ class _CurrentLearnerBanner extends StatelessWidget {
   final VoidCallback? onContinue;
 
   const _CurrentLearnerBanner({
+    required this.title,
     required this.learner,
     required this.nextLesson,
     required this.backendSummary,
@@ -3824,7 +3873,7 @@ class _CurrentLearnerBanner extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Current learner: ${learner.name}',
+                  title,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -3973,8 +4022,19 @@ class _SubjectCard extends StatelessWidget {
 class _LearnerCard extends StatelessWidget {
   final LearnerProfile learner;
   final LumoAppState? state;
+  final bool isActive;
+  final VoidCallback? onSetActive;
+  final VoidCallback? onOpenProfile;
+  final VoidCallback? onStartLesson;
 
-  const _LearnerCard({required this.learner, this.state});
+  const _LearnerCard({
+    required this.learner,
+    this.state,
+    this.isActive = false,
+    this.onSetActive,
+    this.onOpenProfile,
+    this.onStartLesson,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -4000,12 +4060,16 @@ class _LearnerCard extends StatelessWidget {
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 380;
               final status = StatusPill(
-                text: nextPack == null
-                    ? learner.attendanceBand
-                    : 'Backend assigned',
-                color: nextPack == null
-                    ? LumoTheme.accentOrange
-                    : LumoTheme.accentGreen,
+                text: isActive
+                    ? 'Active learner'
+                    : nextPack == null
+                        ? learner.attendanceBand
+                        : 'Backend assigned',
+                color: isActive
+                    ? LumoTheme.primary
+                    : nextPack == null
+                        ? LumoTheme.accentOrange
+                        : LumoTheme.accentGreen,
               );
 
               if (compact) {
@@ -4099,6 +4163,36 @@ class _LearnerCard extends StatelessWidget {
             label: 'Last attendance',
             value: learner.lastAttendance,
           ),
+          if (onSetActive != null ||
+              onOpenProfile != null ||
+              onStartLesson != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (onSetActive != null)
+                  OutlinedButton.icon(
+                    onPressed: onSetActive,
+                    icon: const Icon(Icons.person_pin_circle_rounded),
+                    label: Text(isActive ? 'Active now' : 'Set active'),
+                  ),
+                if (onOpenProfile != null)
+                  OutlinedButton.icon(
+                    onPressed: onOpenProfile,
+                    icon: const Icon(Icons.badge_rounded),
+                    label: const Text('Profile'),
+                  ),
+                if (onStartLesson != null)
+                  FilledButton.icon(
+                    onPressed: onStartLesson,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: Text(
+                        nextPack == null ? 'Start lesson' : 'Start assigned'),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
