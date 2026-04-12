@@ -33,7 +33,10 @@ class _LumoAppState extends State<LumoApp> {
   @override
   void initState() {
     super.initState();
-    state.attachVoiceReplay(voiceReplayService.replay);
+    state.attachVoiceReplay(
+      voiceReplayService.replay,
+      onStop: voiceReplayService.stop,
+    );
     Future.microtask(() async {
       await state.bootstrap();
       if (!mounted) return;
@@ -1619,6 +1622,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     _promptedCurrentStep = true;
     final prompt =
         widget.state.personalizePrompt(session.currentStep.coachPrompt);
+    await _prepareForMallamSpeech();
+    if (!mounted) return;
     setState(() {
       isSpeaking = true;
     });
@@ -1630,6 +1635,14 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
           ? 'Mallam finished speaking. Start recording and let the learner answer now.'
           : 'Mallam finished speaking. Listen for the learner response.';
     });
+  }
+
+  Future<void> _prepareForMallamSpeech() async {
+    if (isRecording) {
+      await stopRecording(markReadyForResume: false);
+    }
+    await speechTranscriptionService.cancel();
+    await widget.state.stopVoiceReplay();
   }
 
   Future<void> _afterCorrectResponse() async {
@@ -1672,9 +1685,15 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
   Future<void> _speakActivityText(String text,
       {SpeakerMode mode = SpeakerMode.guiding}) async {
+    await _prepareForMallamSpeech();
+    if (!mounted) return;
+    setState(() {
+      isSpeaking = true;
+    });
     await widget.state.replayVisiblePrompt(text, mode: mode);
     if (!mounted) return;
     setState(() {
+      isSpeaking = false;
       microphoneStatus = 'Mallam replayed the activity prompt.';
     });
   }
@@ -1748,7 +1767,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                 FilledButton.tonalIcon(
                   onPressed: focusText == null && activity.mediaValue == null
                       ? null
-                      : () => _speakActivityText(focusText ?? activity.mediaValue!),
+                      : () =>
+                          _speakActivityText(focusText ?? activity.mediaValue!),
                   icon: const Icon(Icons.volume_up_rounded),
                   label: const Text('Hear letter'),
                 ),
@@ -1906,6 +1926,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
   Future<void> _handleSubmittedResponse(String text,
       {bool auto = false}) async {
+    if (isRecording) {
+      await stopRecording(markReadyForResume: false);
+    }
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
@@ -1956,6 +1979,16 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
   Future<void> startRecording() async {
     try {
+      if (isSpeaking) {
+        setState(() {
+          microphoneStatus =
+              'Wait for Mallam to finish speaking before starting the mic.';
+        });
+        return;
+      }
+
+      await widget.state.stopVoiceReplay();
+      await speechTranscriptionService.cancel();
       transcriptCapturedThisTake = false;
       liveTranscript = '';
       transcriptReviewPending = false;
@@ -2010,7 +2043,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     }
   }
 
-  Future<void> stopRecording() async {
+  Future<void> stopRecording({bool markReadyForResume = true}) async {
     recordingTicker?.cancel();
     await speechTranscriptionService.stop();
     final transcript = liveTranscript.trim();
@@ -2042,9 +2075,12 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     widget.onChanged();
     setState(() {
       currentRecordingDuration = result.duration;
-      microphoneStatus = transcript.isNotEmpty
+      final savedLabel = transcript.isNotEmpty
           ? 'Learner voice saved (${formatDuration(result.duration)}).'
           : 'Learner voice saved (${formatDuration(result.duration)}). No transcript was detected.';
+      microphoneStatus = markReadyForResume && !transcriptReviewPending
+          ? '$savedLabel Ready for Mallam or the next learner attempt.'
+          : savedLabel;
     });
 
     if (transcript.isNotEmpty && isAutoMode && !isProcessingTranscript) {

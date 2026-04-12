@@ -143,7 +143,8 @@ class RewardSnapshot {
   factory RewardSnapshot.fromJson(Map<String, dynamic> json) {
     final badges = (json['badges'] as List?)
             ?.whereType<Map>()
-            .map((item) => RewardBadge.fromJson(Map<String, dynamic>.from(item)))
+            .map(
+                (item) => RewardBadge.fromJson(Map<String, dynamic>.from(item)))
             .toList() ??
         const <RewardBadge>[];
 
@@ -495,6 +496,16 @@ class RegistrationDraft {
         'consentCaptured': consentCaptured,
         'syncStatus': 'posts_to_backend',
       };
+}
+
+class LumoModuleBundle {
+  final LearningModule module;
+  final List<LessonCardModel> lessons;
+
+  const LumoModuleBundle({
+    required this.module,
+    this.lessons = const [],
+  });
 }
 
 class LearningModule {
@@ -1015,7 +1026,8 @@ String _moduleGoal(String level, String subjectId) {
 }
 
 List<LessonStep> _readBackendActivitySteps(Map<String, dynamic> json) {
-  final rawSteps = (json['activitySteps'] as List?) ?? (json['activities'] as List?);
+  final rawSteps =
+      (json['activitySteps'] as List?) ?? (json['activities'] as List?);
   if (rawSteps == null) return const [];
 
   final items = rawSteps
@@ -1048,15 +1060,18 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
           .toList() ??
       const <LessonActivityChoice>[];
   final media = (json['media'] as List?)?.whereType<Map>().toList() ?? const [];
-  final mediaMap = media.isEmpty ? null : Map<String, dynamic>.from(media.first);
+  final mediaMap =
+      media.isEmpty ? null : Map<String, dynamic>.from(media.first);
   final prompt = json['prompt']?.toString() ?? 'Follow Mallam and answer.';
   final expectedResponse = expectedAnswers.isEmpty
-      ? choices.firstWhere(
-          (item) => item.isCorrect,
-          orElse: () => choices.isEmpty
-              ? const LessonActivityChoice(id: 'answer', label: 'I am ready')
-              : choices.first,
-        ).label
+      ? choices
+          .firstWhere(
+            (item) => item.isCorrect,
+            orElse: () => choices.isEmpty
+                ? const LessonActivityChoice(id: 'answer', label: 'I am ready')
+                : choices.first,
+          )
+          .label
       : expectedAnswers.first;
   final hint = json['hint']?.toString();
   final successFeedback = json['successFeedback']?.toString();
@@ -1072,8 +1087,10 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
     expectedResponse: expectedResponse,
     acceptableResponses: expectedAnswers.skip(1).toList(),
     coachPrompt: prompt,
-    facilitatorTip: hint ?? 'Use the backend lesson cue and keep the learner moving.',
-    realWorldCheck: successFeedback ?? 'Check whether the learner completed the backend activity clearly.',
+    facilitatorTip:
+        hint ?? 'Use the backend lesson cue and keep the learner moving.',
+    realWorldCheck: successFeedback ??
+        'Check whether the learner completed the backend activity clearly.',
     speakerMode: _speakerModeForActivity(activityType),
     activity: LessonActivity(
       type: activityType,

@@ -95,7 +95,8 @@ class LumoApiClient {
     final decoded = _decodeObject(response.body);
     return LumoModuleBundle(
       module: LearningModule.fromBackend(decoded),
-      lessons: _asList(decoded['lessons']).map(LessonCardModel.fromBackend).toList(),
+      lessons:
+          _asList(decoded['lessons']).map(LessonCardModel.fromBackend).toList(),
     );
   }
 
@@ -156,7 +157,8 @@ class LumoApiClient {
         throw Exception('Unable to $action: invalid backend response.');
       }
       if (error is! TimeoutException) rethrow;
-      throw Exception('Unable to $action: request timed out after ${_requestTimeout.inSeconds}s.');
+      throw Exception(
+          'Unable to $action: request timed out after ${_requestTimeout.inSeconds}s.');
     }
   }
 

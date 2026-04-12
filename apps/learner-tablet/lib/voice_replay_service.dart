@@ -31,8 +31,12 @@ class VoiceReplayService {
     await _tts.speak(trimmed);
   }
 
-  Future<void> dispose() async {
+  Future<void> stop() async {
     await _tts.stop();
+  }
+
+  Future<void> dispose() async {
+    await stop();
   }
 
   double _volumeFor(SpeakerMode mode) {

@@ -5,6 +5,7 @@ import 'models.dart';
 import 'seed_data.dart';
 
 typedef VoiceReplay = Future<void> Function(String text, SpeakerMode mode);
+typedef VoiceReplayStop = Future<void> Function();
 
 class LumoAppState {
   LumoAppState({LumoApiClient? apiClient})
@@ -12,6 +13,7 @@ class LumoAppState {
 
   final LumoApiClient _apiClient;
   VoiceReplay? voiceReplay;
+  VoiceReplayStop? voiceReplayStop;
 
   LearnerProfile? currentLearner;
   LearningModule? selectedModule;
@@ -41,8 +43,13 @@ class LumoAppState {
 
   String get backendBaseUrl => _apiClient.baseUrl;
 
-  void attachVoiceReplay(VoiceReplay replay) {
+  void attachVoiceReplay(VoiceReplay replay, {VoiceReplayStop? onStop}) {
     voiceReplay = replay;
+    voiceReplayStop = onStop;
+  }
+
+  Future<void> stopVoiceReplay() async {
+    await voiceReplayStop?.call();
   }
 
   Future<void> replayVisiblePrompt(
@@ -859,13 +866,17 @@ class LumoAppState {
 
     for (final item in results.whereType<Map>()) {
       final rewardsJson = item['rewards'];
-      final learnerId = rewardsJson is Map ? rewardsJson['learnerId']?.toString() : null;
+      final learnerId =
+          rewardsJson is Map ? rewardsJson['learnerId']?.toString() : null;
       if (learnerId == null || rewardsJson is! Map) continue;
 
-      final snapshot = RewardSnapshot.fromJson(Map<String, dynamic>.from(rewardsJson));
-      final learnerIndex = learners.indexWhere((entry) => entry.id == learnerId);
+      final snapshot =
+          RewardSnapshot.fromJson(Map<String, dynamic>.from(rewardsJson));
+      final learnerIndex =
+          learners.indexWhere((entry) => entry.id == learnerId);
       if (learnerIndex != -1) {
-        learners[learnerIndex] = learners[learnerIndex].copyWith(rewards: snapshot);
+        learners[learnerIndex] =
+            learners[learnerIndex].copyWith(rewards: snapshot);
       }
       if (currentLearner?.id == learnerId) {
         currentLearner = currentLearner!.copyWith(rewards: snapshot);
