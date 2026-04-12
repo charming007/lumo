@@ -202,6 +202,34 @@ function buildLearnerAppBootstrap() {
   };
 }
 
+
+function coerceOptionalString(value) {
+  if (value === undefined || value === null || value === '') return null;
+  return String(value);
+}
+
+function coerceOptionalNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function resolveStudentScope({ learnerId = null, learnerCode = null } = {}) {
+  return learnerId
+    ? store.findStudentById(String(learnerId))
+    : learnerCode
+      ? findStudentByLearnerCode(String(learnerCode))
+      : null;
+}
+
+function buildProgressionOverrideResponse(record) {
+  const progress = record.progressId ? store.findProgressById(record.progressId) : null;
+  return {
+    ...record,
+    progress: progress ? presenters.presentProgress(progress) : null,
+  };
+}
+
 function hashPayload(payload) {
   return crypto.createHash('sha1').update(JSON.stringify(payload || {})).digest('hex');
 }
@@ -713,8 +741,13 @@ app.get('/api/v1/dashboard/workboard', (_req, res) => {
 app.get('/api/v1/dashboard/runtime', (req, res) => {
   res.json(
     reporting.buildRuntimeAnalytics({
-      learnerId: req.query.learnerId ? String(req.query.learnerId) : null,
-      lessonId: req.query.lessonId ? String(req.query.lessonId) : null,
+      learnerId: coerceOptionalString(req.query.learnerId),
+      lessonId: coerceOptionalString(req.query.lessonId),
+      cohortId: coerceOptionalString(req.query.cohortId),
+      podId: coerceOptionalString(req.query.podId),
+      mallamId: coerceOptionalString(req.query.mallamId),
+      since: coerceOptionalString(req.query.since),
+      until: coerceOptionalString(req.query.until),
       limit: Number(req.query.limit || 50),
     }),
   );
@@ -723,8 +756,12 @@ app.get('/api/v1/dashboard/runtime', (req, res) => {
 app.get('/api/v1/dashboard/progression-rollup', (req, res) => {
   res.json(
     reporting.buildProgressionRollup({
-      cohortId: req.query.cohortId ? String(req.query.cohortId) : null,
-      podId: req.query.podId ? String(req.query.podId) : null,
+      cohortId: coerceOptionalString(req.query.cohortId),
+      podId: coerceOptionalString(req.query.podId),
+      mallamId: coerceOptionalString(req.query.mallamId),
+      subjectId: coerceOptionalString(req.query.subjectId),
+      since: coerceOptionalString(req.query.since),
+      until: coerceOptionalString(req.query.until),
     }),
   );
 });
@@ -889,7 +926,12 @@ app.get('/api/v1/rewards/catalog', (_req, res) => {
 
 app.get('/api/v1/rewards/leaderboard', (req, res) => {
   const limit = Number(req.query.limit || 10);
-  res.json(rewards.buildLeaderboard(Number.isFinite(limit) ? limit : 10));
+  res.json(rewards.buildScopedLeaderboard({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    limit: Number.isFinite(limit) ? limit : 10,
+  }));
 });
 
 app.get('/api/v1/subjects', (_req, res) => {
@@ -1167,6 +1209,264 @@ app.patch('/api/v1/progress/:id', requireRole(['admin', 'teacher', 'facilitator'
   } catch (error) {
     return next(error);
   }
+});
+
+
+app.get('/api/v1/rewards/transactions', (req, res) => {
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+  const kind = coerceOptionalString(req.query.kind);
+  const cohortId = coerceOptionalString(req.query.cohortId);
+  const podId = coerceOptionalString(req.query.podId);
+  const mallamId = coerceOptionalString(req.query.mallamId);
+  const limit = coerceOptionalNumber(req.query.limit) || 50;
+  const scopedStudentIds = new Set(
+    store
+      .listStudents()
+      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId))
+      .map((student) => student.id),
+  );
+  const items = store
+    .listRewardTransactions()
+    .filter((entry) => (!learner || entry.studentId === learner.id) && (!kind || entry.kind === kind) && (!scopedStudentIds.size || scopedStudentIds.has(entry.studentId)))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, Math.max(1, Math.min(limit, 100)));
+
+  return res.json({
+    items,
+    meta: {
+      learnerId: learner?.id ?? coerceOptionalString(req.query.learnerId),
+      learnerCode: coerceOptionalString(req.query.learnerCode),
+      cohortId,
+      podId,
+      mallamId,
+      kind,
+      count: items.length,
+    },
+  });
+});
+
+app.get('/api/v1/students/:id/rewards/history', (req, res) => {
+  const history = rewards.buildRewardHistory(req.params.id, {
+    kind: coerceOptionalString(req.query.kind),
+    limit: coerceOptionalNumber(req.query.limit) || 20,
+  });
+
+  if (!history) {
+    return res.status(404).json({ message: 'Student not found' });
+  }
+
+  return res.json(history);
+});
+
+app.post('/api/v1/progress/:id/override', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const record = store.findProgressById(req.params.id);
+
+    if (!record) {
+      return res.status(404).json({ message: 'Progress record not found' });
+    }
+
+    const nextStatus = coerceOptionalString(req.body?.progressionStatus);
+    const nextRecommendedModuleId = coerceOptionalString(req.body?.recommendedNextModuleId);
+
+    if (!nextStatus && !nextRecommendedModuleId) {
+      const error = new Error('Provide progressionStatus or recommendedNextModuleId');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    validators.validateProgress({
+      studentId: record.studentId,
+      subjectId: record.subjectId,
+      moduleId: record.moduleId,
+      progressionStatus: nextStatus || record.progressionStatus,
+      recommendedNextModuleId: nextRecommendedModuleId || record.recommendedNextModuleId,
+    }, { partial: true });
+
+    const updated = store.updateProgress(req.params.id, {
+      progressionStatus: nextStatus || record.progressionStatus,
+      recommendedNextModuleId: nextRecommendedModuleId || record.recommendedNextModuleId,
+    });
+
+    const audit = store.createProgressionOverride({
+      studentId: record.studentId,
+      progressId: record.id,
+      action: 'override',
+      previousStatus: record.progressionStatus,
+      nextStatus: updated.progressionStatus,
+      previousRecommendedNextModuleId: record.recommendedNextModuleId,
+      nextRecommendedNextModuleId: updated.recommendedNextModuleId,
+      reason: req.body?.reason || 'manual_override',
+      note: req.body?.note || '',
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    });
+
+    return res.status(201).json(buildProgressionOverrideResponse(audit));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/api/v1/progression-overrides', (req, res) => {
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+  const cohortId = coerceOptionalString(req.query.cohortId);
+  const podId = coerceOptionalString(req.query.podId);
+  const mallamId = coerceOptionalString(req.query.mallamId);
+  const scopedStudentIds = new Set(
+    store
+      .listStudents()
+      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId))
+      .map((student) => student.id),
+  );
+  const items = store
+    .listProgressionOverrides()
+    .filter((entry) => (!learner || entry.studentId === learner.id) && (!scopedStudentIds.size || scopedStudentIds.has(entry.studentId)))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(buildProgressionOverrideResponse);
+
+  return res.json({
+    items,
+    meta: {
+      learnerId: learner?.id ?? coerceOptionalString(req.query.learnerId),
+      learnerCode: coerceOptionalString(req.query.learnerCode),
+      cohortId,
+      podId,
+      mallamId,
+      count: items.length,
+    },
+  });
+});
+
+app.post('/api/v1/progression-overrides/:id/revoke', requireRole(['admin']), (req, res, next) => {
+  try {
+    const audit = store.listProgressionOverrides().find((entry) => entry.id === req.params.id) || null;
+
+    if (!audit) {
+      return res.status(404).json({ message: 'Progression override not found' });
+    }
+
+    if (audit.revokedAt) {
+      return res.status(409).json({ message: 'Progression override already revoked' });
+    }
+
+    const progress = audit.progressId ? store.findProgressById(audit.progressId) : null;
+
+    if (progress) {
+      store.updateProgress(progress.id, {
+        progressionStatus: audit.previousStatus || progress.progressionStatus,
+        recommendedNextModuleId: audit.previousRecommendedNextModuleId || progress.recommendedNextModuleId,
+      });
+    }
+
+    store.updateProgressionOverride(audit.id, {
+      action: 'revoked',
+      revokedAt: new Date().toISOString(),
+      revokedBy: req.actor?.name || 'Unknown actor',
+      note: req.body?.note || audit.note,
+      reason: req.body?.reason || audit.reason,
+    });
+
+    return res.json(buildProgressionOverrideResponse(store.listProgressionOverrides().find((entry) => entry.id === audit.id)));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/learner-app/sessions/:sessionId/repair', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const session = store.findLessonSessionBySessionId(req.params.sessionId);
+
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const patch = req.body && typeof req.body === 'object' ? req.body : {};
+    const before = presenters.presentLessonSession(session);
+    const updates = {
+      status: patch.status,
+      completionState: patch.completionState,
+      automationStatus: patch.automationStatus,
+      currentStepIndex: patch.currentStepIndex,
+      stepsTotal: patch.stepsTotal,
+      responsesCaptured: patch.responsesCaptured,
+      supportActionsUsed: patch.supportActionsUsed,
+      audioCaptures: patch.audioCaptures,
+      facilitatorObservations: patch.facilitatorObservations,
+      latestReview: patch.latestReview,
+      lessonId: patch.lessonId,
+      moduleId: patch.moduleId,
+      completedAt: patch.completedAt,
+      lastActivityAt: patch.lastActivityAt || new Date().toISOString(),
+      lastEventType: 'session_repaired',
+      sessionId: session.sessionId,
+      studentId: session.studentId,
+      learnerCode: session.learnerCode,
+      startedAt: session.startedAt,
+    };
+
+    const repaired = store.upsertLessonSession(updates);
+    store.createSessionEventLog({
+      sessionId: repaired.sessionId,
+      studentId: repaired.studentId,
+      lessonId: repaired.lessonId,
+      moduleId: repaired.moduleId,
+      type: 'session_repaired',
+      payload: {
+        reason: req.body?.reason || 'manual_repair',
+        patch,
+        actor: req.actor,
+      },
+      createdAt: new Date().toISOString(),
+    });
+
+    const audit = store.createSessionRepair({
+      sessionId: repaired.sessionId,
+      learnerId: repaired.studentId,
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason || 'manual_repair',
+      patch,
+      before,
+      after: presenters.presentLessonSession(repaired),
+    });
+
+    return res.status(201).json({
+      repair: audit,
+      session: presenters.presentLessonSession(repaired),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/api/v1/session-repairs', (req, res) => {
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+  const cohortId = coerceOptionalString(req.query.cohortId);
+  const podId = coerceOptionalString(req.query.podId);
+  const mallamId = coerceOptionalString(req.query.mallamId);
+  const scopedStudentIds = new Set(
+    store
+      .listStudents()
+      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId))
+      .map((student) => student.id),
+  );
+  const items = store
+    .listSessionRepairs()
+    .filter((entry) => (!learner || entry.learnerId === learner.id) && (!scopedStudentIds.size || scopedStudentIds.has(entry.learnerId)))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  return res.json({
+    items,
+    meta: {
+      learnerId: learner?.id ?? coerceOptionalString(req.query.learnerId),
+      learnerCode: coerceOptionalString(req.query.learnerCode),
+      cohortId,
+      podId,
+      mallamId,
+      count: items.length,
+    },
+  });
 });
 
 app.get('/api/v1/observations', (_req, res) => {

@@ -238,7 +238,7 @@ function updateSubject(id, input) {
     order: input.order !== undefined ? Number(input.order) : subject.order,
   });
 
-  return subject;
+  return commit(subject);
 }
 
 function deleteSubject(id) {
@@ -625,6 +625,15 @@ function createProgress(input) {
     lessonsCompleted: Number(input.lessonsCompleted || 0),
     progressionStatus: input.progressionStatus || 'on-track',
     recommendedNextModuleId: input.recommendedNextModuleId || input.moduleId || null,
+    override: input.override && typeof input.override === 'object'
+      ? {
+          status: input.override.status ?? null,
+          reason: input.override.reason ?? null,
+          actorName: input.override.actorName ?? null,
+          actorRole: input.override.actorRole ?? null,
+          updatedAt: input.override.updatedAt ?? new Date().toISOString(),
+        }
+      : null,
     lastActiveAt: new Date().toISOString(),
   };
 
@@ -646,6 +655,17 @@ function updateProgress(id, input) {
     lessonsCompleted: input.lessonsCompleted !== undefined ? Number(input.lessonsCompleted) : record.lessonsCompleted,
     progressionStatus: input.progressionStatus ?? record.progressionStatus,
     recommendedNextModuleId: input.recommendedNextModuleId ?? record.recommendedNextModuleId,
+    override: input.override === null
+      ? null
+      : input.override && typeof input.override === 'object'
+        ? {
+            status: input.override.status ?? input.progressionStatus ?? record.progressionStatus,
+            reason: input.override.reason ?? record.override?.reason ?? null,
+            actorName: input.override.actorName ?? record.override?.actorName ?? null,
+            actorRole: input.override.actorRole ?? record.override?.actorRole ?? null,
+            updatedAt: input.override.updatedAt ?? new Date().toISOString(),
+          }
+        : record.override ?? null,
     lastActiveAt: new Date().toISOString(),
   });
 
@@ -802,6 +822,74 @@ function listRewardTransactions() {
   return data.rewardTransactions;
 }
 
+
+function listProgressionOverrides() {
+  return data.progressionOverrides;
+}
+
+function createProgressionOverride(input) {
+  const record = {
+    id: `progression-override-${data.progressionOverrides.length + 1}`,
+    studentId: input.studentId,
+    progressId: input.progressId || null,
+    action: input.action || 'override',
+    previousStatus: input.previousStatus || null,
+    nextStatus: input.nextStatus || null,
+    previousRecommendedNextModuleId: input.previousRecommendedNextModuleId || null,
+    nextRecommendedNextModuleId: input.nextRecommendedNextModuleId || null,
+    reason: input.reason || '',
+    note: input.note || '',
+    actorName: input.actorName || 'Unknown actor',
+    actorRole: input.actorRole || 'admin',
+    createdAt: input.createdAt || new Date().toISOString(),
+    revokedAt: input.revokedAt || null,
+    revokedBy: input.revokedBy || null,
+  };
+
+  data.progressionOverrides.push(record);
+  return commit(record);
+}
+
+function updateProgressionOverride(id, input) {
+  const record = data.progressionOverrides.find((item) => item.id === id) || null;
+  if (!record) return null;
+
+  Object.assign(record, {
+    action: input.action ?? record.action,
+    nextStatus: input.nextStatus ?? record.nextStatus,
+    nextRecommendedNextModuleId: input.nextRecommendedNextModuleId ?? record.nextRecommendedNextModuleId,
+    reason: input.reason ?? record.reason,
+    note: input.note ?? record.note,
+    revokedAt: input.revokedAt !== undefined ? input.revokedAt : record.revokedAt,
+    revokedBy: input.revokedBy !== undefined ? input.revokedBy : record.revokedBy,
+  });
+
+  return commit(record);
+}
+
+function listSessionRepairs() {
+  return data.sessionRepairs;
+}
+
+function createSessionRepair(input) {
+  const record = {
+    id: `session-repair-${data.sessionRepairs.length + 1}`,
+    sessionId: input.sessionId,
+    learnerId: input.learnerId || null,
+    actorName: input.actorName || 'Unknown actor',
+    actorRole: input.actorRole || 'admin',
+    reason: input.reason || '',
+    patch: input.patch && typeof input.patch === 'object' ? { ...input.patch } : {},
+    before: input.before && typeof input.before === 'object' ? { ...input.before } : null,
+    after: input.after && typeof input.after === 'object' ? { ...input.after } : null,
+    createdAt: input.createdAt || new Date().toISOString(),
+  };
+
+  data.sessionRepairs.push(record);
+  return commit(record);
+}
+
+
 function createRewardTransaction(input) {
   const record = {
     id: `reward-${data.rewardTransactions.length + 1}`,
@@ -886,4 +974,9 @@ module.exports = {
   createSessionEventLog,
   listRewardTransactions,
   createRewardTransaction,
+  listProgressionOverrides,
+  createProgressionOverride,
+  updateProgressionOverride,
+  listSessionRepairs,
+  createSessionRepair,
 };

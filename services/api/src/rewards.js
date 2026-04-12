@@ -242,6 +242,48 @@ function awardLessonCompletion({ studentId, lessonId, moduleId, subjectId, revie
   };
 }
 
+
+function buildScopedStudentSet({ cohortId = null, podId = null, mallamId = null } = {}) {
+  return repository
+    .listStudents()
+    .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId));
+}
+
+function buildRewardHistory(studentId, { kind = null, limit = 20 } = {}) {
+  const student = repository.findStudentById(studentId);
+  if (!student) return null;
+
+  const items = repository
+    .listRewardTransactions()
+    .filter((item) => item.studentId === studentId && (!kind || item.kind === kind))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, Math.max(1, Math.min(Number(limit || 20), 100)));
+
+  return {
+    learnerId: studentId,
+    kind,
+    count: items.length,
+    items,
+  };
+}
+
+function buildScopedLeaderboard({ cohortId = null, podId = null, mallamId = null, limit = 10 } = {}) {
+  return buildScopedStudentSet({ cohortId, podId, mallamId })
+    .map((student) => {
+      const snapshot = buildLearnerRewards(student.id);
+      return {
+        learnerId: student.id,
+        learnerName: student.name,
+        cohortId: student.cohortId,
+        podId: student.podId,
+        mallamId: student.mallamId,
+        ...snapshot,
+      };
+    })
+    .sort((a, b) => b.totalXp - a.totalXp || b.badgesUnlocked - a.badgesUnlocked || a.learnerName.localeCompare(b.learnerName))
+    .slice(0, Math.max(1, Math.min(Number(limit || 10), 100)));
+}
+
 function buildRewardsCatalog() {
   return {
     xpRules: XP_RULES,
@@ -292,6 +334,8 @@ module.exports = {
   buildRewardsCatalog,
   buildLearnerRewards,
   buildLeaderboard,
+  buildRewardHistory,
+  buildScopedLeaderboard,
   awardLessonCompletion,
   awardManualReward,
 };
