@@ -10,7 +10,28 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar({ mobileNavOpen = false, onCloseMobileNav }: { mobileNavOpen?: boolean; onCloseMobileNav?: () => void }) {
+function itemMonogram(label: string) {
+  return label
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+type SidebarProps = {
+  mobileNavOpen?: boolean;
+  sidebarCollapsed?: boolean;
+  onCloseMobileNav?: () => void;
+  onToggleSidebarCollapse?: () => void;
+};
+
+export function Sidebar({
+  mobileNavOpen = false,
+  sidebarCollapsed = false,
+  onCloseMobileNav,
+  onToggleSidebarCollapse,
+}: SidebarProps) {
   const pathname = usePathname();
 
   useEffect(() => {
@@ -38,7 +59,8 @@ export function Sidebar({ mobileNavOpen = false, onCloseMobileNav }: { mobileNav
       ) : null}
       <aside
         id="lumo-sidebar"
-        className={`sidebar ${mobileNavOpen ? 'sidebar--open' : ''}`}
+        className={`sidebar ${mobileNavOpen ? 'sidebar--open' : ''} ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`}
+        aria-label="Primary navigation"
         style={{
           minWidth: 0,
           background: 'linear-gradient(180deg, #0f172a 0%, #111827 100%)',
@@ -50,45 +72,75 @@ export function Sidebar({ mobileNavOpen = false, onCloseMobileNav }: { mobileNav
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-          <div>
+          <div className="sidebar__brand-copy">
             <div style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
-            <div style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>Learning operations cockpit for mallams, pods, and pilot delivery.</div>
+            <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
+              Learning operations cockpit for mallams, pods, and pilot delivery.
+            </div>
           </div>
-          <button
-            type="button"
-            className="sidebar__close"
-            onClick={onCloseMobileNav}
-            aria-label="Close navigation menu"
-            style={{
-              border: '1px solid rgba(255,255,255,0.16)',
-              background: 'rgba(255,255,255,0.08)',
-              color: 'white',
-              width: 40,
-              height: 40,
-              borderRadius: 999,
-              cursor: 'pointer',
-              fontSize: 20,
-              fontWeight: 700,
-            }}
-          >
-            ×
-          </button>
+          <div className="sidebar__actions">
+            <button
+              type="button"
+              className="sidebar__collapse-toggle"
+              onClick={onToggleSidebarCollapse}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!sidebarCollapsed}
+              aria-controls="lumo-sidebar"
+              style={{
+                border: '1px solid rgba(255,255,255,0.16)',
+                background: 'rgba(255,255,255,0.08)',
+                color: 'white',
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                cursor: 'pointer',
+                fontSize: 16,
+                fontWeight: 800,
+              }}
+            >
+              {sidebarCollapsed ? '→' : '←'}
+            </button>
+            <button
+              type="button"
+              className="sidebar__close"
+              onClick={onCloseMobileNav}
+              aria-label="Close navigation menu"
+              style={{
+                border: '1px solid rgba(255,255,255,0.16)',
+                background: 'rgba(255,255,255,0.08)',
+                color: 'white',
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                cursor: 'pointer',
+                fontSize: 20,
+                fontWeight: 700,
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
-        <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
+        <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
           <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Live pilot</div>
           <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Kano + Kaduna</div>
-          <div style={{ marginTop: 6, color: '#cbd5e1' }}>Offline-first classroom deployment with shared tablet pods.</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Offline-first classroom deployment with shared tablet pods.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
           {navigationItems.map((item) => {
             const active = isActivePath(pathname, item.href);
+            const monogram = itemMonogram(item.label);
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => onCloseMobileNav?.()}
+                aria-label={sidebarCollapsed ? item.label : undefined}
+                title={sidebarCollapsed ? item.label : undefined}
+                className={`sidebar__nav-link ${sidebarCollapsed ? 'sidebar__nav-link--collapsed' : ''}`}
                 style={{
                   textDecoration: 'none',
                   color: '#e5e7eb',
@@ -100,15 +152,16 @@ export function Sidebar({ mobileNavOpen = false, onCloseMobileNav }: { mobileNav
                   boxShadow: active ? '0 14px 28px rgba(108, 99, 255, 0.28)' : 'none',
                 }}
               >
-                {item.label}
+                <span className="sidebar__nav-icon" aria-hidden="true">{monogram}</span>
+                <span className="sidebar__nav-label">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
-          <div style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise readiness, content release, mallam support, and pod reliability.</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise readiness, content release, mallam support, and pod reliability.</div>
         </div>
       </aside>
       <style jsx>{`
@@ -116,10 +169,82 @@ export function Sidebar({ mobileNavOpen = false, onCloseMobileNav }: { mobileNav
           position: sticky;
           top: 0;
           min-height: 100vh;
+          transition: padding 180ms ease, width 180ms ease;
+          overflow: hidden;
+        }
+
+        .sidebar__actions {
+          display: flex;
+          gap: 8px;
+          flex: 0 0 auto;
+        }
+
+        .sidebar__collapse-toggle,
+        .sidebar__close {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0 0 auto;
         }
 
         .sidebar__close {
           display: none;
+        }
+
+        .sidebar__nav-link {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-height: 52px;
+          transition: background 180ms ease, transform 180ms ease, padding 180ms ease;
+        }
+
+        .sidebar__nav-link:hover {
+          transform: translateX(2px);
+        }
+
+        .sidebar__nav-icon {
+          width: 24px;
+          height: 24px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          background: rgba(255, 255, 255, 0.12);
+          color: #f8fafc;
+          flex: 0 0 auto;
+        }
+
+        .sidebar--collapsed {
+          padding-left: 14px !important;
+          padding-right: 14px !important;
+        }
+
+        .sidebar--collapsed .sidebar__brand-detail,
+        .sidebar--collapsed .sidebar__callout,
+        .sidebar--collapsed .sidebar__footer,
+        .sidebar--collapsed .sidebar__nav-label {
+          display: none;
+        }
+
+        .sidebar--collapsed .sidebar__brand-copy {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+        }
+
+        .sidebar--collapsed .sidebar__nav-link {
+          justify-content: center;
+          padding-left: 10px !important;
+          padding-right: 10px !important;
+        }
+
+        .sidebar--collapsed .sidebar__actions {
+          flex-direction: column;
         }
 
         @media (max-width: 960px) {
@@ -136,17 +261,47 @@ export function Sidebar({ mobileNavOpen = false, onCloseMobileNav }: { mobileNav
             transform: translateX(-105%);
             transition: transform 180ms ease;
             box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+            padding-left: clamp(18px, 3vw, 24px) !important;
+            padding-right: clamp(18px, 3vw, 24px) !important;
+          }
+
+          .sidebar--collapsed .sidebar__brand-detail,
+          .sidebar--collapsed .sidebar__callout,
+          .sidebar--collapsed .sidebar__footer,
+          .sidebar--collapsed .sidebar__nav-label {
+            display: initial;
+          }
+
+          .sidebar--collapsed .sidebar__callout,
+          .sidebar--collapsed .sidebar__footer {
+            display: block;
+          }
+
+          .sidebar--collapsed .sidebar__brand-copy {
+            display: block;
+            width: auto;
+          }
+
+          .sidebar--collapsed .sidebar__nav-link {
+            justify-content: flex-start;
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+          }
+
+          .sidebar--collapsed .sidebar__actions {
+            flex-direction: row;
           }
 
           .sidebar--open {
             transform: translateX(0);
           }
 
+          .sidebar__collapse-toggle {
+            display: none;
+          }
+
           .sidebar__close {
             display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 auto;
           }
         }
       `}</style>
