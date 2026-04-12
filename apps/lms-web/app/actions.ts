@@ -26,6 +26,20 @@ async function apiWrite(path: string, method: string, payload?: Record<string, u
   }
 }
 
+function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
+  const rawValue = formData.get(key);
+
+  if (typeof rawValue !== 'string' || !rawValue.trim()) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(rawValue) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function createAssignmentAction(formData: FormData) {
   const payload = {
     cohortId: String(formData.get('cohortId') || ''),
@@ -287,6 +301,12 @@ export async function createLessonAction(formData: FormData) {
     durationMinutes: Number(formData.get('durationMinutes') || 0),
     mode: String(formData.get('mode') || 'guided'),
     status: String(formData.get('status') || 'draft'),
+    targetAgeRange: String(formData.get('targetAgeRange') || '') || null,
+    voicePersona: String(formData.get('voicePersona') || '') || null,
+    learningObjectives: parseJsonField<string[]>(formData, 'learningObjectives', []),
+    localization: parseJsonField<Record<string, unknown> | null>(formData, 'localization', null),
+    lessonAssessment: parseJsonField<Record<string, unknown> | null>(formData, 'lessonAssessment', null),
+    activitySteps: parseJsonField<Array<Record<string, unknown>>>(formData, 'activitySteps', []),
   };
 
   await apiWrite('/api/v1/lessons', 'POST', payload);

@@ -74,6 +74,45 @@ export function EnglishStudioAuthoringForm({
     durationMinutes: Number(durationMinutes) || 0,
   });
   const recommendedStatus = readiness.readinessScore >= 5 ? 'published' : readiness.readinessScore >= 4 ? 'approved' : readiness.readinessScore >= 3 ? 'review' : 'draft';
+  const learningObjectives = useMemo(() => [objective, `Use ${vocabulary.join(', ')} in supported speaking turns.`], [objective, vocabulary]);
+  const targetAgeRange = activeModule?.level === 'confident' ? '8-11' : activeModule?.level === 'emerging' ? '7-10' : '6-9';
+  const voicePersona = mode === 'group' ? 'discussion-coach-a' : mode === 'independent' ? 'calm-guide-a' : 'friendly-guide-a';
+  const localization = useMemo(() => ({
+    locale: 'en-NG',
+    supportLanguage: 'ha',
+    supportLanguageLabel: 'Hausa',
+    notes: [`Anchor examples in familiar community contexts for ${title.toLowerCase()}.`],
+  }), [title]);
+  const lessonAssessment = useMemo(() => ({
+    title: activeAssessment?.title ?? `${title} quick check`,
+    kind: 'observational',
+    items: [
+      {
+        id: 'spoken-sentence-check',
+        prompt: `Can the learner say one complete sentence about ${title.toLowerCase()}?`,
+        evidence: 'spoken-response',
+      },
+      {
+        id: 'vocabulary-usage-check',
+        prompt: `Can the learner use ${vocabulary[0] ?? 'the target vocabulary'} correctly in context?`,
+        evidence: 'teacher-check',
+      },
+    ],
+  }), [activeAssessment?.title, title, vocabulary]);
+  const activityTypeMap = ['listen_repeat', 'speak_answer', 'word_build', 'image_choice', 'oral_quiz'] as const;
+  const activitySteps = useMemo(() => activities.map((activity, index) => ({
+    id: `english-${index + 1}`,
+    order: index + 1,
+    type: activityTypeMap[index] ?? 'speak_answer',
+    prompt: activity.title,
+    title: activity.title,
+    durationMinutes: Number.parseInt(activity.duration, 10) || 0,
+    detail: activity.detail,
+    evidence: activity.evidence,
+    expectedAnswers: vocabulary,
+    tags: [mode, activeModule?.level ?? 'beginner'],
+    facilitatorNotes: [`Run as ${mode} delivery.`, activeAssessment?.title ? `Keep evidence aligned to ${activeAssessment.title}.` : 'Capture one quick oral evidence point before exit.'],
+  })), [activities, mode, activeAssessment?.title, activeModule?.level, vocabulary]);
 
   const readinessTone = useMemo(() => {
     if (readiness.readinessScore >= 5) return { bg: '#DCFCE7', border: '#86EFAC', text: '#166534' };
@@ -85,6 +124,12 @@ export function EnglishStudioAuthoringForm({
     <form action={action} style={cardStyle}>
       <input type="hidden" name="subjectId" value={englishSubject?.id ?? ''} />
       <input type="hidden" name="returnPath" value="/english" />
+      <input type="hidden" name="targetAgeRange" value={targetAgeRange} />
+      <input type="hidden" name="voicePersona" value={voicePersona} />
+      <input type="hidden" name="learningObjectives" value={JSON.stringify(learningObjectives)} />
+      <input type="hidden" name="localization" value={JSON.stringify(localization)} />
+      <input type="hidden" name="lessonAssessment" value={JSON.stringify(lessonAssessment)} />
+      <input type="hidden" name="activitySteps" value={JSON.stringify(activitySteps)} />
       <h2 style={{ margin: 0 }}>Author English lesson</h2>
       <div style={{ color: '#64748b', lineHeight: 1.6 }}>This is the missing piece: author against a real activity spine, see the readiness signals before publish, then create the lesson without pretending a title-only form is curriculum design.</div>
 

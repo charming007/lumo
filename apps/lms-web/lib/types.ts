@@ -151,6 +151,29 @@ export type CurriculumModule = {
   strandName: string;
 };
 
+export type LessonActivityStep = {
+  id: string;
+  type: string;
+  prompt: string;
+  order?: number;
+  title?: string;
+  durationMinutes?: number;
+  detail?: string;
+  evidence?: string;
+  expectedAnswers?: string[];
+  media?: Array<Record<string, unknown>>;
+  choices?: Array<Record<string, unknown>>;
+  tags?: string[];
+  facilitatorNotes?: string[];
+};
+
+export type LessonAssessmentItem = {
+  id: string;
+  prompt: string;
+  evidence?: string;
+  choices?: Array<Record<string, unknown>>;
+};
+
 export type Lesson = {
   id: string;
   title: string;
@@ -159,6 +182,20 @@ export type Lesson = {
   durationMinutes: number;
   mode: string;
   status: string;
+  targetAgeRange?: string | null;
+  voicePersona?: string | null;
+  learningObjectives?: string[];
+  localization?: Record<string, unknown> | null;
+  lessonAssessment?: {
+    title?: string;
+    kind?: string;
+    items?: LessonAssessmentItem[];
+    [key: string]: unknown;
+  } | null;
+  activityCount?: number;
+  activityTypes?: string[];
+  activitySteps?: LessonActivityStep[];
+  activities?: LessonActivityStep[];
 };
 
 export type Assessment = {
