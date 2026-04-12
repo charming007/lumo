@@ -256,7 +256,10 @@ export function LessonCreateForm({
   duplicateLessonId?: string;
 }) {
   const duplicateLesson = lessons.find((item) => item.id === duplicateLessonId) ?? null;
-  const fallbackSubjectId = initialSubjectId ?? duplicateLesson?.subjectName ? subjects.find((item) => item.name === duplicateLesson?.subjectName)?.id : subjects[0]?.id;
+  const duplicateSubjectId = duplicateLesson?.subjectName
+    ? subjects.find((item) => item.name === duplicateLesson.subjectName)?.id
+    : undefined;
+  const fallbackSubjectId = initialSubjectId ?? duplicateSubjectId ?? subjects[0]?.id;
   const [subjectId, setSubjectId] = useState(String(fallbackSubjectId ?? subjects[0]?.id ?? ''));
   const filteredModules = useMemo(() => {
     const scoped = modules.filter((module) => module.subjectId === subjectId);

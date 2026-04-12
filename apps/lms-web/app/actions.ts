@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { API_BASE } from '../lib/config';
 
-async function apiWrite(path: string, method: string, payload?: Record<string, unknown>, role = 'admin') {
+async function apiWrite<T = void>(path: string, method: string, payload?: Record<string, unknown>, role = 'admin') {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
     'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
@@ -24,6 +24,12 @@ async function apiWrite(path: string, method: string, payload?: Record<string, u
   if (!response.ok) {
     throw new Error(`Failed request: ${path}`);
   }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
 }
 
 function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
@@ -309,10 +315,11 @@ export async function createLessonAction(formData: FormData) {
     activitySteps: parseJsonField<Array<Record<string, unknown>>>(formData, 'activitySteps', []),
   };
 
-  await apiWrite('/api/v1/lessons', 'POST', payload);
+  const lesson = await apiWrite<{ id: string }>('/api/v1/lessons', 'POST', payload);
   revalidatePath('/content');
   revalidatePath('/english');
-  redirect(`${returnPath}?message=Lesson%20created%20with%20updated%20metadata%20context`);
+  revalidatePath(`/content/lessons/${lesson.id}`);
+  redirect(`/content/lessons/${lesson.id}?message=Lesson%20created.%20Keep%20authoring%20or%20ship%20it%20when%20ready.&from=${encodeURIComponent(returnPath)}`);
 }
 
 export async function updateLessonAction(formData: FormData) {
