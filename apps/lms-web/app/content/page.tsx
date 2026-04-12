@@ -61,8 +61,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       const palette = subjectPalette[subject.id] || subjectPalette.english;
       const subjectStrands = strands.filter((strand) => strand.subjectId === subject.id);
       const subjectModules = modules.filter((module) => module.subjectId === subject.id);
-      const subjectLessons = lessons.filter((lesson) => lesson.subjectName === subject.name);
-      const subjectAssessments = assessments.filter((assessment) => assessment.subjectName === subject.name);
+      const subjectLessons = lessons.filter((lesson) => lesson.subjectId === subject.id || lesson.subjectName === subject.name);
+      const subjectAssessments = assessments.filter((assessment) => assessment.subjectId === subject.id || assessment.subjectName === subject.name);
       const publishedModules = subjectModules.filter((module) => module.status === 'published').length;
       const readyLessons = subjectLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
 
@@ -90,7 +90,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
   const assessmentLinkedModuleIds = new Set(assessments.map((assessment) => assessment.moduleId).filter(Boolean));
   const blockedModules = modules.filter((module) => {
-    const moduleLessons = lessons.filter((lesson) => lesson.moduleTitle === module.title);
+    const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
     const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
     return readyLessonCount < module.lessonCount || !assessmentLinkedModuleIds.has(module.id);
   });
@@ -193,8 +193,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <Card key={group.key} title={group.strandName} eyebrow={group.subjectName || 'Curriculum strand'}>
             <div style={{ display: 'grid', gap: 14 }}>
               {group.modules.map((module) => {
-                const moduleLessons = lessons.filter((lesson) => lesson.moduleTitle === module.title);
-                const moduleAssessments = assessments.filter((assessment) => assessment.moduleTitle === module.title);
+                const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+                const moduleAssessments = assessments.filter((assessment) => assessment.moduleId === module.id || assessment.moduleTitle === module.title);
                 const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                 const pill = statusPill(module.status);
 
@@ -293,7 +293,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <SimpleTable
             columns={['Module', 'Subject', 'Gap', 'Release risk']}
             rows={blockedModules.map((module) => {
-              const moduleLessons = lessons.filter((lesson) => lesson.moduleTitle === module.title);
+              const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
               const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
               const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
               const hasAssessment = assessmentLinkedModuleIds.has(module.id);

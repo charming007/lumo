@@ -129,8 +129,8 @@ export function LessonEditorForm({
   action: (formData: FormData) => void;
   returnPath?: string;
 }) {
-  const [subjectId, setSubjectId] = useState(lesson.subjectName ? subjects.find((item) => item.name === lesson.subjectName)?.id ?? subjects[0]?.id ?? '' : subjects[0]?.id ?? '');
-  const [moduleId, setModuleId] = useState(modules.find((item) => item.title === lesson.moduleTitle)?.id ?? modules[0]?.id ?? '');
+  const [subjectId, setSubjectId] = useState(lesson.subjectId ?? (lesson.subjectName ? subjects.find((item) => item.name === lesson.subjectName)?.id ?? subjects[0]?.id ?? '' : subjects[0]?.id ?? ''));
+  const [moduleId, setModuleId] = useState(lesson.moduleId ?? modules.find((item) => item.title === lesson.moduleTitle)?.id ?? modules[0]?.id ?? '');
   const [title, setTitle] = useState(lesson.title);
   const [durationMinutes, setDurationMinutes] = useState(String(lesson.durationMinutes));
   const [mode, setMode] = useState(lesson.mode);

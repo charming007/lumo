@@ -152,11 +152,11 @@ export function buildEnglishLessonBlueprints({
 }): EnglishLessonBlueprint[] {
   const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
   const englishLessons = lessons.filter(
-    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => module.title === lesson.moduleTitle),
+    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle),
   );
 
   return englishLessons.map((lesson) => {
-    const module = englishModules.find((item) => item.title === lesson.moduleTitle);
+    const module = englishModules.find((item) => item.id === lesson.moduleId || item.title === lesson.moduleTitle);
     const linkedAssessment = assessments.find((assessment) => assessment.moduleId === module?.id || assessment.moduleTitle === lesson.moduleTitle) ?? null;
     const vocabularyFocus = inferVocabulary(lesson.title);
     const release = releaseMeta(lesson.status);
@@ -205,7 +205,9 @@ export function buildEnglishOpsSummary({
   assignments: Assignment[];
 }) {
   const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
-  const englishLessons = lessons.filter((lesson) => lesson.subjectName?.toLowerCase().includes('english'));
+  const englishLessons = lessons.filter(
+    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle),
+  );
   const englishAssignments = assignments.filter((assignment) =>
     englishLessons.some((lesson) => lesson.title === assignment.lessonTitle) || assignment.lessonTitle.toLowerCase().includes('english'),
   );
@@ -218,7 +220,7 @@ export function buildEnglishOpsSummary({
     publishedLessons: englishLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length,
     liveAssignments: englishAssignments.length,
     modulesMissingLessons: englishModules.filter((module) => {
-      const count = englishLessons.filter((lesson) => lesson.moduleTitle === module.title).length;
+      const count = englishLessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title).length;
       return count < module.lessonCount;
     }).length,
     lessonsInReview: englishLessons.filter((lesson) => lesson.status === 'review').length,
