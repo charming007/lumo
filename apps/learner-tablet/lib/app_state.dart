@@ -933,13 +933,14 @@ class LumoAppState {
   void attachLearnerAudioCapture({
     required String path,
     required Duration duration,
+    String? audioInputMode,
   }) {
     final session = activeSession;
     if (session == null) return;
 
     final seconds = duration.inSeconds <= 0 ? 1 : duration.inSeconds;
     activeSession = session.copyWith(
-      audioInputMode: 'Shared mic on tablet',
+      audioInputMode: audioInputMode ?? 'Shared mic on tablet',
       totalAudioCaptures: session.totalAudioCaptures + 1,
       latestLearnerAudioPath: path,
       latestLearnerAudioDuration: duration,

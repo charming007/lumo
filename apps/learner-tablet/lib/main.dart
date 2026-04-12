@@ -2470,6 +2470,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   late final AudioCaptureService audioCaptureService;
   late final SpeechTranscriptionService speechTranscriptionService;
   Timer? recordingTicker;
+  Timer? _speechAutoStopDebounce;
   bool isRecording = false;
   bool isAutoMode = true;
   bool isSpeaking = false;
@@ -2481,7 +2482,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   bool transcriptCapturedThisTake = false;
   bool transcriptReviewPending = false;
   bool _promptedCurrentStep = false;
+  bool _resumedSession = false;
   String _latestFinalTranscript = '';
+  String _recordingModeLabel = 'Standard recorder';
 
   @override
   void initState() {
@@ -2489,6 +2492,21 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     responseController = TextEditingController();
     audioCaptureService = AudioCaptureService();
     speechTranscriptionService = SpeechTranscriptionService();
+
+    final session = widget.state.activeSession;
+    if (session != null) {
+      responseController.text = session.latestLearnerResponse ?? '';
+      _latestFinalTranscript = session.latestLearnerResponse ?? '';
+      _resumedSession = session.totalResponses > 0 || session.stepIndex > 0;
+      if (session.latestLearnerResponse != null &&
+          session.latestLearnerResponse!.trim().isNotEmpty) {
+        liveTranscript = session.latestLearnerResponse!.trim();
+      }
+      microphoneStatus = _resumedSession
+          ? 'Resumed ${widget.lesson.title} at step ${session.stepIndex + 1}. ${session.automationStatus}'
+          : session.automationStatus;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakCurrentStepIfNeeded(force: true);
     });
@@ -2497,10 +2515,40 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   @override
   void dispose() {
     recordingTicker?.cancel();
+    _speechAutoStopDebounce?.cancel();
     speechTranscriptionService.cancel();
     audioCaptureService.dispose();
     responseController.dispose();
     super.dispose();
+  }
+
+  void _handleSpeechStatus(String status) {
+    if (!mounted) return;
+    final normalized = status.toLowerCase();
+    final listening = normalized.contains('listening');
+    if (listening) {
+      _speechAutoStopDebounce?.cancel();
+    }
+
+    if (!isRecording) return;
+    if (!listening && transcriptCapturedThisTake) {
+      _speechAutoStopDebounce?.cancel();
+      _speechAutoStopDebounce =
+          Timer(const Duration(milliseconds: 700), () async {
+        if (!mounted || !isRecording || !transcriptCapturedThisTake) return;
+        await stopRecording();
+      });
+    }
+  }
+
+  String _buildFallbackCaptureStatus({
+    required String audioMessage,
+    required bool speechReady,
+  }) {
+    if (speechReady) {
+      return audioMessage;
+    }
+    return '$audioMessage ${speechTranscriptionService.availabilityLabel}';
   }
 
   Future<void> _speakCurrentStepIfNeeded({bool force = false}) async {
@@ -2510,12 +2558,15 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     _promptedCurrentStep = true;
     final prompt =
         widget.state.personalizePrompt(session.currentStep.coachPrompt);
+    final readyMessage = _resumedSession
+        ? 'Mallam has resumed this step. The mic will reopen for the learner now.'
+        : 'Mallam finished speaking. Start recording and let the learner answer now.';
     await _speakAndMaybeAutoRecord(
       prompt,
       mode: SpeakerMode.guiding,
-      autoReadyMessage:
-          'Mallam finished speaking. Start recording and let the learner answer now.',
+      autoReadyMessage: readyMessage,
     );
+    _resumedSession = false;
   }
 
   Future<void> _prepareForMallamSpeech() async {
@@ -2926,6 +2977,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
       await widget.state.stopVoiceReplay();
       await speechTranscriptionService.cancel();
+      _speechAutoStopDebounce?.cancel();
       transcriptCapturedThisTake = false;
       liveTranscript = '';
       _latestFinalTranscript = '';
@@ -2938,6 +2990,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         throw AudioCaptureException(
             audioStarted.message ?? 'Unable to start microphone capture.');
       }
+      _recordingModeLabel = audioStarted.recordingModeLabel;
 
       final speechReady = await speechTranscriptionService.start(
         onResult: (transcript, isFinal) {
@@ -2953,6 +3006,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                 cleaned.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').length >= 2;
           });
         },
+        onStatus: _handleSpeechStatus,
       );
 
       recordingTicker?.cancel();
@@ -2964,16 +3018,18 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         });
       });
 
-      widget.state.setAudioInputMode('Shared mic on tablet');
+      widget.state.setAudioInputMode(speechReady
+          ? 'Shared mic on tablet • live transcript active'
+          : 'Shared mic on tablet • audio-only fallback');
       widget.onChanged();
       setState(() {
         isRecording = true;
         speechRecognitionActive = speechReady;
-        microphoneStatus = speechReady
-            ? 'Recording learner voice and listening for transcript...'
-            : (audioStarted.message ??
-                speechTranscriptionService.lastError ??
-                'Recording learner voice only. Speech recognition is unavailable right now.');
+        microphoneStatus = _buildFallbackCaptureStatus(
+          audioMessage:
+              'Recording learner voice with $_recordingModeLabel${audioStarted.message == null ? '' : '. ${audioStarted.message}'}',
+          speechReady: speechReady,
+        );
       });
     } catch (error) {
       await speechTranscriptionService.cancel();
@@ -2989,12 +3045,14 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   }
 
   Future<void> stopRecording({bool markReadyForResume = true}) async {
+    _speechAutoStopDebounce?.cancel();
     recordingTicker?.cancel();
     await speechTranscriptionService.stop();
     final transcript = (_latestFinalTranscript.isNotEmpty
             ? _latestFinalTranscript
             : liveTranscript)
         .trim();
+    final wasSpeechRecognitionActive = speechRecognitionActive;
     final result = await audioCaptureService.stop();
     if (!mounted) return;
 
@@ -3013,6 +3071,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     widget.state.attachLearnerAudioCapture(
       path: result.path,
       duration: result.duration,
+      audioInputMode: wasSpeechRecognitionActive
+          ? 'Shared mic on tablet • live transcript active'
+          : 'Shared mic on tablet • audio-only fallback',
     );
 
     if (transcript.isNotEmpty) {
@@ -3024,8 +3085,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     setState(() {
       currentRecordingDuration = result.duration;
       final savedLabel = transcript.isNotEmpty
-          ? 'Learner voice saved (${formatDuration(result.duration)}).'
-          : 'Learner voice saved (${formatDuration(result.duration)}). No transcript was detected.';
+          ? 'Learner voice saved (${formatDuration(result.duration)}). Transcript captured.'
+          : 'Learner voice saved (${formatDuration(result.duration)}). No transcript was detected, so the app kept the audio and is ready for a manual check.';
       microphoneStatus = markReadyForResume && !transcriptReviewPending
           ? '$savedLabel Ready for Mallam or the next learner attempt.'
           : savedLabel;
@@ -3293,6 +3354,78 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                 ),
                               ),
                               const SizedBox(height: 16),
+                              if (_resumedSession ||
+                                  session.latestLearnerAudioPath != null ||
+                                  session.latestLearnerResponse != null) ...[
+                                SoftPanel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Resume continuity',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        session.latestLearnerResponse != null &&
+                                                session.latestLearnerResponse!
+                                                    .trim()
+                                                    .isNotEmpty
+                                            ? 'Last captured learner answer: ${session.latestLearnerResponse}'
+                                            : 'This lesson can continue from the saved step even when transcript help drops out.',
+                                        style: const TextStyle(
+                                          color: Color(0xFF475569),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          if (session.latestLearnerResponse !=
+                                                  null &&
+                                              session.latestLearnerResponse!
+                                                  .trim()
+                                                  .isNotEmpty)
+                                            FilledButton.tonalIcon(
+                                              onPressed: () =>
+                                                  _setResponseAndMaybeSubmit(
+                                                session.latestLearnerResponse!,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.restore_rounded,
+                                              ),
+                                              label: const Text(
+                                                'Reuse last answer',
+                                              ),
+                                            ),
+                                          if (session.latestLearnerAudioPath !=
+                                              null)
+                                            OutlinedButton.icon(
+                                              onPressed: () {
+                                                setState(() {
+                                                  microphoneStatus =
+                                                      'Saved learner audio is still attached. You can record again, type the answer, or keep going manually.';
+                                                });
+                                              },
+                                              icon: const Icon(
+                                                Icons.library_music_rounded,
+                                              ),
+                                              label: const Text(
+                                                'Keep saved audio',
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
                               _CoachActionsRow(
                                 onReplay: () async {
                                   _promptedCurrentStep = false;
@@ -3310,6 +3443,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                               const SizedBox(height: 16),
                               TextField(
                                 controller: responseController,
+                                onChanged: (_) => setState(() {}),
                                 decoration: const InputDecoration(
                                   labelText: 'Learner response',
                                   hintText:
@@ -3460,6 +3594,26 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                           ),
                                           label: const Text('Stop and save'),
                                         ),
+                                        OutlinedButton.icon(
+                                          onPressed: isRecording
+                                              ? null
+                                              : () async {
+                                                  await speechTranscriptionService
+                                                      .initialize(
+                                                    forceRetry: true,
+                                                  );
+                                                  if (!mounted) return;
+                                                  setState(() {
+                                                    microphoneStatus =
+                                                        speechTranscriptionService
+                                                            .availabilityLabel;
+                                                  });
+                                                },
+                                          icon: const Icon(
+                                            Icons.refresh_rounded,
+                                          ),
+                                          label: const Text('Retry transcript'),
+                                        ),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 12,
@@ -3491,6 +3645,80 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                         ),
                                       ],
                                     ),
+                                    if (!speechRecognitionActive &&
+                                        !isRecording) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFFBEB),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: const Color(0xFFFCD34D),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Audio fallback recovery',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFF78350F),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              speechTranscriptionService
+                                                  .availabilityLabel,
+                                              style: const TextStyle(
+                                                color: Color(0xFF92400E),
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                FilledButton.tonalIcon(
+                                                  onPressed: responseController
+                                                          .text
+                                                          .trim()
+                                                          .isEmpty
+                                                      ? null
+                                                      : () =>
+                                                          _handleSubmittedResponse(
+                                                            responseController
+                                                                .text,
+                                                          ),
+                                                  icon: const Icon(
+                                                    Icons.check_circle_rounded,
+                                                  ),
+                                                  label: const Text(
+                                                    'Submit typed answer',
+                                                  ),
+                                                ),
+                                                OutlinedButton.icon(
+                                                  onPressed: () =>
+                                                      _runCoachSupport('model'),
+                                                  icon: const Icon(
+                                                    Icons
+                                                        .record_voice_over_rounded,
+                                                  ),
+                                                  label: const Text(
+                                                    'Play model answer',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     if (liveTranscript.isNotEmpty ||
                                         speechRecognitionActive) ...[
                                       const SizedBox(height: 12),

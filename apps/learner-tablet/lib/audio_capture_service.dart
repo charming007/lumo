@@ -15,8 +15,13 @@ class AudioCaptureResult {
 class AudioStartResult {
   final bool started;
   final String? message;
+  final String recordingModeLabel;
 
-  const AudioStartResult({required this.started, this.message});
+  const AudioStartResult({
+    required this.started,
+    this.message,
+    this.recordingModeLabel = 'Standard recorder',
+  });
 }
 
 class AudioCaptureService {
@@ -76,7 +81,13 @@ class AudioCaptureService {
         );
         await _recorder.start(attempt.config, path: filePath);
         _recordingStartedAt = DateTime.now();
-        return AudioStartResult(started: true, message: attempt.note);
+        return AudioStartResult(
+          started: true,
+          message: attempt.note,
+          recordingModeLabel: attempt.extension == 'wav'
+              ? 'Fallback WAV recorder'
+              : 'Primary AAC recorder',
+        );
       } catch (error) {
         lastError = error;
       }
