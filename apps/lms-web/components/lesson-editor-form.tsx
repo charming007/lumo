@@ -62,6 +62,10 @@ function safeStringify(value: unknown) {
   return JSON.stringify(value);
 }
 
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
 function parseActivityChoices(choiceLines: string) {
   return choiceLines
     .split('\n')
@@ -137,20 +141,20 @@ export function LessonEditorForm({
   const [status, setStatus] = useState(lesson.status);
   const [targetAgeRange, setTargetAgeRange] = useState(lesson.targetAgeRange ?? '');
   const [voicePersona, setVoicePersona] = useState(lesson.voicePersona ?? '');
-  const [learningObjectivesText, setLearningObjectivesText] = useState((lesson.learningObjectives ?? []).join('\n'));
+  const [learningObjectivesText, setLearningObjectivesText] = useState(asArray<string>(lesson.learningObjectives).join('\n'));
   const [supportLanguage, setSupportLanguage] = useState(String(lesson.localization?.supportLanguage ?? 'ha'));
   const [supportLanguageLabel, setSupportLanguageLabel] = useState(String(lesson.localization?.supportLanguageLabel ?? 'Hausa'));
-  const [localizationNotesText, setLocalizationNotesText] = useState(Array.isArray(lesson.localization?.notes) ? (lesson.localization?.notes as string[]).join('\n') : '');
+  const [localizationNotesText, setLocalizationNotesText] = useState(asArray<string>(lesson.localization?.notes).join('\n'));
   const [assessmentTitle, setAssessmentTitle] = useState(String(lesson.lessonAssessment?.title ?? ''));
   const [assessmentKind, setAssessmentKind] = useState(String(lesson.lessonAssessment?.kind ?? 'observational'));
   const [assessmentItemsText, setAssessmentItemsText] = useState(
-    (lesson.lessonAssessment?.items ?? [])
-      .map((item) => `${item.prompt}|${item.evidence ?? 'teacher-check'}`)
+    asArray<{ prompt?: string; evidence?: string }>(lesson.lessonAssessment?.items)
+      .map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`)
       .join('\n'),
   );
   const [activityDrafts, setActivityDrafts] = useState(
-    (lesson.activitySteps ?? lesson.activities ?? []).length > 0
-      ? (lesson.activitySteps ?? lesson.activities ?? []).map((step, index) => ({
+    asArray<any>(lesson.activitySteps ?? lesson.activities).length > 0
+      ? asArray<any>(lesson.activitySteps ?? lesson.activities).map((step, index) => ({
           id: step.id || `activity-${index + 1}`,
           title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
           prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
@@ -158,17 +162,17 @@ export function LessonEditorForm({
           durationMinutes: String(step.durationMinutes ?? 2),
           detail: step.detail ?? '',
           evidence: step.evidence ?? '',
-          expectedAnswers: (step.expectedAnswers ?? []).join(', '),
-          tags: (step.tags ?? []).join(', '),
-          facilitatorNotes: (step.facilitatorNotes ?? []).join('\n'),
-          choiceLines: (step.choices ?? []).map((choice, choiceIndex) => {
+          expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
+          tags: asArray<string>(step.tags).join(', '),
+          facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
+          choiceLines: asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: { kind?: unknown; value?: unknown } | null }>(step.choices).map((choice, choiceIndex) => {
             const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
             const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
               ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
               : '';
             return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
           }).join('\n'),
-          mediaLines: (step.media ?? []).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
+          mediaLines: asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
         }))
       : [makeActivityDraft(0)],
   );

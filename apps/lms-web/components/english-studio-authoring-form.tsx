@@ -327,7 +327,7 @@ export function EnglishStudioAuthoringForm({
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button type="button" onClick={regenerateFromBlueprint} style={ghostButtonStyle}>Reset spine from generator</button>
-          <Link href={`/content/lessons/new?subjectId=${englishSubject?.id ?? ''}&moduleId=${moduleId}`} style={{ ...ghostButtonStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+          <Link href={`/content/lessons/new?subjectId=${englishSubject?.id ?? ''}&moduleId=${moduleId}&from=%2Fenglish`} style={{ ...ghostButtonStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Open full lesson studio
           </Link>
         </div>

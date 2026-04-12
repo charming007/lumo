@@ -125,10 +125,10 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
                 <Pill label={topBlueprint.mode} tone="#ECFDF5" text="#166534" />
                 <Pill label={topBlueprint.releaseLabel} tone={releaseTone(topBlueprint.releaseLabel).tone} text={releaseTone(topBlueprint.releaseLabel).text} />
                 <Pill label={`${topBlueprint.readinessScore}/5 checks`} tone={readinessTone(topBlueprint.readinessScore).tone} text={readinessTone(topBlueprint.readinessScore).text} />
-                <Link href={`/content/lessons/${topBlueprint.lessonId}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#EEF2FF', color: '#3730A3', fontWeight: 700, textDecoration: 'none' }}>
+                <Link href={`/content/lessons/${topBlueprint.lessonId}?from=%2Fenglish`} style={{ borderRadius: 999, padding: '8px 12px', background: '#EEF2FF', color: '#3730A3', fontWeight: 700, textDecoration: 'none' }}>
                   Edit full lesson
                 </Link>
-                <Link href={`/content/lessons/new?duplicate=${topBlueprint.lessonId}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#F5F3FF', color: '#6D28D9', fontWeight: 700, textDecoration: 'none' }}>
+                <Link href={`/content/lessons/new?duplicate=${topBlueprint.lessonId}&from=%2Fenglish`} style={{ borderRadius: 999, padding: '8px 12px', background: '#F5F3FF', color: '#6D28D9', fontWeight: 700, textDecoration: 'none' }}>
                   Duplicate pack
                 </Link>
               </div>
@@ -256,10 +256,10 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
                       <Pill label={blueprint.level} tone="#EEF2FF" text="#3730A3" />
                       <Pill label={blueprint.status} tone={statusTone(blueprint.status).tone} text={statusTone(blueprint.status).text} />
                       <Pill label={`${blueprint.readinessScore}/5 checks`} tone={readinessTone(blueprint.readinessScore).tone} text={readinessTone(blueprint.readinessScore).text} />
-                      <Link href={`/content/lessons/${blueprint.lessonId}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#EEF2FF', color: '#3730A3', fontWeight: 700, textDecoration: 'none' }}>
+                      <Link href={`/content/lessons/${blueprint.lessonId}?from=%2Fenglish`} style={{ borderRadius: 999, padding: '8px 12px', background: '#EEF2FF', color: '#3730A3', fontWeight: 700, textDecoration: 'none' }}>
                         Open editor
                       </Link>
-                      <Link href={`/content/lessons/new?duplicate=${blueprint.lessonId}`} style={{ borderRadius: 999, padding: '8px 12px', background: '#F5F3FF', color: '#6D28D9', fontWeight: 700, textDecoration: 'none' }}>
+                      <Link href={`/content/lessons/new?duplicate=${blueprint.lessonId}&from=%2Fenglish`} style={{ borderRadius: 999, padding: '8px 12px', background: '#F5F3FF', color: '#6D28D9', fontWeight: 700, textDecoration: 'none' }}>
                         Duplicate
                       </Link>
                     </div>

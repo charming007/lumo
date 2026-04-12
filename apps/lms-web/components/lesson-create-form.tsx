@@ -62,6 +62,10 @@ function safeStringify(value: unknown) {
   return JSON.stringify(value);
 }
 
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
 function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}): ActivityDraft {
   return {
     id: `activity-${Date.now()}-${index + 1}`,
@@ -215,7 +219,7 @@ function parseActivityMedia(mediaLines: string) {
 function buildDraftsFromLesson(lesson?: Lesson | null) {
   if (!lesson) return [makeActivityDraft(0)];
 
-  const source = (lesson.activitySteps ?? lesson.activities ?? []);
+  const source = asArray<any>(lesson.activitySteps ?? lesson.activities);
   if (!source.length) return [makeActivityDraft(0)];
 
   return source.map((step, index) => makeActivityDraft(index, {
@@ -226,15 +230,15 @@ function buildDraftsFromLesson(lesson?: Lesson | null) {
     durationMinutes: String(step.durationMinutes ?? 2),
     detail: step.detail ?? '',
     evidence: step.evidence ?? '',
-    expectedAnswers: (step.expectedAnswers ?? []).join(', '),
-    tags: (step.tags ?? []).join(', '),
-    facilitatorNotes: (step.facilitatorNotes ?? []).join('\n'),
-    choiceLines: (step.choices ?? []).map((choice: any, choiceIndex: number) => {
+    expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
+    tags: asArray<string>(step.tags).join(', '),
+    facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
+    choiceLines: asArray<any>(step.choices).map((choice: any, choiceIndex: number) => {
       const mediaKind = choice?.media?.kind ? `|${choice.media.kind}` : '';
       const mediaValue = choice?.media?.value !== undefined ? `|${Array.isArray(choice.media.value) ? choice.media.value.join(', ') : String(choice.media.value)}` : '';
       return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
     }).join('\n'),
-    mediaLines: (step.media ?? []).map((item: any) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
+    mediaLines: asArray<any>(step.media).map((item: any) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
   }));
 }
 
@@ -276,13 +280,13 @@ export function LessonCreateForm({
   const [status, setStatus] = useState('draft');
   const [targetAgeRange, setTargetAgeRange] = useState(String(duplicateLesson?.targetAgeRange ?? '7-10'));
   const [voicePersona, setVoicePersona] = useState(String(duplicateLesson?.voicePersona ?? 'friendly-guide-a'));
-  const [learningObjectivesText, setLearningObjectivesText] = useState((duplicateLesson?.learningObjectives ?? []).join('\n'));
+  const [learningObjectivesText, setLearningObjectivesText] = useState(asArray<string>(duplicateLesson?.learningObjectives).join('\n'));
   const [supportLanguage, setSupportLanguage] = useState(String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguage ?? 'ha'));
   const [supportLanguageLabel, setSupportLanguageLabel] = useState(String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguageLabel ?? 'Hausa'));
-  const [localizationNotesText, setLocalizationNotesText] = useState(Array.isArray((duplicateLesson?.localization as Record<string, unknown> | null)?.notes) ? (((duplicateLesson?.localization as Record<string, unknown>).notes as string[]).join('\n')) : '');
+  const [localizationNotesText, setLocalizationNotesText] = useState(asArray<string>((duplicateLesson?.localization as Record<string, unknown> | null)?.notes).join('\n'));
   const [assessmentTitle, setAssessmentTitle] = useState(String(duplicateLesson?.lessonAssessment?.title ?? ''));
   const [assessmentKind, setAssessmentKind] = useState(String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'));
-  const [assessmentItemsText, setAssessmentItemsText] = useState((duplicateLesson?.lessonAssessment?.items ?? []).map((item) => `${item.prompt}|${item.evidence ?? 'teacher-check'}`).join('\n'));
+  const [assessmentItemsText, setAssessmentItemsText] = useState(asArray<{ prompt?: string; evidence?: string }>(duplicateLesson?.lessonAssessment?.items).map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`).join('\n'));
   const [activityDrafts, setActivityDrafts] = useState(buildDraftsFromLesson(duplicateLesson));
 
   const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0] ?? modules[0];
