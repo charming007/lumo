@@ -152,6 +152,13 @@ function buildLearnerLessons() {
     .map(presenters.presentLearnerLesson);
 }
 
+function buildLearnerAssessments() {
+  return store
+    .listAssessments()
+    .filter((assessment) => assessment.status === 'active')
+    .map(presenters.presentAssessment);
+}
+
 function buildLearnerAppBootstrap() {
   const learners = store.listStudents().map(presenters.presentLearnerProfile);
   const modules = store
@@ -160,6 +167,7 @@ function buildLearnerAppBootstrap() {
     .map(presenters.presentLearnerModule);
   const lessons = buildLearnerLessons();
   const assignments = buildLearnerAssignmentIndex();
+  const assessments = buildLearnerAssessments();
   const lastSync = store.listSyncEvents().slice(-1)[0] || null;
 
   return {
@@ -168,6 +176,7 @@ function buildLearnerAppBootstrap() {
     lessons,
     assignments,
     assignmentPacks: assignments,
+    assessments,
     registrationContext: buildRegistrationContext(),
     sync: {
       acceptedEventCount: store.listSyncEvents().length,
@@ -180,9 +189,10 @@ function buildLearnerAppBootstrap() {
       lessonCount: lessons.length,
       assignmentCount: assignments.length,
       assignmentPackCount: assignments.length,
+      assessmentCount: assessments.length,
       generatedAt: new Date().toISOString(),
-      contractVersion: 'learner-app-v2.1',
-      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert'],
+      contractVersion: 'learner-app-v2.2',
+      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'lesson-localization', 'assessment-packs'],
     },
   };
 }
@@ -341,7 +351,7 @@ function syncLearnerAppEvents(events = [], options = {}) {
     syncedAt: new Date().toISOString(),
     batchId,
     cursor: store.listSyncEvents().slice(-1)[0]?.id ?? null,
-    contractVersion: 'learner-app-v2.1',
+    contractVersion: 'learner-app-v2.2',
   };
 }
 
@@ -442,6 +452,25 @@ app.get('/api/v1/learner-app/assignment-packs', (_req, res) => {
   });
 });
 
+app.get('/api/v1/learner-app/assessments', (_req, res) => {
+  res.json({
+    items: buildLearnerAssessments(),
+    generatedAt: new Date().toISOString(),
+  });
+});
+
+app.get('/api/v1/learner-app/lessons/:id', (req, res) => {
+  const lesson = store
+    .listLessons()
+    .find((entry) => entry.id === req.params.id);
+
+  if (!lesson) {
+    return res.status(404).json({ message: 'Lesson not found' });
+  }
+
+  return res.json(presenters.presentLearnerLesson(lesson));
+});
+
 app.get('/api/v1/learner-app/modules/:id', (req, res) => {
   const sourceModule = store
     .listModules()
@@ -464,11 +493,15 @@ app.get('/api/v1/learner-app/modules/:id', (req, res) => {
       assignment.lessonPack?.curriculumModuleId === sourceModule.id ||
       assignment.lessonPack?.moduleKey === module.id,
   );
+  const assessments = buildLearnerAssessments().filter(
+    (assessment) => assessment.moduleId === sourceModule.id,
+  );
 
   return res.json({
     ...module,
     lessons,
     assignmentPacks,
+    assessments,
   });
 });
 

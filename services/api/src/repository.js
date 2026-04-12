@@ -1,5 +1,20 @@
 const data = require('./data');
 
+function cloneActivitySteps(input = []) {
+  return (input || []).map((step, index) => ({
+    order: step.order !== undefined ? Number(step.order) : index + 1,
+    ...step,
+    media: Array.isArray(step.media) ? step.media.map((item) => ({ ...item })) : [],
+    choices: Array.isArray(step.choices) ? step.choices.map((item) => ({ ...item })) : [],
+    expectedAnswers: Array.isArray(step.expectedAnswers) ? [...step.expectedAnswers] : [],
+    tags: Array.isArray(step.tags) ? [...step.tags] : [],
+  }));
+}
+
+function normalizeLessonActivities(input = {}) {
+  return cloneActivitySteps(input.activitySteps ?? input.activities ?? []);
+}
+
 function listCenters() {
   return data.centers;
 }
@@ -389,6 +404,14 @@ function createLesson(input) {
     durationMinutes: Number(input.durationMinutes || 0),
     mode: input.mode || 'guided',
     status: input.status || 'draft',
+    targetAgeRange: input.targetAgeRange || null,
+    voicePersona: input.voicePersona || null,
+    learningObjectives: Array.isArray(input.learningObjectives) ? [...input.learningObjectives] : [],
+    localization: input.localization && typeof input.localization === 'object' ? { ...input.localization } : null,
+    lessonAssessment: input.lessonAssessment && typeof input.lessonAssessment === 'object'
+      ? { ...input.lessonAssessment, items: Array.isArray(input.lessonAssessment.items) ? input.lessonAssessment.items.map((item) => ({ ...item })) : [] }
+      : null,
+    activitySteps: normalizeLessonActivities(input),
   };
 
   data.lessons.push(lesson);
@@ -409,6 +432,25 @@ function updateLesson(id, input) {
     durationMinutes: input.durationMinutes !== undefined ? Number(input.durationMinutes) : lesson.durationMinutes,
     mode: input.mode ?? lesson.mode,
     status: input.status ?? lesson.status,
+    targetAgeRange: input.targetAgeRange ?? lesson.targetAgeRange ?? null,
+    voicePersona: input.voicePersona ?? lesson.voicePersona ?? null,
+    learningObjectives: input.learningObjectives ?? lesson.learningObjectives ?? [],
+    localization: input.localization !== undefined
+      ? (input.localization && typeof input.localization === 'object' ? { ...input.localization } : null)
+      : lesson.localization ?? null,
+    lessonAssessment: input.lessonAssessment !== undefined
+      ? (input.lessonAssessment && typeof input.lessonAssessment === 'object'
+        ? {
+            ...input.lessonAssessment,
+            items: Array.isArray(input.lessonAssessment.items)
+              ? input.lessonAssessment.items.map((item) => ({ ...item }))
+              : [],
+          }
+        : null)
+      : lesson.lessonAssessment ?? null,
+    activitySteps: input.activitySteps !== undefined || input.activities !== undefined
+      ? normalizeLessonActivities(input)
+      : lesson.activitySteps ?? normalizeLessonActivities(lesson),
   });
 
   return lesson;
@@ -447,6 +489,7 @@ function createAssessment(input) {
     progressionGate: input.progressionGate || 'foundation-a',
     passingScore: Number(input.passingScore || 0.6),
     status: input.status || 'draft',
+    items: Array.isArray(input.items) ? input.items.map((item) => ({ ...item })) : [],
   };
 
   data.assessments.push(assessment);
@@ -470,6 +513,9 @@ function updateAssessment(id, input) {
     progressionGate: input.progressionGate ?? assessment.progressionGate,
     passingScore: input.passingScore !== undefined ? Number(input.passingScore) : assessment.passingScore,
     status: input.status ?? assessment.status,
+    items: input.items !== undefined
+      ? (Array.isArray(input.items) ? input.items.map((item) => ({ ...item })) : [])
+      : assessment.items ?? [],
   });
 
   return assessment;

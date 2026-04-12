@@ -26,6 +26,69 @@ function buildLearnerCode(student, cohort) {
   return `${prefix}-${cohortCode}${ageCode}`;
 }
 
+function buildLessonActivitySteps(entry) {
+  const steps = entry.activitySteps ?? entry.activities ?? [];
+
+  return steps.map((step, index) => ({
+    ...step,
+    order: step.order !== undefined ? Number(step.order) : index + 1,
+    media: Array.isArray(step.media) ? step.media : [],
+    choices: Array.isArray(step.choices) ? step.choices : [],
+    expectedAnswers: Array.isArray(step.expectedAnswers) ? step.expectedAnswers : [],
+    tags: Array.isArray(step.tags) ? step.tags : [],
+  }));
+}
+
+function buildLessonAssessment(entry) {
+  if (!entry.lessonAssessment || typeof entry.lessonAssessment !== 'object') {
+    return null;
+  }
+
+  return {
+    ...entry.lessonAssessment,
+    items: Array.isArray(entry.lessonAssessment.items) ? entry.lessonAssessment.items : [],
+  };
+}
+
+function buildModuleAssessment(module) {
+  if (!module) {
+    return null;
+  }
+
+  const assessment = repository
+    .listAssessments()
+    .find((item) => item.moduleId === module.id && item.status === 'active');
+
+  if (!assessment) {
+    return null;
+  }
+
+  return {
+    ...presentAssessment(assessment),
+    items: Array.isArray(assessment.items) ? assessment.items : [],
+  };
+}
+
+function buildLessonContract(entry) {
+  const activitySteps = buildLessonActivitySteps(entry);
+
+  return {
+    id: entry.id,
+    subject: entry.subjectId,
+    title: entry.title,
+    mode: entry.mode,
+    targetAgeRange: entry.targetAgeRange ?? null,
+    voicePersona: entry.voicePersona ?? null,
+    durationMinutes: entry.durationMinutes ?? null,
+    learningObjectives: Array.isArray(entry.learningObjectives) ? entry.learningObjectives : [],
+    localization: entry.localization && typeof entry.localization === 'object' ? entry.localization : null,
+    lessonAssessment: buildLessonAssessment(entry),
+    activitySteps,
+    activities: activitySteps,
+    activityCount: activitySteps.length,
+  };
+}
+
 function presentPod(pod) {
   const center = repository.findCenterById(pod.centerId);
   const mallams = repository
@@ -154,6 +217,7 @@ function presentLearnerModule(module) {
     level: curriculum.level,
     status: curriculum.status,
     lessonCount: approvedLessons.length,
+    moduleAssessment: buildModuleAssessment(module),
   };
 }
 
@@ -164,6 +228,7 @@ function presentLearnerLesson(entry) {
   const activeAssignments = repository
     .listAssignments()
     .filter((assignment) => assignment.lessonId === entry.id && ['active', 'scheduled'].includes(assignment.status));
+  const contract = buildLessonContract(entry);
 
   return {
     id: entry.id,
@@ -176,6 +241,13 @@ function presentLearnerLesson(entry) {
     mascotName: 'Mallam',
     readinessFocus: module ? `${module.title} • ${module.level}` : 'Guided voice practice',
     scenario: `Guided ${subject?.name ?? 'learning'} session for ${module?.title ?? 'current module'}.`,
+    activityCount: contract.activityCount,
+    activityTypes: contract.activitySteps.map((step) => step.type),
+    activitySteps: contract.activitySteps,
+    activities: contract.activities,
+    localization: contract.localization,
+    lessonAssessment: contract.lessonAssessment,
+    moduleAssessment: buildModuleAssessment(module),
     lessonPack: {
       lessonId: entry.id,
       lessonTitle: entry.title,
@@ -189,6 +261,16 @@ function presentLearnerLesson(entry) {
       durationMinutes: entry.durationMinutes,
       assignmentCount: activeAssignments.length,
       assignmentIds: activeAssignments.map((assignment) => assignment.id),
+      voicePersona: contract.voicePersona,
+      learningObjectives: contract.learningObjectives,
+      targetAgeRange: contract.targetAgeRange,
+      localization: contract.localization,
+      lessonAssessment: contract.lessonAssessment,
+      moduleAssessment: buildModuleAssessment(module),
+      activityCount: contract.activityCount,
+      activityTypes: contract.activitySteps.map((step) => step.type),
+      activitySteps: contract.activitySteps,
+      activities: contract.activities,
     },
   };
 }
@@ -201,6 +283,7 @@ function presentAssessment(assessment) {
     ...assessment,
     subjectName: subject?.name ?? null,
     moduleTitle: module?.title ?? null,
+    items: Array.isArray(assessment.items) ? assessment.items : [],
   };
 }
 
@@ -213,6 +296,7 @@ function presentAssignment(assignment) {
   const subject = lesson ? repository.findSubjectById(lesson.subjectId) : null;
   const module = lesson?.moduleId ? repository.findModuleById(lesson.moduleId) : null;
   const curriculum = module ? presentCurriculumModule(module) : null;
+  const contract = lesson ? buildLessonContract(lesson) : null;
 
   return {
     ...assignment,
@@ -248,6 +332,16 @@ function presentAssignment(assignment) {
         moduleTitle: module?.title ?? null,
         level: module?.level ?? null,
         strandName: curriculum?.strandName ?? null,
+        voicePersona: contract?.voicePersona ?? null,
+        learningObjectives: contract?.learningObjectives ?? [],
+        targetAgeRange: contract?.targetAgeRange ?? null,
+        localization: contract?.localization ?? null,
+        lessonAssessment: contract?.lessonAssessment ?? null,
+        moduleAssessment: buildModuleAssessment(module),
+        activityCount: contract?.activityCount ?? 0,
+        activityTypes: contract?.activitySteps.map((step) => step.type) ?? [],
+        activitySteps: contract?.activitySteps ?? [],
+        activities: contract?.activities ?? [],
       },
       assessment: assessment
         ? {
@@ -333,11 +427,21 @@ function presentObservation(entry) {
 function presentLesson(entry) {
   const subject = repository.findSubjectById(entry.subjectId);
   const module = entry.moduleId ? repository.findModuleById(entry.moduleId) : null;
+  const contract = buildLessonContract(entry);
 
   return {
     ...entry,
     subjectName: subject?.name ?? null,
     moduleTitle: module?.title ?? null,
+    targetAgeRange: contract.targetAgeRange,
+    voicePersona: contract.voicePersona,
+    learningObjectives: contract.learningObjectives,
+    localization: contract.localization,
+    lessonAssessment: contract.lessonAssessment,
+    activityCount: contract.activityCount,
+    activityTypes: contract.activitySteps.map((step) => step.type),
+    activitySteps: contract.activitySteps,
+    activities: contract.activities,
   };
 }
 

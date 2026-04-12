@@ -1,5 +1,16 @@
 const repository = require('./repository');
 
+const LESSON_ACTIVITY_TYPES = [
+  'letter_intro',
+  'listen_repeat',
+  'image_choice',
+  'speak_answer',
+  'word_build',
+  'tap_choice',
+  'listen_answer',
+  'oral_quiz',
+];
+
 function requireFields(body, fields) {
   const missing = fields.filter((field) => body[field] === undefined || body[field] === null || body[field] === '');
 
@@ -32,6 +43,109 @@ function assertAllowed(label, value, allowedValues) {
     error.statusCode = 400;
     throw error;
   }
+}
+
+function assertArray(label, value) {
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  if (!Array.isArray(value)) {
+    const error = new Error(`Invalid ${label}: expected an array`);
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function validateLocalization(body) {
+  if (body.localization === undefined || body.localization === null) {
+    return;
+  }
+
+  if (typeof body.localization !== 'object' || Array.isArray(body.localization)) {
+    const error = new Error('Invalid localization: expected an object');
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function validateAssessmentItems(items, label = 'items') {
+  if (items === undefined || items === null) {
+    return;
+  }
+
+  assertArray(label, items);
+
+  items.forEach((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      const error = new Error(`Invalid ${label}[${index}]: expected an object`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    requireFields(item, ['id', 'prompt']);
+
+    if (item.choices !== undefined) {
+      assertArray(`${label}[${index}].choices`, item.choices);
+    }
+  });
+}
+
+function validateLessonAssessment(body) {
+  if (body.lessonAssessment === undefined || body.lessonAssessment === null) {
+    return;
+  }
+
+  if (typeof body.lessonAssessment !== 'object' || Array.isArray(body.lessonAssessment)) {
+    const error = new Error('Invalid lessonAssessment: expected an object');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  validateAssessmentItems(body.lessonAssessment.items, 'lessonAssessment.items');
+}
+
+function validateLessonActivities(body) {
+  const activities = body.activitySteps ?? body.activities;
+
+  if (activities === undefined) {
+    return;
+  }
+
+  assertArray('activitySteps', activities);
+
+  activities.forEach((activity, index) => {
+    if (!activity || typeof activity !== 'object' || Array.isArray(activity)) {
+      const error = new Error(`Invalid activitySteps[${index}]: expected an object`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    requireFields(activity, ['id', 'type', 'prompt']);
+    assertAllowed(`activitySteps[${index}].type`, activity.type, LESSON_ACTIVITY_TYPES);
+
+    if (activity.order !== undefined && (!Number.isInteger(Number(activity.order)) || Number(activity.order) <= 0)) {
+      const error = new Error(`Invalid activitySteps[${index}].order`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    ['expectedAnswers', 'media', 'choices', 'tags'].forEach((field) => {
+      assertArray(`activitySteps[${index}].${field}`, activity[field]);
+    });
+
+    if (activity.choices) {
+      activity.choices.forEach((choice, choiceIndex) => {
+        if (!choice || typeof choice !== 'object' || Array.isArray(choice)) {
+          const error = new Error(`Invalid activitySteps[${index}].choices[${choiceIndex}]`);
+          error.statusCode = 400;
+          throw error;
+        }
+
+        requireFields(choice, ['id', 'label']);
+      });
+    }
+  });
 }
 
 function validateAssignment(body, { partial = false } = {}) {
@@ -143,6 +257,9 @@ function validateLesson(body, { partial = false } = {}) {
   assertExists('moduleId', body.moduleId, repository.findModuleById);
   assertAllowed('mode', body.mode, ['guided', 'independent', 'group', 'practice']);
   assertAllowed('status', body.status, ['draft', 'review', 'approved', 'published']);
+  validateLocalization(body);
+  validateLessonAssessment(body);
+  validateLessonActivities(body);
 }
 
 function validateAssessment(body, { partial = false } = {}) {
@@ -165,9 +282,12 @@ function validateAssessment(body, { partial = false } = {}) {
       throw error;
     }
   }
+
+  validateAssessmentItems(body.items, 'items');
 }
 
 module.exports = {
+  LESSON_ACTIVITY_TYPES,
   validateAssignment,
   validateAttendance,
   validateObservation,

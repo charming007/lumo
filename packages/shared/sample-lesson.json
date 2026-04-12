@@ -1,31 +1,107 @@
 {
-  "id": "lesson-english-greetings-001",
+  "id": "lesson-english-phonics-001",
   "subject": "english",
-  "title": "Greetings and Introductions",
+  "title": "Letter A and First Sound Match",
   "mode": "guided",
-  "targetAgeRange": "8-12",
-  "voicePersona": "friendly-guide-a",
+  "targetAgeRange": "8-10",
+  "voicePersona": "phonic-coach-a",
+  "durationMinutes": 5,
   "learningObjectives": [
-    "Learner can respond to a greeting",
-    "Learner can say their name aloud"
+    "Learner can say the /a/ sound aloud",
+    "Learner can match the /a/ sound to a familiar image"
+  ],
+  "localization": {
+    "defaultLanguage": "en",
+    "supportedLanguages": ["en", "ha"],
+    "translations": {
+      "en": {
+        "title": "Letter A and First Sound Match"
+      },
+      "ha": {
+        "title": "Harafin A da Daidaita Sautin Farko"
+      }
+    }
+  },
+  "lessonAssessment": {
+    "id": "lesson-english-phonics-001-check",
+    "title": "Quick Letter Sound Check",
+    "completionMode": "end-of-lesson",
+    "passingScore": 0.67,
+    "items": [
+      {
+        "id": "check-1",
+        "prompt": "Point to the picture that starts with A.",
+        "promptTranslations": { "ha": "Nuna hoton da yake farawa da A." },
+        "choices": ["apple", "ball", "sun"],
+        "correctChoice": "apple"
+      }
+    ]
+  },
+  "activitySteps": [
+    {
+      "id": "act-1",
+      "type": "letter_intro",
+      "order": 1,
+      "prompt": "This is the letter A. It says /a/.",
+      "hint": "Open your mouth wide and say /a/.",
+      "media": [
+        { "kind": "letter-card", "value": "A" }
+      ],
+      "successFeedback": "Good. A says /a/."
+    },
+    {
+      "id": "act-2",
+      "type": "image_choice",
+      "order": 2,
+      "prompt": "Tap the picture that starts with /a/.",
+      "choices": [
+        {
+          "id": "apple",
+          "label": "Apple",
+          "isCorrect": true,
+          "media": { "kind": "image", "value": "apple" }
+        },
+        {
+          "id": "ball",
+          "label": "Ball",
+          "media": { "kind": "image", "value": "ball" }
+        },
+        {
+          "id": "sun",
+          "label": "Sun",
+          "media": { "kind": "image", "value": "sun" }
+        }
+      ],
+      "successFeedback": "Yes. Apple starts with /a/.",
+      "retryFeedback": "Listen again. Which word starts with /a/?"
+    },
+    {
+      "id": "act-3",
+      "type": "speak_answer",
+      "order": 3,
+      "prompt": "Say the sound for A.",
+      "expectedAnswers": ["/a/", "a"],
+      "successFeedback": "Strong voice. That is the A sound."
+    }
   ],
   "activities": [
     {
       "id": "act-1",
-      "type": "listen-repeat",
-      "prompt": "Hello. My name is Lumo.",
-      "expectedAnswers": ["Hello", "My name is"],
-      "successFeedback": "Nice. Say it again with confidence.",
-      "retryFeedback": "Try again. Start with hello."
+      "type": "letter_intro",
+      "order": 1,
+      "prompt": "This is the letter A. It says /a/."
     },
     {
       "id": "act-2",
-      "type": "listen-answer",
-      "prompt": "What is your name?",
-      "expectedAnswers": ["My name is"],
-      "hint": "Say: My name is...",
-      "successFeedback": "Great job. You introduced yourself.",
-      "retryFeedback": "Let's try one more time. Say: My name is..."
+      "type": "image_choice",
+      "order": 2,
+      "prompt": "Tap the picture that starts with /a/."
+    },
+    {
+      "id": "act-3",
+      "type": "speak_answer",
+      "order": 3,
+      "prompt": "Say the sound for A."
     }
   ]
 }

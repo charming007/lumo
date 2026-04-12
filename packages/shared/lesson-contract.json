@@ -2,39 +2,104 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Lumo Lesson Contract",
   "type": "object",
-  "required": ["id", "subject", "title", "mode", "activities"],
+  "required": ["id", "subject", "title", "mode", "activitySteps"],
   "properties": {
     "id": { "type": "string" },
     "subject": { "type": "string", "enum": ["english", "math", "life-skills"] },
     "title": { "type": "string" },
-    "mode": { "type": "string", "enum": ["guided"] },
-    "targetAgeRange": { "type": "string" },
-    "voicePersona": { "type": "string" },
+    "mode": { "type": "string", "enum": ["guided", "independent", "group", "practice"] },
+    "targetAgeRange": { "type": ["string", "null"] },
+    "voicePersona": { "type": ["string", "null"] },
+    "durationMinutes": { "type": ["number", "null"] },
     "learningObjectives": {
       "type": "array",
       "items": { "type": "string" }
     },
-    "activities": {
+    "localization": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "lessonAssessment": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "activitySteps": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id", "type", "prompt"],
-        "properties": {
-          "id": { "type": "string" },
-          "type": {
-            "type": "string",
-            "enum": ["listen-repeat", "listen-answer", "tap-choice", "oral-quiz"]
-          },
-          "prompt": { "type": "string" },
-          "expectedAnswers": {
-            "type": "array",
-            "items": { "type": "string" }
-          },
-          "hint": { "type": "string" },
-          "successFeedback": { "type": "string" },
-          "retryFeedback": { "type": "string" }
+      "items": { "$ref": "#/$defs/activityStep" }
+    },
+    "activities": {
+      "description": "Backward-compatible alias of activitySteps.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/activityStep" }
+    }
+  },
+  "$defs": {
+    "activityStep": {
+      "type": "object",
+      "required": ["id", "type", "prompt"],
+      "properties": {
+        "id": { "type": "string" },
+        "order": { "type": "integer", "minimum": 1 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "letter_intro",
+            "listen_repeat",
+            "image_choice",
+            "speak_answer",
+            "word_build",
+            "tap_choice",
+            "listen_answer",
+            "oral_quiz"
+          ]
+        },
+        "prompt": { "type": "string" },
+        "hint": { "type": "string" },
+        "expectedAnswers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "isCorrect": { "type": "boolean" },
+              "media": {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string" },
+                  "value": {}
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string" },
+              "value": {}
+            },
+            "required": ["kind", "value"],
+            "additionalProperties": true
+          }
+        },
+        "successFeedback": { "type": "string" },
+        "retryFeedback": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
         }
-      }
+      },
+      "additionalProperties": true
     }
   }
 }
