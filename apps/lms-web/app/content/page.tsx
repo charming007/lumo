@@ -110,24 +110,6 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     return subjectMatches && statusMatches && viewMatches && queryMatches;
   });
 
-  const strandGroups = Array.from(
-    modules.reduce((map, module) => {
-      const key = `${module.subjectId || 'general'}::${module.strandName || 'General'}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          subjectId: module.subjectId || 'general',
-          subjectName: module.subjectName,
-          strandName: module.strandName || 'General',
-          modules: [],
-        });
-      }
-
-      map.get(key)?.modules.push(module);
-      return map;
-    }, new Map<string, { key: string; subjectId: string; subjectName: string; strandName: string; modules: typeof modules }>()).values(),
-  ).map((group) => ({ ...group, modules: group.modules.sort((a, b) => a.title.localeCompare(b.title)) }));
-
   const moduleHasAssessmentGate = (moduleId: string, moduleTitle: string) => assessments.some(
     (assessment) => assessment.moduleId === moduleId || assessment.moduleTitle === moduleTitle,
   );
@@ -268,113 +250,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       <ContentSubjectLanes
         subjects={subjects}
         strands={strands}
-        modules={modules}
-        lessons={lessons}
-        assessments={assessments}
+        modules={filteredModules}
+        lessons={filteredLessons}
+        assessments={filteredAssessments}
       />
-
-      <section style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
-        {strandGroups
-          .map((group) => ({ ...group, modules: group.modules.filter((module) => filteredModules.some((filteredModule) => filteredModule.id === module.id)) }))
-          .filter((group) => group.modules.length > 0)
-          .map((group) => (
-          <Card key={group.key} title={group.strandName} eyebrow={group.subjectName || 'Curriculum strand'}>
-            <div style={{ display: 'grid', gap: 14 }}>
-              {group.modules.map((module) => {
-                const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
-                const moduleAssessments = assessments.filter((assessment) => assessment.moduleId === module.id || assessment.moduleTitle === module.title);
-                const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-                const pill = statusPill(module.status);
-
-                return (
-                  <div key={module.id} style={{ padding: 18, borderRadius: 20, border: '1px solid #e5e7eb', background: 'white' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 10, alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{module.title}</div>
-                        <div style={{ color: '#64748b' }}>{module.level} • {module.lessonCount} planned lessons • {readyLessonCount} ready now</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        <Pill label={module.status} tone={pill.tone} text={pill.text} />
-                        <ModalLauncher buttonLabel="✏️ Edit module" title={`Edit module · ${module.title}`} description="Update module metadata from the same content lane." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                          <UpdateModuleForm modules={[module]} />
-                        </ModalLauncher>
-                        <ModalLauncher buttonLabel="🗑 Delete module" title={`Delete module · ${module.title}`} description="Remove this module and its linked content if it should no longer exist." eyebrow="Delete module" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                          <DeleteModuleForm modules={[module]} />
-                        </ModalLauncher>
-                      </div>
-                    </div>
-
-                    <div style={responsiveGrid(320)}>
-                      <div style={{ display: 'grid', gap: 10 }}>
-                        {moduleLessons.map((lesson) => {
-                          const lessonPill = statusPill(lesson.status);
-                          return (
-                            <div key={lesson.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 16, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                              <div>
-                                <div style={{ fontWeight: 700 }}>{lesson.title}</div>
-                                <div style={{ color: '#64748b' }}>{lesson.mode} • {lesson.durationMinutes} min</div>
-                                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-                                  <Link href={`/content/lessons/${lesson.id}?from=%2Fcontent`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open authoring editor →</Link>
-                                  <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&duplicate=${lesson.id}&from=%2Fcontent`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
-                                </div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
-                                <ModalLauncher buttonLabel="✏️" title={`Edit lesson · ${lesson.title}`} description="Update the lesson state, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                                  <UpdateLessonForm lessons={[lesson]} />
-                                </ModalLauncher>
-                                <ModalLauncher buttonLabel="🗑" title={`Delete lesson · ${lesson.title}`} description="Delete this lesson if it should no longer be in the module lane." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                                  <DeleteLessonForm lessons={[lesson]} />
-                                </ModalLauncher>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div style={{ display: 'grid', gap: 10 }}>
-                        <div style={{ padding: 14, borderRadius: 18, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-                          <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#1d4ed8', marginBottom: 8 }}>Assessment gate</div>
-                          {moduleAssessments.length > 0 ? moduleAssessments.map((assessment) => {
-                            const assessmentPill = statusPill(assessment.status);
-                            return (
-                              <div key={assessment.id} style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
-                                <div>
-                                  <div style={{ fontWeight: 700 }}>{assessment.title}</div>
-                                  <div style={{ color: '#475569' }}>{assessment.triggerLabel} • {assessment.kind}</div>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                  <Pill label={assessment.status} tone={assessmentPill.tone} text={assessmentPill.text} />
-                                  <ModalLauncher buttonLabel="✏️" title={`Edit assessment · ${assessment.title}`} description="Update this progression gate from inside the module lane." eyebrow="Edit assessment" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                                    <UpdateAssessmentForm assessments={[assessment]} />
-                                  </ModalLauncher>
-                                  <ModalLauncher buttonLabel="🗑" title={`Delete assessment · ${assessment.title}`} description="Remove this assessment gate if it should no longer control progression." eyebrow="Delete assessment" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                                    <DeleteAssessmentForm assessments={[assessment]} />
-                                  </ModalLauncher>
-                                </div>
-                              </div>
-                            );
-                          }) : <div style={{ color: '#64748b' }}>No assessment linked yet.</div>}
-                        </div>
-                        <div style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                          <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Release note</div>
-                          <div style={{ color: '#334155', lineHeight: 1.6 }}>
-                            {module.status === 'published'
-                              ? 'Live in the deployment-ready lane for learner pods.'
-                              : module.status === 'review'
-                                ? 'Almost there — content is organised, but still needs ops sign-off.'
-                                : 'This lane exists, but it still needs authoring or approval.'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        ))}
-      </section>
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <Card title="Release blockers" eyebrow="What still stops publish">
