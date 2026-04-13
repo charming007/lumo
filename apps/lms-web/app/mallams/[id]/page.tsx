@@ -20,12 +20,29 @@ function assignmentTone(status: string) {
   return { tone: '#E0E7FF', text: '#3730A3' };
 }
 
+function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
+  const palette = tone === 'warning'
+    ? { background: '#fff7ed', border: '#fed7aa', text: '#9a3412' }
+    : { background: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
+
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, lineHeight: 1.6 }}>
+      {message}
+    </div>
+  );
+}
+
 export default async function MallamDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
   const query = await searchParams;
 
   try {
-    const [mallam, allStudents, allMallams] = await Promise.all([fetchMallam(id), fetchStudents(), fetchMallams()]);
+    const [mallamResult, studentsResult, mallamsResult] = await Promise.allSettled([fetchMallam(id), fetchStudents(), fetchMallams()]);
+    if (mallamResult.status === 'rejected') notFound();
+
+    const mallam = mallamResult.value;
+    const allStudents = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
+    const allMallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
     const roster = mallam.roster ?? [];
     const candidateLearners = allStudents.filter((student) => student.mallamId !== mallam.id);
     const assignments = mallam.assignments ?? [];
@@ -59,6 +76,17 @@ export default async function MallamDetailPage({ params, searchParams }: { param
         ]}
       >
         <FeedbackBanner message={query?.message} />
+        {studentsResult.status === 'rejected' || mallamsResult.status === 'rejected' ? (
+          <div style={{ marginBottom: 16 }}>
+            {sectionAlert(
+              [
+                studentsResult.status === 'rejected' ? 'learner roster feed' : null,
+                mallamsResult.status === 'rejected' ? 'mallam directory feed' : null,
+              ].filter(Boolean).join(' + ') + ' failed. Mallam detail still loads, but roster operations are partially unavailable.',
+              'warning',
+            )}
+          </div>
+        ) : null}
         <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
           <Card title={String(mallam.summary.rosterCount)} eyebrow="Roster"><div style={{ color: '#64748b' }}>Learners directly mapped to this mallam.</div></Card>
           <Card title={String(mallam.summary.activeAssignments)} eyebrow="Active assignments"><div style={{ color: '#64748b' }}>Delivery blocks owned in the current window.</div></Card>
@@ -133,7 +161,13 @@ export default async function MallamDetailPage({ params, searchParams }: { param
               />
             </Card>
 
-            <MallamRosterManager mallam={mallam} roster={roster} candidateLearners={candidateLearners} mallams={allMallams} returnPath={`/mallams/${mallam.id}`} />
+            {studentsResult.status === 'fulfilled' && mallamsResult.status === 'fulfilled' ? (
+              <MallamRosterManager mallam={mallam} roster={roster} candidateLearners={candidateLearners} mallams={allMallams} returnPath={`/mallams/${mallam.id}`} />
+            ) : (
+              <Card title="Roster operations" eyebrow="Temporarily unavailable">
+                {sectionAlert('Roster reassignment controls are paused until the learner roster and mallam directory feeds recover.', 'warning')}
+              </Card>
+            )}
           </div>
 
           <div style={{ display: 'grid', gap: 16 }}>

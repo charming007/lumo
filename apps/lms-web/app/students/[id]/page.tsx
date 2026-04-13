@@ -5,12 +5,28 @@ import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-
 import { fetchMallams, fetchStudent } from '../../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
+function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
+  const palette = tone === 'warning'
+    ? { background: '#fff7ed', border: '#fed7aa', text: '#9a3412' }
+    : { background: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
+
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, lineHeight: 1.6 }}>
+      {message}
+    </div>
+  );
+}
+
 export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
   const query = await searchParams;
 
   try {
-    const [student, mallams] = await Promise.all([fetchStudent(id), fetchMallams()]);
+    const [studentResult, mallamsResult] = await Promise.allSettled([fetchStudent(id), fetchMallams()]);
+    if (studentResult.status === 'rejected') notFound();
+
+    const student = studentResult.value;
+    const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
 
     return (
       <PageShell
@@ -23,6 +39,11 @@ export default async function StudentDetailPage({ params, searchParams }: { para
         ]}
       >
         <FeedbackBanner message={query?.message} />
+        {mallamsResult.status === 'rejected' ? (
+          <div style={{ marginBottom: 16 }}>
+            {sectionAlert('Mallam roster data is temporarily unavailable. Learner detail still loads, but reassignment controls are hidden until that feed recovers.', 'warning')}
+          </div>
+        ) : null}
         <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
           <Card title="Learner snapshot" eyebrow="Profile">
             <div style={{ ...responsiveGrid(180), gap: 12 }}>
@@ -71,7 +92,13 @@ export default async function StudentDetailPage({ params, searchParams }: { para
             />
           </Card>
 
-          <LearnerMallamAssignmentForm student={student} mallams={mallams} returnPath={`/students/${student.id}`} />
+          {mallamsResult.status === 'fulfilled' ? (
+            <LearnerMallamAssignmentForm student={student} mallams={mallams} returnPath={`/students/${student.id}`} />
+          ) : (
+            <Card title="Mallam assignment" eyebrow="Temporarily unavailable">
+              {sectionAlert('Reassignment controls are paused because the mallam directory feed failed. Retry once the API recovers.', 'warning')}
+            </Card>
+          )}
           <ObservationForm studentId={student.id} />
         </section>
 
