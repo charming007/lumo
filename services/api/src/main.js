@@ -1231,6 +1231,33 @@ app.get('/api/v1/rewards/summary', (req, res) => {
   }));
 });
 
+app.get('/api/v1/admin/rewards/integrity', requireRole(['admin']), (req, res) => {
+  res.json(rewards.buildRewardRequestIntegrityReport({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    learnerId: coerceOptionalString(req.query.learnerId),
+    limit: Number(req.query.limit || 100),
+  }));
+});
+
+app.post('/api/v1/admin/rewards/repair-integrity', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.status(201).json(rewards.repairRewardRequestIntegrity({
+      cohortId: coerceOptionalString(req.body?.cohortId),
+      podId: coerceOptionalString(req.body?.podId),
+      mallamId: coerceOptionalString(req.body?.mallamId),
+      learnerId: coerceOptionalString(req.body?.learnerId),
+      apply: Boolean(req.body?.apply),
+      limit: Number(req.body?.limit || 100),
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/api/v1/rewards/leaderboard', (req, res) => {
   const limit = Number(req.query.limit || 10);
   res.json(rewards.buildScopedLeaderboard({

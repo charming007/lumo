@@ -188,3 +188,66 @@ test('reward queue analytics and stale expiry controls surface aged requests', (
   assert.equal(store.findRewardRedemptionRequestById(stalePending.id).status, 'expired');
   assert.equal(store.findRewardRedemptionRequestById(staleApproved.id).status, 'expired');
 });
+
+test('reward integrity report and repair controls detect and fix mismatched fulfillment state', () => {
+  const rewards = require('../src/rewards');
+  const student = store.listStudents()[2];
+  rewards.awardManualReward({ studentId: student.id, xpDelta: 120, label: 'Integrity top-up' });
+
+  const dangling = store.createRewardRedemptionRequest({
+    studentId: student.id,
+    rewardItemId: 'story-time',
+    rewardTitle: 'Story Time Pick',
+    xpCost: 30,
+    status: 'fulfilled',
+    transactionId: null,
+    requestedBy: student.id,
+    requestedVia: 'test',
+    fulfilledAt: '2026-04-01T09:00:00.000Z',
+    fulfilledBy: 'Admin',
+  });
+
+  const recoverable = store.createRewardRedemptionRequest({
+    studentId: student.id,
+    rewardItemId: 'helper-star',
+    rewardTitle: 'Helper Star',
+    xpCost: 45,
+    status: 'approved',
+    requestedBy: student.id,
+    requestedVia: 'test',
+    approvedAt: '2026-04-01T10:00:00.000Z',
+    approvedBy: 'Admin',
+  });
+
+  const redemptionTx = store.createRewardTransaction({
+    studentId: student.id,
+    kind: 'redemption',
+    xpDelta: -45,
+    label: 'Recovered helper-star redemption',
+    metadata: {
+      rewardItemId: 'helper-star',
+      rewardRequestId: recoverable.id,
+      fulfilledBy: 'Admin',
+    },
+    createdAt: '2026-04-01T11:00:00.000Z',
+  });
+
+  const before = rewards.buildRewardRequestIntegrityReport({ learnerId: student.id, limit: 20 });
+  assert.equal(before.summary.issueCount >= 2, true);
+  assert.equal(before.summary.issuesByType['fulfilled-request-missing-transaction'] >= 1, true);
+  assert.equal(before.summary.issuesByType['nonfulfilled-request-has-redemption'] >= 1, true);
+
+  const repaired = rewards.repairRewardRequestIntegrity({ learnerId: student.id, apply: true, actorName: 'Admin', actorRole: 'admin', limit: 20 });
+  assert.equal(repaired.count >= 2, true);
+
+  const repairedDangling = store.findRewardRedemptionRequestById(dangling.id);
+  const repairedRecoverable = store.findRewardRedemptionRequestById(recoverable.id);
+  assert.equal(repairedDangling.status, 'approved');
+  assert.equal(repairedDangling.transactionId, null);
+  assert.equal(repairedRecoverable.status, 'fulfilled');
+  assert.equal(repairedRecoverable.transactionId, redemptionTx.id);
+
+  const afterReport = reporting.buildRewardsReport({ learnerId: student.id, limit: 20 });
+  assert.equal(typeof afterReport.summary.rewardIntegrityIssueCount, 'number');
+  assert.ok(afterReport.integrity);
+});

@@ -927,8 +927,171 @@ function fulfillRewardRedemptionRequest(requestId, { actorName, actorRole, admin
   return { request: updated, transaction, snapshot: buildLearnerRewards(updated.studentId) };
 }
 
+function buildRewardRequestStudentSet({ cohortId = null, podId = null, mallamId = null, learnerId = null } = {}) {
+  const students = learnerId
+    ? buildScopedStudentSet({ cohortId, podId, mallamId }).filter((student) => student.id === learnerId)
+    : buildScopedStudentSet({ cohortId, podId, mallamId });
+
+  return {
+    students,
+    studentIds: new Set(students.map((student) => student.id)),
+  };
+}
+
+function buildRewardRequestIntegrityReport({ cohortId = null, podId = null, mallamId = null, learnerId = null, limit = 100 } = {}) {
+  const { students, studentIds } = buildRewardRequestStudentSet({ cohortId, podId, mallamId, learnerId });
+  const transactions = repository.listRewardTransactions();
+  const requests = repository.listRewardRedemptionRequests()
+    .filter((item) => studentIds.has(item.studentId))
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+  const issues = [];
+
+  requests.forEach((request) => {
+    const linkedTransaction = request.transactionId ? repository.findRewardTransactionById(request.transactionId) : null;
+    const derivedTransaction = transactions.find((entry) => entry.metadata?.rewardRequestId === request.id) || null;
+    const effectiveTransaction = linkedTransaction || derivedTransaction;
+
+    if (!repository.findStudentById(request.studentId)) {
+      issues.push({ type: 'request-missing-student', requestId: request.id, studentId: request.studentId, severity: 'high' });
+    }
+
+    if (request.transactionId && !linkedTransaction) {
+      issues.push({ type: 'request-transaction-missing', requestId: request.id, transactionId: request.transactionId, severity: 'high' });
+    }
+
+    if (effectiveTransaction && effectiveTransaction.studentId !== request.studentId) {
+      issues.push({
+        type: 'request-transaction-student-mismatch',
+        requestId: request.id,
+        transactionId: effectiveTransaction.id,
+        studentId: request.studentId,
+        transactionStudentId: effectiveTransaction.studentId,
+        severity: 'high',
+      });
+    }
+
+    if (effectiveTransaction && effectiveTransaction.kind !== 'redemption') {
+      issues.push({ type: 'request-transaction-kind-mismatch', requestId: request.id, transactionId: effectiveTransaction.id, kind: effectiveTransaction.kind, severity: 'high' });
+    }
+
+    if (request.status === 'fulfilled' && !effectiveTransaction) {
+      issues.push({ type: 'fulfilled-request-missing-transaction', requestId: request.id, severity: 'high' });
+    }
+
+    if (request.status !== 'fulfilled' && effectiveTransaction && effectiveTransaction.kind === 'redemption' && effectiveTransaction.studentId === request.studentId) {
+      issues.push({ type: 'nonfulfilled-request-has-redemption', requestId: request.id, transactionId: effectiveTransaction.id, status: request.status, severity: 'medium' });
+    }
+
+    if (request.status === 'fulfilled' && effectiveTransaction && Number(Math.abs(effectiveTransaction.xpDelta || 0)) !== Number(request.xpCost || 0)) {
+      issues.push({
+        type: 'fulfilled-request-xp-mismatch',
+        requestId: request.id,
+        transactionId: effectiveTransaction.id,
+        requestXpCost: Number(request.xpCost || 0),
+        transactionXpDelta: Number(effectiveTransaction.xpDelta || 0),
+        severity: 'medium',
+      });
+    }
+
+    if (request.clientRequestId) {
+      const duplicateOpen = requests.filter((entry) => entry.id !== request.id && entry.clientRequestId === request.clientRequestId && ['pending', 'approved'].includes(entry.status));
+      if (duplicateOpen.length > 0 && ['pending', 'approved'].includes(request.status)) {
+        issues.push({ type: 'duplicate-open-client-request', requestId: request.id, clientRequestId: request.clientRequestId, duplicateCount: duplicateOpen.length + 1, severity: 'medium' });
+      }
+    }
+  });
+
+  const issuesByType = issues.reduce((acc, issue) => {
+    acc[issue.type] = Number(acc[issue.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    scope: { cohortId, podId, mallamId, learnerId, learnerCount: students.length },
+    summary: {
+      requestCount: requests.length,
+      issueCount: issues.length,
+      issuesByType,
+      healthyRequestCount: Math.max(0, requests.length - new Set(issues.map((issue) => issue.requestId)).size),
+    },
+    issues: issues.slice(0, Math.max(1, Math.min(Number(limit || 100), 500))),
+  };
+}
+
+function repairRewardRequestIntegrity({ cohortId = null, podId = null, mallamId = null, learnerId = null, apply = false, limit = 100, actorName, actorRole } = {}) {
+  const { studentIds } = buildRewardRequestStudentSet({ cohortId, podId, mallamId, learnerId });
+  const requests = repository.listRewardRedemptionRequests()
+    .filter((item) => studentIds.has(item.studentId))
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(0, Math.max(1, Math.min(Number(limit || 100), 500)));
+  const fixes = [];
+
+  requests.forEach((request) => {
+    const linkedTransaction = request.transactionId ? repository.findRewardTransactionById(request.transactionId) : null;
+    const derivedTransaction = repository.listRewardTransactions().find((entry) => entry.metadata?.rewardRequestId === request.id) || null;
+    const effectiveTransaction = linkedTransaction || derivedTransaction;
+    const repairMetadata = {
+      ...(request.metadata || {}),
+      integrityRepairedAt: new Date().toISOString(),
+      integrityRepairedBy: actorName || 'Unknown actor',
+      integrityRepairedByRole: actorRole || 'admin',
+    };
+
+    if (effectiveTransaction && effectiveTransaction.kind === 'redemption' && effectiveTransaction.studentId === request.studentId && request.status !== 'fulfilled') {
+      fixes.push({ requestId: request.id, action: 'promote-to-fulfilled', transactionId: effectiveTransaction.id, previousStatus: request.status });
+      if (apply) {
+        repository.updateRewardRedemptionRequest(request.id, {
+          status: 'fulfilled',
+          transactionId: effectiveTransaction.id,
+          fulfilledAt: request.fulfilledAt || effectiveTransaction.createdAt || new Date().toISOString(),
+          fulfilledBy: request.fulfilledBy || effectiveTransaction.metadata?.fulfilledBy || actorName || 'Integrity repair',
+          approvedAt: request.approvedAt || effectiveTransaction.createdAt || request.createdAt,
+          approvedBy: request.approvedBy || actorName || 'Integrity repair',
+          metadata: repairMetadata,
+        });
+      }
+      return;
+    }
+
+    if (request.status === 'fulfilled' && !effectiveTransaction) {
+      fixes.push({ requestId: request.id, action: 'downgrade-to-approved', previousStatus: request.status });
+      if (apply) {
+        repository.updateRewardRedemptionRequest(request.id, {
+          status: 'approved',
+          transactionId: null,
+          fulfilledAt: null,
+          fulfilledBy: null,
+          metadata: repairMetadata,
+        });
+      }
+      return;
+    }
+
+    if (request.transactionId && !linkedTransaction && request.status !== 'fulfilled') {
+      fixes.push({ requestId: request.id, action: 'clear-dangling-transaction', transactionId: request.transactionId, previousStatus: request.status });
+      if (apply) {
+        repository.updateRewardRedemptionRequest(request.id, {
+          transactionId: null,
+          fulfilledAt: null,
+          fulfilledBy: null,
+          metadata: repairMetadata,
+        });
+      }
+    }
+  });
+
+  return {
+    checkedAt: new Date().toISOString(),
+    apply,
+    count: fixes.length,
+    fixes,
+    report: buildRewardRequestIntegrityReport({ cohortId, podId, mallamId, learnerId, limit }),
+  };
+}
+
 function buildRewardOpsSummary({ cohortId = null, podId = null, mallamId = null } = {}) {
   const fulfillment = buildRewardFulfillmentReport({ cohortId, podId, mallamId, limit: 10 });
+  const integrity = buildRewardRequestIntegrityReport({ cohortId, podId, mallamId, limit: 100 });
   const students = buildScopedStudentSet({ cohortId, podId, mallamId });
   const studentIds = new Set(students.map((student) => student.id));
   const transactions = repository.listRewardTransactions().filter((item) => studentIds.has(item.studentId));
@@ -952,6 +1115,8 @@ function buildRewardOpsSummary({ cohortId = null, podId = null, mallamId = null 
     requestBacklogAttention: fulfillment.summary.backlog.attention,
     requestBacklogUrgent: fulfillment.summary.backlog.urgent,
     averageFulfillmentHours: fulfillment.summary.averageFulfillmentHours,
+    rewardIntegrityIssueCount: integrity.summary.issueCount,
+    rewardIntegrityIssuesByType: integrity.summary.issuesByType,
     lastAdjustedAt: adjustments.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]?.createdAt ?? null,
     lastRequestAt: requests.slice().sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0]?.updatedAt ?? requests.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]?.createdAt ?? null,
   };
@@ -1078,6 +1243,8 @@ module.exports = {
   buildRewardHistory,
   buildScopedLeaderboard,
   buildRewardOpsSummary,
+  buildRewardRequestIntegrityReport,
+  repairRewardRequestIntegrity,
   listRewardTransactions,
   listRewardAdjustments,
   listRewardRedemptionRequests,

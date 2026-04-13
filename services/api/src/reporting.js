@@ -712,6 +712,7 @@ function buildRewardsReport({ cohortId = null, podId = null, mallamId = null, le
     expired: requests.filter((entry) => entry.status === 'expired').length,
   };
   const queueHealth = rewards.buildRewardRedemptionQueue({ cohortId, podId, mallamId, learnerId, status: null, limit });
+  const integrity = rewards.buildRewardRequestIntegrityReport({ cohortId, podId, mallamId, learnerId, limit: 200 });
   const lifecycle = requests.reduce((acc, entry) => {
     const current = rewards.getRewardRequestLifecycleHours(entry);
     if (current.approvalHours !== null) {
@@ -782,9 +783,11 @@ function buildRewardsReport({ cohortId = null, podId = null, mallamId = null, le
       averageFulfillmentHours: lifecycle.fulfillmentHours.length ? lifecycle.fulfillmentHours.reduce((sum, value) => sum + value, 0) / lifecycle.fulfillmentHours.length : null,
       averageOpenRequestAgeDays: lifecycle.openAgeDays.length ? lifecycle.openAgeDays.reduce((sum, value) => sum + value, 0) / lifecycle.openAgeDays.length : 0,
       staleOpenRequestCount: queueHealth.summary.staleOpen,
+      rewardIntegrityIssueCount: integrity.summary.issueCount,
       requestStatusCounts,
     },
     queueHealth: queueHealth.summary,
+    integrity: integrity.summary,
     dailyXpTrend: Array.from(xpByDay.values()).sort((a, b) => a.date.localeCompare(b.date)),
     rewardDemand: Array.from(rewardDemand.values()).sort((a, b) => b.requests - a.requests || a.rewardTitle.localeCompare(b.rewardTitle)),
     recentTransactions: transactions.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, limit),

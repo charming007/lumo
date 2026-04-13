@@ -261,6 +261,9 @@ function createRewardAdjustment(input) {
   return repository.createRewardAdjustment(input);
 }
 
+function createRewardTransaction(input) {
+  return repository.createRewardTransaction(input);
+}
 
 function listRewardRedemptionRequests() {
   return repository.listRewardRedemptionRequests();
@@ -659,6 +662,7 @@ module.exports = {
   listRewardTransactions,
   findRewardTransactionById,
   listRewardAdjustments,
+  createRewardTransaction,
   createRewardAdjustment,
   listRewardRedemptionRequests,
   findRewardRedemptionRequestById,
