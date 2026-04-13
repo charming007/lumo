@@ -57,6 +57,9 @@ class LumoAppState {
   int backendAssignmentCount = 0;
   int lastSyncAcceptedCount = 0;
   int lastSyncIgnoredCount = 0;
+  int lastSyncDuplicateCount = 0;
+  int lastSyncResultCount = 0;
+  List<String> lastSyncWarnings = const [];
   String? lastSyncError;
   String? learnerRuntimeError;
 
@@ -239,6 +242,9 @@ class LumoAppState {
       backendAssignmentCount = _asInt(snapshot['backendAssignmentCount']) ?? 0;
       lastSyncAcceptedCount = _asInt(snapshot['lastSyncAcceptedCount']) ?? 0;
       lastSyncIgnoredCount = _asInt(snapshot['lastSyncIgnoredCount']) ?? 0;
+      lastSyncDuplicateCount = _asInt(snapshot['lastSyncDuplicateCount']) ?? 0;
+      lastSyncResultCount = _asInt(snapshot['lastSyncResultCount']) ?? 0;
+      lastSyncWarnings = (snapshot['lastSyncWarnings'] as List?)?.map((item) => item.toString()).where((item) => item.trim().isNotEmpty).toList() ?? const <String>[];
       lastSyncError = _readNullableString(snapshot['lastSyncError']);
       learnerRuntimeError =
           _readNullableString(snapshot['learnerRuntimeError']);
@@ -1895,6 +1901,9 @@ class LumoAppState {
       lastSyncedAt = result.syncedAt ?? DateTime.now();
       lastSyncAcceptedCount = result.accepted;
       lastSyncIgnoredCount = result.ignored;
+      lastSyncDuplicateCount = _asInt(result.raw['duplicates']) ?? 0;
+      lastSyncResultCount = (result.raw['results'] as List?)?.length ?? snapshot.length;
+      lastSyncWarnings = _buildSyncWarnings(result.raw);
       backendContractVersion =
           result.raw['contractVersion']?.toString() ?? backendContractVersion;
       lastSyncError = null;
@@ -1907,6 +1916,7 @@ class LumoAppState {
       persistStateSoon();
     } catch (error) {
       final message = error.toString().replaceFirst('Exception: ', '');
+      lastSyncWarnings = const <String>[];
       lastSyncError = message;
       backendError = message;
       _scheduleSyncRetry();
@@ -2014,8 +2024,28 @@ class LumoAppState {
     if (lastSyncError != null) {
       return 'Last sync failed at ${_formatTime(lastSyncAttemptAt!)}';
     }
+    final duplicateLabel = lastSyncDuplicateCount > 0
+        ? ' / $lastSyncDuplicateCount duplicate'
+        : '';
     return 'Last sync ${_formatTime(lastSyncAttemptAt!)} • '
-        '$lastSyncAcceptedCount accepted / $lastSyncIgnoredCount ignored';
+        '$lastSyncAcceptedCount accepted / $lastSyncIgnoredCount ignored$duplicateLabel';
+  }
+
+  String get syncReceiptLabel {
+    if (lastSyncAttemptAt == null) return 'Waiting for first sync receipt';
+    if (lastSyncError != null) {
+      return 'Sync receipt unavailable';
+    }
+    if (lastSyncResultCount <= 0) return 'No receipt rows returned';
+    final duplicateLabel =
+        lastSyncDuplicateCount > 0 ? ' • $lastSyncDuplicateCount duplicate' : '';
+    return '$lastSyncResultCount receipt row(s)$duplicateLabel';
+  }
+
+  String get syncWarningsLabel {
+    if (lastSyncWarnings.isEmpty) return 'No sync warnings';
+    if (lastSyncWarnings.length == 1) return lastSyncWarnings.first;
+    return '${lastSyncWarnings.length} sync warnings';
   }
 
   String assignedLessonSummaryForLearner(LearnerProfile? learner) {
@@ -2119,6 +2149,34 @@ class LumoAppState {
           return rightTime.compareTo(leftTime);
         });
     }
+  }
+
+  List<String> _buildSyncWarnings(Map<String, dynamic> raw) {
+    final results = raw['results'];
+    if (results is! List) return const <String>[];
+
+    final warnings = <String>[];
+    final duplicateCount = _asInt(raw['duplicates']) ?? 0;
+    final ignoredCount = _asInt(raw['ignored']) ?? 0;
+    if (duplicateCount > 0) {
+      warnings.add('$duplicateCount event(s) were already synced earlier, so the backend ignored the duplicates safely.');
+    }
+    if (ignoredCount > 0) {
+      warnings.add('$ignoredCount event(s) were ignored because the backend could not apply them.');
+    }
+
+    for (final item in results.whereType<Map>()) {
+      final status = item['status']?.toString() ?? '';
+      final type = item['type']?.toString() ?? 'event';
+      if (status == 'ignored') {
+        final reason = item['reason']?.toString() ?? 'unsupported_event_type';
+        warnings.add('$type was ignored ($reason).');
+      } else if (status == 'duplicate' && duplicateCount == 0) {
+        warnings.add('$type matched an earlier receipt, so it was not replayed twice.');
+      }
+    }
+
+    return warnings.take(3).toList(growable: false);
   }
 
   void _applyBackendSyncResults(Map<String, dynamic> raw) {
@@ -2319,6 +2377,9 @@ class LumoAppState {
       'backendAssignmentCount': backendAssignmentCount,
       'lastSyncAcceptedCount': lastSyncAcceptedCount,
       'lastSyncIgnoredCount': lastSyncIgnoredCount,
+      'lastSyncDuplicateCount': lastSyncDuplicateCount,
+      'lastSyncResultCount': lastSyncResultCount,
+      'lastSyncWarnings': lastSyncWarnings,
       'lastSyncError': lastSyncError,
       'learnerRuntimeError': learnerRuntimeError,
     };

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -3779,6 +3780,141 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     return minutes > 0 ? '$minutes:$paddedSeconds' : '0:$paddedSeconds';
   }
 
+  String get _deviceLabel {
+    if (kIsWeb) return 'Web browser';
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => 'Android device',
+      TargetPlatform.iOS => 'iPhone or iPad',
+      TargetPlatform.macOS => 'macOS desktop',
+      TargetPlatform.windows => 'Windows desktop',
+      TargetPlatform.linux => 'Linux desktop',
+      TargetPlatform.fuchsia => 'Fuchsia device',
+    };
+  }
+
+  Color _diagnosticToneColor(bool healthy, {bool warn = false}) {
+    if (healthy) return LumoTheme.accentGreen;
+    if (warn) return LumoTheme.accentOrange;
+    return const Color(0xFFEF4444);
+  }
+
+  Widget _buildDiagnosticChip({
+    required IconData icon,
+    required String label,
+    required bool healthy,
+    bool warn = false,
+  }) {
+    final color = _diagnosticToneColor(healthy, warn: warn);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceDiagnosticsPanel() {
+    final transcriptHealthy = speechTranscriptionService.isAvailable;
+    final backendHealthy = widget.state.hasLiveBackendConnection;
+    final syncWarn = widget.state.pendingSyncEvents.isNotEmpty ||
+        widget.state.lastSyncError != null ||
+        widget.state.lastSyncWarnings.isNotEmpty;
+    final recordingHealthy = _recordingModeLabel.toLowerCase().contains('fallback')
+        ? false
+        : true;
+
+    return SoftPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Browser + device diagnostics',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Spot recorder, transcript, and backend trouble before the hands-free loop goes sideways.',
+            style: const TextStyle(color: Color(0xFF475569), height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildDiagnosticChip(
+                icon: Icons.devices_rounded,
+                label: _deviceLabel,
+                healthy: true,
+              ),
+              _buildDiagnosticChip(
+                icon: Icons.mic_rounded,
+                label: _recordingModeLabel,
+                healthy: recordingHealthy,
+                warn: !recordingHealthy,
+              ),
+              _buildDiagnosticChip(
+                icon: Icons.subtitles_rounded,
+                label: transcriptHealthy
+                    ? 'Transcript help ready'
+                    : 'Transcript fallback active',
+                healthy: transcriptHealthy,
+                warn: !transcriptHealthy,
+              ),
+              _buildDiagnosticChip(
+                icon: Icons.cloud_done_rounded,
+                label: backendHealthy
+                    ? 'Backend sync live'
+                    : (widget.state.usingFallbackData
+                        ? 'Offline seed fallback'
+                        : 'Backend sync degraded'),
+                healthy: backendHealthy,
+                warn: !backendHealthy,
+              ),
+              _buildDiagnosticChip(
+                icon: Icons.receipt_long_rounded,
+                label: widget.state.syncReceiptLabel,
+                healthy: !syncWarn,
+                warn: syncWarn,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Transcript: ${speechTranscriptionService.availabilityLabel}',
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Backend: ${widget.state.backendStatusDetail}',
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
+          ),
+          if (widget.state.lastSyncError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Latest sync error: ${widget.state.lastSyncError}',
+              style: const TextStyle(color: Color(0xFFB45309), height: 1.35),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   String compactPath(String path) {
     final normalized = path.replaceAll('\\', '/');
     final segments =
@@ -4294,6 +4430,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                 ),
                                 const SizedBox(height: 16),
                               ],
+                              _buildDeviceDiagnosticsPanel(),
+                              const SizedBox(height: 16),
                               _CoachActionsRow(
                                 onReplay: () async {
                                   _promptedCurrentStep = false;
@@ -5374,8 +5512,71 @@ class _BackendStatusBanner extends StatelessWidget {
                 text: state.lastSyncSummaryLabel,
                 color: color,
               ),
+              StatusPill(
+                text: state.syncReceiptLabel,
+                color: color,
+              ),
+              StatusPill(
+                text: state.syncWarningsLabel,
+                color: state.lastSyncWarnings.isEmpty
+                    ? color
+                    : LumoTheme.accentOrange,
+              ),
             ],
           ),
+          if (state.lastSyncWarnings.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFCD34D)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Sync receipts to review',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF78350F),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...state.lastSyncWarnings.map(
+                    (warning) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 3),
+                            child: Icon(
+                              Icons.warning_amber_rounded,
+                              size: 16,
+                              color: Color(0xFFB45309),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              warning,
+                              style: const TextStyle(
+                                color: Color(0xFF92400E),
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (onRefresh != null || onSyncQueue != null) ...[
             const SizedBox(height: 12),
             Row(
