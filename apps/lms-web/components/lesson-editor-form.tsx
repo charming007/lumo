@@ -647,7 +647,7 @@ export function LessonEditorForm({
                     <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
                   </div>
                 </div>
-                <div style={{ ...autoFitCompactFields, gridTemplateColumns: 'minmax(260px, 1.3fr) minmax(180px, 0.8fr) minmax(120px, 0.45fr)' }}>
+                <div style={{ ...autoFitCompactFields, gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
                   <FieldLabel>
                     Step title
                     <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
@@ -670,7 +670,7 @@ export function LessonEditorForm({
                     <input value={activity.durationMinutes} onChange={(event) => updateActivity(index, { durationMinutes: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                 </div>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(280px, 1.15fr) minmax(260px, 0.85fr)' }}>
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
                   <FieldLabel>
                     Learner prompt
                     <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 110 }} />
@@ -680,7 +680,7 @@ export function LessonEditorForm({
                     <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={4} style={{ ...inputStyle, minHeight: 132 }} />
                   </FieldLabel>
                 </div>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(220px, 0.8fr) minmax(320px, 1.2fr)' }}>
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
                   <FieldLabel>
                     Evidence
                     <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
@@ -690,7 +690,7 @@ export function LessonEditorForm({
                     <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                 </div>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(220px, 0.75fr) minmax(320px, 1.25fr)' }}>
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
                   <FieldLabel>
                     Tags (comma separated)
                     <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
@@ -700,7 +700,7 @@ export function LessonEditorForm({
                     <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
                   </FieldLabel>
                 </div>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(320px, 1.2fr) minmax(280px, 0.8fr)' }}>
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
                   <FieldLabel>
                     Choices (id|label|correct/wrong|mediaKind|mediaValue per line)
                     <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
