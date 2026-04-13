@@ -2373,145 +2373,128 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: _ResponsiveWorkspaceRow(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ResponsivePane(
-                child: MallamPanel(
-                  instruction: selectStudentInstruction,
-                  onVoiceTap: () {
-                    state.replayVisiblePrompt(
-                      'Choose the learner for ${lesson.title}. The lesson will wait until you confirm who is starting.',
-                    );
-                  },
-                  prompt:
-                      'Choose the learner for ${lesson.title}. The lesson will wait until you confirm who is starting.',
-                  speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'AI Mallam is waiting for learner confirmation',
-                ),
-              ),
-              ResponsivePane(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Back'),
-                        ),
-                        const Spacer(),
-                        StatusPill(
-                          text: lesson.subject,
-                          color: LumoTheme.primary,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SectionTitle(
-                      title: 'Choose learner',
-                      subtitle:
-                          'Pick who is taking ${lesson.title}, then confirm to begin.',
-                    ),
-                    const SizedBox(height: 12),
-                    if (widget.resumeFrom != null)
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2FF),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Text(
-                          'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()}. Learner confirmation is still required before the lesson opens.',
-                          style: const TextStyle(
-                            color: Color(0xFF312E81),
-                            fontWeight: FontWeight.w600,
-                            height: 1.35,
-                          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1320),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Back'),
+                      ),
+                      const Spacer(),
+                      StatusPill(
+                        text: lesson.subject,
+                        color: LumoTheme.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SectionTitle(
+                    title: 'Choose learner',
+                    subtitle:
+                        'Pick who is taking ${lesson.title}, then confirm to begin.',
+                  ),
+                  const SizedBox(height: 12),
+                  if (widget.resumeFrom != null)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Text(
+                        'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()}. Learner confirmation is still required before the lesson opens.',
+                        style: const TextStyle(
+                          color: Color(0xFF312E81),
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
                         ),
                       ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final crossAxisCount = _adaptiveGridCount(
-                            constraints.maxWidth,
-                            minTileWidth: 280,
-                            maxCount: 2,
-                          );
+                    ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount = _adaptiveGridCount(
+                          constraints.maxWidth,
+                          minTileWidth: 280,
+                          maxCount: 4,
+                        );
 
-                          return GridView.builder(
-                            itemCount: state.learners.length,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 1.12,
-                            ),
-                            itemBuilder: (context, index) {
-                              final learner = state.learners[index];
-                              final isSelected =
-                                  selectedLearner?.id == learner.id;
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    selectedLearner = learner;
-                                  });
-                                },
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(28),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? LumoTheme.primary
-                                          : Colors.transparent,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: _LearnerCard(
-                                    learner: learner,
-                                    state: state,
+                        return GridView.builder(
+                          itemCount: state.learners.length,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 1.12,
+                          ),
+                          itemBuilder: (context, index) {
+                            final learner = state.learners[index];
+                            final isSelected = selectedLearner?.id == learner.id;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedLearner = learner;
+                                });
+                              },
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? LumoTheme.primary
+                                        : Colors.transparent,
+                                    width: 2,
                                   ),
                                 ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: selectedLearner == null
-                          ? null
-                          : () {
-                              final learner = selectedLearner!;
-                              state.selectLearner(learner);
-                              state.selectModule(widget.module);
-                              widget.onChanged();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => LessonCountdownPage(
-                                    state: state,
-                                    onChanged: widget.onChanged,
-                                    learner: learner,
-                                    lesson: lesson,
-                                    resumeFrom: widget.resumeFrom,
-                                  ),
+                                child: _LearnerCard(
+                                  learner: learner,
+                                  state: state,
                                 ),
-                              );
-                            },
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: Text(
-                        selectedLearner == null
-                            ? 'Select learner to continue'
-                            : 'Start with ${selectedLearner!.name}',
-                      ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: selectedLearner == null
+                        ? null
+                        : () {
+                            final learner = selectedLearner!;
+                            state.selectLearner(learner);
+                            state.selectModule(widget.module);
+                            widget.onChanged();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => LessonCountdownPage(
+                                  state: state,
+                                  onChanged: widget.onChanged,
+                                  learner: learner,
+                                  lesson: lesson,
+                                  resumeFrom: widget.resumeFrom,
+                                ),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: Text(
+                      selectedLearner == null
+                          ? 'Select learner to continue'
+                          : 'Start with ${selectedLearner!.name}',
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
