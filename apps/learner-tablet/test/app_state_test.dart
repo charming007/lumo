@@ -438,6 +438,67 @@ void main() {
       expect(evaluation.review, ResponseReview.needsSupport);
     });
 
+    test('creates local rewards for seed learners after lesson completion',
+        () async {
+      final state = LumoAppState();
+      state.currentLearner = beginner;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      state.startLesson(lesson);
+      state.submitLearnerResponse('I am ready');
+      state.submitLearnerResponse('I can answer about English');
+      await state.completeLesson(lesson);
+
+      final rewards = state.currentLearner!.rewards;
+      expect(rewards, isNotNull);
+      expect(rewards!.points, greaterThan(0));
+      expect(rewards.levelLabel, isNotEmpty);
+      expect(rewards.badgesUnlocked, greaterThanOrEqualTo(1));
+      expect(
+        rewards.badges
+            .any((badge) => badge.id == 'voice-starter' && badge.earned),
+        isTrue,
+      );
+      state.dispose();
+    });
+
+    test('levels up reward snapshot when lesson XP crosses a threshold',
+        () async {
+      final state = LumoAppState();
+      state.currentLearner = beginner.copyWith(
+        rewards: const RewardSnapshot(
+          learnerId: 'learner-1',
+          totalXp: 154,
+          points: 154,
+          level: 2,
+          levelLabel: 'Rising Voice',
+          nextLevel: 3,
+          nextLevelLabel: 'Bright Reader',
+          xpIntoLevel: 74,
+          xpForNextLevel: 6,
+          progressToNextLevel: 0.92,
+          badgesUnlocked: 0,
+        ),
+      );
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      state.startLesson(lesson);
+      state.submitLearnerResponse('I am ready');
+      state.submitLearnerResponse('I can answer about English');
+      await state.completeLesson(lesson);
+
+      final rewards = state.currentLearner!.rewards!;
+      expect(rewards.level, 3);
+      expect(rewards.levelLabel, 'Bright Reader');
+      expect(rewards.nextLevelLabel, 'Story Scout');
+      expect(rewards.xpForNextLevel, lessThan(80));
+      state.dispose();
+    });
+
     test('degraded mode summary reflects queued offline work', () {
       final state = LumoAppState();
       state.usingFallbackData = true;

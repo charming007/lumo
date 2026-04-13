@@ -4126,6 +4126,9 @@ class LessonCompletePage extends StatelessWidget {
       learner,
       completedLessonId: lesson.id,
     );
+    final rewards = learner.rewards;
+    final unlockedBadges =
+        rewards?.badges.where((badge) => badge.earned).toList() ?? const [];
 
     return Scaffold(
       body: SafeArea(
@@ -4192,6 +4195,95 @@ class LessonCompletePage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
+                    if (rewards != null) ...[
+                      SoftPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.auto_awesome_rounded,
+                                    color: LumoTheme.accentOrange),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Reward boost',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                Chip(
+                                  avatar:
+                                      const Icon(Icons.stars_rounded, size: 18),
+                                  label: Text('${rewards.points} pts'),
+                                ),
+                                Chip(
+                                  avatar: const Icon(Icons.trending_up_rounded,
+                                      size: 18),
+                                  label: Text(
+                                      '${rewards.levelLabel} • Level ${rewards.level}'),
+                                ),
+                                Chip(
+                                  avatar: const Icon(
+                                      Icons.workspace_premium_rounded,
+                                      size: 18),
+                                  label: Text(
+                                    unlockedBadges.isEmpty
+                                        ? 'First badge loading'
+                                        : '${unlockedBadges.length} badge(s) unlocked',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            LinearProgressIndicator(
+                              value: rewards.progressToNextLevel,
+                              minHeight: 10,
+                              borderRadius:
+                                  const BorderRadius.all(Radius.circular(999)),
+                              backgroundColor: const Color(0xFFE2E8F0),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                LumoTheme.accentOrange,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              rewards.nextLevelLabel == null
+                                  ? 'Top celebration band reached. Keep the streak alive.'
+                                  : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
+                            ),
+                            if (unlockedBadges.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: unlockedBadges
+                                    .take(3)
+                                    .map(
+                                      (badge) => Chip(
+                                        avatar: const Icon(
+                                          Icons.emoji_events_rounded,
+                                          size: 18,
+                                          color: LumoTheme.accentOrange,
+                                        ),
+                                        label: Text(badge.title),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     SoftPanel(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

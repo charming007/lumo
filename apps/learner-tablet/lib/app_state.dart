@@ -1182,31 +1182,13 @@ class LumoAppState {
     final session = activeSession;
     if (learner == null || session == null) return;
 
-    final existingRewards = learner.rewards;
     final updatedLearner = learner.copyWith(
       streakDays: learner.streakDays + 1,
       enrollmentStatus: 'Active in lessons',
       lastLessonSummary:
           '${lesson.title}: ${session.totalResponses} responses captured, ${session.supportActionsUsed} support actions, ${session.facilitatorObservations.isEmpty ? 'no facilitator flags' : session.facilitatorObservations.join(', ')}.',
       lastAttendance: 'Completed ${lesson.subject} today',
-      rewards: existingRewards == null
-          ? null
-          : RewardSnapshot(
-              learnerId: existingRewards.learnerId,
-              totalXp: existingRewards.totalXp + 12,
-              points: existingRewards.points + 12,
-              level: existingRewards.level,
-              levelLabel: existingRewards.levelLabel,
-              nextLevel: existingRewards.nextLevel,
-              nextLevelLabel: existingRewards.nextLevelLabel,
-              xpIntoLevel: existingRewards.xpIntoLevel + 12,
-              xpForNextLevel: existingRewards.xpForNextLevel > 12
-                  ? existingRewards.xpForNextLevel - 12
-                  : 0,
-              progressToNextLevel: existingRewards.progressToNextLevel,
-              badgesUnlocked: existingRewards.badgesUnlocked,
-              badges: existingRewards.badges,
-            ),
+      rewards: _buildUpdatedRewardSnapshot(learner, session),
     );
 
     final learnerIndex = learners.indexWhere((item) => item.id == learner.id);
@@ -1226,6 +1208,174 @@ class LumoAppState {
 
     await syncPendingEvents();
     await refreshLearnerRuntimeSessions(updatedLearner);
+  }
+
+  RewardSnapshot _buildUpdatedRewardSnapshot(
+    LearnerProfile learner,
+    LessonSessionState session,
+  ) {
+    final existingRewards = learner.rewards;
+    final baseTotalXp = existingRewards?.totalXp ?? learner.totalXp;
+    final basePoints = existingRewards?.points ?? learner.totalXp;
+    final earnedXp = (12 +
+            min(session.totalResponses, 4) +
+            (session.supportActionsUsed == 0 ? 3 : 0))
+        .toInt();
+    final newTotalXp = baseTotalXp + earnedXp;
+    final newPoints = basePoints + earnedXp;
+    final level = _rewardLevelForXp(newTotalXp);
+    final levelFloor = _xpFloorForLevel(level);
+    final nextLevel = level >= _rewardLevelTitles.length ? null : level + 1;
+    final nextLevelFloor =
+        nextLevel == null ? null : _xpFloorForLevel(nextLevel);
+    final xpIntoLevel = newTotalXp - levelFloor;
+    final xpForNextLevel =
+        nextLevelFloor == null ? 0 : nextLevelFloor - newTotalXp;
+    final rawProgress = nextLevelFloor == null
+        ? 1.0
+        : xpIntoLevel / max(1, nextLevelFloor - levelFloor);
+    final progressToNextLevel = rawProgress < 0
+        ? 0.0
+        : (rawProgress > 1 ? 1.0 : rawProgress.toDouble());
+
+    final badges = _updatedRewardBadges(
+      learner: learner,
+      session: session,
+      totalXp: newTotalXp,
+      completedLessons:
+          _estimatedCompletedLessons(learner, existingRewards) + 1,
+      updatedStreakDays: learner.streakDays + 1,
+      existingBadges: existingRewards?.badges ?? const <RewardBadge>[],
+    );
+
+    return RewardSnapshot(
+      learnerId: existingRewards?.learnerId ?? learner.id,
+      totalXp: newTotalXp,
+      points: newPoints,
+      level: level,
+      levelLabel: _rewardLevelTitle(level),
+      nextLevel: nextLevel,
+      nextLevelLabel: nextLevel == null ? null : _rewardLevelTitle(nextLevel),
+      xpIntoLevel: xpIntoLevel,
+      xpForNextLevel: xpForNextLevel,
+      progressToNextLevel: progressToNextLevel,
+      badgesUnlocked: badges.where((badge) => badge.earned).length,
+      badges: badges,
+    );
+  }
+
+  int _estimatedCompletedLessons(
+    LearnerProfile learner,
+    RewardSnapshot? existingRewards,
+  ) {
+    if (existingRewards != null) {
+      return max(1, (existingRewards.totalXp / 12).floor());
+    }
+    return max(0, learner.streakDays);
+  }
+
+  List<RewardBadge> _updatedRewardBadges({
+    required LearnerProfile learner,
+    required LessonSessionState session,
+    required int totalXp,
+    required int completedLessons,
+    required int updatedStreakDays,
+    required List<RewardBadge> existingBadges,
+  }) {
+    const badgeSpecs = [
+      (
+        'voice-starter',
+        'Voice Starter',
+        'First lesson completed with Mallam.',
+        'record_voice_over',
+        'lesson',
+        1
+      ),
+      (
+        'streak-spark',
+        'Streak Spark',
+        'Keep a 3-day learning streak alive.',
+        'local_fire_department',
+        'streak',
+        3
+      ),
+      (
+        'xp-climber',
+        'XP Climber',
+        'Reach 160 XP to unlock the next celebration band.',
+        'rocket_launch',
+        'xp',
+        160
+      ),
+      (
+        'independent-echo',
+        'Independent Echo',
+        'Finish a lesson without support actions.',
+        'emoji_events',
+        'independence',
+        1
+      ),
+    ];
+    final existingById = {for (final badge in existingBadges) badge.id: badge};
+    final badges = <RewardBadge>[];
+
+    for (final spec in badgeSpecs) {
+      final id = spec.$1;
+      final title = spec.$2;
+      final description = spec.$3;
+      final icon = spec.$4;
+      final category = spec.$5;
+      final target = spec.$6;
+      final existing = existingById[id];
+      final progress = switch (id) {
+        'voice-starter' => completedLessons,
+        'streak-spark' => updatedStreakDays,
+        'xp-climber' => totalXp,
+        'independent-echo' => session.supportActionsUsed == 0 ? 1 : 0,
+        _ => 0,
+      };
+      badges.add(
+        RewardBadge(
+          id: id,
+          title: title,
+          description: description,
+          icon: existing?.icon ?? icon,
+          category: existing?.category ?? category,
+          earned: existing?.earned == true || progress >= target,
+          progress: min(max(progress, 0), target),
+          target: target,
+        ),
+      );
+    }
+
+    return badges;
+  }
+
+  static const List<String> _rewardLevelTitles = [
+    'Starter',
+    'Rising Voice',
+    'Bright Reader',
+    'Story Scout',
+    'Confidence Captain',
+  ];
+
+  int _rewardLevelForXp(int totalXp) {
+    for (var level = _rewardLevelTitles.length; level >= 1; level--) {
+      if (totalXp >= _xpFloorForLevel(level)) {
+        return level;
+      }
+    }
+    return 1;
+  }
+
+  int _xpFloorForLevel(int level) {
+    if (level <= 1) return 0;
+    return (level - 1) * 80;
+  }
+
+  String _rewardLevelTitle(int level) {
+    final index = (level - 1).clamp(0, _rewardLevelTitles.length - 1);
+    return _rewardLevelTitles[index];
   }
 
   Future<void> syncPendingEvents() async {
