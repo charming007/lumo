@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { redirect } from 'next/navigation';
 
 import { API_BASE } from '../lib/config';
@@ -48,6 +49,12 @@ function encodeMessage(message: string) {
   return encodeURIComponent(message);
 }
 
+function rethrowRedirectError(error: unknown) {
+  if (isRedirectError(error)) {
+    throw error;
+  }
+}
+
 function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
   const rawValue = formData.get(key);
 
@@ -60,6 +67,10 @@ function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+async function updateStudentMallamAssignment(studentId: string, mallamId: string | null) {
+  return apiWrite(`/api/v1/students/${studentId}`, 'PATCH', { mallamId }, 'admin');
 }
 
 export async function createAssignmentAction(formData: FormData) {
@@ -170,16 +181,14 @@ export async function assignLearnerMallamAction(formData: FormData) {
   const studentId = String(formData.get('studentId') || '');
   const returnPath = String(formData.get('returnPath') || `/students/${studentId}`);
   const mallamId = String(formData.get('mallamId') || 'unassigned');
-  const payload = {
-    mallamId: mallamId === 'unassigned' ? null : mallamId,
-  };
+  const resolvedMallamId = mallamId === 'unassigned' ? null : mallamId;
 
-  await apiWrite(`/api/v1/students/${studentId}/mallam`, 'POST', payload, 'admin');
+  await updateStudentMallamAssignment(studentId, resolvedMallamId);
   revalidatePath('/');
   revalidatePath('/students');
   revalidatePath('/mallams');
   revalidatePath(returnPath);
-  redirect(`${returnPath}?message=${payload.mallamId ? 'Mallam%20assignment%20saved' : 'Mallam%20assignment%20cleared'}`);
+  redirect(`${returnPath}?message=${resolvedMallamId ? 'Mallam%20assignment%20saved' : 'Mallam%20assignment%20cleared'}`);
 }
 
 export async function assignLearnerToMallamAction(formData: FormData) {
@@ -187,7 +196,7 @@ export async function assignLearnerToMallamAction(formData: FormData) {
   const studentId = String(formData.get('studentId') || '');
   const returnPath = String(formData.get('returnPath') || `/mallams/${mallamId}`);
 
-  await apiWrite(`/api/v1/mallams/${mallamId}/roster`, 'POST', { learnerId: studentId }, 'admin');
+  await updateStudentMallamAssignment(studentId, mallamId || null);
   revalidatePath('/');
   revalidatePath('/students');
   revalidatePath('/mallams');
@@ -541,11 +550,15 @@ export async function awardStudentRewardAction(formData: FormData) {
 }
 
 export async function correctRewardTransactionAction(formData: FormData) {
-  const transactionId = String(formData.get('transactionId') || '');
+  const transactionId = String(formData.get('transactionId') || '').trim();
   const xpDelta = Number(formData.get('xpDelta') || 0);
   const label = String(formData.get('label') || '').trim();
   const reason = String(formData.get('reason') || '').trim() || 'manual_correction';
   const note = String(formData.get('note') || '').trim();
+
+  if (!transactionId) {
+    redirect(`/rewards?message=${encodeMessage('Correction failed: missing transaction id')}`);
+  }
 
   try {
     await apiWrite(`/api/v1/rewards/transactions/${transactionId}/correct`, 'POST', {
@@ -558,20 +571,25 @@ export async function correctRewardTransactionAction(formData: FormData) {
         adjustedBy: 'Pilot Admin',
       },
     }, 'admin');
-
-    revalidatePath('/rewards');
-    revalidatePath('/students');
-    redirect('/rewards?message=Reward%20transaction%20corrected');
   } catch (error) {
+    rethrowRedirectError(error);
     const message = error instanceof Error ? error.message : 'Reward correction failed';
     redirect(`/rewards?message=${encodeMessage(`Correction failed: ${message}`)}`);
   }
+
+  revalidatePath('/rewards');
+  revalidatePath('/students');
+  redirect('/rewards?message=Reward%20transaction%20corrected');
 }
 
 export async function revokeRewardTransactionAction(formData: FormData) {
-  const transactionId = String(formData.get('transactionId') || '');
+  const transactionId = String(formData.get('transactionId') || '').trim();
   const reason = String(formData.get('reason') || '').trim() || 'manual_revocation';
   const note = String(formData.get('note') || '').trim();
+
+  if (!transactionId) {
+    redirect(`/rewards?message=${encodeMessage('Revocation failed: missing transaction id')}`);
+  }
 
   try {
     await apiWrite(`/api/v1/rewards/transactions/${transactionId}/revoke`, 'POST', {
@@ -582,14 +600,15 @@ export async function revokeRewardTransactionAction(formData: FormData) {
         revokedBy: 'Pilot Admin',
       },
     }, 'admin');
-
-    revalidatePath('/rewards');
-    revalidatePath('/students');
-    redirect('/rewards?message=Reward%20transaction%20revoked');
   } catch (error) {
+    rethrowRedirectError(error);
     const message = error instanceof Error ? error.message : 'Reward revocation failed';
     redirect(`/rewards?message=${encodeMessage(`Revocation failed: ${message}`)}`);
   }
+
+  revalidatePath('/rewards');
+  revalidatePath('/students');
+  redirect('/rewards?message=Reward%20transaction%20revoked');
 }
 
 export async function checkpointStorageAction(formData: FormData) {
