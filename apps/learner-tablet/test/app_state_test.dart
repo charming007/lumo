@@ -728,6 +728,47 @@ void main() {
       state.dispose();
     });
 
+    test('falls back to local registration when live learner save fails', () async {
+      final state = LumoAppState(includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/learners') {
+              return http.Response(
+                jsonEncode({'message': 'Backend register endpoint is down.'}),
+                500,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      state.usingFallbackData = false;
+      state.registrationDraft = const RegistrationDraft(
+        name: 'Safiya',
+        age: '8',
+        cohort: 'Alpha',
+        guardianName: 'Maryam',
+        village: 'Pod 3',
+        guardianPhone: '0801234567',
+        consentCaptured: true,
+      );
+
+      final learner = await state.registerLearner();
+
+      expect(learner.name, 'Safiya');
+      expect(state.learners.first.name, 'Safiya');
+      expect(state.currentLearner?.name, 'Safiya');
+      expect(state.usingFallbackData, isTrue);
+      expect(state.pendingSyncEvents, hasLength(1));
+      expect(state.pendingSyncEvents.first.type, 'learner_registered_local_fallback');
+      expect(state.backendError, contains('saved locally and queued for sync'));
+      expect(state.lastSyncError, 'Backend register endpoint is down.');
+      expect(state.registrationDraft.name, isEmpty);
+      state.dispose();
+    });
+
     test('resumes lesson state from backend runtime session metadata', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.currentLearner = beginner;

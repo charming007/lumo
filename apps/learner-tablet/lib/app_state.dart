@@ -814,6 +814,16 @@ class LumoAppState {
       registrationDraft = const RegistrationDraft();
       persistStateSoon();
       return learner;
+    } catch (error) {
+      usingFallbackData = true;
+      final message = error.toString().replaceFirst('Exception: ', '');
+      backendError = message;
+      lastSyncError = message;
+      lastSyncAttemptAt = DateTime.now();
+      final learner = _registerLearnerLocally();
+      backendError =
+          'Backend registration failed, so this learner was saved locally and queued for sync. $message';
+      return learner;
     } finally {
       isRegisteringLearner = false;
     }
