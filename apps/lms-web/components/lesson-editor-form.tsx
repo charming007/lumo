@@ -172,6 +172,39 @@ function nextActivityDraftId(current: Array<ReturnType<typeof makeActivityDraftB
   return `activity-${highestIndex + 1}`;
 }
 
+function starterTemplates(mode: string) {
+  const normalizedMode = mode || 'guided';
+  if (normalizedMode === 'practice') {
+    return [
+      makeActivityDraft(0, { title: 'Warm-up recall', prompt: 'Recall the last lesson aloud before independent practice begins.', type: 'listen_repeat', durationMinutes: '3', detail: 'Short recall to reactivate vocabulary and confidence.', evidence: 'learner-recall', tags: 'warm-up, recall' }),
+      makeActivityDraft(1, { title: 'Independent practice', prompt: 'Complete the main practice task and narrate your thinking.', type: 'word_build', durationMinutes: '8', detail: 'Learners work through a focused task with minimal prompts.', evidence: 'practice-output', tags: 'independent, practice' }),
+      makeActivityDraft(2, { title: 'Review and correct', prompt: 'Check answers, explain one correction, and repeat the target language.', type: 'oral_quiz', durationMinutes: '4', detail: 'Close with self-correction and teacher feedback.', evidence: 'reflection', tags: 'review, correction' }),
+    ];
+  }
+
+  if (normalizedMode === 'group') {
+    return [
+      makeActivityDraft(0, { title: 'Whole-group hook', prompt: 'Open with a shared prompt the whole pod can answer together.', type: 'listen_answer', durationMinutes: '3', detail: 'Anchor the room with one shared entry question.', evidence: 'choral-response', tags: 'group, opener' }),
+      makeActivityDraft(1, { title: 'Pair or circle practice', prompt: 'Learners practise with a partner or in a response circle.', type: 'speak_answer', durationMinutes: '7', detail: 'Use call-and-response or pair turns to reinforce the target concept.', evidence: 'peer-practice', tags: 'group, collaboration' }),
+      makeActivityDraft(2, { title: 'Shared check-out', prompt: 'Invite selected learners to demonstrate and explain.', type: 'oral_quiz', durationMinutes: '4', detail: 'Finish with a visible check that the room actually got it.', evidence: 'group-check', tags: 'closure, demonstration' }),
+    ];
+  }
+
+  if (normalizedMode === 'independent') {
+    return [
+      makeActivityDraft(0, { title: 'Brief instruction', prompt: 'Explain the task and success criteria before learners work alone.', type: 'listen_answer', durationMinutes: '2', detail: 'Keep the setup crisp so the independent block stays clean.', evidence: 'task-briefing', tags: 'setup' }),
+      makeActivityDraft(1, { title: 'Independent build', prompt: 'Learners complete the core task individually.', type: 'word_build', durationMinutes: '8', detail: 'Main individual work block with light facilitator monitoring.', evidence: 'independent-output', tags: 'independent, core' }),
+      makeActivityDraft(2, { title: 'Reflection share', prompt: 'Learners explain one answer or strategy they used.', type: 'speak_answer', durationMinutes: '3', detail: 'Close with verbal reflection so the evidence is not hidden in silence.', evidence: 'reflection-share', tags: 'reflection' }),
+    ];
+  }
+
+  return [
+    makeActivityDraft(0, { title: 'Hook', prompt: 'Introduce the target idea with a concrete prompt or cue.', type: 'listen_repeat', durationMinutes: '2', detail: 'Get attention fast and model the key language.', evidence: 'engagement-check', tags: 'hook' }),
+    makeActivityDraft(1, { title: 'Guided practice', prompt: 'Lead learners through the main task with scaffolded support.', type: 'speak_answer', durationMinutes: '6', detail: 'Use guided prompts so learners practise the target skill with support.', evidence: 'guided-practice', tags: 'guided, core' }),
+    makeActivityDraft(2, { title: 'Check for understanding', prompt: 'Ask learners to demonstrate the skill independently.', type: 'oral_quiz', durationMinutes: '4', detail: 'Close with an evidence-producing check rather than vibes.', evidence: 'understanding-check', tags: 'assessment, close' }),
+  ];
+}
+
 export function LessonEditorForm({
   lesson,
   subjects,
@@ -303,6 +336,12 @@ export function LessonEditorForm({
     () => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0),
     [activitySteps],
   );
+  const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
+  const activityHealthTone = durationGap === 0
+    ? { background: '#DCFCE7', color: '#166534', label: 'Runtime aligned' }
+    : Math.abs(durationGap) <= 2
+      ? { background: '#FEF3C7', color: '#92400E', label: durationGap > 0 ? 'Light buffer' : 'Slight overrun' }
+      : { background: '#FEE2E2', color: '#991B1B', label: durationGap > 0 ? 'Too much dead air' : 'Overbooked lesson' };
 
   const updateActivity = (index: number, patch: Partial<(typeof activityDrafts)[number]>) => {
     setActivityDrafts((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
@@ -341,6 +380,10 @@ export function LessonEditorForm({
     setActivityDrafts((current) => [...current, makeActivityDraft(current.length, { id: nextActivityDraftId(current) })]);
   };
 
+  const applyStarterTemplate = () => {
+    setActivityDrafts(starterTemplates(mode).map((item, index) => ({ ...item, id: `activity-${index + 1}` })));
+  };
+
   return (
     <form action={action} style={cardStyle}>
       <input type="hidden" name="lessonId" value={lesson.id} />
@@ -358,9 +401,14 @@ export function LessonEditorForm({
             This edits the real payload: objectives, localization, assessment items, and activity steps. Now it also lets authors shape the flow instead of babysitting a dumb JSON blob.
           </div>
         </div>
-        <div style={{ minWidth: 180, padding: 16, borderRadius: 18, background: readinessCount >= 5 ? '#DCFCE7' : readinessCount >= 3 ? '#FEF3C7' : '#FEE2E2', color: readinessCount >= 5 ? '#166534' : readinessCount >= 3 ? '#92400E' : '#991B1B', fontWeight: 800 }}>
-          {readinessCount}/5 release checks
-          <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600 }}>Module: {activeModule?.status ?? 'unknown'}</div>
+        <div style={{ display: 'grid', gap: 10, justifyItems: 'end' }}>
+          <div style={{ minWidth: 180, padding: 16, borderRadius: 18, background: readinessCount >= 5 ? '#DCFCE7' : readinessCount >= 3 ? '#FEF3C7' : '#FEE2E2', color: readinessCount >= 5 ? '#166534' : readinessCount >= 3 ? '#92400E' : '#991B1B', fontWeight: 800 }}>
+            {readinessCount}/5 release checks
+            <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600 }}>Module: {activeModule?.status ?? 'unknown'}</div>
+          </div>
+          <div style={{ padding: '10px 12px', borderRadius: 14, background: activityHealthTone.background, color: activityHealthTone.color, fontWeight: 700, fontSize: 13 }}>
+            {activityHealthTone.label} {durationGap === 0 ? '• exact runtime match' : `• ${Math.abs(durationGap)} min ${durationGap > 0 ? 'unplanned buffer' : 'over target'}`}
+          </div>
         </div>
       </div>
 
@@ -532,6 +580,13 @@ export function LessonEditorForm({
             </div>
             <div style={{ padding: 14, borderRadius: 16, background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.7 }}>
               Put learner flow first: sequence, prompt, evidence, and support cues. Localization and assessment stay visible, but they no longer steal the main editing surface.
+            </div>
+            <div style={{ padding: 14, borderRadius: 16, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 10 }}>
+              <div style={{ fontWeight: 800, color: '#3730A3' }}>Starter sequence</div>
+              <div style={{ color: '#475569', lineHeight: 1.6 }}>If the current flow is junk or empty, drop in a sane {mode || 'guided'} template and edit from there instead of building step structure from scratch.</div>
+              <button type="button" onClick={applyStarterTemplate} style={{ ...ghostButtonStyle, background: '#4F46E5', color: 'white', border: '1px solid #4F46E5' }}>
+                Replace with {mode || 'guided'} starter flow
+              </button>
             </div>
           </div>
         </div>

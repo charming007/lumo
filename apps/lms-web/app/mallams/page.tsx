@@ -110,19 +110,27 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
       title="Mallams"
       subtitle="Mallam operations with real scoping, deployment health, learner load visibility, and faster intervention cues instead of a flat roster dump."
       aside={
-        rosterDependenciesReady ? (
-          <ModalLauncher
-            buttonLabel="Add Mallam"
-            title="Add mallam"
-            description="Create a new mallam profile from the deployment roster without losing context."
-          >
-            <CreateMallamForm centers={centers} pods={pods} />
-          </ModalLauncher>
-        ) : (
-          <div style={{ padding: '12px 14px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, maxWidth: 340 }}>
-            Add mallam is temporarily unavailable until centers and pods load.
-          </div>
-        )
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <a href="/reports" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+            Open reports
+          </a>
+          <a href="/rewards" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F5F3FF', color: '#6D28D9', textDecoration: 'none' }}>
+            Open rewards
+          </a>
+          {rosterDependenciesReady ? (
+            <ModalLauncher
+              buttonLabel="Add Mallam"
+              title="Add mallam"
+              description="Create a new mallam profile from the deployment roster without losing context."
+            >
+              <CreateMallamForm centers={centers} pods={pods} />
+            </ModalLauncher>
+          ) : (
+            <div style={{ padding: '12px 14px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, maxWidth: 340 }}>
+              Add mallam is temporarily unavailable until centers and pods load.
+            </div>
+          )}
+        </div>
       }
     >
       <FeedbackBanner message={query?.message} />
