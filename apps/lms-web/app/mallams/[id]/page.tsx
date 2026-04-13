@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { MallamRosterManager } from '../../../components/mallam-roster-manager';
@@ -64,6 +65,8 @@ export default async function MallamDetailPage({ params, searchParams }: { param
       worst: roster.length ? Math.min(...roster.map((student) => student.attendanceRate)) : 0,
       average: average(roster.map((student) => student.attendanceRate)),
     };
+    const reportDrilldownHref = `/reports?mallam=${encodeURIComponent(mallam.id)}`;
+    const assignmentDrilldownHref = `/assignments?mallam=${encodeURIComponent(mallam.id)}`;
 
     return (
       <PageShell
@@ -74,6 +77,16 @@ export default async function MallamDetailPage({ params, searchParams }: { param
           { label: 'Mallams', href: '/mallams' },
           { label: mallam.displayName },
         ]}
+        aside={(
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <Link href={reportDrilldownHref} style={{ borderRadius: 14, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+              Open reporting view
+            </Link>
+            <Link href={assignmentDrilldownHref} style={{ borderRadius: 14, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+              Review assignments
+            </Link>
+          </div>
+        )}
       >
         <FeedbackBanner message={query?.message} />
         {studentsResult.status === 'rejected' || mallamsResult.status === 'rejected' ? (
@@ -92,6 +105,37 @@ export default async function MallamDetailPage({ params, searchParams }: { param
           <Card title={String(mallam.summary.activeAssignments)} eyebrow="Active assignments"><div style={{ color: '#64748b' }}>Delivery blocks owned in the current window.</div></Card>
           <Card title={`${Math.round(mallam.summary.averageAttendance * 100)}%`} eyebrow="Avg attendance"><div style={{ color: '#64748b' }}>Across the current roster, not just the neat cases.</div></Card>
           <Card title={String(mallam.summary.watchCount)} eyebrow="Watchlist"><div style={{ color: '#64748b' }}>Learners needing tighter coaching support.</div></Card>
+        </section>
+
+        <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16, marginBottom: 20 }}>
+          <Card title="Operator handoff" eyebrow="Use this before a coaching or donor call">
+            <div style={{ display: 'grid', gap: 12 }}>
+              {[
+                ['Roster reality', `${mallam.displayName} is carrying ${roster.length} learner${roster.length === 1 ? '' : 's'} across ${podsCovered || mallam.summary.podCoverage} pod${(podsCovered || mallam.summary.podCoverage) === 1 ? '' : 's'}.`],
+                ['Immediate risk', watchLearners.length ? `${watchLearners.length} learner${watchLearners.length === 1 ? '' : 's'} are below the attendance watch threshold and should be the first coaching conversation.` : 'No learner is currently below the attendance watch threshold. That is rare; don’t waste it.'],
+                ['Delivery pressure', nextAssignment ? `Next checkpoint is ${nextAssignment.lessonTitle} due ${formatDate(nextAssignment.dueDate)} with ${assignments.length} assignment${assignments.length === 1 ? '' : 's'} in the visible window.` : 'No future assignment checkpoint is attached yet, so delivery planning still needs cleanup upstream.'],
+              ].map(([title, detail]) => (
+                <div key={title} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+                  <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
+                  <div style={{ color: '#64748b', lineHeight: 1.6 }}>{detail}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card title="Cross-route actions" eyebrow="Don’t make operators bounce blind">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <Link href={reportDrilldownHref} style={{ padding: 14, borderRadius: 16, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', fontWeight: 700 }}>
+                Open reports scoped to {mallam.displayName} →
+              </Link>
+              <Link href={assignmentDrilldownHref} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#334155', textDecoration: 'none', fontWeight: 700 }}>
+                Review assignment queue →
+              </Link>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', lineHeight: 1.6 }}>
+                Mallam detail now has a cleaner handoff: roster pressure here, reporting depth in reports, delivery cleanup in assignments. No more dead-end profile route.
+              </div>
+            </div>
+          </Card>
         </section>
 
         <section style={{ ...responsiveGrid(280), marginBottom: 20 }}>

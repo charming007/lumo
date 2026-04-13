@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { DashboardInsight, NgoSummary, OperationsReport, ReportsOverview } from '../../lib/types';
 import { fetchAssignments, fetchCohorts, fetchDashboardInsights, fetchMallams, fetchNgoSummary, fetchOperationsReport, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
@@ -129,6 +130,11 @@ function formatDate(value: unknown) {
 
 function asRecord(value: unknown) {
   return value && typeof value === 'object' ? value as Record<string, unknown> : null;
+}
+
+function buildScopeLabel({ cohortName, podLabel, mallamName }: { cohortName?: string; podLabel?: string; mallamName?: string }) {
+  const parts = [cohortName, podLabel, mallamName].filter(Boolean);
+  return parts.length ? parts.join(' • ') : 'All cohorts • all pods • all mallams';
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
@@ -274,6 +280,15 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
   const recentIntegrityIssues = operationsReport.recent.integrityIssues.slice(0, 6);
   const highSupportLearners = (operationsReport.hotlist.highSupportLearners ?? []).slice(0, 6);
   const filtersActive = Boolean(searchText || cohortFilter || podFilter || mallamFilter);
+  const selectedCohort = cohorts.find((cohort) => cohort.id === cohortFilter) ?? null;
+  const selectedPod = pods.find((pod) => pod.id === podFilter) ?? null;
+  const selectedMallam = mallams.find((mallam) => mallam.id === mallamFilter) ?? null;
+  const scopeLabel = buildScopeLabel({ cohortName: selectedCohort?.name, podLabel: selectedPod?.label, mallamName: selectedMallam?.displayName });
+  const scopedReportNarratives = [
+    `Scope: ${scopeLabel}. ${scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents} learner${(scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents) === 1 ? '' : 's'} are represented in this pull.`,
+    `${ngoSummary.progression.ready || operationsReport.summary.progressionReady} learner${(ngoSummary.progression.ready || operationsReport.summary.progressionReady) === 1 ? '' : 's'} are ready to progress, while ${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} remain on watch.`,
+    `Attendance sits around ${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}% and reward backlog pressure is ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0} urgent item${(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) === 1 ? '' : 's'}.`,
+  ];
 
   return (
     <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, reward queue pressure, and cleaner NGO reporting in one place.">
@@ -314,6 +329,47 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
           Reporting scope now reflects {scopedStudents.length} learner{scopedStudents.length === 1 ? '' : 's'} with live ops pull-through on pods, mallams, and reward pressure.
         </div>
       ) : null}
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Scope summary" eyebrow="What this report is actually describing">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ padding: 16, borderRadius: 18, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730A3', fontWeight: 800 }}>
+              {scopeLabel}
+            </div>
+            <div style={{ color: '#64748b', lineHeight: 1.7 }}>
+              {searchText ? `Search filter: “${searchText}”. ` : ''}
+              This scope keeps the narrative tied to the actual cohort, pod, or mallam slice instead of forcing operators to mentally subtract noise.
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {selectedMallam ? (
+                <Link href={`/mallams/${selectedMallam.id}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+                  Open mallam detail
+                </Link>
+              ) : null}
+              {selectedPod ? (
+                <Link href={`/assignments?pod=${selectedPod.id}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+                  Review pod assignments
+                </Link>
+              ) : null}
+              {selectedCohort ? (
+                <Link href={`/assignments?cohort=${selectedCohort.id}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+                  Review cohort assignments
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Share-ready narrative" eyebrow="Copy into an update without rewriting it all">
+          <div style={{ display: 'grid', gap: 10 }}>
+            {scopedReportNarratives.map((item, index) => (
+              <div key={index} style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #eef2f7', color: '#475569', lineHeight: 1.7 }}>
+                {item}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </section>
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         <Card title="Program overview" eyebrow="Coverage">
@@ -459,7 +515,10 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
             rows={mallamSnapshots.length ? mallamSnapshots.map((mallam) => {
               const tone = mallam.status === 'active' ? { tone: '#DCFCE7', text: '#166534' } : mallam.status === 'training' ? { tone: '#FEF3C7', text: '#92400E' } : { tone: '#E0E7FF', text: '#3730A3' };
               return [
-                mallam.displayName,
+                <div key={`${mallam.id}-name`} style={{ display: 'grid', gap: 6 }}>
+                  <strong>{mallam.displayName}</strong>
+                  <Link href={`/mallams/${mallam.id}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open detail →</Link>
+                </div>,
                 mallam.centerName ?? mallam.region,
                 String(mallam.rosterCount),
                 `${Math.round(mallam.attendanceAverage * 100)}%`,

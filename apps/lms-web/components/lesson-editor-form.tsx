@@ -616,7 +616,7 @@ export function LessonEditorForm({
                 <div style={{ ...autoFitCompactFields, gridTemplateColumns: 'minmax(260px, 1.3fr) minmax(180px, 0.8fr) minmax(120px, 0.45fr)' }}>
                   <FieldLabel>
                     Step title
-                    <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value, prompt: event.target.value })} style={inputStyle} />
+                    <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                   <FieldLabel>
                     Type
