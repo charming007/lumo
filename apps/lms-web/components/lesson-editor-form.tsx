@@ -122,9 +122,26 @@ function parseActivityMedia(mediaLines: string) {
     });
 }
 
-function makeActivityDraft(index: number) {
+function makeActivityDraft(index: number, overrides: Partial<ReturnType<typeof makeActivityDraftBase>> = {}) {
+  return makeActivityDraftBase(index, overrides);
+}
+
+function makeActivityDraftBase(index: number, overrides: Partial<{
+  id: string;
+  title: string;
+  prompt: string;
+  type: string;
+  durationMinutes: string;
+  detail: string;
+  evidence: string;
+  expectedAnswers: string;
+  tags: string;
+  facilitatorNotes: string;
+  choiceLines: string;
+  mediaLines: string;
+}> = {}) {
   return {
-    id: `activity-${Date.now()}-${index + 1}`,
+    id: overrides.id ?? `activity-${index + 1}`,
     title: `Activity ${index + 1}`,
     prompt: `Activity ${index + 1}`,
     type: 'speak_answer',
@@ -136,7 +153,18 @@ function makeActivityDraft(index: number) {
     facilitatorNotes: '',
     choiceLines: '',
     mediaLines: '',
+    ...overrides,
   };
+}
+
+function nextActivityDraftId(current: Array<ReturnType<typeof makeActivityDraftBase>>) {
+  const highestIndex = current.reduce((max, item) => {
+    const match = item.id.match(/^activity-(\d+)$/);
+    const parsed = match ? Number(match[1]) : 0;
+    return Number.isFinite(parsed) ? Math.max(max, parsed) : max;
+  }, 0);
+
+  return `activity-${highestIndex + 1}`;
 }
 
 export function LessonEditorForm({
@@ -305,7 +333,7 @@ export function LessonEditorForm({
   };
 
   const addActivity = () => {
-    setActivityDrafts((current) => [...current, makeActivityDraft(current.length)]);
+    setActivityDrafts((current) => [...current, makeActivityDraft(current.length, { id: nextActivityDraftId(current) })]);
   };
 
   return (

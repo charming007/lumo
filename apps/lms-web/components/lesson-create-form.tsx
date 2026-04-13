@@ -68,7 +68,7 @@ function asArray<T>(value: unknown): T[] {
 
 function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}): ActivityDraft {
   return {
-    id: `activity-${Date.now()}-${index + 1}`,
+    id: overrides.id ?? `activity-${index + 1}`,
     title: `Activity ${index + 1}`,
     prompt: `Activity ${index + 1}`,
     type: 'speak_answer',
@@ -82,6 +82,16 @@ function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}
     mediaLines: '',
     ...overrides,
   };
+}
+
+function nextActivityDraftId(current: ActivityDraft[]) {
+  const highestIndex = current.reduce((max, item) => {
+    const match = item.id.match(/^activity-(\d+)$/);
+    const parsed = match ? Number(match[1]) : 0;
+    return Number.isFinite(parsed) ? Math.max(max, parsed) : max;
+  }, 0);
+
+  return `activity-${highestIndex + 1}`;
 }
 
 type ActivityDraft = {
@@ -351,7 +361,7 @@ export function LessonCreateForm({
   const removeActivity = (index: number) => {
     setActivityDrafts((current) => (current.length === 1 ? [makeActivityDraft(0)] : current.filter((_, itemIndex) => itemIndex !== index)));
   };
-  const addActivity = () => setActivityDrafts((current) => [...current, makeActivityDraft(current.length)]);
+  const addActivity = () => setActivityDrafts((current) => [...current, makeActivityDraft(current.length, { id: nextActivityDraftId(current) })]);
   const applyTemplate = (template: LessonTemplate) => {
     setTitle(template.title);
     setMode(template.mode);

@@ -125,7 +125,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}): ActivityDraft {
   return {
-    id: `english-activity-${Date.now()}-${index + 1}`,
+    id: overrides.id ?? `english-activity-${index + 1}`,
     title: `Activity ${index + 1}`,
     type: 'speak_answer',
     durationMinutes: '2',
@@ -137,6 +137,16 @@ function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}
     facilitatorNotes: '',
     ...overrides,
   };
+}
+
+function nextActivityDraftId(current: ActivityDraft[]) {
+  const highestIndex = current.reduce((max, item) => {
+    const match = item.id.match(/^english-activity-(\d+)$/);
+    const parsed = match ? Number(match[1]) : 0;
+    return Number.isFinite(parsed) ? Math.max(max, parsed) : max;
+  }, 0);
+
+  return `english-activity-${highestIndex + 1}`;
 }
 
 function toDraftsFromGeneratedActivities(
@@ -280,7 +290,7 @@ export function EnglishStudioAuthoringForm({
     setActivityDrafts((current) => {
       const next = [...current];
       const source = current[index];
-      next.splice(index + 1, 0, { ...source, id: `${source.id}-copy-${Date.now()}`, title: `${source.title} copy` });
+      next.splice(index + 1, 0, { ...source, id: nextActivityDraftId(current), title: `${source.title} copy` });
       return next;
     });
   };
