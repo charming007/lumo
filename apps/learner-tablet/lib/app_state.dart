@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'dart:async';
 import 'dart:math';
 
@@ -19,6 +21,7 @@ class LumoAppState {
   VoiceReplay? voiceReplay;
   VoiceReplayStop? voiceReplayStop;
   Timer? _syncRetryTimer;
+  Timer? _persistenceDebounce;
 
   LearnerProfile? currentLearner;
   LearningModule? selectedModule;
@@ -125,6 +128,14 @@ class LumoAppState {
     return 'Waiting for first backend sync.';
   }
 
+  Future<void> restorePersistedState() async {
+    // Local restore is intentionally disabled until the persistence schema is finished.
+  }
+
+  void persistStateSoon() {
+    _persistenceDebounce?.cancel();
+  }
+
   Future<void> bootstrap() async {
     if (isBootstrapping) return;
     isBootstrapping = true;
@@ -137,14 +148,16 @@ class LumoAppState {
         ..addAll(data.learners.isEmpty ? learnerProfilesSeed : data.learners);
 
       final mergedModules = _dedupeModules(
-        kEnableSeedDemoContent && data.modules.isEmpty
-            ? [
-                ...data.modules,
-                ...learningModules.where(
-                  (seed) => !data.modules.any((item) => item.id == seed.id),
-                ),
-              ]
-            : data.modules,
+        _sanitizeModules(
+          kEnableSeedDemoContent && data.modules.isEmpty
+              ? [
+                  ...data.modules,
+                  ...learningModules.where(
+                    (seed) => !data.modules.any((item) => item.id == seed.id),
+                  ),
+                ]
+              : data.modules,
+        ),
       );
       modules
         ..clear()
@@ -153,9 +166,11 @@ class LumoAppState {
       assignedLessons
         ..clear()
         ..addAll(
-          data.lessons.isEmpty && kEnableSeedDemoContent
-              ? assignedLessonsSeed
-              : data.lessons,
+          _sanitizeLessons(
+            data.lessons.isEmpty && kEnableSeedDemoContent
+                ? assignedLessonsSeed
+                : data.lessons,
+          ),
         );
 
       registrationContext = data.registrationContext;
@@ -198,6 +213,7 @@ class LumoAppState {
       backendError = error.toString().replaceFirst('Exception: ', '');
     } finally {
       isBootstrapping = false;
+      persistStateSoon();
     }
   }
 
@@ -221,13 +237,37 @@ class LumoAppState {
 
     modules
       ..clear()
-      ..addAll(_dedupeModules(hydratedModules));
+      ..addAll(_dedupeModules(_sanitizeModules(hydratedModules)));
 
     if (hydratedLessons.isNotEmpty) {
       assignedLessons
         ..clear()
-        ..addAll(hydratedLessons);
+        ..addAll(_sanitizeLessons(hydratedLessons));
     }
+  }
+
+  List<LearningModule> _sanitizeModules(List<LearningModule> source) {
+    return source
+        .where((module) => !_isDeprecatedDemoModuleId(module.id))
+        .toList();
+  }
+
+  List<LessonCardModel> _sanitizeLessons(List<LessonCardModel> source) {
+    return source
+        .where((lesson) => !_isDeprecatedDemoModuleId(lesson.moduleId))
+        .toList();
+  }
+
+  bool _isDeprecatedDemoModuleId(String moduleId) {
+    return moduleId.trim().toLowerCase() == 'story';
+  }
+
+  List<LearningModule> _sanitizeModules(List<LearningModule> source) {
+    return source.where((module) {
+      final id = module.id.trim();
+      final title = module.title.trim();
+      return id.isNotEmpty && title.isNotEmpty;
+    }).toList();
   }
 
   List<LearningModule> _dedupeModules(List<LearningModule> source) {
@@ -236,13 +276,37 @@ class LumoAppState {
     for (final module in source) {
       final normalizedId = module.id.trim().toLowerCase();
       final normalizedTitle = module.title.trim().toLowerCase();
+      final normalizedBadge = module.badge.trim().toLowerCase();
       final key = normalizedId.isNotEmpty ? normalizedId : normalizedTitle;
-      if (!byKey.containsKey(key)) {
+      final existing = byKey[key];
+
+      if (existing == null) {
+        byKey[key] = module;
+        continue;
+      }
+
+      final currentLessonCount = _readModuleLessonCount(existing.badge);
+      final candidateLessonCount = _readModuleLessonCount(normalizedBadge);
+      final candidateLooksLive = normalizedBadge.contains('lesson');
+      final existingLooksLive = existing.badge.toLowerCase().contains('lesson');
+      final shouldReplace = candidateLessonCount > currentLessonCount ||
+          (candidateLessonCount == currentLessonCount &&
+              candidateLooksLive &&
+              !existingLooksLive) ||
+          (candidateLessonCount == currentLessonCount &&
+              normalizedTitle.length > existing.title.trim().length);
+
+      if (shouldReplace) {
         byKey[key] = module;
       }
     }
 
     return byKey.values.toList();
+  }
+
+  int _readModuleLessonCount(String badge) {
+    final match = RegExp(r'(\d+)').firstMatch(badge);
+    return int.tryParse(match?.group(1) ?? '') ?? 0;
   }
 
   LearnerProfile? get suggestedLearnerForHome {
@@ -262,11 +326,13 @@ class LumoAppState {
 
   void selectLearner(LearnerProfile learner) {
     currentLearner = learner;
+    persistStateSoon();
     unawaited(refreshLearnerRuntimeSessions(learner));
   }
 
   void selectModule(LearningModule module) {
     selectedModule = module;
+    persistStateSoon();
   }
 
   List<LessonCardModel> lessonsForSelectedModule() {
@@ -360,8 +426,13 @@ class LumoAppState {
     LearnerProfile? learner,
     String moduleId,
   ) {
+    final liveModuleIds = modules.map((item) => item.id).toSet();
     final matches = lessonsForLearner(learner)
-        .where((lesson) => lesson.moduleId == moduleId)
+        .where(
+          (lesson) =>
+              lesson.moduleId == moduleId &&
+              liveModuleIds.contains(lesson.moduleId),
+        )
         .toList();
     return matches;
   }
@@ -509,6 +580,7 @@ class LumoAppState {
 
   void updateDraft(RegistrationDraft draft) {
     registrationDraft = draft;
+    persistStateSoon();
   }
 
   RegistrationTarget? get registrationTargetForDraft {
@@ -548,6 +620,7 @@ class LumoAppState {
       lastSyncError = null;
       backendError = null;
       registrationDraft = const RegistrationDraft();
+      persistStateSoon();
       return learner;
     } finally {
       isRegisteringLearner = false;
@@ -595,6 +668,7 @@ class LumoAppState {
       ),
     );
     registrationDraft = const RegistrationDraft();
+    persistStateSoon();
     return learner;
   }
 
@@ -668,6 +742,7 @@ class LumoAppState {
       },
     );
     _attemptSyncSoon();
+    persistStateSoon();
   }
 
   ResponseOutcome submitLearnerResponse(String response) {
@@ -740,6 +815,7 @@ class LumoAppState {
       },
     );
     _attemptSyncSoon();
+    persistStateSoon();
     return ResponseOutcome(
       review: review,
       attemptNumber: nextAttempts,
@@ -925,6 +1001,7 @@ class LumoAppState {
       },
     );
     _attemptSyncSoon();
+    persistStateSoon();
   }
 
   void addObservation(String observation) {
@@ -955,6 +1032,7 @@ class LumoAppState {
       },
     );
     _attemptSyncSoon();
+    persistStateSoon();
   }
 
   void attachLearnerAudioCapture({
@@ -1000,12 +1078,14 @@ class LumoAppState {
     final session = activeSession;
     if (session == null) return;
     activeSession = session.copyWith(audioInputMode: mode);
+    persistStateSoon();
   }
 
   void setSpeakerOutputMode(String mode) {
     final session = activeSession;
     if (session == null) return;
     activeSession = session.copyWith(speakerOutputMode: mode);
+    persistStateSoon();
   }
 
   void setPracticeMode(PracticeMode mode) {
@@ -1022,6 +1102,7 @@ class LumoAppState {
           'Standard practice mode is active. Mallam will guide and support as needed.',
       },
     );
+    persistStateSoon();
   }
 
   Future<void> repeatCurrentStep({bool slow = false}) async {
@@ -1051,6 +1132,7 @@ class LumoAppState {
       },
     );
     await replayVisiblePrompt(spoken, mode: SpeakerMode.guiding);
+    persistStateSoon();
   }
 
   String get degradedModeSummary {
@@ -1158,6 +1240,7 @@ class LumoAppState {
       );
       _attemptSyncSoon();
       speakerMode = SpeakerMode.affirming;
+      persistStateSoon();
       return true;
     }
 
@@ -1194,6 +1277,7 @@ class LumoAppState {
       },
     );
     _attemptSyncSoon();
+    persistStateSoon();
     return false;
   }
 
@@ -1243,6 +1327,7 @@ class LumoAppState {
     );
     speakerMode = SpeakerMode.guiding;
     await replayVisiblePrompt(prompt, mode: SpeakerMode.guiding);
+    persistStateSoon();
   }
 
   Future<void> completeLesson(LessonCardModel lesson) async {
@@ -1274,6 +1359,7 @@ class LumoAppState {
       ),
     );
 
+    persistStateSoon();
     await syncPendingEvents();
     await refreshLearnerRuntimeSessions(updatedLearner);
   }
@@ -1506,6 +1592,7 @@ class LumoAppState {
       if (pendingSyncEvents.isNotEmpty) {
         _attemptSyncSoon();
       }
+      persistStateSoon();
     } catch (error) {
       final message = error.toString().replaceFirst('Exception: ', '');
       lastSyncError = message;
@@ -1603,8 +1690,10 @@ class LumoAppState {
       );
       recentRuntimeSessionsByLearnerId[learner.id] = sessions;
       learnerRuntimeError = null;
+      persistStateSoon();
     } catch (error) {
       learnerRuntimeError = error.toString().replaceFirst('Exception: ', '');
+      persistStateSoon();
     }
   }
 
@@ -1761,6 +1850,7 @@ class LumoAppState {
       if (currentLearner?.id == learnerId) {
         currentLearner = updatedLearner;
       }
+      persistStateSoon();
     }
   }
 
@@ -1890,8 +1980,554 @@ class LumoAppState {
     _attemptSyncSoon();
   }
 
+  Map<String, dynamic> _buildPersistenceSnapshot() {
+    return {
+      'learners': learners.map(_encodeLearner).toList(),
+      'modules': modules.map(_encodeModule).toList(),
+      'assignedLessons': assignedLessons.map(_encodeLesson).toList(),
+      'assignmentPacks': assignmentPacks.map(_encodeAssignmentPack).toList(),
+      'registrationDraft': _encodeRegistrationDraft(registrationDraft),
+      'registrationContext': _encodeRegistrationContext(registrationContext),
+      'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),
+      'recentRuntimeSessions': recentRuntimeSessionsByLearnerId.map(
+        (key, value) =>
+            MapEntry(key, value.map(_encodeBackendLessonSession).toList()),
+      ),
+      'currentLearnerId': currentLearner?.id,
+      'selectedModuleId': selectedModule?.id,
+      'activeSession':
+          activeSession == null ? null : _encodeLessonSession(activeSession!),
+      'speakerMode': speakerMode.name,
+      'usingFallbackData': usingFallbackData,
+      'backendError': backendError,
+      'lastSyncedAt': lastSyncedAt?.toIso8601String(),
+      'backendGeneratedAt': backendGeneratedAt?.toIso8601String(),
+      'lastSyncAttemptAt': lastSyncAttemptAt?.toIso8601String(),
+      'backendContractVersion': backendContractVersion,
+      'backendAssignmentCount': backendAssignmentCount,
+      'lastSyncAcceptedCount': lastSyncAcceptedCount,
+      'lastSyncIgnoredCount': lastSyncIgnoredCount,
+      'lastSyncError': lastSyncError,
+      'learnerRuntimeError': learnerRuntimeError,
+    };
+  }
+
+  List<LearnerProfile> _decodeLearners(Object? raw) {
+    return (raw as List?)
+            ?.whereType<Map>()
+            .map((item) => _decodeLearner(Map<String, dynamic>.from(item)))
+            .toList() ??
+        const <LearnerProfile>[];
+  }
+
+  List<LearningModule> _decodeModules(Object? raw) {
+    return (raw as List?)
+            ?.whereType<Map>()
+            .map((item) => _decodeModule(Map<String, dynamic>.from(item)))
+            .toList() ??
+        const <LearningModule>[];
+  }
+
+  List<LessonCardModel> _decodeLessons(Object? raw) {
+    return (raw as List?)
+            ?.whereType<Map>()
+            .map((item) => _decodeLesson(Map<String, dynamic>.from(item)))
+            .toList() ??
+        const <LessonCardModel>[];
+  }
+
+  List<LearnerAssignmentPack> _decodeAssignmentPacks(Object? raw) {
+    return (raw as List?)
+            ?.whereType<Map>()
+            .map((item) =>
+                LearnerAssignmentPack.fromJson(Map<String, dynamic>.from(item)))
+            .toList() ??
+        const <LearnerAssignmentPack>[];
+  }
+
+  List<SyncEvent> _decodeSyncEvents(Object? raw) {
+    return (raw as List?)
+            ?.whereType<Map>()
+            .map((item) => SyncEvent(
+                  id: item['id']?.toString() ?? 'sync-event',
+                  type: item['type']?.toString() ?? 'unknown',
+                  payload: item['payload'] is Map
+                      ? Map<String, dynamic>.from(item['payload'])
+                      : const {},
+                ))
+            .toList() ??
+        const <SyncEvent>[];
+  }
+
+  Map<String, List<BackendLessonSession>> _decodeRecentRuntimeSessions(
+      Object? raw) {
+    final output = <String, List<BackendLessonSession>>{};
+    if (raw is! Map) return output;
+    for (final entry in raw.entries) {
+      output[entry.key.toString()] = (entry.value as List?)
+              ?.whereType<Map>()
+              .map((item) => BackendLessonSession.fromJson(
+                  Map<String, dynamic>.from(item)))
+              .toList() ??
+          const <BackendLessonSession>[];
+    }
+    return output;
+  }
+
+  LessonSessionState? _decodeActiveSession(Object? raw) {
+    if (raw is! Map) return null;
+    final lessonId = raw['lessonId']?.toString();
+    final lesson = assignedLessons.cast<LessonCardModel?>().firstWhere(
+          (item) => item?.id == lessonId,
+          orElse: () => null,
+        );
+    if (lesson == null) return null;
+
+    final transcript = (raw['transcript'] as List?)
+            ?.whereType<Map>()
+            .map(
+              (item) => SessionTurn(
+                speaker: item['speaker']?.toString() ?? 'Speaker',
+                text: item['text']?.toString() ?? '',
+                review: ResponseReview.values.firstWhere(
+                  (value) => value.name == item['review']?.toString(),
+                  orElse: () => ResponseReview.pending,
+                ),
+                timestamp: _parseDate(item['timestamp']) ?? DateTime.now(),
+              ),
+            )
+            .toList() ??
+        const <SessionTurn>[];
+
+    return LessonSessionState(
+      sessionId: raw['sessionId']?.toString() ?? 'session-restored',
+      lesson: lesson,
+      stepIndex: _asInt(raw['stepIndex']) ?? 0,
+      completionState: LessonCompletionState.values.firstWhere(
+        (value) => value.name == raw['completionState']?.toString(),
+        orElse: () => LessonCompletionState.inProgress,
+      ),
+      speakerMode: _decodeSpeakerMode(raw['speakerMode']),
+      latestLearnerResponse: _readNullableString(raw['latestLearnerResponse']),
+      latestReview: ResponseReview.values.firstWhere(
+        (value) => value.name == raw['latestReview']?.toString(),
+        orElse: () => ResponseReview.pending,
+      ),
+      supportActionsUsed: _asInt(raw['supportActionsUsed']) ?? 0,
+      attemptsThisStep: _asInt(raw['attemptsThisStep']) ?? 0,
+      facilitatorObservations: (raw['facilitatorObservations'] as List?)
+              ?.map((item) => item.toString())
+              .toList() ??
+          const <String>[],
+      transcript: transcript,
+      startedAt: _parseDate(raw['startedAt']) ?? DateTime.now(),
+      audioInputMode:
+          raw['audioInputMode']?.toString() ?? 'Facilitator typed capture',
+      speakerOutputMode:
+          raw['speakerOutputMode']?.toString() ?? 'Tablet speaker',
+      totalResponses: _asInt(raw['totalResponses']) ?? 0,
+      totalAudioCaptures: _asInt(raw['totalAudioCaptures']) ?? 0,
+      latestLearnerAudioPath:
+          _readNullableString(raw['latestLearnerAudioPath']),
+      latestLearnerAudioDuration:
+          _asInt(raw['latestLearnerAudioDurationSeconds']) == null
+              ? null
+              : Duration(
+                  seconds: _asInt(raw['latestLearnerAudioDurationSeconds'])!),
+      lastSupportType: raw['lastSupportType']?.toString() ?? 'Prompt replay',
+      automationStatus:
+          raw['automationStatus']?.toString() ?? 'Mallam is ready to begin.',
+      practiceMode: PracticeMode.values.firstWhere(
+        (value) => value.name == raw['practiceMode']?.toString(),
+        orElse: () => PracticeMode.standard,
+      ),
+      lastUpdatedAt: _parseDate(raw['lastUpdatedAt']) ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> _encodeLearner(LearnerProfile learner) => {
+        'id': learner.id,
+        'name': learner.name,
+        'age': learner.age,
+        'cohort': learner.cohort,
+        'streakDays': learner.streakDays,
+        'guardianName': learner.guardianName,
+        'preferredLanguage': learner.preferredLanguage,
+        'readinessLabel': learner.readinessLabel,
+        'village': learner.village,
+        'guardianPhone': learner.guardianPhone,
+        'sex': learner.sex,
+        'baselineLevel': learner.baselineLevel,
+        'consentCaptured': learner.consentCaptured,
+        'learnerCode': learner.learnerCode,
+        'caregiverRelationship': learner.caregiverRelationship,
+        'enrollmentStatus': learner.enrollmentStatus,
+        'attendanceBand': learner.attendanceBand,
+        'supportPlan': learner.supportPlan,
+        'lastLessonSummary': learner.lastLessonSummary,
+        'lastAttendance': learner.lastAttendance,
+        'backendRecommendedModuleId': learner.backendRecommendedModuleId,
+        'rewards': learner.rewards == null
+            ? null
+            : _encodeRewardSnapshot(learner.rewards!),
+      };
+
+  LearnerProfile _decodeLearner(Map<String, dynamic> raw) => LearnerProfile(
+        id: raw['id']?.toString() ?? 'student-unknown',
+        name: raw['name']?.toString() ?? 'Learner',
+        age: _asInt(raw['age']) ?? 0,
+        cohort: raw['cohort']?.toString() ?? 'Cohort',
+        streakDays: _asInt(raw['streakDays']) ?? 0,
+        guardianName: raw['guardianName']?.toString() ?? 'Guardian',
+        preferredLanguage: raw['preferredLanguage']?.toString() ?? 'Hausa',
+        readinessLabel:
+            raw['readinessLabel']?.toString() ?? 'Voice-first beginner',
+        village: raw['village']?.toString() ?? 'Village pending',
+        guardianPhone: raw['guardianPhone']?.toString() ?? '',
+        sex: raw['sex']?.toString() ?? 'Boy',
+        baselineLevel: raw['baselineLevel']?.toString() ?? 'No prior exposure',
+        consentCaptured: raw['consentCaptured'] == true,
+        learnerCode: raw['learnerCode']?.toString() ?? '',
+        caregiverRelationship:
+            raw['caregiverRelationship']?.toString() ?? 'Guardian',
+        enrollmentStatus: raw['enrollmentStatus']?.toString() ?? 'Active',
+        attendanceBand:
+            raw['attendanceBand']?.toString() ?? 'Stable attendance',
+        supportPlan: raw['supportPlan']?.toString() ??
+            'Short prompts and praise after every answer.',
+        lastLessonSummary:
+            raw['lastLessonSummary']?.toString() ?? 'No lesson captured yet.',
+        lastAttendance: raw['lastAttendance']?.toString() ?? 'Checked in today',
+        backendRecommendedModuleId:
+            _readNullableString(raw['backendRecommendedModuleId']),
+        rewards: raw['rewards'] is Map
+            ? _decodeRewardSnapshot(Map<String, dynamic>.from(raw['rewards']))
+            : null,
+      );
+
+  Map<String, dynamic> _encodeRewardSnapshot(RewardSnapshot reward) => {
+        'learnerId': reward.learnerId,
+        'totalXp': reward.totalXp,
+        'points': reward.points,
+        'level': reward.level,
+        'levelLabel': reward.levelLabel,
+        'nextLevel': reward.nextLevel,
+        'nextLevelLabel': reward.nextLevelLabel,
+        'xpIntoLevel': reward.xpIntoLevel,
+        'xpForNextLevel': reward.xpForNextLevel,
+        'progressToNextLevel': reward.progressToNextLevel,
+        'badgesUnlocked': reward.badgesUnlocked,
+        'badges': reward.badges
+            .map((badge) => {
+                  'id': badge.id,
+                  'title': badge.title,
+                  'description': badge.description,
+                  'icon': badge.icon,
+                  'category': badge.category,
+                  'earned': badge.earned,
+                  'progress': badge.progress,
+                  'target': badge.target,
+                })
+            .toList(),
+      };
+
+  RewardSnapshot _decodeRewardSnapshot(Map<String, dynamic> raw) =>
+      RewardSnapshot(
+        learnerId: raw['learnerId']?.toString() ?? '',
+        totalXp: _asInt(raw['totalXp']) ?? 0,
+        points: _asInt(raw['points']) ?? 0,
+        level: _asInt(raw['level']) ?? 1,
+        levelLabel: raw['levelLabel']?.toString() ?? 'Starter',
+        nextLevel: _asInt(raw['nextLevel']),
+        nextLevelLabel: _readNullableString(raw['nextLevelLabel']),
+        xpIntoLevel: _asInt(raw['xpIntoLevel']) ?? 0,
+        xpForNextLevel: _asInt(raw['xpForNextLevel']) ?? 0,
+        progressToNextLevel:
+            double.tryParse(raw['progressToNextLevel']?.toString() ?? '') ?? 0,
+        badgesUnlocked: _asInt(raw['badgesUnlocked']) ?? 0,
+        badges: (raw['badges'] as List?)?.whereType<Map>().map((item) {
+              final badge = Map<String, dynamic>.from(item);
+              return RewardBadge(
+                id: badge['id']?.toString() ?? 'badge-unknown',
+                title: badge['title']?.toString() ?? 'Badge',
+                description: badge['description']?.toString() ?? '',
+                icon: badge['icon']?.toString() ?? 'military_tech',
+                category: badge['category']?.toString() ?? 'milestone',
+                earned: badge['earned'] == true,
+                progress: _asInt(badge['progress']) ?? 0,
+                target: _asInt(badge['target']) ?? 1,
+              );
+            }).toList() ??
+            const <RewardBadge>[],
+      );
+
+  Map<String, dynamic> _encodeModule(LearningModule module) => {
+        'id': module.id,
+        'title': module.title,
+        'description': module.description,
+        'voicePrompt': module.voicePrompt,
+        'readinessGoal': module.readinessGoal,
+        'badge': module.badge,
+      };
+
+  LearningModule _decodeModule(Map<String, dynamic> raw) => LearningModule(
+        id: raw['id']?.toString() ?? 'module',
+        title: raw['title']?.toString() ?? 'Learning module',
+        description: raw['description']?.toString() ?? '',
+        voicePrompt: raw['voicePrompt']?.toString() ?? '',
+        readinessGoal: raw['readinessGoal']?.toString() ?? '',
+        badge: raw['badge']?.toString() ?? '',
+      );
+
+  Map<String, dynamic> _encodeLesson(LessonCardModel lesson) => {
+        'id': lesson.id,
+        'moduleId': lesson.moduleId,
+        'title': lesson.title,
+        'subject': lesson.subject,
+        'durationMinutes': lesson.durationMinutes,
+        'status': lesson.status,
+        'mascotName': lesson.mascotName,
+        'readinessFocus': lesson.readinessFocus,
+        'scenario': lesson.scenario,
+        'activitySteps': lesson.steps
+            .map((step) => {
+                  'id': step.id,
+                  'type': step.type.name,
+                  'title': step.title,
+                  'instruction': step.instruction,
+                  'expectedResponse': step.expectedResponse,
+                  'acceptableResponses': step.acceptableResponses,
+                  'coachPrompt': step.coachPrompt,
+                  'facilitatorTip': step.facilitatorTip,
+                  'realWorldCheck': step.realWorldCheck,
+                  'speakerMode': step.speakerMode.name,
+                  if (step.activity != null)
+                    'activity': {
+                      'type': step.activity!.type.name,
+                      'prompt': step.activity!.prompt,
+                      'focusText': step.activity!.focusText,
+                      'supportText': step.activity!.supportText,
+                      'choices': step.activity!.choiceItems.isEmpty
+                          ? step.activity!.choices
+                          : step.activity!.choiceItems
+                              .map((choice) => {
+                                    'id': choice.id,
+                                    'label': choice.label,
+                                    'isCorrect': choice.isCorrect,
+                                    'media': choice.mediaKind == null &&
+                                            choice.mediaValue == null
+                                        ? null
+                                        : {
+                                            'kind': choice.mediaKind,
+                                            'value': choice.mediaValue,
+                                          },
+                                  })
+                              .toList(),
+                      'choiceEmoji': step.activity!.choiceEmoji,
+                      'targetResponse': step.activity!.targetResponse,
+                      'expectedAnswers': step.activity!.expectedAnswers,
+                      'successFeedback': step.activity!.successFeedback,
+                      'retryFeedback': step.activity!.retryFeedback,
+                      'media': step.activity!.mediaKind == null &&
+                              step.activity!.mediaValue == null
+                          ? null
+                          : {
+                              'kind': step.activity!.mediaKind,
+                              'value': step.activity!.mediaValue,
+                            },
+                    },
+                })
+            .toList(),
+      };
+
+  LessonCardModel _decodeLesson(Map<String, dynamic> raw) =>
+      LessonCardModel.fromBackend(raw);
+
+  Map<String, dynamic> _encodeAssignmentPack(LearnerAssignmentPack pack) => {
+        'assignmentId': pack.assignmentId,
+        'lessonPack': {
+          'lessonId': pack.lessonId,
+          'moduleKey': pack.moduleId,
+          'curriculumModuleId': pack.curriculumModuleId,
+          'lessonTitle': pack.lessonTitle,
+        },
+        'cohortName': pack.cohortName,
+        'mallamName': pack.mallamName,
+        'dueDate': pack.dueDate,
+        'assessment': pack.assessmentTitle == null
+            ? null
+            : {'title': pack.assessmentTitle},
+        'eligibleLearners':
+            pack.eligibleLearnerIds.map((id) => {'id': id}).toList(),
+      };
+
+  Map<String, dynamic> _encodeRegistrationDraft(RegistrationDraft draft) => {
+        'name': draft.name,
+        'age': draft.age,
+        'cohort': draft.cohort,
+        'guardianName': draft.guardianName,
+        'preferredLanguage': draft.preferredLanguage,
+        'readinessLabel': draft.readinessLabel,
+        'village': draft.village,
+        'guardianPhone': draft.guardianPhone,
+        'sex': draft.sex,
+        'baselineLevel': draft.baselineLevel,
+        'consentCaptured': draft.consentCaptured,
+        'caregiverRelationship': draft.caregiverRelationship,
+        'supportPlan': draft.supportPlan,
+        'mallamId': draft.mallamId,
+      };
+
+  RegistrationDraft _decodeRegistrationDraft(Object? raw) {
+    if (raw is! Map) return const RegistrationDraft();
+    return RegistrationDraft(
+      name: raw['name']?.toString() ?? '',
+      age: raw['age']?.toString() ?? '',
+      cohort: raw['cohort']?.toString() ?? '',
+      guardianName: raw['guardianName']?.toString() ?? '',
+      preferredLanguage: raw['preferredLanguage']?.toString() ?? 'Hausa',
+      readinessLabel:
+          raw['readinessLabel']?.toString() ?? 'Voice-first beginner',
+      village: raw['village']?.toString() ?? '',
+      guardianPhone: raw['guardianPhone']?.toString() ?? '',
+      sex: raw['sex']?.toString() ?? 'Boy',
+      baselineLevel: raw['baselineLevel']?.toString() ?? 'No prior exposure',
+      consentCaptured: raw['consentCaptured'] == true,
+      caregiverRelationship:
+          raw['caregiverRelationship']?.toString() ?? 'Mother',
+      supportPlan: raw['supportPlan']?.toString() ??
+          'Use short prompts and repeat once when needed.',
+      mallamId: raw['mallamId']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> _encodeRegistrationContext(
+          RegistrationContext context) =>
+      {
+        'cohorts': context.cohorts
+            .map((cohort) => {
+                  'id': cohort.id,
+                  'name': cohort.name,
+                  'podId': cohort.podId,
+                })
+            .toList(),
+        'mallams': context.mallams
+            .map((mallam) => {
+                  'id': mallam.id,
+                  'displayName': mallam.name,
+                  'podIds': mallam.podIds,
+                })
+            .toList(),
+        'defaultTarget': context.defaultTarget == null
+            ? null
+            : {
+                'cohortId': context.defaultTarget!.cohort.id,
+                'mallamId': context.defaultTarget!.mallam.id,
+              },
+      };
+
+  RegistrationContext _decodeRegistrationContext(Object? raw) {
+    if (raw is! Map) return const RegistrationContext();
+    return RegistrationContext.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  Map<String, dynamic> _encodeSyncEvent(SyncEvent event) => {
+        'id': event.id,
+        'type': event.type,
+        'payload': event.payload,
+      };
+
+  Map<String, dynamic> _encodeBackendLessonSession(
+          BackendLessonSession session) =>
+      {
+        'id': session.id,
+        'sessionId': session.sessionId,
+        'studentId': session.studentId,
+        'learnerCode': session.learnerCode,
+        'lessonId': session.lessonId,
+        'lessonTitle': session.lessonTitle,
+        'moduleId': session.moduleId,
+        'moduleTitle': session.moduleTitle,
+        'status': session.status,
+        'completionState': session.completionState,
+        'automationStatus': session.automationStatus,
+        'currentStepIndex': session.currentStepIndex,
+        'stepsTotal': session.stepsTotal,
+        'responsesCaptured': session.responsesCaptured,
+        'supportActionsUsed': session.supportActionsUsed,
+        'audioCaptures': session.audioCaptures,
+        'facilitatorObservations': session.facilitatorObservations,
+        'latestReview': session.latestReview,
+        'startedAt': session.startedAt?.toIso8601String(),
+        'lastActivityAt': session.lastActivityAt?.toIso8601String(),
+        'completedAt': session.completedAt?.toIso8601String(),
+      };
+
+  Map<String, dynamic> _encodeLessonSession(LessonSessionState session) => {
+        'sessionId': session.sessionId,
+        'lessonId': session.lesson.id,
+        'stepIndex': session.stepIndex,
+        'completionState': session.completionState.name,
+        'speakerMode': session.speakerMode.name,
+        'latestLearnerResponse': session.latestLearnerResponse,
+        'latestReview': session.latestReview.name,
+        'supportActionsUsed': session.supportActionsUsed,
+        'attemptsThisStep': session.attemptsThisStep,
+        'facilitatorObservations': session.facilitatorObservations,
+        'transcript': session.transcript
+            .map((turn) => {
+                  'speaker': turn.speaker,
+                  'text': turn.text,
+                  'review': turn.review.name,
+                  'timestamp': turn.timestamp.toIso8601String(),
+                })
+            .toList(),
+        'startedAt': session.startedAt.toIso8601String(),
+        'audioInputMode': session.audioInputMode,
+        'speakerOutputMode': session.speakerOutputMode,
+        'totalResponses': session.totalResponses,
+        'totalAudioCaptures': session.totalAudioCaptures,
+        'latestLearnerAudioPath': session.latestLearnerAudioPath,
+        'latestLearnerAudioDurationSeconds':
+            session.latestLearnerAudioDuration?.inSeconds,
+        'lastSupportType': session.lastSupportType,
+        'automationStatus': session.automationStatus,
+        'practiceMode': session.practiceMode.name,
+        'lastUpdatedAt': session.lastUpdatedAt.toIso8601String(),
+      };
+
+  SpeakerMode _decodeSpeakerMode(Object? raw) {
+    return SpeakerMode.values.firstWhere(
+      (value) => value.name == raw?.toString(),
+      orElse: () => SpeakerMode.guiding,
+    );
+  }
+
+  int? _asInt(Object? raw) {
+    if (raw is int) return raw;
+    return int.tryParse(raw?.toString() ?? '');
+  }
+
+  Future<void> _persistStateNow() async {
+    // Local tablet persistence is intentionally parked until the full restore path is reintroduced cleanly.
+  }
+
+  DateTime? _parseDate(Object? raw) {
+    final value = raw?.toString();
+    if (value == null || value.trim().isEmpty) return null;
+    return DateTime.tryParse(value);
+  }
+
+  String? _readNullableString(Object? raw) {
+    final value = raw?.toString();
+    if (value == null || value.trim().isEmpty || value == 'null') return null;
+    return value;
+  }
+
   void dispose() {
     _syncRetryTimer?.cancel();
+    _persistenceDebounce?.cancel();
+    unawaited(_persistStateNow());
   }
 
   void _scheduleSyncRetry() {

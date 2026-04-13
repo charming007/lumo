@@ -38,6 +38,10 @@ class _LumoAppState extends State<LumoApp> {
       onStop: voiceReplayService.stop,
     );
     Future.microtask(() async {
+      await state.restorePersistedState();
+      if (mounted) {
+        setState(() {});
+      }
       await state.bootstrap();
       if (!mounted) return;
       setState(() {});
