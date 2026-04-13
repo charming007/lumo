@@ -90,6 +90,72 @@ test('session repair detail report includes learner context and revert preview',
   assert.equal(detail.revertPreview.status, before.status);
 });
 
+test('progression override endpoints expose detail, revoke, and reapply control', async () => {
+  const student = store.listStudents()[0];
+  const progress = store.createProgress({
+    studentId: student.id,
+    subjectId: 'english',
+    moduleId: 'module-1',
+    mastery: 0.62,
+    lessonsCompleted: 2,
+    progressionStatus: 'watch',
+    recommendedNextModuleId: 'module-2',
+  });
+
+  const overridden = store.updateProgress(progress.id, {
+    progressionStatus: 'ready',
+    recommendedNextModuleId: 'module-3',
+  });
+  const audit = store.createProgressionOverride({
+    studentId: progress.studentId,
+    progressId: progress.id,
+    action: 'override',
+    previousStatus: 'watch',
+    nextStatus: overridden.progressionStatus,
+    previousRecommendedNextModuleId: 'module-2',
+    nextRecommendedNextModuleId: overridden.recommendedNextModuleId,
+    reason: 'manual_push',
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+  });
+
+  const detailResponse = await request(`/api/v1/progression-overrides/${audit.id}`);
+  assert.equal(detailResponse.status, 200);
+  assert.equal(detailResponse.body.override.id, audit.id);
+  assert.equal(detailResponse.body.revertPreview.progressionStatus, 'watch');
+
+  const revokeResponse = await request(`/api/v1/progression-overrides/${audit.id}/revoke`, {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({ reason: 'qa_rollback' }),
+  });
+
+  assert.equal(revokeResponse.status, 200);
+  assert.equal(revokeResponse.body.action, 'revoked');
+  assert.equal(revokeResponse.body.progress.progressionStatus, 'watch');
+
+  const reapplyResponse = await request(`/api/v1/progression-overrides/${audit.id}/reapply`, {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({ reason: 'qa_restore' }),
+  });
+
+  assert.equal(reapplyResponse.status, 200);
+  assert.equal(reapplyResponse.body.action, 'override');
+  assert.equal(reapplyResponse.body.progress.progressionStatus, 'ready');
+  assert.equal(reapplyResponse.body.revokedAt, null);
+
+  const current = store.findProgressById(progress.id);
+  assert.equal(current.progressionStatus, 'ready');
+  assert.equal(current.recommendedNextModuleId, 'module-3');
+});
+
 test('session repair endpoints expose detail, admin report, and revert control', async () => {
   const student = store.listStudents()[1];
   const module = store.listModules()[1];
