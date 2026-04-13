@@ -15,29 +15,72 @@ class LumoTopBar extends StatelessWidget {
         northernLocations[DateTime.now().day % northernLocations.length];
     final date = DateTime.now();
     final formattedDate = '${date.day}/${date.month}/${date.year}';
+    final chips = [
+      _TopChip(text: item['city']!),
+      _TopChip(text: item['lga']!),
+      _TopChip(text: formattedDate),
+    ];
 
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: onLogoTap,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Image.asset('assets/images/lumo_logo.jpg',
-                height: 56, width: 56, fit: BoxFit.cover),
-          ),
-        ),
-        const SizedBox(width: 12),
-        const Text(
-          'Lumo',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-        ),
-        const Spacer(),
-        _TopChip(text: item['city']!),
-        const SizedBox(width: 8),
-        _TopChip(text: item['lga']!),
-        const SizedBox(width: 8),
-        _TopChip(text: formattedDate),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 620;
+
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: onLogoTap,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.asset('assets/images/lumo_logo.jpg',
+                          height: 56, width: 56, fit: BoxFit.cover),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Lumo',
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: chips,
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            GestureDetector(
+              onTap: onLogoTap,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.asset('assets/images/lumo_logo.jpg',
+                    height: 56, width: 56, fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Lumo',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            ),
+            const Spacer(),
+            for (var i = 0; i < chips.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              chips[i],
+            ],
+          ],
+        );
+      },
     );
   }
 }

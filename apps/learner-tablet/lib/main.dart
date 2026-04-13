@@ -558,157 +558,185 @@ class AllStudentsPage extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              LumoTopBar(
-                onLogoTap: () =>
-                    Navigator.of(context).popUntil((route) => route.isFirst),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                crossAxisAlignment: WrapCrossAlignment.center,
+        child: LayoutBuilder(
+          builder: (context, viewportConstraints) {
+            final availableWidth = viewportConstraints.maxWidth - 48;
+            final crossAxisCount = _adaptiveGridCount(
+              availableWidth,
+              minTileWidth: 320,
+              maxCount: 3,
+            );
+            final childAspectRatio = availableWidth < 520
+                ? 1.05
+                : availableWidth < 900
+                    ? 0.78
+                    : availableWidth < 1280
+                        ? 0.92
+                        : 1.02;
+            final headingWidth = availableWidth < 520 ? availableWidth : 520.0;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(
-                    width: 520,
-                    child: SectionTitle(
-                      title: 'All learners',
-                      subtitle:
-                          'Cleaner cards, visible progress, and a live points leaderboard so it is obvious who is ready next.',
-                    ),
+                  LumoTopBar(
+                    onLogoTap: () =>
+                        Navigator.of(context).popUntil((route) => route.isFirst),
                   ),
-                  StatusPill(
-                    text: '${state.learners.length} learners',
-                    color: LumoTheme.accentGreen,
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: headingWidth,
+                        child: const SectionTitle(
+                          title: 'All learners',
+                          subtitle:
+                              'Cleaner cards, visible progress, and a live points leaderboard so it is obvious who is ready next.',
+                        ),
+                      ),
+                      StatusPill(
+                        text: '${state.learners.length} learners',
+                        color: LumoTheme.accentGreen,
+                      ),
+                      StatusPill(
+                        text: '$averagePoints avg pts',
+                        color: LumoTheme.primary,
+                      ),
+                      if (topLearner != null)
+                        StatusPill(
+                          text:
+                              '${topLearner.learner.name.split(' ').first} leads • ${topLearner.points} pts',
+                          color: LumoTheme.accentOrange,
+                        ),
+                    ],
                   ),
-                  StatusPill(
-                    text: '$averagePoints avg pts',
-                    color: LumoTheme.primary,
-                  ),
-                  if (topLearner != null)
-                    StatusPill(
-                      text:
-                          '${topLearner.learner.name.split(' ').first} leads • ${topLearner.points} pts',
-                      color: LumoTheme.accentOrange,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _BackendStatusBanner(state: state),
-              const SizedBox(height: 16),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final stack = constraints.maxWidth < 1100;
-                  final leaderboardPanel = _LearnerLeaderboardPanel(
-                    leaderboard: leaderboard,
-                    currentLearnerId: state.currentLearner?.id,
-                  );
-                  final coachPanel = SoftPanel(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
+                  const SizedBox(height: 16),
+                  _BackendStatusBanner(state: state),
+                  const SizedBox(height: 16),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stack = constraints.maxWidth < 1100;
+                      final leaderboardPanel = _LearnerLeaderboardPanel(
+                        leaderboard: leaderboard,
+                        currentLearnerId: state.currentLearner?.id,
+                      );
+                      final coachPanel = SoftPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.tips_and_updates_rounded,
-                                color: LumoTheme.primary),
-                            SizedBox(width: 8),
+                            const Row(
+                              children: [
+                                Icon(Icons.tips_and_updates_rounded,
+                                    color: LumoTheme.primary),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Pick fast',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
                             Text(
-                              'Pick fast',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
+                              topLearner == null
+                                  ? 'Open any learner card to view rewards, streaks, and assigned lessons.'
+                                  : '${topLearner.learner.name} is leading the board right now. Tap Profile for the full reward view or Start assigned to continue momentum.',
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                height: 1.4,
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          topLearner == null
-                              ? 'Open any learner card to view rewards, streaks, and assigned lessons.'
-                              : '${topLearner.learner.name} is leading the board right now. Tap Profile for the full reward view or Start assigned to continue momentum.',
-                          style: const TextStyle(
-                            color: Color(0xFF475569),
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: const [
-                            _MiniMetricChip(
-                              icon: Icons.local_fire_department_rounded,
-                              label: 'Streaks stay visible',
-                            ),
-                            _MiniMetricChip(
-                              icon: Icons.workspace_premium_rounded,
-                              label: 'Points shown on every card',
-                            ),
-                            _MiniMetricChip(
-                              icon: Icons.play_circle_fill_rounded,
-                              label: 'Start from card actions',
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: const [
+                                _MiniMetricChip(
+                                  icon: Icons.local_fire_department_rounded,
+                                  label: 'Streaks stay visible',
+                                ),
+                                _MiniMetricChip(
+                                  icon: Icons.workspace_premium_rounded,
+                                  label: 'Points shown on every card',
+                                ),
+                                _MiniMetricChip(
+                                  icon: Icons.play_circle_fill_rounded,
+                                  label: 'Start from card actions',
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  );
+                      );
 
-                  if (stack) {
-                    return Column(
-                      children: [
-                        leaderboardPanel,
-                        const SizedBox(height: 12),
-                        coachPanel,
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    children: [
-                      Expanded(child: leaderboardPanel),
-                      const SizedBox(width: 12),
-                      Expanded(child: coachPanel),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final crossAxisCount = _adaptiveGridCount(
-                      constraints.maxWidth,
-                      minTileWidth: 320,
-                      maxCount: 3,
-                    );
-                    final childAspectRatio = constraints.maxWidth < 900
-                        ? 0.78
-                        : constraints.maxWidth < 1280
-                            ? 0.92
-                            : 1.02;
-
-                    return GridView.builder(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      itemCount: state.learners.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        mainAxisSpacing: 14,
-                        crossAxisSpacing: 14,
-                        childAspectRatio: childAspectRatio,
-                      ),
-                      itemBuilder: (context, index) {
-                        final learner = state.learners[index];
-                        final leaderboardEntry = learnerLeaderboardEntryFor(
-                          leaderboard,
-                          learner.id,
+                      if (stack) {
+                        return Column(
+                          children: [
+                            leaderboardPanel,
+                            const SizedBox(height: 12),
+                            coachPanel,
+                          ],
                         );
-                        return GestureDetector(
-                          onTap: () {
+                      }
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: leaderboardPanel),
+                          const SizedBox(width: 12),
+                          Expanded(child: coachPanel),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    primary: false,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 12),
+                    itemCount: state.learners.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 14,
+                      childAspectRatio: childAspectRatio,
+                    ),
+                    itemBuilder: (context, index) {
+                      final learner = state.learners[index];
+                      final leaderboardEntry = learnerLeaderboardEntryFor(
+                        leaderboard,
+                        learner.id,
+                      );
+                      return GestureDetector(
+                        onTap: () {
+                          state.selectLearner(learner);
+                          onChanged();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => LearnerProfilePage(
+                                state: state,
+                                learner: learner,
+                              ),
+                            ),
+                          );
+                        },
+                        child: _LearnerCard(
+                          learner: learner,
+                          state: state,
+                          leaderboardEntry: leaderboardEntry,
+                          isActive: state.currentLearner?.id == learner.id,
+                          onSetActive: () {
+                            state.selectLearner(learner);
+                            onChanged();
+                          },
+                          onOpenProfile: () {
                             state.selectLearner(learner);
                             onChanged();
                             Navigator.of(context).push(
@@ -720,47 +748,25 @@ class AllStudentsPage extends StatelessWidget {
                               ),
                             );
                           },
-                          child: _LearnerCard(
-                            learner: learner,
-                            state: state,
-                            leaderboardEntry: leaderboardEntry,
-                            isActive: state.currentLearner?.id == learner.id,
-                            onSetActive: () {
-                              state.selectLearner(learner);
-                              onChanged();
-                            },
-                            onOpenProfile: () {
-                              state.selectLearner(learner);
-                              onChanged();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => LearnerProfilePage(
-                                    state: state,
-                                    learner: learner,
-                                  ),
-                                ),
-                              );
-                            },
-                            onStartLesson: () {
-                              final nextLesson =
-                                  state.nextAssignedLessonForLearner(learner);
-                              if (nextLesson == null) return;
-                              launchLessonFlow(
-                                context: context,
-                                state: state,
-                                onChanged: onChanged,
-                                lesson: nextLesson,
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                          onStartLesson: () {
+                            final nextLesson =
+                                state.nextAssignedLessonForLearner(learner);
+                            if (nextLesson == null) return;
+                            launchLessonFlow(
+                              context: context,
+                              state: state,
+                              onChanged: onChanged,
+                              lesson: nextLesson,
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -5173,7 +5179,7 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
       };
       return isPane
           ? SizedBox(
-              height: viewportHeight * 0.72,
+              height: viewportHeight * 0.86,
               child: columnChild,
             )
           : columnChild;
@@ -5895,7 +5901,9 @@ class _BackendStatusBanner extends StatelessWidget {
           ],
           if (onRefresh != null || onSyncQueue != null) ...[
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
               children: [
                 if (onRefresh != null)
                   OutlinedButton.icon(
@@ -5907,8 +5915,6 @@ class _BackendStatusBanner extends StatelessWidget {
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('Refresh backend'),
                   ),
-                if (onRefresh != null && onSyncQueue != null)
-                  const SizedBox(width: 12),
                 if (onSyncQueue != null)
                   FilledButton.tonalIcon(
                     onPressed:

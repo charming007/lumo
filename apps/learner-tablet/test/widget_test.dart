@@ -46,6 +46,20 @@ void main() {
     expect(find.textContaining('learners'), findsWidgets);
   });
 
+  testWidgets('student list stays usable on narrow tablet widths', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(540, 960));
+
+    await tester.tap(find.text('Student List'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('All learners'), findsOneWidget);
+    expect(find.text('Pick fast'), findsOneWidget);
+    expect(find.textContaining('leads'), findsWidgets);
+  });
+
   testWidgets('registration flow stays usable on portrait tablet widths', (
     tester,
   ) async {
