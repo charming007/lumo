@@ -128,11 +128,14 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     }, new Map<string, { key: string; subjectId: string; subjectName: string; strandName: string; modules: typeof modules }>()).values(),
   ).map((group) => ({ ...group, modules: group.modules.sort((a, b) => a.title.localeCompare(b.title)) }));
 
-  const assessmentLinkedModuleIds = new Set(assessments.map((assessment) => assessment.moduleId).filter(Boolean));
+  const moduleHasAssessmentGate = (moduleId: string, moduleTitle: string) => assessments.some(
+    (assessment) => assessment.moduleId === moduleId || assessment.moduleTitle === moduleTitle,
+  );
+
   const blockedModules = modules.filter((module) => {
     const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
     const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-    return readyLessonCount < module.lessonCount || !assessmentLinkedModuleIds.has(module.id);
+    return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module.id, module.title);
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
@@ -381,7 +384,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
               const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
               const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-              const hasAssessment = assessmentLinkedModuleIds.has(module.id);
+              const hasAssessment = moduleHasAssessmentGate(module.id, module.title);
               const blocker = blockerRiskMeta(missingLessons, hasAssessment);
 
               return [
