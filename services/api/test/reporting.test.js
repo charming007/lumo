@@ -59,6 +59,22 @@ test('storage integrity repair dry-run reports without mutating data', () => {
   assert.ok(result.report.summary);
 });
 
+test('storage import preview reports projected collection changes without mutating data', () => {
+  const before = store.exportStorageSnapshot();
+  const preview = store.previewStorageImport({
+    merge: true,
+    snapshot: {
+      students: [{ id: 'student-preview', cohortId: 'cohort-1', podId: 'pod-1', mallamId: 'teacher-1', name: 'Preview Learner', age: 9 }],
+      rewardRedemptionRequests: [{ id: 'reward-request-preview', studentId: 'student-1', rewardItemId: 'story-time', xpCost: 30, status: 'pending' }],
+    },
+  });
+  const after = store.exportStorageSnapshot();
+
+  assert.equal(preview.changes.students.delta, 1);
+  assert.equal(preview.changes.rewardRedemptionRequests.delta, 1);
+  assert.deepEqual(after.collectionCounts, before.collectionCounts);
+});
+
 
 test('storage checkpoints can be listed and deleted in file mode', () => {
   const created = store.checkpointStorage('unit-test-backup');

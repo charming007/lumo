@@ -2043,6 +2043,17 @@ app.get('/api/v1/admin/storage/export', requireRole(['admin']), (_req, res) => {
   res.json(store.exportStorageSnapshot());
 });
 
+app.post('/api/v1/admin/storage/import/preview', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.json(store.previewStorageImport({
+      snapshot: req.body?.snapshot,
+      merge: Boolean(req.body?.merge),
+    }));
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.post('/api/v1/admin/storage/import', requireRole(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.importStorageSnapshot({

@@ -496,6 +496,40 @@ function exportStorageSnapshot() {
   };
 }
 
+function previewStorageImport({ snapshot, merge = false } = {}) {
+  const before = exportStorageSnapshot();
+
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+    const error = new Error('Provide snapshot object');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const after = {};
+  const changes = {};
+
+  Object.keys(before.snapshot).forEach((key) => {
+    const current = Array.isArray(before.snapshot[key]) ? before.snapshot[key] : [];
+    const incoming = Array.isArray(snapshot[key]) ? snapshot[key] : [];
+    const next = merge ? [...current, ...incoming] : incoming;
+    after[key] = next.length;
+    changes[key] = {
+      before: current.length,
+      incoming: incoming.length,
+      after: next.length,
+      delta: next.length - current.length,
+    };
+  });
+
+  return {
+    previewedAt: new Date().toISOString(),
+    merge,
+    before: before.collectionCounts,
+    after,
+    changes,
+  };
+}
+
 function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = true } = {}) {
   const data = require('./data');
 
@@ -641,6 +675,7 @@ module.exports = {
   getStorageIntegrityReport,
   repairStorageIntegrity,
   exportStorageSnapshot,
+  previewStorageImport,
   importStorageSnapshot,
   reloadStorageSnapshot,
   restoreStorageBackup,
