@@ -321,6 +321,123 @@ function createStorageOperation(input) {
   return repository.createStorageOperation(input);
 }
 
+function rebuildLessonSessionFromEventLog(sessionId, { apply = false, actorName = null, actorRole = null, reason = 'event_log_rebuild' } = {}) {
+  const existing = findLessonSessionBySessionId(sessionId);
+  if (!existing) {
+    const error = new Error('Session not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const events = listSessionEventLog()
+    .filter((entry) => entry.sessionId === sessionId)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  if (!events.length) {
+    const error = new Error('Session has no event log to rebuild from');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const rebuilt = {
+    sessionId: existing.sessionId,
+    studentId: existing.studentId,
+    learnerCode: existing.learnerCode ?? null,
+    lessonId: existing.lessonId ?? null,
+    moduleId: existing.moduleId ?? null,
+    status: 'in_progress',
+    completionState: 'inProgress',
+    automationStatus: 'guided',
+    currentStepIndex: 0,
+    stepsTotal: 0,
+    responsesCaptured: 0,
+    supportActionsUsed: 0,
+    audioCaptures: 0,
+    facilitatorObservations: 0,
+    latestReview: null,
+    lastEventType: events[events.length - 1]?.type || null,
+    startedAt: existing.startedAt || events[0]?.createdAt || new Date().toISOString(),
+    lastActivityAt: events[events.length - 1]?.createdAt || existing.lastActivityAt || new Date().toISOString(),
+    completedAt: null,
+  };
+
+  for (const entry of events) {
+    const payload = entry.payload && typeof entry.payload === 'object' ? entry.payload : {};
+    rebuilt.studentId = payload.studentId ?? rebuilt.studentId;
+    rebuilt.learnerCode = payload.learnerCode ?? rebuilt.learnerCode;
+    rebuilt.lessonId = payload.lessonId ?? rebuilt.lessonId;
+    rebuilt.moduleId = payload.moduleId ?? rebuilt.moduleId;
+    rebuilt.automationStatus = payload.automationStatus ?? rebuilt.automationStatus;
+    rebuilt.latestReview = payload.review ?? rebuilt.latestReview;
+    rebuilt.lastEventType = entry.type;
+    rebuilt.lastActivityAt = payload.capturedAt || entry.createdAt || rebuilt.lastActivityAt;
+    rebuilt.startedAt = rebuilt.startedAt || payload.capturedAt || entry.createdAt || new Date().toISOString();
+
+    const stepIndex = payload.stepIndex !== undefined ? Number(payload.stepIndex) : null;
+    const stepsTotal = payload.stepsTotal !== undefined ? Number(payload.stepsTotal) : null;
+    if (stepIndex !== null && Number.isFinite(stepIndex)) {
+      rebuilt.currentStepIndex = Math.max(rebuilt.currentStepIndex, stepIndex);
+    }
+    if (stepsTotal !== null && Number.isFinite(stepsTotal)) {
+      rebuilt.stepsTotal = Math.max(rebuilt.stepsTotal, stepsTotal);
+    }
+
+    if (entry.type === 'learner_response_captured') rebuilt.responsesCaptured += 1;
+    if (entry.type === 'coach_support_used') rebuilt.supportActionsUsed += 1;
+    if (entry.type === 'learner_audio_captured') rebuilt.audioCaptures += 1;
+    if (entry.type === 'facilitator_observation_added') rebuilt.facilitatorObservations += 1;
+    if (entry.type === 'lesson_step_completed' || entry.type === 'lesson_step_advanced') {
+      const nextStep = stepIndex !== null && Number.isFinite(stepIndex) ? stepIndex : rebuilt.currentStepIndex + 1;
+      rebuilt.currentStepIndex = Math.max(rebuilt.currentStepIndex, nextStep);
+    }
+    if (entry.type === 'lesson_completed') {
+      const completionState = payload.completionState || 'completed';
+      rebuilt.status = completionState === 'abandoned' ? 'abandoned' : 'completed';
+      rebuilt.completionState = completionState;
+      rebuilt.completedAt = payload.capturedAt || entry.createdAt || rebuilt.completedAt;
+      rebuilt.currentStepIndex = Math.max(rebuilt.currentStepIndex, rebuilt.stepsTotal);
+    }
+    if (entry.type === 'session_abandoned') {
+      rebuilt.status = 'abandoned';
+      rebuilt.completionState = 'abandoned';
+    }
+    if (entry.type === 'session_reopened') {
+      rebuilt.status = 'in_progress';
+      rebuilt.completionState = 'inProgress';
+      rebuilt.completedAt = null;
+    }
+  }
+
+  const preview = { before: existing, after: rebuilt, eventCount: events.length };
+
+  if (!apply) {
+    return { ...preview, applied: false };
+  }
+
+  const updated = upsertLessonSession(rebuilt);
+  createSessionEventLog({
+    sessionId: updated.sessionId,
+    studentId: updated.studentId,
+    lessonId: updated.lessonId,
+    moduleId: updated.moduleId,
+    type: 'session_rebuilt_from_events',
+    payload: { sourceEventCount: events.length, reason, actorName, actorRole },
+    createdAt: new Date().toISOString(),
+  });
+  const repair = createSessionRepair({
+    sessionId: updated.sessionId,
+    learnerId: updated.studentId,
+    actorName,
+    actorRole,
+    reason,
+    patch: { action: 'rebuild-from-events', sourceEventCount: events.length },
+    before: existing,
+    after: updated,
+  });
+
+  return { before: existing, after: updated, eventCount: events.length, applied: true, repair };
+}
+
 function getStoreMeta() {
   const data = require('./data');
 
@@ -828,6 +945,7 @@ module.exports = {
   listStorageOperations,
   findStorageOperationById,
   createStorageOperation,
+  rebuildLessonSessionFromEventLog,
   listRewardTransactions,
   findRewardTransactionById,
   listRewardAdjustments,

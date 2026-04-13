@@ -1988,6 +1988,21 @@ app.post('/api/v1/learner-app/sessions/:sessionId/reopen', requireRole(['admin',
   }
 });
 
+app.post('/api/v1/admin/sessions/:sessionId/rebuild-from-events', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const result = store.rebuildLessonSessionFromEventLog(req.params.sessionId, {
+      apply: Boolean(req.body?.apply),
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason || 'event_log_rebuild',
+    });
+
+    return res.status(result.applied ? 201 : 200).json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/api/v1/session-repairs', (req, res) => {
   const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
   const cohortId = coerceOptionalString(req.query.cohortId);
@@ -2238,6 +2253,17 @@ app.get('/api/v1/admin/storage/operations', requireRole(['admin']), (req, res) =
     kind: coerceOptionalString(req.query.kind),
     actorName: coerceOptionalString(req.query.actorName),
   }));
+});
+
+app.get('/api/v1/admin/storage/mutations', requireRole(['admin']), (req, res) => {
+  const status = store.getStorageStatus();
+  const data = require('./data');
+  const limit = Number(req.query.limit || 20);
+
+  return res.json({
+    items: typeof data.storage?.listMutations === 'function' ? data.storage.listMutations(limit) : [],
+    status,
+  });
 });
 
 app.get('/api/v1/admin/storage/operations/:id', requireRole(['admin']), (req, res) => {

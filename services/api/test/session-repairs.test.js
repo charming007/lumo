@@ -306,3 +306,98 @@ test('admin storage report endpoint and x-lumo-actor alias expose persisted cont
   assert.ok(storageResponse.body.collections.students >= 1);
   assert.ok(storageResponse.body.operations);
 });
+
+
+test('admin can preview and apply session rebuild from event log', async () => {
+  const student = store.listStudents()[0];
+  const session = store.upsertLessonSession({
+    sessionId: 'rebuild-session-1',
+    studentId: student.id,
+    learnerCode: 'REB-001',
+    moduleId: 'module-1',
+    lessonId: 'lesson-preview',
+    status: 'completed',
+    completionState: 'completed',
+    currentStepIndex: 99,
+    stepsTotal: 99,
+    responsesCaptured: 99,
+    supportActionsUsed: 99,
+    startedAt: '2026-04-13T09:00:00.000Z',
+    lastActivityAt: '2026-04-13T09:30:00.000Z',
+  });
+
+  store.createSessionEventLog({
+    sessionId: session.sessionId,
+    studentId: student.id,
+    lessonId: 'lesson-1',
+    moduleId: 'module-1',
+    type: 'lesson_session_started',
+    payload: { sessionId: session.sessionId, studentId: student.id, learnerCode: 'REB-001', lessonId: 'lesson-1', moduleId: 'module-1', stepIndex: 0, stepsTotal: 3, capturedAt: '2026-04-13T09:00:00.000Z' },
+    createdAt: '2026-04-13T09:00:00.000Z',
+  });
+  store.createSessionEventLog({
+    sessionId: session.sessionId,
+    studentId: student.id,
+    lessonId: 'lesson-1',
+    moduleId: 'module-1',
+    type: 'learner_response_captured',
+    payload: { sessionId: session.sessionId, studentId: student.id, stepIndex: 1, stepsTotal: 3, capturedAt: '2026-04-13T09:05:00.000Z', review: 'onTrack' },
+    createdAt: '2026-04-13T09:05:00.000Z',
+  });
+  store.createSessionEventLog({
+    sessionId: session.sessionId,
+    studentId: student.id,
+    lessonId: 'lesson-1',
+    moduleId: 'module-1',
+    type: 'coach_support_used',
+    payload: { sessionId: session.sessionId, studentId: student.id, stepIndex: 2, stepsTotal: 3, capturedAt: '2026-04-13T09:06:00.000Z' },
+    createdAt: '2026-04-13T09:06:00.000Z',
+  });
+  store.createSessionEventLog({
+    sessionId: session.sessionId,
+    studentId: student.id,
+    lessonId: 'lesson-1',
+    moduleId: 'module-1',
+    type: 'lesson_completed',
+    payload: { sessionId: session.sessionId, studentId: student.id, learnerCode: 'REB-001', lessonId: 'lesson-1', moduleId: 'module-1', stepIndex: 3, stepsTotal: 3, completionState: 'completed', capturedAt: '2026-04-13T09:10:00.000Z', review: 'onTrack' },
+    createdAt: '2026-04-13T09:10:00.000Z',
+  });
+
+  const preview = await request(`/api/v1/admin/sessions/${session.sessionId}/rebuild-from-events`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({ apply: false, reason: 'preview_rebuild' }),
+  });
+
+  assert.equal(preview.status, 200);
+  assert.equal(preview.body.applied, false);
+  assert.equal(preview.body.after.responsesCaptured, 1);
+  assert.equal(preview.body.after.supportActionsUsed, 1);
+  assert.equal(preview.body.after.currentStepIndex, 3);
+
+  const applied = await request(`/api/v1/admin/sessions/${session.sessionId}/rebuild-from-events`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({ apply: true, reason: 'apply_rebuild' }),
+  });
+
+  assert.equal(applied.status, 201);
+  assert.equal(applied.body.applied, true);
+  assert.equal(applied.body.after.responsesCaptured, 1);
+  assert.equal(applied.body.after.supportActionsUsed, 1);
+  assert.equal(applied.body.repair.patch.action, 'rebuild-from-events');
+
+  const rebuilt = store.findLessonSessionBySessionId(session.sessionId);
+  assert.equal(rebuilt.responsesCaptured, 1);
+  assert.equal(rebuilt.supportActionsUsed, 1);
+  assert.equal(rebuilt.currentStepIndex, 3);
+  assert.equal(rebuilt.stepsTotal, 3);
+});
