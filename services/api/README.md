@@ -13,7 +13,7 @@ Before live production rollout, replace with a plain Node start command or a com
 ## Planned env vars
 - `PORT`
 - `DATABASE_URL`
-- `LUMO_DB_MODE` (`file` by default, `postgres` reserved for Prisma/Postgres wiring)
+- `LUMO_DB_MODE` (`file` by default, `postgres` for JSONB snapshot durability on Postgres via the bundled `pg` client)
 - `LUMO_DATA_FILE` (override JSON snapshot location)
 
 ## Learner app integration slice
@@ -194,4 +194,12 @@ Returns reward-operations analytics for the selected scope, including:
 - scoped leaderboard
 
 ### `GET /api/v1/reports/operations`
-Now also includes an `adminControls` block covering progression override / session repair activity and summary counters for active overrides + repair volume, so NGO/admin dashboards can spot where humans are repeatedly intervening in learner state.
+Now also includes an `adminControls` block covering progression override / session repair activity and a `storage` block covering persistence mode, collection counts, integrity totals, and recent backups, so NGO/admin dashboards can spot where humans are repeatedly intervening in learner state and whether the durability layer looks healthy.
+
+### `GET /api/v1/reports/storage`
+Admin-only persistence report for the current storage engine, including:
+- active durability mode/driver
+- collection + total record counts
+- integrity issue totals and recent issue samples
+- recent storage checkpoints/backups
+- raw storage status metadata (`updatedAt`, cache file path, backup metadata)

@@ -2217,6 +2217,12 @@ app.get('/api/v1/reports/operations', (req, res) => {
   }));
 });
 
+app.get('/api/v1/reports/storage', requireRole(['admin']), (req, res) => {
+  res.json(reporting.buildStorageReport({
+    limit: Number(req.query.limit || 10),
+  }));
+});
+
 app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
   res.json(store.getStorageStatus());
 });

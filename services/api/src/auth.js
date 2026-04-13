@@ -1,7 +1,7 @@
 function getActor(req) {
   return {
     role: req.header('x-lumo-role') || 'admin',
-    name: req.header('x-lumo-user') || 'Demo User',
+    name: req.header('x-lumo-user') || req.header('x-lumo-actor') || 'Demo User',
   };
 }
 

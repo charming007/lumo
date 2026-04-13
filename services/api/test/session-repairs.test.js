@@ -224,3 +224,48 @@ test('session repair endpoints expose detail, admin report, and revert control',
   const revertEvent = store.listSessionEventLog().find((entry) => entry.type === 'session_repair_reverted' && entry.sessionId === session.sessionId);
   assert.ok(revertEvent);
 });
+
+test('admin storage report endpoint and x-lumo-actor alias expose persisted control metadata', async () => {
+  const student = store.listStudents()[0];
+  const module = store.listModules()[0];
+
+  store.upsertLessonSession({
+    sessionId: 'alias-session-1',
+    studentId: student.id,
+    learnerCode: 'ALIAS-001',
+    moduleId: module.id,
+    status: 'abandoned',
+    completionState: 'abandoned',
+    currentStepIndex: 1,
+    stepsTotal: 4,
+    responsesCaptured: 1,
+    supportActionsUsed: 0,
+    startedAt: '2026-04-13T14:00:00.000Z',
+    lastActivityAt: '2026-04-13T14:05:00.000Z',
+  });
+
+  const reopenResponse = await request('/api/v1/learner-app/sessions/alias-session-1/reopen', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Alias Admin',
+    },
+    body: JSON.stringify({ reason: 'alias_header_check' }),
+  });
+
+  assert.equal(reopenResponse.status, 201);
+  assert.equal(reopenResponse.body.repair.actorName, 'Alias Admin');
+
+  const storageResponse = await request('/api/v1/reports/storage?limit=5', {
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Alias Admin',
+    },
+  });
+
+  assert.equal(storageResponse.status, 200);
+  assert.equal(storageResponse.body.summary.mode, 'file');
+  assert.equal(typeof storageResponse.body.summary.recordCount, 'number');
+  assert.ok(storageResponse.body.status);
+  assert.ok(storageResponse.body.collections.students >= 1);
+});

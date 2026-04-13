@@ -25,7 +25,7 @@ test('buildRewardsReport returns reward ops summary and scoped details', () => {
 });
 
 
-test('buildOperationsReport returns combined runtime, progression, rewards, and integrity signals', () => {
+test('buildOperationsReport returns combined runtime, progression, rewards, integrity, and storage signals', () => {
   const report = reporting.buildOperationsReport({ limit: 5 });
 
   assert.equal(report.summary.learnersInScope > 0, true);
@@ -40,6 +40,21 @@ test('buildOperationsReport returns combined runtime, progression, rewards, and 
   assert.ok(Array.isArray(report.recent.sessions));
   assert.ok(Array.isArray(report.recent.sessionRepairs));
   assert.ok(report.adminControls);
+  assert.ok(report.storage);
+  assert.equal(report.storage.summary.mode, 'file');
+  assert.equal(typeof report.storage.summary.recordCount, 'number');
+});
+
+test('buildStorageReport summarizes persistence mode, collections, integrity, and backups', () => {
+  const report = reporting.buildStorageReport({ limit: 5 });
+
+  assert.equal(report.summary.mode, 'file');
+  assert.equal(report.summary.persistent, true);
+  assert.equal(typeof report.summary.recordCount, 'number');
+  assert.equal(typeof report.summary.integrityIssueCount, 'number');
+  assert.ok(report.status);
+  assert.ok(report.collections.students >= 1);
+  assert.ok(Array.isArray(report.backups));
 });
 
 test('buildProgressionOverrideDetail exposes learner, progress, and reapply preview', () => {

@@ -793,12 +793,51 @@ function buildSessionRepairDetail(repairId) {
   };
 }
 
+function buildStorageReport({ limit = 10 } = {}) {
+  const store = require('./store');
+  const status = store.getStorageStatus() || null;
+  const integrity = store.getStorageIntegrityReport();
+  const snapshot = store.exportStorageSnapshot();
+  const backups = store.listStorageBackups(Math.max(1, Math.min(Number(limit || 10), 100)));
+
+  return {
+    summary: {
+      mode: snapshot.mode,
+      storageKind: status?.kind || snapshot.mode,
+      persistent: Boolean(status?.db?.persistent),
+      hasDatabaseUrl: Boolean(status?.db?.hasDatabaseUrl),
+      driver: status?.db?.driver || null,
+      backupCount: backups.length,
+      integrityIssueCount: integrity.summary.issueCount,
+      collectionCount: Object.keys(snapshot.collectionCounts || {}).length,
+      recordCount: Object.values(snapshot.collectionCounts || {}).reduce((sum, value) => sum + Number(value || 0), 0),
+      rewardRequestCount: snapshot.collectionCounts?.rewardRedemptionRequests || 0,
+      sessionRepairCount: snapshot.collectionCounts?.sessionRepairs || 0,
+      progressionOverrideCount: snapshot.collectionCounts?.progressionOverrides || 0,
+      syncEventCount: snapshot.collectionCounts?.syncEvents || 0,
+      updatedAt: status?.updatedAt || snapshot.exportedAt,
+    },
+    status,
+    integrity: {
+      summary: integrity.summary,
+      issuesByType: integrity.issues.reduce((acc, issue) => {
+        acc[issue.type] = Number(acc[issue.type] || 0) + 1;
+        return acc;
+      }, {}),
+      recentIssues: integrity.issues.slice(0, Math.max(1, Math.min(Number(limit || 10), 100))),
+    },
+    collections: snapshot.collectionCounts,
+    backups,
+  };
+}
+
 function buildOperationsReport({ cohortId = null, podId = null, mallamId = null, subjectId = null, learnerId = null, since = null, until = null, limit = 20 } = {}) {
   const runtime = buildRuntimeAnalytics({ learnerId, cohortId, podId, mallamId, since, until, limit });
   const progression = buildProgressionRollup({ cohortId, podId, mallamId, subjectId, since, until });
   const rewardsReport = buildRewardsReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
   const fulfillment = rewards.buildRewardFulfillmentReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
   const adminControls = buildAdminControlsReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
+  const storage = buildStorageReport({ limit: Math.min(Number(limit || 20), 20) });
   const integrity = require('./store').getStorageIntegrityReport();
   const workboard = buildWorkboard()
     .filter((item) => (!cohortId || item.cohortId === cohortId) && (!podId || item.podId === podId) && (!mallamId || item.mallamId === mallamId))
@@ -848,6 +887,13 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
         acc[issue.type] = Number(acc[issue.type] || 0) + 1;
         return acc;
       }, {}),
+    },
+    storage: {
+      summary: storage.summary,
+      integrity: storage.integrity,
+      collections: storage.collections,
+      backups: storage.backups,
+      status: storage.status,
     },
     adminControls: {
       summary: adminControls.summary,
@@ -1003,6 +1049,7 @@ module.exports = {
   buildAdminControlsReport,
   buildProgressionOverrideDetail,
   buildSessionRepairDetail,
+  buildStorageReport,
   buildOperationsReport,
   buildRewardsReport,
 };
