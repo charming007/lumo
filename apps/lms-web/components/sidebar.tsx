@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { navigationItems } from '../lib/navigation';
 
 function isActivePath(pathname: string, href: string) {
@@ -33,11 +33,14 @@ export function Sidebar({
   onToggleSidebarCollapse,
 }: SidebarProps) {
   const pathname = usePathname();
+  const previousPathnameRef = useRef(pathname);
 
   useEffect(() => {
-    if (mobileNavOpen) {
+    if (previousPathnameRef.current !== pathname && mobileNavOpen) {
       onCloseMobileNav?.();
     }
+
+    previousPathnameRef.current = pathname;
   }, [pathname, mobileNavOpen, onCloseMobileNav]);
 
   return (

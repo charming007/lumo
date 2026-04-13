@@ -79,6 +79,104 @@ void main() {
       state.dispose();
     });
 
+    test('keeps live module list free of demo-only subjects during bootstrap',
+        () async {
+      final state = LumoAppState(
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': const [],
+                  'modules': [
+                    {
+                      'subjectId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Foundational English',
+                      'level': 'foundation-a',
+                    },
+                    {
+                      'subjectId': 'math',
+                      'subjectName': 'Basic Numeracy',
+                      'title': 'Basic Numeracy',
+                      'level': 'foundation-a',
+                    },
+                    {
+                      'subjectId': 'life-skills',
+                      'subjectName': 'Life Skills',
+                      'title': 'Life Skills',
+                      'level': 'foundation-a',
+                    },
+                  ],
+                  'lessons': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Foundational English',
+                  'level': 'foundation-a',
+                  'lessons': const [],
+                  'assignmentPacks': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/math') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'math',
+                  'subjectName': 'Basic Numeracy',
+                  'title': 'Basic Numeracy',
+                  'level': 'foundation-a',
+                  'lessons': const [],
+                  'assignmentPacks': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/life-skills') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'life-skills',
+                  'subjectName': 'Life Skills',
+                  'title': 'Life Skills',
+                  'level': 'foundation-a',
+                  'lessons': const [],
+                  'assignmentPacks': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(state.modules.map((module) => module.id),
+          equals(['english', 'math', 'life-skills']));
+      expect(
+        state.modules.where((module) => module.id == 'story'),
+        isEmpty,
+      );
+      state.dispose();
+    });
+
     test('ranks english first for voice-first beginners', () {
       final state = LumoAppState();
 

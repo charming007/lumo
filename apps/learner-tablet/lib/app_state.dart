@@ -137,7 +137,7 @@ class LumoAppState {
         ..addAll(data.learners.isEmpty ? learnerProfilesSeed : data.learners);
 
       final mergedModules = _dedupeModules(
-        kEnableSeedDemoContent
+        kEnableSeedDemoContent && data.modules.isEmpty
             ? [
                 ...data.modules,
                 ...learningModules.where(
@@ -225,8 +225,10 @@ class LumoAppState {
 
     if (hydratedLessons.isNotEmpty) {
       if (kEnableSeedDemoContent) {
+        final sourceModuleIds = sourceModules.map((item) => item.id).toSet();
         final fallbackByModule = <String, List<LessonCardModel>>{};
         for (final lesson in assignedLessonsSeed) {
+          if (!sourceModuleIds.contains(lesson.moduleId)) continue;
           fallbackByModule.putIfAbsent(lesson.moduleId, () => []).add(lesson);
         }
 
