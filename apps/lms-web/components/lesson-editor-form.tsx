@@ -46,8 +46,13 @@ const ghostButtonStyle = {
 
 const autoFitTwoUp = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
   gap: 16,
+} as const;
+
+const wideStack = {
+  display: 'grid',
+  gap: 18,
 } as const;
 
 const autoFitFields = {
@@ -420,7 +425,7 @@ export function LessonEditorForm({
       <div style={autoFitTwoUp}>
         <FieldLabel>
           Learning objectives (one per line)
-          <textarea value={learningObjectivesText} onChange={(event) => setLearningObjectivesText(event.target.value)} rows={6} style={inputStyle} />
+          <textarea value={learningObjectivesText} onChange={(event) => setLearningObjectivesText(event.target.value)} rows={6} style={{ ...inputStyle, minHeight: 164 }} />
         </FieldLabel>
 
         <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 12, minWidth: 0 }}>
@@ -469,61 +474,81 @@ export function LessonEditorForm({
         </div>
       </div>
 
-      <div style={autoFitTwoUp}>
-        <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
-          <div style={{ padding: 18, borderRadius: 18, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#1D4ED8', marginBottom: 10 }}>Localization</div>
-            <div style={{ ...autoFitCompactFields, marginBottom: 12 }}>
+      <div style={wideStack}>
+        <div style={{ ...autoFitTwoUp, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+            <div style={{ padding: 18, borderRadius: 18, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#1D4ED8', marginBottom: 10 }}>Localization</div>
+              <div style={{ ...autoFitCompactFields, marginBottom: 12 }}>
+                <FieldLabel>
+                  Support language code
+                  <input value={supportLanguage} onChange={(event) => setSupportLanguage(event.target.value)} style={inputStyle} />
+                </FieldLabel>
+                <FieldLabel>
+                  Support language label
+                  <input value={supportLanguageLabel} onChange={(event) => setSupportLanguageLabel(event.target.value)} style={inputStyle} />
+                </FieldLabel>
+              </div>
               <FieldLabel>
-                Support language code
-                <input value={supportLanguage} onChange={(event) => setSupportLanguage(event.target.value)} style={inputStyle} />
-              </FieldLabel>
-              <FieldLabel>
-                Support language label
-                <input value={supportLanguageLabel} onChange={(event) => setSupportLanguageLabel(event.target.value)} style={inputStyle} />
+                Localization notes (one per line)
+                <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={{ ...inputStyle, minHeight: 144 }} />
               </FieldLabel>
             </div>
-            <FieldLabel>
-              Localization notes (one per line)
-              <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={inputStyle} />
-            </FieldLabel>
+
+            <div style={{ padding: 18, borderRadius: 18, background: '#F5F3FF', border: '1px solid #DDD6FE' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#6D28D9', marginBottom: 10 }}>Assessment pack</div>
+              <div style={{ ...autoFitCompactFields, marginBottom: 12 }}>
+                <FieldLabel>
+                  Assessment title
+                  <input value={assessmentTitle} onChange={(event) => setAssessmentTitle(event.target.value)} style={inputStyle} />
+                </FieldLabel>
+                <FieldLabel>
+                  Kind
+                  <select value={assessmentKind} onChange={(event) => setAssessmentKind(event.target.value)} style={inputStyle}>
+                    <option value="observational">Observational</option>
+                    <option value="oral">Oral</option>
+                    <option value="automatic">Automatic</option>
+                  </select>
+                </FieldLabel>
+              </div>
+              <FieldLabel>
+                Assessment items (prompt|evidence per line)
+                <textarea value={assessmentItemsText} onChange={(event) => setAssessmentItemsText(event.target.value)} rows={5} style={{ ...inputStyle, minHeight: 164 }} />
+              </FieldLabel>
+            </div>
           </div>
 
-          <div style={{ padding: 18, borderRadius: 18, background: '#F5F3FF', border: '1px solid #DDD6FE' }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#6D28D9', marginBottom: 10 }}>Assessment pack</div>
-            <div style={{ ...autoFitCompactFields, marginBottom: 12 }}>
-              <FieldLabel>
-                Assessment title
-                <input value={assessmentTitle} onChange={(event) => setAssessmentTitle(event.target.value)} style={inputStyle} />
-              </FieldLabel>
-              <FieldLabel>
-                Kind
-                <select value={assessmentKind} onChange={(event) => setAssessmentKind(event.target.value)} style={inputStyle}>
-                  <option value="observational">Observational</option>
-                  <option value="oral">Oral</option>
-                  <option value="automatic">Automatic</option>
-                </select>
-              </FieldLabel>
+          <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 14, minWidth: 0, alignContent: 'start' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Activity spine</div>
+                <div style={{ color: '#475569', marginTop: 4 }}>The step planner now gets a proper lane instead of being crammed beside metadata. Build the flow here, then tighten the supporting details around it.</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', color: '#475569', fontSize: 13, fontWeight: 700 }}>
+                <span>{activitySteps.length} steps</span>
+                <span>•</span>
+                <span>{totalActivityMinutes} min mapped</span>
+              </div>
             </div>
-            <FieldLabel>
-              Assessment items (prompt|evidence per line)
-              <textarea value={assessmentItemsText} onChange={(event) => setAssessmentItemsText(event.target.value)} rows={5} style={inputStyle} />
-            </FieldLabel>
+            <div style={{ padding: 14, borderRadius: 16, background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.7 }}>
+              Put learner flow first: sequence, prompt, evidence, and support cues. Localization and assessment stay visible, but they no longer steal the main editing surface.
+            </div>
           </div>
         </div>
 
-        <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 14, minWidth: 0 }}>
+        <div style={{ padding: 20, borderRadius: 20, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 16, minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Activity spine</div>
-              <div style={{ color: '#475569', marginTop: 4 }}>Add, duplicate, reorder, and trim steps without wrecking the lesson payload.</div>
+            <div style={{ flex: '1 1 360px', minWidth: 0 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Primary workspace · Activity spine</div>
+              <div style={{ color: '#0f172a', fontWeight: 800, marginTop: 4 }}>Full-width sequence editor</div>
+              <div style={{ color: '#475569', marginTop: 6 }}>Add, duplicate, reorder, and trim steps without wrecking the lesson payload. This is the main authoring surface now, not a sidebar casualty.</div>
             </div>
-            <button type="button" onClick={addActivity} style={{ ...ghostButtonStyle, background: '#ede9fe', color: '#5b21b6', border: '1px solid #ddd6fe' }}>+ Add step</button>
+            <button type="button" onClick={addActivity} style={{ ...ghostButtonStyle, background: '#ede9fe', color: '#5b21b6', border: '1px solid #ddd6fe', padding: '12px 14px' }}>+ Add step</button>
           </div>
 
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gap: 14 }}>
             {activityDrafts.map((activity, index) => (
-              <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10, minWidth: 0 }}>
+              <div key={activity.id} style={{ padding: 18, borderRadius: 18, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 14, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -533,7 +558,7 @@ export function LessonEditorForm({
                     <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
                   </div>
                 </div>
-                <div style={autoFitCompactFields}>
+                <div style={{ ...autoFitCompactFields, gridTemplateColumns: 'minmax(260px, 1.3fr) minmax(180px, 0.8fr) minmax(120px, 0.45fr)' }}>
                   <FieldLabel>
                     Step title
                     <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value, prompt: event.target.value })} style={inputStyle} />
@@ -556,15 +581,17 @@ export function LessonEditorForm({
                     <input value={activity.durationMinutes} onChange={(event) => updateActivity(index, { durationMinutes: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                 </div>
-                <FieldLabel>
-                  Learner prompt
-                  <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={2} style={inputStyle} />
-                </FieldLabel>
-                <FieldLabel>
-                  Detail
-                  <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={3} style={inputStyle} />
-                </FieldLabel>
-                <div style={autoFitCompactFields}>
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(280px, 1.15fr) minmax(260px, 0.85fr)' }}>
+                  <FieldLabel>
+                    Learner prompt
+                    <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 110 }} />
+                  </FieldLabel>
+                  <FieldLabel>
+                    Detail
+                    <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={4} style={{ ...inputStyle, minHeight: 132 }} />
+                  </FieldLabel>
+                </div>
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(220px, 0.8fr) minmax(320px, 1.2fr)' }}>
                   <FieldLabel>
                     Evidence
                     <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
@@ -574,24 +601,24 @@ export function LessonEditorForm({
                     <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                 </div>
-                <div style={autoFitCompactFields}>
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(220px, 0.75fr) minmax(320px, 1.25fr)' }}>
                   <FieldLabel>
                     Tags (comma separated)
                     <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                   <FieldLabel>
                     Facilitator notes (one per line)
-                    <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={2} style={inputStyle} />
+                    <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
                   </FieldLabel>
                 </div>
-                <div style={autoFitCompactFields}>
+                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(320px, 1.2fr) minmax(280px, 0.8fr)' }}>
                   <FieldLabel>
                     Choices (id|label|correct/wrong|mediaKind|mediaValue per line)
-                    <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={4} style={inputStyle} />
+                    <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
                   </FieldLabel>
                   <FieldLabel>
                     Media cues (kind|value per line)
-                    <textarea value={activity.mediaLines} onChange={(event) => updateActivity(index, { mediaLines: event.target.value })} rows={4} style={inputStyle} />
+                    <textarea value={activity.mediaLines} onChange={(event) => updateActivity(index, { mediaLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
                   </FieldLabel>
                 </div>
               </div>

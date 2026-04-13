@@ -108,7 +108,7 @@ export default async function LessonDetailPage({ params, searchParams }: { param
         </Card>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
         {editorDependenciesReady ? (
           <LessonEditorForm lesson={lesson} subjects={subjects} modules={modules} action={updateLessonAction} returnPath={returnPath} />
         ) : (
@@ -122,7 +122,7 @@ export default async function LessonDetailPage({ params, searchParams }: { param
           </Card>
         )}
 
-        <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+        <div style={{ ...responsiveGrid(300), alignItems: 'start' }}>
           <Card title="Authoring checkpoints" eyebrow="Publish discipline">
             <div style={{ display: 'grid', gap: 12 }}>
               {readinessChecks.map(([label, passed]) => (
