@@ -613,6 +613,130 @@ export async function revokeRewardTransactionAction(formData: FormData) {
   redirect('/rewards?message=Reward%20transaction%20revoked');
 }
 
+async function runRewardRequestAction({
+  requestId,
+  path,
+  successMessage,
+  failureLabel,
+  payload,
+}: {
+  requestId: string;
+  path: string;
+  successMessage: string;
+  failureLabel: string;
+  payload?: Record<string, unknown>;
+}) {
+  if (!requestId) {
+    redirect(`/rewards?message=${encodeMessage(`${failureLabel}: missing reward request id`)}`);
+  }
+
+  try {
+    await apiWrite(path, 'POST', payload, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    const message = error instanceof Error ? error.message : failureLabel;
+    redirect(`/rewards?message=${encodeMessage(`${failureLabel}: ${message}`)}`);
+  }
+
+  revalidatePath('/rewards');
+  revalidatePath('/reports');
+  revalidatePath('/students');
+  redirect(`/rewards?message=${encodeMessage(successMessage)}`);
+}
+
+export async function approveRewardRequestAction(formData: FormData) {
+  const requestId = String(formData.get('requestId') || '').trim();
+  const adminNote = String(formData.get('adminNote') || '').trim();
+
+  await runRewardRequestAction({
+    requestId,
+    path: `/api/v1/rewards/requests/${requestId}/approve`,
+    successMessage: 'Reward request approved',
+    failureLabel: 'Reward approval failed',
+    payload: { adminNote: adminNote || null },
+  });
+}
+
+export async function fulfillRewardRequestAction(formData: FormData) {
+  const requestId = String(formData.get('requestId') || '').trim();
+  const adminNote = String(formData.get('adminNote') || '').trim();
+
+  await runRewardRequestAction({
+    requestId,
+    path: `/api/v1/rewards/requests/${requestId}/fulfill`,
+    successMessage: 'Reward request fulfilled',
+    failureLabel: 'Reward fulfillment failed',
+    payload: {
+      adminNote: adminNote || null,
+      metadata: {
+        source: 'lms-web-admin',
+        fulfilledBy: 'Pilot Admin',
+      },
+    },
+  });
+}
+
+export async function requeueRewardRequestAction(formData: FormData) {
+  const requestId = String(formData.get('requestId') || '').trim();
+  const adminNote = String(formData.get('adminNote') || '').trim();
+  const reason = String(formData.get('reason') || '').trim() || 'needs_follow_up';
+
+  await runRewardRequestAction({
+    requestId,
+    path: `/api/v1/rewards/requests/${requestId}/requeue`,
+    successMessage: 'Reward request moved back to pending',
+    failureLabel: 'Reward requeue failed',
+    payload: { adminNote: adminNote || null, reason },
+  });
+}
+
+export async function expireRewardRequestAction(formData: FormData) {
+  const requestId = String(formData.get('requestId') || '').trim();
+  const adminNote = String(formData.get('adminNote') || '').trim();
+  const reason = String(formData.get('reason') || '').trim() || 'stale_request';
+
+  await runRewardRequestAction({
+    requestId,
+    path: `/api/v1/rewards/requests/${requestId}/expire`,
+    successMessage: 'Reward request expired',
+    failureLabel: 'Reward expiry failed',
+    payload: {
+      adminNote: adminNote || null,
+      reason,
+      metadata: {
+        source: 'lms-web-admin',
+        expiredBy: 'Pilot Admin',
+      },
+    },
+  });
+}
+
+export async function expireStaleRewardRequestsAction(formData: FormData) {
+  const olderThanDays = Number(formData.get('olderThanDays') || 14);
+  const limit = Number(formData.get('limit') || 100);
+  const includeApproved = String(formData.get('includeApproved') || 'yes') === 'yes';
+  const adminNote = String(formData.get('adminNote') || '').trim();
+
+  try {
+    await apiWrite('/api/v1/admin/rewards/requests/expire-stale', 'POST', {
+      olderThanDays,
+      limit,
+      includeApproved,
+      reason: 'stale_request',
+      adminNote: adminNote || null,
+    }, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    const message = error instanceof Error ? error.message : 'Bulk expiry failed';
+    redirect(`/rewards?message=${encodeMessage(`Bulk expiry failed: ${message}`)}`);
+  }
+
+  revalidatePath('/rewards');
+  revalidatePath('/reports');
+  revalidatePath('/students');
+  redirect('/rewards?message=Stale%20reward%20requests%20expired');
+}
+
 export async function checkpointStorageAction(formData: FormData) {
   const label = String(formData.get('label') || '').trim() || 'manual-checkpoint';
   await apiWrite('/api/v1/admin/storage/checkpoint', 'POST', { label }, 'admin');

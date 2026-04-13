@@ -61,6 +61,56 @@ export type RewardSnapshot = {
   recentTransactions: RewardTransaction[];
 };
 
+export type RewardRequestQueueItem = {
+  id: string;
+  studentId: string;
+  rewardItemId?: string | null;
+  rewardTitle: string;
+  xpCost: number;
+  status: string;
+  learnerNote?: string | null;
+  adminNote?: string | null;
+  requestedVia?: string | null;
+  requestedBy?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  approvedAt?: string | null;
+  fulfilledAt?: string | null;
+  learnerName?: string | null;
+  ageDays?: number | null;
+  lifecycle?: {
+    createdToApprovedHours?: number | null;
+    createdToFulfilledHours?: number | null;
+    approvedToFulfilledHours?: number | null;
+  } | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type RewardRequestQueue = {
+  items: RewardRequestQueueItem[];
+  summary: {
+    total: number;
+    pending: number;
+    approved: number;
+    fulfilled: number;
+    rejected: number;
+    cancelled: number;
+    expired: number;
+    attentionCount: number;
+    urgentCount: number;
+    averageAgeDays: number;
+  };
+  meta: {
+    cohortId?: string | null;
+    podId?: string | null;
+    mallamId?: string | null;
+    learnerId?: string | null;
+    status?: string | null;
+    count: number;
+    returned: number;
+  };
+};
+
 export type WorkboardItem = {
   id: string;
   studentName: string;

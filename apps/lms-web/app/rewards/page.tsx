@@ -1,15 +1,36 @@
 import Link from 'next/link';
 import { FeedbackBanner } from '../../components/feedback-banner';
+import { RewardRequestQueuePanel } from '../../components/reward-request-queue-panel';
 import { RewardsAdminForm } from '../../components/rewards-admin-form';
-import { fetchCohorts, fetchMallams, fetchPods, fetchRewardsCatalog, fetchRewardsLeaderboard, fetchStudents, fetchWorkboard } from '../../lib/api';
+import { fetchCohorts, fetchMallams, fetchPods, fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard, fetchStudents, fetchWorkboard } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { RewardCatalog } from '../../lib/rewards';
-import type { RewardSnapshot, Student, WorkboardItem } from '../../lib/types';
+import type { RewardRequestQueue, RewardSnapshot, Student, WorkboardItem } from '../../lib/types';
 
 const EMPTY_CATALOG: RewardCatalog = {
   xpRules: {},
   levels: [],
   badges: [],
+};
+
+const EMPTY_QUEUE: RewardRequestQueue = {
+  items: [],
+  summary: {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    fulfilled: 0,
+    rejected: 0,
+    cancelled: 0,
+    expired: 0,
+    attentionCount: 0,
+    urgentCount: 0,
+    averageAgeDays: 0,
+  },
+  meta: {
+    count: 0,
+    returned: 0,
+  },
 };
 
 function statusTone(status: string) {
@@ -38,9 +59,10 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
 
 export default async function RewardsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; status?: string | string[] }> }) {
   const query = await searchParams;
-  const [catalogResult, leaderboardResult, workboardResult, studentsResult, cohortsResult, podsResult, mallamsResult] = await Promise.allSettled([
+  const [catalogResult, leaderboardResult, queueResult, workboardResult, studentsResult, cohortsResult, podsResult, mallamsResult] = await Promise.allSettled([
     fetchRewardsCatalog(),
     fetchRewardsLeaderboard(50),
+    fetchRewardRequests(24),
     fetchWorkboard(),
     fetchStudents(),
     fetchCohorts(),
@@ -50,6 +72,7 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
 
   const catalog = catalogResult.status === 'fulfilled' ? catalogResult.value : EMPTY_CATALOG;
   const leaderboard: RewardSnapshot[] = leaderboardResult.status === 'fulfilled' ? leaderboardResult.value : [];
+  const rewardQueue: RewardRequestQueue = queueResult.status === 'fulfilled' ? queueResult.value : EMPTY_QUEUE;
   const workboard: WorkboardItem[] = workboardResult.status === 'fulfilled' ? workboardResult.value : [];
   const students: Student[] = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
   const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
@@ -59,6 +82,7 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
   const failedSources = [
     catalogResult.status === 'rejected' ? 'reward catalog' : null,
     leaderboardResult.status === 'rejected' ? 'leaderboard' : null,
+    queueResult.status === 'rejected' ? 'reward queue' : null,
     workboardResult.status === 'rejected' ? 'progression workboard' : null,
     studentsResult.status === 'rejected' ? 'learner roster' : null,
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
@@ -202,6 +226,8 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
       </section>
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+        <RewardRequestQueuePanel queue={rewardQueue} />
+
         {filteredStudents.length ? (
           <RewardsAdminForm students={filteredStudents} catalog={catalog} leaderboard={filteredLeaderboard} />
         ) : (

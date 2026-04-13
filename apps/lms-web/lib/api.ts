@@ -15,6 +15,7 @@ import type {
   ProgressRecord,
   ReportsOverview,
   RewardSnapshot,
+  RewardRequestQueue,
   RewardsReport,
   OperationsReport,
   StorageBackupList,
@@ -140,6 +141,15 @@ export function fetchRewardsCatalog() {
 
 export function fetchRewardsLeaderboard(limit = 10) {
   return getJson<RewardSnapshot[]>(`/api/v1/rewards/leaderboard?limit=${limit}`);
+}
+
+export function fetchRewardRequests(limit = 20, params?: { cohortId?: string; podId?: string; mallamId?: string; status?: string }) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (params?.cohortId) query.set('cohortId', params.cohortId);
+  if (params?.podId) query.set('podId', params.podId);
+  if (params?.mallamId) query.set('mallamId', params.mallamId);
+  if (params?.status) query.set('status', params.status);
+  return getJson<RewardRequestQueue>(`/api/v1/rewards/requests?${query.toString()}`);
 }
 
 export function fetchRewardsReport(limit = 20) {
