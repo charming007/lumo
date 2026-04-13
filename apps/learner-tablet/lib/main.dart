@@ -364,6 +364,55 @@ class HomePage extends StatelessWidget {
                                       ),
                                     ],
                                   ),
+                                  if (learnerCount == 0) ...[
+                                    const SizedBox(height: 18),
+                                    SoftPanel(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'No learners are loaded yet',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            'This tablet is ready, but there is nobody to teach yet. Register the first learner before opening subject lessons so the session flow does not dead-end at learner selection.',
+                                            style: TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 14),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: FilledButton.icon(
+                                              onPressed: () {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        RegisterPage(
+                                                      state: state,
+                                                      onChanged: onChanged,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              icon: const Icon(
+                                                Icons.person_add_alt_1_rounded,
+                                              ),
+                                              label: const Text(
+                                                'Register first learner',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                   if (homeLearner != null) ...[
                                     const SizedBox(height: 18),
                                     _CurrentLearnerBanner(
@@ -2436,79 +2485,146 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final crossAxisCount = _adaptiveGridCount(
-                          constraints.maxWidth,
-                          minTileWidth: 280,
-                          maxCount: 4,
-                        );
-
-                        return GridView.builder(
-                          itemCount: state.learners.length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxisCount,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 1.12,
-                          ),
-                          itemBuilder: (context, index) {
-                            final learner = state.learners[index];
-                            final isSelected = selectedLearner?.id == learner.id;
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedLearner = learner;
-                                });
-                              },
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(28),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? LumoTheme.primary
-                                        : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: _LearnerCard(
-                                  learner: learner,
-                                  state: state,
+                    child: state.learners.isEmpty
+                        ? Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 560),
+                              child: SoftPanel(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(
+                                          Icons.person_off_rounded,
+                                          color: LumoTheme.accentOrange,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'No learners available for this lesson yet',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 20,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'You cannot start ${lesson.title} until at least one learner is registered on this tablet or synced from the backend. Register the first learner now instead of leaving the facilitator on a blank chooser.',
+                                      style: const TextStyle(
+                                        color: Color(0xFF475569),
+                                        height: 1.45,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: FilledButton.icon(
+                                        onPressed: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => RegisterPage(
+                                                state: state,
+                                                onChanged: widget.onChanged,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          Icons.person_add_alt_1_rounded,
+                                        ),
+                                        label: const Text(
+                                          'Register first learner',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+                            ),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final crossAxisCount = _adaptiveGridCount(
+                                constraints.maxWidth,
+                                minTileWidth: 280,
+                                maxCount: 4,
+                              );
+
+                              return GridView.builder(
+                                itemCount: state.learners.length,
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  mainAxisSpacing: 12,
+                                  crossAxisSpacing: 12,
+                                  childAspectRatio: 1.12,
+                                ),
+                                itemBuilder: (context, index) {
+                                  final learner = state.learners[index];
+                                  final isSelected =
+                                      selectedLearner?.id == learner.id;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        selectedLearner = learner;
+                                      });
+                                    },
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(28),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? LumoTheme.primary
+                                              : Colors.transparent,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: _LearnerCard(
+                                        learner: learner,
+                                        state: state,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
                   ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: selectedLearner == null
+                    onPressed: state.learners.isEmpty
                         ? null
-                        : () {
-                            final learner = selectedLearner!;
-                            state.selectLearner(learner);
-                            state.selectModule(widget.module);
-                            widget.onChanged();
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => LessonCountdownPage(
-                                  state: state,
-                                  onChanged: widget.onChanged,
-                                  learner: learner,
-                                  lesson: lesson,
-                                  resumeFrom: widget.resumeFrom,
-                                ),
-                              ),
-                            );
-                          },
+                        : selectedLearner == null
+                            ? null
+                            : () {
+                                final learner = selectedLearner!;
+                                state.selectLearner(learner);
+                                state.selectModule(widget.module);
+                                widget.onChanged();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonCountdownPage(
+                                      state: state,
+                                      onChanged: widget.onChanged,
+                                      learner: learner,
+                                      lesson: lesson,
+                                      resumeFrom: widget.resumeFrom,
+                                    ),
+                                  ),
+                                );
+                              },
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: Text(
-                      selectedLearner == null
-                          ? 'Select learner to continue'
-                          : 'Start with ${selectedLearner!.name}',
+                      state.learners.isEmpty
+                          ? 'Register learner to continue'
+                          : selectedLearner == null
+                              ? 'Select learner to continue'
+                              : 'Start with ${selectedLearner!.name}',
                     ),
                   ),
                 ],
