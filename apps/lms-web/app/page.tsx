@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchStudents, fetchWorkboard } from '../lib/api';
 import { InsightPanel } from '../components/insight-panel';
@@ -43,6 +44,22 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
     </div>
   );
 }
+
+const quickActionStyle = {
+  borderRadius: 14,
+  padding: '12px 14px',
+  fontWeight: 800,
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+} as const;
+
+const tableLinkStyle = {
+  color: '#3730A3',
+  fontWeight: 800,
+  textDecoration: 'none',
+} as const;
 
 export default async function HomePage() {
   const [summaryResult, assignmentsResult, insightsResult, workboardResult, studentsResult, mallamsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
@@ -131,7 +148,23 @@ export default async function HomePage() {
     : null;
 
   return (
-    <PageShell title="Dashboard" subtitle="A sharper LMS/admin cockpit for learner readiness, mallam supervision, content operations, pod delivery health, and visibly real operational workflows.">
+    <PageShell
+      title="Dashboard"
+      subtitle="A sharper LMS/admin cockpit for learner readiness, mallam supervision, content operations, pod delivery health, and visibly real operational workflows."
+      aside={(
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Link href="/students" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>
+            Open learners
+          </Link>
+          <Link href="/assignments" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+            Manage assignments
+          </Link>
+          <Link href="/content" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
+            Clear content blockers
+          </Link>
+        </div>
+      )}
+    >
       {partialOutageMessage ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           {partialOutageMessage}
@@ -184,10 +217,12 @@ export default async function HomePage() {
               <SimpleTable
                 columns={['Lesson', 'Cohort', 'Pod', 'Assessment', 'Due']}
                 rows={assignments.length ? assignments.map((assignment) => [
-                  assignment.lessonTitle,
+                  <Link key={`${assignment.id}-lesson`} href="/assignments" style={tableLinkStyle}>
+                    {assignment.lessonTitle}
+                  </Link>,
                   assignment.cohortName,
                   assignment.podLabel ?? '—',
-                  assignment.assessmentTitle ?? '—',
+                  assignment.assessmentTitle ? <Link key={`${assignment.id}-assessment`} href="/assessments" style={tableLinkStyle}>{assignment.assessmentTitle}</Link> : '—',
                   assignment.dueDate,
                 ]) : assignmentEmptyRow(assignmentsFeedFailed ? 'Assignments feed unavailable — retry once the API is back.' : 'No live assignments are queued right now.')}
               />
@@ -225,13 +260,15 @@ export default async function HomePage() {
             <SimpleTable
               columns={['Learner', 'Mallam', 'Cohort', 'Attendance', 'Mastery', 'Status', 'Next move']}
               rows={workboard.length ? workboard.map((item) => [
-                item.studentName,
-                item.mallamName ?? '—',
+                <Link key={`${item.id}-student`} href="/students" style={tableLinkStyle}>
+                  {item.studentName}
+                </Link>,
+                item.mallamName ? <Link key={`${item.id}-mallam`} href="/mallams" style={tableLinkStyle}>{item.mallamName}</Link> : '—',
                 item.cohortName ?? '—',
                 `${Math.round(item.attendanceRate * 100)}%`,
                 `${Math.round(item.mastery * 100)}% in ${item.focus}`,
                 <Pill key={`${item.id}-status`} label={item.progressionStatus} tone={item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF'} text={item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3'} />,
-                item.recommendedNextModuleTitle ?? '—',
+                item.recommendedNextModuleTitle ? <Link key={`${item.id}-next-module`} href="/progress" style={tableLinkStyle}>{item.recommendedNextModuleTitle}</Link> : '—',
               ]) : workboardEmptyRow(workboardFeedFailed ? 'Workboard feed unavailable — retry once learner progression data is back.' : 'No learners are queued in the readiness workboard right now.')}
             />
           </div>
@@ -259,10 +296,18 @@ export default async function HomePage() {
               <SimpleTable
                 columns={['Module', 'Subject', 'Gaps', 'Release risk']}
                 rows={releaseBlockers.length ? releaseBlockers.slice(0, 5).map((module) => [
-                  module.title,
+                  <Link key={`${module.id}-module`} href="/content" style={tableLinkStyle}>
+                    {module.title}
+                  </Link>,
                   module.subjectName,
                   module.missingLessons > 0 ? `${module.missingLessons} lesson gap${module.missingLessons === 1 ? '' : 's'}` : 'Lessons complete',
-                  module.hasAssessmentGate ? 'Assessment linked; content still incomplete.' : 'Missing assessment gate before publish.',
+                  <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 6 }}>
+                    <span>{module.hasAssessmentGate ? 'Assessment linked; content still incomplete.' : 'Missing assessment gate before publish.'}</span>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Link href="/content" style={tableLinkStyle}>Open content</Link>
+                      {!module.hasAssessmentGate ? <Link href="/assessments" style={tableLinkStyle}>Add assessment gate</Link> : null}
+                    </div>
+                  </div>,
                 ]) : [[<span key="release-clear" style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseFeedsFailed ? 'Curriculum feeds unavailable — retry once content data is back.' : 'No blocker rows to clear. Content release lane is clean.'}</span>, '', '', '']]}
               />
             </div>
