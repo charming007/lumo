@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { DashboardInsight, NgoSummary, OperationsReport, ReportsOverview } from '../../lib/types';
 import { fetchAssignments, fetchCohorts, fetchDashboardInsights, fetchMallams, fetchNgoSummary, fetchOperationsReport, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
+import { CopyableTextCard } from '../../components/copyable-text-card';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const EMPTY_REPORT: ReportsOverview = {
@@ -465,6 +466,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
       text: '#9A3412',
     },
   ];
+  const consolidatedNarrative = [
+    `Reporting scope: ${scopeLabel}.`,
+    ...scopedReportNarratives,
+    '',
+    ...narrativePack.map((item) => `${item.title}: ${item.detail}`),
+  ].join('\n');
 
   return (
     <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, reward queue pressure, and cleaner NGO reporting in one place.">
@@ -537,12 +544,19 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
         </Card>
 
         <Card title="Share-ready narrative" eyebrow="Copy into an update without rewriting it all">
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gap: 12 }}>
             {scopedReportNarratives.map((item, index) => (
               <div key={index} style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #eef2f7', color: '#475569', lineHeight: 1.7 }}>
                 {item}
               </div>
             ))}
+            <CopyableTextCard
+              title="Scoped reporting summary"
+              eyebrow="Clipboard-friendly"
+              text={consolidatedNarrative}
+              tone="#eef2ff"
+              border="#c7d2fe"
+            />
           </div>
         </Card>
       </section>
@@ -806,12 +820,20 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
           <div style={{ display: 'grid', gap: 12 }}>
             {highestRiskPods.length ? highestRiskPods.map((pod) => (
               <div key={pod.id} style={{ padding: 16, borderRadius: 18, background: pod.watchCount > 0 || pod.attendanceAverage < 0.85 ? '#fff7ed' : '#f8fafc', border: `1px solid ${pod.watchCount > 0 || pod.attendanceAverage < 0.85 ? '#fed7aa' : '#eef2f7'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
                   <strong>{pod.label}</strong>
                   <Pill label={`${pod.watchCount} watch`} tone={statusTone(pod.watchCount ? 'watch' : pod.readyCount ? 'ready' : 'on-track').tone} text={statusTone(pod.watchCount ? 'watch' : pod.readyCount ? 'ready' : 'on-track').text} />
                 </div>
-                <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+                <div style={{ color: '#64748b', lineHeight: 1.6, marginBottom: 10 }}>
                   {pod.centerName} • {pod.rosterCount} learners • {Math.round(pod.attendanceAverage * 100)}% attendance • {Math.round(pod.masteryAverage * 100)}% mastery • {pod.assignmentCount} live assignment{pod.assignmentCount === 1 ? '' : 's'}.
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href={`/reports?pod=${encodeURIComponent(pod.id)}`} style={{ color: '#9A3412', fontWeight: 800, textDecoration: 'none' }}>
+                    Scope this pod →
+                  </Link>
+                  <Link href={`/assignments?pod=${encodeURIComponent(pod.id)}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>
+                    Open assignments →
+                  </Link>
                 </div>
               </div>
             )) : (
@@ -826,15 +848,23 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
           <div style={{ display: 'grid', gap: 12 }}>
             {highestImpactMallams.length ? highestImpactMallams.map((mallam) => (
               <div key={mallam.id} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
                   <strong>{mallam.displayName}</strong>
                   <Pill label={`${mallam.readinessCount} ready`} tone="#DCFCE7" text="#166534" />
                 </div>
                 <div style={{ color: '#64748b', lineHeight: 1.6, marginBottom: 8 }}>
                   {mallam.centerName ?? mallam.region} • {mallam.rosterCount} learners • {Math.round(mallam.attendanceAverage * 100)}% attendance • {Math.round(mallam.masteryAverage * 100)}% mastery.
                 </div>
-                <div style={{ color: '#475569', fontSize: 14 }}>
+                <div style={{ color: '#475569', fontSize: 14, marginBottom: 10 }}>
                   Watchlist still at {mallam.watchCount}. Good performance does not mean the queue clears itself.
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href={`/reports?mallam=${encodeURIComponent(mallam.id)}`} style={{ color: '#166534', fontWeight: 800, textDecoration: 'none' }}>
+                    Scope this mallam →
+                  </Link>
+                  <Link href={`/mallams/${mallam.id}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>
+                    Open detail →
+                  </Link>
                 </div>
               </div>
             )) : (
