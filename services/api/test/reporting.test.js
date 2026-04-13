@@ -33,10 +33,62 @@ test('buildOperationsReport returns combined runtime, progression, rewards, and 
   assert.equal(typeof report.summary.integrityIssueCount, 'number');
   assert.equal(typeof report.summary.rewardPendingRequests, 'number');
   assert.equal(typeof report.summary.rewardFulfillmentRate, 'number');
+  assert.equal(typeof report.summary.activeProgressionOverrides, 'number');
+  assert.equal(typeof report.summary.sessionRepairs, 'number');
   assert.ok(Array.isArray(report.hotlist.watchLearners));
   assert.ok(Array.isArray(report.hotlist.readyLearners));
   assert.ok(Array.isArray(report.recent.sessions));
-  assert.ok(Array.isArray(report.recent.integrityIssues));
+  assert.ok(Array.isArray(report.recent.sessionRepairs));
+  assert.ok(report.adminControls);
+});
+
+test('buildAdminControlsReport summarizes progression overrides and session repair actions', () => {
+  const student = store.listStudents()[0];
+  const progress = store.listProgress()[0] || store.createProgress({
+    studentId: student.id,
+    subjectId: 'english',
+    moduleId: 'module-1',
+    mastery: 0.62,
+    lessonsCompleted: 2,
+    progressionStatus: 'watch',
+    recommendedNextModuleId: 'module-2',
+  });
+
+  store.createProgressionOverride({
+    studentId: progress.studentId,
+    progressId: progress.id,
+    action: 'override',
+    previousStatus: progress.progressionStatus,
+    nextStatus: 'ready',
+    previousRecommendedNextModuleId: progress.recommendedNextModuleId,
+    nextRecommendedNextModuleId: progress.recommendedNextModuleId,
+    reason: 'admin_push',
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+  });
+
+  store.createSessionRepair({
+    sessionId: 'session-reporting-test',
+    learnerId: progress.studentId,
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+    reason: 'resume_fix',
+    patch: { action: 'reopen' },
+    before: { status: 'abandoned' },
+    after: { status: 'in_progress' },
+  });
+
+  const report = reporting.buildAdminControlsReport({ learnerId: progress.studentId, limit: 5 });
+
+  assert.equal(report.summary.learnersInScope, 1);
+  assert.equal(report.summary.progressionOverrides >= 1, true);
+  assert.equal(report.summary.sessionRepairs >= 1, true);
+  assert.equal(report.summary.reopenRepairs >= 1, true);
+  assert.ok(report.overrideReasons.some((entry) => entry.reason === 'admin_push'));
+  assert.ok(report.repairReasons.some((entry) => entry.reason === 'resume_fix'));
+  assert.ok(report.actors.some((entry) => entry.actorName === 'Ops Admin'));
+  assert.ok(Array.isArray(report.recent.overrides));
+  assert.ok(Array.isArray(report.recent.sessionRepairs));
 });
 
 test('storage snapshot export exposes persisted data and db metadata', () => {

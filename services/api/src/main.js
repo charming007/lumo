@@ -1971,6 +1971,30 @@ app.get('/api/v1/session-repairs', (req, res) => {
   });
 });
 
+app.get('/api/v1/admin/progression-overrides/summary', requireRole(['admin']), (req, res) => {
+  res.json(reporting.buildAdminControlsReport({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    learnerId: coerceOptionalString(req.query.learnerId),
+    since: coerceOptionalString(req.query.since),
+    until: coerceOptionalString(req.query.until),
+    limit: Number(req.query.limit || 20),
+  }));
+});
+
+app.get('/api/v1/admin/session-repairs/summary', requireRole(['admin']), (req, res) => {
+  res.json(reporting.buildAdminControlsReport({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    learnerId: coerceOptionalString(req.query.learnerId),
+    since: coerceOptionalString(req.query.since),
+    until: coerceOptionalString(req.query.until),
+    limit: Number(req.query.limit || 20),
+  }));
+});
+
 app.get('/api/v1/observations', (_req, res) => {
   res.json(store.listObservations().map(presenters.presentObservation));
 });

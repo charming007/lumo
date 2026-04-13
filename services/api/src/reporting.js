@@ -614,11 +614,82 @@ function buildProgressionRollup({ cohortId = null, podId = null, mallamId = null
   };
 }
 
+function buildAdminControlsReport({ cohortId = null, podId = null, mallamId = null, learnerId = null, since = null, until = null, limit = 20 } = {}) {
+  const students = learnerId
+    ? buildScopedStudentSet({ cohortId, podId, mallamId }).filter((student) => student.id === learnerId)
+    : buildScopedStudentSet({ cohortId, podId, mallamId });
+  const studentIds = new Set(students.map((student) => student.id));
+  const sinceDate = parseDate(since);
+  const untilDate = parseDate(until);
+  const overrides = repository
+    .listProgressionOverrides()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const sessionRepairs = repository
+    .listSessionRepairs()
+    .filter((entry) => studentIds.has(entry.learnerId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const overrideReasonCounts = overrides.reduce((acc, entry) => {
+    const key = entry.reason || 'unspecified';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const repairReasonCounts = sessionRepairs.reduce((acc, entry) => {
+    const key = entry.reason || 'unspecified';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const repairActionCounts = sessionRepairs.reduce((acc, entry) => {
+    const key = entry.patch?.action || entry.patch?.status || 'manual_patch';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const actorCounts = [...overrides, ...sessionRepairs].reduce((acc, entry) => {
+    const key = entry.actorName || 'Unknown actor';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const touchedLearnerIds = new Set([...overrides.map((entry) => entry.studentId), ...sessionRepairs.map((entry) => entry.learnerId)].filter(Boolean));
+
+  return {
+    scope: { cohortId, podId, mallamId, learnerId, since, until, learnerCount: students.length, limit },
+    summary: {
+      learnersInScope: students.length,
+      touchedLearners: touchedLearnerIds.size,
+      progressionOverrides: overrides.length,
+      activeOverrides: overrides.filter((entry) => !entry.revokedAt && entry.action !== 'revoked').length,
+      revokedOverrides: overrides.filter((entry) => entry.revokedAt || entry.action === 'revoked').length,
+      sessionRepairs: sessionRepairs.length,
+      abandonRepairs: repairActionCounts.abandon || 0,
+      reopenRepairs: repairActionCounts.reopen || 0,
+      patchedSessions: repairActionCounts.manual_patch || 0,
+    },
+    overrideReasons: Object.entries(overrideReasonCounts)
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
+    repairReasons: Object.entries(repairReasonCounts)
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason)),
+    repairActions: Object.entries(repairActionCounts)
+      .map(([action, count]) => ({ action, count }))
+      .sort((a, b) => b.count - a.count || a.action.localeCompare(b.action)),
+    actors: Object.entries(actorCounts)
+      .map(([actorName, changes]) => ({ actorName, changes }))
+      .sort((a, b) => b.changes - a.changes || a.actorName.localeCompare(b.actorName)),
+    recent: {
+      overrides: overrides.slice(0, Math.max(1, Math.min(Number(limit || 20), 100))),
+      sessionRepairs: sessionRepairs.slice(0, Math.max(1, Math.min(Number(limit || 20), 100))),
+    },
+  };
+}
+
 function buildOperationsReport({ cohortId = null, podId = null, mallamId = null, subjectId = null, learnerId = null, since = null, until = null, limit = 20 } = {}) {
   const runtime = buildRuntimeAnalytics({ learnerId, cohortId, podId, mallamId, since, until, limit });
   const progression = buildProgressionRollup({ cohortId, podId, mallamId, subjectId, since, until });
   const rewardsReport = buildRewardsReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
   const fulfillment = rewards.buildRewardFulfillmentReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
+  const adminControls = buildAdminControlsReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
   const integrity = require('./store').getStorageIntegrityReport();
   const workboard = buildWorkboard()
     .filter((item) => (!cohortId || item.cohortId === cohortId) && (!podId || item.podId === podId) && (!mallamId || item.mallamId === mallamId))
@@ -642,6 +713,8 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
       rewardPendingRequests: rewardsReport.summary.requestStatusCounts.pending || 0,
       rewardFulfillmentRate: rewardsReport.summary.fulfillmentRate,
       rewardBacklogUrgent: fulfillment.summary.backlog.urgent,
+      activeProgressionOverrides: adminControls.summary.activeOverrides,
+      sessionRepairs: adminControls.summary.sessionRepairs,
       integrityIssueCount: integrity.summary.issueCount,
     },
     runtime: {
@@ -667,6 +740,13 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
         return acc;
       }, {}),
     },
+    adminControls: {
+      summary: adminControls.summary,
+      overrideReasons: adminControls.overrideReasons,
+      repairReasons: adminControls.repairReasons,
+      repairActions: adminControls.repairActions,
+      actors: adminControls.actors,
+    },
     hotlist: {
       watchLearners: workboard.filter((item) => item.progressionStatus === 'watch').slice(0, 10),
       readyLearners: workboard.filter((item) => item.progressionStatus === 'ready').slice(0, 10),
@@ -674,11 +754,13 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
       stalledRuntimeLearners,
       highSupportLearners,
       rewardQueue: rewardsReport.recentRequests.filter((item) => ['pending', 'approved'].includes(item.status)).slice(0, 10),
+      repairedSessions: adminControls.recent.sessionRepairs.slice(0, 10),
     },
     recent: {
       sessions: runtime.recentSessions.slice(0, 10),
       events: runtime.recentEvents.slice(0, 10),
       overrides: progression.overrides.slice(0, 10),
+      sessionRepairs: adminControls.recent.sessionRepairs.slice(0, 10),
       rewardAdjustments: rewardsReport.recentAdjustments.slice(0, 10),
       rewardRequests: fulfillment.recentRequests.slice(0, 10),
       integrityIssues: integrity.issues.slice(0, 10),
@@ -809,6 +891,7 @@ module.exports = {
   buildRuntimeAnalytics,
   buildEngagementReport,
   buildProgressionRollup,
+  buildAdminControlsReport,
   buildOperationsReport,
   buildRewardsReport,
 };

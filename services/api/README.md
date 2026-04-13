@@ -161,6 +161,12 @@ Behavior:
 
 Both operations create event-log + repair/audit entries so admins can intervene without silent history loss.
 
+### Admin repair / control visibility
+- `GET /api/v1/admin/progression-overrides/summary`
+- `GET /api/v1/admin/session-repairs/summary`
+
+Returns scoped admin-control analytics across progression overrides and learner session repair actions, including active vs revoked override counts, repair action mix (`reopen`, `abandon`, manual patch), top reasons, top actors, and recent audit items.
+
 ### Persistence / storage integrity
 - `GET /api/v1/admin/storage/integrity`
 - `POST /api/v1/admin/storage/repair-integrity`
@@ -186,3 +192,6 @@ Returns reward-operations analytics for the selected scope, including:
 - recent transactions / requests / adjustments
 - learner reward breakdown
 - scoped leaderboard
+
+### `GET /api/v1/reports/operations`
+Now also includes an `adminControls` block covering progression override / session repair activity and summary counters for active overrides + repair volume, so NGO/admin dashboards can spot where humans are repeatedly intervening in learner state.
