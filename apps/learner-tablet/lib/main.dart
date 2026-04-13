@@ -20,14 +20,23 @@ void main() {
 }
 
 class LumoApp extends StatefulWidget {
-  const LumoApp({super.key});
+  const LumoApp({
+    super.key,
+    this.stateOverride,
+    this.includeSeedDemoContent = kEnableSeedDemoContent,
+  });
+
+  final LumoAppState? stateOverride;
+  final bool includeSeedDemoContent;
 
   @override
   State<LumoApp> createState() => _LumoAppState();
 }
 
 class _LumoAppState extends State<LumoApp> {
-  final state = LumoAppState();
+  late final bool _ownsState = widget.stateOverride == null;
+  late final LumoAppState state = widget.stateOverride ??
+      LumoAppState(includeSeedDemoContent: widget.includeSeedDemoContent);
   final voiceReplayService = VoiceReplayService();
   bool showSplash = true;
 
@@ -58,7 +67,9 @@ class _LumoAppState extends State<LumoApp> {
 
   @override
   void dispose() {
-    state.dispose();
+    if (_ownsState) {
+      state.dispose();
+    }
     voiceReplayService.dispose();
     super.dispose();
   }
@@ -3284,6 +3295,24 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     return '$audioMessage $fallbackReason';
   }
 
+  bool get _isAudioOnlyReviewState =>
+      transcriptReviewPending &&
+      responseController.text.trim().isEmpty &&
+      (widget.state.activeSession?.latestLearnerAudioPath?.trim().isNotEmpty ??
+          false) &&
+      (!speechRecognitionActive || _avoidConcurrentSpeechCapture);
+
+  String get _learnerResponseHintText => _isAudioOnlyReviewState
+      ? 'No transcript was captured. Listen to the saved voice note, then type the learner response here if needed.'
+      : 'Transcript or typed response appears here';
+
+  String get _reviewBannerTitle =>
+      _isAudioOnlyReviewState ? 'Review saved voice before advancing' : 'Review transcript before advancing';
+
+  String get _reviewBannerBody => _isAudioOnlyReviewState
+      ? 'This take was captured in audio-first mode, so Lumo kept the learner recording but could not safely fill the response box automatically on this device.'
+      : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
+
   Future<void> _speakCurrentStepIfNeeded({bool force = false}) async {
     final session = widget.state.activeSession;
     if (session == null) return;
@@ -4879,10 +4908,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                               TextField(
                                 controller: responseController,
                                 onChanged: (_) => setState(() {}),
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: 'Learner response',
-                                  hintText:
-                                      'Transcript or typed response appears here',
+                                  hintText: _learnerResponseHintText,
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -4916,11 +4944,19 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        'Review transcript before advancing',
-                                        style: TextStyle(
+                                      Text(
+                                        _reviewBannerTitle,
+                                        style: const TextStyle(
                                           fontWeight: FontWeight.w800,
                                           color: Color(0xFF78350F),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        _reviewBannerBody,
+                                        style: const TextStyle(
+                                          color: Color(0xFF92400E),
+                                          height: 1.35,
                                         ),
                                       ),
                                       const SizedBox(height: 10),
@@ -4929,27 +4965,40 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         runSpacing: 8,
                                         children: [
                                           FilledButton.tonalIcon(
-                                            onPressed: () =>
-                                                _handleSubmittedResponse(
-                                              responseController.text,
-                                            ),
+                                            onPressed: responseController.text
+                                                    .trim()
+                                                    .isEmpty
+                                                ? null
+                                                : () =>
+                                                    _handleSubmittedResponse(
+                                                  responseController.text,
+                                                ),
                                             icon: const Icon(
                                               Icons.check_circle_rounded,
                                             ),
-                                            label: const Text(
-                                              'Confirm transcript',
+                                            label: Text(
+                                              _isAudioOnlyReviewState
+                                                  ? 'Confirm typed note'
+                                                  : 'Confirm transcript',
                                             ),
                                           ),
                                           FilledButton.icon(
-                                            onPressed:
-                                                _confirmTranscriptAndAdvance,
+                                            onPressed: responseController.text
+                                                    .trim()
+                                                    .isEmpty
+                                                ? null
+                                                : _confirmTranscriptAndAdvance,
                                             icon: const Icon(
                                               Icons.auto_mode_rounded,
                                             ),
                                             label: Text(
-                                              isAutoMode
-                                                  ? 'Confirm and continue'
-                                                  : 'Confirm + resume hands-free',
+                                              _isAudioOnlyReviewState
+                                                  ? (isAutoMode
+                                                      ? 'Save note and continue'
+                                                      : 'Save note + resume hands-free')
+                                                  : (isAutoMode
+                                                      ? 'Confirm and continue'
+                                                      : 'Confirm + resume hands-free'),
                                             ),
                                           ),
                                           OutlinedButton.icon(
