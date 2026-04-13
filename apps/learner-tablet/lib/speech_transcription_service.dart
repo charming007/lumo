@@ -127,6 +127,11 @@ class SpeechTranscriptionService {
       debugLogging: false,
     );
     _initialized = true;
+    if (_available) {
+      _consecutiveStartFailures = 0;
+      _lastStartFailureAt = null;
+      _retryBlockedUntil = null;
+    }
     if (!_available && _lastError == null) {
       _lastError = availabilityLabel;
     }
@@ -225,6 +230,13 @@ class SpeechTranscriptionService {
     }
     if (lower.contains('aborted')) {
       return 'The browser or OS stopped listening early. Reopen the mic once, then switch to repeat mode if it keeps happening.';
+    }
+    if (lower.contains('no-speech') || lower.contains('speech timeout')) {
+      return 'No clear speech was detected on this take. Lumo will keep the saved audio and can reopen the mic for another try.';
+    }
+    if (lower.contains('audio-capture') ||
+        lower.contains('microphone unavailable')) {
+      return 'The microphone became unavailable mid-session. Reconnect the mic if needed; Lumo will keep using saved audio until live transcript help recovers.';
     }
     if (lower.contains('notavailable') || lower.contains('not available')) {
       return kIsWeb

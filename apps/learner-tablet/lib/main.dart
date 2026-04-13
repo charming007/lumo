@@ -3093,18 +3093,31 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       responseController.text = session.latestLearnerResponse ?? '';
       _latestFinalTranscript = session.latestLearnerResponse ?? '';
       _resumedSession = session.totalResponses > 0 || session.stepIndex > 0;
-      if (session.latestLearnerResponse != null &&
-          session.latestLearnerResponse!.trim().isNotEmpty) {
+      final hasDraftResponse =
+          session.latestLearnerResponse?.trim().isNotEmpty ?? false;
+      final hasSavedAudio =
+          session.latestLearnerAudioPath?.trim().isNotEmpty ?? false;
+      transcriptReviewPending = hasDraftResponse || hasSavedAudio;
+      if (hasSavedAudio) {
+        isAutoMode = false;
+      }
+      if (hasDraftResponse) {
         liveTranscript = session.latestLearnerResponse!.trim();
       }
-      microphoneStatus = _resumedSession
-          ? 'Resumed ${widget.lesson.title} at step ${session.stepIndex + 1}. ${session.automationStatus}'
-          : session.automationStatus;
+      microphoneStatus = hasSavedAudio
+          ? 'Recovered ${widget.lesson.title} with saved learner audio attached. Review the answer, then continue cleanly from this step.'
+          : hasDraftResponse
+              ? 'Recovered ${widget.lesson.title} with a drafted learner answer. Confirm it or edit it before Mallam continues.'
+              : _resumedSession
+                  ? 'Resumed ${widget.lesson.title} at step ${session.stepIndex + 1}. ${session.automationStatus}'
+                  : session.automationStatus;
     }
 
     _primeDiagnostics();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_hasRecoveredLearnerEvidence) return;
       _speakCurrentStepIfNeeded(force: true);
     });
   }
@@ -3193,9 +3206,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     switch (state) {
       case AppLifecycleState.resumed:
         if (!mounted || !_resumePromptPendingFromLifecycle) return;
+        if (isAutoMode && _canAutoResumeHandsFreeFromRecovery) {
+          unawaited(_resumeHandsFreeLoop());
+          return;
+        }
         setState(() {
           microphoneStatus = isAutoMode
-              ? 'The app returned to the foreground. Tap Resume hands-free loop so Mallam can replay the step and reopen the mic safely.'
+              ? 'The app returned to the foreground. Resume is ready — Mallam can replay this step and reopen the mic safely.'
               : 'The app returned to the foreground. Review the saved answer or tap Resume hands-free loop when the learner is ready.';
         });
         break;
@@ -3246,7 +3263,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   .isNotEmpty ??
               false);
       microphoneStatus = wasAutoMode
-          ? 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. Resume hands-free when the tablet or browser is active again.'
+          ? (transcriptReviewPending
+              ? 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. The saved answer is still attached for review before Mallam continues.'
+              : 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. Lumo will resume hands-free automatically when the tablet or browser is active again.')
           : 'The app left the foreground, so Lumo stopped live mic playback/capture. The saved audio and draft answer are still attached for manual review.';
     });
   }
@@ -3269,6 +3288,20 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       });
     }
   }
+
+  bool get _hasRecoveredLearnerEvidence {
+    final session = widget.state.activeSession;
+    if (session == null) return false;
+    final hasDraft = responseController.text.trim().isNotEmpty;
+    final hasSavedAudio =
+        session.latestLearnerAudioPath?.trim().isNotEmpty ?? false;
+    return hasDraft || hasSavedAudio;
+  }
+
+  bool get _canAutoResumeHandsFreeFromRecovery =>
+      !_hasRecoveredLearnerEvidence &&
+      !_autoPausedByTranscriptFailure &&
+      !transcriptReviewPending;
 
   bool get _avoidConcurrentSpeechCapture {
     if (kIsWeb) return false;
@@ -3306,8 +3339,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       ? 'No transcript was captured. Listen to the saved voice note, then type the learner response here if needed.'
       : 'Transcript or typed response appears here';
 
-  String get _reviewBannerTitle =>
-      _isAudioOnlyReviewState ? 'Review saved voice before advancing' : 'Review transcript before advancing';
+  String get _reviewBannerTitle => _isAudioOnlyReviewState
+      ? 'Review saved voice before advancing'
+      : 'Review transcript before advancing';
 
   String get _reviewBannerBody => _isAudioOnlyReviewState
       ? 'This take was captured in audio-first mode, so Lumo kept the learner recording but could not safely fill the response box automatically on this device.'
@@ -4971,8 +5005,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 ? null
                                                 : () =>
                                                     _handleSubmittedResponse(
-                                                  responseController.text,
-                                                ),
+                                                      responseController.text,
+                                                    ),
                                             icon: const Icon(
                                               Icons.check_circle_rounded,
                                             ),
