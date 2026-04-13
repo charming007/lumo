@@ -21,6 +21,17 @@ test('buildRewardsReport returns reward ops summary and scoped details', () => {
   assert.ok(Array.isArray(report.leaderboard));
 });
 
+
+test('buildOperationsReport returns combined runtime, progression, rewards, and integrity signals', () => {
+  const report = reporting.buildOperationsReport({ limit: 5 });
+
+  assert.equal(report.summary.learnersInScope > 0, true);
+  assert.equal(typeof report.summary.runtimeCompletionRate, 'number');
+  assert.equal(typeof report.summary.integrityIssueCount, 'number');
+  assert.ok(Array.isArray(report.hotlist.watchLearners));
+  assert.ok(Array.isArray(report.recent.sessions));
+});
+
 test('storage snapshot export exposes persisted data and db metadata', () => {
   const snapshot = store.exportStorageSnapshot();
   const status = store.getStorageStatus();
@@ -39,4 +50,19 @@ test('storage integrity repair dry-run reports without mutating data', () => {
   assert.equal(result.apply, false);
   assert.equal(before, after);
   assert.ok(result.report.summary);
+});
+
+
+test('storage checkpoints can be listed and deleted in file mode', () => {
+  const created = store.checkpointStorage('unit-test-backup');
+  assert.ok(created.backupPath);
+
+  const backups = store.listStorageBackups(20);
+  assert.ok(backups.some((entry) => entry.path === created.backupPath));
+
+  const deleted = store.deleteStorageBackup(created.backupPath);
+  assert.equal(deleted.deleted, created.backupPath);
+
+  const after = store.listStorageBackups(20);
+  assert.equal(after.some((entry) => entry.path === created.backupPath), false);
 });

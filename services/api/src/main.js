@@ -1919,6 +1919,19 @@ app.get('/api/v1/reports/rewards', (req, res) => {
   }));
 });
 
+app.get('/api/v1/reports/operations', (req, res) => {
+  res.json(reporting.buildOperationsReport({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    subjectId: coerceOptionalString(req.query.subjectId),
+    learnerId: coerceOptionalString(req.query.learnerId),
+    since: coerceOptionalString(req.query.since),
+    until: coerceOptionalString(req.query.until),
+    limit: Number(req.query.limit || 20),
+  }));
+});
+
 app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
   res.json(store.getStorageStatus());
 });
@@ -1961,9 +1974,32 @@ app.post('/api/v1/admin/storage/reload', requireRole(['admin']), (_req, res, nex
   }
 });
 
+app.get('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res) => {
+  res.json({
+    items: store.listStorageBackups(Number(req.query.limit || 20)),
+    status: store.getStorageStatus(),
+  });
+});
+
 app.post('/api/v1/admin/storage/checkpoint', requireRole(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.checkpointStorage(coerceOptionalString(req.body?.label) || 'manual-checkpoint'));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.delete('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res, next) => {
+  try {
+    const backupPath = coerceOptionalString(req.body?.backupPath) || coerceOptionalString(req.query.backupPath);
+
+    if (!backupPath) {
+      const error = new Error('Provide backupPath');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return res.json(store.deleteStorageBackup(backupPath));
   } catch (error) {
     return next(error);
   }
