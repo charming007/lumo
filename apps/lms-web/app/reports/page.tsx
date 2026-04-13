@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { DashboardInsight, NgoSummary, OperationsReport, ReportsOverview } from '../../lib/types';
 import { fetchAssignments, fetchCohorts, fetchDashboardInsights, fetchMallams, fetchNgoSummary, fetchOperationsReport, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
@@ -27,6 +26,40 @@ const FALLBACK_INSIGHT: DashboardInsight = {
   metric: 'API retry needed',
 };
 
+const EMPTY_NGO_SUMMARY: NgoSummary = {
+  scope: { learnerCount: 0 },
+  totals: {
+    learners: 0,
+    centers: 0,
+    pods: 0,
+    mallams: 0,
+    activeAssignments: 0,
+    lessonsCompleted: 0,
+    completedSessions: 0,
+    attendanceAverage: 0,
+    averageMastery: 0,
+    totalXpAwarded: 0,
+  },
+  progression: {
+    ready: 0,
+    watch: 0,
+    onTrack: 0,
+  },
+  rewardOps: {
+    summary: {
+      pending: 0,
+      approved: 0,
+      fulfilled: 0,
+      urgentCount: 0,
+      attentionCount: 0,
+    },
+    recentQueue: [],
+  },
+  subjectBreakdown: [],
+  mallamSnapshots: [],
+  topLearners: [],
+};
+
 const EMPTY_OPERATIONS_REPORT: OperationsReport = {
   scope: { limit: 0 },
   summary: {
@@ -37,6 +70,9 @@ const EMPTY_OPERATIONS_REPORT: OperationsReport = {
     progressionWatch: 0,
     rewardPendingRequests: 0,
     rewardFulfillmentRate: 0,
+    rewardBacklogUrgent: 0,
+    activeProgressionOverrides: 0,
+    sessionRepairs: 0,
     integrityIssueCount: 0,
   },
   runtime: {},
@@ -47,6 +83,8 @@ const EMPTY_OPERATIONS_REPORT: OperationsReport = {
     watchLearners: [],
     readyLearners: [],
     runtimeLearners: [],
+    stalledRuntimeLearners: [],
+    highSupportLearners: [],
     rewardQueue: [],
   },
   recent: {
@@ -54,6 +92,7 @@ const EMPTY_OPERATIONS_REPORT: OperationsReport = {
     events: [],
     overrides: [],
     rewardAdjustments: [],
+    rewardRequests: [],
     integrityIssues: [],
   },
 };
@@ -73,32 +112,33 @@ function statusTone(status: string) {
   return { tone: '#E0E7FF', text: '#3730A3' };
 }
 
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`;
+function normalizeFilterValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
 }
 
-function asRecord(value: unknown) {
-  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
+function matchesQuery(values: Array<string | null | undefined>, query: string) {
+  if (!query) return true;
+  return values.filter(Boolean).join(' ').toLowerCase().includes(query);
 }
 
-function readString(record: Record<string, unknown>, key: string, fallback = '—') {
-  const value = record[key];
-  return typeof value === 'string' && value.trim() ? value : fallback;
-}
-
-function readNumber(record: Record<string, unknown>, key: string, fallback = 0) {
-  const value = record[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
-
-function readDate(record: Record<string, unknown>, key: string) {
-  const value = record[key];
+function formatDate(value: unknown) {
   if (typeof value !== 'string' || !value) return '—';
   return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
 }
 
-export default async function ReportsPage() {
-  const [reportResult, insightsResult, studentsResult, mallamsResult, podsResult, assignmentsResult, progressResult, operationsResult] = await Promise.allSettled([
+function asRecord(value: unknown) {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : null;
+}
+
+export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
+  const params = await searchParams;
+  const searchText = normalizeFilterValue(params?.q).trim().toLowerCase();
+  const cohortFilter = normalizeFilterValue(params?.cohort).trim();
+  const podFilter = normalizeFilterValue(params?.pod).trim();
+  const mallamFilter = normalizeFilterValue(params?.mallam).trim();
+
+  const [reportResult, insightsResult, studentsResult, mallamsResult, podsResult, assignmentsResult, progressResult, operationsResult, cohortsResult, ngoSummaryResult] = await Promise.allSettled([
     fetchReportsOverview(),
     fetchDashboardInsights(),
     fetchStudents(),
@@ -106,7 +146,17 @@ export default async function ReportsPage() {
     fetchPods(),
     fetchAssignments(),
     fetchProgress(),
-    fetchOperationsReport(10),
+    fetchOperationsReport(12, {
+      cohortId: cohortFilter || undefined,
+      podId: podFilter || undefined,
+      mallamId: mallamFilter || undefined,
+    }),
+    fetchCohorts(),
+    fetchNgoSummary({
+      cohortId: cohortFilter || undefined,
+      podId: podFilter || undefined,
+      mallamId: mallamFilter || undefined,
+    }),
   ]);
 
   const report = reportResult.status === 'fulfilled' ? reportResult.value : EMPTY_REPORT;
@@ -117,6 +167,8 @@ export default async function ReportsPage() {
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const progress = progressResult.status === 'fulfilled' ? progressResult.value : [];
   const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : EMPTY_OPERATIONS_REPORT;
+  const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
+  const ngoSummary = ngoSummaryResult.status === 'fulfilled' ? ngoSummaryResult.value : EMPTY_NGO_SUMMARY;
 
   const failedSources = [
     reportResult.status === 'rejected' ? 'report metrics' : null,
@@ -127,41 +179,55 @@ export default async function ReportsPage() {
     assignmentsResult.status === 'rejected' ? 'assignments' : null,
     progressResult.status === 'rejected' ? 'progress' : null,
     operationsResult.status === 'rejected' ? 'operations report' : null,
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
+    ngoSummaryResult.status === 'rejected' ? 'ngo summary' : null,
   ].filter(Boolean);
 
-  const podSnapshots = pods.map((pod) => {
-    const podStudents = students.filter((student) => student.podId === pod.id);
-    const podProgress = progress.filter((item) => podStudents.some((student) => student.id === item.studentId));
-    const podAssignments = assignments.filter((assignment) => assignment.podLabel === pod.label);
-    const watchCount = podProgress.filter((item) => item.progressionStatus === 'watch').length;
-    const readyCount = podProgress.filter((item) => item.progressionStatus === 'ready').length;
-    const attendanceAverage = average(podStudents.map((student) => student.attendanceRate));
-    const masteryAverage = average(podProgress.map((item) => item.mastery));
-    return {
-      ...pod,
-      rosterCount: podStudents.length,
-      assignmentCount: podAssignments.length,
-      watchCount,
-      readyCount,
-      attendanceAverage,
-      masteryAverage,
-    };
+  const scopedStudents = students.filter((student) => {
+    const cohortMatches = !cohortFilter || student.cohortId === cohortFilter;
+    const podMatches = !podFilter || student.podId === podFilter;
+    const mallamMatches = !mallamFilter || student.mallamId === mallamFilter;
+    const queryMatches = matchesQuery([student.name, student.cohortName, student.podLabel, student.mallamName], searchText);
+    return cohortMatches && podMatches && mallamMatches && queryMatches;
   });
 
-  const mallamSnapshots = mallams.map((mallam) => {
-    const roster = students.filter((student) => student.mallamId === mallam.id);
-    const rosterProgress = progress.filter((item) => roster.some((student) => student.id === item.studentId));
-    const readinessCount = rosterProgress.filter((item) => item.progressionStatus === 'ready').length;
-    const watchCount = rosterProgress.filter((item) => item.progressionStatus === 'watch').length;
-    return {
-      ...mallam,
-      rosterCount: roster.length,
-      attendanceAverage: average(roster.map((student) => student.attendanceRate)),
-      masteryAverage: average(rosterProgress.map((item) => item.mastery)),
-      readinessCount,
-      watchCount,
-    };
-  });
+  const podSnapshots = pods
+    .map((pod) => {
+      const podStudents = scopedStudents.filter((student) => student.podId === pod.id);
+      const podProgress = progress.filter((item) => podStudents.some((student) => student.id === item.studentId));
+      const podAssignments = assignments.filter((assignment) => assignment.podLabel === pod.label);
+      const watchCount = podProgress.filter((item) => item.progressionStatus === 'watch').length;
+      const readyCount = podProgress.filter((item) => item.progressionStatus === 'ready').length;
+      const attendanceAverage = average(podStudents.map((student) => student.attendanceRate));
+      const masteryAverage = average(podProgress.map((item) => item.mastery));
+      return {
+        ...pod,
+        rosterCount: podStudents.length,
+        assignmentCount: podAssignments.length,
+        watchCount,
+        readyCount,
+        attendanceAverage,
+        masteryAverage,
+      };
+    })
+    .filter((pod) => pod.rosterCount > 0 || (!cohortFilter && !podFilter && !mallamFilter && !searchText));
+
+  const mallamSnapshots = mallams
+    .map((mallam) => {
+      const roster = scopedStudents.filter((student) => student.mallamId === mallam.id);
+      const rosterProgress = progress.filter((item) => roster.some((student) => student.id === item.studentId));
+      const readinessCount = rosterProgress.filter((item) => item.progressionStatus === 'ready').length;
+      const watchCount = rosterProgress.filter((item) => item.progressionStatus === 'watch').length;
+      return {
+        ...mallam,
+        rosterCount: roster.length,
+        attendanceAverage: average(roster.map((student) => student.attendanceRate)),
+        masteryAverage: average(rosterProgress.map((item) => item.mastery)),
+        readinessCount,
+        watchCount,
+      };
+    })
+    .filter((mallam) => mallam.rosterCount > 0 || (!cohortFilter && !podFilter && !mallamFilter && !searchText));
 
   const highestRiskPods = [...podSnapshots]
     .sort((a, b) => (b.watchCount - a.watchCount) || (a.attendanceAverage - b.attendanceAverage))
@@ -171,159 +237,116 @@ export default async function ReportsPage() {
     .sort((a, b) => (b.readinessCount - a.readinessCount) || (b.rosterCount - a.rosterCount))
     .slice(0, 5);
 
-  const assignmentPressure = assignments.reduce<Record<string, number>>((acc, assignment) => {
-    const key = assignment.teacherName || 'Unassigned';
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  const donorCoverage = report.totalStudents > 0 && report.totalCenters > 0
-    ? `${report.totalStudents} learners across ${report.totalCenters} center${report.totalCenters === 1 ? '' : 's'}`
-    : 'Coverage feed unavailable';
-  const learnerRetentionSignal = report.totalStudents > 0
-    ? `${formatPercent(report.averageAttendance)} average attendance suggests ${report.averageAttendance >= 0.9 ? 'strong' : report.averageAttendance >= 0.85 ? 'stable' : 'fragile'} retention`
-    : 'Retention signal unavailable';
-  const readinessSignal = report.readinessCount > 0
-    ? `${report.readinessCount} learners are ready to progress with ${report.watchCount} still on watch`
-    : 'No progression-ready learners visible yet';
+  const donorCoverage = ngoSummary.totals.learners > 0 && ngoSummary.totals.centers > 0
+    ? `${ngoSummary.totals.learners} learners across ${ngoSummary.totals.centers} center${ngoSummary.totals.centers === 1 ? '' : 's'}`
+    : report.totalStudents > 0 && report.totalCenters > 0
+      ? `${scopedStudents.length || report.totalStudents} learners across ${report.totalCenters} center${report.totalCenters === 1 ? '' : 's'}`
+      : 'Coverage feed unavailable';
+  const learnerRetentionSignal = ngoSummary.totals.learners
+    ? `${Math.round(ngoSummary.totals.attendanceAverage * 100)}% average attendance suggests ${ngoSummary.totals.attendanceAverage >= 0.9 ? 'strong' : ngoSummary.totals.attendanceAverage >= 0.85 ? 'stable' : 'fragile'} retention`
+    : scopedStudents.length
+      ? `${Math.round(average(scopedStudents.map((student) => student.attendanceRate)) * 100)}% average attendance suggests ${average(scopedStudents.map((student) => student.attendanceRate)) >= 0.9 ? 'strong' : average(scopedStudents.map((student) => student.attendanceRate)) >= 0.85 ? 'stable' : 'fragile'} retention`
+      : 'Retention signal unavailable';
+  const readinessSignal = ngoSummary.totals.learners
+    ? `${ngoSummary.progression.ready} learners are ready to progress with ${ngoSummary.progression.watch} still on watch`
+    : operationsReport.summary.progressionReady > 0
+      ? `${operationsReport.summary.progressionReady} learners are ready to progress with ${operationsReport.summary.progressionWatch} still on watch`
+      : 'No progression-ready learners visible yet';
   const staffingSignal = mallamSnapshots.length
     ? `${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length} mallams are carrying watchlist load`
     : 'Staffing signal unavailable';
 
   const donorNarratives = [
-    {
-      title: 'Coverage and reach',
-      detail: donorCoverage,
-      tone: '#EEF2FF',
-      text: '#3730A3',
-    },
-    {
-      title: 'Attendance retention signal',
-      detail: learnerRetentionSignal,
-      tone: '#ECFDF5',
-      text: '#166534',
-    },
-    {
-      title: 'Progression readiness signal',
-      detail: readinessSignal,
-      tone: '#FFF7ED',
-      text: '#9A3412',
-    },
-    {
-      title: 'Facilitator pressure signal',
-      detail: staffingSignal,
-      tone: '#F8FAFC',
-      text: '#334155',
-    },
+    { title: 'Coverage and reach', detail: donorCoverage, tone: '#EEF2FF', text: '#3730A3' },
+    { title: 'Attendance retention signal', detail: learnerRetentionSignal, tone: '#ECFDF5', text: '#166534' },
+    { title: 'Progression readiness signal', detail: readinessSignal, tone: '#FFF7ED', text: '#9A3412' },
+    { title: 'Facilitator pressure signal', detail: staffingSignal, tone: '#F8FAFC', text: '#334155' },
   ];
 
   const complianceRows = [
     ['Learner attendance logged', `${report.presentToday}/${report.totalStudents || 0} present today`, report.totalStudents ? `${Math.round((report.presentToday / report.totalStudents) * 100)}% capture` : 'No capture'],
-    ['Assignments tracked', `${report.totalAssignments} live`, `${report.assignmentsDueThisWeek} due this week`],
+    ['Assignments tracked', `${ngoSummary.totals.activeAssignments || report.totalAssignments} live`, `${report.assignmentsDueThisWeek} due this week`],
     ['Pods under watch', `${report.podsNeedingAttention} flagged`, `${podSnapshots.filter((item) => item.attendanceAverage < 0.85).length} below 85% attendance`],
-    ['Promotion evidence', `${report.readinessCount} ready`, `${report.watchCount} watchlist`],
+    ['Promotion evidence', `${ngoSummary.progression.ready || operationsReport.summary.progressionReady} ready`, `${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} watchlist`],
   ];
 
-  const rewardQueueCards = operationsReport.hotlist.rewardQueue.map((entry, index) => {
-    const record = asRecord(entry);
-    return {
-      key: readString(record, 'id', `reward-${index}`),
-      learnerName: readString(record, 'learnerName', readString(record, 'studentName', 'Unknown learner')),
-      rewardTitle: readString(record, 'rewardTitle', 'Reward item'),
-      status: readString(record, 'status', 'pending'),
-      ageDays: readNumber(record, 'ageDays', 0),
-      xpCost: readNumber(record, 'xpCost', 0),
-      requestedAt: readDate(record, 'createdAt'),
-    };
-  });
-
-  const runtimeCards = operationsReport.hotlist.runtimeLearners.map((entry, index) => {
-    const record = asRecord(entry);
-    return {
-      key: readString(record, 'id', `runtime-${index}`),
-      learnerName: readString(record, 'studentName', 'Unknown learner'),
-      status: readString(record, 'status', 'runtime'),
-      completionRate: readNumber(record, 'completionRate', 0),
-      abandonedSessions: readNumber(record, 'abandonedSessions', 0),
-      lastActiveAt: readDate(record, 'lastActiveAt'),
-    };
-  });
-
-  const recentRewardAdjustments = operationsReport.recent.rewardAdjustments.slice(0, 5).map((entry, index) => {
-    const record = asRecord(entry);
-    return {
-      key: readString(record, 'id', `adjustment-${index}`),
-      learnerName: readString(record, 'studentName', 'Unknown learner'),
-      label: readString(record, 'label', readString(record, 'kind', 'Reward adjustment')),
-      xpDelta: readNumber(record, 'xpDelta', 0),
-      createdAt: readDate(record, 'createdAt'),
-    };
-  });
+  const recentRewardRequests = (operationsReport.recent.rewardRequests ?? []).slice(0, 6);
+  const recentIntegrityIssues = operationsReport.recent.integrityIssues.slice(0, 6);
+  const highSupportLearners = (operationsReport.hotlist.highSupportLearners ?? []).slice(0, 6);
+  const filtersActive = Boolean(searchText || cohortFilter || podFilter || mallamFilter);
 
   return (
-    <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, and cleaner NGO reporting in one place.">
+    <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, reward queue pressure, and cleaner NGO reporting in one place.">
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           Reports is running in degraded mode: {failedSources.join(' + ')} {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
         </div>
       ) : null}
 
-      <section style={{ marginBottom: 20, padding: 18, borderRadius: 24, background: 'white', border: '1px solid #e5e7eb', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <div style={{ maxWidth: 760 }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Operator launchpad</div>
-            <div style={{ color: '#475569', lineHeight: 1.7 }}>
-              This page is now more than a dashboard selfie. Use it to spot the problem, then jump straight to the board that can actually fix it: mallam coverage, reward queue, or content blockers.
+      <section style={{ marginBottom: 20 }}>
+        <Card title="Reporting filters" eyebrow="Scope the story before you share it">
+          <form style={{ display: 'grid', gap: 12 }}>
+            <div style={{ ...responsiveGrid(220), gap: 12 }}>
+              <input name="q" defaultValue={searchText} placeholder="Search learner, pod, mallam, or narrative signal" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
+              <select name="cohort" defaultValue={cohortFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All cohorts</option>
+                {cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
+              </select>
+              <select name="pod" defaultValue={podFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All pods</option>
+                {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}
+              </select>
+              <select name="mallam" defaultValue={mallamFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All mallams</option>
+                {mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName}</option>)}
+              </select>
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <Link href="/mallams" style={{ borderRadius: 14, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>Open mallam ops</Link>
-            <Link href="/rewards" style={{ borderRadius: 14, padding: '12px 14px', fontWeight: 700, background: '#F5F3FF', color: '#6D28D9', textDecoration: 'none' }}>Open rewards queue</Link>
-            <Link href="/content?view=blocked" style={{ borderRadius: 14, padding: '12px 14px', fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>Open release blockers</Link>
-          </div>
-        </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button type="submit" style={{ background: '#4F46E5', color: 'white', border: 0, borderRadius: 12, padding: '12px 16px', fontWeight: 700 }}>Apply filters</button>
+              <a href="/reports" style={{ borderRadius: 12, padding: '12px 16px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>Clear filters</a>
+            </div>
+          </form>
+        </Card>
       </section>
+
+      {filtersActive ? (
+        <div style={{ marginBottom: 16, color: '#475569', fontWeight: 700 }}>
+          Reporting scope now reflects {scopedStudents.length} learner{scopedStudents.length === 1 ? '' : 's'} with live ops pull-through on pods, mallams, and reward pressure.
+        </div>
+      ) : null}
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         <Card title="Program overview" eyebrow="Coverage">
-          <MetricList
-            items={[
-              { label: 'Total learners', value: String(report.totalStudents) },
-              { label: 'Mallams and facilitators', value: String(report.totalTeachers) },
-              { label: 'Centers live', value: String(report.totalCenters) },
-              { label: 'Active pods', value: String(report.activePods) },
-            ]}
-          />
+          <MetricList items={[
+            { label: 'Total learners', value: String(ngoSummary.totals.learners || scopedStudents.length || report.totalStudents) },
+            { label: 'Mallams and facilitators', value: String(ngoSummary.totals.mallams || report.totalTeachers) },
+            { label: 'Centers live', value: String(ngoSummary.totals.centers || report.totalCenters) },
+            { label: 'Active pods', value: String(ngoSummary.totals.pods || podSnapshots.length || report.activePods) },
+          ]} />
         </Card>
         <Card title="Delivery metrics" eyebrow="Execution">
-          <MetricList
-            items={[
-              { label: 'Assignments tracked', value: String(report.totalAssignments) },
-              { label: 'Assignments due this week', value: String(report.assignmentsDueThisWeek) },
-              { label: 'Present today', value: String(report.presentToday) },
-              { label: 'Pods needing attention', value: String(report.podsNeedingAttention) },
-            ]}
-          />
+          <MetricList items={[
+            { label: 'Assignments tracked', value: String(ngoSummary.totals.activeAssignments || report.totalAssignments) },
+            { label: 'Assignments due this week', value: String(report.assignmentsDueThisWeek) },
+            { label: 'Present today', value: String(report.presentToday) },
+            { label: 'Pods needing attention', value: String(report.podsNeedingAttention) },
+          ]} />
         </Card>
         <Card title="Learning metrics" eyebrow="Outcomes">
-          <MetricList
-            items={[
-              { label: 'Average attendance', value: formatPercent(report.averageAttendance) },
-              { label: 'Average mastery', value: formatPercent(report.averageMastery) },
-              { label: 'Ready to progress', value: String(report.readinessCount) },
-              { label: 'Watchlist learners', value: String(report.watchCount) },
-            ]}
-          />
+          <MetricList items={[
+            { label: 'Average attendance', value: `${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}%` },
+            { label: 'Average mastery', value: `${Math.round((ngoSummary.totals.averageMastery || (podSnapshots.length ? average(podSnapshots.map((pod) => pod.masteryAverage)) : report.averageMastery)) * 100)}%` },
+            { label: 'Ready to progress', value: String(ngoSummary.progression.ready || operationsReport.summary.progressionReady) },
+            { label: 'Watchlist learners', value: String(ngoSummary.progression.watch || operationsReport.summary.progressionWatch) },
+          ]} />
         </Card>
-        <Card title="Narrative signals" eyebrow="What leadership should not miss">
-          <MetricList
-            items={[
-              { label: 'Top assignment owner load', value: String(Math.max(0, ...Object.values(assignmentPressure))) },
-              { label: 'Pods under 85% attendance', value: String(podSnapshots.filter((item) => item.attendanceAverage < 0.85).length) },
-              { label: 'Mallams with ready learners', value: String(mallamSnapshots.filter((mallam) => mallam.readinessCount > 0).length) },
-              { label: 'Pods with zero live assignments', value: String(podSnapshots.filter((item) => item.assignmentCount === 0).length) },
-            ]}
-          />
+        <Card title="Operations pulse" eyebrow="Runtime + reward pressure">
+          <MetricList items={[
+            { label: 'Completion rate', value: `${Math.round(operationsReport.summary.runtimeCompletionRate * 100)}%` },
+            { label: 'Abandoned sessions', value: String(operationsReport.summary.runtimeAbandonedSessions) },
+            { label: 'Pending reward requests', value: String(operationsReport.summary.rewardPendingRequests) },
+            { label: 'Urgent reward backlog', value: String(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) },
+          ]} />
         </Card>
       </section>
 
@@ -350,7 +373,7 @@ export default async function ReportsPage() {
             {[
               ['Attendance is the earliest smoke alarm', 'If pod attendance drops before mastery drops, the delivery setup is probably slipping before the curriculum does.'],
               ['Readiness should concentrate, not vanish', 'If no mallam has ready learners, either the bar is broken or the content ladder is clogged upstream.'],
-              ['Assignment load needs taste', 'The same operator carrying every live assignment is not evidence of excellence. It is usually evidence of poor distribution.'],
+              ['Reward pressure is now part of the story', 'Donor reporting that ignores pending or urgent reward debt is just a prettier lie. Queue health belongs in the operating picture.'],
             ].map(([title, detail]) => (
               <div key={title} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
                 <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
@@ -374,10 +397,7 @@ export default async function ReportsPage() {
         </Card>
 
         <Card title="Reporting compliance board" eyebrow="What a grant or ministry review will ask first">
-          <SimpleTable
-            columns={['Check', 'Current state', 'Signal']}
-            rows={complianceRows}
-          />
+          <SimpleTable columns={['Check', 'Current state', 'Signal']} rows={complianceRows} />
         </Card>
       </section>
 
@@ -398,61 +418,21 @@ export default async function ReportsPage() {
           />
         </Card>
 
-        <Card title="Operations summary" eyebrow="Runtime consistency + reward pressure">
-          <div style={{ display: 'grid', gap: 12 }}>
-            {[
-              ['Completion rate', formatPercent(operationsReport.summary.runtimeCompletionRate)],
-              ['Abandoned sessions', String(operationsReport.summary.runtimeAbandonedSessions)],
-              ['Pending reward requests', String(operationsReport.summary.rewardPendingRequests)],
-              ['Integrity issues', String(operationsReport.summary.integrityIssueCount)],
-            ].map(([label, value]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #eef2f7' }}>
-                <span style={{ color: '#64748b' }}>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
-            <div style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', lineHeight: 1.7 }}>
-              This panel is wired to the combined operations report now, so runtime drop-off, progression pressure, reward queue health, and integrity noise are finally read from one place instead of stitched together by vibes.
-            </div>
-          </div>
-        </Card>
-      </section>
-
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-        <Card title="Mallam pressure board" eyebrow="Who needs coaching or relief first">
+        <Card title="Recent reward requests" eyebrow="Queue pressure with timestamps">
           <SimpleTable
-            columns={['Mallam', 'Center', 'Roster', 'Attendance', 'Ready', 'Watch', 'Recommended move']}
-            rows={highestImpactMallams.length ? highestImpactMallams.map((mallam) => [
-              <Link key={mallam.id} href={`/mallams/${mallam.id}`} style={{ color: '#0f172a', textDecoration: 'none', fontWeight: 800 }}>{mallam.displayName}</Link>,
-              mallam.centerName ?? mallam.region,
-              String(mallam.rosterCount),
-              formatPercent(mallam.attendanceAverage),
-              String(mallam.readinessCount),
-              String(mallam.watchCount),
-              mallam.watchCount > 0 ? 'Coach and trim watchlist load' : mallam.rosterCount >= 18 ? 'Check capacity before adding more learners' : 'Keep this coverage pattern stable',
-            ]) : safeRows('Mallam contribution analytics are unavailable right now.', 7)}
+            columns={['When', 'Learner', 'Reward', 'Status']}
+            rows={recentRewardRequests.length ? recentRewardRequests.map((entry, index) => {
+              const record = asRecord(entry) ?? {};
+              const status = typeof record.status === 'string' ? record.status : 'pending';
+              const tone = status === 'fulfilled' ? { tone: '#DCFCE7', text: '#166534' } : status === 'approved' ? { tone: '#DBEAFE', text: '#1D4ED8' } : { tone: '#FEF3C7', text: '#92400E' };
+              return [
+                formatDate(record.updatedAt ?? record.createdAt),
+                typeof record.learnerName === 'string' ? record.learnerName : typeof record.studentId === 'string' ? record.studentId : '—',
+                typeof record.rewardTitle === 'string' ? record.rewardTitle : 'Reward request',
+                <Pill key={`request-${index}`} label={status} tone={tone.tone} text={tone.text} />,
+              ];
+            }) : safeRows('Reward request activity is unavailable right now.', 4)}
           />
-        </Card>
-
-        <Card title="Reward queue pressure" eyebrow="What finance-ish ops should clear next">
-          <div style={{ display: 'grid', gap: 12 }}>
-            {rewardQueueCards.length ? rewardQueueCards.slice(0, 5).map((item) => (
-              <div key={item.key} style={{ padding: 16, borderRadius: 18, background: item.ageDays >= 3 ? '#fff7ed' : '#f8fafc', border: `1px solid ${item.ageDays >= 3 ? '#fed7aa' : '#eef2f7'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-                  <strong>{item.rewardTitle}</strong>
-                  <Pill label={`${item.status} · ${item.ageDays.toFixed(1)}d`} tone={item.ageDays >= 3 ? '#FEE2E2' : item.ageDays >= 1 ? '#FEF3C7' : '#DCFCE7'} text={item.ageDays >= 3 ? '#991B1B' : item.ageDays >= 1 ? '#92400E' : '#166534'} />
-                </div>
-                <div style={{ color: '#64748b', lineHeight: 1.6 }}>
-                  {item.learnerName} • {item.xpCost} XP • requested {item.requestedAt}
-                </div>
-              </div>
-            )) : (
-              <div style={{ padding: 14, borderRadius: 16, background: '#ecfdf5', border: '1px solid #bbf7d0', color: '#166534', lineHeight: 1.6 }}>
-                Reward queue hotlist is clear or currently unavailable.
-              </div>
-            )}
-            <Link href="/rewards" style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open full reward operations board →</Link>
-          </div>
         </Card>
       </section>
 
@@ -464,8 +444,8 @@ export default async function ReportsPage() {
               pod.label,
               pod.centerName,
               String(pod.rosterCount),
-              formatPercent(pod.attendanceAverage),
-              formatPercent(pod.masteryAverage),
+              `${Math.round(pod.attendanceAverage * 100)}%`,
+              `${Math.round(pod.masteryAverage * 100)}%`,
               String(pod.readyCount),
               String(pod.watchCount),
               String(pod.assignmentCount),
@@ -482,8 +462,8 @@ export default async function ReportsPage() {
                 mallam.displayName,
                 mallam.centerName ?? mallam.region,
                 String(mallam.rosterCount),
-                formatPercent(mallam.attendanceAverage),
-                formatPercent(mallam.masteryAverage),
+                `${Math.round(mallam.attendanceAverage * 100)}%`,
+                `${Math.round(mallam.masteryAverage * 100)}%`,
                 String(mallam.readinessCount),
                 String(mallam.watchCount),
                 <Pill key={mallam.id} label={mallam.status} tone={tone.tone} text={tone.text} />,
@@ -494,30 +474,54 @@ export default async function ReportsPage() {
       </section>
 
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-        <Card title="Runtime intervention queue" eyebrow="Learners falling out of sessions">
-          <div style={{ display: 'grid', gap: 12 }}>
-            {runtimeCards.length ? runtimeCards.slice(0, 5).map((item) => (
-              <div key={item.key} style={{ padding: 16, borderRadius: 18, background: item.abandonedSessions > 0 ? '#fff7ed' : '#f8fafc', border: `1px solid ${item.abandonedSessions > 0 ? '#fed7aa' : '#eef2f7'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <strong>{item.learnerName}</strong>
-                  <Pill label={`${Math.round(item.completionRate * 100)}% completion`} tone={item.completionRate >= 0.8 ? '#DCFCE7' : item.completionRate >= 0.6 ? '#FEF3C7' : '#FEE2E2'} text={item.completionRate >= 0.8 ? '#166534' : item.completionRate >= 0.6 ? '#92400E' : '#991B1B'} />
-                </div>
-                <div style={{ color: '#64748b', lineHeight: 1.6 }}>
-                  {item.abandonedSessions} abandoned session{item.abandonedSessions === 1 ? '' : 's'} • last active {item.lastActiveAt} • status {item.status}
-                </div>
-              </div>
-            )) : (
-              <div style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b' }}>
-                Runtime learner hotlist is unavailable right now.
-              </div>
-            )}
-          </div>
+        <Card title="High-support runtime learners" eyebrow="Where facilitation effort is clustering">
+          <SimpleTable
+            columns={['Learner', 'Sessions', 'Completed', 'Support actions']}
+            rows={highSupportLearners.length ? highSupportLearners.map((entry, index) => {
+              const record = asRecord(entry) ?? {};
+              return [
+                typeof record.learnerName === 'string' ? record.learnerName : typeof record.studentName === 'string' ? record.studentName : `Learner ${index + 1}`,
+                String(record.sessions ?? 0),
+                String(record.completedSessions ?? 0),
+                String(record.totalSupportActions ?? 0),
+              ];
+            }) : safeRows('Runtime support analytics are unavailable right now.', 4)}
+          />
         </Card>
 
-        <Card title="Recent reward adjustments" eyebrow="Manual interventions worth auditing">
+        <Card title="Integrity watchlist" eyebrow="Data issues still worth fixing">
           <SimpleTable
-            columns={['Learner', 'Adjustment', 'XP delta', 'When']}
-            rows={recentRewardAdjustments.length ? recentRewardAdjustments.map((item) => [item.learnerName, item.label, `${item.xpDelta > 0 ? '+' : ''}${item.xpDelta}`, item.createdAt]) : safeRows('No recent manual reward adjustments are visible.', 4)}
+            columns={['Type', 'Entity', 'Identifier']}
+            rows={recentIntegrityIssues.length ? recentIntegrityIssues.map((issue) => [
+              issue.type,
+              issue.entity ?? '—',
+              issue.id,
+            ]) : safeRows('No integrity issues are visible right now.', 3)}
+          />
+        </Card>
+      </section>
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Subject mastery board" eyebrow="What donor summaries usually flatten away">
+          <SimpleTable
+            columns={['Subject', 'Learners', 'Average mastery', 'Lessons completed']}
+            rows={ngoSummary.subjectBreakdown.length ? ngoSummary.subjectBreakdown.map((subject) => [
+              subject.subjectName,
+              String(subject.learnerCount),
+              `${Math.round(subject.averageMastery * 100)}%`,
+              String(subject.lessonsCompleted),
+            ]) : safeRows('Subject-level NGO reporting is unavailable right now.', 4)}
+          />
+        </Card>
+
+        <Card title="Admin controls pressure" eyebrow="Manual intervention that should stay visible">
+          <SimpleTable
+            columns={['Signal', 'Count', 'Why it matters']}
+            rows={[
+              ['Progression overrides', String(operationsReport.summary.activeProgressionOverrides ?? 0), 'If this climbs, progression is depending on human rescue instead of the curriculum doing its job.'],
+              ['Session repairs', String(operationsReport.summary.sessionRepairs ?? 0), 'Runtime cleanup is useful, but a growing pile means delivery reliability still leaks.'],
+              ['Urgent reward backlog', String(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0), 'Approved or pending reward debt is still debt.'],
+            ]}
           />
         </Card>
       </section>
@@ -532,7 +536,7 @@ export default async function ReportsPage() {
                   <Pill label={`${pod.watchCount} watch`} tone={statusTone(pod.watchCount ? 'watch' : pod.readyCount ? 'ready' : 'on-track').tone} text={statusTone(pod.watchCount ? 'watch' : pod.readyCount ? 'ready' : 'on-track').text} />
                 </div>
                 <div style={{ color: '#64748b', lineHeight: 1.6 }}>
-                  {pod.centerName} • {pod.rosterCount} learners • {formatPercent(pod.attendanceAverage)} attendance • {formatPercent(pod.masteryAverage)} mastery • {pod.assignmentCount} live assignment{pod.assignmentCount === 1 ? '' : 's'}.
+                  {pod.centerName} • {pod.rosterCount} learners • {Math.round(pod.attendanceAverage * 100)}% attendance • {Math.round(pod.masteryAverage * 100)}% mastery • {pod.assignmentCount} live assignment{pod.assignmentCount === 1 ? '' : 's'}.
                 </div>
               </div>
             )) : (
@@ -552,7 +556,7 @@ export default async function ReportsPage() {
                   <Pill label={`${mallam.readinessCount} ready`} tone="#DCFCE7" text="#166534" />
                 </div>
                 <div style={{ color: '#64748b', lineHeight: 1.6, marginBottom: 8 }}>
-                  {mallam.centerName ?? mallam.region} • {mallam.rosterCount} learners • {formatPercent(mallam.attendanceAverage)} attendance • {formatPercent(mallam.masteryAverage)} mastery.
+                  {mallam.centerName ?? mallam.region} • {mallam.rosterCount} learners • {Math.round(mallam.attendanceAverage * 100)}% attendance • {Math.round(mallam.masteryAverage * 100)}% mastery.
                 </div>
                 <div style={{ color: '#475569', fontSize: 14 }}>
                   Watchlist still at {mallam.watchCount}. Good performance does not mean the queue clears itself.

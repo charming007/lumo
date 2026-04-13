@@ -117,7 +117,11 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
     fetchCohorts(),
     fetchPods(),
     fetchMallams(),
-    fetchRewardsReport(24),
+    fetchRewardsReport(24, {
+      cohortId: cohortFilter || undefined,
+      podId: podFilter || undefined,
+      mallamId: mallamFilter || undefined,
+    }),
   ]);
 
   const catalog = catalogResult.status === 'fulfilled' ? catalogResult.value : EMPTY_CATALOG;

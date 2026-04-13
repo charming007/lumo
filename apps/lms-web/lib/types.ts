@@ -400,6 +400,54 @@ export type ReportsOverview = {
   podsNeedingAttention: number;
 };
 
+export type NgoSummary = {
+  scope: {
+    cohortId?: string | null;
+    podId?: string | null;
+    mallamId?: string | null;
+    since?: string | null;
+    until?: string | null;
+    learnerCount: number;
+  };
+  totals: {
+    learners: number;
+    centers: number;
+    pods: number;
+    mallams: number;
+    activeAssignments: number;
+    lessonsCompleted: number;
+    completedSessions: number;
+    attendanceAverage: number;
+    averageMastery: number;
+    totalXpAwarded: number;
+  };
+  progression: {
+    ready: number;
+    watch: number;
+    onTrack: number;
+  };
+  rewardOps?: {
+    summary?: {
+      pending?: number;
+      approved?: number;
+      fulfilled?: number;
+      urgentCount?: number;
+      attentionCount?: number;
+    };
+    recentQueue?: Array<Record<string, unknown>>;
+    [key: string]: unknown;
+  };
+  subjectBreakdown: Array<{
+    subjectId: string;
+    subjectName: string;
+    learnerCount: number;
+    averageMastery: number;
+    lessonsCompleted: number;
+  }>;
+  mallamSnapshots: Array<Record<string, unknown>>;
+  topLearners: RewardSnapshot[];
+};
+
 export type MetaResponse = {
   actor: {
     role: string;
@@ -473,6 +521,8 @@ export type OperationsReport = {
     rewardPendingRequests: number;
     rewardFulfillmentRate: number;
     rewardBacklogUrgent?: number;
+    activeProgressionOverrides?: number;
+    sessionRepairs?: number;
     integrityIssueCount: number;
   };
   runtime: Record<string, unknown>;

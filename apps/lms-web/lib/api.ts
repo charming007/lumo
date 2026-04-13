@@ -11,6 +11,7 @@ import type {
   Mallam,
   MallamDetail,
   MetaResponse,
+  NgoSummary,
   Pod,
   ProgressRecord,
   ReportsOverview,
@@ -152,8 +153,25 @@ export function fetchRewardRequests(limit = 20, params?: { cohortId?: string; po
   return getJson<RewardRequestQueue>(`/api/v1/rewards/requests?${query.toString()}`);
 }
 
-export function fetchRewardsReport(limit = 20) {
-  return getJson<RewardsReport>(`/api/v1/reports/rewards?limit=${limit}`);
+export function fetchRewardsReport(limit = 20, params?: { cohortId?: string; podId?: string; mallamId?: string; learnerId?: string; since?: string; until?: string }) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (params?.cohortId) query.set('cohortId', params.cohortId);
+  if (params?.podId) query.set('podId', params.podId);
+  if (params?.mallamId) query.set('mallamId', params.mallamId);
+  if (params?.learnerId) query.set('learnerId', params.learnerId);
+  if (params?.since) query.set('since', params.since);
+  if (params?.until) query.set('until', params.until);
+  return getJson<RewardsReport>(`/api/v1/reports/rewards?${query.toString()}`);
+}
+
+export function fetchNgoSummary(params?: { cohortId?: string; podId?: string; mallamId?: string; since?: string; until?: string }) {
+  const query = new URLSearchParams();
+  if (params?.cohortId) query.set('cohortId', params.cohortId);
+  if (params?.podId) query.set('podId', params.podId);
+  if (params?.mallamId) query.set('mallamId', params.mallamId);
+  if (params?.since) query.set('since', params.since);
+  if (params?.until) query.set('until', params.until);
+  return getJson<NgoSummary>(`/api/v1/reports/ngo-summary${query.size ? `?${query.toString()}` : ''}`);
 }
 
 export function fetchStorageStatus() {
