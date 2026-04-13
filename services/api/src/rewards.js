@@ -443,6 +443,73 @@ function ensureRewardRequest(requestId) {
   return existing;
 }
 
+function toDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getRewardRequestAgeDays(request, now = new Date()) {
+  const createdAt = toDate(request?.createdAt);
+  if (!createdAt) return null;
+  return Math.max(0, (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function getRewardRequestLifecycleHours(request) {
+  const createdAt = toDate(request?.createdAt);
+  if (!createdAt) return { approvalHours: null, fulfillmentHours: null };
+
+  const approvedAt = toDate(request?.approvedAt);
+  const fulfilledAt = toDate(request?.fulfilledAt);
+
+  return {
+    approvalHours: approvedAt ? Math.max(0, (approvedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60)) : null,
+    fulfillmentHours: fulfilledAt ? Math.max(0, (fulfilledAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60)) : null,
+  };
+}
+
+function summarizeRewardRequestQueue(items) {
+  const now = new Date();
+  const summary = {
+    total: items.length,
+    pending: 0,
+    approved: 0,
+    fulfilled: 0,
+    rejected: 0,
+    cancelled: 0,
+    expired: 0,
+    open: 0,
+    staleOpen: 0,
+    ageBuckets: { under7d: 0, between7dAnd14d: 0, between14dAnd30d: 0, over30d: 0 },
+    avgOpenAgeDays: 0,
+    oldestOpenAgeDays: 0,
+  };
+
+  let openAgeTotal = 0;
+  let openAgeCount = 0;
+
+  items.forEach((item) => {
+    summary[item.status] = Number(summary[item.status] || 0) + 1;
+    if (['pending', 'approved'].includes(item.status)) {
+      summary.open += 1;
+      const ageDays = getRewardRequestAgeDays(item, now);
+      if (ageDays !== null) {
+        openAgeTotal += ageDays;
+        openAgeCount += 1;
+        summary.oldestOpenAgeDays = Math.max(summary.oldestOpenAgeDays, ageDays);
+        if (ageDays >= 14) summary.staleOpen += 1;
+        if (ageDays < 7) summary.ageBuckets.under7d += 1;
+        else if (ageDays < 14) summary.ageBuckets.between7dAnd14d += 1;
+        else if (ageDays < 30) summary.ageBuckets.between14dAnd30d += 1;
+        else summary.ageBuckets.over30d += 1;
+      }
+    }
+  });
+
+  summary.avgOpenAgeDays = openAgeCount ? openAgeTotal / openAgeCount : 0;
+  return summary;
+}
+
 function buildRewardRequestHistory(studentId, { status = null, limit = 20 } = {}) {
   const student = repository.findStudentById(studentId);
   if (!student) return null;
@@ -450,9 +517,14 @@ function buildRewardRequestHistory(studentId, { status = null, limit = 20 } = {}
   const items = repository.listRewardRedemptionRequests()
     .filter((item) => item.studentId === studentId && (!status || item.status === status))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, Math.max(1, Math.min(Number(limit || 20), 100)));
+    .slice(0, Math.max(1, Math.min(Number(limit || 20), 100)))
+    .map((item) => ({
+      ...item,
+      ageDays: getRewardRequestAgeDays(item),
+      lifecycle: getRewardRequestLifecycleHours(item),
+    }));
 
-  return { learnerId: studentId, status, count: items.length, items };
+  return { learnerId: studentId, status, count: items.length, queue: summarizeRewardRequestQueue(items), items };
 }
 
 function buildRewardRedemptionQueue({ cohortId = null, podId = null, mallamId = null, learnerId = null, status = null, limit = 50 } = {}) {
@@ -461,18 +533,23 @@ function buildRewardRedemptionQueue({ cohortId = null, podId = null, mallamId = 
     : buildScopedStudentSet({ cohortId, podId, mallamId });
   const studentIds = new Set(students.map((student) => student.id));
 
-  const items = repository.listRewardRedemptionRequests()
+  const allMatchingItems = repository.listRewardRedemptionRequests()
     .filter((item) => (!studentIds.size || studentIds.has(item.studentId)) && (!status || item.status === status))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const items = allMatchingItems
     .slice(0, Math.max(1, Math.min(Number(limit || 50), 100)))
     .map((item) => ({
       ...item,
       learnerName: repository.findStudentById(item.studentId)?.name || 'Unknown learner',
+      ageDays: getRewardRequestAgeDays(item),
+      lifecycle: getRewardRequestLifecycleHours(item),
     }));
 
   return {
     items,
-    meta: { cohortId, podId, mallamId, learnerId, status, count: items.length },
+    summary: summarizeRewardRequestQueue(allMatchingItems),
+    meta: { cohortId, podId, mallamId, learnerId, status, count: allMatchingItems.length, returned: items.length },
   };
 }
 
@@ -698,7 +775,7 @@ function buildRewardFulfillmentReport({ cohortId = null, podId = null, mallamId 
     .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.updatedAt || entry.createdAt));
   const now = Date.now();
   const backlog = { fresh: 0, attention: 0, urgent: 0 };
-  const statusCounts = { pending: 0, approved: 0, fulfilled: 0, rejected: 0, cancelled: 0 };
+  const statusCounts = { pending: 0, approved: 0, fulfilled: 0, rejected: 0, cancelled: 0, expired: 0 };
   const turnaroundHours = [];
   const queueByItem = new Map();
 
@@ -736,6 +813,65 @@ function buildRewardFulfillmentReport({ cohortId = null, podId = null, mallamId 
     },
     queueByItem: Array.from(queueByItem.values()).sort((a, b) => (b.pending + b.approved) - (a.pending + a.approved) || b.total - a.total),
     recentRequests: requests.slice().sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, Math.max(1, Math.min(Number(limit || 20), 100))),
+  };
+}
+
+function expireRewardRedemptionRequest(requestId, { actorName, actorRole, reason, adminNote, metadata } = {}) {
+  const existing = ensureRewardRequest(requestId);
+  if (!['pending', 'approved'].includes(existing.status)) {
+    const error = new Error('Only pending or approved requests can be expired');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const updated = repository.updateRewardRedemptionRequest(requestId, {
+    status: 'expired',
+    rejectedAt: new Date().toISOString(),
+    rejectedBy: actorName || 'Unknown actor',
+    adminNote: adminNote !== undefined ? adminNote : existing.adminNote,
+    metadata: {
+      ...(existing.metadata || {}),
+      expiryReason: reason || 'stale_request',
+      expiredByRole: actorRole || 'admin',
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
+    },
+  });
+
+  return { request: updated, snapshot: buildLearnerRewards(updated.studentId) };
+}
+
+function expireStaleRewardRedemptionRequests({ olderThanDays = 14, includeApproved = true, limit = 100, actorName, actorRole, reason, adminNote } = {}) {
+  const threshold = Number(olderThanDays || 14);
+  if (!Number.isFinite(threshold) || threshold < 0) {
+    const error = new Error('Invalid olderThanDays');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const statuses = includeApproved ? ['pending', 'approved'] : ['pending'];
+  const candidates = repository.listRewardRedemptionRequests()
+    .filter((item) => statuses.includes(item.status))
+    .filter((item) => {
+      const ageDays = getRewardRequestAgeDays(item);
+      return ageDays !== null && ageDays >= threshold;
+    })
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(0, Math.max(1, Math.min(Number(limit || 100), 500)));
+
+  const items = candidates.map((item) => expireRewardRedemptionRequest(item.id, {
+    actorName,
+    actorRole,
+    reason: reason || 'stale_request',
+    adminNote,
+    metadata: { autoExpired: true, staleThresholdDays: threshold },
+  }).request);
+
+  return {
+    thresholdDays: threshold,
+    includeApproved,
+    count: items.length,
+    items,
+    queue: buildRewardRedemptionQueue({ limit: 20 }),
   };
 }
 
@@ -955,7 +1091,11 @@ module.exports = {
   cancelRewardRedemptionRequest,
   reopenRewardRedemptionRequest,
   requeueRewardRedemptionRequest,
+  expireRewardRedemptionRequest,
+  expireStaleRewardRedemptionRequests,
   fulfillRewardRedemptionRequest,
+  getRewardRequestAgeDays,
+  getRewardRequestLifecycleHours,
   getRewardStoreItem,
   awardLessonCompletion,
   awardManualReward,
