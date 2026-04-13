@@ -1206,6 +1206,62 @@ class LumoAppState {
     persistStateSoon();
   }
 
+  void acceptLatestLearnerAudioManually({
+    String? note,
+    bool asOnTrack = true,
+  }) {
+    final session = activeSession;
+    if (session == null) return;
+
+    final hasSavedAudio = session.latestLearnerAudioPath != null &&
+        session.latestLearnerAudioPath!.trim().isNotEmpty;
+    if (!hasSavedAudio) return;
+
+    final review =
+        asOnTrack ? ResponseReview.onTrack : ResponseReview.needsSupport;
+    final learnerName = currentLearner?.name ?? 'Learner';
+    final evidenceNote = (note == null || note.trim().isEmpty)
+        ? 'Facilitator confirmed the saved learner voice response.'
+        : note.trim();
+    final nextSupportType = asOnTrack
+        ? 'Saved learner audio accepted'
+        : 'Saved learner audio reviewed';
+    final nextAutomationStatus = asOnTrack
+        ? 'Facilitator accepted the saved learner voice response and can continue the lesson.'
+        : 'Facilitator reviewed the saved learner voice response and will keep supporting this step manually.';
+
+    activeSession = session.copyWith(
+      latestReview: review,
+      speakerMode: asOnTrack ? SpeakerMode.affirming : SpeakerMode.guiding,
+      lastSupportType: nextSupportType,
+      automationStatus: nextAutomationStatus,
+      transcript: [
+        ...session.transcript,
+        SessionTurn(
+          speaker: 'Facilitator',
+          text: '$learnerName audio review: $evidenceNote',
+          review: review,
+          timestamp: DateTime.now(),
+        ),
+      ],
+    );
+    speakerMode = asOnTrack ? SpeakerMode.affirming : SpeakerMode.guiding;
+    _queueSessionEvent(
+      type: 'learner_audio_manually_accepted',
+      session: activeSession!,
+      extra: {
+        'stepId': session.currentStep.id,
+        'stepTitle': session.currentStep.title,
+        'review': review.name,
+        'note': evidenceNote,
+        'audioPath': session.latestLearnerAudioPath,
+        'audioDurationSeconds': session.latestLearnerAudioDuration?.inSeconds,
+      },
+    );
+    _attemptSyncSoon();
+    persistStateSoon();
+  }
+
   void attachLearnerAudioCapture({
     required String path,
     required Duration duration,

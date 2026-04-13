@@ -582,8 +582,8 @@ class AllStudentsPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   LumoTopBar(
-                    onLogoTap: () =>
-                        Navigator.of(context).popUntil((route) => route.isFirst),
+                    onLogoTap: () => Navigator.of(context)
+                        .popUntil((route) => route.isFirst),
                   ),
                   const SizedBox(height: 20),
                   Wrap(
@@ -878,7 +878,8 @@ class LearnerProfilePage extends StatelessWidget {
                               const Spacer(),
                               if (leaderboardEntry != null) ...[
                                 StatusPill(
-                                  text: '#${leaderboardEntry.rank} on leaderboard',
+                                  text:
+                                      '#${leaderboardEntry.rank} on leaderboard',
                                   color: leaderboardEntry.rank == 1
                                       ? LumoTheme.accentOrange
                                       : LumoTheme.primary,
@@ -3135,6 +3136,36 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
   }
 
+  Future<void> _acceptSavedAudioAndContinue(
+      {bool resumeHandsFree = true}) async {
+    final session = widget.state.activeSession;
+    if (session == null) return;
+    final hasSavedAudio = session.latestLearnerAudioPath != null &&
+        session.latestLearnerAudioPath!.trim().isNotEmpty;
+    if (!hasSavedAudio) return;
+
+    widget.state.acceptLatestLearnerAudioManually(
+      note:
+          'Facilitator confirmed the learner answered correctly from the saved audio fallback.',
+    );
+    widget.onChanged();
+
+    setState(() {
+      transcriptReviewPending = false;
+      if (resumeHandsFree) {
+        isAutoMode = true;
+        _autoPausedByTranscriptFailure = false;
+        microphoneStatus =
+            'Saved learner audio accepted. Mallam will continue from the fallback capture.';
+      } else {
+        microphoneStatus =
+            'Saved learner audio accepted. Continue manually or resume hands-free when ready.';
+      }
+    });
+
+    await _afterCorrectResponse();
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -3199,7 +3230,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       currentRecordingDuration = Duration.zero;
       transcriptReviewPending = transcriptReviewPending ||
           responseController.text.trim().isNotEmpty ||
-          (widget.state.activeSession?.latestLearnerAudioPath?.trim().isNotEmpty ??
+          (widget.state.activeSession?.latestLearnerAudioPath
+                  ?.trim()
+                  .isNotEmpty ??
               false);
       microphoneStatus = wasAutoMode
           ? 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. Resume hands-free when the tablet or browser is active again.'
@@ -3801,6 +3834,20 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         fallbackMessage:
             'The last take was too short. The mic is reopening for a clearer learner answer.',
       );
+      return;
+    }
+
+    final shouldPauseForManualAcceptance =
+        _avoidConcurrentSpeechCapture || _consecutiveTranscriptMisses >= 2;
+    if (shouldPauseForManualAcceptance) {
+      setState(() {
+        isAutoMode = false;
+        transcriptReviewPending = true;
+        _autoPausedByTranscriptFailure = _consecutiveTranscriptMisses >= 2;
+        microphoneStatus = _avoidConcurrentSpeechCapture
+            ? 'Saved learner audio is ready for manual acceptance. This device is in audio-only fallback during recording, so confirm the answer once and continue cleanly.'
+            : 'Transcript help missed the learner again. Confirm the saved audio manually so the lesson can continue instead of looping on the mic.';
+      });
       return;
     }
 
@@ -4925,6 +4972,18 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ),
                                             label: const Text('Use audio only'),
                                           ),
+                                          if (session.latestLearnerAudioPath !=
+                                              null)
+                                            FilledButton.icon(
+                                              onPressed:
+                                                  _acceptSavedAudioAndContinue,
+                                              icon: const Icon(
+                                                Icons.library_music_rounded,
+                                              ),
+                                              label: const Text(
+                                                'Accept saved voice + continue',
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ],
@@ -5300,9 +5359,7 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
         Flexible() => child.child,
         _ => child,
       };
-      final paneHeight = viewportHeight < 700
-          ? 700.0
-          : viewportHeight * 0.96;
+      final paneHeight = viewportHeight < 700 ? 700.0 : viewportHeight * 0.96;
       return isPane
           ? SizedBox(
               height: paneHeight,
