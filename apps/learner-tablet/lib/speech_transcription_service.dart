@@ -4,21 +4,88 @@ import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
-class SpeechTranscriptionService {
-  SpeechTranscriptionService() : _speech = SpeechToText();
+abstract class SpeechRecognitionEngine {
+  bool get isListening;
+
+  Future<bool> initialize({
+    required void Function(String errorMsg) onError,
+    required void Function(String status) onStatus,
+    bool debugLogging = false,
+  });
+
+  Future<void> listen({
+    required void Function(String transcript, bool isFinal) onResult,
+    required SpeechListenOptions options,
+    required Duration pauseFor,
+    required Duration listenFor,
+  });
+
+  Future<void> stop();
+  Future<void> cancel();
+}
+
+class SpeechToTextEngine implements SpeechRecognitionEngine {
+  SpeechToTextEngine() : _speech = SpeechToText();
 
   final SpeechToText _speech;
+
+  @override
+  bool get isListening => _speech.isListening;
+
+  @override
+  Future<bool> initialize({
+    required void Function(String errorMsg) onError,
+    required void Function(String status) onStatus,
+    bool debugLogging = false,
+  }) {
+    return _speech.initialize(
+      onError: (error) => onError(error.errorMsg),
+      onStatus: onStatus,
+      debugLogging: debugLogging,
+    );
+  }
+
+  @override
+  Future<void> listen({
+    required void Function(String transcript, bool isFinal) onResult,
+    required SpeechListenOptions options,
+    required Duration pauseFor,
+    required Duration listenFor,
+  }) {
+    return _speech.listen(
+      onResult: (SpeechRecognitionResult result) {
+        onResult(result.recognizedWords, result.finalResult);
+      },
+      listenOptions: options,
+      pauseFor: pauseFor,
+      listenFor: listenFor,
+    );
+  }
+
+  @override
+  Future<void> stop() => _speech.stop();
+
+  @override
+  Future<void> cancel() => _speech.cancel();
+}
+
+class SpeechTranscriptionService {
+  SpeechTranscriptionService({SpeechRecognitionEngine? engine})
+      : _engine = engine ?? SpeechToTextEngine();
+
+  final SpeechRecognitionEngine _engine;
   bool _initialized = false;
   bool _available = false;
   String? _lastError;
   String _lastStatus = 'idle';
   int _consecutiveStartFailures = 0;
   DateTime? _lastStartFailureAt;
+  DateTime? _retryBlockedUntil;
 
   bool get isAvailable => _available;
   String? get lastError => _lastError;
   String get lastStatus => _lastStatus;
-  bool get isListening => _speech.isListening;
+  bool get isListening => _engine.isListening;
 
   String get availabilityLabel {
     if (_available) {
@@ -35,13 +102,24 @@ class SpeechTranscriptionService {
   }
 
   Future<bool> initialize({bool forceRetry = false}) async {
+    final retryBlockedUntil = _retryBlockedUntil;
+    if (forceRetry &&
+        retryBlockedUntil != null &&
+        DateTime.now().isBefore(retryBlockedUntil)) {
+      _available = false;
+      _lastStatus = 'retry-blocked';
+      _lastError =
+          'Speech recognition is cooling down after repeated start failures. Keep saving audio locally for a moment, then try again.';
+      return false;
+    }
+
     if (_initialized && !forceRetry) return _available;
 
     _lastError = null;
     _lastStatus = 'initializing';
-    _available = await _speech.initialize(
-      onError: (error) {
-        _lastError = _normalizeError(error.errorMsg);
+    _available = await _engine.initialize(
+      onError: (errorMsg) {
+        _lastError = _normalizeError(errorMsg);
       },
       onStatus: (status) {
         _lastStatus = status;
@@ -66,19 +144,22 @@ class SpeechTranscriptionService {
     }
 
     _lastError = null;
-    if (_speech.isListening) {
-      await _speech.stop();
+    if (_engine.isListening) {
+      await _engine.stop();
     }
 
     Future<void> startListening(SpeechListenOptions options) {
-      return _speech.listen(
-        onResult: (SpeechRecognitionResult result) {
-          final text = result.recognizedWords.trim();
+      return _engine.listen(
+        onResult: (transcript, isFinal) {
+          final text = transcript.trim();
           if (text.isEmpty) return;
           _consecutiveStartFailures = 0;
-          onResult(text, result.finalResult);
+          _lastStartFailureAt = null;
+          _retryBlockedUntil = null;
+          _available = true;
+          onResult(text, isFinal);
         },
-        listenOptions: options,
+        options: options,
         pauseFor: const Duration(seconds: 4),
         listenFor: const Duration(minutes: 2),
       );
@@ -93,6 +174,7 @@ class SpeechTranscriptionService {
           onDevice: !kIsWeb,
         ),
       );
+      _available = true;
     } catch (_) {
       try {
         await startListening(
@@ -103,10 +185,15 @@ class SpeechTranscriptionService {
             onDevice: false,
           ),
         );
+        _available = true;
       } catch (error) {
         _consecutiveStartFailures += 1;
         _lastStartFailureAt = DateTime.now();
+        if (_consecutiveStartFailures >= 3) {
+          _retryBlockedUntil = DateTime.now().add(const Duration(seconds: 20));
+        }
         _lastError = _normalizeError(error.toString());
+        _available = false;
         onStatus?.call(_lastStatus);
         return false;
       }
@@ -117,12 +204,12 @@ class SpeechTranscriptionService {
 
   Future<void> stop() async {
     if (!_initialized) return;
-    await _speech.stop();
+    await _engine.stop();
   }
 
   Future<void> cancel() async {
     if (!_initialized) return;
-    await _speech.cancel();
+    await _engine.cancel();
   }
 
   String _normalizeError(String raw) {

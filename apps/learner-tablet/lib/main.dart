@@ -3017,6 +3017,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   int _consecutiveTranscriptMisses = 0;
   bool _autoPausedByTranscriptFailure = false;
 
+  static const Duration _kMinimumUsefulRecording = Duration(milliseconds: 900);
+
   @override
   void initState() {
     super.initState();
@@ -3512,6 +3514,15 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         return;
       }
 
+      final previousDraft = responseController.text.trim();
+      final previousLearnerResponse =
+          widget.state.activeSession?.latestLearnerResponse?.trim() ?? '';
+      final shouldClearStaleDraft = previousDraft.isNotEmpty &&
+          !transcriptReviewPending &&
+          (previousDraft == previousLearnerResponse ||
+              previousDraft == _latestFinalTranscript.trim() ||
+              previousDraft == liveTranscript.trim());
+
       await widget.state.stopVoiceReplay();
       await speechTranscriptionService.cancel();
       _speechAutoStopDebounce?.cancel();
@@ -3519,6 +3530,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       liveTranscript = '';
       _latestFinalTranscript = '';
       transcriptReviewPending = false;
+      if (shouldClearStaleDraft) {
+        responseController.clear();
+      }
 
       final audioStarted = await audioCaptureService.startSafely(
         fileStem: widget.state.currentLearner?.learnerCode ?? 'learner-voice',
@@ -3598,6 +3612,41 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     }
   }
 
+  Future<void> _handleAutoRecoveryAfterMissedTranscript({
+    required Duration savedDuration,
+    required bool markReadyForResume,
+  }) async {
+    if (!mounted || !isAutoMode) return;
+
+    if (savedDuration < _kMinimumUsefulRecording) {
+      setState(() {
+        microphoneStatus =
+            'That recording was extremely short (${formatDuration(savedDuration)}). Mallam will reopen the mic for a clearer learner answer.';
+      });
+      await _startRecordingIfPossible(
+        fallbackMessage:
+            'The last take was too short. The mic is reopening for a clearer learner answer.',
+      );
+      return;
+    }
+
+    if (_autoPausedByTranscriptFailure) {
+      return;
+    }
+
+    final recoverySupport = _consecutiveTranscriptMisses >= 2 ? 'slow' : 'wait';
+    final recoveryMessage = _consecutiveTranscriptMisses >= 2
+        ? 'Transcript help missed that answer, so Mallam will slow-repeat and reopen the mic.'
+        : 'Transcript help missed that answer, so Mallam will give a short pause and reopen the mic.';
+
+    if (markReadyForResume) {
+      setState(() {
+        microphoneStatus = recoveryMessage;
+      });
+    }
+    await _runCoachSupport(recoverySupport);
+  }
+
   void _resetTranscriptRecoveryState({bool clearReviewPending = false}) {
     _consecutiveTranscriptMisses = 0;
     _autoPausedByTranscriptFailure = false;
@@ -3675,6 +3724,15 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       transcriptReviewPending = !isAutoMode;
     } else {
       _consecutiveTranscriptMisses += 1;
+      final previousLearnerResponse =
+          widget.state.activeSession?.latestLearnerResponse?.trim() ?? '';
+      final draftMatchesOldTranscript =
+          responseController.text.trim().isNotEmpty &&
+              (responseController.text.trim() == previousLearnerResponse ||
+                  responseController.text.trim() == liveTranscript.trim());
+      if (draftMatchesOldTranscript) {
+        responseController.clear();
+      }
     }
 
     _applyDegradedAudioRecovery();
@@ -3702,6 +3760,14 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       } finally {
         isProcessingTranscript = false;
       }
+      return;
+    }
+
+    if (transcript.isEmpty) {
+      await _handleAutoRecoveryAfterMissedTranscript(
+        savedDuration: result.duration,
+        markReadyForResume: markReadyForResume,
+      );
     }
   }
 
@@ -4321,6 +4387,15 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                             onPressed: () {
                                               setState(() {
                                                 transcriptReviewPending = false;
+                                                if (responseController.text
+                                                    .trim()
+                                                    .isEmpty) {
+                                                  microphoneStatus =
+                                                      'Transcript review skipped. Keep teaching from the saved audio and type the answer only when you are ready.';
+                                                } else {
+                                                  microphoneStatus =
+                                                      'Transcript review skipped. The draft answer stays editable while the saved audio remains attached.';
+                                                }
                                               });
                                             },
                                             icon: const Icon(
