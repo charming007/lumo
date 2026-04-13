@@ -3829,14 +3829,37 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   }
 
   Widget _buildDeviceDiagnosticsPanel() {
+    final session = widget.state.activeSession;
     final transcriptHealthy = speechTranscriptionService.isAvailable;
     final backendHealthy = widget.state.hasLiveBackendConnection;
     final syncWarn = widget.state.pendingSyncEvents.isNotEmpty ||
         widget.state.lastSyncError != null ||
         widget.state.lastSyncWarnings.isNotEmpty;
-    final recordingHealthy = _recordingModeLabel.toLowerCase().contains('fallback')
-        ? false
-        : true;
+    final recordingHealthy =
+        _recordingModeLabel.toLowerCase().contains('fallback') ? false : true;
+    final latestAudioPath = session?.latestLearnerAudioPath;
+    final latestAudioDuration = session?.latestLearnerAudioDuration;
+    final diagnosticsPayload = const JsonEncoder.withIndent('  ').convert({
+      'device': _deviceLabel,
+      'recordingMode': _recordingModeLabel,
+      'speechAvailable': transcriptHealthy,
+      'speechStatus': speechTranscriptionService.lastStatus,
+      'speechAvailability': speechTranscriptionService.availabilityLabel,
+      'backendConnected': backendHealthy,
+      'backendStatus': widget.state.backendStatusLabel,
+      'backendDetail': widget.state.backendStatusDetail,
+      'runtimeSyncFeedback': widget.state.runtimeSyncFeedbackLabel,
+      'pendingSyncEvents': widget.state.pendingSyncEvents.length,
+      'syncReceipt': widget.state.syncReceiptLabel,
+      'syncWarnings': widget.state.lastSyncWarnings,
+      'lastSyncError': widget.state.lastSyncError,
+      'transcriptMisses': _consecutiveTranscriptMisses,
+      'autoMode': isAutoMode,
+      'autoPausedByTranscriptFailure': _autoPausedByTranscriptFailure,
+      'practiceMode': session?.practiceMode.name,
+      'latestLearnerAudioPath': latestAudioPath,
+      'latestLearnerAudioDurationSeconds': latestAudioDuration?.inSeconds,
+    });
 
     return SoftPanel(
       child: Column(
@@ -3848,7 +3871,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Spot recorder, transcript, and backend trouble before the hands-free loop goes sideways.',
+            'Spot recorder, transcript, device, and backend trouble before the hands-free loop goes sideways.',
             style: const TextStyle(color: Color(0xFF475569), height: 1.4),
           ),
           const SizedBox(height: 12),
@@ -3874,6 +3897,14 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                     : 'Transcript fallback active',
                 healthy: transcriptHealthy,
                 warn: !transcriptHealthy,
+              ),
+              _buildDiagnosticChip(
+                icon: Icons.smart_toy_rounded,
+                label: _autoPausedByTranscriptFailure
+                    ? 'Hands-free paused safely'
+                    : (isAutoMode ? 'Hands-free active' : 'Manual review mode'),
+                healthy: !_autoPausedByTranscriptFailure,
+                warn: _autoPausedByTranscriptFailure || !isAutoMode,
               ),
               _buildDiagnosticChip(
                 icon: Icons.cloud_done_rounded,
@@ -3903,6 +3934,114 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
             'Backend: ${widget.state.backendStatusDetail}',
             style: const TextStyle(color: Color(0xFF475569), height: 1.35),
           ),
+          const SizedBox(height: 6),
+          Text(
+            'Runtime sync: ${widget.state.runtimeSyncFeedbackLabel}',
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
+          ),
+          if (latestAudioPath != null || latestAudioDuration != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Latest learner capture',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (latestAudioDuration != null)
+                    Text(
+                      'Saved audio length: ${formatDuration(latestAudioDuration)}',
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        height: 1.35,
+                      ),
+                    ),
+                  if (latestAudioPath != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Stored at ${compactPath(latestAudioPath)}',
+                        style: const TextStyle(
+                          color: Color(0xFF475569),
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFCD34D)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Recovery checklist',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF78350F),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...widget.state.runtimeSyncActionItems().take(3).map(
+                      (action) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 3),
+                              child: Icon(
+                                Icons.check_circle_outline_rounded,
+                                size: 16,
+                                color: Color(0xFFB45309),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                action,
+                                style: const TextStyle(
+                                  color: Color(0xFF92400E),
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                if (_consecutiveTranscriptMisses > 0)
+                  Text(
+                    'Transcript misses in this step: $_consecutiveTranscriptMisses',
+                    style: const TextStyle(
+                      color: Color(0xFF92400E),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+          ),
           if (widget.state.lastSyncError != null) ...[
             const SizedBox(height: 6),
             Text(
@@ -3910,6 +4049,48 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
               style: const TextStyle(color: Color(0xFFB45309), height: 1.35),
             ),
           ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: isRecording ? null : () => _retryTranscriptEngine(),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry transcript'),
+              ),
+              if (widget.state.pendingSyncEvents.isNotEmpty)
+                FilledButton.tonalIcon(
+                  onPressed: widget.state.isSyncingEvents
+                      ? null
+                      : () async {
+                          await widget.state.syncPendingEvents();
+                          if (!mounted) return;
+                          widget.onChanged();
+                          setState(() {
+                            microphoneStatus =
+                                widget.state.runtimeSyncFeedbackLabel;
+                          });
+                        },
+                  icon: const Icon(Icons.cloud_upload_rounded),
+                  label: const Text('Sync runtime queue'),
+                ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  await ClipboardBridge.copy(diagnosticsPayload);
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Diagnostics copied for bug reporting.'),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.content_copy_rounded),
+                label: const Text('Copy diagnostics'),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -5523,6 +5704,65 @@ class _BackendStatusBanner extends StatelessWidget {
                     : LumoTheme.accentOrange,
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Runtime sync feedback',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.runtimeSyncFeedbackLabel,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ...state.runtimeSyncActionItems().take(2).map(
+                      (action) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 3),
+                              child: Icon(
+                                Icons.arrow_right_alt_rounded,
+                                size: 18,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                action,
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+              ],
+            ),
           ),
           if (state.lastSyncWarnings.isNotEmpty) ...[
             const SizedBox(height: 12),

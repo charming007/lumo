@@ -244,7 +244,11 @@ class LumoAppState {
       lastSyncIgnoredCount = _asInt(snapshot['lastSyncIgnoredCount']) ?? 0;
       lastSyncDuplicateCount = _asInt(snapshot['lastSyncDuplicateCount']) ?? 0;
       lastSyncResultCount = _asInt(snapshot['lastSyncResultCount']) ?? 0;
-      lastSyncWarnings = (snapshot['lastSyncWarnings'] as List?)?.map((item) => item.toString()).where((item) => item.trim().isNotEmpty).toList() ?? const <String>[];
+      lastSyncWarnings = (snapshot['lastSyncWarnings'] as List?)
+              ?.map((item) => item.toString())
+              .where((item) => item.trim().isNotEmpty)
+              .toList() ??
+          const <String>[];
       lastSyncError = _readNullableString(snapshot['lastSyncError']);
       learnerRuntimeError =
           _readNullableString(snapshot['learnerRuntimeError']);
@@ -1902,7 +1906,8 @@ class LumoAppState {
       lastSyncAcceptedCount = result.accepted;
       lastSyncIgnoredCount = result.ignored;
       lastSyncDuplicateCount = _asInt(result.raw['duplicates']) ?? 0;
-      lastSyncResultCount = (result.raw['results'] as List?)?.length ?? snapshot.length;
+      lastSyncResultCount =
+          (result.raw['results'] as List?)?.length ?? snapshot.length;
       lastSyncWarnings = _buildSyncWarnings(result.raw);
       backendContractVersion =
           result.raw['contractVersion']?.toString() ?? backendContractVersion;
@@ -2037,8 +2042,9 @@ class LumoAppState {
       return 'Sync receipt unavailable';
     }
     if (lastSyncResultCount <= 0) return 'No receipt rows returned';
-    final duplicateLabel =
-        lastSyncDuplicateCount > 0 ? ' • $lastSyncDuplicateCount duplicate' : '';
+    final duplicateLabel = lastSyncDuplicateCount > 0
+        ? ' • $lastSyncDuplicateCount duplicate'
+        : '';
     return '$lastSyncResultCount receipt row(s)$duplicateLabel';
   }
 
@@ -2046,6 +2052,55 @@ class LumoAppState {
     if (lastSyncWarnings.isEmpty) return 'No sync warnings';
     if (lastSyncWarnings.length == 1) return lastSyncWarnings.first;
     return '${lastSyncWarnings.length} sync warnings';
+  }
+
+  String get runtimeSyncFeedbackLabel {
+    if (isSyncingEvents) {
+      return 'Syncing ${pendingSyncEvents.length} queued learner event(s) now.';
+    }
+    if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
+      return 'Last runtime sync failed, so new learner evidence stays queued locally until retry succeeds.';
+    }
+    if (pendingSyncEvents.isNotEmpty) {
+      return '${pendingSyncEvents.length} learner event(s) are safely queued on this tablet and ready for the next backend sync.';
+    }
+    if (lastSyncAttemptAt != null && !usingFallbackData) {
+      return 'Runtime evidence is caught up with the backend right now.';
+    }
+    if (usingFallbackData) {
+      return 'Backend fallback is active, so runtime evidence will stay local until connectivity returns.';
+    }
+    return 'Runtime sync is waiting for the first learner event.';
+  }
+
+  List<String> runtimeSyncActionItems() {
+    final actions = <String>[];
+    if (usingFallbackData) {
+      actions.add(
+        'Keep teaching from cached lessons. Registration, learner audio, and response events will stay on-device until the backend returns.',
+      );
+    }
+    if (pendingSyncEvents.isNotEmpty) {
+      actions.add(
+        'Avoid duplicate taps while the queue drains; Lumo will replay the pending learner events safely on the next sync.',
+      );
+    }
+    if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
+      actions.add(
+        'Retry backend sync after connectivity improves, but do not stop the lesson — the learner evidence is already preserved locally.',
+      );
+    }
+    if (lastSyncWarnings.isNotEmpty) {
+      actions.add(
+        'Review sync receipts for ignored or duplicate events so facilitators know whether backend state fully matched the tablet state.',
+      );
+    }
+    if (actions.isEmpty) {
+      actions.add(
+        'No sync intervention needed. The tablet and backend are aligned.',
+      );
+    }
+    return actions;
   }
 
   String assignedLessonSummaryForLearner(LearnerProfile? learner) {
@@ -2159,10 +2214,12 @@ class LumoAppState {
     final duplicateCount = _asInt(raw['duplicates']) ?? 0;
     final ignoredCount = _asInt(raw['ignored']) ?? 0;
     if (duplicateCount > 0) {
-      warnings.add('$duplicateCount event(s) were already synced earlier, so the backend ignored the duplicates safely.');
+      warnings.add(
+          '$duplicateCount event(s) were already synced earlier, so the backend ignored the duplicates safely.');
     }
     if (ignoredCount > 0) {
-      warnings.add('$ignoredCount event(s) were ignored because the backend could not apply them.');
+      warnings.add(
+          '$ignoredCount event(s) were ignored because the backend could not apply them.');
     }
 
     for (final item in results.whereType<Map>()) {
@@ -2172,7 +2229,8 @@ class LumoAppState {
         final reason = item['reason']?.toString() ?? 'unsupported_event_type';
         warnings.add('$type was ignored ($reason).');
       } else if (status == 'duplicate' && duplicateCount == 0) {
-        warnings.add('$type matched an earlier receipt, so it was not replayed twice.');
+        warnings.add(
+            '$type matched an earlier receipt, so it was not replayed twice.');
       }
     }
 
