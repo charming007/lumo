@@ -386,12 +386,61 @@ export type StorageStatus = {
 export type StorageIntegrityReport = {
   checkedAt: string;
   summary: {
-    students: number;
-    sessions: number;
-    rewardRequests: number;
+    students?: number;
+    sessions?: number;
+    rewardRequests?: number;
+    studentCount?: number;
+    runtimeSessionCount?: number;
+    rewardRequestCount?: number;
+    rewardTransactionCount?: number;
     issueCount: number;
   };
   issues: Array<{ type: string; id: string; entity?: string }>;
+};
+
+export type StorageBackupList = {
+  items: Array<{ path: string; updatedAt?: string | null; sizeBytes?: number }>;
+  status?: StorageStatus | null;
+};
+
+export type OperationsReport = {
+  scope: {
+    cohortId?: string | null;
+    podId?: string | null;
+    mallamId?: string | null;
+    subjectId?: string | null;
+    learnerId?: string | null;
+    since?: string | null;
+    until?: string | null;
+    limit?: number;
+  };
+  summary: {
+    learnersInScope: number;
+    runtimeCompletionRate: number;
+    runtimeAbandonedSessions: number;
+    progressionReady: number;
+    progressionWatch: number;
+    rewardPendingRequests: number;
+    rewardFulfillmentRate: number;
+    integrityIssueCount: number;
+  };
+  runtime: Record<string, unknown>;
+  progression: Record<string, unknown>;
+  rewards: Record<string, unknown>;
+  integrity: Record<string, unknown>;
+  hotlist: {
+    watchLearners: WorkboardItem[];
+    readyLearners: WorkboardItem[];
+    runtimeLearners: Array<Record<string, unknown>>;
+    rewardQueue: Array<Record<string, unknown>>;
+  };
+  recent: {
+    sessions: Array<Record<string, unknown>>;
+    events: Array<Record<string, unknown>>;
+    overrides: Array<Record<string, unknown>>;
+    rewardAdjustments: Array<Record<string, unknown>>;
+    integrityIssues: Array<{ type: string; id: string; entity?: string }>;
+  };
 };
 
 export type StorageRepairResult = {

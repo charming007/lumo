@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { checkpointStorageAction, repairStorageIntegrityAction } from '../actions';
+import { checkpointStorageAction, deleteStorageBackupAction, repairStorageIntegrityAction, restoreStorageBackupAction } from '../actions';
 import { FeedbackBanner } from '../../components/feedback-banner';
-import { fetchMeta, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
+import { ActionButton } from '../../components/action-button';
+import { fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
-import type { MetaResponse, RewardSnapshot, RewardsReport, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
+import type { MetaResponse, OperationsReport, RewardSnapshot, RewardsReport, StorageBackupList, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
 
 const EMPTY_META: MetaResponse = {
   actor: {
@@ -39,12 +40,49 @@ const EMPTY_REWARDS_REPORT: RewardsReport = {
 const EMPTY_STORAGE_INTEGRITY: StorageIntegrityReport = {
   checkedAt: '',
   summary: {
-    students: 0,
-    sessions: 0,
-    rewardRequests: 0,
+    studentCount: 0,
+    runtimeSessionCount: 0,
+    rewardRequestCount: 0,
+    rewardTransactionCount: 0,
     issueCount: 0,
   },
   issues: [],
+};
+
+const EMPTY_STORAGE_BACKUPS: StorageBackupList = {
+  items: [],
+  status: null,
+};
+
+const EMPTY_OPERATIONS_REPORT: OperationsReport = {
+  scope: { limit: 0 },
+  summary: {
+    learnersInScope: 0,
+    runtimeCompletionRate: 0,
+    runtimeAbandonedSessions: 0,
+    progressionReady: 0,
+    progressionWatch: 0,
+    rewardPendingRequests: 0,
+    rewardFulfillmentRate: 0,
+    integrityIssueCount: 0,
+  },
+  runtime: {},
+  progression: {},
+  rewards: {},
+  integrity: {},
+  hotlist: {
+    watchLearners: [],
+    readyLearners: [],
+    runtimeLearners: [],
+    rewardQueue: [],
+  },
+  recent: {
+    sessions: [],
+    events: [],
+    overrides: [],
+    rewardAdjustments: [],
+    integrityIssues: [],
+  },
 };
 
 function emptyLeaderboardRow(message: string) {
@@ -74,13 +112,15 @@ function asText(value: unknown) {
 
 export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
-  const [metaResult, leaderboardResult, workboardResult, rewardsReportResult, storageStatusResult, integrityResult] = await Promise.allSettled([
+  const [metaResult, leaderboardResult, workboardResult, rewardsReportResult, storageStatusResult, integrityResult, backupsResult, operationsResult] = await Promise.allSettled([
     fetchMeta(),
     fetchRewardsLeaderboard(8),
     fetchWorkboard(),
     fetchRewardsReport(8),
     fetchStorageStatus(),
     fetchStorageIntegrity(),
+    fetchStorageBackups(8),
+    fetchOperationsReport(8),
   ]);
 
   const meta = metaResult.status === 'fulfilled' ? metaResult.value : EMPTY_META;
@@ -89,6 +129,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const rewardsReport = rewardsReportResult.status === 'fulfilled' ? rewardsReportResult.value : EMPTY_REWARDS_REPORT;
   const storageStatus: StorageStatus | null = storageStatusResult.status === 'fulfilled' ? storageStatusResult.value : null;
   const integrity = integrityResult.status === 'fulfilled' ? integrityResult.value : EMPTY_STORAGE_INTEGRITY;
+  const backups = backupsResult.status === 'fulfilled' ? backupsResult.value : EMPTY_STORAGE_BACKUPS;
+  const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : EMPTY_OPERATIONS_REPORT;
 
   const failedSources = [
     metaResult.status === 'rejected' ? 'platform metadata' : null,
@@ -97,6 +139,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     rewardsReportResult.status === 'rejected' ? 'rewards report' : null,
     storageStatusResult.status === 'rejected' ? 'storage status' : null,
     integrityResult.status === 'rejected' ? 'storage integrity' : null,
+    backupsResult.status === 'rejected' ? 'storage backups' : null,
+    operationsResult.status === 'rejected' ? 'operations report' : null,
   ].filter(Boolean);
 
   const ready = workboard.filter((item) => item.progressionStatus === 'ready').length;
@@ -104,10 +148,14 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const averageXp = leaderboard.length ? Math.round(leaderboard.reduce((sum, item) => sum + item.totalXp, 0) / leaderboard.length) : 0;
   const totalBadgesUnlocked = leaderboard.reduce((sum, item) => sum + item.badgesUnlocked, 0);
   const seedEntries = Object.entries(meta.seedSummary ?? {});
-  const storagePersistent = storageStatus?.db?.persistent ?? storageStatus?.persistent ?? meta.store?.persistent ?? false;
-  const storageMode = storageStatus?.db?.mode ?? storageStatus?.mode ?? meta.store?.mode ?? meta.mode;
-  const storageDriver = storageStatus?.db?.driver ?? meta.store?.driver ?? 'unknown';
+  const storagePersistent = storageStatus?.db?.persistent ?? storageStatus?.persistent ?? backups.status?.db?.persistent ?? backups.status?.persistent ?? meta.store?.persistent ?? false;
+  const storageMode = storageStatus?.db?.mode ?? storageStatus?.mode ?? backups.status?.db?.mode ?? backups.status?.mode ?? meta.store?.mode ?? meta.mode;
+  const storageDriver = storageStatus?.db?.driver ?? backups.status?.db?.driver ?? meta.store?.driver ?? 'unknown';
+  const integrityStudentCount = integrity.summary.studentCount ?? integrity.summary.students ?? 0;
+  const integrityRuntimeSessions = integrity.summary.runtimeSessionCount ?? integrity.summary.sessions ?? 0;
+  const integrityRewardRequests = integrity.summary.rewardRequestCount ?? integrity.summary.rewardRequests ?? 0;
   const issuePreview = integrity.issues.slice(0, 6);
+  const visibleBackups = backups.items.length ? backups.items : (storageStatus?.backups ?? []);
 
   return (
     <PageShell
@@ -299,6 +347,58 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
         </Card>
       </section>
 
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Operations report" eyebrow="Runtime + progression + rewards in one view">
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ ...responsiveGrid(160), gap: 12 }}>
+              {[
+                ['Learners in scope', String(operationsReport.summary.learnersInScope)],
+                ['Runtime completion', formatPercent(operationsReport.summary.runtimeCompletionRate)],
+                ['Ready to progress', String(operationsReport.summary.progressionReady)],
+                ['Pending reward queue', String(operationsReport.summary.rewardPendingRequests)],
+              ].map(([label, value]) => (
+                <div key={label} style={{ padding: 16, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <div style={{ color: '#64748b', marginBottom: 6 }}>{label}</div>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
+            <SimpleTable
+              columns={['Watch learners', 'Mallam', 'Pod', 'Focus', 'XP']}
+              rows={operationsReport.hotlist.watchLearners.length ? operationsReport.hotlist.watchLearners.map((entry) => ([
+                entry.studentName,
+                entry.mallamName ?? '—',
+                entry.podLabel ?? '—',
+                entry.focus,
+                `${entry.totalXp} XP`,
+              ])) : [[<span key="watch-none" style={{ color: '#64748b' }}>No watchlist learners in the current operations scope.</span>, '', '', '', '']]}
+            />
+          </div>
+        </Card>
+
+        <Card title="Release-safe operational cues" eyebrow="What to act on next">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {[
+              `Runtime abandonment is sitting at ${operationsReport.summary.runtimeAbandonedSessions}. If that climbs, fix delivery friction before writing more shiny content.`,
+              `${operationsReport.summary.progressionWatch} learners are flagged watch-side while ${operationsReport.summary.progressionReady} are ready. That balance is the real coaching workload, not the mood in the room.`,
+              `Reward fulfillment is ${formatPercent(operationsReport.summary.rewardFulfillmentRate)} with ${operationsReport.summary.integrityIssueCount} integrity issues detected. If either number gets ugly, mallams stop trusting the system fast.`,
+            ].map((detail) => (
+              <div key={detail} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#475569', lineHeight: 1.7 }}>
+                {detail}
+              </div>
+            ))}
+            <SimpleTable
+              columns={['Recent runtime session', 'Status', 'At']}
+              rows={operationsReport.recent.sessions.length ? operationsReport.recent.sessions.slice(0, 4).map((entry, index) => ([
+                asText(entry.lessonTitle ?? entry.lessonId ?? `Session ${index + 1}`),
+                asText(entry.status ?? entry.completionState ?? 'unknown'),
+                asText(entry.lastActivityAt ?? entry.completedAt ?? entry.createdAt),
+              ])) : [[<span key="session-none" style={{ color: '#64748b' }}>No recent runtime sessions reported.</span>, '', '']]}
+            />
+          </div>
+        </Card>
+      </section>
+
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Card title="Storage control center" eyebrow="Status + checkpoints + repair">
           <div style={{ display: 'grid', gap: 14 }}>
@@ -311,6 +411,19 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                 { label: 'Backup updated', value: formatDateTime(storageStatus?.backupUpdatedAt) },
               ]}
             />
+             <div style={{ ...responsiveGrid(140), gap: 10 }}>
+              {[
+                ['Learner records checked', String(integrityStudentCount)],
+                ['Runtime sessions checked', String(integrityRuntimeSessions)],
+                ['Reward requests checked', String(integrityRewardRequests)],
+                ['Backups visible', String(visibleBackups.length)],
+              ].map(([label, value]) => (
+                <div key={label} style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <div style={{ color: '#64748b', marginBottom: 6 }}>{label}</div>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
             <form action={checkpointStorageAction} style={{ display: 'grid', gap: 10 }}>
               <input name="label" defaultValue="settings-checkpoint" placeholder="Checkpoint label" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
               <button type="submit" style={{ background: '#4F46E5', color: 'white', border: 0, borderRadius: 12, padding: '12px 16px', fontWeight: 700 }}>
@@ -337,15 +450,30 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                 No integrity issues found in the current report. Good. Keep it that way.
               </div>
             )}
-            {storageStatus?.backups?.length ? (
-              <SimpleTable
-                columns={['Backup path', 'Updated', 'Size']}
-                rows={storageStatus.backups.slice(0, 5).map((backup) => ([
-                  backup.path,
-                  formatDateTime(backup.updatedAt),
-                  `${backup.sizeBytes ?? 0} bytes`,
-                ]))}
-              />
+            {visibleBackups.length ? (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {visibleBackups.slice(0, 5).map((backup) => (
+                  <div key={backup.path} style={{ padding: 14, borderRadius: 16, border: '1px solid #e2e8f0', background: '#fff', display: 'grid', gap: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontWeight: 800, color: '#0f172a', wordBreak: 'break-all' }}>{backup.path}</div>
+                        <div style={{ color: '#64748b', marginTop: 4 }}>{formatDateTime(backup.updatedAt)} • {backup.sizeBytes ?? 0} bytes</div>
+                      </div>
+                      <Pill label="Backup" tone="#EEF2FF" text="#3730A3" />
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <form action={restoreStorageBackupAction}>
+                        <input type="hidden" name="backupPath" value={backup.path} />
+                        <ActionButton label="Restore backup" pendingLabel="Restoring backup…" style={{ background: '#0f172a', color: 'white', border: 0, borderRadius: 12, padding: '10px 12px', fontWeight: 700 }} />
+                      </form>
+                      <form action={deleteStorageBackupAction}>
+                        <input type="hidden" name="backupPath" value={backup.path} />
+                        <ActionButton label="Delete backup" pendingLabel="Deleting backup…" style={{ border: '1px solid #fecaca', background: '#FEF2F2', color: '#B91C1C', borderRadius: 12, padding: '10px 12px', fontWeight: 700 }} />
+                      </form>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : null}
             {rewardsReport.recentAdjustments.length ? (
               <SimpleTable

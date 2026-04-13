@@ -16,6 +16,8 @@ import type {
   ReportsOverview,
   RewardSnapshot,
   RewardsReport,
+  OperationsReport,
+  StorageBackupList,
   Student,
   StudentDetail,
   StorageIntegrityReport,
@@ -150,4 +152,12 @@ export function fetchStorageStatus() {
 
 export function fetchStorageIntegrity() {
   return getJson<StorageIntegrityReport>('/api/v1/admin/storage/integrity');
+}
+
+export function fetchStorageBackups(limit = 20) {
+  return getJson<StorageBackupList>(`/api/v1/admin/storage/backups?limit=${limit}`);
+}
+
+export function fetchOperationsReport(limit = 20) {
+  return getJson<OperationsReport>(`/api/v1/reports/operations?limit=${limit}`);
 }

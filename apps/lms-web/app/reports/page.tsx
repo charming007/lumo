@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import type { DashboardInsight, ReportsOverview } from '../../lib/types';
-import { fetchAssignments, fetchDashboardInsights, fetchMallams, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
+import type { DashboardInsight, OperationsReport, ReportsOverview } from '../../lib/types';
+import { fetchAssignments, fetchDashboardInsights, fetchMallams, fetchOperationsReport, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const EMPTY_REPORT: ReportsOverview = {
@@ -26,6 +26,37 @@ const FALLBACK_INSIGHT: DashboardInsight = {
   metric: 'API retry needed',
 };
 
+const EMPTY_OPERATIONS_REPORT: OperationsReport = {
+  scope: { limit: 0 },
+  summary: {
+    learnersInScope: 0,
+    runtimeCompletionRate: 0,
+    runtimeAbandonedSessions: 0,
+    progressionReady: 0,
+    progressionWatch: 0,
+    rewardPendingRequests: 0,
+    rewardFulfillmentRate: 0,
+    integrityIssueCount: 0,
+  },
+  runtime: {},
+  progression: {},
+  rewards: {},
+  integrity: {},
+  hotlist: {
+    watchLearners: [],
+    readyLearners: [],
+    runtimeLearners: [],
+    rewardQueue: [],
+  },
+  recent: {
+    sessions: [],
+    events: [],
+    overrides: [],
+    rewardAdjustments: [],
+    integrityIssues: [],
+  },
+};
+
 function average(values: number[]) {
   if (!values.length) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -42,7 +73,7 @@ function statusTone(status: string) {
 }
 
 export default async function ReportsPage() {
-  const [reportResult, insightsResult, studentsResult, mallamsResult, podsResult, assignmentsResult, progressResult] = await Promise.allSettled([
+  const [reportResult, insightsResult, studentsResult, mallamsResult, podsResult, assignmentsResult, progressResult, operationsResult] = await Promise.allSettled([
     fetchReportsOverview(),
     fetchDashboardInsights(),
     fetchStudents(),
@@ -50,6 +81,7 @@ export default async function ReportsPage() {
     fetchPods(),
     fetchAssignments(),
     fetchProgress(),
+    fetchOperationsReport(10),
   ]);
 
   const report = reportResult.status === 'fulfilled' ? reportResult.value : EMPTY_REPORT;
@@ -59,6 +91,7 @@ export default async function ReportsPage() {
   const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const progress = progressResult.status === 'fulfilled' ? progressResult.value : [];
+  const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : EMPTY_OPERATIONS_REPORT;
 
   const failedSources = [
     reportResult.status === 'rejected' ? 'report metrics' : null,
@@ -68,6 +101,7 @@ export default async function ReportsPage() {
     podsResult.status === 'rejected' ? 'pods' : null,
     assignmentsResult.status === 'rejected' ? 'assignments' : null,
     progressResult.status === 'rejected' ? 'progress' : null,
+    operationsResult.status === 'rejected' ? 'operations report' : null,
   ].filter(Boolean);
 
   const podSnapshots = pods.map((pod) => {
@@ -266,6 +300,43 @@ export default async function ReportsPage() {
             columns={['Check', 'Current state', 'Signal']}
             rows={complianceRows}
           />
+        </Card>
+      </section>
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Operations hotlist" eyebrow="Cross-system reality check">
+          <SimpleTable
+            columns={['Learner', 'Mallam', 'Pod', 'Status', 'XP']}
+            rows={operationsReport.hotlist.watchLearners.length ? operationsReport.hotlist.watchLearners.map((entry) => {
+              const tone = statusTone(entry.progressionStatus);
+              return [
+                entry.studentName,
+                entry.mallamName ?? '—',
+                entry.podLabel ?? '—',
+                <Pill key={entry.id} label={entry.progressionStatus} tone={tone.tone} text={tone.text} />,
+                `${entry.totalXp} XP`,
+              ];
+            }) : safeRows('Operations hotlist is unavailable right now.', 5)}
+          />
+        </Card>
+
+        <Card title="Operations summary" eyebrow="Runtime consistency + reward pressure">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {[
+              ['Completion rate', `${Math.round(operationsReport.summary.runtimeCompletionRate * 100)}%`],
+              ['Abandoned sessions', String(operationsReport.summary.runtimeAbandonedSessions)],
+              ['Pending reward requests', String(operationsReport.summary.rewardPendingRequests)],
+              ['Integrity issues', String(operationsReport.summary.integrityIssueCount)],
+            ].map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #eef2f7' }}>
+                <span style={{ color: '#64748b' }}>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+            <div style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', lineHeight: 1.7 }}>
+              This panel is wired to the combined operations report now, so runtime drop-off, progression pressure, reward queue health, and integrity noise are finally read from one place instead of stitched together by vibes.
+            </div>
+          </div>
         </Card>
       </section>
 

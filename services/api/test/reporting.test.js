@@ -66,3 +66,53 @@ test('storage checkpoints can be listed and deleted in file mode', () => {
   const after = store.listStorageBackups(20);
   assert.equal(after.some((entry) => entry.path === created.backupPath), false);
 });
+
+
+test('reward fulfillment report exposes backlog and queue analytics', () => {
+  const rewards = require('../src/rewards');
+  const student = store.listStudents()[0];
+  rewards.awardManualReward({ studentId: student.id, xpDelta: 40, label: 'Test top-up' });
+  const created = rewards.createRewardRedemptionRequest({
+    studentId: student.id,
+    rewardItemId: 'story-time',
+    learnerNote: 'Please',
+    requestedBy: student.id,
+    requestedVia: 'test',
+    clientRequestId: `test-request-${Date.now()}`,
+  });
+
+  const report = rewards.buildRewardFulfillmentReport({ limit: 5 });
+  const detail = rewards.buildRewardRequestDetail(created.request.id);
+
+  assert.equal(report.summary.requestCount >= 1, true);
+  assert.equal(typeof report.summary.backlog.fresh, 'number');
+  assert.ok(Array.isArray(report.queueByItem));
+  assert.equal(detail.request.id, created.request.id);
+  assert.equal(typeof detail.affordability.affordableNow, 'boolean');
+});
+
+test('reward request lifecycle supports reopen and requeue repair controls', () => {
+  const rewards = require('../src/rewards');
+  const student = store.listStudents()[0];
+  rewards.awardManualReward({ studentId: student.id, xpDelta: 50, label: 'Lifecycle top-up' });
+  const requestId = rewards.createRewardRedemptionRequest({
+    studentId: student.id,
+    rewardItemId: 'helper-star',
+    learnerNote: 'I want this next',
+    requestedBy: student.id,
+    requestedVia: 'test',
+    clientRequestId: `repair-request-${Date.now()}`,
+  }).request.id;
+
+  const approved = rewards.approveRewardRedemptionRequest(requestId, { actorName: 'Admin', actorRole: 'admin' });
+  assert.equal(approved.request.status, 'approved');
+
+  const requeued = rewards.requeueRewardRedemptionRequest(requestId, { actorName: 'Admin', actorRole: 'admin', reason: 'stock_check' });
+  assert.equal(requeued.request.status, 'pending');
+
+  const rejected = rewards.rejectRewardRedemptionRequest(requestId, { actorName: 'Admin', actorRole: 'admin', reason: 'not_now' });
+  assert.equal(rejected.request.status, 'rejected');
+
+  const reopened = rewards.reopenRewardRedemptionRequest(requestId, { actorName: 'Admin', actorRole: 'admin', reason: 'learner_confirmed' });
+  assert.equal(reopened.request.status, 'pending');
+});

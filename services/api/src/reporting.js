@@ -618,10 +618,18 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
   const runtime = buildRuntimeAnalytics({ learnerId, cohortId, podId, mallamId, since, until, limit });
   const progression = buildProgressionRollup({ cohortId, podId, mallamId, subjectId, since, until });
   const rewardsReport = buildRewardsReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
+  const fulfillment = rewards.buildRewardFulfillmentReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
   const integrity = require('./store').getStorageIntegrityReport();
   const workboard = buildWorkboard()
     .filter((item) => (!cohortId || item.cohortId === cohortId) && (!podId || item.podId === podId) && (!mallamId || item.mallamId === mallamId))
     .slice(0, Math.max(1, Math.min(Number(limit || 20), 100)));
+  const stalledRuntimeLearners = runtime.learnerBreakdown
+    .filter((item) => item.sessions > 0 && item.completedSessions === 0)
+    .slice(0, 10);
+  const highSupportLearners = runtime.learnerBreakdown
+    .filter((item) => Number(item.totalSupportActions || 0) > 0)
+    .sort((a, b) => Number(b.totalSupportActions || 0) - Number(a.totalSupportActions || 0))
+    .slice(0, 10);
 
   return {
     scope: { cohortId, podId, mallamId, subjectId, learnerId, since, until, limit },
@@ -633,16 +641,38 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
       progressionWatch: progression.progression.watch,
       rewardPendingRequests: rewardsReport.summary.requestStatusCounts.pending || 0,
       rewardFulfillmentRate: rewardsReport.summary.fulfillmentRate,
+      rewardBacklogUrgent: fulfillment.summary.backlog.urgent,
       integrityIssueCount: integrity.summary.issueCount,
     },
-    runtime: runtime.summary,
-    progression: progression.progression,
-    rewards: rewardsReport.summary,
-    integrity: integrity.summary,
+    runtime: {
+      summary: runtime.summary,
+      automationSummary: runtime.automationSummary,
+      eventTypeCounts: runtime.eventTypeCounts,
+      stalledLearners: stalledRuntimeLearners,
+      highSupportLearners,
+    },
+    progression: {
+      summary: progression.progression,
+      rewards: progression.rewards,
+    },
+    rewards: {
+      summary: rewardsReport.summary,
+      fulfillment: fulfillment.summary,
+      demand: rewardsReport.rewardDemand.slice(0, 10),
+    },
+    integrity: {
+      summary: integrity.summary,
+      issuesByType: integrity.issues.reduce((acc, issue) => {
+        acc[issue.type] = Number(acc[issue.type] || 0) + 1;
+        return acc;
+      }, {}),
+    },
     hotlist: {
       watchLearners: workboard.filter((item) => item.progressionStatus === 'watch').slice(0, 10),
       readyLearners: workboard.filter((item) => item.progressionStatus === 'ready').slice(0, 10),
       runtimeLearners: runtime.learnerBreakdown.slice(0, 10),
+      stalledRuntimeLearners,
+      highSupportLearners,
       rewardQueue: rewardsReport.recentRequests.filter((item) => ['pending', 'approved'].includes(item.status)).slice(0, 10),
     },
     recent: {
@@ -650,6 +680,7 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
       events: runtime.recentEvents.slice(0, 10),
       overrides: progression.overrides.slice(0, 10),
       rewardAdjustments: rewardsReport.recentAdjustments.slice(0, 10),
+      rewardRequests: fulfillment.recentRequests.slice(0, 10),
       integrityIssues: integrity.issues.slice(0, 10),
     },
   };

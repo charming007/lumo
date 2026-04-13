@@ -620,6 +620,44 @@ export async function checkpointStorageAction(formData: FormData) {
   redirect('/settings?message=Storage%20checkpoint%20created');
 }
 
+export async function deleteStorageBackupAction(formData: FormData) {
+  const backupPath = String(formData.get('backupPath') || '').trim();
+
+  if (!backupPath) {
+    redirect('/settings?message=Backup%20deletion%20failed%3A%20missing%20backup%20path');
+  }
+
+  try {
+    await apiWrite('/api/v1/admin/storage/backups', 'DELETE', { backupPath }, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    const message = error instanceof Error ? error.message : 'Backup deletion failed';
+    redirect(`/settings?message=${encodeMessage(`Backup deletion failed: ${message}`)}`);
+  }
+
+  revalidatePath('/settings');
+  redirect('/settings?message=Storage%20backup%20deleted');
+}
+
+export async function restoreStorageBackupAction(formData: FormData) {
+  const backupPath = String(formData.get('backupPath') || '').trim();
+
+  if (!backupPath) {
+    redirect('/settings?message=Backup%20restore%20failed%3A%20missing%20backup%20path');
+  }
+
+  try {
+    await apiWrite('/api/v1/admin/storage/restore', 'POST', { backupPath }, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    const message = error instanceof Error ? error.message : 'Backup restore failed';
+    redirect(`/settings?message=${encodeMessage(`Backup restore failed: ${message}`)}`);
+  }
+
+  revalidatePath('/settings');
+  redirect('/settings?message=Storage%20backup%20restored');
+}
+
 export async function repairStorageIntegrityAction() {
   await apiWrite('/api/v1/admin/storage/repair-integrity', 'POST', { apply: true }, 'admin');
   revalidatePath('/settings');

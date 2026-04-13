@@ -41,12 +41,36 @@ const REWARD_STORE_ITEMS = [
     icon: 'star',
   },
   {
+    id: 'line-leader',
+    title: 'Line Leader Turn',
+    description: 'Lead one classroom transition or line-up.',
+    xpCost: 55,
+    kind: 'privilege',
+    icon: 'directions_walk',
+  },
+  {
     id: 'math-champion-sticker',
     title: 'Math Champion Sticker',
     description: 'Unlock a printed or digital sticker for numeracy effort.',
     xpCost: 60,
     kind: 'sticker',
     icon: 'calculate',
+  },
+  {
+    id: 'song-choice',
+    title: 'Celebration Song Pick',
+    description: 'Choose the next song, chant, or clap routine.',
+    xpCost: 75,
+    kind: 'experience',
+    icon: 'music_note',
+  },
+  {
+    id: 'mallam-helper',
+    title: 'Mallam Helper',
+    description: 'Assist with handing out cards or opening the next activity.',
+    xpCost: 90,
+    kind: 'leadership',
+    icon: 'record_voice_over',
   },
 ];
 
@@ -563,6 +587,158 @@ function cancelRewardRedemptionRequest(requestId, { actorName, actorRole, reason
   return { request: updated, snapshot: buildLearnerRewards(updated.studentId) };
 }
 
+
+function reopenRewardRedemptionRequest(requestId, { actorName, actorRole, reason, adminNote } = {}) {
+  const existing = ensureRewardRequest(requestId);
+  if (!['rejected', 'cancelled'].includes(existing.status)) {
+    const error = new Error('Only rejected or cancelled requests can be reopened');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const updated = repository.updateRewardRedemptionRequest(requestId, {
+    status: 'pending',
+    approvedAt: null,
+    approvedBy: null,
+    rejectedAt: null,
+    rejectedBy: null,
+    cancelledAt: null,
+    cancelledBy: null,
+    fulfilledAt: null,
+    fulfilledBy: null,
+    transactionId: null,
+    adminNote: adminNote !== undefined ? adminNote : existing.adminNote,
+    metadata: {
+      ...(existing.metadata || {}),
+      reopenedAt: new Date().toISOString(),
+      reopenedBy: actorName || 'Unknown actor',
+      reopenedByRole: actorRole || 'admin',
+      reopenReason: reason || 'admin_reopened',
+    },
+  });
+
+  return { request: updated, snapshot: buildLearnerRewards(updated.studentId) };
+}
+
+function requeueRewardRedemptionRequest(requestId, { actorName, actorRole, reason, adminNote } = {}) {
+  const existing = ensureRewardRequest(requestId);
+  if (existing.status !== 'approved') {
+    const error = new Error('Only approved requests can be re-queued');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const updated = repository.updateRewardRedemptionRequest(requestId, {
+    status: 'pending',
+    approvedAt: null,
+    approvedBy: null,
+    adminNote: adminNote !== undefined ? adminNote : existing.adminNote,
+    metadata: {
+      ...(existing.metadata || {}),
+      requeuedAt: new Date().toISOString(),
+      requeuedBy: actorName || 'Unknown actor',
+      requeuedByRole: actorRole || 'admin',
+      requeueReason: reason || 'needs_follow_up',
+    },
+  });
+
+  return { request: updated, snapshot: buildLearnerRewards(updated.studentId) };
+}
+
+function buildRewardRequestDetail(requestId) {
+  const request = repository.findRewardRedemptionRequestById(requestId);
+  if (!request) return null;
+
+  const learner = repository.findStudentById(request.studentId);
+  const snapshot = buildLearnerRewards(request.studentId);
+  const item = getRewardStoreItem(request.rewardItemId);
+  const transaction = request.transactionId ? repository.findRewardTransactionById(request.transactionId) : null;
+  const adjustments = repository.listRewardAdjustments()
+    .filter((entry) => entry.studentId === request.studentId && (entry.transactionId === request.transactionId || entry.after?.metadata?.rewardRequestId === request.id))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  return {
+    request,
+    learner: learner ? {
+      id: learner.id,
+      name: learner.name,
+      cohortId: learner.cohortId,
+      podId: learner.podId,
+      mallamId: learner.mallamId,
+    } : null,
+    item,
+    snapshot,
+    transaction,
+    adjustments,
+    affordability: item && snapshot ? {
+      currentXp: snapshot.totalXp,
+      xpCost: request.xpCost || item.xpCost,
+      affordableNow: snapshot.totalXp >= Number(request.xpCost || item.xpCost || 0),
+      xpShortfall: Math.max(0, Number(request.xpCost || item.xpCost || 0) - snapshot.totalXp),
+    } : null,
+  };
+}
+
+function buildRewardFulfillmentReport({ cohortId = null, podId = null, mallamId = null, learnerId = null, since = null, until = null, limit = 20 } = {}) {
+  const students = learnerId
+    ? buildScopedStudentSet({ cohortId, podId, mallamId }).filter((student) => student.id === learnerId)
+    : buildScopedStudentSet({ cohortId, podId, mallamId });
+  const studentIds = new Set(students.map((student) => student.id));
+  const sinceDate = since ? new Date(since) : null;
+  const untilDate = until ? new Date(until) : null;
+  const inRange = (value) => {
+    const current = value ? new Date(value) : null;
+    if (!current || Number.isNaN(current.getTime())) return true;
+    if (sinceDate && current < sinceDate) return false;
+    if (untilDate && current > untilDate) return false;
+    return true;
+  };
+
+  const requests = repository.listRewardRedemptionRequests()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.updatedAt || entry.createdAt));
+  const now = Date.now();
+  const backlog = { fresh: 0, attention: 0, urgent: 0 };
+  const statusCounts = { pending: 0, approved: 0, fulfilled: 0, rejected: 0, cancelled: 0 };
+  const turnaroundHours = [];
+  const queueByItem = new Map();
+
+  requests.forEach((entry) => {
+    statusCounts[entry.status] = Number(statusCounts[entry.status] || 0) + 1;
+    const createdAt = new Date(entry.createdAt || entry.updatedAt || Date.now()).getTime();
+    const ageHours = Math.max(0, (now - createdAt) / (1000 * 60 * 60));
+    if (['pending', 'approved'].includes(entry.status)) {
+      if (ageHours >= 72) backlog.urgent += 1;
+      else if (ageHours >= 24) backlog.attention += 1;
+      else backlog.fresh += 1;
+    }
+    if (entry.fulfilledAt) {
+      turnaroundHours.push(Math.max(0, (new Date(entry.fulfilledAt).getTime() - createdAt) / (1000 * 60 * 60)));
+    }
+
+    const key = entry.rewardItemId || 'unknown';
+    const current = queueByItem.get(key) || { rewardItemId: key, rewardTitle: entry.rewardTitle || key, pending: 0, approved: 0, fulfilled: 0, total: 0 };
+    current.total += 1;
+    if (entry.status === 'pending') current.pending += 1;
+    if (entry.status === 'approved') current.approved += 1;
+    if (entry.status === 'fulfilled') current.fulfilled += 1;
+    queueByItem.set(key, current);
+  });
+
+  return {
+    scope: { cohortId, podId, mallamId, learnerId, since, until, learnerCount: students.length },
+    summary: {
+      requestCount: requests.length,
+      pendingOrApproved: statusCounts.pending + statusCounts.approved,
+      fulfillmentRate: requests.length ? statusCounts.fulfilled / requests.length : 0,
+      averageFulfillmentHours: turnaroundHours.length ? turnaroundHours.reduce((sum, value) => sum + value, 0) / turnaroundHours.length : null,
+      backlog,
+      statusCounts,
+    },
+    queueByItem: Array.from(queueByItem.values()).sort((a, b) => (b.pending + b.approved) - (a.pending + a.approved) || b.total - a.total),
+    recentRequests: requests.slice().sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, Math.max(1, Math.min(Number(limit || 20), 100))),
+  };
+}
+
 function fulfillRewardRedemptionRequest(requestId, { actorName, actorRole, adminNote, metadata } = {}) {
   const existing = ensureRewardRequest(requestId);
   if (existing.status !== 'approved') {
@@ -616,6 +792,7 @@ function fulfillRewardRedemptionRequest(requestId, { actorName, actorRole, admin
 }
 
 function buildRewardOpsSummary({ cohortId = null, podId = null, mallamId = null } = {}) {
+  const fulfillment = buildRewardFulfillmentReport({ cohortId, podId, mallamId, limit: 10 });
   const students = buildScopedStudentSet({ cohortId, podId, mallamId });
   const studentIds = new Set(students.map((student) => student.id));
   const transactions = repository.listRewardTransactions().filter((item) => studentIds.has(item.studentId));
@@ -635,6 +812,10 @@ function buildRewardOpsSummary({ cohortId = null, podId = null, mallamId = null 
     fulfilledRequestCount: requests.filter((item) => item.status === 'fulfilled').length,
     rejectedRequestCount: requests.filter((item) => item.status === 'rejected').length,
     cancelledRequestCount: requests.filter((item) => item.status === 'cancelled').length,
+    requestBacklogFresh: fulfillment.summary.backlog.fresh,
+    requestBacklogAttention: fulfillment.summary.backlog.attention,
+    requestBacklogUrgent: fulfillment.summary.backlog.urgent,
+    averageFulfillmentHours: fulfillment.summary.averageFulfillmentHours,
     lastAdjustedAt: adjustments.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]?.createdAt ?? null,
     lastRequestAt: requests.slice().sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0]?.updatedAt ?? requests.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]?.createdAt ?? null,
   };
@@ -766,10 +947,14 @@ module.exports = {
   listRewardRedemptionRequests,
   buildRewardRequestHistory,
   buildRewardRedemptionQueue,
+  buildRewardRequestDetail,
+  buildRewardFulfillmentReport,
   createRewardRedemptionRequest,
   approveRewardRedemptionRequest,
   rejectRewardRedemptionRequest,
   cancelRewardRedemptionRequest,
+  reopenRewardRedemptionRequest,
+  requeueRewardRedemptionRequest,
   fulfillRewardRedemptionRequest,
   getRewardStoreItem,
   awardLessonCompletion,

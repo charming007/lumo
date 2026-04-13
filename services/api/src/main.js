@@ -1103,6 +1103,17 @@ app.get('/api/v1/rewards/requests', (req, res) => {
   }));
 });
 
+app.get('/api/v1/rewards/requests/:id', (req, res) => {
+  const detail = rewards.buildRewardRequestDetail(req.params.id);
+
+  if (!detail) {
+    return res.status(404).json({ message: 'Reward request not found' });
+  }
+
+  return res.json(detail);
+});
+
+
 app.post('/api/v1/rewards/requests/:id/approve', requireRole(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.approveRewardRedemptionRequest(req.params.id, {
@@ -1120,6 +1131,37 @@ app.post('/api/v1/rewards/requests/:id/approve', requireRole(['admin', 'teacher'
 app.post('/api/v1/rewards/requests/:id/reject', requireRole(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.rejectRewardRedemptionRequest(req.params.id, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason,
+      adminNote: req.body?.adminNote,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+
+app.post('/api/v1/rewards/requests/:id/reopen', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const result = rewards.reopenRewardRedemptionRequest(req.params.id, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason,
+      adminNote: req.body?.adminNote,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/rewards/requests/:id/requeue', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const result = rewards.requeueRewardRedemptionRequest(req.params.id, {
       actorName: req.actor?.name,
       actorRole: req.actor?.role,
       reason: req.body?.reason,
@@ -1909,6 +1951,19 @@ app.get('/api/v1/reports/engagement', (req, res) => {
 
 app.get('/api/v1/reports/rewards', (req, res) => {
   res.json(reporting.buildRewardsReport({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    learnerId: coerceOptionalString(req.query.learnerId),
+    since: coerceOptionalString(req.query.since),
+    until: coerceOptionalString(req.query.until),
+    limit: Number(req.query.limit || 20),
+  }));
+});
+
+
+app.get('/api/v1/reports/reward-fulfillment', (req, res) => {
+  res.json(rewards.buildRewardFulfillmentReport({
     cohortId: coerceOptionalString(req.query.cohortId),
     podId: coerceOptionalString(req.query.podId),
     mallamId: coerceOptionalString(req.query.mallamId),
