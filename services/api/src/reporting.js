@@ -394,6 +394,105 @@ function buildNgoSummary({ cohortId = null, podId = null, mallamId = null, since
   };
 }
 
+function buildEngagementReport({ cohortId = null, podId = null, mallamId = null, learnerId = null, since = null, until = null } = {}) {
+  const students = learnerId
+    ? buildScopedStudentSet({ cohortId, podId, mallamId }).filter((student) => student.id === learnerId)
+    : buildScopedStudentSet({ cohortId, podId, mallamId });
+  const studentIds = new Set(students.map((student) => student.id));
+  const sinceDate = parseDate(since);
+  const untilDate = parseDate(until);
+  const sessions = repository
+    .listLessonSessions()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.lastActivityAt, { since: sinceDate, until: untilDate }));
+  const events = repository
+    .listSessionEventLog()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }));
+  const rewardsTx = repository
+    .listRewardTransactions()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }));
+  const progressEntries = repository
+    .listProgress()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.lastActiveAt, { since: sinceDate, until: untilDate }));
+  const observations = repository
+    .listObservations()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }));
+
+  const byDayMap = new Map();
+  const eventTypeCounts = {};
+  const reviewBreakdown = { onTrack: 0, needsSupport: 0, unknown: 0 };
+
+  sessions.forEach((session) => {
+    const day = String(session.lastActivityAt || '').slice(0, 10) || 'unknown';
+    const row = byDayMap.get(day) || { date: day, sessions: 0, completedSessions: 0, xpAwarded: 0, supportActionsUsed: 0, responsesCaptured: 0 };
+    row.sessions += 1;
+    row.completedSessions += session.status === 'completed' ? 1 : 0;
+    row.supportActionsUsed += Number(session.supportActionsUsed || 0);
+    row.responsesCaptured += Number(session.responsesCaptured || 0);
+    byDayMap.set(day, row);
+
+    if (session.latestReview === 'onTrack') reviewBreakdown.onTrack += 1;
+    else if (session.latestReview === 'needsSupport') reviewBreakdown.needsSupport += 1;
+    else reviewBreakdown.unknown += 1;
+  });
+
+  rewardsTx.forEach((transaction) => {
+    const day = String(transaction.createdAt || '').slice(0, 10) || 'unknown';
+    const row = byDayMap.get(day) || { date: day, sessions: 0, completedSessions: 0, xpAwarded: 0, supportActionsUsed: 0, responsesCaptured: 0 };
+    row.xpAwarded += Number(transaction.xpDelta || 0);
+    byDayMap.set(day, row);
+  });
+
+  events.forEach((event) => {
+    const type = event.type || 'unknown';
+    eventTypeCounts[type] = Number(eventTypeCounts[type] || 0) + 1;
+  });
+
+  const learnerBreakdown = students.map((student) => {
+    const learnerSessions = sessions.filter((entry) => entry.studentId === student.id);
+    const learnerRewards = rewards.buildLearnerRewards(student.id);
+    const learnerProgress = progressEntries.filter((entry) => entry.studentId === student.id);
+    const latestProgress = learnerProgress.slice().sort((a, b) => new Date(b.lastActiveAt) - new Date(a.lastActiveAt))[0] || null;
+
+    return {
+      learnerId: student.id,
+      learnerName: student.name,
+      cohortId: student.cohortId,
+      podId: student.podId,
+      mallamId: student.mallamId,
+      sessions: learnerSessions.length,
+      completedSessions: learnerSessions.filter((entry) => entry.status === 'completed').length,
+      averageProgressRatio: learnerSessions.length
+        ? learnerSessions.reduce((sum, entry) => sum + (entry.stepsTotal > 0 ? Number(entry.currentStepIndex || 0) / Number(entry.stepsTotal || 1) : 0), 0) / learnerSessions.length
+        : 0,
+      totalXp: learnerRewards?.totalXp ?? 0,
+      badgesUnlocked: learnerRewards?.badgesUnlocked ?? 0,
+      progressionStatus: latestProgress?.progressionStatus ?? 'unknown',
+      mastery: latestProgress?.mastery ?? null,
+      observationsCount: observations.filter((entry) => entry.studentId === student.id).length,
+    };
+  }).sort((a, b) => b.sessions - a.sessions || b.totalXp - a.totalXp || a.learnerName.localeCompare(b.learnerName));
+
+  return {
+    scope: { cohortId, podId, mallamId, learnerId, since, until, learnerCount: students.length },
+    totals: {
+      learners: students.length,
+      sessions: sessions.length,
+      completedSessions: sessions.filter((entry) => entry.status === 'completed').length,
+      abandonedSessions: sessions.filter((entry) => entry.status === 'abandoned').length,
+      totalResponses: sessions.reduce((sum, entry) => sum + Number(entry.responsesCaptured || 0), 0),
+      totalSupportActions: sessions.reduce((sum, entry) => sum + Number(entry.supportActionsUsed || 0), 0),
+      totalXpAwarded: rewardsTx.reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
+      observationsCaptured: observations.length,
+      activeProgressRecords: progressEntries.length,
+    },
+    reviewBreakdown,
+    eventTypeCounts,
+    dailyTrend: Array.from(byDayMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
+    learnerBreakdown: learnerBreakdown.slice(0, 50),
+    topLearners: rewards.buildScopedLeaderboard({ cohortId, podId, mallamId, limit: 10 }).filter((entry) => !learnerId || entry.learnerId === learnerId),
+  };
+}
+
 function buildProgressionRollup({ cohortId = null, podId = null, mallamId = null, subjectId = null, since = null, until = null } = {}) {
   const students = buildScopedStudentSet({ cohortId, podId, mallamId });
   const studentIds = new Set(students.map((student) => student.id));
@@ -439,5 +538,6 @@ module.exports = {
   buildMallamSummary,
   buildNgoSummary,
   buildRuntimeAnalytics,
+  buildEngagementReport,
   buildProgressionRollup,
 };

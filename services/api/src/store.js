@@ -295,6 +295,40 @@ function getStoreMeta() {
     rewardAdjustmentCount: listRewardAdjustments().length,
     progressionOverrideCount: listProgressionOverrides().length,
     sessionRepairCount: listSessionRepairs().length,
+    storageStatus: typeof data.storage?.getStatus === 'function' ? data.storage.getStatus() : null,
+  };
+}
+
+function getStorageStatus() {
+  const data = require('./data');
+  return typeof data.storage?.getStatus === 'function' ? data.storage.getStatus() : null;
+}
+
+function checkpointStorage(label) {
+  const data = require('./data');
+  const backupPath = typeof data.storage?.checkpoint === 'function' ? data.storage.checkpoint(label) : null;
+
+  return {
+    backupPath,
+    status: getStorageStatus(),
+  };
+}
+
+function restoreStorageBackup(backupPath) {
+  const data = require('./data');
+
+  if (typeof data.storage?.restoreFromBackup !== 'function') {
+    const error = new Error('Storage restore is not available');
+    error.statusCode = 501;
+    throw error;
+  }
+
+  data.storage.restoreFromBackup(backupPath);
+  data.reload();
+
+  return {
+    restoredFrom: backupPath,
+    status: getStorageStatus(),
   };
 }
 
@@ -359,4 +393,7 @@ module.exports = {
   listRewardAdjustments,
   createRewardAdjustment,
   getStoreMeta,
+  getStorageStatus,
+  checkpointStorage,
+  restoreStorageBackup,
 };

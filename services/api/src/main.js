@@ -934,6 +934,30 @@ app.get('/api/v1/rewards/catalog', (_req, res) => {
   res.json(rewards.buildRewardsCatalog());
 });
 
+app.get('/api/v1/learner-app/rewards/catalog', (_req, res) => {
+  res.json(rewards.buildRewardsCatalog());
+});
+
+app.get('/api/v1/learner-app/rewards', (req, res) => {
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+
+  if (!learner) {
+    return res.status(404).json({ message: 'Learner not found' });
+  }
+
+  return res.json(rewards.buildLearnerRewardHub(learner.id));
+});
+
+app.get('/api/v1/learner-app/rewards/leaderboard', (req, res) => {
+  const limit = Number(req.query.limit || 10);
+  return res.json(rewards.buildScopedLeaderboard({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    limit: Number.isFinite(limit) ? limit : 10,
+  }));
+});
+
 app.get('/api/v1/rewards/summary', (req, res) => {
   res.json(rewards.buildRewardOpsSummary({
     cohortId: coerceOptionalString(req.query.cohortId),
@@ -1566,6 +1590,45 @@ app.get('/api/v1/reports/ngo-summary', (req, res) => {
     since: coerceOptionalString(req.query.since),
     until: coerceOptionalString(req.query.until),
   }));
+});
+
+app.get('/api/v1/reports/engagement', (req, res) => {
+  res.json(reporting.buildEngagementReport({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    learnerId: coerceOptionalString(req.query.learnerId),
+    since: coerceOptionalString(req.query.since),
+    until: coerceOptionalString(req.query.until),
+  }));
+});
+
+app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
+  res.json(store.getStorageStatus());
+});
+
+app.post('/api/v1/admin/storage/checkpoint', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.status(201).json(store.checkpointStorage(coerceOptionalString(req.body?.label) || 'manual-checkpoint'));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/admin/storage/restore', requireRole(['admin']), (req, res, next) => {
+  try {
+    const backupPath = coerceOptionalString(req.body?.backupPath);
+
+    if (!backupPath) {
+      const error = new Error('Provide backupPath');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return res.json(store.restoreStorageBackup(backupPath));
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.use((error, _req, res, _next) => {

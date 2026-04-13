@@ -15,6 +15,33 @@ const LEVEL_THRESHOLDS = [
   { level: 5, label: 'Shining Star', minXp: 230 },
 ];
 
+const REWARD_STORE_ITEMS = [
+  {
+    id: 'story-time',
+    title: 'Story Time Pick',
+    description: 'Choose the next short story or listening activity.',
+    xpCost: 30,
+    kind: 'experience',
+    icon: 'menu_book',
+  },
+  {
+    id: 'helper-star',
+    title: 'Helper Star',
+    description: 'Celebrate teamwork with a helper star moment in class.',
+    xpCost: 45,
+    kind: 'recognition',
+    icon: 'star',
+  },
+  {
+    id: 'math-champion-sticker',
+    title: 'Math Champion Sticker',
+    description: 'Unlock a printed or digital sticker for numeracy effort.',
+    xpCost: 60,
+    kind: 'sticker',
+    icon: 'calculate',
+  },
+];
+
 const BADGE_DEFINITIONS = [
   {
     id: 'first-lesson',
@@ -292,6 +319,27 @@ function buildRewardsCatalog() {
     xpRules: XP_RULES,
     levels: LEVEL_THRESHOLDS,
     badges: BADGE_DEFINITIONS,
+    storeItems: REWARD_STORE_ITEMS,
+  };
+}
+
+function buildLearnerRewardHub(studentId) {
+  const snapshot = buildLearnerRewards(studentId);
+  if (!snapshot) return null;
+
+  const availableRewards = REWARD_STORE_ITEMS.map((item) => ({
+    ...item,
+    affordable: snapshot.totalXp >= item.xpCost,
+    xpShortfall: Math.max(0, item.xpCost - snapshot.totalXp),
+  }));
+
+  return {
+    learnerId: studentId,
+    snapshot,
+    availableRewards,
+    nextUnlock: availableRewards
+      .filter((item) => item.xpShortfall > 0)
+      .sort((a, b) => a.xpShortfall - b.xpShortfall)[0] || null,
   };
 }
 
@@ -459,7 +507,9 @@ module.exports = {
   XP_RULES,
   BADGE_DEFINITIONS,
   LEVEL_THRESHOLDS,
+  REWARD_STORE_ITEMS,
   buildRewardsCatalog,
+  buildLearnerRewardHub,
   buildLearnerRewards,
   buildLeaderboard,
   buildRewardHistory,

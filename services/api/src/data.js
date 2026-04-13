@@ -152,6 +152,8 @@ function persist() {
 hydrate();
 
 data.persist = persist;
+data.reload = hydrate;
+data.storage = storage;
 data.__meta = {
   file: DATA_FILE,
   storageKind: storage.kind,
