@@ -157,6 +157,25 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
+LearningModule resolveLessonModule({
+  required LumoAppState state,
+  required LessonCardModel lesson,
+  LearningModule? module,
+}) {
+  return module ??
+      state.modules.where((item) => item.id == lesson.moduleId).firstOrNull ??
+      state.modules.firstOrNull ??
+      LearningModule(
+        id: lesson.moduleId,
+        title: lesson.subject,
+        description:
+            'Continue this ${lesson.subject.toLowerCase()} lesson while live module metadata is still syncing.',
+        voicePrompt: 'Let’s continue ${lesson.subject} together.',
+        readinessGoal: lesson.readinessFocus,
+        badge: 'Lesson ready',
+      );
+}
+
 void launchLessonFlow({
   required BuildContext context,
   required LumoAppState state,
@@ -165,11 +184,11 @@ void launchLessonFlow({
   LearningModule? module,
   BackendLessonSession? resumeFrom,
 }) {
-  final targetModule = module ??
-      state.modules.firstWhere(
-        (item) => item.id == lesson.moduleId,
-        orElse: () => state.modules.first,
-      );
+  final targetModule = resolveLessonModule(
+    state: state,
+    lesson: lesson,
+    module: module,
+  );
 
   Navigator.of(context).push(
     MaterialPageRoute(
@@ -5118,8 +5137,6 @@ class _SubjectCard extends StatelessWidget {
         return const [Color(0xFFFF9A62), Color(0xFFFFB347)];
       case 'life-skills':
         return const [Color(0xFF12B981), Color(0xFF34D399)];
-      case 'story':
-        return const [Color(0xFF0EA5E9), Color(0xFF38BDF8)];
       case 'english':
       default:
         return const [Color(0xFF6C63FF), Color(0xFF8B7FFF)];

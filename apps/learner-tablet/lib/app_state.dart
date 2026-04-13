@@ -524,7 +524,7 @@ class LumoAppState {
       );
     }
     return modules.firstWhere(
-      (module) => module.id == 'story',
+      (module) => module.id == 'life-skills',
       orElse: () => modules.first,
     );
   }
@@ -1628,12 +1628,12 @@ class LumoAppState {
   List<String> _preferredModuleIdsForLearner(LearnerProfile learner) {
     switch (learner.readinessLabel) {
       case 'Confident responder':
-        return const ['story', 'life-skills', 'english', 'math'];
+        return const ['life-skills', 'english', 'math'];
       case 'Ready for guided practice':
-        return const ['math', 'english', 'life-skills', 'story'];
+        return const ['math', 'english', 'life-skills'];
       case 'Voice-first beginner':
       default:
-        return const ['english', 'life-skills', 'math', 'story'];
+        return const ['english', 'life-skills', 'math'];
     }
   }
 

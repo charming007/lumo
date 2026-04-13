@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:lumo_learner_tablet/api_client.dart';
 import 'package:lumo_learner_tablet/app_state.dart';
+import 'package:lumo_learner_tablet/main.dart';
 import 'package:lumo_learner_tablet/models.dart';
 
 void main() {
@@ -177,6 +178,20 @@ void main() {
       state.dispose();
     });
 
+    test('builds a fallback module when lesson metadata arrives before modules', () {
+      final state = LumoAppState();
+      final lesson = state.assignedLessons.first;
+
+      state.modules.clear();
+
+      final module = resolveLessonModule(state: state, lesson: lesson);
+
+      expect(module.id, lesson.moduleId);
+      expect(module.title, lesson.subject);
+      expect(module.readinessGoal, lesson.readinessFocus);
+      expect(module.badge, 'Lesson ready');
+    });
+
     test('ranks english first for voice-first beginners', () {
       final state = LumoAppState();
 
@@ -196,15 +211,17 @@ void main() {
       expect(lessons.first.moduleId, 'math');
     });
 
-    test('ranks story first for confident responders', () {
+    test('ranks life skills first for confident responders', () {
       final state = LumoAppState();
 
       final lessons = state.lessonsForLearner(confident);
 
       expect(lessons, isNotEmpty);
-      expect(lessons.first.moduleId, 'story');
+      expect(lessons.first.moduleId, 'life-skills');
       expect(
-          state.recommendedModuleLabelForLearner(confident), contains('Story'));
+        state.recommendedModuleLabelForLearner(confident),
+        contains('Life Skills'),
+      );
     });
 
     test('assigned lesson summary reflects next lesson title', () {
@@ -220,19 +237,19 @@ void main() {
 
     test('prefers backend assignment packs over heuristic lesson order', () {
       final state = LumoAppState();
-      final storyLesson = state.assignedLessons
-          .firstWhere((lesson) => lesson.moduleId == 'story');
+      final lifeSkillsLesson = state.assignedLessons
+          .firstWhere((lesson) => lesson.moduleId == 'life-skills');
 
       state.assignmentPacks.add(
         LearnerAssignmentPack(
           assignmentId: 'assignment-1',
-          lessonId: storyLesson.id,
-          moduleId: storyLesson.moduleId,
-          lessonTitle: storyLesson.title,
+          lessonId: lifeSkillsLesson.id,
+          moduleId: lifeSkillsLesson.moduleId,
+          lessonTitle: lifeSkillsLesson.title,
           cohortName: beginner.cohort,
           mallamName: 'Mallam Idris',
           dueDate: '2026-04-20T10:00:00.000Z',
-          assessmentTitle: 'Story check',
+          assessmentTitle: 'Life skills check',
           eligibleLearnerIds: [beginner.id],
         ),
       );
@@ -241,7 +258,7 @@ void main() {
       final nextPack = state.nextAssignmentPackForLearner(beginner);
 
       expect(nextPack, isNotNull);
-      expect(lessons.first.id, storyLesson.id);
+      expect(lessons.first.id, lifeSkillsLesson.id);
       expect(state.backendRoutingSummaryForLearner(beginner),
           contains('Mallam Idris'));
     });

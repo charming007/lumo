@@ -100,15 +100,6 @@ const learningModules = [
     readinessGoal: 'Ready for habit-building routines',
     badge: 'Daily habit',
   ),
-  LearningModule(
-    id: 'story',
-    title: 'Story Time',
-    description: 'Listen, imagine, and answer guided story questions.',
-    voicePrompt:
-        'Listen closely to the short story, then tell me what happened in your own words.',
-    readinessGoal: 'Ready for recall and speaking confidence',
-    badge: 'Listen & retell',
-  ),
 ];
 
 const assignedLessonsSeed = [
@@ -319,67 +310,6 @@ const assignedLessonsSeed = [
         realWorldCheck:
             'This makes the routine feel personal instead of just repeated words.',
         speakerMode: SpeakerMode.waiting,
-      ),
-    ],
-  ),
-  LessonCardModel(
-    id: 'lesson-4',
-    moduleId: 'story',
-    title: 'Short story: Zainab and the red cup',
-    subject: 'Story Time',
-    durationMinutes: 9,
-    status: 'Assigned',
-    mascotName: 'Mallam',
-    readinessFocus: 'Recall one key detail and retell with confidence',
-    scenario:
-        'The learner listens to a familiar home story and pulls out key details.',
-    steps: [
-      LessonStep(
-        id: 'story-1',
-        type: LessonStepType.intro,
-        title: 'Listen for the object',
-        instruction:
-            'Mallam tells a one-line story and asks the learner to notice the object.',
-        expectedResponse: 'A red cup.',
-        acceptableResponses: ['Red cup', 'She carried a red cup'],
-        coachPrompt:
-            'Listen: Zainab carried a red cup to her mother. What did Zainab carry?',
-        facilitatorTip:
-            'Repeat only the final sentence if the learner misses the object.',
-        realWorldCheck:
-            'This checks attention to a concrete story detail, not just repetition.',
-        speakerMode: SpeakerMode.guiding,
-      ),
-      LessonStep(
-        id: 'story-2',
-        type: LessonStepType.practice,
-        title: 'Say who received it',
-        instruction: 'The learner adds the second detail from the same story.',
-        expectedResponse: 'She carried it to her mother.',
-        acceptableResponses: ['Her mother', 'She carried it to mother'],
-        coachPrompt: 'Good. Who did she carry it to?',
-        facilitatorTip: 'If needed, offer the first word “mother...” and wait.',
-        realWorldCheck:
-            'A correct answer shows early retell ability, not just echoing the first noun.',
-        speakerMode: SpeakerMode.listening,
-      ),
-      LessonStep(
-        id: 'story-3',
-        type: LessonStepType.celebration,
-        title: 'Retell the full line',
-        instruction:
-            'The learner combines both details into one short retell sentence.',
-        expectedResponse: 'Zainab carried a red cup to her mother.',
-        acceptableResponses: [
-          'She carried a red cup to her mother',
-          'Zainab took the red cup to her mother',
-        ],
-        coachPrompt: 'Excellent. Now tell the full story in one sentence.',
-        facilitatorTip:
-            'Accept a near match if the learner preserves the key meaning.',
-        realWorldCheck:
-            'This is the strongest signal that the learner is ready for richer story lessons.',
-        speakerMode: SpeakerMode.affirming,
       ),
     ],
   ),
