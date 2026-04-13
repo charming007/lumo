@@ -87,6 +87,23 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
   const rosteredLearners = filteredMallams.reduce((sum, mallam) => sum + students.filter((student) => student.mallamId === mallam.id).length, 0);
   const watchLearners = filteredMallams.reduce((sum, mallam) => sum + students.filter((student) => student.mallamId === mallam.id && student.attendanceRate < 0.85).length, 0);
   const avgAttendance = average(filteredMallams.flatMap((mallam) => students.filter((student) => student.mallamId === mallam.id).map((student) => student.attendanceRate)));
+  const interventionQueue = filteredMallams
+    .map((mallam) => {
+      const roster = students.filter((student) => student.mallamId === mallam.id);
+      const atRisk = roster.filter((student) => student.attendanceRate < 0.85);
+      const attendanceAverage = average(roster.map((student) => student.attendanceRate));
+      const pressureScore = (atRisk.length * 3) + (mallam.status === 'training' ? 2 : 0) + (roster.length >= 18 ? 2 : roster.length >= 12 ? 1 : 0);
+      return {
+        mallam,
+        roster,
+        atRisk,
+        attendanceAverage,
+        pressureScore,
+      };
+    })
+    .filter((entry) => entry.pressureScore > 0)
+    .sort((left, right) => (right.pressureScore - left.pressureScore) || (right.atRisk.length - left.atRisk.length) || (left.attendanceAverage - right.attendanceAverage))
+    .slice(0, 5);
 
   return (
     <PageShell
@@ -179,6 +196,38 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             <div>High learner load plus weak attendance usually means coaching capacity, not just a lazy mallam.</div>
             <div>Training mallams with live rosters need a tighter support plan before you stack more pods on them.</div>
             <div>If pod coverage is thin, reassign before attendance starts sliding and everyone pretends it was inevitable.</div>
+          </div>
+        </Card>
+      </section>
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Intervention queue" eyebrow="Who needs help first">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {interventionQueue.length ? interventionQueue.map(({ mallam, roster, atRisk, attendanceAverage, pressureScore }) => (
+              <div key={mallam.id} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+                  <a href={`/mallams/${mallam.id}`} style={{ fontWeight: 800, color: '#0f172a', textDecoration: 'none' }}>{mallam.displayName}</a>
+                  <Pill label={`Pressure ${pressureScore}`} tone={pressureScore >= 6 ? '#FEE2E2' : '#FEF3C7'} text={pressureScore >= 6 ? '#B91C1C' : '#92400E'} />
+                </div>
+                <div style={{ color: '#64748b', lineHeight: 1.6, marginBottom: 10 }}>
+                  {mallam.centerName ?? mallam.region} • {mallam.podLabels.join(', ') || 'No pod mapped yet'}
+                </div>
+                <div style={{ ...responsiveGrid(140), color: '#334155' }}>
+                  <div><strong>{roster.length}</strong><div style={{ color: '#64748b' }}>Rostered learners</div></div>
+                  <div><strong>{atRisk.length}</strong><div style={{ color: '#64748b' }}>At-risk learners</div></div>
+                  <div><strong>{Math.round(attendanceAverage * 100)}%</strong><div style={{ color: '#64748b' }}>Avg attendance</div></div>
+                  <div><strong>{mallam.status}</strong><div style={{ color: '#64748b' }}>Deployment status</div></div>
+                </div>
+              </div>
+            )) : <div style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b' }}>No intervention queue in the current scope.</div>}
+          </div>
+        </Card>
+
+        <Card title="How pressure is ranked" eyebrow="Quick operator logic">
+          <div style={{ display: 'grid', gap: 12, color: '#64748b', lineHeight: 1.6 }}>
+            <div>At-risk learners drive the ranking hardest because poor attendance is usually the first operational failure you can still fix.</div>
+            <div>Training status adds pressure because new mallams with live rosters need coaching support before the roster gets heavier.</div>
+            <div>Large rosters add extra weight so overloaded operators show up before the damage spreads quietly.</div>
           </div>
         </Card>
       </section>
