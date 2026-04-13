@@ -203,7 +203,7 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         {filteredStudents.length ? (
-          <RewardsAdminForm students={filteredStudents} catalog={catalog} />
+          <RewardsAdminForm students={filteredStudents} catalog={catalog} leaderboard={filteredLeaderboard} />
         ) : (
           <Card title="Reward adjustments" eyebrow="Unavailable right now">
             <div style={{ color: '#64748b', lineHeight: 1.6 }}>

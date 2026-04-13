@@ -524,6 +524,48 @@ export async function awardStudentRewardAction(formData: FormData) {
   redirect('/rewards?message=Reward%20adjustment%20saved');
 }
 
+export async function correctRewardTransactionAction(formData: FormData) {
+  const transactionId = String(formData.get('transactionId') || '');
+  const xpDelta = Number(formData.get('xpDelta') || 0);
+  const label = String(formData.get('label') || '').trim();
+  const reason = String(formData.get('reason') || '').trim() || 'manual_correction';
+  const note = String(formData.get('note') || '').trim();
+
+  await apiWrite(`/api/v1/rewards/transactions/${transactionId}/correct`, 'POST', {
+    xpDelta,
+    label: label || null,
+    reason,
+    note,
+    metadata: {
+      source: 'lms-web-admin',
+      adjustedBy: 'Pilot Admin',
+    },
+  }, 'admin');
+
+  revalidatePath('/rewards');
+  revalidatePath('/students');
+  redirect('/rewards?message=Reward%20transaction%20corrected');
+}
+
+export async function revokeRewardTransactionAction(formData: FormData) {
+  const transactionId = String(formData.get('transactionId') || '');
+  const reason = String(formData.get('reason') || '').trim() || 'manual_revocation';
+  const note = String(formData.get('note') || '').trim();
+
+  await apiWrite(`/api/v1/rewards/transactions/${transactionId}/revoke`, 'POST', {
+    reason,
+    note,
+    metadata: {
+      source: 'lms-web-admin',
+      revokedBy: 'Pilot Admin',
+    },
+  }, 'admin');
+
+  revalidatePath('/rewards');
+  revalidatePath('/students');
+  redirect('/rewards?message=Reward%20transaction%20revoked');
+}
+
 export async function checkpointStorageAction(formData: FormData) {
   const label = String(formData.get('label') || '').trim() || 'manual-checkpoint';
   await apiWrite('/api/v1/admin/storage/checkpoint', 'POST', { label }, 'admin');

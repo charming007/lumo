@@ -114,6 +114,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Back home'), findsOneWidget);
     expect(find.textContaining('lesson'), findsWidgets);
+
+    state.dispose();
   });
 
 }

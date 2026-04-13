@@ -7,6 +7,7 @@ import 'package:lumo_learner_tablet/api_client.dart';
 import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/main.dart';
 import 'package:lumo_learner_tablet/models.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('LumoAppState learner assignment flow', () {
@@ -196,6 +197,146 @@ void main() {
       );
       expect(
         state.assignedLessons.where((lesson) => lesson.moduleId == 'story'),
+        isEmpty,
+      );
+      state.dispose();
+    });
+
+    test('drops deprecated story/demo lessons even when the module id is messy',
+        () async {
+      final state = LumoAppState(
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': const [],
+                  'modules': [
+                    {
+                      'subjectId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Foundational English',
+                      'level': 'foundation-a',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'story-lesson-legacy',
+                      'moduleId': 'module-story-legacy',
+                      'subjectName': 'Story Time',
+                      'title': 'Listen and retell',
+                      'durationMinutes': 8,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Listen & retell',
+                      'scenario': 'Old cached demo lesson',
+                      'steps': const [],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Foundational English',
+                  'level': 'foundation-a',
+                  'lessons': const [],
+                  'assignmentPacks': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(
+        state.assignedLessons.where((lesson) => lesson.subject == 'Story Time'),
+        isEmpty,
+      );
+      state.dispose();
+    });
+
+    test('filters deprecated story/demo modules from persisted tablet state',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'learners': const [],
+          'modules': const [
+            {
+              'id': 'english',
+              'title': 'Foundational English',
+              'description': 'Live module',
+              'voicePrompt': 'Let us speak',
+              'readinessGoal': 'Speak clearly',
+              'badge': '4 lessons',
+            },
+            {
+              'id': 'story',
+              'title': 'Story Time',
+              'description': 'Deprecated demo module',
+              'voicePrompt': 'Listen and retell',
+              'readinessGoal': 'Listen & retell',
+              'badge': '1 lesson',
+            },
+          ],
+          'assignedLessons': const [
+            {
+              'id': 'lesson-english-1',
+              'moduleId': 'english',
+              'title': 'Greetings',
+              'subjectName': 'Foundational English',
+              'durationMinutes': 10,
+              'status': 'assigned',
+              'mascotName': 'Mallam',
+              'readinessFocus': 'Greetings',
+              'scenario': 'Live lesson',
+              'steps': [],
+            },
+            {
+              'id': 'lesson-story-1',
+              'moduleId': 'module-story-legacy',
+              'title': 'Listen and retell',
+              'subjectName': 'Story Time',
+              'durationMinutes': 8,
+              'status': 'assigned',
+              'mascotName': 'Mallam',
+              'readinessFocus': 'Listen & retell',
+              'scenario': 'Deprecated demo lesson',
+              'steps': [],
+            },
+          ],
+          'assignmentPacks': const [],
+          'pendingSyncEvents': const [],
+          'recentRuntimeSessionsByLearnerId': const {},
+          'registrationDraft': const {},
+          'registrationContext': const {},
+          'speakerMode': 'guiding',
+          'usingFallbackData': false,
+        }),
+      });
+
+      final state = LumoAppState();
+
+      await state.restorePersistedState();
+
+      expect(state.restoredFromPersistence, isTrue);
+      expect(state.modules.map((module) => module.id), equals(['english']));
+      expect(
+        state.assignedLessons.where((lesson) => lesson.subject == 'Story Time'),
         isEmpty,
       );
       state.dispose();

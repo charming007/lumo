@@ -1,7 +1,10 @@
 // ignore_for_file: unused_element
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 import 'models.dart';
@@ -12,6 +15,8 @@ typedef VoiceReplayStop = Future<void> Function();
 
 const bool kEnableSeedDemoContent =
     bool.fromEnvironment('LUMO_ENABLE_SEED_DEMO_CONTENT');
+const String _kPersistenceStorageKey = 'lumo_learner_tablet_state_v1';
+const String _kPersistenceSchemaVersion = '2026-04-13-runtime-persist';
 
 class LumoAppState {
   LumoAppState({LumoApiClient? apiClient})
@@ -42,6 +47,8 @@ class LumoAppState {
   bool isRegisteringLearner = false;
   bool isSyncingEvents = false;
   bool usingFallbackData = true;
+  bool restoredFromPersistence = false;
+  String? persistenceError;
   String? backendError;
   DateTime? lastSyncedAt;
   DateTime? backendGeneratedAt;
@@ -129,11 +136,125 @@ class LumoAppState {
   }
 
   Future<void> restorePersistedState() async {
-    // Local restore is intentionally disabled until the persistence schema is finished.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kPersistenceStorageKey);
+      if (raw == null || raw.trim().isEmpty) return;
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final snapshot = Map<String, dynamic>.from(decoded);
+      if (snapshot['schemaVersion']?.toString() != _kPersistenceSchemaVersion) {
+        persistenceError = 'Saved tablet state uses an older schema and was skipped safely.';
+        return;
+      }
+
+      final restoredLearners = (snapshot['learners'] as List?)
+              ?.whereType<Map>()
+              .map((item) => _decodeLearner(Map<String, dynamic>.from(item)))
+              .toList() ??
+          const <LearnerProfile>[];
+      final restoredModules = (snapshot['modules'] as List?)
+              ?.whereType<Map>()
+              .map((item) => _decodeModule(Map<String, dynamic>.from(item)))
+              .toList() ??
+          const <LearningModule>[];
+      final restoredLessons = (snapshot['assignedLessons'] as List?)
+              ?.whereType<Map>()
+              .map((item) => _decodeLesson(Map<String, dynamic>.from(item)))
+              .toList() ??
+          const <LessonCardModel>[];
+      final restoredAssignmentPacks = (snapshot['assignmentPacks'] as List?)
+              ?.whereType<Map>()
+              .map((item) => LearnerAssignmentPack.fromJson(Map<String, dynamic>.from(item)))
+              .toList() ??
+          const <LearnerAssignmentPack>[];
+
+      learners
+        ..clear()
+        ..addAll(restoredLearners.isEmpty ? learnerProfilesSeed : restoredLearners);
+      modules
+        ..clear()
+        ..addAll(
+          _dedupeModules(
+            _sanitizeModules(
+              restoredModules.isEmpty ? learningModules : restoredModules,
+            ),
+          ),
+        );
+      assignedLessons
+        ..clear()
+        ..addAll(
+          _sanitizeLessons(
+            restoredLessons.isEmpty ? assignedLessonsSeed : restoredLessons,
+          ),
+        );
+      assignmentPacks
+        ..clear()
+        ..addAll(restoredAssignmentPacks);
+      pendingSyncEvents
+        ..clear()
+        ..addAll((snapshot['pendingSyncEvents'] as List?)
+                ?.whereType<Map>()
+                .map((item) {
+                  final map = Map<String, dynamic>.from(item);
+                  return SyncEvent(
+                    id: map['id']?.toString() ?? 'sync-event',
+                    type: map['type']?.toString() ?? 'unknown',
+                    payload: map['payload'] is Map
+                        ? Map<String, dynamic>.from(map['payload'])
+                        : const <String, dynamic>{},
+                  );
+                })
+                .toList() ??
+            const <SyncEvent>[]);
+
+      recentRuntimeSessionsByLearnerId
+        ..clear()
+        ..addAll(((snapshot['recentRuntimeSessionsByLearnerId'] as Map?) ?? const {})
+            .map((key, value) {
+          final sessions = (value as List?)
+                  ?.whereType<Map>()
+                  .map((item) => BackendLessonSession.fromJson(Map<String, dynamic>.from(item)))
+                  .toList() ??
+              const <BackendLessonSession>[];
+          return MapEntry(key.toString(), sessions);
+        }));
+
+      registrationDraft = _decodeRegistrationDraft(snapshot['registrationDraft']);
+      registrationContext = _decodeRegistrationContext(snapshot['registrationContext']);
+      usingFallbackData = snapshot['usingFallbackData'] != false;
+      backendError = _readNullableString(snapshot['backendError']);
+      lastSyncedAt = _parseDate(snapshot['lastSyncedAt']);
+      backendGeneratedAt = _parseDate(snapshot['backendGeneratedAt']);
+      lastSyncAttemptAt = _parseDate(snapshot['lastSyncAttemptAt']);
+      backendContractVersion = _readNullableString(snapshot['backendContractVersion']);
+      backendAssignmentCount = _asInt(snapshot['backendAssignmentCount']) ?? 0;
+      lastSyncAcceptedCount = _asInt(snapshot['lastSyncAcceptedCount']) ?? 0;
+      lastSyncIgnoredCount = _asInt(snapshot['lastSyncIgnoredCount']) ?? 0;
+      lastSyncError = _readNullableString(snapshot['lastSyncError']);
+      learnerRuntimeError = _readNullableString(snapshot['learnerRuntimeError']);
+
+      final learnerId = _readNullableString(snapshot['currentLearnerId']);
+      currentLearner = learners.where((item) => item.id == learnerId).firstOrNull;
+      final moduleId = _readNullableString(snapshot['selectedModuleId']);
+      selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
+      final activeSessionRaw = snapshot['activeSession'];
+      activeSession = _decodeActiveSession(activeSessionRaw);
+      speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
+      restoredFromPersistence = true;
+      persistenceError = null;
+    } catch (error) {
+      persistenceError = 'Unable to restore saved tablet state: $error';
+    }
   }
 
   void persistStateSoon() {
     _persistenceDebounce?.cancel();
+    _persistenceDebounce = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_persistStateNow()),
+    );
   }
 
   Future<void> bootstrap() async {
@@ -252,18 +373,39 @@ class LumoAppState {
       final title = module.title.trim();
       return id.isNotEmpty &&
           title.isNotEmpty &&
-          !_isDeprecatedDemoModuleId(id);
+          !_isDeprecatedDemoModule(moduleId: id, title: title);
     }).toList();
   }
 
   List<LessonCardModel> _sanitizeLessons(List<LessonCardModel> source) {
     return source
-        .where((lesson) => !_isDeprecatedDemoModuleId(lesson.moduleId))
+        .where(
+          (lesson) => !_isDeprecatedDemoModule(
+            moduleId: lesson.moduleId,
+            title: lesson.title,
+            subject: lesson.subject,
+            readinessFocus: lesson.readinessFocus,
+          ),
+        )
         .toList();
   }
 
-  bool _isDeprecatedDemoModuleId(String moduleId) {
-    return moduleId.trim().toLowerCase() == 'story';
+  bool _isDeprecatedDemoModule({
+    required String moduleId,
+    String? title,
+    String? subject,
+    String? readinessFocus,
+  }) {
+    final normalizedId = moduleId.trim().toLowerCase();
+    final normalizedTitle = title?.trim().toLowerCase() ?? '';
+    final normalizedSubject = subject?.trim().toLowerCase() ?? '';
+    final normalizedReadiness = readinessFocus?.trim().toLowerCase() ?? '';
+
+    return normalizedId == 'story' ||
+        normalizedTitle == 'story time' ||
+        normalizedSubject == 'story time' ||
+        normalizedReadiness == 'listen and retell' ||
+        normalizedReadiness == 'listen & retell';
   }
 
   List<LearningModule> _dedupeModules(List<LearningModule> source) {
@@ -1067,6 +1209,7 @@ class LumoAppState {
         'durationSeconds': seconds,
       },
     );
+    persistStateSoon();
     _attemptSyncSoon();
   }
 
@@ -1213,6 +1356,60 @@ class LumoAppState {
         ? 'Every new lesson now grows confidence, points, and streaks.'
         : '${rewards.xpForNextLevel} XP until ${rewards.nextLevelLabel}.';
     return '$badgeLine $nextLine';
+  }
+
+  List<RewardRedemptionOption> rewardRedemptionOptionsForLearner(
+    LearnerProfile learner,
+  ) {
+    final points = learner.rewards?.points ?? learner.totalXp;
+    final options = <RewardRedemptionOption>[
+      RewardRedemptionOption(
+        id: 'sticker-time',
+        title: 'Sticker time',
+        description: 'Pick a bright sticker or stamp for today\'s work.',
+        cost: 40,
+        icon: '🌟',
+      ),
+      RewardRedemptionOption(
+        id: 'song-choice',
+        title: 'Choose the song',
+        description: 'You pick the next celebration song or chant.',
+        cost: 75,
+        icon: '🎵',
+      ),
+      RewardRedemptionOption(
+        id: 'story-choice',
+        title: 'Choose story time',
+        description: 'Pick the next short story or picture prompt.',
+        cost: 120,
+        icon: '📚',
+      ),
+      RewardRedemptionOption(
+        id: 'helper-badge',
+        title: 'Class helper badge',
+        description: 'Wear the helper badge for the next activity.',
+        cost: 180,
+        icon: '🏅',
+      ),
+    ];
+
+    return options
+        .map((option) => option.copyWith(unlocked: points >= option.cost))
+        .toList();
+  }
+
+  String rewardRedemptionSummaryForLearner(LearnerProfile learner) {
+    final options = rewardRedemptionOptionsForLearner(learner);
+    final unlocked = options.where((item) => item.unlocked).toList();
+    if (unlocked.isEmpty) {
+      final next = options.first;
+      final points = learner.rewards?.points ?? learner.totalXp;
+      return '${next.cost - points} more points unlock ${next.title.toLowerCase()}.';
+    }
+    if (unlocked.length == options.length) {
+      return 'All reward choices are unlocked. Let the child pick their favourite.';
+    }
+    return '${unlocked.length} reward choice(s) unlocked now. Let the child choose one and keep saving for the next prize.';
   }
 
   bool advanceLessonStep() {
@@ -2505,7 +2702,45 @@ class LumoAppState {
   }
 
   Future<void> _persistStateNow() async {
-    // Local tablet persistence is intentionally parked until the full restore path is reintroduced cleanly.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final snapshot = <String, dynamic>{
+        'schemaVersion': _kPersistenceSchemaVersion,
+        'savedAt': DateTime.now().toIso8601String(),
+        'currentLearnerId': currentLearner?.id,
+        'selectedModuleId': selectedModule?.id,
+        'speakerMode': speakerMode.name,
+        'usingFallbackData': usingFallbackData,
+        'backendError': backendError,
+        'lastSyncedAt': lastSyncedAt?.toIso8601String(),
+        'backendGeneratedAt': backendGeneratedAt?.toIso8601String(),
+        'lastSyncAttemptAt': lastSyncAttemptAt?.toIso8601String(),
+        'backendContractVersion': backendContractVersion,
+        'backendAssignmentCount': backendAssignmentCount,
+        'lastSyncAcceptedCount': lastSyncAcceptedCount,
+        'lastSyncIgnoredCount': lastSyncIgnoredCount,
+        'lastSyncError': lastSyncError,
+        'learnerRuntimeError': learnerRuntimeError,
+        'registrationDraft': _encodeRegistrationDraft(registrationDraft),
+        'registrationContext': _encodeRegistrationContext(registrationContext),
+        'learners': learners.map(_encodeLearner).toList(),
+        'modules': modules.map(_encodeModule).toList(),
+        'assignedLessons': assignedLessons.map(_encodeLesson).toList(),
+        'assignmentPacks': assignmentPacks.map(_encodeAssignmentPack).toList(),
+        'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),
+        'recentRuntimeSessionsByLearnerId': recentRuntimeSessionsByLearnerId.map(
+          (key, value) => MapEntry(
+            key,
+            value.map(_encodeBackendLessonSession).toList(),
+          ),
+        ),
+        'activeSession': activeSession == null ? null : _encodeLessonSession(activeSession!),
+      };
+      await prefs.setString(_kPersistenceStorageKey, jsonEncode(snapshot));
+      persistenceError = null;
+    } catch (error) {
+      persistenceError = 'Unable to save tablet state locally: $error';
+    }
   }
 
   DateTime? _parseDate(Object? raw) {
@@ -2543,6 +2778,35 @@ class LumoAppState {
     final hour = value.hour.toString().padLeft(2, '0');
     final minute = value.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+}
+
+class RewardRedemptionOption {
+  final String id;
+  final String title;
+  final String description;
+  final int cost;
+  final String icon;
+  final bool unlocked;
+
+  const RewardRedemptionOption({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.cost,
+    required this.icon,
+    this.unlocked = false,
+  });
+
+  RewardRedemptionOption copyWith({bool? unlocked}) {
+    return RewardRedemptionOption(
+      id: id,
+      title: title,
+      description: description,
+      cost: cost,
+      icon: icon,
+      unlocked: unlocked ?? this.unlocked,
+    );
   }
 }
 

@@ -28,6 +28,20 @@ export type RewardBadge = {
   target: number;
 };
 
+export type RewardTransaction = {
+  id: string;
+  studentId?: string;
+  lessonId?: string | null;
+  moduleId?: string | null;
+  subjectId?: string | null;
+  kind: string;
+  xpDelta: number;
+  badgeId?: string | null;
+  label?: string | null;
+  createdAt?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
 export type RewardSnapshot = {
   learnerId: string;
   learnerName?: string;
@@ -44,7 +58,7 @@ export type RewardSnapshot = {
   progressToNextLevel: number;
   badgesUnlocked: number;
   badges: RewardBadge[];
-  recentTransactions: Array<Record<string, unknown>>;
+  recentTransactions: RewardTransaction[];
 };
 
 export type WorkboardItem = {
