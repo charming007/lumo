@@ -89,6 +89,10 @@ function buildWorkboard() {
 
     return {
       id: entry.id,
+      studentId: entry.studentId,
+      cohortId: student?.cohortId ?? null,
+      podId: student?.podId ?? null,
+      mallamId: student?.mallamId ?? null,
       studentName: student?.name ?? 'Unknown learner',
       cohortName: student?.cohortName ?? null,
       mallamName: student?.mallamName ?? null,
@@ -610,6 +614,47 @@ function buildProgressionRollup({ cohortId = null, podId = null, mallamId = null
   };
 }
 
+function buildOperationsReport({ cohortId = null, podId = null, mallamId = null, subjectId = null, learnerId = null, since = null, until = null, limit = 20 } = {}) {
+  const runtime = buildRuntimeAnalytics({ learnerId, cohortId, podId, mallamId, since, until, limit });
+  const progression = buildProgressionRollup({ cohortId, podId, mallamId, subjectId, since, until });
+  const rewardsReport = buildRewardsReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
+  const integrity = require('./store').getStorageIntegrityReport();
+  const workboard = buildWorkboard()
+    .filter((item) => (!cohortId || item.cohortId === cohortId) && (!podId || item.podId === podId) && (!mallamId || item.mallamId === mallamId))
+    .slice(0, Math.max(1, Math.min(Number(limit || 20), 100)));
+
+  return {
+    scope: { cohortId, podId, mallamId, subjectId, learnerId, since, until, limit },
+    summary: {
+      learnersInScope: runtime.summary.distinctLearners || rewardsReport.summary.learners,
+      runtimeCompletionRate: runtime.summary.completionRate,
+      runtimeAbandonedSessions: runtime.summary.abandonedSessions,
+      progressionReady: progression.progression.ready,
+      progressionWatch: progression.progression.watch,
+      rewardPendingRequests: rewardsReport.summary.requestStatusCounts.pending || 0,
+      rewardFulfillmentRate: rewardsReport.summary.fulfillmentRate,
+      integrityIssueCount: integrity.summary.issueCount,
+    },
+    runtime: runtime.summary,
+    progression: progression.progression,
+    rewards: rewardsReport.summary,
+    integrity: integrity.summary,
+    hotlist: {
+      watchLearners: workboard.filter((item) => item.progressionStatus === 'watch').slice(0, 10),
+      readyLearners: workboard.filter((item) => item.progressionStatus === 'ready').slice(0, 10),
+      runtimeLearners: runtime.learnerBreakdown.slice(0, 10),
+      rewardQueue: rewardsReport.recentRequests.filter((item) => ['pending', 'approved'].includes(item.status)).slice(0, 10),
+    },
+    recent: {
+      sessions: runtime.recentSessions.slice(0, 10),
+      events: runtime.recentEvents.slice(0, 10),
+      overrides: progression.overrides.slice(0, 10),
+      rewardAdjustments: rewardsReport.recentAdjustments.slice(0, 10),
+      integrityIssues: integrity.issues.slice(0, 10),
+    },
+  };
+}
+
 function buildRewardsReport({ cohortId = null, podId = null, mallamId = null, learnerId = null, since = null, until = null, limit = 20 } = {}) {
   const students = learnerId
     ? buildScopedStudentSet({ cohortId, podId, mallamId }).filter((student) => student.id === learnerId)
@@ -709,5 +754,6 @@ module.exports = {
   buildRuntimeAnalytics,
   buildEngagementReport,
   buildProgressionRollup,
+  buildOperationsReport,
   buildRewardsReport,
 };

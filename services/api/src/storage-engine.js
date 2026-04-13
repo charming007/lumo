@@ -112,6 +112,17 @@ function createFileStorageEngine(filePath) {
       fs.copyFileSync(backupPath, resolvedFile);
       return resolvedFile;
     },
+    deleteBackup(backupPath) {
+      ensureDir(resolvedFile);
+      if (!backupPath || !fs.existsSync(backupPath)) {
+        const error = new Error('Backup file not found');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      fs.unlinkSync(backupPath);
+      return backupPath;
+    },
     listBackups,
     getStatus() {
       ensureDir(resolvedFile);
@@ -225,6 +236,14 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify({ restored: true, backupId }));
       return;
     }
+    if (${JSON.stringify(action)} === 'deleteBackup') {
+      const deleted = await client.query('DELETE FROM lumo_storage_backups WHERE id = $1 RETURNING id', [payload.backupId]);
+      if (!deleted.rows[0]) {
+        throw Object.assign(new Error('Backup row not found'), { statusCode: 404 });
+      }
+      process.stdout.write(JSON.stringify({ deleted: true, backupId: payload.backupId }));
+      return;
+    }
     if (${JSON.stringify(action)} === 'status') {
       const snap = await client.query('SELECT updated_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_snapshots WHERE id = $1', ['primary']);
       const backups = await client.query('SELECT id, label, created_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_backups ORDER BY created_at DESC LIMIT 10');
@@ -289,14 +308,24 @@ const { Client } = require('pg');
     }));
   }
 
-  function restoreFromBackup(backupPath) {
+  function parseBackupId(backupPath) {
     const match = String(backupPath || '').match(/^postgres:lumo_storage_backups:(\d+)$/);
     if (!match) {
       const error = new Error('Backup path must look like postgres:lumo_storage_backups:<id>');
       error.statusCode = 400;
       throw error;
     }
-    runPg('restore', { backupId: Number(match[1]) });
+
+    return Number(match[1]);
+  }
+
+  function restoreFromBackup(backupPath) {
+    runPg('restore', { backupId: parseBackupId(backupPath) });
+    return backupPath;
+  }
+
+  function deleteBackup(backupPath) {
+    runPg('deleteBackup', { backupId: parseBackupId(backupPath) });
     return backupPath;
   }
 
@@ -308,6 +337,7 @@ const { Client } = require('pg');
     write,
     checkpoint,
     restoreFromBackup,
+    deleteBackup,
     listBackups,
     getStatus() {
       const status = runPg('status') || {};

@@ -332,6 +332,33 @@ function checkpointStorage(label) {
   };
 }
 
+function listStorageBackups(limit = 20) {
+  const data = require('./data');
+
+  if (typeof data.storage?.listBackups !== 'function') {
+    return [];
+  }
+
+  return data.storage.listBackups(limit);
+}
+
+function deleteStorageBackup(backupPath) {
+  const data = require('./data');
+
+  if (typeof data.storage?.deleteBackup !== 'function') {
+    const error = new Error('Storage backup deletion is not available');
+    error.statusCode = 501;
+    throw error;
+  }
+
+  data.storage.deleteBackup(backupPath);
+
+  return {
+    deleted: backupPath,
+    status: getStorageStatus(),
+  };
+}
+
 function buildStorageIntegrityIssues() {
   const students = listStudents();
   const studentIds = new Set(students.map((item) => item.id));
@@ -606,6 +633,8 @@ module.exports = {
   getStoreMeta,
   getStorageStatus,
   checkpointStorage,
+  listStorageBackups,
+  deleteStorageBackup,
   getStorageIntegrityReport,
   repairStorageIntegrity,
   exportStorageSnapshot,

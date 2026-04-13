@@ -18,7 +18,7 @@ function getDbModeMeta() {
     mode,
     persistent: isPersistentMode(),
     hasDatabaseUrl,
-    driver: mode === 'postgres' ? 'prisma-postgres-planned' : 'json-file',
+    driver: mode === 'postgres' ? 'pg-jsonb-snapshot' : 'json-file',
   };
 }
 
