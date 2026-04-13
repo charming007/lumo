@@ -132,6 +132,7 @@ export default async function HomePage() {
       return {
         id: module.id,
         title: module.title,
+        subjectId: module.subjectId ?? '',
         subjectName: module.subjectName ?? '—',
         missingLessons,
         hasAssessmentGate,
@@ -295,20 +296,31 @@ export default async function HomePage() {
               {releaseFeedsFailed ? sectionAlert('Blocker rows below may be incomplete because a curriculum feed is missing.', 'warning') : null}
               <SimpleTable
                 columns={['Module', 'Subject', 'Gaps', 'Release risk']}
-                rows={releaseBlockers.length ? releaseBlockers.slice(0, 5).map((module) => [
-                  <Link key={`${module.id}-module`} href="/content" style={tableLinkStyle}>
-                    {module.title}
-                  </Link>,
-                  module.subjectName,
-                  module.missingLessons > 0 ? `${module.missingLessons} lesson gap${module.missingLessons === 1 ? '' : 's'}` : 'Lessons complete',
-                  <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 6 }}>
-                    <span>{module.hasAssessmentGate ? 'Assessment linked; content still incomplete.' : 'Missing assessment gate before publish.'}</span>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Link href="/content" style={tableLinkStyle}>Open content</Link>
-                      {!module.hasAssessmentGate ? <Link href="/assessments" style={tableLinkStyle}>Add assessment gate</Link> : null}
-                    </div>
-                  </div>,
-                ]) : [[<span key="release-clear" style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseFeedsFailed ? 'Curriculum feeds unavailable — retry once content data is back.' : 'No blocker rows to clear. Content release lane is clean.'}</span>, '', '', '']]}
+                rows={releaseBlockers.length ? releaseBlockers.slice(0, 5).map((module) => {
+                  const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
+                  const createLessonHref = `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=%2F&focus=blockers`;
+
+                  return [
+                    <div key={`${module.id}-module`} style={{ display: 'grid', gap: 6 }}>
+                      <Link href={blockerBoardHref} style={tableLinkStyle}>
+                        {module.title}
+                      </Link>
+                      <span style={{ color: '#64748b', fontSize: 13 }}>{module.blockerCount} release blocker{module.blockerCount === 1 ? '' : 's'}</span>
+                    </div>,
+                    module.subjectName,
+                    <div key={`${module.id}-gaps`} style={{ display: 'grid', gap: 6 }}>
+                      <span>{module.missingLessons > 0 ? `${module.missingLessons} lesson gap${module.missingLessons === 1 ? '' : 's'}` : 'Lessons complete'}</span>
+                      {module.missingLessons > 0 ? <Link href={createLessonHref} style={tableLinkStyle}>Create missing lesson</Link> : null}
+                    </div>,
+                    <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 6 }}>
+                      <span>{module.hasAssessmentGate ? 'Assessment linked; content still incomplete.' : 'Missing assessment gate before publish.'}</span>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <Link href={blockerBoardHref} style={tableLinkStyle}>Open blockers board</Link>
+                        {!module.hasAssessmentGate ? <Link href={blockerBoardHref} style={tableLinkStyle}>Add assessment gate</Link> : null}
+                      </div>
+                    </div>,
+                  ];
+                }) : [[<span key="release-clear" style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseFeedsFailed ? 'Curriculum feeds unavailable — retry once content data is back.' : 'No blocker rows to clear. Content release lane is clean.'}</span>, '', '', '']]}
               />
             </div>
           </Card>
