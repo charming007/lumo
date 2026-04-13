@@ -455,10 +455,67 @@ function exportStorageSnapshot() {
       snapshot[key] = data[key];
     });
 
+  const collectionCounts = Object.fromEntries(
+    Object.entries(snapshot)
+      .filter(([, value]) => Array.isArray(value))
+      .map(([key, value]) => [key, value.length]),
+  );
+
   return {
     exportedAt: new Date().toISOString(),
     mode: getDbMode(),
+    collectionCounts,
     snapshot,
+  };
+}
+
+function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = true } = {}) {
+  const data = require('./data');
+
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+    const error = new Error('Provide snapshot object');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const before = exportStorageSnapshot();
+
+  if (createCheckpoint && typeof data.storage?.checkpoint === 'function') {
+    data.storage.checkpoint('pre-import');
+  }
+
+  Object.keys(before.snapshot).forEach((key) => {
+    const incoming = snapshot[key];
+
+    if (!Array.isArray(incoming)) {
+      if (!merge) {
+        data[key] = [];
+      }
+      return;
+    }
+
+    data[key] = merge ? [...data[key], ...incoming] : incoming;
+  });
+
+  data.persist();
+  data.reload();
+
+  return {
+    importedAt: new Date().toISOString(),
+    merge,
+    before: before.collectionCounts,
+    after: exportStorageSnapshot().collectionCounts,
+    status: getStorageStatus(),
+  };
+}
+
+function reloadStorageSnapshot() {
+  const data = require('./data');
+  data.reload();
+
+  return {
+    reloadedAt: new Date().toISOString(),
+    status: getStorageStatus(),
   };
 }
 
@@ -552,5 +609,7 @@ module.exports = {
   getStorageIntegrityReport,
   repairStorageIntegrity,
   exportStorageSnapshot,
+  importStorageSnapshot,
+  reloadStorageSnapshot,
   restoreStorageBackup,
 };

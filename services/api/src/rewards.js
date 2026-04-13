@@ -332,11 +332,26 @@ function buildLearnerRewardHub(studentId) {
     affordable: snapshot.totalXp >= item.xpCost,
     xpShortfall: Math.max(0, item.xpCost - snapshot.totalXp),
   }));
+  const recentRequests = repository.listRewardRedemptionRequests()
+    .filter((item) => item.studentId === studentId)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+    .slice(0, 10);
+  const pendingRequests = recentRequests.filter((item) => ['pending', 'approved'].includes(item.status));
 
   return {
     learnerId: studentId,
     snapshot,
+    summary: {
+      affordableRewardCount: availableRewards.filter((item) => item.affordable).length,
+      pendingRequestCount: pendingRequests.length,
+      fulfilledRequestCount: recentRequests.filter((item) => item.status === 'fulfilled').length,
+    },
     availableRewards,
+    recentRequests,
+    pendingRequests,
+    featuredReward: availableRewards
+      .slice()
+      .sort((a, b) => (a.affordable === b.affordable ? a.xpCost - b.xpCost : a.affordable ? -1 : 1))[0] || null,
     nextUnlock: availableRewards
       .filter((item) => item.xpShortfall > 0)
       .sort((a, b) => a.xpShortfall - b.xpShortfall)[0] || null,

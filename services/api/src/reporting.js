@@ -306,12 +306,36 @@ function buildRuntimeAnalytics({ learnerId = null, lessonId = null, cohortId = n
   const abandoned = sessions.filter((entry) => entry.status === 'abandoned').length;
   const totalResponses = sessions.reduce((sum, entry) => sum + Number(entry.responsesCaptured || 0), 0);
   const totalSupport = sessions.reduce((sum, entry) => sum + Number(entry.supportActionsUsed || 0), 0);
+  const totalAudioCaptures = sessions.reduce((sum, entry) => sum + Number(entry.audioCaptures || 0), 0);
   const avgProgressRatio = sessions.length
     ? sessions.reduce((sum, entry) => {
       const ratio = entry.stepsTotal > 0 ? Number(entry.currentStepIndex || 0) / Number(entry.stepsTotal || 1) : 0;
       return sum + Math.max(0, Math.min(1, ratio));
     }, 0) / sessions.length
     : 0;
+  const eventTypeCounts = sessionEvents.reduce((acc, entry) => {
+    const key = entry.type || 'unknown';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const automationSummary = sessions.reduce((acc, entry) => {
+    const key = entry.automationStatus || 'unknown';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const learnerBreakdown = Array.from(new Set(sessions.map((entry) => entry.studentId).filter(Boolean))).map((studentId) => {
+    const studentSessions = sessions.filter((entry) => entry.studentId === studentId);
+    const student = repository.findStudentById(studentId);
+    return {
+      learnerId: studentId,
+      learnerName: student?.name || 'Unknown learner',
+      sessions: studentSessions.length,
+      completedSessions: studentSessions.filter((entry) => entry.status === 'completed').length,
+      totalResponses: studentSessions.reduce((sum, entry) => sum + Number(entry.responsesCaptured || 0), 0),
+      totalSupportActions: studentSessions.reduce((sum, entry) => sum + Number(entry.supportActionsUsed || 0), 0),
+      lastActivityAt: studentSessions.slice().sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))[0]?.lastActivityAt ?? null,
+    };
+  }).sort((a, b) => b.sessions - a.sessions || b.completedSessions - a.completedSessions);
 
   return {
     summary: {
@@ -325,6 +349,8 @@ function buildRuntimeAnalytics({ learnerId = null, lessonId = null, cohortId = n
       averageProgressRatio: avgProgressRatio,
       totalResponses,
       totalSupportActions: totalSupport,
+      totalAudioCaptures,
+      distinctLearners: new Set(sessions.map((entry) => entry.studentId).filter(Boolean)).size,
       generatedAt: new Date().toISOString(),
       cohortId,
       podId,
@@ -332,6 +358,9 @@ function buildRuntimeAnalytics({ learnerId = null, lessonId = null, cohortId = n
       since,
       until,
     },
+    automationSummary,
+    eventTypeCounts,
+    learnerBreakdown: learnerBreakdown.slice(0, limit),
     recentSessions: sessions.slice(0, limit).map(presenters.presentLessonSession),
     recentEvents: sessionEvents.slice(0, limit),
   };
@@ -486,6 +515,30 @@ function buildEngagementReport({ cohortId = null, podId = null, mallamId = null,
     };
   }).sort((a, b) => b.sessions - a.sessions || b.totalXp - a.totalXp || a.learnerName.localeCompare(b.learnerName));
 
+  const subjectBreakdown = repository.listSubjects().map((subject) => {
+    const subjectProgress = progressEntries.filter((entry) => entry.subjectId === subject.id);
+    return {
+      subjectId: subject.id,
+      subjectName: subject.name,
+      learners: new Set(subjectProgress.map((entry) => entry.studentId)).size,
+      averageMastery: subjectProgress.length ? subjectProgress.reduce((sum, entry) => sum + Number(entry.mastery || 0), 0) / subjectProgress.length : 0,
+      lessonsCompleted: subjectProgress.reduce((sum, entry) => sum + Number(entry.lessonsCompleted || 0), 0),
+    };
+  });
+  const podBreakdown = Array.from(new Set(students.map((student) => student.podId).filter(Boolean))).map((currentPodId) => {
+    const podStudents = students.filter((student) => student.podId === currentPodId);
+    const podStudentIds = new Set(podStudents.map((student) => student.id));
+    const podSessions = sessions.filter((entry) => podStudentIds.has(entry.studentId));
+    return {
+      podId: currentPodId,
+      podLabel: repository.findPodById(currentPodId)?.label || currentPodId,
+      learners: podStudents.length,
+      sessions: podSessions.length,
+      completedSessions: podSessions.filter((entry) => entry.status === 'completed').length,
+      totalXpAwarded: rewardsTx.filter((entry) => podStudentIds.has(entry.studentId)).reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
+    };
+  }).sort((a, b) => b.sessions - a.sessions || b.totalXpAwarded - a.totalXpAwarded);
+
   return {
     scope: { cohortId, podId, mallamId, learnerId, since, until, learnerCount: students.length },
     totals: {
@@ -513,6 +566,8 @@ function buildEngagementReport({ cohortId = null, podId = null, mallamId = null,
       cancelled: rewardRequests.filter((entry) => entry.status === 'cancelled').length,
     },
     eventTypeCounts,
+    subjectBreakdown,
+    podBreakdown,
     dailyTrend: Array.from(byDayMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
     learnerBreakdown: learnerBreakdown.slice(0, 50),
     topLearners: rewards.buildScopedLeaderboard({ cohortId, podId, mallamId, limit: 10 }).filter((entry) => !learnerId || entry.learnerId === learnerId),

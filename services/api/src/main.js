@@ -1011,6 +1011,25 @@ app.get('/api/v1/learner-app/rewards', (req, res) => {
   return res.json(rewards.buildLearnerRewardHub(learner.id));
 });
 
+app.get('/api/v1/learner-app/rewards/store/:itemId', (req, res) => {
+  const item = rewards.getRewardStoreItem(req.params.itemId);
+
+  if (!item) {
+    return res.status(404).json({ message: 'Reward item not found' });
+  }
+
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+  const snapshot = learner ? rewards.buildLearnerRewards(learner.id) : null;
+
+  return res.json({
+    ...item,
+    learnerId: learner?.id ?? null,
+    affordable: snapshot ? snapshot.totalXp >= item.xpCost : null,
+    xpShortfall: snapshot ? Math.max(0, item.xpCost - snapshot.totalXp) : null,
+    currentXp: snapshot?.totalXp ?? null,
+  });
+});
+
 app.get('/api/v1/learner-app/rewards/leaderboard', (req, res) => {
   const limit = Number(req.query.limit || 10);
   return res.json(rewards.buildScopedLeaderboard({
@@ -1920,6 +1939,26 @@ app.post('/api/v1/admin/storage/repair-integrity', requireRole(['admin']), (req,
 
 app.get('/api/v1/admin/storage/export', requireRole(['admin']), (_req, res) => {
   res.json(store.exportStorageSnapshot());
+});
+
+app.post('/api/v1/admin/storage/import', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.status(201).json(store.importStorageSnapshot({
+      snapshot: req.body?.snapshot,
+      merge: Boolean(req.body?.merge),
+      createCheckpoint: req.body?.createCheckpoint !== false,
+    }));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/admin/storage/reload', requireRole(['admin']), (_req, res, next) => {
+  try {
+    return res.status(201).json(store.reloadStorageSnapshot());
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.post('/api/v1/admin/storage/checkpoint', requireRole(['admin']), (req, res, next) => {
