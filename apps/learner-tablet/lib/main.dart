@@ -546,55 +546,166 @@ class AllStudentsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final leaderboard = buildLearnerLeaderboard(state.learners);
+    final topLearner = leaderboard.firstOrNull;
+    final averagePoints = state.learners.isEmpty
+        ? 0
+        : state.learners
+                .map(learnerMotivationPoints)
+                .reduce((value, item) => value + item) ~/
+            state.learners.length;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               LumoTopBar(
                 onLogoTap: () =>
                     Navigator.of(context).popUntil((route) => route.isFirst),
               ),
               const SizedBox(height: 20),
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  const Expanded(
+                  const SizedBox(
+                    width: 520,
                     child: SectionTitle(
                       title: 'All learners',
                       subtitle:
-                          'Tap a learner to open their learner data page.',
+                          'Cleaner cards, visible progress, and a live points leaderboard so it is obvious who is ready next.',
                     ),
                   ),
                   StatusPill(
                     text: '${state.learners.length} learners',
                     color: LumoTheme.accentGreen,
                   ),
+                  StatusPill(
+                    text: '$averagePoints avg pts',
+                    color: LumoTheme.primary,
+                  ),
+                  if (topLearner != null)
+                    StatusPill(
+                      text:
+                          '${topLearner.learner.name.split(' ').first} leads • ${topLearner.points} pts',
+                      color: LumoTheme.accentOrange,
+                    ),
                 ],
               ),
               const SizedBox(height: 16),
               _BackendStatusBanner(state: state),
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stack = constraints.maxWidth < 1100;
+                  final leaderboardPanel = _LearnerLeaderboardPanel(
+                    leaderboard: leaderboard,
+                    currentLearnerId: state.currentLearner?.id,
+                  );
+                  final coachPanel = SoftPanel(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.tips_and_updates_rounded,
+                                color: LumoTheme.primary),
+                            SizedBox(width: 8),
+                            Text(
+                              'Pick fast',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          topLearner == null
+                              ? 'Open any learner card to view rewards, streaks, and assigned lessons.'
+                              : '${topLearner.learner.name} is leading the board right now. Tap Profile for the full reward view or Start assigned to continue momentum.',
+                          style: const TextStyle(
+                            color: Color(0xFF475569),
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: const [
+                            _MiniMetricChip(
+                              icon: Icons.local_fire_department_rounded,
+                              label: 'Streaks stay visible',
+                            ),
+                            _MiniMetricChip(
+                              icon: Icons.workspace_premium_rounded,
+                              label: 'Points shown on every card',
+                            ),
+                            _MiniMetricChip(
+                              icon: Icons.play_circle_fill_rounded,
+                              label: 'Start from card actions',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (stack) {
+                    return Column(
+                      children: [
+                        leaderboardPanel,
+                        const SizedBox(height: 12),
+                        coachPanel,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: leaderboardPanel),
+                      const SizedBox(width: 12),
+                      Expanded(child: coachPanel),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 16),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final crossAxisCount = _adaptiveGridCount(
                       constraints.maxWidth,
-                      minTileWidth: 280,
+                      minTileWidth: 320,
                       maxCount: 3,
                     );
+                    final childAspectRatio = constraints.maxWidth < 900
+                        ? 0.78
+                        : constraints.maxWidth < 1280
+                            ? 0.92
+                            : 1.02;
 
                     return GridView.builder(
+                      padding: const EdgeInsets.only(bottom: 12),
                       itemCount: state.learners.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: crossAxisCount,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio:
-                            constraints.maxWidth < 900 ? 0.60 : 0.90,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: childAspectRatio,
                       ),
                       itemBuilder: (context, index) {
                         final learner = state.learners[index];
+                        final leaderboardEntry = learnerLeaderboardEntryFor(
+                          leaderboard,
+                          learner.id,
+                        );
                         return GestureDetector(
                           onTap: () {
                             state.selectLearner(learner);
@@ -611,6 +722,7 @@ class AllStudentsPage extends StatelessWidget {
                           child: _LearnerCard(
                             learner: learner,
                             state: state,
+                            leaderboardEntry: leaderboardEntry,
                             isActive: state.currentLearner?.id == learner.id,
                             onSetActive: () {
                               state.selectLearner(learner);
@@ -669,12 +781,18 @@ class LearnerProfilePage extends StatelessWidget {
     final rewards = learner.rewards;
     final totalXp = learner.totalXp;
     final totalMinutes = learner.estimatedTotalMinutes;
+    final totalPoints = learnerMotivationPoints(learner);
     final assignedLessons = state.lessonsForLearner(learner).take(3).toList();
     final nextLesson = state.nextAssignedLessonForLearner(learner);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
     final recommendedModule = state.recommendedModuleForLearner(learner);
     final recentSessions = state.recentRuntimeSessionsForLearner(learner);
     final resumableSession = state.resumableRuntimeSessionForLearner(learner);
+    final leaderboard = buildLearnerLeaderboard(state.learners);
+    final leaderboardEntry =
+        learnerLeaderboardEntryFor(leaderboard, learner.id);
+    final unlockedBadges =
+        rewards?.badges.where((badge) => badge.earned).toList() ?? const [];
 
     return Scaffold(
       body: SafeArea(
@@ -686,14 +804,14 @@ class LearnerProfilePage extends StatelessWidget {
               ResponsivePane(
                 child: MallamPanel(
                   instruction:
-                      'This learner data page shows the child\'s basics, streak, XP, time spent, and a simple data export.',
+                      'This learner data page now shows the child\'s rewards, leaderboard rank, streak, XP, time spent, and assigned lesson momentum.',
                   onVoiceTap: () {
                     state.replayVisiblePrompt(
-                      'You are viewing ${learner.name}. This page shows streaks, total XP, total learning time, and a button to download learner data.',
+                      'You are viewing ${learner.name}. This page shows points, streaks, badge rewards, leaderboard rank, and the fastest way to continue learning.',
                     );
                   },
                   prompt:
-                      'You are viewing ${learner.name}. This page shows streaks, total XP, total learning time, and a button to download learner data.',
+                      'You are viewing ${learner.name}. This page shows points, streaks, badge rewards, leaderboard rank, and the fastest way to continue learning.',
                   speakerMode: SpeakerMode.guiding,
                   statusLabel: 'AI Mallam explains this learner page',
                 ),
@@ -710,6 +828,15 @@ class LearnerProfilePage extends StatelessWidget {
                             child: const Text('Back'),
                           ),
                           const Spacer(),
+                          if (leaderboardEntry != null) ...[
+                            StatusPill(
+                              text: '#${leaderboardEntry.rank} on leaderboard',
+                              color: leaderboardEntry.rank == 1
+                                  ? LumoTheme.accentOrange
+                                  : LumoTheme.primary,
+                            ),
+                            const SizedBox(width: 10),
+                          ],
                           StatusPill(
                             text: learner.enrollmentStatus,
                             color: LumoTheme.primary,
@@ -722,51 +849,22 @@ class LearnerProfilePage extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 34,
-                                    backgroundColor: const Color(0xFFE9E7FF),
-                                    child: Text(
-                                      learner.name.characters.first,
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          learner.name,
-                                          style: const TextStyle(
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${learner.learnerCode} • Age ${learner.age} • ${learner.village}',
-                                          style: const TextStyle(
-                                            color: Color(0xFF64748B),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                              _LearnerRewardHero(
+                                learner: learner,
+                                rewards: rewards,
+                                totalXp: totalXp,
+                                totalPoints: totalPoints,
+                                totalMinutes: totalMinutes,
+                                leaderboardEntry: leaderboardEntry,
+                                unlockedBadgeCount: unlockedBadges.length,
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 18),
                               LayoutBuilder(
                                 builder: (context, constraints) {
                                   final compact = constraints.maxWidth < 640;
                                   final tiles = [
                                     MetricTile(
-                                      label: 'Streaks',
+                                      label: 'Streak',
                                       value: '${learner.streakDays} days',
                                       icon: Icons.local_fire_department_rounded,
                                       color: LumoTheme.accentOrange,
@@ -778,16 +876,16 @@ class LearnerProfilePage extends StatelessWidget {
                                       color: LumoTheme.primary,
                                     ),
                                     MetricTile(
-                                      label: rewards == null
-                                          ? 'Total time'
-                                          : 'Points',
-                                      value: rewards == null
-                                          ? '$totalMinutes min'
-                                          : '${rewards.points} pts',
-                                      icon: rewards == null
-                                          ? Icons.schedule_rounded
-                                          : Icons.workspace_premium_rounded,
+                                      label: 'Points',
+                                      value: '$totalPoints pts',
+                                      icon: Icons.workspace_premium_rounded,
                                       color: LumoTheme.accentGreen,
+                                    ),
+                                    MetricTile(
+                                      label: 'Learning time',
+                                      value: '$totalMinutes min',
+                                      icon: Icons.schedule_rounded,
+                                      color: const Color(0xFF0EA5E9),
                                     ),
                                   ];
 
@@ -808,16 +906,18 @@ class LearnerProfilePage extends StatelessWidget {
                                     );
                                   }
 
-                                  return Row(
-                                    children: [
-                                      for (var i = 0;
-                                          i < tiles.length;
-                                          i++) ...[
-                                        Expanded(child: tiles[i]),
-                                        if (i < tiles.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
-                                    ],
+                                  return Wrap(
+                                    spacing: 12,
+                                    runSpacing: 12,
+                                    children: tiles
+                                        .map(
+                                          (tile) => SizedBox(
+                                            width:
+                                                (constraints.maxWidth - 12) / 2,
+                                            child: tile,
+                                          ),
+                                        )
+                                        .toList(),
                                   );
                                 },
                               ),
@@ -828,27 +928,42 @@ class LearnerProfilePage extends StatelessWidget {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        'Live rewards snapshot',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                        ),
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.emoji_events_rounded,
+                                              color: LumoTheme.accentOrange),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Rewards spotlight',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       const SizedBox(height: 12),
-                                      InfoRow(
-                                        label: 'Level',
-                                        value:
-                                            '${rewards.levelLabel} • Level ${rewards.level}',
-                                      ),
-                                      InfoRow(
-                                        label: 'Points',
-                                        value: '${rewards.points} points',
-                                      ),
-                                      InfoRow(
-                                        label: 'Next level',
-                                        value: rewards.nextLevelLabel == null
-                                            ? 'Current top level'
-                                            : '${rewards.nextLevelLabel} (${rewards.xpForNextLevel} XP to go)',
+                                      LabelValueWrap(
+                                        items: [
+                                          (
+                                            'Level',
+                                            '${rewards.levelLabel} • Lv ${rewards.level}',
+                                          ),
+                                          (
+                                            'Points',
+                                            '${rewards.points} points'
+                                          ),
+                                          (
+                                            'Badges unlocked',
+                                            '${unlockedBadges.length} of ${rewards.badges.length}',
+                                          ),
+                                          (
+                                            'Next level',
+                                            rewards.nextLevelLabel == null
+                                                ? 'Top celebration band'
+                                                : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
+                                          ),
+                                        ],
                                       ),
                                       const SizedBox(height: 12),
                                       LinearProgressIndicator(
@@ -874,10 +989,12 @@ class LearnerProfilePage extends StatelessWidget {
                                                 ),
                                               ]
                                             : rewards.badges
-                                                .take(4)
+                                                .take(6)
                                                 .map(
                                                   (badge) => StatusPill(
-                                                    text: badge.title,
+                                                    text: badge.earned
+                                                        ? '${badge.icon} ${badge.title}'
+                                                        : '${badge.title} ${badge.progress}/${badge.target}',
                                                     color: badge.earned
                                                         ? LumoTheme.accentGreen
                                                         : LumoTheme
@@ -888,6 +1005,16 @@ class LearnerProfilePage extends StatelessWidget {
                                       ),
                                     ],
                                   ),
+                                ),
+                                const SizedBox(height: 18),
+                              ],
+                              if (leaderboard.isNotEmpty) ...[
+                                _LearnerLeaderboardPanel(
+                                  leaderboard: leaderboard.take(5).toList(),
+                                  currentLearnerId: learner.id,
+                                  title: 'Points leaderboard',
+                                  subtitle:
+                                      'Use this to celebrate progress publicly and keep momentum visible.',
                                 ),
                                 const SizedBox(height: 18),
                               ],
@@ -1320,6 +1447,8 @@ class LearnerProfilePage extends StatelessWidget {
                                 'preferredLanguage': learner.preferredLanguage,
                                 'readinessLabel': learner.readinessLabel,
                                 'streakDays': learner.streakDays,
+                                'points': totalPoints,
+                                'totalXp': totalXp,
                                 'attendanceBand': learner.attendanceBand,
                                 'enrollmentStatus': learner.enrollmentStatus,
                                 'lastLessonSummary': learner.lastLessonSummary,
@@ -2488,6 +2617,43 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       ),
                     ),
                   const SizedBox(height: 16),
+                  if (selectedLearner != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: LumoTheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${selectedLearner!.name} is selected for ${lesson.title}.',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                selectedLearner = null;
+                              });
+                            },
+                            child: const Text('Clear'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Expanded(
                     child: state.learners.isEmpty
                         ? Center(
@@ -2559,14 +2725,21 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 maxCount: 4,
                               );
 
+                              final mainAxisExtent = constraints.maxWidth < 760
+                                  ? 276.0
+                                  : constraints.maxWidth < 1180
+                                      ? 292.0
+                                      : 308.0;
+
                               return GridView.builder(
+                                padding: const EdgeInsets.only(bottom: 12),
                                 itemCount: state.learners.length,
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: crossAxisCount,
                                   mainAxisSpacing: 12,
                                   crossAxisSpacing: 12,
-                                  childAspectRatio: 1.12,
+                                  mainAxisExtent: mainAxisExtent,
                                 ),
                                 itemBuilder: (context, index) {
                                   final learner = state.learners[index];
@@ -2591,6 +2764,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                       child: _LearnerCard(
                                         learner: learner,
                                         state: state,
+                                        dense: true,
+                                        isActive: isSelected,
                                       ),
                                     ),
                                   );
@@ -5267,7 +5442,9 @@ class _SubjectCard extends StatelessWidget {
 class _LearnerCard extends StatelessWidget {
   final LearnerProfile learner;
   final LumoAppState? state;
+  final LearnerLeaderboardEntry? leaderboardEntry;
   final bool isActive;
+  final bool dense;
   final VoidCallback? onSetActive;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onStartLesson;
@@ -5275,7 +5452,9 @@ class _LearnerCard extends StatelessWidget {
   const _LearnerCard({
     required this.learner,
     this.state,
+    this.leaderboardEntry,
     this.isActive = false,
+    this.dense = false,
     this.onSetActive,
     this.onOpenProfile,
     this.onStartLesson,
@@ -5284,41 +5463,39 @@ class _LearnerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nextPack = state?.nextAssignmentPackForLearner(learner);
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFEAEAF4)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 380;
-              final status = StatusPill(
-                text: isActive
-                    ? 'Active learner'
-                    : nextPack == null
-                        ? learner.attendanceBand
-                        : 'Backend assigned',
-                color: isActive
-                    ? LumoTheme.primary
-                    : nextPack == null
-                        ? LumoTheme.accentOrange
-                        : LumoTheme.accentGreen,
-              );
+    final points = learnerMotivationPoints(learner);
+    final xp = learner.totalXp;
+    final streak = learner.streakDays;
 
-              if (compact) {
-                return Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactHeight = dense || constraints.maxHeight < 470;
+
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color:
+                  isActive ? const Color(0xFFC7D2FE) : const Color(0xFFEAEAF4),
+              width: isActive ? 1.5 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     CircleAvatar(
@@ -5329,115 +5506,567 @@ class _LearnerCard extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    status,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            learner.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            compactHeight
+                                ? 'Age ${learner.age}'
+                                : 'Age ${learner.age} • ${learner.village}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFF6B7280)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (leaderboardEntry != null)
+                      StatusPill(
+                        text: '#${leaderboardEntry!.rank}',
+                        color: leaderboardEntry!.rank == 1
+                            ? LumoTheme.accentOrange
+                            : LumoTheme.primary,
+                      ),
                   ],
-                );
-              }
-
-              return Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: const Color(0xFFE9E7FF),
-                    child: Text(
-                      learner.name.characters.first,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    StatusPill(
+                      text: compactHeight && !isActive
+                          ? 'Ready'
+                          : (isActive
+                              ? 'Active learner'
+                              : learner.readinessLabel),
+                      color:
+                          isActive ? LumoTheme.primary : LumoTheme.accentGreen,
+                    ),
+                    StatusPill(
+                      text: '$points pts',
+                      color: LumoTheme.accentOrange,
+                    ),
+                    if (!compactHeight)
+                      StatusPill(
+                        text: '$streak day streak',
+                        color: const Color(0xFFEF4444),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _LearnerCardStat(
+                              label: 'XP',
+                              value: '$xp',
+                              color: LumoTheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _LearnerCardStat(
+                              label: compactHeight ? 'Streak' : 'Minutes',
+                              value: compactHeight
+                                  ? '$streak d'
+                                  : '${learner.estimatedTotalMinutes}',
+                              color: compactHeight
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF0EA5E9),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (!compactHeight && leaderboardEntry != null) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            leaderboardEntry!.rank == 1
+                                ? 'Top learner right now — keep the fire burning.'
+                                : '${leaderboardEntry!.pointsGapFromLeader} pts behind the leader.',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF475569),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  learner.learnerCode,
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (!compactHeight) ...[
+                  Text(
+                    nextPack == null
+                        ? learner.supportPlan
+                        : nextPack.lessonTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF475569),
+                      height: 1.35,
                     ),
                   ),
-                  const Spacer(),
-                  status,
+                  const SizedBox(height: 8),
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Text(
-            learner.name,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Age ${learner.age} • ${learner.village}',
-            style: const TextStyle(color: Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            learner.learnerCode,
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            learner.readinessLabel,
-            style: const TextStyle(
-              color: LumoTheme.primary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            nextPack == null ? learner.supportPlan : nextPack.lessonTitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF475569),
-              height: 1.35,
-            ),
-          ),
-          if (nextPack != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              state!.backendRoutingSummaryForLearner(learner),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 12,
-                height: 1.35,
-              ),
-            ),
-          ],
-          const Spacer(),
-          InfoRow(
-            label: 'Last attendance',
-            value: learner.lastAttendance,
-          ),
-          if (onSetActive != null ||
-              onOpenProfile != null ||
-              onStartLesson != null) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (onSetActive != null)
-                  OutlinedButton.icon(
-                    onPressed: onSetActive,
-                    icon: const Icon(Icons.person_pin_circle_rounded),
-                    label: Text(isActive ? 'Active now' : 'Set active'),
+                Text(
+                  compactHeight
+                      ? learner.lastAttendance
+                      : 'Last attendance: ${learner.lastAttendance}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
-                if (onOpenProfile != null)
-                  OutlinedButton.icon(
-                    onPressed: onOpenProfile,
-                    icon: const Icon(Icons.badge_rounded),
-                    label: const Text('Profile'),
-                  ),
-                if (onStartLesson != null)
-                  FilledButton.icon(
-                    onPressed: onStartLesson,
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text(
-                        nextPack == null ? 'Start lesson' : 'Start assigned'),
+                ),
+                const SizedBox(height: 12),
+                if (onSetActive != null ||
+                    onOpenProfile != null ||
+                    onStartLesson != null)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (onSetActive != null && !compactHeight)
+                        OutlinedButton.icon(
+                          onPressed: onSetActive,
+                          icon: const Icon(Icons.person_pin_circle_rounded),
+                          label: Text(isActive ? 'Active now' : 'Set active'),
+                        ),
+                      if (onOpenProfile != null)
+                        OutlinedButton.icon(
+                          onPressed: onOpenProfile,
+                          icon: const Icon(Icons.badge_rounded),
+                          label: const Text('Profile'),
+                        ),
+                      if (onStartLesson != null)
+                        FilledButton.icon(
+                          onPressed: onStartLesson,
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: Text(
+                            compactHeight
+                                ? 'Start'
+                                : (nextPack == null
+                                    ? 'Start lesson'
+                                    : 'Start assigned'),
+                          ),
+                        ),
+                    ],
                   ),
               ],
             ),
-          ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class LearnerLeaderboardEntry {
+  final LearnerProfile learner;
+  final int rank;
+  final int points;
+  final int pointsGapFromLeader;
+
+  const LearnerLeaderboardEntry({
+    required this.learner,
+    required this.rank,
+    required this.points,
+    required this.pointsGapFromLeader,
+  });
+}
+
+int learnerMotivationPoints(LearnerProfile learner) =>
+    learner.rewards?.points ?? learner.totalXp;
+
+List<LearnerLeaderboardEntry> buildLearnerLeaderboard(
+    List<LearnerProfile> learners) {
+  final sorted = [...learners]..sort((a, b) {
+      final pointCompare =
+          learnerMotivationPoints(b).compareTo(learnerMotivationPoints(a));
+      if (pointCompare != 0) return pointCompare;
+      final streakCompare = b.streakDays.compareTo(a.streakDays);
+      if (streakCompare != 0) return streakCompare;
+      return a.name.compareTo(b.name);
+    });
+  final leaderPoints =
+      sorted.isEmpty ? 0 : learnerMotivationPoints(sorted.first);
+  return [
+    for (var i = 0; i < sorted.length; i++)
+      LearnerLeaderboardEntry(
+        learner: sorted[i],
+        rank: i + 1,
+        points: learnerMotivationPoints(sorted[i]),
+        pointsGapFromLeader: leaderPoints - learnerMotivationPoints(sorted[i]),
+      ),
+  ];
+}
+
+LearnerLeaderboardEntry? learnerLeaderboardEntryFor(
+  List<LearnerLeaderboardEntry> leaderboard,
+  String learnerId,
+) {
+  for (final entry in leaderboard) {
+    if (entry.learner.id == learnerId) return entry;
+  }
+  return null;
+}
+
+class _LearnerRewardHero extends StatelessWidget {
+  final LearnerProfile learner;
+  final RewardSnapshot? rewards;
+  final int totalXp;
+  final int totalPoints;
+  final int totalMinutes;
+  final LearnerLeaderboardEntry? leaderboardEntry;
+  final int unlockedBadgeCount;
+
+  const _LearnerRewardHero({
+    required this.learner,
+    required this.rewards,
+    required this.totalXp,
+    required this.totalPoints,
+    required this.totalMinutes,
+    required this.leaderboardEntry,
+    required this.unlockedBadgeCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final headline = leaderboardEntry?.rank == 1
+        ? 'Top of the board'
+        : leaderboardEntry == null
+            ? 'Learning momentum'
+            : 'Chasing the top spot';
+    final subline = leaderboardEntry?.rank == 1
+        ? '${learner.name} is leading with $totalPoints points. Keep the streak alive.'
+        : leaderboardEntry == null
+            ? '${learner.name} has $totalPoints points, $totalXp XP, and ${learner.streakDays} streak days.'
+            : '${leaderboardEntry!.pointsGapFromLeader} more points to catch the leader.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF312E81), Color(0xFF6D28D9), Color(0xFF2563EB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF312E81).withValues(alpha: 0.18),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  headline,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (rewards != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${rewards!.levelLabel} • Level ${rewards!.level}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            learner.name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subline,
+            style: const TextStyle(
+              color: Color(0xFFE0E7FF),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _RewardHeroChip(
+                  icon: Icons.workspace_premium_rounded,
+                  label: '$totalPoints pts'),
+              _RewardHeroChip(icon: Icons.stars_rounded, label: '$totalXp XP'),
+              _RewardHeroChip(
+                  icon: Icons.local_fire_department_rounded,
+                  label: '${learner.streakDays} day streak'),
+              _RewardHeroChip(
+                  icon: Icons.schedule_rounded, label: '$totalMinutes mins'),
+              _RewardHeroChip(
+                  icon: Icons.emoji_events_rounded,
+                  label: '$unlockedBadgeCount badge(s)'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardHeroChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _RewardHeroChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LearnerLeaderboardPanel extends StatelessWidget {
+  final List<LearnerLeaderboardEntry> leaderboard;
+  final String? currentLearnerId;
+  final String title;
+  final String subtitle;
+
+  const _LearnerLeaderboardPanel({
+    required this.leaderboard,
+    required this.currentLearnerId,
+    this.title = 'Leaderboard',
+    this.subtitle =
+        'Ranked by acquired points so progress is visible at a glance.',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: const TextStyle(color: Color(0xFF475569), height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          if (leaderboard.isEmpty)
+            const Text('No learners available yet.')
+          else
+            ...leaderboard.take(5).map(
+                  (entry) => Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: entry.learner.id == currentLearnerId
+                          ? const Color(0xFFEEF2FF)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: entry.learner.id == currentLearnerId
+                            ? const Color(0xFFC7D2FE)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: entry.rank == 1
+                              ? const Color(0xFFFDE68A)
+                              : const Color(0xFFE2E8F0),
+                          child: Text(
+                            '#${entry.rank}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                entry.learner.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                entry.rank == 1
+                                    ? 'Leader • ${entry.learner.streakDays} day streak'
+                                    : '${entry.pointsGapFromLeader} pts behind • ${entry.learner.streakDays} day streak',
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${entry.points}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const Text(
+                              'points',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LearnerCardStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _LearnerCardStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
