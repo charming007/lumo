@@ -57,9 +57,12 @@ export function ContentSubjectLanes({
     .sort((left, right) => (left.subject.order ?? 999) - (right.subject.order ?? 999) || left.subject.name.localeCompare(right.subject.name)), [subjects, strands, modules, lessons, assessments]);
 
   const [collapsedSubjects, setCollapsedSubjects] = useState<Record<string, boolean>>({});
+  const [collapsedStrands, setCollapsedStrands] = useState<Record<string, boolean>>({});
   const collapsedCount = subjectSummaries.filter(({ subject }) => collapsedSubjects[subject.id]).length;
-  const allCollapsed = subjectSummaries.length > 0 && collapsedCount === subjectSummaries.length;
-  const allExpanded = collapsedCount === 0;
+  const strandIds = subjectSummaries.flatMap(({ subjectStrands }) => subjectStrands.map((strand) => strand.id));
+  const collapsedStrandCount = strandIds.filter((strandId) => collapsedStrands[strandId]).length;
+  const allCollapsed = subjectSummaries.length > 0 && collapsedCount === subjectSummaries.length && collapsedStrandCount === strandIds.length;
+  const allExpanded = collapsedCount === 0 && collapsedStrandCount === 0;
 
   return (
     <section style={{ display: 'grid', gap: 14, marginBottom: 20 }}>
@@ -71,7 +74,10 @@ export function ContentSubjectLanes({
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button
             type="button"
-            onClick={() => setCollapsedSubjects(Object.fromEntries(subjectSummaries.map(({ subject }) => [subject.id, true])))}
+            onClick={() => {
+              setCollapsedSubjects(Object.fromEntries(subjectSummaries.map(({ subject }) => [subject.id, true])));
+              setCollapsedStrands(Object.fromEntries(strandIds.map((strandId) => [strandId, true])));
+            }}
             disabled={allCollapsed}
             style={{
               ...actionButtonStyle,
@@ -85,7 +91,10 @@ export function ContentSubjectLanes({
           </button>
           <button
             type="button"
-            onClick={() => setCollapsedSubjects({})}
+            onClick={() => {
+              setCollapsedSubjects({});
+              setCollapsedStrands({});
+            }}
             disabled={allExpanded}
             style={{
               ...actionButtonStyle,
@@ -148,6 +157,7 @@ export function ContentSubjectLanes({
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <Pill label={collapsed ? 'Collapsed' : 'Expanded'} tone={collapsed ? '#E2E8F0' : '#EEF2FF'} text={collapsed ? '#334155' : '#3730A3'} />
+                  <Pill label={`${subjectStrands.filter((strand) => collapsedStrands[strand.id]).length}/${subjectStrands.length} strands collapsed`} tone="#F8FAFC" text="#334155" />
                   <Pill label={`${publishedModules} published`} tone={palette.tone} text={palette.text} />
                   <Pill label={`${readyLessons} ready lessons`} tone="#F8FAFC" text="#334155" />
                 </div>
@@ -155,10 +165,37 @@ export function ContentSubjectLanes({
                 <div id={`subject-panel-${subject.id}`} hidden={collapsed} style={{ display: collapsed ? 'none' : 'grid', gap: 10 }}>
                   {subjectStrands.length > 0 ? subjectStrands.map((strand) => {
                     const strandModules = subjectModules.filter((module) => module.strandName === strand.name);
+                    const strandCollapsed = Boolean(collapsedStrands[strand.id]);
                     return (
                       <div key={strand.id} style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 4, flexWrap: 'wrap' }}>
-                          <div style={{ fontWeight: 700 }}>{strand.name}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: strandCollapsed ? 0 : 4, flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                            <button
+                              type="button"
+                              onClick={() => setCollapsedStrands((current) => ({ ...current, [strand.id]: !current[strand.id] }))}
+                              aria-expanded={!strandCollapsed}
+                              aria-controls={`strand-panel-${strand.id}`}
+                              style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: 12,
+                                border: '1px solid #dbe4ee',
+                                background: 'white',
+                                color: '#334155',
+                                cursor: 'pointer',
+                                fontSize: 16,
+                                fontWeight: 900,
+                                flexShrink: 0,
+                              }}
+                              title={strandCollapsed ? `Expand ${strand.name}` : `Collapse ${strand.name}`}
+                            >
+                              {strandCollapsed ? '▸' : '▾'}
+                            </button>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700 }}>{strand.name}</div>
+                              <div style={{ color: '#64748b', fontSize: 13 }}>{strandModules.length} module{strandModules.length === 1 ? '' : 's'}</div>
+                            </div>
+                          </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             <ModalLauncher buttonLabel="✏️" title={`Edit strand · ${strand.name}`} description="Rename or reorder this strand without leaving the subject lane." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                               <UpdateStrandForm strand={strand} subjects={subjects} embedded />
@@ -168,7 +205,9 @@ export function ContentSubjectLanes({
                             </ModalLauncher>
                           </div>
                         </div>
-                        <div style={{ color: '#64748b', lineHeight: 1.5 }}>{strandModules.length > 0 ? strandModules.map((module) => module.title).join(' • ') : 'No modules yet.'}</div>
+                        <div id={`strand-panel-${strand.id}`} hidden={strandCollapsed} style={{ display: strandCollapsed ? 'none' : 'block', color: '#64748b', lineHeight: 1.5 }}>
+                          {strandModules.length > 0 ? strandModules.map((module) => module.title).join(' • ') : 'No modules yet.'}
+                        </div>
                       </div>
                     );
                   }) : <div style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#64748b' }}>No strands yet. Create one by adding a subject with an initial strand or expand the API later.</div>}
