@@ -7,26 +7,17 @@ import {
   DeleteAssessmentForm,
   DeleteLessonForm,
   DeleteModuleForm,
-  DeleteStrandForm,
-  DeleteSubjectForm,
   UpdateAssessmentForm,
   UpdateLessonForm,
   UpdateModuleForm,
-  UpdateStrandForm,
-  UpdateSubjectForm,
 } from '../../components/admin-forms';
 import { DynamicLessonCreateForm } from '../../components/content-ops-form';
+import { ContentSubjectLanes } from '../../components/content-subject-lanes';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { createLessonAction } from '../actions';
-
-const subjectPalette: Record<string, { tone: string; text: string; accent: string }> = {
-  english: { tone: '#EEF2FF', text: '#3730A3', accent: '#4F46E5' },
-  math: { tone: '#ECFDF5', text: '#166534', accent: '#16A34A' },
-  'life-skills': { tone: '#FFF7ED', text: '#9A3412', accent: '#F97316' },
-};
 
 const actionButtonStyle = {
   borderRadius: 12,
@@ -112,20 +103,6 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     const queryMatches = matchesQuery([assessment.title, assessment.moduleTitle, assessment.subjectName, assessment.triggerLabel, assessment.kind, assessment.status], searchText);
     return subjectMatches && statusMatches && viewMatches && queryMatches;
   });
-
-  const subjectSummaries = subjects
-    .map((subject) => {
-      const palette = subjectPalette[subject.id] || subjectPalette.english;
-      const subjectStrands = strands.filter((strand) => strand.subjectId === subject.id);
-      const subjectModules = modules.filter((module) => module.subjectId === subject.id);
-      const subjectLessons = lessons.filter((lesson) => lesson.subjectId === subject.id || lesson.subjectName === subject.name);
-      const subjectAssessments = assessments.filter((assessment) => assessment.subjectId === subject.id || assessment.subjectName === subject.name);
-      const publishedModules = subjectModules.filter((module) => module.status === 'published').length;
-      const readyLessons = subjectLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-
-      return { subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, publishedModules, readyLessons };
-    })
-    .sort((left, right) => (left.subject.order ?? 999) - (right.subject.order ?? 999) || left.subject.name.localeCompare(right.subject.name));
 
   const strandGroups = Array.from(
     modules.reduce((map, module) => {
@@ -279,58 +256,13 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         ))}
       </section>
 
-      <section style={{ ...responsiveGrid(280), marginBottom: 20 }}>
-        {subjectSummaries.map(({ subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, publishedModules, readyLessons }) => (
-          <Card key={subject.id} title={subject.name} eyebrow="Subject lane">
-            <div style={{ display: 'grid', gap: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 16, height: 52, borderRadius: 999, background: palette.accent }} />
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{subjectStrands.length} strand{subjectStrands.length === 1 ? '' : 's'}</div>
-                    <div style={{ color: '#64748b' }}>{subjectModules.length} modules • {subjectLessons.length} lessons • {subjectAssessments.length} assessments</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <ModalLauncher buttonLabel="✏️" title={`Edit subject · ${subject.name}`} description="Update the subject label, icon, or sort order." eyebrow="Edit subject" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                    <UpdateSubjectForm subject={subject} embedded />
-                  </ModalLauncher>
-                  <ModalLauncher buttonLabel="🗑" title={`Delete subject · ${subject.name}`} description="Remove the full subject lane only if it should disappear from the content library." eyebrow="Delete subject" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                    <DeleteSubjectForm subject={subject} embedded />
-                  </ModalLauncher>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Pill label={`${publishedModules} published`} tone={palette.tone} text={palette.text} />
-                <Pill label={`${readyLessons} ready lessons`} tone="#F8FAFC" text="#334155" />
-              </div>
-
-              <div style={{ display: 'grid', gap: 10 }}>
-                {subjectStrands.length > 0 ? subjectStrands.map((strand) => {
-                  const strandModules = subjectModules.filter((module) => module.strandName === strand.name);
-                  return (
-                    <div key={strand.id} style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 4 }}>
-                        <div style={{ fontWeight: 700 }}>{strand.name}</div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                          <ModalLauncher buttonLabel="✏️" title={`Edit strand · ${strand.name}`} description="Rename or reorder this strand without leaving the subject lane." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                            <UpdateStrandForm strand={strand} subjects={subjects} embedded />
-                          </ModalLauncher>
-                          <ModalLauncher buttonLabel="🗑" title={`Delete strand · ${strand.name}`} description="Remove this strand and everything nested under it if it no longer belongs in the curriculum map." eyebrow="Delete strand" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                            <DeleteStrandForm strand={strand} embedded />
-                          </ModalLauncher>
-                        </div>
-                      </div>
-                      <div style={{ color: '#64748b', lineHeight: 1.5 }}>{strandModules.length > 0 ? strandModules.map((module) => module.title).join(' • ') : 'No modules yet.'}</div>
-                    </div>
-                  );
-                }) : <div style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#64748b' }}>No strands yet. Create one by adding a subject with an initial strand or expand the API later.</div>}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </section>
+      <ContentSubjectLanes
+        subjects={subjects}
+        strands={strands}
+        modules={modules}
+        lessons={lessons}
+        assessments={assessments}
+      />
 
       <section style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
         {strandGroups
