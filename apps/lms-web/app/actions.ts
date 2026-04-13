@@ -22,7 +22,19 @@ async function apiWrite<T = void>(path: string, method: string, payload?: Record
   });
 
   if (!response.ok) {
-    throw new Error(`Failed request: ${path}`);
+    let detail = `Failed request: ${path}`;
+    try {
+      const data = await response.json();
+      if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string') {
+        detail = data.message;
+      }
+    } catch {
+      try {
+        const text = await response.text();
+        if (text.trim()) detail = text.trim();
+      } catch {}
+    }
+    throw new Error(detail);
   }
 
   if (response.status === 204) {
@@ -30,6 +42,10 @@ async function apiWrite<T = void>(path: string, method: string, payload?: Record
   }
 
   return response.json() as Promise<T>;
+}
+
+function encodeMessage(message: string) {
+  return encodeURIComponent(message);
 }
 
 function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
@@ -531,20 +547,25 @@ export async function correctRewardTransactionAction(formData: FormData) {
   const reason = String(formData.get('reason') || '').trim() || 'manual_correction';
   const note = String(formData.get('note') || '').trim();
 
-  await apiWrite(`/api/v1/rewards/transactions/${transactionId}/correct`, 'POST', {
-    xpDelta,
-    label: label || null,
-    reason,
-    note,
-    metadata: {
-      source: 'lms-web-admin',
-      adjustedBy: 'Pilot Admin',
-    },
-  }, 'admin');
+  try {
+    await apiWrite(`/api/v1/rewards/transactions/${transactionId}/correct`, 'POST', {
+      xpDelta,
+      label: label || null,
+      reason,
+      note,
+      metadata: {
+        source: 'lms-web-admin',
+        adjustedBy: 'Pilot Admin',
+      },
+    }, 'admin');
 
-  revalidatePath('/rewards');
-  revalidatePath('/students');
-  redirect('/rewards?message=Reward%20transaction%20corrected');
+    revalidatePath('/rewards');
+    revalidatePath('/students');
+    redirect('/rewards?message=Reward%20transaction%20corrected');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Reward correction failed';
+    redirect(`/rewards?message=${encodeMessage(`Correction failed: ${message}`)}`);
+  }
 }
 
 export async function revokeRewardTransactionAction(formData: FormData) {
@@ -552,18 +573,23 @@ export async function revokeRewardTransactionAction(formData: FormData) {
   const reason = String(formData.get('reason') || '').trim() || 'manual_revocation';
   const note = String(formData.get('note') || '').trim();
 
-  await apiWrite(`/api/v1/rewards/transactions/${transactionId}/revoke`, 'POST', {
-    reason,
-    note,
-    metadata: {
-      source: 'lms-web-admin',
-      revokedBy: 'Pilot Admin',
-    },
-  }, 'admin');
+  try {
+    await apiWrite(`/api/v1/rewards/transactions/${transactionId}/revoke`, 'POST', {
+      reason,
+      note,
+      metadata: {
+        source: 'lms-web-admin',
+        revokedBy: 'Pilot Admin',
+      },
+    }, 'admin');
 
-  revalidatePath('/rewards');
-  revalidatePath('/students');
-  redirect('/rewards?message=Reward%20transaction%20revoked');
+    revalidatePath('/rewards');
+    revalidatePath('/students');
+    redirect('/rewards?message=Reward%20transaction%20revoked');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Reward revocation failed';
+    redirect(`/rewards?message=${encodeMessage(`Revocation failed: ${message}`)}`);
+  }
 }
 
 export async function checkpointStorageAction(formData: FormData) {
