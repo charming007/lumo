@@ -357,6 +357,29 @@ void main() {
       expect(module.badge, 'Lesson ready');
     });
 
+    test('does not crash when live learners exist but lessons are empty', () {
+      final state = LumoAppState()
+        ..assignedLessons.clear()
+        ..learners.clear()
+        ..learners.add(beginner);
+
+      expect(state.nextAssignedLessonForLearner(beginner), isNull);
+      expect(state.assignedLessonSummaryForLearner(beginner),
+          'No assigned lessons yet.');
+      state.dispose();
+    });
+
+    test('returns a safe draft module placeholder when subjects are missing',
+        () {
+      final state = LumoAppState()..modules.clear();
+
+      final module = state.recommendedModuleForDraft;
+
+      expect(module.id, 'pending-module');
+      expect(module.title, 'Subject sync pending');
+      state.dispose();
+    });
+
     test('ranks english first for voice-first beginners', () {
       final state = LumoAppState();
 

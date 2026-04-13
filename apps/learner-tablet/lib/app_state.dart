@@ -598,18 +598,19 @@ class LumoAppState {
         .toList();
     if (rankedLessons.isNotEmpty) return rankedLessons.first;
 
-    if (learner == null) return null;
+    if (learner == null || assignedLessons.isEmpty) return null;
     final recommendedModule = recommendedModuleForLearner(learner);
-    final moduleFallback = assignedLessons.firstWhere(
-      (lesson) =>
-          lesson.moduleId == recommendedModule.id &&
-          lesson.id != excludingLessonId,
-      orElse: () => assignedLessons.firstWhere(
-        (lesson) => lesson.id != excludingLessonId,
-        orElse: () => assignedLessons.first,
-      ),
-    );
-    return moduleFallback.id == excludingLessonId ? null : moduleFallback;
+    final moduleFallback = assignedLessons.cast<LessonCardModel?>().firstWhere(
+          (lesson) =>
+              lesson != null &&
+              lesson.moduleId == recommendedModule.id &&
+              lesson.id != excludingLessonId,
+          orElse: () => assignedLessons.cast<LessonCardModel?>().firstWhere(
+                (lesson) => lesson?.id != excludingLessonId,
+                orElse: () => null,
+              ),
+        );
+    return moduleFallback;
   }
 
   LessonCardModel? nextLessonAfterCompletion(
@@ -707,6 +708,18 @@ class LumoAppState {
   }
 
   LearningModule get recommendedModuleForDraft {
+    if (modules.isEmpty) {
+      return const LearningModule(
+        id: 'pending-module',
+        title: 'Subject sync pending',
+        description:
+            'Live subject routing has not loaded yet. Finish registration now and open the learner once lessons sync.',
+        voicePrompt: 'Finish registration first. Subject routing will appear after sync.',
+        readinessGoal: 'Wait for backend lesson sync',
+        badge: 'Sync pending',
+      );
+    }
+
     if (registrationDraft.readinessLabel == 'Voice-first beginner') {
       return modules.firstWhere(
         (module) => module.id == 'english',
