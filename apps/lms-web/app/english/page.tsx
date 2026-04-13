@@ -53,6 +53,7 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
 
   const failedSources = [
     modulesResult.status === 'rejected' ? 'modules' : null,
@@ -86,7 +87,7 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
       aside={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <div style={{ background: '#0f172a', color: 'white', padding: '12px 14px', borderRadius: 16, fontWeight: 800 }}>Interactive curriculum lane</div>
-          <a href="/content/lessons/new?subjectId=english&from=%2Fenglish" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>Open full lesson studio</a>
+          <a href={`/content/lessons/new?subjectId=${encodeURIComponent(englishSubject?.id ?? '')}&from=%2Fenglish`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>Open full lesson studio</a>
           <Link href="/guide#english-studio" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>Open LMS guide</Link>
           <ModalLauncher buttonLabel="Quick English authoring" title="Quick English authoring" description="Build the lesson from an activity spine, inspect readiness, then create it in the live content lane." eyebrow="English studio">
             <EnglishStudioAuthoringForm subjects={subjects} modules={modules} assessments={assessments} action={createLessonAction} />

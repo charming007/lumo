@@ -132,7 +132,7 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
         </Card>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
         {authoringDependenciesReady ? (
           <LessonCreateForm
             subjects={subjects}
@@ -154,7 +154,7 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
           </Card>
         )}
 
-        <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+        <div style={{ ...responsiveGrid(320), alignItems: 'start' }}>
           <Card title={activeModule?.title ?? 'No module selected yet'} eyebrow="Current authoring lane">
             <div style={{ display: 'grid', gap: 12 }}>
               {activeModule ? (
