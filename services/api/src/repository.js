@@ -998,6 +998,35 @@ function createSessionRepair(input) {
   return commit(record);
 }
 
+function listStorageOperations() {
+  return data.storageOperations;
+}
+
+function findStorageOperationById(id) {
+  if (!id) return null;
+  return data.storageOperations.find((item) => item.id === id) || null;
+}
+
+function createStorageOperation(input) {
+  const record = {
+    id: `storage-operation-${data.storageOperations.length + 1}`,
+    kind: input.kind || 'unknown',
+    status: input.status || 'succeeded',
+    actorName: input.actorName || 'Unknown actor',
+    actorRole: input.actorRole || 'admin',
+    label: input.label || null,
+    backupPath: input.backupPath || null,
+    apply: input.apply === undefined ? null : Boolean(input.apply),
+    merge: input.merge === undefined ? null : Boolean(input.merge),
+    createCheckpoint: input.createCheckpoint === undefined ? null : Boolean(input.createCheckpoint),
+    summary: input.summary && typeof input.summary === 'object' ? { ...input.summary } : null,
+    metadata: input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null,
+    createdAt: input.createdAt || new Date().toISOString(),
+  };
+
+  data.storageOperations.push(record);
+  return commit(record);
+}
 
 function createRewardTransaction(input) {
   const record = {
@@ -1097,4 +1126,7 @@ module.exports = {
   listSessionRepairs,
   findSessionRepairById,
   createSessionRepair,
+  listStorageOperations,
+  findStorageOperationById,
+  createStorageOperation,
 };

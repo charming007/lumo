@@ -298,7 +298,7 @@ export default async function HomePage() {
                 columns={['Module', 'Subject', 'Gaps', 'Release risk']}
                 rows={releaseBlockers.length ? releaseBlockers.slice(0, 5).map((module) => {
                   const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
-                  const createLessonHref = `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=%2F&focus=blockers`;
+                  const createLessonHref = `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
 
                   return [
                     <div key={`${module.id}-module`} style={{ display: 'grid', gap: 6 }}>

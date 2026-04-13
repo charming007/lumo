@@ -793,12 +793,55 @@ function buildSessionRepairDetail(repairId) {
   };
 }
 
+function buildStorageOperationsReport({ limit = 20, kind = null, actorName = null } = {}) {
+  const store = require('./store');
+  const operations = store
+    .listStorageOperations()
+    .filter((entry) => (!kind || entry.kind === kind) && (!actorName || entry.actorName === actorName))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const kindCounts = operations.reduce((acc, entry) => {
+    const key = entry.kind || 'unknown';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const actorCounts = operations.reduce((acc, entry) => {
+    const key = entry.actorName || 'Unknown actor';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const statusCounts = operations.reduce((acc, entry) => {
+    const key = entry.status || 'unknown';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    scope: { limit, kind, actorName },
+    summary: {
+      totalOperations: operations.length,
+      uniqueActors: Object.keys(actorCounts).length,
+      lastOperationAt: operations[0]?.createdAt ?? null,
+      latestKind: operations[0]?.kind ?? null,
+      latestBackupPath: operations.find((entry) => entry.backupPath)?.backupPath ?? null,
+      statusCounts,
+    },
+    kinds: Object.entries(kindCounts)
+      .map(([currentKind, count]) => ({ kind: currentKind, count }))
+      .sort((a, b) => b.count - a.count || a.kind.localeCompare(b.kind)),
+    actors: Object.entries(actorCounts)
+      .map(([currentActorName, count]) => ({ actorName: currentActorName, count }))
+      .sort((a, b) => b.count - a.count || a.actorName.localeCompare(b.actorName)),
+    recent: operations.slice(0, Math.max(1, Math.min(Number(limit || 20), 100))),
+  };
+}
+
 function buildStorageReport({ limit = 10 } = {}) {
   const store = require('./store');
   const status = store.getStorageStatus() || null;
   const integrity = store.getStorageIntegrityReport();
   const snapshot = store.exportStorageSnapshot();
   const backups = store.listStorageBackups(Math.max(1, Math.min(Number(limit || 10), 100)));
+  const operations = buildStorageOperationsReport({ limit: Math.min(Number(limit || 10), 50) });
 
   return {
     summary: {
@@ -815,7 +858,9 @@ function buildStorageReport({ limit = 10 } = {}) {
       sessionRepairCount: snapshot.collectionCounts?.sessionRepairs || 0,
       progressionOverrideCount: snapshot.collectionCounts?.progressionOverrides || 0,
       syncEventCount: snapshot.collectionCounts?.syncEvents || 0,
+      storageOperationCount: snapshot.collectionCounts?.storageOperations || 0,
       updatedAt: status?.updatedAt || snapshot.exportedAt,
+      lastOperationAt: operations.summary.lastOperationAt,
     },
     status,
     integrity: {
@@ -828,6 +873,7 @@ function buildStorageReport({ limit = 10 } = {}) {
     },
     collections: snapshot.collectionCounts,
     backups,
+    operations,
   };
 }
 
@@ -839,6 +885,7 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
   const adminControls = buildAdminControlsReport({ cohortId, podId, mallamId, learnerId, since, until, limit });
   const storage = buildStorageReport({ limit: Math.min(Number(limit || 20), 20) });
   const integrity = require('./store').getStorageIntegrityReport();
+  const storageOps = buildStorageOperationsReport({ limit: Math.min(Number(limit || 20), 20) });
   const workboard = buildWorkboard()
     .filter((item) => (!cohortId || item.cohortId === cohortId) && (!podId || item.podId === podId) && (!mallamId || item.mallamId === mallamId))
     .slice(0, Math.max(1, Math.min(Number(limit || 20), 100)));
@@ -864,6 +911,8 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
       activeProgressionOverrides: adminControls.summary.activeOverrides,
       sessionRepairs: adminControls.summary.sessionRepairs,
       integrityIssueCount: integrity.summary.issueCount,
+      storageOperations: storageOps.summary.totalOperations,
+      lastStorageOperationAt: storageOps.summary.lastOperationAt,
     },
     runtime: {
       summary: runtime.summary,
@@ -894,6 +943,7 @@ function buildOperationsReport({ cohortId = null, podId = null, mallamId = null,
       collections: storage.collections,
       backups: storage.backups,
       status: storage.status,
+      operations: storage.operations,
     },
     adminControls: {
       summary: adminControls.summary,
@@ -1049,6 +1099,7 @@ module.exports = {
   buildAdminControlsReport,
   buildProgressionOverrideDetail,
   buildSessionRepairDetail,
+  buildStorageOperationsReport,
   buildStorageReport,
   buildOperationsReport,
   buildRewardsReport,

@@ -309,6 +309,18 @@ function createSessionRepair(input) {
   return repository.createSessionRepair(input);
 }
 
+function listStorageOperations() {
+  return repository.listStorageOperations();
+}
+
+function findStorageOperationById(id) {
+  return repository.findStorageOperationById(id);
+}
+
+function createStorageOperation(input) {
+  return repository.createStorageOperation(input);
+}
+
 function getStoreMeta() {
   const data = require('./data');
 
@@ -324,6 +336,7 @@ function getStoreMeta() {
     rewardRedemptionRequestCount: listRewardRedemptionRequests().length,
     progressionOverrideCount: listProgressionOverrides().length,
     sessionRepairCount: listSessionRepairs().length,
+    storageOperationCount: listStorageOperations().length,
     storageStatus: typeof data.storage?.getStatus === 'function' ? data.storage.getStatus() : null,
   };
 }
@@ -333,14 +346,53 @@ function getStorageStatus() {
   return typeof data.storage?.getStatus === 'function' ? data.storage.getStatus() : null;
 }
 
-function checkpointStorage(label) {
+function summarizeCollectionCounts(counts = {}) {
+  return Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
+}
+
+function recordStorageOperation(kind, result = {}, options = {}) {
+  return createStorageOperation({
+    kind,
+    status: options.status || 'succeeded',
+    actorName: options.actorName,
+    actorRole: options.actorRole,
+    label: options.label || null,
+    backupPath: options.backupPath || result.backupPath || result.restoredFrom || result.deleted || null,
+    apply: options.apply,
+    merge: options.merge,
+    createCheckpoint: options.createCheckpoint,
+    summary: options.summary || null,
+    metadata: {
+      status: result.status || null,
+      before: result.before || null,
+      after: result.after || null,
+      changes: result.changes || null,
+      report: result.report || null,
+      ...(options.metadata || {}),
+    },
+  });
+}
+
+function checkpointStorage(label, actor = {}) {
   const data = require('./data');
   const backupPath = typeof data.storage?.checkpoint === 'function' ? data.storage.checkpoint(label) : null;
-
-  return {
+  const result = {
     backupPath,
     status: getStorageStatus(),
   };
+
+  recordStorageOperation('checkpoint', result, {
+    actorName: actor.actorName,
+    actorRole: actor.actorRole,
+    label,
+    backupPath,
+    summary: {
+      persistent: Boolean(result.status?.db?.persistent),
+      backupCount: result.status?.backups?.length ?? 0,
+    },
+  });
+
+  return result;
 }
 
 function listStorageBackups(limit = 20) {
@@ -353,7 +405,7 @@ function listStorageBackups(limit = 20) {
   return data.storage.listBackups(limit);
 }
 
-function deleteStorageBackup(backupPath) {
+function deleteStorageBackup(backupPath, actor = {}) {
   const data = require('./data');
 
   if (typeof data.storage?.deleteBackup !== 'function') {
@@ -364,10 +416,21 @@ function deleteStorageBackup(backupPath) {
 
   data.storage.deleteBackup(backupPath);
 
-  return {
+  const result = {
     deleted: backupPath,
     status: getStorageStatus(),
   };
+
+  recordStorageOperation('delete-backup', result, {
+    actorName: actor.actorName,
+    actorRole: actor.actorRole,
+    backupPath,
+    summary: {
+      backupCount: result.status?.backups?.length ?? 0,
+    },
+  });
+
+  return result;
 }
 
 function buildStorageIntegrityIssues() {
@@ -428,7 +491,7 @@ function getStorageIntegrityReport() {
   };
 }
 
-function repairStorageIntegrity({ apply = false } = {}) {
+function repairStorageIntegrity({ apply = false, actorName = null, actorRole = null } = {}) {
   const data = require('./data');
   const report = buildStorageIntegrityIssues();
   const fixes = [];
@@ -474,13 +537,25 @@ function repairStorageIntegrity({ apply = false } = {}) {
     }
   }
 
-  return {
+  const result = {
     checkedAt: new Date().toISOString(),
     apply,
     issueCount: report.issues.length,
     fixes,
     report: getStorageIntegrityReport(),
   };
+
+  recordStorageOperation('repair-integrity', result, {
+    actorName,
+    actorRole,
+    apply,
+    summary: {
+      issueCount: result.issueCount,
+      fixesApplied: fixes.reduce((sum, entry) => sum + Number(entry.removed || 0), 0),
+    },
+  });
+
+  return result;
 }
 
 function exportStorageSnapshot() {
@@ -541,7 +616,7 @@ function previewStorageImport({ snapshot, merge = false } = {}) {
   };
 }
 
-function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = true } = {}) {
+function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = true, actorName = null, actorRole = null } = {}) {
   const data = require('./data');
 
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
@@ -572,26 +647,52 @@ function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = tru
   data.persist();
   data.reload();
 
-  return {
+  const after = exportStorageSnapshot().collectionCounts;
+  const result = {
     importedAt: new Date().toISOString(),
     merge,
     before: before.collectionCounts,
-    after: exportStorageSnapshot().collectionCounts,
+    after,
     status: getStorageStatus(),
   };
+
+  recordStorageOperation('import', result, {
+    actorName,
+    actorRole,
+    merge,
+    createCheckpoint,
+    summary: {
+      beforeRecords: summarizeCollectionCounts(before.collectionCounts),
+      afterRecords: summarizeCollectionCounts(after),
+      deltaRecords: summarizeCollectionCounts(after) - summarizeCollectionCounts(before.collectionCounts),
+    },
+  });
+
+  return result;
 }
 
-function reloadStorageSnapshot() {
+function reloadStorageSnapshot(actor = {}) {
   const data = require('./data');
   data.reload();
 
-  return {
+  const result = {
     reloadedAt: new Date().toISOString(),
     status: getStorageStatus(),
   };
+
+  recordStorageOperation('reload', result, {
+    actorName: actor.actorName,
+    actorRole: actor.actorRole,
+    summary: {
+      backupCount: result.status?.backups?.length ?? 0,
+      persistent: Boolean(result.status?.db?.persistent),
+    },
+  });
+
+  return result;
 }
 
-function restoreStorageBackup(backupPath) {
+function restoreStorageBackup(backupPath, actor = {}) {
   const data = require('./data');
 
   if (typeof data.storage?.restoreFromBackup !== 'function') {
@@ -603,10 +704,22 @@ function restoreStorageBackup(backupPath) {
   data.storage.restoreFromBackup(backupPath);
   data.reload();
 
-  return {
+  const result = {
     restoredFrom: backupPath,
     status: getStorageStatus(),
   };
+
+  recordStorageOperation('restore', result, {
+    actorName: actor.actorName,
+    actorRole: actor.actorRole,
+    backupPath,
+    summary: {
+      backupCount: result.status?.backups?.length ?? 0,
+      persistent: Boolean(result.status?.db?.persistent),
+    },
+  });
+
+  return result;
 }
 
 module.exports = {
@@ -668,6 +781,9 @@ module.exports = {
   listSessionRepairs,
   findSessionRepairById,
   createSessionRepair,
+  listStorageOperations,
+  findStorageOperationById,
+  createStorageOperation,
   listRewardTransactions,
   findRewardTransactionById,
   listRewardAdjustments,

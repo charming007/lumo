@@ -79,6 +79,9 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
           <Link href="/english" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
             Open English Studio
           </Link>
+          <Link href="/guide#interactive-authoring" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+            Authoring walkthrough
+          </Link>
         </div>
       }
     >
@@ -171,6 +174,31 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
               ) : (
                 sectionAlert(failedSources.length ? 'Module context is unavailable because the module feed failed.' : 'Pick a module to see its publishing context.', failedSources.length ? 'warning' : 'neutral')
               )}
+            </div>
+          </Card>
+
+
+          <Card title="Authoring route map" eyebrow="Use the right lane, not guesswork">
+            <div style={{ display: 'grid', gap: 12 }}>
+              {[
+                ['1. Lock the curriculum lane', activeModule ? `${activeModule.subjectName} → ${activeModule.title} is the current publishing lane. Keep the lesson here unless the curriculum spine itself is wrong.` : 'Pick a real subject and module before writing anything.'],
+                ['2. Build the interaction properly', 'If the lesson uses taps, options, expected answers, media prompts, or speaking evidence, stay in Lesson Studio and build the full activity spine. The quick create shortcut is not enough.'],
+                ['3. Gate before publish', relatedAssessments.length ? `${relatedAssessments.length} assessment gate${relatedAssessments.length === 1 ? '' : 's'} are already visible for this module, so authors can align lesson evidence before anyone hits publish.` : 'No assessment gate is linked yet, so treat this lane as structurally incomplete until that is fixed.'],
+                ['4. Hand off cleanly', 'After save, open the lesson pack, sanity-check the activity flow, then move to assignments and reports only when the lesson is genuinely release-safe.'],
+              ].map(([title, detail]) => (
+                <div key={title} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
+                  <div style={{ color: '#64748b', lineHeight: 1.6 }}>{detail}</div>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Link href="/guide#lesson-studio" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+                  Open lesson studio guide →
+                </Link>
+                <Link href="/guide#interactive-authoring" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
+                  Interactive lesson tutorial →
+                </Link>
+              </div>
             </div>
           </Card>
 

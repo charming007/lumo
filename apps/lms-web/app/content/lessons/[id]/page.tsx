@@ -119,6 +119,9 @@ export default async function LessonDetailPage({ params, searchParams }: { param
           <Link href={`/content/lessons/new?duplicate=${lesson.id}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
             Duplicate lesson
           </Link>
+          <Link href="/guide#interactive-authoring" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+            Editor guide
+          </Link>
         </div>
       }
     >
@@ -192,6 +195,30 @@ export default async function LessonDetailPage({ params, searchParams }: { param
                   assessmentsResult.status === 'rejected' ? 'warning' : 'neutral'
                 )
               )}
+            </div>
+          </Card>
+
+
+          <Card title="Editor next actions" eyebrow="Keep authors moving">
+            <div style={{ display: 'grid', gap: 12 }}>
+              {[
+                ['Fix the blockers first', readinessChecks.filter(([, passed]) => !passed).length ? `${readinessChecks.filter(([, passed]) => !passed).length} readiness check${readinessChecks.filter(([, passed]) => !passed).length === 1 ? '' : 's'} still need cleanup before this should move forward.` : 'All visible readiness checks pass. Good. Now verify the payload is actually coherent, not just technically complete.'],
+                ['Keep the module story tight', activeModule ? `This lesson sits inside ${activeModule.title}. Edit with the module gate and sibling packs in view so authors do not fork the curriculum into nonsense.` : 'Module context is weak right now, so be careful about publishing from a partially recovered lesson context.'],
+                ['Use the right follow-up route', returnPath === '/english' ? 'You came from English Studio, so bounce back there for release posture and blueprint comparison after editing.' : 'From here the sensible next moves are library review, duplicate-and-branch, or assignment setup — not blind tab-hopping.'],
+              ].map(([title, detail]) => (
+                <div key={title} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
+                  <div style={{ color: '#64748b', lineHeight: 1.6 }}>{detail}</div>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Link href="/guide#lesson-studio" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+                  Lesson Studio guide →
+                </Link>
+                <Link href="/guide#interactive-authoring" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
+                  Option-based lesson tutorial →
+                </Link>
+              </div>
             </div>
           </Card>
 

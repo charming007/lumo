@@ -124,6 +124,7 @@ const seed = {
   rewardRedemptionRequests: [],
   progressionOverrides: [],
   sessionRepairs: [],
+  storageOperations: [],
 };
 
 // Preserve existing rich seeded lists from prior file by loading a snapshot if present.

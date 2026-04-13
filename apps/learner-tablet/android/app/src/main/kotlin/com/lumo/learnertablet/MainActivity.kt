@@ -1,4 +1,4 @@
-package com.example.lumo_learner_tablet
+package com.lumo.learnertablet
 
 import io.flutter.embedding.android.FlutterActivity
 

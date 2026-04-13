@@ -67,6 +67,7 @@ export default async function MallamDetailPage({ params, searchParams }: { param
     };
     const reportDrilldownHref = `/reports?mallam=${encodeURIComponent(mallam.id)}`;
     const assignmentDrilldownHref = `/assignments?mallam=${encodeURIComponent(mallam.id)}`;
+    const fieldNarrative = `${mallam.displayName} is carrying ${roster.length} learner${roster.length === 1 ? '' : 's'} across ${podsCovered || mallam.summary.podCoverage} pod${(podsCovered || mallam.summary.podCoverage) === 1 ? '' : 's'}, with average attendance at ${Math.round(mallam.summary.averageAttendance * 100)}% and ${mallam.summary.watchCount} learner${mallam.summary.watchCount === 1 ? '' : 's'} on watch. ${nextAssignment ? `Next visible checkpoint is ${nextAssignment.lessonTitle} due ${formatDate(nextAssignment.dueDate)}.` : 'No future assignment checkpoint is attached yet, so delivery planning still needs upstream cleanup.'}`;
 
     return (
       <PageShell
@@ -274,6 +275,26 @@ export default async function MallamDetailPage({ params, searchParams }: { param
                   No assignment history is attached to this mallam yet.
                 </div>
               )}
+            </div>
+          </Card>
+
+
+          <Card title="Field narrative" eyebrow="Use this in a handoff or supervision note">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ padding: 16, borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#3730A3', lineHeight: 1.7 }}>
+                {fieldNarrative}
+              </div>
+              <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+                This is the short version ops can paste into a supervision update without re-reading the whole profile.
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Link href={reportDrilldownHref} style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+                  Open scoped report →
+                </Link>
+                <Link href="/guide#mallam-ops" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
+                  Mallam ops guide →
+                </Link>
+              </div>
             </div>
           </Card>
 

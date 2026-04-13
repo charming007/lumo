@@ -289,6 +289,26 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
     `${ngoSummary.progression.ready || operationsReport.summary.progressionReady} learner${(ngoSummary.progression.ready || operationsReport.summary.progressionReady) === 1 ? '' : 's'} are ready to progress, while ${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} remain on watch.`,
     `Attendance sits around ${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}% and reward backlog pressure is ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0} urgent item${(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) === 1 ? '' : 's'}.`,
   ];
+  const narrativePack = [
+    {
+      title: 'Operator call summary',
+      detail: `${scopeLabel}: ${scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents} learner${(scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents) === 1 ? '' : 's'} in scope, ${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} on watch, and reward backlog pressure sitting at ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0} urgent item${(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) === 1 ? '' : 's'}.`,
+      tone: '#EEF2FF',
+      text: '#3730A3',
+    },
+    {
+      title: 'NGO / donor update',
+      detail: `${donorCoverage}. Attendance is ${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}% on average, ${ngoSummary.progression.ready || operationsReport.summary.progressionReady} learner${(ngoSummary.progression.ready || operationsReport.summary.progressionReady) === 1 ? '' : 's'} are progression-ready, and facilitator pressure is visible across ${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length} mallam${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length === 1 ? '' : 's'}.`,
+      tone: '#ECFDF5',
+      text: '#166534',
+    },
+    {
+      title: 'Government / compliance readout',
+      detail: `${report.presentToday}/${report.totalStudents || 0} learners are marked present today, ${ngoSummary.totals.activeAssignments || report.totalAssignments} assignment${(ngoSummary.totals.activeAssignments || report.totalAssignments) === 1 ? '' : 's'} remain visible in the operating picture, and ${report.podsNeedingAttention} pod${report.podsNeedingAttention === 1 ? '' : 's'} still need intervention first.`,
+      tone: '#FFF7ED',
+      text: '#9A3412',
+    },
+  ];
 
   return (
     <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, reward queue pressure, and cleaner NGO reporting in one place.">
@@ -403,6 +423,43 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
             { label: 'Pending reward requests', value: String(operationsReport.summary.rewardPendingRequests) },
             { label: 'Urgent reward backlog', value: String(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) },
           ]} />
+        </Card>
+      </section>
+
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Narrative pack" eyebrow="Pasteable summaries for real stakeholders">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {narrativePack.map((item) => (
+              <div key={item.title} style={{ padding: 16, borderRadius: 18, background: item.tone, color: item.text, border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>{item.title}</div>
+                <div style={{ lineHeight: 1.7 }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Reporting handoff" eyebrow="Move from analytics to action">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {[
+              ['Scope before story', 'Filter by cohort, pod, or mallam first. A noisy all-system report is worse than useless when someone needs a decision.'],
+              ['Narrative should match the evidence', 'If the copy-ready update says things are stable while the hotlist and reward backlog are on fire, the narrative is lying.'],
+              ['Use route handoffs on purpose', 'Jump from reports into mallam detail, assignments, or the LMS guide instead of making operators reconstruct the path from memory.'],
+            ].map(([title, detail]) => (
+              <div key={title} style={{ padding: 16, borderRadius: 18, background: '#F8FAFC', border: '1px solid #EEF2F7' }}>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
+                <div style={{ color: '#64748b', lineHeight: 1.6 }}>{detail}</div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href="/guide#reports" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+                Reporting guide →
+              </Link>
+              <Link href="/guide#system-flow" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
+                End-to-end LMS flow →
+              </Link>
+            </div>
+          </div>
         </Card>
       </section>
 
