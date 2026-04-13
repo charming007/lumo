@@ -1725,6 +1725,16 @@ app.get('/api/v1/progression-overrides', (req, res) => {
   });
 });
 
+app.get('/api/v1/progression-overrides/:id', (req, res) => {
+  const detail = reporting.buildProgressionOverrideDetail(req.params.id);
+
+  if (!detail) {
+    return res.status(404).json({ message: 'Progression override not found' });
+  }
+
+  return res.json(detail);
+});
+
 app.post('/api/v1/progression-overrides/:id/revoke', requireRole(['admin']), (req, res, next) => {
   try {
     const audit = store.listProgressionOverrides().find((entry) => entry.id === req.params.id) || null;
@@ -1755,6 +1765,41 @@ app.post('/api/v1/progression-overrides/:id/revoke', requireRole(['admin']), (re
     });
 
     return res.json(buildProgressionOverrideResponse(store.listProgressionOverrides().find((entry) => entry.id === audit.id)));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/progression-overrides/:id/reapply', requireRole(['admin']), (req, res, next) => {
+  try {
+    const audit = store.findProgressionOverrideById(req.params.id);
+
+    if (!audit) {
+      return res.status(404).json({ message: 'Progression override not found' });
+    }
+
+    const progress = audit.progressId ? store.findProgressById(audit.progressId) : null;
+
+    if (!progress) {
+      return res.status(404).json({ message: 'Progress record not found' });
+    }
+
+    store.updateProgress(progress.id, {
+      progressionStatus: audit.nextStatus || progress.progressionStatus,
+      recommendedNextModuleId: audit.nextRecommendedNextModuleId || progress.recommendedNextModuleId,
+    });
+
+    const applied = store.updateProgressionOverride(audit.id, {
+      action: 'override',
+      nextStatus: audit.nextStatus || progress.progressionStatus,
+      nextRecommendedNextModuleId: audit.nextRecommendedNextModuleId || progress.recommendedNextModuleId,
+      revokedAt: null,
+      revokedBy: null,
+      note: req.body?.note || audit.note,
+      reason: req.body?.reason || audit.reason,
+    });
+
+    return res.json(buildProgressionOverrideResponse(applied));
   } catch (error) {
     return next(error);
   }
@@ -1995,6 +2040,94 @@ app.get('/api/v1/admin/session-repairs/summary', requireRole(['admin']), (req, r
   }));
 });
 
+
+app.get('/api/v1/session-repairs/:id', (req, res) => {
+  const detail = reporting.buildSessionRepairDetail(req.params.id);
+
+  if (!detail) {
+    return res.status(404).json({ message: 'Session repair not found' });
+  }
+
+  return res.json(detail);
+});
+
+app.post('/api/v1/session-repairs/:id/revert', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const repair = store.findSessionRepairById(req.params.id);
+
+    if (!repair) {
+      return res.status(404).json({ message: 'Session repair not found' });
+    }
+
+    if (!repair.before || typeof repair.before !== 'object') {
+      const error = new Error('Repair does not contain a revertable snapshot');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const existing = store.findLessonSessionBySessionId(repair.sessionId);
+
+    if (!existing) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const reverted = store.upsertLessonSession({
+      sessionId: repair.before.sessionId || repair.sessionId,
+      studentId: repair.before.studentId || existing.studentId,
+      learnerCode: repair.before.learnerCode !== undefined ? repair.before.learnerCode : existing.learnerCode,
+      lessonId: repair.before.lessonId !== undefined ? repair.before.lessonId : existing.lessonId,
+      moduleId: repair.before.moduleId !== undefined ? repair.before.moduleId : existing.moduleId,
+      status: repair.before.status !== undefined ? repair.before.status : existing.status,
+      completionState: repair.before.completionState !== undefined ? repair.before.completionState : existing.completionState,
+      automationStatus: repair.before.automationStatus !== undefined ? repair.before.automationStatus : existing.automationStatus,
+      currentStepIndex: repair.before.currentStepIndex !== undefined ? repair.before.currentStepIndex : existing.currentStepIndex,
+      stepsTotal: repair.before.stepsTotal !== undefined ? repair.before.stepsTotal : existing.stepsTotal,
+      responsesCaptured: repair.before.responsesCaptured !== undefined ? repair.before.responsesCaptured : existing.responsesCaptured,
+      supportActionsUsed: repair.before.supportActionsUsed !== undefined ? repair.before.supportActionsUsed : existing.supportActionsUsed,
+      audioCaptures: repair.before.audioCaptures !== undefined ? repair.before.audioCaptures : existing.audioCaptures,
+      facilitatorObservations: repair.before.facilitatorObservations !== undefined ? repair.before.facilitatorObservations : existing.facilitatorObservations,
+      latestReview: repair.before.latestReview !== undefined ? repair.before.latestReview : existing.latestReview,
+      startedAt: repair.before.startedAt !== undefined ? repair.before.startedAt : existing.startedAt,
+      completedAt: repair.before.completedAt !== undefined ? repair.before.completedAt : existing.completedAt,
+      lastActivityAt: req.body?.lastActivityAt || new Date().toISOString(),
+      lastEventType: 'session_repair_reverted',
+    });
+
+    store.createSessionEventLog({
+      sessionId: reverted.sessionId,
+      studentId: reverted.studentId,
+      lessonId: reverted.lessonId,
+      moduleId: reverted.moduleId,
+      type: 'session_repair_reverted',
+      payload: {
+        sourceRepairId: repair.id,
+        reason: req.body?.reason || 'manual_revert',
+        actor: req.actor,
+      },
+      createdAt: new Date().toISOString(),
+    });
+
+    const audit = store.createSessionRepair({
+      sessionId: reverted.sessionId,
+      learnerId: reverted.studentId,
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason || 'manual_revert',
+      patch: { action: 'revert-repair', sourceRepairId: repair.id },
+      before: presenters.presentLessonSession(existing),
+      after: presenters.presentLessonSession(reverted),
+    });
+
+    return res.status(201).json({
+      revertedFrom: repair.id,
+      repair: audit,
+      session: presenters.presentLessonSession(reverted),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/api/v1/observations', (_req, res) => {
   res.json(store.listObservations().map(presenters.presentObservation));
 });
@@ -2049,6 +2182,18 @@ app.get('/api/v1/reports/rewards', (req, res) => {
 
 app.get('/api/v1/reports/reward-fulfillment', (req, res) => {
   res.json(rewards.buildRewardFulfillmentReport({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    learnerId: coerceOptionalString(req.query.learnerId),
+    since: coerceOptionalString(req.query.since),
+    until: coerceOptionalString(req.query.until),
+    limit: Number(req.query.limit || 20),
+  }));
+});
+
+app.get('/api/v1/reports/admin-controls', (req, res) => {
+  res.json(reporting.buildAdminControlsReport({
     cohortId: coerceOptionalString(req.query.cohortId),
     podId: coerceOptionalString(req.query.podId),
     mallamId: coerceOptionalString(req.query.mallamId),
@@ -2179,7 +2324,17 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-const port = process.env.PORT || 4000;
-app.listen(port, () => {
-  console.log(`Lumo API listening on port ${port}`);
-});
+function startServer(port = process.env.PORT || 4000) {
+  return app.listen(port, () => {
+    console.log(`Lumo API listening on port ${port}`);
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = {
+  app,
+  startServer,
+};

@@ -220,6 +220,10 @@ function listLessonSessions() {
   return repository.listLessonSessions();
 }
 
+function findSessionRepairById(id) {
+  return repository.findSessionRepairById(id);
+}
+
 function findLessonSessionBySessionId(sessionId) {
   return repository.findLessonSessionBySessionId(sessionId);
 }
@@ -283,6 +287,10 @@ function updateRewardRedemptionRequest(id, input) {
 
 function listProgressionOverrides() {
   return repository.listProgressionOverrides();
+}
+
+function findProgressionOverrideById(id) {
+  return repository.findProgressionOverrideById(id);
 }
 
 function createProgressionOverride(input) {
@@ -658,6 +666,7 @@ module.exports = {
   findSyncEventByClientId,
   createSyncEvent,
   listSessionRepairs,
+  findSessionRepairById,
   createSessionRepair,
   listRewardTransactions,
   findRewardTransactionById,
@@ -669,6 +678,7 @@ module.exports = {
   createRewardRedemptionRequest,
   updateRewardRedemptionRequest,
   listProgressionOverrides,
+  findProgressionOverrideById,
   createProgressionOverride,
   updateProgressionOverride,
   getStoreMeta,

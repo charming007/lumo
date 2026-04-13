@@ -42,6 +42,41 @@ test('buildOperationsReport returns combined runtime, progression, rewards, and 
   assert.ok(report.adminControls);
 });
 
+test('buildProgressionOverrideDetail exposes learner, progress, and reapply preview', () => {
+  const student = store.listStudents()[0];
+  const progress = store.listProgress()[0] || store.createProgress({
+    studentId: student.id,
+    subjectId: 'english',
+    moduleId: 'module-1',
+    mastery: 0.51,
+    lessonsCompleted: 1,
+    progressionStatus: 'watch',
+    recommendedNextModuleId: 'module-2',
+  });
+
+  const audit = store.createProgressionOverride({
+    studentId: progress.studentId,
+    progressId: progress.id,
+    action: 'override',
+    previousStatus: progress.progressionStatus,
+    nextStatus: 'ready',
+    previousRecommendedNextModuleId: progress.recommendedNextModuleId,
+    nextRecommendedNextModuleId: progress.recommendedNextModuleId,
+    reason: 'qa_review',
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+  });
+
+  const detail = reporting.buildProgressionOverrideDetail(audit.id);
+
+  assert.equal(detail.override.id, audit.id);
+  assert.equal(detail.learner.id, progress.studentId);
+  assert.equal(detail.currentProgress.id, progress.id);
+  assert.equal(detail.diff.statusChanged, true);
+  assert.equal(detail.reapplyPreview.progressionStatus, 'ready');
+  assert.equal(detail.revertPreview.progressionStatus, progress.progressionStatus);
+});
+
 test('buildAdminControlsReport summarizes progression overrides and session repair actions', () => {
   const student = store.listStudents()[0];
   const progress = store.listProgress()[0] || store.createProgress({

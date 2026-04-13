@@ -926,6 +926,11 @@ function listProgressionOverrides() {
   return data.progressionOverrides;
 }
 
+function findProgressionOverrideById(id) {
+  if (!id) return null;
+  return data.progressionOverrides.find((item) => item.id === id) || null;
+}
+
 function createProgressionOverride(input) {
   const record = {
     id: `progression-override-${data.progressionOverrides.length + 1}`,
@@ -968,6 +973,11 @@ function updateProgressionOverride(id, input) {
 
 function listSessionRepairs() {
   return data.sessionRepairs;
+}
+
+function findSessionRepairById(id) {
+  if (!id) return null;
+  return data.sessionRepairs.find((item) => item.id === id) || null;
 }
 
 function createSessionRepair(input) {
@@ -1081,8 +1091,10 @@ module.exports = {
   createRewardRedemptionRequest,
   updateRewardRedemptionRequest,
   listProgressionOverrides,
+  findProgressionOverrideById,
   createProgressionOverride,
   updateProgressionOverride,
   listSessionRepairs,
+  findSessionRepairById,
   createSessionRepair,
 };

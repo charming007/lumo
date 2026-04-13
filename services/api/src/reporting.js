@@ -684,6 +684,113 @@ function buildAdminControlsReport({ cohortId = null, podId = null, mallamId = nu
   };
 }
 
+
+function buildProgressionOverrideDetail(overrideId) {
+  const override = repository.findProgressionOverrideById(overrideId);
+
+  if (!override) {
+    return null;
+  }
+
+  const learner = override.studentId ? presenters.presentStudent(repository.findStudentById(override.studentId)) : null;
+  const progress = override.progressId ? presenters.presentProgress(repository.findProgressById(override.progressId)) : null;
+  const relatedOverrides = repository
+    .listProgressionOverrides()
+    .filter((entry) => entry.studentId === override.studentId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const recommendedModule = override.nextRecommendedNextModuleId
+    ? presenters.presentCurriculumModule(repository.findModuleById(override.nextRecommendedNextModuleId))
+    : null;
+  const previousModule = override.previousRecommendedNextModuleId
+    ? presenters.presentCurriculumModule(repository.findModuleById(override.previousRecommendedNextModuleId))
+    : null;
+
+  return {
+    override,
+    learner,
+    currentProgress: progress,
+    related: {
+      overrides: relatedOverrides.slice(0, 20),
+    },
+    diff: {
+      action: override.action || 'override',
+      statusChanged: (override.previousStatus || null) !== (override.nextStatus || null),
+      moduleChanged: (override.previousRecommendedNextModuleId || null) !== (override.nextRecommendedNextModuleId || null),
+      isRevoked: Boolean(override.revokedAt || override.action === 'revoked'),
+    },
+    targets: {
+      previousModule,
+      nextModule: recommendedModule,
+    },
+    reapplyPreview: {
+      progressId: override.progressId || null,
+      progressionStatus: override.nextStatus || null,
+      recommendedNextModuleId: override.nextRecommendedNextModuleId || null,
+    },
+    revertPreview: {
+      progressId: override.progressId || null,
+      progressionStatus: override.previousStatus || null,
+      recommendedNextModuleId: override.previousRecommendedNextModuleId || null,
+    },
+  };
+}
+
+function buildSessionRepairDetail(repairId) {
+  const repair = repository.findSessionRepairById(repairId);
+
+  if (!repair) {
+    return null;
+  }
+
+  const learner = repair.learnerId ? presenters.presentStudent(repository.findStudentById(repair.learnerId)) : null;
+  const session = repair.sessionId ? presenters.presentLessonSession(repository.findLessonSessionBySessionId(repair.sessionId)) : null;
+  const events = repository
+    .listSessionEventLog()
+    .filter((entry) => entry.sessionId === repair.sessionId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const priorRepairs = repository
+    .listSessionRepairs()
+    .filter((entry) => entry.sessionId === repair.sessionId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const beforeProgress = repair.before && Number(repair.before.stepsTotal || 0) > 0
+    ? Math.max(0, Math.min(1, Number(repair.before.currentStepIndex || 0) / Number(repair.before.stepsTotal || 1)))
+    : 0;
+  const afterProgress = repair.after && Number(repair.after.stepsTotal || 0) > 0
+    ? Math.max(0, Math.min(1, Number(repair.after.currentStepIndex || 0) / Number(repair.after.stepsTotal || 1)))
+    : 0;
+
+  return {
+    repair,
+    learner,
+    currentSession: session,
+    related: {
+      events: events.slice(0, 20),
+      repairs: priorRepairs.slice(0, 20),
+    },
+    diff: {
+      action: repair.patch?.action || repair.patch?.status || 'manual_patch',
+      statusChanged: (repair.before?.status || null) !== (repair.after?.status || null),
+      completionStateChanged: (repair.before?.completionState || null) !== (repair.after?.completionState || null),
+      lessonChanged: (repair.before?.lessonId || null) !== (repair.after?.lessonId || null),
+      moduleChanged: (repair.before?.moduleId || null) !== (repair.after?.moduleId || null),
+      progressRatioDelta: afterProgress - beforeProgress,
+      responsesDelta: Number(repair.after?.responsesCaptured || 0) - Number(repair.before?.responsesCaptured || 0),
+      supportActionsDelta: Number(repair.after?.supportActionsUsed || 0) - Number(repair.before?.supportActionsUsed || 0),
+      audioCapturesDelta: Number(repair.after?.audioCaptures || 0) - Number(repair.before?.audioCaptures || 0),
+    },
+    revertPreview: repair.before
+      ? {
+          sessionId: repair.before.sessionId || repair.sessionId,
+          status: repair.before.status || null,
+          completionState: repair.before.completionState || null,
+          currentStepIndex: Number(repair.before.currentStepIndex || 0),
+          stepsTotal: Number(repair.before.stepsTotal || 0),
+          lastActivityAt: repair.before.lastActivityAt || null,
+        }
+      : null,
+  };
+}
+
 function buildOperationsReport({ cohortId = null, podId = null, mallamId = null, subjectId = null, learnerId = null, since = null, until = null, limit = 20 } = {}) {
   const runtime = buildRuntimeAnalytics({ learnerId, cohortId, podId, mallamId, since, until, limit });
   const progression = buildProgressionRollup({ cohortId, podId, mallamId, subjectId, since, until });
@@ -892,6 +999,8 @@ module.exports = {
   buildEngagementReport,
   buildProgressionRollup,
   buildAdminControlsReport,
+  buildProgressionOverrideDetail,
+  buildSessionRepairDetail,
   buildOperationsReport,
   buildRewardsReport,
 };
