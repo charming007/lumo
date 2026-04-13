@@ -35,6 +35,14 @@ const routeGuides = [
     pillText: '#7E22CE',
   },
   {
+    title: 'Reports',
+    href: '/reports',
+    guideHref: '/guide#reports',
+    detail: 'Program, donor, and ministry-ready reporting with pod risk, mallam lift, and compliance checks.',
+    pillTone: '#FFF7ED',
+    pillText: '#9A3412',
+  },
+  {
     title: 'Settings',
     href: '/settings',
     guideHref: '/guide#guardrails',
@@ -50,6 +58,8 @@ const sectionLinks = [
   ['dashboard', 'Dashboard'],
   ['content-library', 'Content Library'],
   ['english-studio', 'English Studio'],
+  ['reports', 'Reports and NGO readouts'],
+  ['mallam-ops', 'Mallam ops and history depth'],
   ['system-flow', 'How content, delivery, progress, and rewards connect'],
   ['lesson-studio', 'Lesson Studio'],
   ['interactive-authoring', 'Interactive / option-based lesson tutorial'],
@@ -65,6 +75,7 @@ const workflow = [
   'Use Lesson Studio for the full authoring pack and final structure edits.',
   'Push lessons through review, approved, and published only when the checks are real.',
   'Create assignments only after the module, lessons, and gate are genuinely release-safe.',
+  'Use Mallams and Reports to monitor operator load, delivery history, and external reporting quality after release.',
   'Use the Dashboard, Progress, and Rewards surfaces to monitor learner runtime after release.',
 ] as const;
 
@@ -72,7 +83,7 @@ export default function GuidePage() {
   return (
     <PageShell
       title="LMS Guide"
-      subtitle="The usable version: route map, workflow, internal jump links, and the printable handbook in one place instead of a half-hidden static orphan."
+      subtitle="The usable version: route map, workflow, internal jump links, mallam/reporting notes, and the printable handbook in one place instead of a half-hidden static orphan."
       breadcrumbs={[
         { label: 'Dashboard', href: '/' },
         { label: 'Settings', href: '/settings' },
@@ -83,8 +94,8 @@ export default function GuidePage() {
           <Link href="/content" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
             Open content library
           </Link>
-          <Link href="/english" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none' }}>
-            Open English Studio
+          <Link href="/reports" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>
+            Open reports
           </Link>
           <a href="/LMS_DASHBOARD_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
             Open printable HTML guide
@@ -106,10 +117,10 @@ export default function GuidePage() {
         <Card title="What this LMS is actually for" eyebrow="Overview">
           <div style={{ display: 'grid', gap: 14 }}>
             <div style={{ color: '#475569', lineHeight: 1.7 }}>
-              The Lumo LMS is not just a stats wall. It is the admin control surface for curriculum structure, lesson authoring, readiness checks, progression, mallam oversight, and pod delivery.
+              The Lumo LMS is not just a stats wall. It is the admin control surface for curriculum structure, lesson authoring, readiness checks, progression, mallam oversight, pod delivery, and external reporting.
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {['Dashboard', 'Learners', 'Mallams', 'Content Library', 'English Studio', 'Assessments', 'Pods', 'Analytics', 'Settings'].map((item) => (
+              {['Dashboard', 'Learners', 'Mallams', 'Content Library', 'English Studio', 'Assessments', 'Pods', 'Reports', 'Settings'].map((item) => (
                 <Pill key={item} label={item} tone="#F8FAFC" text="#334155" />
               ))}
             </div>
@@ -148,16 +159,16 @@ Content Library
    Subject → Strand → Module → Lesson → Assessment gate
 English Studio
    ↓ gives English-specific authoring + readiness checks
+Reports
+   ↓ packages internal ops, donor, and ministry reporting views
 Lesson Studio
-   ↓ handles the full lesson payload before publish
-Reports / Analytics
-   ↓ measure outcomes and operational gaps`}
+   ↓ handles the full lesson payload before publish`}
           </pre>
         </Card>
       </section>
 
       <section id="system-flow" style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
-        <Card title="How Content Library, English Studio, assignments, learner progress, and rewards fit together" eyebrow="End-to-end system flow">
+        <Card title="How Content Library, English Studio, assignments, learner progress, rewards, and reporting fit together" eyebrow="End-to-end system flow">
           <pre style={{ margin: 0, padding: 18, borderRadius: 18, background: '#0f172a', color: '#e2e8f0', overflow: 'auto', lineHeight: 1.7 }}>
 {`Content Library
    ↓ defines the official curriculum spine
@@ -170,6 +181,8 @@ Learner runtime
    ↓ produces completion, mastery, progression, and intervention signals
 Rewards & Progression
    ↓ convert verified milestones into XP, badges, levels, and admin follow-up
+Reports & external readouts
+   ↓ package program evidence for internal ops, donors, and government review
 Dashboard / learner views / workboards
    ↓ show the feedback loop back to LMS operators`}
           </pre>
@@ -184,7 +197,7 @@ Dashboard / learner views / workboards
             </div>
             <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
               <div style={{ fontWeight: 800, marginBottom: 8 }}>3. Delivery wraps curriculum in assignments</div>
-              <div style={{ color: '#64748b', lineHeight: 1.7 }}>Assignments are not separate magic. They are the delivery wrapper around approved lessons and modules, mapped to cohorts, pods, mallams, and due windows.</div>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>Assignments are not separate magic. They are the delivery wrapper around approved lessons and modules, mapped to cohorts, pods, and mallams.</div>
             </div>
             <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
               <div style={{ fontWeight: 800, marginBottom: 8 }}>4. Learner runtime generates evidence</div>
@@ -195,8 +208,8 @@ Dashboard / learner views / workboards
               <div style={{ color: '#64748b', lineHeight: 1.7 }}>XP, badges, and levels reinforce verified milestones and show up back in rewards boards, learner records, and workboards. They should support motivation, not replace mastery or assessment gates.</div>
             </div>
             <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>6. Admin views close the loop</div>
-              <div style={{ color: '#64748b', lineHeight: 1.7 }}>Dashboard, Progress, Rewards, learner pages, and workboards all feed the same operating loop: design content, deliver it, observe results, then intervene with evidence instead of guesses.</div>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>6. Reporting closes the outside loop</div>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>Reports packages the same live signals into donor, NGO, and ministry-ready views so external review is grounded in the same system evidence the operators use every day.</div>
             </div>
           </div>
         </Card>
@@ -224,6 +237,37 @@ Dashboard / learner views / workboards
             </div>
           </Card>
         </div>
+      </section>
+
+      <section id="reports" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Reports" eyebrow="Program + NGO readout">
+          <div style={{ color: '#64748b', lineHeight: 1.7 }}>
+            Reports is no longer just a metric dump. It now includes pod risk ranking, mallam contribution, NGO / donor narrative cards, and a compliance board that answers the first questions grant reviewers and ministry stakeholders will ask.
+          </div>
+        </Card>
+        <Card title="What reports now covers" eyebrow="Decision support">
+          <div style={{ display: 'grid', gap: 10, color: '#475569', lineHeight: 1.7 }}>
+            <div><strong>Internal ops</strong> — pod risk, assignment pressure, and mallam readiness lift.</div>
+            <div><strong>External reporting</strong> — coverage, attendance retention, progression readiness, and facilitator pressure.</div>
+            <div><strong>Compliance checks</strong> — attendance capture, assignment tracking, intervention load, and promotion evidence.</div>
+          </div>
+        </Card>
+      </section>
+
+      <section id="mallam-ops" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Mallam ops" eyebrow="History depth that matters">
+          <div style={{ color: '#64748b', lineHeight: 1.7 }}>
+            Mallam detail now carries roster pressure, attendance spread, assignment timeline, stable-vs-watch learner split, and history summary blocks so review calls do not start from a weak profile card and a prayer.
+          </div>
+        </Card>
+        <Card title="What to read first on a mallam profile" eyebrow="Fast triage">
+          <div style={{ display: 'grid', gap: 10, color: '#475569', lineHeight: 1.7 }}>
+            <div><strong>Load posture</strong> — roster size plus pod coverage.</div>
+            <div><strong>Support posture</strong> — watchlist volume and attendance spread.</div>
+            <div><strong>Delivery history</strong> — assignment timeline, recent checkpoint, and next due moment.</div>
+            <div><strong>Roster momentum</strong> — whether the stable learners outnumber the risky ones.</div>
+          </div>
+        </Card>
       </section>
 
       <section id="lesson-studio" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -315,6 +359,7 @@ choice-3|Go to school|wrong|image|school.png`}</pre>
               ['Empty states must be honest', 'If a feed is missing, say which feed failed. No fake wallpaper.'],
               ['Authoring beats metadata', 'Quick edits are fine for status tweaks; real curriculum work belongs in English Studio and Lesson Studio.'],
               ['Inventory needs search, not scavenger hunts', 'Content ops should be able to slice the board by subject, status, and focused view instead of eyeballing giant tables.'],
+              ['Operational history matters', 'Mallam detail and reports should carry timing, pressure, and risk context — not just flat totals.'],
               ['Destructive actions need friction', 'Typed confirmation and impact notes stay because cascading deletes are serious.'],
             ].map(([title, detail]) => (
               <div key={title} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
@@ -328,7 +373,7 @@ choice-3|Go to school|wrong|image|school.png`}</pre>
         <div id="printable-guide">
           <Card title="Printable handbook" eyebrow="Shareable artifact">
             <div style={{ color: '#64748b', marginBottom: 14, lineHeight: 1.6 }}>
-              The full printable handbook is embedded below and also available as a standalone HTML file. The static file now contains the complete guide instead of the chopped-off version that made half the document vanish.
+              The full printable handbook is embedded below and also available as a standalone HTML file. The static file now tracks the same reporting and mallam-ops guidance as the live route instead of drifting off into stale demo-land.
             </div>
             <iframe
               src="/LMS_DASHBOARD_GUIDE.html"

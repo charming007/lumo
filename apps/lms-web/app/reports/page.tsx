@@ -118,8 +118,55 @@ export default async function ReportsPage() {
     return acc;
   }, {});
 
+  const donorCoverage = report.totalStudents > 0 && report.totalCenters > 0
+    ? `${report.totalStudents} learners across ${report.totalCenters} center${report.totalCenters === 1 ? '' : 's'}`
+    : 'Coverage feed unavailable';
+  const learnerRetentionSignal = report.totalStudents > 0
+    ? `${Math.round(report.averageAttendance * 100)}% average attendance suggests ${report.averageAttendance >= 0.9 ? 'strong' : report.averageAttendance >= 0.85 ? 'stable' : 'fragile'} retention`
+    : 'Retention signal unavailable';
+  const readinessSignal = report.readinessCount > 0
+    ? `${report.readinessCount} learners are ready to progress with ${report.watchCount} still on watch`
+    : 'No progression-ready learners visible yet';
+  const staffingSignal = mallamSnapshots.length
+    ? `${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length} mallams are carrying watchlist load`
+    : 'Staffing signal unavailable';
+
+  const donorNarratives = [
+    {
+      title: 'Coverage and reach',
+      detail: donorCoverage,
+      tone: '#EEF2FF',
+      text: '#3730A3',
+    },
+    {
+      title: 'Attendance retention signal',
+      detail: learnerRetentionSignal,
+      tone: '#ECFDF5',
+      text: '#166534',
+    },
+    {
+      title: 'Progression readiness signal',
+      detail: readinessSignal,
+      tone: '#FFF7ED',
+      text: '#9A3412',
+    },
+    {
+      title: 'Facilitator pressure signal',
+      detail: staffingSignal,
+      tone: '#F8FAFC',
+      text: '#334155',
+    },
+  ];
+
+  const complianceRows = [
+    ['Learner attendance logged', `${report.presentToday}/${report.totalStudents || 0} present today`, report.totalStudents ? `${Math.round((report.presentToday / report.totalStudents) * 100)}% capture` : 'No capture'],
+    ['Assignments tracked', `${report.totalAssignments} live`, `${report.assignmentsDueThisWeek} due this week`],
+    ['Pods under watch', `${report.podsNeedingAttention} flagged`, `${podSnapshots.filter((item) => item.attendanceAverage < 0.85).length} below 85% attendance`],
+    ['Promotion evidence', `${report.readinessCount} ready`, `${report.watchCount} watchlist`],
+  ];
+
   return (
-    <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, and progression reality in one place.">
+    <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, and cleaner NGO reporting in one place.">
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           Reports is running in degraded mode: {failedSources.join(' + ')} {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
@@ -199,6 +246,26 @@ export default async function ReportsPage() {
               </div>
             ))}
           </div>
+        </Card>
+      </section>
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="NGO / donor summary" eyebrow="Shareable without rewriting the whole story">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {donorNarratives.map((item) => (
+              <div key={item.title} style={{ padding: 16, borderRadius: 18, background: item.tone, color: item.text, border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>{item.title}</div>
+                <div style={{ lineHeight: 1.6 }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Reporting compliance board" eyebrow="What a grant or ministry review will ask first">
+          <SimpleTable
+            columns={['Check', 'Current state', 'Signal']}
+            rows={complianceRows}
+          />
         </Card>
       </section>
 
