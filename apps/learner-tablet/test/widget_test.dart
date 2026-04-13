@@ -132,4 +132,44 @@ void main() {
     state.dispose();
   });
 
+  testWidgets('lesson session hardens browser/device lifecycle interruptions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState();
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final pageState = tester.state(find.byType(LessonSessionPage)) as dynamic;
+    pageState.didChangeAppLifecycleState(AppLifecycleState.paused);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('left the foreground'), findsWidgets);
+    expect(find.textContaining('protect the learner session'), findsWidgets);
+
+    pageState.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('returned to the foreground'), findsWidgets);
+    expect(find.textContaining('Resume hands-free loop'), findsWidgets);
+
+    state.dispose();
+  });
 }

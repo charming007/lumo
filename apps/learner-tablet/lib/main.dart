@@ -3001,7 +3001,8 @@ class LessonSessionPage extends StatefulWidget {
   State<LessonSessionPage> createState() => _LessonSessionPageState();
 }
 
-class _LessonSessionPageState extends State<LessonSessionPage> {
+class _LessonSessionPageState extends State<LessonSessionPage>
+    with WidgetsBindingObserver {
   late final TextEditingController responseController;
   late final AudioCaptureService audioCaptureService;
   late final SpeechTranscriptionService speechTranscriptionService;
@@ -3019,6 +3020,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   bool transcriptReviewPending = false;
   bool _promptedCurrentStep = false;
   bool _resumedSession = false;
+  bool _resumePromptPendingFromLifecycle = false;
   String _latestFinalTranscript = '';
   String _recordingModeLabel = 'Standard recorder';
   int _consecutiveTranscriptMisses = 0;
@@ -3030,6 +3032,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     responseController = TextEditingController();
     audioCaptureService = AudioCaptureService();
     speechTranscriptionService = SpeechTranscriptionService();
@@ -3095,12 +3098,74 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     recordingTicker?.cancel();
     _speechAutoStopDebounce?.cancel();
     speechTranscriptionService.cancel();
     audioCaptureService.dispose();
     responseController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!mounted || !_resumePromptPendingFromLifecycle) return;
+        setState(() {
+          microphoneStatus = isAutoMode
+              ? 'The app returned to the foreground. Tap Resume hands-free loop so Mallam can replay the step and reopen the mic safely.'
+              : 'The app returned to the foreground. Review the saved answer or tap Resume hands-free loop when the learner is ready.';
+        });
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        unawaited(_handleLifecycleInterruption(state));
+        break;
+    }
+  }
+
+  Future<void> _handleLifecycleInterruption(AppLifecycleState state) async {
+    final session = widget.state.activeSession;
+    final hadLiveCapture = isRecording || isSpeaking || speechRecognitionActive;
+    final shouldProtectSession = hadLiveCapture ||
+        (session != null &&
+            (isAutoMode ||
+                responseController.text.trim().isNotEmpty ||
+                (session.latestLearnerAudioPath?.trim().isNotEmpty ?? false)));
+    if (!shouldProtectSession && !_resumePromptPendingFromLifecycle) {
+      return;
+    }
+
+    final wasAutoMode = isAutoMode;
+    _resumePromptPendingFromLifecycle = true;
+    _speechAutoStopDebounce?.cancel();
+    recordingTicker?.cancel();
+
+    if (isRecording) {
+      await stopRecording(markReadyForResume: false);
+      if (!mounted) return;
+    } else {
+      await speechTranscriptionService.cancel();
+    }
+
+    await widget.state.stopVoiceReplay();
+    if (!mounted) return;
+
+    setState(() {
+      isSpeaking = false;
+      speechRecognitionActive = false;
+      currentRecordingDuration = Duration.zero;
+      transcriptReviewPending = transcriptReviewPending ||
+          responseController.text.trim().isNotEmpty ||
+          (widget.state.activeSession?.latestLearnerAudioPath?.trim().isNotEmpty ??
+              false);
+      microphoneStatus = wasAutoMode
+          ? 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. Resume hands-free when the tablet or browser is active again.'
+          : 'The app left the foreground, so Lumo stopped live mic playback/capture. The saved audio and draft answer are still attached for manual review.';
+    });
   }
 
   void _handleSpeechStatus(String status) {
@@ -3729,6 +3794,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     if (!mounted) return;
     setState(() {
       isAutoMode = true;
+      _resumePromptPendingFromLifecycle = false;
       _resetTranscriptRecoveryState(clearReviewPending: true);
       microphoneStatus = transcriptReady
           ? 'Hands-free loop resumed. Mallam will replay this step and reopen the mic.'
