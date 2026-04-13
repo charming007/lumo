@@ -97,6 +97,12 @@ void main() {
                       'level': 'foundation-a',
                     },
                     {
+                      'subjectId': 'story',
+                      'subjectName': 'Story Time',
+                      'title': 'Story Time',
+                      'level': 'foundation-a',
+                    },
+                    {
                       'subjectId': 'math',
                       'subjectName': 'Basic Numeracy',
                       'title': 'Basic Numeracy',
@@ -109,7 +115,20 @@ void main() {
                       'level': 'foundation-a',
                     },
                   ],
-                  'lessons': const [],
+                  'lessons': [
+                    {
+                      'id': 'story-lesson-1',
+                      'moduleId': 'story',
+                      'subjectName': 'Story Time',
+                      'title': 'Story Time',
+                      'durationMinutes': 9,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Listen and retell',
+                      'scenario': 'Deprecated demo lesson',
+                      'steps': const [],
+                    },
+                  ],
                 }),
                 200,
                 headers: {'content-type': 'application/json'},
@@ -175,7 +194,10 @@ void main() {
         state.modules.where((module) => module.id == 'story'),
         isEmpty,
       );
-      expect(state.assignedLessons, isEmpty);
+      expect(
+        state.assignedLessons.where((lesson) => lesson.moduleId == 'story'),
+        isEmpty,
+      );
       state.dispose();
     });
 

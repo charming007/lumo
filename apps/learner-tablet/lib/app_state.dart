@@ -247,9 +247,13 @@ class LumoAppState {
   }
 
   List<LearningModule> _sanitizeModules(List<LearningModule> source) {
-    return source
-        .where((module) => !_isDeprecatedDemoModuleId(module.id))
-        .toList();
+    return source.where((module) {
+      final id = module.id.trim();
+      final title = module.title.trim();
+      return id.isNotEmpty &&
+          title.isNotEmpty &&
+          !_isDeprecatedDemoModuleId(id);
+    }).toList();
   }
 
   List<LessonCardModel> _sanitizeLessons(List<LessonCardModel> source) {
@@ -260,14 +264,6 @@ class LumoAppState {
 
   bool _isDeprecatedDemoModuleId(String moduleId) {
     return moduleId.trim().toLowerCase() == 'story';
-  }
-
-  List<LearningModule> _sanitizeModules(List<LearningModule> source) {
-    return source.where((module) {
-      final id = module.id.trim();
-      final title = module.title.trim();
-      return id.isNotEmpty && title.isNotEmpty;
-    }).toList();
   }
 
   List<LearningModule> _dedupeModules(List<LearningModule> source) {

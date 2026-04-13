@@ -343,4 +343,87 @@ export type MetaResponse = {
   };
   mode: string;
   seedSummary: Record<string, number>;
+  store?: {
+    mode?: string;
+    persistent?: boolean;
+    hasDatabaseUrl?: boolean;
+    driver?: string;
+  };
+};
+
+export type StorageStatus = {
+  mode?: 'file' | 'postgres' | string;
+  persistent?: boolean;
+  path?: string | null;
+  exists?: boolean;
+  updatedAt?: string | null;
+  sizeBytes?: number;
+  backupFile?: string | null;
+  backupUpdatedAt?: string | null;
+  backups?: Array<{ path: string; updatedAt?: string | null; sizeBytes?: number }>;
+  db?: {
+    mode?: string;
+    persistent?: boolean;
+    hasDatabaseUrl?: boolean;
+    driver?: string;
+  };
+};
+
+export type StorageIntegrityReport = {
+  checkedAt: string;
+  summary: {
+    students: number;
+    sessions: number;
+    rewardRequests: number;
+    issueCount: number;
+  };
+  issues: Array<{ type: string; id: string; entity?: string }>;
+};
+
+export type StorageRepairResult = {
+  checkedAt: string;
+  apply: boolean;
+  issueCount: number;
+  fixes: Array<{ collection: string; removed: number; ids: string[] }>;
+  report: StorageIntegrityReport;
+};
+
+export type RewardsReport = {
+  scope: {
+    cohortId?: string | null;
+    podId?: string | null;
+    mallamId?: string | null;
+    learnerId?: string | null;
+    since?: string | null;
+    until?: string | null;
+    learnerCount: number;
+  };
+  summary: {
+    learners: number;
+    transactionCount: number;
+    totalXpAwarded: number;
+    totalXpRedeemed: number;
+    requestCount: number;
+    correctionCount: number;
+    revocationCount: number;
+    fulfillmentRate: number;
+    requestStatusCounts: Record<string, number>;
+  };
+  dailyXpTrend: Array<{ date: string; xpAwarded: number; xpRedeemed: number; transactions: number }>;
+  rewardDemand: Array<{ rewardItemId: string; rewardTitle: string; requests: number; fulfilled: number; pending: number }>;
+  recentTransactions: Array<Record<string, unknown>>;
+  recentRequests: Array<Record<string, unknown>>;
+  recentAdjustments: Array<Record<string, unknown>>;
+  learnerBreakdown: Array<{
+    learnerId: string;
+    learnerName: string;
+    totalXp: number;
+    badgesUnlocked: number;
+    transactions: number;
+    xpAwarded: number;
+    xpRedeemed: number;
+    requests: number;
+    pendingRequests: number;
+  }>;
+  leaderboard: RewardSnapshot[];
 };

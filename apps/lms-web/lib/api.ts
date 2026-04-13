@@ -15,8 +15,11 @@ import type {
   ProgressRecord,
   ReportsOverview,
   RewardSnapshot,
+  RewardsReport,
   Student,
   StudentDetail,
+  StorageIntegrityReport,
+  StorageStatus,
   Strand,
   Subject,
   WorkboardItem,
@@ -135,4 +138,16 @@ export function fetchRewardsCatalog() {
 
 export function fetchRewardsLeaderboard(limit = 10) {
   return getJson<RewardSnapshot[]>(`/api/v1/rewards/leaderboard?limit=${limit}`);
+}
+
+export function fetchRewardsReport(limit = 20) {
+  return getJson<RewardsReport>(`/api/v1/reports/rewards?limit=${limit}`);
+}
+
+export function fetchStorageStatus() {
+  return getJson<StorageStatus>('/api/v1/admin/storage/status');
+}
+
+export function fetchStorageIntegrity() {
+  return getJson<StorageIntegrityReport>('/api/v1/admin/storage/integrity');
 }

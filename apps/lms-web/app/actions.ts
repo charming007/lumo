@@ -523,3 +523,16 @@ export async function awardStudentRewardAction(formData: FormData) {
   revalidatePath('/students');
   redirect('/rewards?message=Reward%20adjustment%20saved');
 }
+
+export async function checkpointStorageAction(formData: FormData) {
+  const label = String(formData.get('label') || '').trim() || 'manual-checkpoint';
+  await apiWrite('/api/v1/admin/storage/checkpoint', 'POST', { label }, 'admin');
+  revalidatePath('/settings');
+  redirect('/settings?message=Storage%20checkpoint%20created');
+}
+
+export async function repairStorageIntegrityAction() {
+  await apiWrite('/api/v1/admin/storage/repair-integrity', 'POST', { apply: true }, 'admin');
+  revalidatePath('/settings');
+  redirect('/settings?message=Storage%20integrity%20repair%20applied');
+}
