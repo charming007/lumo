@@ -509,5 +509,67 @@ void main() {
       expect(state.degradedModeSummary, contains('Degraded mode'));
       expect(state.degradedModeSummary, contains('queued locally'));
     });
+
+    test('degraded mode actions recommend audio-first recovery steps', () {
+      final state = LumoAppState();
+      state.usingFallbackData = true;
+      state.lastSyncError = 'timeout';
+      state.pendingSyncEvents.add(
+        const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+      );
+
+      final actions = state.degradedModeActions(
+        speechAvailable: false,
+        transcriptMisses: 3,
+      );
+
+      expect(actions.join(' '), contains('cached lessons'));
+      expect(actions.join(' '), contains('audio-first mode'));
+      expect(actions.join(' '), contains('Repeat mode'));
+    });
+
+    test('reward celebration helpers surface level and badge momentum', () {
+      final state = LumoAppState();
+      final learner = beginner.copyWith(
+        rewards: const RewardSnapshot(
+          learnerId: 'learner-1',
+          totalXp: 188,
+          points: 188,
+          level: 3,
+          levelLabel: 'Bright Reader',
+          nextLevel: 4,
+          nextLevelLabel: 'Story Scout',
+          xpIntoLevel: 28,
+          xpForNextLevel: 52,
+          progressToNextLevel: 0.35,
+          badgesUnlocked: 1,
+          badges: [
+            RewardBadge(
+              id: 'voice-starter',
+              title: 'Voice Starter',
+              description: 'First lesson completed with Mallam.',
+              icon: 'record_voice_over',
+              category: 'lesson',
+              earned: true,
+              progress: 1,
+              target: 1,
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        state.rewardCelebrationHeadlineForLearner(learner),
+        contains('Bright Reader'),
+      );
+      expect(
+        state.rewardCelebrationDetailForLearner(learner),
+        contains('Story Scout'),
+      );
+      expect(
+        state.rewardCelebrationDetailForLearner(learner),
+        contains('badge'),
+      );
+    });
   });
 }

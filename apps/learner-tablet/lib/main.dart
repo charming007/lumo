@@ -3127,6 +3127,22 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     }
   }
 
+  void _applyDegradedAudioRecovery() {
+    final transcriptUnavailable = !speechRecognitionActive;
+    final repeatedMisses = _consecutiveTranscriptMisses >= 2;
+    if (!transcriptUnavailable && !repeatedMisses) return;
+
+    final session = widget.state.activeSession;
+    if (session != null && repeatedMisses) {
+      widget.state.setPracticeMode(PracticeMode.repeatAfterMe);
+    }
+
+    if (_consecutiveTranscriptMisses >= 3 && isAutoMode) {
+      isAutoMode = false;
+      transcriptReviewPending = true;
+    }
+  }
+
   Future<void> stopRecording({bool markReadyForResume = true}) async {
     _speechAutoStopDebounce?.cancel();
     recordingTicker?.cancel();
@@ -3167,15 +3183,22 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       _consecutiveTranscriptMisses += 1;
     }
 
+    _applyDegradedAudioRecovery();
+
     widget.onChanged();
     setState(() {
       currentRecordingDuration = result.duration;
       final savedLabel = transcript.isNotEmpty
           ? 'Learner voice saved (${formatDuration(result.duration)}). Transcript captured.'
           : 'Learner voice saved (${formatDuration(result.duration)}). No transcript was detected, so the app kept the audio and is ready for a manual check.';
+      final recoveryLabel = _consecutiveTranscriptMisses >= 3
+          ? ' Auto mode paused after repeated transcript misses. Confirm the answer manually or keep teaching with audio-first support.'
+          : _consecutiveTranscriptMisses >= 2
+              ? ' Transcript help is struggling, so Repeat mode is now active for a safer hands-free loop.'
+              : '';
       microphoneStatus = markReadyForResume && !transcriptReviewPending
-          ? '$savedLabel Ready for Mallam or the next learner attempt.'
-          : savedLabel;
+          ? '$savedLabel Ready for Mallam or the next learner attempt.$recoveryLabel'
+          : '$savedLabel$recoveryLabel';
     });
 
     if (transcript.isNotEmpty && isAutoMode && !isProcessingTranscript) {
@@ -3365,6 +3388,43 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                 height: 1.35,
                               ),
                             ),
+                            const SizedBox(height: 10),
+                            ...widget.state
+                                .degradedModeActions(
+                                  speechAvailable: speechRecognitionActive,
+                                  transcriptMisses:
+                                      _consecutiveTranscriptMisses,
+                                )
+                                .take(3)
+                                .map(
+                                  (action) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 2),
+                                          child: Icon(
+                                            Icons.check_circle_outline_rounded,
+                                            size: 16,
+                                            color: LumoTheme.accentGreen,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            action,
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                             const SizedBox(height: 12),
                             Wrap(
                               spacing: 8,
@@ -4152,7 +4212,8 @@ class LessonCompletePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Well done, ${learner.name}!',
+                      state.rewardCelebrationHeadlineForLearner(learner),
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,
@@ -4160,7 +4221,7 @@ class LessonCompletePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'You completed ${lesson.title}.',
+                      'You completed ${lesson.title}. ${state.rewardCelebrationDetailForLearner(learner)}',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),

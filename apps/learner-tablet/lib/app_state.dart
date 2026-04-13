@@ -1069,6 +1069,59 @@ class LumoAppState {
     return 'Degraded mode: ${flags.join(' • ')}. Keep teaching, store audio locally, and sync when the connection returns.';
   }
 
+  List<String> degradedModeActions({
+    bool speechAvailable = true,
+    int transcriptMisses = 0,
+  }) {
+    final actions = <String>[];
+    if (usingFallbackData) {
+      actions.add(
+          'Keep teaching from cached lessons while learner events queue locally.');
+    }
+    if (pendingSyncEvents.isNotEmpty) {
+      actions.add('Protect the queue and retry sync when the signal returns.');
+    }
+    if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
+      actions.add('Stay in audio-first mode until backend sync recovers.');
+    }
+    if (!speechAvailable) {
+      actions.add(
+          'Capture audio even without transcript help, then review or type the answer.');
+    }
+    if (transcriptMisses >= 2) {
+      actions.add(
+          'Use Repeat mode and model answers so the learner can keep moving hands-free.');
+    }
+    if (actions.isEmpty) {
+      actions.add('No degraded-mode action needed right now.');
+    }
+    return actions;
+  }
+
+  String rewardCelebrationHeadlineForLearner(LearnerProfile learner) {
+    final rewards = learner.rewards;
+    if (rewards == null) return 'Nice work, ${learner.name}!';
+    if (rewards.nextLevelLabel == null) {
+      return '${learner.name} reached the top celebration band!';
+    }
+    return '${learner.name} is now a ${rewards.levelLabel}!';
+  }
+
+  String rewardCelebrationDetailForLearner(LearnerProfile learner) {
+    final rewards = learner.rewards;
+    if (rewards == null) {
+      return 'Lesson complete. Keep the streak alive with one more voice activity.';
+    }
+    final unlocked = rewards.badges.where((badge) => badge.earned).toList();
+    final badgeLine = unlocked.isEmpty
+        ? 'Keep going to unlock the first badge.'
+        : 'Unlocked ${unlocked.length} badge${unlocked.length == 1 ? '' : 's'} so far.';
+    final nextLine = rewards.nextLevelLabel == null
+        ? 'Every new lesson now grows confidence, points, and streaks.'
+        : '${rewards.xpForNextLevel} XP until ${rewards.nextLevelLabel}.';
+    return '$badgeLine $nextLine';
+  }
+
   bool advanceLessonStep() {
     final session = activeSession;
     if (session == null) return false;
