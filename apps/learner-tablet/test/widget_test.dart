@@ -60,6 +60,22 @@ void main() {
     expect(find.textContaining('leads'), findsWidgets);
   });
 
+  testWidgets('learner profile stays usable on narrow tablet widths', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(540, 960));
+
+    await tester.tap(find.text('Student List'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Profile').first);
+    await tester.tap(find.text('Profile').first);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Back'), findsOneWidget);
+    expect(find.textContaining('leaderboard'), findsWidgets);
+  });
+
   testWidgets('registration flow stays usable on portrait tablet widths', (
     tester,
   ) async {

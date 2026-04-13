@@ -566,8 +566,9 @@ class AllStudentsPage extends StatelessWidget {
               minTileWidth: 320,
               maxCount: 3,
             );
+            final compactLearnerCards = availableWidth < 560;
             final childAspectRatio = availableWidth < 520
-                ? 1.05
+                ? 0.8
                 : availableWidth < 900
                     ? 0.78
                     : availableWidth < 1280
@@ -730,6 +731,7 @@ class AllStudentsPage extends StatelessWidget {
                         child: _LearnerCard(
                           learner: learner,
                           state: state,
+                          dense: compactLearnerCards,
                           leaderboardEntry: leaderboardEntry,
                           isActive: state.currentLearner?.id == learner.id,
                           onSetActive: () {
@@ -832,27 +834,64 @@ class LearnerProfilePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Back'),
-                          ),
-                          const Spacer(),
-                          if (leaderboardEntry != null) ...[
-                            StatusPill(
-                              text: '#${leaderboardEntry.rank} on leaderboard',
-                              color: leaderboardEntry.rank == 1
-                                  ? LumoTheme.accentOrange
-                                  : LumoTheme.primary,
-                            ),
-                            const SizedBox(width: 10),
-                          ],
-                          StatusPill(
-                            text: learner.enrollmentStatus,
-                            color: LumoTheme.primary,
-                          ),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compactHeader = constraints.maxWidth < 560;
+
+                          if (compactHeader) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                OutlinedButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Back'),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    if (leaderboardEntry != null)
+                                      StatusPill(
+                                        text:
+                                            '#${leaderboardEntry.rank} on leaderboard',
+                                        color: leaderboardEntry.rank == 1
+                                            ? LumoTheme.accentOrange
+                                            : LumoTheme.primary,
+                                      ),
+                                    StatusPill(
+                                      text: learner.enrollmentStatus,
+                                      color: LumoTheme.primary,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Back'),
+                              ),
+                              const Spacer(),
+                              if (leaderboardEntry != null) ...[
+                                StatusPill(
+                                  text: '#${leaderboardEntry.rank} on leaderboard',
+                                  color: leaderboardEntry.rank == 1
+                                      ? LumoTheme.accentOrange
+                                      : LumoTheme.primary,
+                                ),
+                                const SizedBox(width: 10),
+                              ],
+                              StatusPill(
+                                text: learner.enrollmentStatus,
+                                color: LumoTheme.primary,
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 20),
                       Expanded(
@@ -5261,9 +5300,12 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
         Flexible() => child.child,
         _ => child,
       };
+      final paneHeight = viewportHeight < 700
+          ? 700.0
+          : viewportHeight * 0.96;
       return isPane
           ? SizedBox(
-              height: viewportHeight * 0.86,
+              height: paneHeight,
               child: columnChild,
             )
           : columnChild;

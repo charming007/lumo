@@ -120,15 +120,20 @@ class MallamPanel extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Row(
-            children: [
-              _ModeChip(label: statusLabel, color: speakerColor),
-              if (secondaryStatus != null) ...[
-                const SizedBox(width: 8),
-                _ModeChip(
-                    label: secondaryStatus!, color: const Color(0xFF0F172A)),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _ModeChip(label: statusLabel, color: speakerColor),
+                if (secondaryStatus != null)
+                  _ModeChip(
+                    label: secondaryStatus!,
+                    color: const Color(0xFF0F172A),
+                  ),
               ],
-            ],
+            ),
           ),
           const SizedBox(height: 18),
           Expanded(
