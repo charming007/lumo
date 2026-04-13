@@ -663,6 +663,8 @@ function buildAdminControlsReport({ cohortId = null, podId = null, mallamId = nu
       sessionRepairs: sessionRepairs.length,
       abandonRepairs: repairActionCounts.abandon || 0,
       reopenRepairs: repairActionCounts.reopen || 0,
+      completedRepairs: repairActionCounts.completed || 0,
+      revertedRepairs: repairActionCounts['revert-repair'] || 0,
       patchedSessions: repairActionCounts.manual_patch || 0,
     },
     overrideReasons: Object.entries(overrideReasonCounts)

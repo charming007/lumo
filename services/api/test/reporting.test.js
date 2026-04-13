@@ -112,13 +112,24 @@ test('buildAdminControlsReport summarizes progression overrides and session repa
     before: { status: 'abandoned' },
     after: { status: 'in_progress' },
   });
+  store.createSessionRepair({
+    sessionId: 'session-reporting-test',
+    learnerId: progress.studentId,
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+    reason: 'qa_rollback',
+    patch: { action: 'revert-repair' },
+    before: { status: 'completed' },
+    after: { status: 'in_progress' },
+  });
 
   const report = reporting.buildAdminControlsReport({ learnerId: progress.studentId, limit: 5 });
 
   assert.equal(report.summary.learnersInScope, 1);
   assert.equal(report.summary.progressionOverrides >= 1, true);
-  assert.equal(report.summary.sessionRepairs >= 1, true);
+  assert.equal(report.summary.sessionRepairs >= 2, true);
   assert.equal(report.summary.reopenRepairs >= 1, true);
+  assert.equal(report.summary.revertedRepairs >= 1, true);
   assert.ok(report.overrideReasons.some((entry) => entry.reason === 'admin_push'));
   assert.ok(report.repairReasons.some((entry) => entry.reason === 'resume_fix'));
   assert.ok(report.actors.some((entry) => entry.actorName === 'Ops Admin'));
