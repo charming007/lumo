@@ -134,3 +134,32 @@ Returns `{ items, generatedAt }` for learner-facing assignment packs without pul
 ### `GET /api/v1/learner-app/modules/:id`
 Returns a learner module plus its approved/published lessons and `assignmentPacks` for that module.
 Supports either the curriculum module id (example `module-1`) or the learner-facing subject id (example `english`).
+
+## Newly added reward request + admin control endpoints
+
+### Reward request / redemption workflow
+- `GET /api/v1/learner-app/rewards/requests`
+- `POST /api/v1/learner-app/rewards/requests`
+- `POST /api/v1/learner-app/rewards/requests/:id/cancel`
+- `GET /api/v1/rewards/requests`
+- `POST /api/v1/rewards/requests/:id/approve`
+- `POST /api/v1/rewards/requests/:id/reject`
+- `POST /api/v1/rewards/requests/:id/fulfill`
+
+Behavior:
+- learner requests are persisted in the same file-backed durability layer as the rest of the API state
+- item existence + XP affordability are checked when the request is created
+- duplicate pending/approved requests for the same learner/item are rejected
+- `clientRequestId` can be used for safe/idempotent learner-side retries
+- fulfillment creates a negative `redemption` reward transaction instead of mutating balances directly
+
+### Session control operations
+- `POST /api/v1/learner-app/sessions/:sessionId/abandon`
+- `POST /api/v1/learner-app/sessions/:sessionId/reopen`
+
+Both operations create event-log + repair/audit entries so admins can intervene without silent history loss.
+
+### Persistence / storage integrity
+- `GET /api/v1/admin/storage/integrity`
+
+Returns lightweight referential/integrity checks over the current persisted snapshot, including reward request references and runtime session ownership gaps.

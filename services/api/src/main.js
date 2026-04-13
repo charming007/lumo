@@ -958,6 +958,113 @@ app.get('/api/v1/learner-app/rewards/leaderboard', (req, res) => {
   }));
 });
 
+app.get('/api/v1/learner-app/rewards/requests', (req, res) => {
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+
+  if (!learner) {
+    return res.status(404).json({ message: 'Learner not found' });
+  }
+
+  return res.json(rewards.buildRewardRequestHistory(learner.id, {
+    status: coerceOptionalString(req.query.status),
+    limit: coerceOptionalNumber(req.query.limit) || 20,
+  }));
+});
+
+app.post('/api/v1/learner-app/rewards/requests', (req, res, next) => {
+  try {
+    const learner = resolveStudentScope({ learnerId: req.body?.learnerId || req.query.learnerId, learnerCode: req.body?.learnerCode || req.query.learnerCode });
+
+    if (!learner) {
+      return res.status(404).json({ message: 'Learner not found' });
+    }
+
+    const result = rewards.createRewardRedemptionRequest({
+      studentId: learner.id,
+      rewardItemId: coerceOptionalString(req.body?.rewardItemId),
+      learnerNote: coerceOptionalString(req.body?.learnerNote) || '',
+      requestedBy: learner.id,
+      requestedVia: 'learner-app',
+      clientRequestId: coerceOptionalString(req.body?.clientRequestId) || coerceOptionalString(req.header('x-lumo-client-id')),
+      metadata: req.body?.metadata,
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/learner-app/rewards/requests/:id/cancel', (req, res, next) => {
+  try {
+    const result = rewards.cancelRewardRedemptionRequest(req.params.id, {
+      actorName: req.actor?.name || 'Learner app',
+      actorRole: req.actor?.role || 'learner',
+      reason: req.body?.reason,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/api/v1/rewards/requests', (req, res) => {
+  const limit = coerceOptionalNumber(req.query.limit) || 50;
+  return res.json(rewards.buildRewardRedemptionQueue({
+    learnerId: coerceOptionalString(req.query.learnerId),
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    status: coerceOptionalString(req.query.status),
+    limit: Number.isFinite(limit) ? limit : 50,
+  }));
+});
+
+app.post('/api/v1/rewards/requests/:id/approve', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const result = rewards.approveRewardRedemptionRequest(req.params.id, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      adminNote: req.body?.adminNote,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/rewards/requests/:id/reject', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const result = rewards.rejectRewardRedemptionRequest(req.params.id, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason,
+      adminNote: req.body?.adminNote,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/rewards/requests/:id/fulfill', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const result = rewards.fulfillRewardRedemptionRequest(req.params.id, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      adminNote: req.body?.adminNote,
+      metadata: req.body?.metadata,
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/api/v1/rewards/summary', (req, res) => {
   res.json(rewards.buildRewardOpsSummary({
     cohortId: coerceOptionalString(req.query.cohortId),
@@ -1535,6 +1642,121 @@ app.post('/api/v1/learner-app/sessions/:sessionId/repair', requireRole(['admin',
   }
 });
 
+app.post('/api/v1/learner-app/sessions/:sessionId/abandon', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const session = store.findLessonSessionBySessionId(req.params.sessionId);
+
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const before = presenters.presentLessonSession(session);
+    const updated = store.upsertLessonSession({
+      sessionId: session.sessionId,
+      studentId: session.studentId,
+      learnerCode: session.learnerCode,
+      lessonId: session.lessonId,
+      moduleId: session.moduleId,
+      startedAt: session.startedAt,
+      status: 'abandoned',
+      completionState: 'abandoned',
+      lastActivityAt: req.body?.lastActivityAt || new Date().toISOString(),
+      lastEventType: 'session_abandoned',
+      latestReview: session.latestReview,
+      currentStepIndex: session.currentStepIndex,
+      stepsTotal: session.stepsTotal,
+      responsesCaptured: session.responsesCaptured,
+      supportActionsUsed: session.supportActionsUsed,
+      audioCaptures: session.audioCaptures,
+      facilitatorObservations: session.facilitatorObservations,
+      automationStatus: session.automationStatus,
+    });
+
+    store.createSessionEventLog({
+      sessionId: updated.sessionId,
+      studentId: updated.studentId,
+      lessonId: updated.lessonId,
+      moduleId: updated.moduleId,
+      type: 'session_abandoned',
+      payload: { reason: req.body?.reason || 'manual_abandon', actor: req.actor },
+      createdAt: new Date().toISOString(),
+    });
+
+    const audit = store.createSessionRepair({
+      sessionId: updated.sessionId,
+      learnerId: updated.studentId,
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason || 'manual_abandon',
+      patch: { action: 'abandon' },
+      before,
+      after: presenters.presentLessonSession(updated),
+    });
+
+    return res.status(201).json({ repair: audit, session: presenters.presentLessonSession(updated) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/learner-app/sessions/:sessionId/reopen', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const session = store.findLessonSessionBySessionId(req.params.sessionId);
+
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const before = presenters.presentLessonSession(session);
+    const updated = store.upsertLessonSession({
+      sessionId: session.sessionId,
+      studentId: session.studentId,
+      learnerCode: session.learnerCode,
+      lessonId: session.lessonId,
+      moduleId: session.moduleId,
+      startedAt: session.startedAt,
+      status: 'in_progress',
+      completionState: 'inProgress',
+      completedAt: null,
+      lastActivityAt: req.body?.lastActivityAt || new Date().toISOString(),
+      lastEventType: 'session_reopened',
+      latestReview: req.body?.latestReview !== undefined ? req.body.latestReview : session.latestReview,
+      currentStepIndex: req.body?.currentStepIndex !== undefined ? req.body.currentStepIndex : session.currentStepIndex,
+      stepsTotal: req.body?.stepsTotal !== undefined ? req.body.stepsTotal : session.stepsTotal,
+      responsesCaptured: session.responsesCaptured,
+      supportActionsUsed: session.supportActionsUsed,
+      audioCaptures: session.audioCaptures,
+      facilitatorObservations: session.facilitatorObservations,
+      automationStatus: session.automationStatus,
+    });
+
+    store.createSessionEventLog({
+      sessionId: updated.sessionId,
+      studentId: updated.studentId,
+      lessonId: updated.lessonId,
+      moduleId: updated.moduleId,
+      type: 'session_reopened',
+      payload: { reason: req.body?.reason || 'manual_reopen', actor: req.actor },
+      createdAt: new Date().toISOString(),
+    });
+
+    const audit = store.createSessionRepair({
+      sessionId: updated.sessionId,
+      learnerId: updated.studentId,
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason || 'manual_reopen',
+      patch: { action: 'reopen' },
+      before,
+      after: presenters.presentLessonSession(updated),
+    });
+
+    return res.status(201).json({ repair: audit, session: presenters.presentLessonSession(updated) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/api/v1/session-repairs', (req, res) => {
   const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
   const cohortId = coerceOptionalString(req.query.cohortId);
@@ -1605,6 +1827,10 @@ app.get('/api/v1/reports/engagement', (req, res) => {
 
 app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
   res.json(store.getStorageStatus());
+});
+
+app.get('/api/v1/admin/storage/integrity', requireRole(['admin']), (_req, res) => {
+  res.json(store.getStorageIntegrityReport());
 });
 
 app.post('/api/v1/admin/storage/checkpoint', requireRole(['admin']), (req, res, next) => {

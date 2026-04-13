@@ -439,6 +439,8 @@ module.exports = {
   createSessionEventLog,
   findSyncEventByClientId,
   createSyncEvent,
+  listSessionRepairs,
+  createSessionRepair,
   listRewardTransactions,
   findRewardTransactionById,
   listRewardAdjustments,
@@ -450,5 +452,6 @@ module.exports = {
   getStoreMeta,
   getStorageStatus,
   checkpointStorage,
+  getStorageIntegrityReport,
   restoreStorageBackup,
 };
