@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { FeedbackBanner } from '../../../components/feedback-banner';
-import { fetchMallam } from '../../../lib/api';
+import { MallamRosterManager } from '../../../components/mallam-roster-manager';
+import { fetchMallam, fetchMallams, fetchStudents } from '../../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 function average(values: number[]) {
@@ -24,8 +25,9 @@ export default async function MallamDetailPage({ params, searchParams }: { param
   const query = await searchParams;
 
   try {
-    const mallam = await fetchMallam(id);
+    const [mallam, allStudents, allMallams] = await Promise.all([fetchMallam(id), fetchStudents(), fetchMallams()]);
     const roster = mallam.roster ?? [];
+    const candidateLearners = allStudents.filter((student) => student.mallamId !== mallam.id);
     const assignments = mallam.assignments ?? [];
     const watchLearners = roster.filter((student) => student.attendanceRate < 0.85);
     const stableLearners = roster.filter((student) => student.attendanceRate >= 0.9);
@@ -113,22 +115,26 @@ export default async function MallamDetailPage({ params, searchParams }: { param
         </section>
 
         <section style={{ display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 16, marginBottom: 20 }}>
-          <Card title="Roster detail" eyebrow="Learner ownership">
-            <SimpleTable
-              columns={['Learner', 'Cohort', 'Pod', 'Attendance', 'Level', 'Signal']}
-              rows={roster.map((student) => {
-                const signal = student.attendanceRate < 0.85 ? 'Needs intervention' : student.attendanceRate >= 0.9 ? 'Stable' : 'Monitor';
-                return [
-                  student.name,
-                  student.cohortName ?? '—',
-                  student.podLabel ?? '—',
-                  `${Math.round(student.attendanceRate * 100)}%`,
-                  `${student.level} · ${student.stage}`,
-                  signal,
-                ];
-              })}
-            />
-          </Card>
+          <div style={{ display: 'grid', gap: 16 }}>
+            <Card title="Roster detail" eyebrow="Learner ownership">
+              <SimpleTable
+                columns={['Learner', 'Cohort', 'Pod', 'Attendance', 'Level', 'Signal']}
+                rows={roster.map((student) => {
+                  const signal = student.attendanceRate < 0.85 ? 'Needs intervention' : student.attendanceRate >= 0.9 ? 'Stable' : 'Monitor';
+                  return [
+                    student.name,
+                    student.cohortName ?? '—',
+                    student.podLabel ?? '—',
+                    `${Math.round(student.attendanceRate * 100)}%`,
+                    `${student.level} · ${student.stage}`,
+                    signal,
+                  ];
+                })}
+              />
+            </Card>
+
+            <MallamRosterManager mallam={mallam} roster={roster} candidateLearners={candidateLearners} mallams={allMallams} returnPath={`/mallams/${mallam.id}`} />
+          </div>
 
           <div style={{ display: 'grid', gap: 16 }}>
             <Card title="Attendance spread" eyebrow="History snapshot">

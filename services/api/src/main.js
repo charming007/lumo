@@ -230,6 +230,41 @@ function buildProgressionOverrideResponse(record) {
   };
 }
 
+function normalizeMallamAssignmentValue(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  const normalized = String(value).trim();
+  if (!normalized || normalized === 'unassigned' || normalized === 'none' || normalized === 'null') {
+    return null;
+  }
+
+  return normalized;
+}
+
+function assignStudentMallam(studentId, mallamId) {
+  const student = store.findStudentById(studentId);
+
+  if (!student) {
+    const error = new Error('Student not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (mallamId !== null) {
+    const mallam = store.findTeacherById(mallamId);
+
+    if (!mallam) {
+      const error = new Error('Mallam not found');
+      error.statusCode = 404;
+      throw error;
+    }
+  }
+
+  const updatedStudent = store.updateStudent(studentId, { mallamId });
+  return presenters.presentStudent(updatedStudent);
+}
+
 function hashPayload(payload) {
   return crypto.createHash('sha1').update(JSON.stringify(payload || {})).digest('hex');
 }
@@ -865,6 +900,34 @@ app.patch('/api/v1/students/:id', requireRole(['admin', 'teacher']), (req, res, 
     }
 
     return res.json(presenters.presentStudent(student));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/students/:id/mallam', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const updatedStudent = assignStudentMallam(req.params.id, normalizeMallamAssignmentValue(req.body?.mallamId));
+    return res.status(201).json(updatedStudent);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/mallams/:id/roster', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const learnerIds = Array.isArray(req.body?.learnerIds)
+      ? req.body.learnerIds.map((value) => String(value)).filter(Boolean)
+      : [String(req.body?.learnerId || '')].filter(Boolean);
+
+    if (!learnerIds.length) {
+      const error = new Error('Provide learnerId or learnerIds');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const updates = learnerIds.map((learnerId) => assignStudentMallam(learnerId, req.params.id));
+    return res.status(201).json({ items: updates, count: updates.length });
   } catch (error) {
     return next(error);
   }

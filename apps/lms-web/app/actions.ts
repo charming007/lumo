@@ -150,6 +150,35 @@ export async function deleteStudentAction(formData: FormData) {
   redirect('/students?message=Learner%20removed%20from%20the%20roster');
 }
 
+export async function assignLearnerMallamAction(formData: FormData) {
+  const studentId = String(formData.get('studentId') || '');
+  const returnPath = String(formData.get('returnPath') || `/students/${studentId}`);
+  const mallamId = String(formData.get('mallamId') || 'unassigned');
+  const payload = {
+    mallamId: mallamId === 'unassigned' ? null : mallamId,
+  };
+
+  await apiWrite(`/api/v1/students/${studentId}/mallam`, 'POST', payload, 'admin');
+  revalidatePath('/');
+  revalidatePath('/students');
+  revalidatePath('/mallams');
+  revalidatePath(returnPath);
+  redirect(`${returnPath}?message=${payload.mallamId ? 'Mallam%20assignment%20saved' : 'Mallam%20assignment%20cleared'}`);
+}
+
+export async function assignLearnerToMallamAction(formData: FormData) {
+  const mallamId = String(formData.get('mallamId') || '');
+  const studentId = String(formData.get('studentId') || '');
+  const returnPath = String(formData.get('returnPath') || `/mallams/${mallamId}`);
+
+  await apiWrite(`/api/v1/mallams/${mallamId}/roster`, 'POST', { learnerId: studentId }, 'admin');
+  revalidatePath('/');
+  revalidatePath('/students');
+  revalidatePath('/mallams');
+  revalidatePath(returnPath);
+  redirect(`${returnPath}?message=Learner%20assignment%20saved`);
+}
+
 export async function createMallamAction(formData: FormData) {
   const podIdsRaw = String(formData.get('podIds') || '');
   const payload = {

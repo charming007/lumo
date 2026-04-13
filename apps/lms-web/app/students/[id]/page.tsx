@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { ObservationForm } from '../../../components/observation-form';
 import { FeedbackBanner } from '../../../components/feedback-banner';
-import { fetchStudent } from '../../../lib/api';
+import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
+import { fetchMallams, fetchStudent } from '../../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
@@ -9,7 +10,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
   const query = await searchParams;
 
   try {
-    const student = await fetchStudent(id);
+    const [student, mallams] = await Promise.all([fetchStudent(id), fetchMallams()]);
 
     return (
       <PageShell
@@ -70,6 +71,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
             />
           </Card>
 
+          <LearnerMallamAssignmentForm student={student} mallams={mallams} returnPath={`/students/${student.id}`} />
           <ObservationForm studentId={student.id} />
         </section>
 

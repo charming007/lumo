@@ -154,10 +154,12 @@ function updateStudent(id, input) {
     return null;
   }
 
+  const has = (key) => Object.prototype.hasOwnProperty.call(input, key);
+
   Object.assign(student, {
-    cohortId: input.cohortId ?? student.cohortId,
-    podId: input.podId ?? student.podId,
-    mallamId: input.mallamId ?? student.mallamId,
+    cohortId: has('cohortId') ? input.cohortId : student.cohortId,
+    podId: has('podId') ? input.podId : student.podId,
+    mallamId: has('mallamId') ? input.mallamId : student.mallamId,
     name: input.name ?? student.name,
     age: input.age !== undefined ? Number(input.age) : student.age,
     gender: input.gender ?? student.gender,
