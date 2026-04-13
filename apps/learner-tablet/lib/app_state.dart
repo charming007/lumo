@@ -224,31 +224,9 @@ class LumoAppState {
       ..addAll(_dedupeModules(hydratedModules));
 
     if (hydratedLessons.isNotEmpty) {
-      if (kEnableSeedDemoContent) {
-        final sourceModuleIds = sourceModules.map((item) => item.id).toSet();
-        final fallbackByModule = <String, List<LessonCardModel>>{};
-        for (final lesson in assignedLessonsSeed) {
-          if (!sourceModuleIds.contains(lesson.moduleId)) continue;
-          fallbackByModule.putIfAbsent(lesson.moduleId, () => []).add(lesson);
-        }
-
-        final liveModuleIds =
-            hydratedLessons.map((item) => item.moduleId).toSet();
-        final mergedLessons = <LessonCardModel>[
-          ...hydratedLessons,
-          ...fallbackByModule.entries
-              .where((entry) => !liveModuleIds.contains(entry.key))
-              .expand((entry) => entry.value),
-        ];
-
-        assignedLessons
-          ..clear()
-          ..addAll(mergedLessons);
-      } else {
-        assignedLessons
-          ..clear()
-          ..addAll(hydratedLessons);
-      }
+      assignedLessons
+        ..clear()
+        ..addAll(hydratedLessons);
     }
   }
 
@@ -1085,9 +1063,9 @@ class LumoAppState {
       flags.add('sync retry pending');
     }
     if (flags.isEmpty) {
-      return 'Live mode: backend and lesson sync are available.';
+      return 'Live mode: backend, transcript help, and lesson sync are available.';
     }
-    return 'Degraded mode: ${flags.join(' • ')}. Keep teaching, store audio locally, and sync when the connection returns.';
+    return 'Degraded mode: ${flags.join(' • ')}. Keep teaching from cached lessons, save learner audio locally, and sync the queue when the connection returns.';
   }
 
   List<String> degradedModeActions({
@@ -1100,18 +1078,24 @@ class LumoAppState {
           'Keep teaching from cached lessons while learner events queue locally.');
     }
     if (pendingSyncEvents.isNotEmpty) {
-      actions.add('Protect the queue and retry sync when the signal returns.');
+      actions.add(
+          'Protect the offline queue, avoid duplicate taps, and retry sync when the signal returns.');
     }
     if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
-      actions.add('Stay in audio-first mode until backend sync recovers.');
+      actions.add(
+          'Stay in audio-first mode until backend sync recovers so no learner evidence gets lost.');
     }
     if (!speechAvailable) {
       actions.add(
-          'Capture audio even without transcript help, then review or type the answer.');
+          'Capture audio even without transcript help, then review or type the answer before advancing.');
     }
     if (transcriptMisses >= 2) {
       actions.add(
-          'Use Repeat mode and model answers so the learner can keep moving hands-free.');
+          'Use Repeat mode and model answers so the learner can keep moving hands-free even when STT is flaky.');
+    }
+    if (transcriptMisses >= 3) {
+      actions.add(
+          'Pause full auto-advance, confirm the last answer manually, and reopen the mic for the next safe turn.');
     }
     if (actions.isEmpty) {
       actions.add('No degraded-mode action needed right now.');
@@ -1122,6 +1106,14 @@ class LumoAppState {
   String rewardCelebrationHeadlineForLearner(LearnerProfile learner) {
     final rewards = learner.rewards;
     if (rewards == null) return 'Nice work, ${learner.name}!';
+    final unlocked = rewards.badges.where((badge) => badge.earned).toList();
+    if (unlocked.isNotEmpty) {
+      final latestBadge = unlocked.last.title;
+      if (rewards.nextLevelLabel == null) {
+        return '${learner.name} reached the top celebration band and unlocked $latestBadge!';
+      }
+      return '${learner.name} is now a ${rewards.levelLabel} with $latestBadge!';
+    }
     if (rewards.nextLevelLabel == null) {
       return '${learner.name} reached the top celebration band!';
     }
@@ -1136,7 +1128,9 @@ class LumoAppState {
     final unlocked = rewards.badges.where((badge) => badge.earned).toList();
     final badgeLine = unlocked.isEmpty
         ? 'Keep going to unlock the first badge.'
-        : 'Unlocked ${unlocked.length} badge${unlocked.length == 1 ? '' : 's'} so far.';
+        : unlocked.length == 1
+            ? 'Unlocked ${unlocked.first.title}.'
+            : 'Unlocked ${unlocked.length} badges so far: ${unlocked.take(2).map((badge) => badge.title).join(' and ')}${unlocked.length > 2 ? ' +' : ''}.';
     final nextLine = rewards.nextLevelLabel == null
         ? 'Every new lesson now grows confidence, points, and streaks.'
         : '${rewards.xpForNextLevel} XP until ${rewards.nextLevelLabel}.';
@@ -1293,7 +1287,9 @@ class LumoAppState {
     final basePoints = existingRewards?.points ?? learner.totalXp;
     final earnedXp = (12 +
             min(session.totalResponses, 4) +
-            (session.supportActionsUsed == 0 ? 3 : 0))
+            (session.supportActionsUsed == 0 ? 3 : 0) +
+            (session.totalAudioCaptures > 0 ? 2 : 0) +
+            ((usingFallbackData || pendingSyncEvents.isNotEmpty) ? 2 : 0))
         .toInt();
     final newTotalXp = baseTotalXp + earnedXp;
     final newPoints = basePoints + earnedXp;
@@ -1366,6 +1362,14 @@ class LumoAppState {
         1
       ),
       (
+        'story-scout',
+        'Story Scout',
+        'Complete 3 lessons and unlock a longer celebration path.',
+        'menu_book',
+        'lesson',
+        3
+      ),
+      (
         'streak-spark',
         'Streak Spark',
         'Keep a 3-day learning streak alive.',
@@ -1389,6 +1393,22 @@ class LumoAppState {
         'independence',
         1
       ),
+      (
+        'hands-free-hero',
+        'Hands-Free Hero',
+        'Complete a response loop with learner audio captured and no extra support.',
+        'smart_toy',
+        'automation',
+        1
+      ),
+      (
+        'signal-keeper',
+        'Signal Keeper',
+        'Finish a lesson safely while offline or waiting for sync recovery.',
+        'cloud_off',
+        'resilience',
+        1
+      ),
     ];
     final existingById = {for (final badge in existingBadges) badge.id: badge};
     final badges = <RewardBadge>[];
@@ -1403,9 +1423,19 @@ class LumoAppState {
       final existing = existingById[id];
       final progress = switch (id) {
         'voice-starter' => completedLessons,
+        'story-scout' => completedLessons,
         'streak-spark' => updatedStreakDays,
         'xp-climber' => totalXp,
         'independent-echo' => session.supportActionsUsed == 0 ? 1 : 0,
+        'hands-free-hero' =>
+          session.supportActionsUsed == 0 && session.totalAudioCaptures > 0
+              ? 1
+              : 0,
+        'signal-keeper' => usingFallbackData ||
+                pendingSyncEvents.isNotEmpty ||
+                (lastSyncError != null && lastSyncError!.trim().isNotEmpty)
+            ? 1
+            : 0,
         _ => 0,
       };
       badges.add(

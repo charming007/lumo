@@ -175,10 +175,12 @@ void main() {
         state.modules.where((module) => module.id == 'story'),
         isEmpty,
       );
+      expect(state.assignedLessons, isEmpty);
       state.dispose();
     });
 
-    test('builds a fallback module when lesson metadata arrives before modules', () {
+    test('builds a fallback module when lesson metadata arrives before modules',
+        () {
       final state = LumoAppState();
       final lesson = state.assignedLessons.first;
 
@@ -679,6 +681,39 @@ void main() {
       expect(actions.join(' '), contains('cached lessons'));
       expect(actions.join(' '), contains('audio-first mode'));
       expect(actions.join(' '), contains('Repeat mode'));
+      expect(actions.join(' '), contains('Pause full auto-advance'));
+    });
+
+    test('offline completion unlocks resilience and hands-free badges',
+        () async {
+      final state = LumoAppState();
+      state.usingFallbackData = true;
+      state.currentLearner = beginner;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      state.startLesson(lesson);
+      state.attachLearnerAudioCapture(
+        path: '/tmp/learner.m4a',
+        duration: const Duration(seconds: 4),
+        audioInputMode: 'Shared mic on tablet • audio-only fallback',
+      );
+      state.submitLearnerResponse('A is for ant.');
+      await state.completeLesson(lesson);
+
+      final rewards = state.currentLearner!.rewards!;
+      expect(
+        rewards.badges
+            .any((badge) => badge.id == 'signal-keeper' && badge.earned),
+        isTrue,
+      );
+      expect(
+        rewards.badges
+            .any((badge) => badge.id == 'hands-free-hero' && badge.earned),
+        isTrue,
+      );
+      state.dispose();
     });
 
     test('reward celebration helpers surface level and badge momentum', () {
@@ -721,7 +756,7 @@ void main() {
       );
       expect(
         state.rewardCelebrationDetailForLearner(learner),
-        contains('badge'),
+        contains('Voice Starter'),
       );
     });
   });
