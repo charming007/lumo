@@ -1174,6 +1174,40 @@ app.post('/api/v1/rewards/requests/:id/requeue', requireRole(['admin', 'teacher'
   }
 });
 
+app.post('/api/v1/rewards/requests/:id/expire', requireRole(['admin', 'teacher']), (req, res, next) => {
+  try {
+    const result = rewards.expireRewardRedemptionRequest(req.params.id, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason,
+      adminNote: req.body?.adminNote,
+      metadata: req.body?.metadata,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/admin/rewards/requests/expire-stale', requireRole(['admin']), (req, res, next) => {
+  try {
+    const result = rewards.expireStaleRewardRedemptionRequests({
+      olderThanDays: coerceOptionalNumber(req.body?.olderThanDays) ?? 14,
+      includeApproved: req.body?.includeApproved !== false,
+      limit: coerceOptionalNumber(req.body?.limit) ?? 100,
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+      reason: req.body?.reason,
+      adminNote: req.body?.adminNote,
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.post('/api/v1/rewards/requests/:id/fulfill', requireRole(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.fulfillRewardRedemptionRequest(req.params.id, {
