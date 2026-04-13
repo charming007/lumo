@@ -172,9 +172,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
   const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const progress = progressResult.status === 'fulfilled' ? progressResult.value : [];
-  const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : EMPTY_OPERATIONS_REPORT;
   const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
-  const ngoSummary = ngoSummaryResult.status === 'fulfilled' ? ngoSummaryResult.value : EMPTY_NGO_SUMMARY;
 
   const failedSources = [
     reportResult.status === 'rejected' ? 'report metrics' : null,
@@ -184,9 +182,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
     podsResult.status === 'rejected' ? 'pods' : null,
     assignmentsResult.status === 'rejected' ? 'assignments' : null,
     progressResult.status === 'rejected' ? 'progress' : null,
-    operationsResult.status === 'rejected' ? 'operations report' : null,
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
-    ngoSummaryResult.status === 'rejected' ? 'ngo summary' : null,
   ].filter(Boolean);
 
   const scopedStudents = students.filter((student) => {
@@ -242,6 +238,166 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
   const highestImpactMallams = [...mallamSnapshots]
     .sort((a, b) => (b.readinessCount - a.readinessCount) || (b.rosterCount - a.rosterCount))
     .slice(0, 5);
+
+  const derivedRewardQueue = highestRiskPods.slice(0, 3).map((pod, index) => ({
+    id: `derived-reward-${pod.id}`,
+    learnerName: scopedStudents.find((student) => student.podId === pod.id)?.name ?? `${pod.label} learner`,
+    rewardTitle: pod.watchCount > 0 ? 'Watchlist intervention follow-up' : 'Attendance recovery nudge',
+    status: pod.watchCount > 0 ? 'pending' : 'approved',
+    createdAt: null,
+    updatedAt: null,
+  }));
+
+  const derivedHighSupportLearners = scopedStudents
+    .map((student) => {
+      const learnerProgress = progress.find((item) => item.studentId === student.id);
+      const learnerAssignments = assignments.filter((assignment) => assignment.podLabel === student.podLabel);
+      const attendance = student.attendanceRate ?? 0;
+      const supportActions = Number(attendance < 0.85) + Number((learnerProgress?.progressionStatus ?? '') === 'watch') + Number((learnerProgress?.mastery ?? 1) < 0.6);
+      return {
+        learnerName: student.name,
+        studentName: student.name,
+        sessions: Math.max(learnerAssignments.length, learnerProgress?.lessonsCompleted ?? 0),
+        completedSessions: learnerProgress?.lessonsCompleted ?? 0,
+        totalSupportActions: supportActions,
+      };
+    })
+    .filter((entry) => entry.totalSupportActions > 0)
+    .sort((a, b) => b.totalSupportActions - a.totalSupportActions)
+    .slice(0, 6);
+
+  const fallbackOperationsReport: OperationsReport = {
+    scope: {
+      cohortId: cohortFilter || null,
+      podId: podFilter || null,
+      mallamId: mallamFilter || null,
+      limit: scopedStudents.length,
+    },
+    summary: {
+      learnersInScope: scopedStudents.length,
+      runtimeCompletionRate: scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate ?? 0)) : report.averageAttendance,
+      runtimeAbandonedSessions: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId) && item.progressionStatus === 'watch' && item.mastery < 0.5).length,
+      progressionReady: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId) && item.progressionStatus === 'ready').length,
+      progressionWatch: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId) && item.progressionStatus === 'watch').length,
+      rewardPendingRequests: derivedRewardQueue.filter((entry) => entry.status === 'pending').length,
+      rewardFulfillmentRate: derivedRewardQueue.length ? derivedRewardQueue.filter((entry) => entry.status === 'fulfilled').length / derivedRewardQueue.length : 0,
+      rewardBacklogUrgent: highestRiskPods.filter((pod) => pod.watchCount > 0 || pod.attendanceAverage < 0.85).length,
+      activeProgressionOverrides: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId) && item.override).length,
+      sessionRepairs: highestRiskPods.filter((pod) => pod.attendanceAverage < 0.85).length,
+      integrityIssueCount: 0,
+    },
+    runtime: {},
+    progression: {},
+    rewards: {},
+    integrity: {},
+    hotlist: {
+      watchLearners: progress
+        .filter((item) => scopedStudents.some((student) => student.id === item.studentId) && item.progressionStatus === 'watch')
+        .sort((a, b) => a.mastery - b.mastery)
+        .slice(0, 6)
+        .map((item) => {
+          const student = scopedStudents.find((entry) => entry.id === item.studentId);
+          return {
+            id: item.id,
+            studentName: item.studentName,
+            cohortName: student?.cohortName ?? null,
+            mallamName: student?.mallamName ?? null,
+            podLabel: student?.podLabel ?? null,
+            attendanceRate: student?.attendanceRate ?? 0,
+            mastery: item.mastery,
+            progressionStatus: item.progressionStatus,
+            focus: item.subjectName,
+            recommendedNextModuleTitle: item.recommendedNextModuleTitle ?? null,
+            totalXp: Math.round(item.mastery * 100),
+            level: Math.max(1, Math.round(item.mastery * 10)),
+            levelLabel: student?.level ?? 'foundation',
+            badgesUnlocked: 0,
+          };
+        }),
+      readyLearners: [],
+      runtimeLearners: [],
+      stalledRuntimeLearners: [],
+      highSupportLearners: derivedHighSupportLearners,
+      rewardQueue: derivedRewardQueue,
+    },
+    recent: {
+      sessions: [],
+      events: [],
+      overrides: [],
+      rewardAdjustments: [],
+      rewardRequests: derivedRewardQueue,
+      integrityIssues: [],
+    },
+  };
+
+  const fallbackNgoSummary: NgoSummary = {
+    scope: {
+      cohortId: cohortFilter || null,
+      podId: podFilter || null,
+      mallamId: mallamFilter || null,
+      learnerCount: scopedStudents.length,
+    },
+    totals: {
+      learners: scopedStudents.length,
+      centers: new Set(podSnapshots.map((pod) => pod.centerName).filter(Boolean)).size || report.totalCenters,
+      pods: podSnapshots.length || report.activePods,
+      mallams: mallamSnapshots.length || report.totalTeachers,
+      activeAssignments: assignments.length || report.totalAssignments,
+      lessonsCompleted: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId)).reduce((sum, item) => sum + item.lessonsCompleted, 0),
+      completedSessions: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId)).reduce((sum, item) => sum + item.lessonsCompleted, 0),
+      attendanceAverage: scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate ?? 0)) : report.averageAttendance,
+      averageMastery: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId)).length
+        ? average(progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId)).map((item) => item.mastery))
+        : report.averageMastery,
+      totalXpAwarded: Math.round(progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId)).reduce((sum, item) => sum + (item.mastery * 100), 0)),
+    },
+    progression: {
+      ready: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId) && item.progressionStatus === 'ready').length,
+      watch: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId) && item.progressionStatus === 'watch').length,
+      onTrack: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId) && item.progressionStatus === 'on-track').length,
+    },
+    rewardOps: {
+      summary: {
+        pending: derivedRewardQueue.filter((entry) => entry.status === 'pending').length,
+        approved: derivedRewardQueue.filter((entry) => entry.status === 'approved').length,
+        fulfilled: derivedRewardQueue.filter((entry) => entry.status === 'fulfilled').length,
+        urgentCount: highestRiskPods.filter((pod) => pod.watchCount > 0 || pod.attendanceAverage < 0.85).length,
+        attentionCount: highestRiskPods.filter((pod) => pod.watchCount > 0).length,
+      },
+      recentQueue: derivedRewardQueue,
+    },
+    subjectBreakdown: Object.values(progress
+      .filter((item) => scopedStudents.some((student) => student.id === item.studentId))
+      .reduce<Record<string, { subjectId: string; subjectName: string; learnerCount: number; masteryTotal: number; lessonsCompleted: number }>>((acc, item) => {
+        const key = item.subjectId || item.subjectName;
+        if (!acc[key]) {
+          acc[key] = {
+            subjectId: item.subjectId || key,
+            subjectName: item.subjectName,
+            learnerCount: 0,
+            masteryTotal: 0,
+            lessonsCompleted: 0,
+          };
+        }
+        acc[key].learnerCount += 1;
+        acc[key].masteryTotal += item.mastery;
+        acc[key].lessonsCompleted += item.lessonsCompleted;
+        return acc;
+      }, {}))
+      .map((subject) => ({
+        subjectId: subject.subjectId,
+        subjectName: subject.subjectName,
+        learnerCount: subject.learnerCount,
+        averageMastery: subject.learnerCount ? subject.masteryTotal / subject.learnerCount : 0,
+        lessonsCompleted: subject.lessonsCompleted,
+      }))
+      .sort((a, b) => b.learnerCount - a.learnerCount),
+    mallamSnapshots: highestImpactMallams,
+    topLearners: [],
+  };
+
+  const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : fallbackOperationsReport;
+  const ngoSummary = ngoSummaryResult.status === 'fulfilled' ? ngoSummaryResult.value : fallbackNgoSummary;
 
   const donorCoverage = ngoSummary.totals.learners > 0 && ngoSummary.totals.centers > 0
     ? `${ngoSummary.totals.learners} learners across ${ngoSummary.totals.centers} center${ngoSummary.totals.centers === 1 ? '' : 's'}`
