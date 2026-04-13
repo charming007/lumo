@@ -41,6 +41,44 @@ void main() {
       learnerCode: 'HAL-AL09',
     );
 
+    test('does not auto-select a learner during bootstrap refreshes', () async {
+      final state = LumoAppState(
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': const [],
+                  'lessons': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(state.learners, isNotEmpty);
+      expect(state.currentLearner, isNull);
+      state.dispose();
+    });
+
     test('ranks english first for voice-first beginners', () {
       final state = LumoAppState();
 

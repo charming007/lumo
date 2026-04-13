@@ -157,6 +157,33 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
+void launchLessonFlow({
+  required BuildContext context,
+  required LumoAppState state,
+  required VoidCallback onChanged,
+  required LessonCardModel lesson,
+  LearningModule? module,
+  BackendLessonSession? resumeFrom,
+}) {
+  final targetModule = module ??
+      state.modules.firstWhere(
+        (item) => item.id == lesson.moduleId,
+        orElse: () => state.modules.first,
+      );
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => LessonLaunchSetupPage(
+        state: state,
+        onChanged: onChanged,
+        lesson: lesson,
+        module: targetModule,
+        resumeFrom: resumeFrom,
+      ),
+    ),
+  );
+}
+
 class HomePage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
@@ -344,33 +371,12 @@ class HomePage extends StatelessWidget {
                                       },
                                       onContinue: nextAssignedLesson == null
                                           ? null
-                                          : () {
-                                              state.selectLearner(homeLearner);
-                                              state.selectModule(
-                                                state.modules.firstWhere(
-                                                  (module) =>
-                                                      module.id ==
-                                                      nextAssignedLesson
-                                                          .moduleId,
-                                                  orElse: () =>
-                                                      state.modules.first,
-                                                ),
-                                              );
-                                              state.startLesson(
-                                                nextAssignedLesson,
-                                              );
-                                              onChanged();
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      LessonSessionPage(
-                                                    state: state,
-                                                    lesson: nextAssignedLesson,
-                                                    onChanged: onChanged,
-                                                  ),
-                                                ),
-                                              );
-                                            },
+                                          : () => launchLessonFlow(
+                                                context: context,
+                                                state: state,
+                                                onChanged: onChanged,
+                                                lesson: nextAssignedLesson,
+                                              ),
                                     ),
                                   ],
                                 ],
@@ -554,23 +560,11 @@ class AllStudentsPage extends StatelessWidget {
                               final nextLesson =
                                   state.nextAssignedLessonForLearner(learner);
                               if (nextLesson == null) return;
-                              state.selectLearner(learner);
-                              state.selectModule(
-                                state.modules.firstWhere(
-                                  (module) => module.id == nextLesson.moduleId,
-                                  orElse: () => state.modules.first,
-                                ),
-                              );
-                              state.startLesson(nextLesson);
-                              onChanged();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => LessonSessionPage(
-                                    state: state,
-                                    lesson: nextLesson,
-                                    onChanged: onChanged,
-                                  ),
-                                ),
+                              launchLessonFlow(
+                                context: context,
+                                state: state,
+                                onChanged: onChanged,
+                                lesson: nextLesson,
                               );
                             },
                           ),
@@ -1064,37 +1058,13 @@ class LearnerProfilePage extends StatelessWidget {
                                                             return;
                                                           }
 
-                                                          state.selectLearner(
-                                                            learner,
-                                                          );
-                                                          state.selectModule(
-                                                            state.modules
-                                                                .firstWhere(
-                                                              (module) =>
-                                                                  module.id ==
-                                                                  resumeLesson
-                                                                      .moduleId,
-                                                              orElse: () =>
-                                                                  state.modules
-                                                                      .first,
-                                                            ),
-                                                          );
-                                                          state.startLesson(
-                                                            resumeLesson,
+                                                          launchLessonFlow(
+                                                            context: context,
+                                                            state: state,
+                                                            onChanged: () {},
+                                                            lesson:
+                                                                resumeLesson,
                                                             resumeFrom: session,
-                                                          );
-                                                          Navigator.of(context)
-                                                              .push(
-                                                            MaterialPageRoute(
-                                                              builder: (_) =>
-                                                                  LessonSessionPage(
-                                                                state: state,
-                                                                lesson:
-                                                                    resumeLesson,
-                                                                onChanged:
-                                                                    () {},
-                                                              ),
-                                                            ),
                                                           );
                                                         },
                                                         icon: const Icon(
@@ -1182,30 +1152,13 @@ class LearnerProfilePage extends StatelessWidget {
                                               width: double.infinity,
                                               child: FilledButton.icon(
                                                 onPressed: () {
-                                                  state.selectLearner(learner);
-                                                  state.selectModule(
-                                                    state.modules.firstWhere(
-                                                      (module) =>
-                                                          module.id ==
-                                                          nextLesson.moduleId,
-                                                      orElse: () =>
-                                                          state.modules.first,
-                                                    ),
-                                                  );
-                                                  state.startLesson(
-                                                    nextLesson,
+                                                  launchLessonFlow(
+                                                    context: context,
+                                                    state: state,
+                                                    onChanged: () {},
+                                                    lesson: nextLesson,
                                                     resumeFrom:
                                                         resumableSession,
-                                                  );
-                                                  Navigator.of(context).push(
-                                                    MaterialPageRoute(
-                                                      builder: (_) =>
-                                                          LessonSessionPage(
-                                                        state: state,
-                                                        lesson: nextLesson,
-                                                        onChanged: () {},
-                                                      ),
-                                                    ),
                                                   );
                                                 },
                                                 icon: Icon(
@@ -1444,27 +1397,12 @@ class SubjectModulesPage extends StatelessWidget {
                                 onTap: () {
                                   state.selectModule(module);
                                   onChanged();
-                                  if (selectedLearner != null) {
-                                    state.startLesson(lesson);
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => LessonSessionPage(
-                                          state: state,
-                                          lesson: lesson,
-                                          onChanged: onChanged,
-                                        ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => SelectStudentPage(
-                                        state: state,
-                                        onChanged: onChanged,
-                                        lesson: lesson,
-                                      ),
-                                    ),
+                                  launchLessonFlow(
+                                    context: context,
+                                    state: state,
+                                    onChanged: onChanged,
+                                    lesson: lesson,
+                                    module: module,
                                   );
                                 },
                                 child: Container(
@@ -2302,12 +2240,12 @@ class RegistrationSuccessPage extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: DetailCard(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: DetailCard(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -2349,56 +2287,48 @@ class RegistrationSuccessPage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.of(context)
-                                .popUntil((route) => route.isFirst),
-                            child: const Text('Back home'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () {
-                              final nextLesson =
-                                  state.nextAssignedLessonForLearner(learner);
-                              state.selectLearner(learner);
-                              state.selectModule(recommendedModule);
-                              onChanged();
-                              if (nextLesson != null) {
-                                state.startLesson(nextLesson);
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) => LessonSessionPage(
-                                      state: state,
-                                      lesson: nextLesson,
-                                      onChanged: onChanged,
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => SubjectModulesPage(
-                                    state: state,
-                                    onChanged: onChanged,
-                                    module: recommendedModule,
-                                  ),
+                    _ResponsiveButtonRow(
+                      primary: FilledButton(
+                        onPressed: () {
+                          final nextLesson =
+                              state.nextAssignedLessonForLearner(learner);
+                          state.selectLearner(learner);
+                          state.selectModule(recommendedModule);
+                          onChanged();
+                          if (nextLesson != null) {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => LessonLaunchSetupPage(
+                                  state: state,
+                                  onChanged: onChanged,
+                                  lesson: nextLesson,
+                                  module: recommendedModule,
                                 ),
-                              );
-                            },
-                            child: Text(
-                              state.nextAssignedLessonForLearner(learner) ==
-                                      null
-                                  ? 'Open subject'
-                                  : 'Start assigned lesson',
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => SubjectModulesPage(
+                                state: state,
+                                onChanged: onChanged,
+                                module: recommendedModule,
+                              ),
                             ),
-                          ),
+                          );
+                        },
+                        child: Text(
+                          state.nextAssignedLessonForLearner(learner) == null
+                              ? 'Open subject'
+                              : 'Start assigned lesson',
                         ),
-                      ],
+                      ),
+                      secondary: OutlinedButton(
+                        onPressed: () => Navigator.of(context)
+                            .popUntil((route) => route.isFirst),
+                        child: const Text('Back home'),
+                      ),
                     ),
                   ],
                 ),
@@ -2411,20 +2341,34 @@ class RegistrationSuccessPage extends StatelessWidget {
   }
 }
 
-class SelectStudentPage extends StatelessWidget {
+class LessonLaunchSetupPage extends StatefulWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
   final LessonCardModel lesson;
+  final LearningModule module;
+  final BackendLessonSession? resumeFrom;
 
-  const SelectStudentPage({
+  const LessonLaunchSetupPage({
     super.key,
     required this.state,
     required this.onChanged,
     required this.lesson,
+    required this.module,
+    this.resumeFrom,
   });
 
   @override
+  State<LessonLaunchSetupPage> createState() => _LessonLaunchSetupPageState();
+}
+
+class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
+  LearnerProfile? selectedLearner;
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final lesson = widget.lesson;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -2437,13 +2381,13 @@ class SelectStudentPage extends StatelessWidget {
                   instruction: selectStudentInstruction,
                   onVoiceTap: () {
                     state.replayVisiblePrompt(
-                      'Choose the learner for ${lesson.title}. I will use the learner profile to guide the lesson.',
+                      'Choose the learner for ${lesson.title}. The lesson will wait until you confirm who is starting.',
                     );
                   },
                   prompt:
-                      'Choose the learner for ${lesson.title}. I will use the learner profile to guide the lesson.',
+                      'Choose the learner for ${lesson.title}. The lesson will wait until you confirm who is starting.',
                   speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'AI Mallam is waiting for learner selection',
+                  statusLabel: 'AI Mallam is waiting for learner confirmation',
                 ),
               ),
               ResponsivePane(
@@ -2466,8 +2410,26 @@ class SelectStudentPage extends StatelessWidget {
                     const SizedBox(height: 20),
                     SectionTitle(
                       title: 'Choose learner',
-                      subtitle: 'Tap a learner to start ${lesson.title}.',
+                      subtitle:
+                          'Pick who is taking ${lesson.title}, then confirm to begin.',
                     ),
+                    const SizedBox(height: 12),
+                    if (widget.resumeFrom != null)
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()}. Learner confirmation is still required before the lesson opens.',
+                          style: const TextStyle(
+                            color: Color(0xFF312E81),
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 16),
                     Expanded(
                       child: LayoutBuilder(
@@ -2489,24 +2451,28 @@ class SelectStudentPage extends StatelessWidget {
                             ),
                             itemBuilder: (context, index) {
                               final learner = state.learners[index];
+                              final isSelected =
+                                  selectedLearner?.id == learner.id;
                               return GestureDetector(
                                 onTap: () {
-                                  state.selectLearner(learner);
-                                  state.startLesson(lesson);
-                                  onChanged();
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => LessonSessionPage(
-                                        state: state,
-                                        lesson: lesson,
-                                        onChanged: onChanged,
-                                      ),
-                                    ),
-                                  );
+                                  setState(() {
+                                    selectedLearner = learner;
+                                  });
                                 },
-                                child: _LearnerCard(
-                                  learner: learner,
-                                  state: state,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(28),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? LumoTheme.primary
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: _LearnerCard(
+                                    learner: learner,
+                                    state: state,
+                                  ),
                                 ),
                               );
                             },
@@ -2514,10 +2480,183 @@ class SelectStudentPage extends StatelessWidget {
                         },
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: selectedLearner == null
+                          ? null
+                          : () {
+                              final learner = selectedLearner!;
+                              state.selectLearner(learner);
+                              state.selectModule(widget.module);
+                              widget.onChanged();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => LessonCountdownPage(
+                                    state: state,
+                                    onChanged: widget.onChanged,
+                                    learner: learner,
+                                    lesson: lesson,
+                                    resumeFrom: widget.resumeFrom,
+                                  ),
+                                ),
+                              );
+                            },
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: Text(
+                        selectedLearner == null
+                            ? 'Select learner to continue'
+                            : 'Start with ${selectedLearner!.name}',
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class LessonCountdownPage extends StatefulWidget {
+  final LumoAppState state;
+  final VoidCallback onChanged;
+  final LearnerProfile learner;
+  final LessonCardModel lesson;
+  final BackendLessonSession? resumeFrom;
+
+  const LessonCountdownPage({
+    super.key,
+    required this.state,
+    required this.onChanged,
+    required this.learner,
+    required this.lesson,
+    this.resumeFrom,
+  });
+
+  @override
+  State<LessonCountdownPage> createState() => _LessonCountdownPageState();
+}
+
+class _LessonCountdownPageState extends State<LessonCountdownPage> {
+  Timer? _timer;
+  int _secondsRemaining = 3;
+  bool _navigated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_secondsRemaining <= 1) {
+        timer.cancel();
+        _openLesson();
+        return;
+      }
+      setState(() {
+        _secondsRemaining -= 1;
+      });
+    });
+  }
+
+  void _openLesson() {
+    if (_navigated) return;
+    _navigated = true;
+    widget.state.selectLearner(widget.learner);
+    widget.state.startLesson(widget.lesson, resumeFrom: widget.resumeFrom);
+    widget.onChanged();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => LessonSessionPage(
+          state: widget.state,
+          lesson: widget.lesson,
+          onChanged: widget.onChanged,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final actionLabel = widget.resumeFrom == null ? 'Starting' : 'Resuming';
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: DetailCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.hourglass_top_rounded,
+                      size: 56,
+                      color: LumoTheme.primary,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '$actionLabel ${widget.lesson.title}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${widget.learner.name} is confirmed. Mallam is getting the lesson ready.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      width: 110,
+                      height: 110,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEEF2FF),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$_secondsRemaining',
+                        style: const TextStyle(
+                          fontSize: 44,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF312E81),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Lesson begins in about 3 seconds',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _openLesson,
+                        child: const Text('Start now'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -4192,12 +4331,12 @@ class LessonCompletePage extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: DetailCard(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: DetailCard(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -4225,35 +4364,53 @@ class LessonCompletePage extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: MetricTile(
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact = constraints.maxWidth < 720;
+                        final tiles = [
+                          MetricTile(
                             label: 'Responses captured',
                             value: '${session.totalResponses}',
                             icon: Icons.hearing_rounded,
                             color: LumoTheme.primary,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: MetricTile(
+                          MetricTile(
                             label: 'Support actions',
                             value: '${session.supportActionsUsed}',
                             icon: Icons.volunteer_activism_rounded,
                             color: LumoTheme.accentOrange,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: MetricTile(
+                          MetricTile(
                             label: 'Queued sync',
                             value: '${state.pendingSyncEvents.length}',
                             icon: Icons.cloud_upload_rounded,
                             color: LumoTheme.accentGreen,
                           ),
-                        ),
-                      ],
+                        ];
+
+                        if (compact) {
+                          return Column(
+                            children: [
+                              for (var i = 0; i < tiles.length; i++) ...[
+                                SizedBox(
+                                    width: double.infinity, child: tiles[i]),
+                                if (i < tiles.length - 1)
+                                  const SizedBox(height: 12),
+                              ],
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            for (var i = 0; i < tiles.length; i++) ...[
+                              Expanded(child: tiles[i]),
+                              if (i < tiles.length - 1)
+                                const SizedBox(width: 12),
+                            ],
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
                     if (rewards != null) ...[
@@ -4383,52 +4540,45 @@ class LessonCompletePage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              Navigator.of(context)
-                                  .popUntil((route) => route.isFirst);
-                            },
-                            child: const Text('Back home'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () {
-                              state.selectLearner(learner);
-                              state.selectModule(recommendedModule);
-                              if (nextLesson != null) {
-                                state.startLesson(nextLesson);
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) => LessonSessionPage(
-                                      state: state,
-                                      lesson: nextLesson,
-                                      onChanged: () {},
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => SubjectModulesPage(
-                                    state: state,
-                                    onChanged: () {},
-                                    module: recommendedModule,
-                                  ),
+                    _ResponsiveButtonRow(
+                      primary: FilledButton(
+                        onPressed: () {
+                          state.selectLearner(learner);
+                          state.selectModule(recommendedModule);
+                          if (nextLesson != null) {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => LessonLaunchSetupPage(
+                                  state: state,
+                                  onChanged: () {},
+                                  lesson: nextLesson,
+                                  module: recommendedModule,
                                 ),
-                              );
-                            },
-                            child: Text(nextLesson == null
-                                ? 'Open recommended module'
-                                : 'Start next routed lesson'),
-                          ),
-                        ),
-                      ],
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => SubjectModulesPage(
+                                state: state,
+                                onChanged: () {},
+                                module: recommendedModule,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Text(nextLesson == null
+                            ? 'Open recommended module'
+                            : 'Start next routed lesson'),
+                      ),
+                      secondary: OutlinedButton(
+                        onPressed: () {
+                          Navigator.of(context)
+                              .popUntil((route) => route.isFirst);
+                        },
+                        child: const Text('Back home'),
+                      ),
                     ),
                   ],
                 ),
@@ -4437,6 +4587,43 @@ class LessonCompletePage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ResponsiveButtonRow extends StatelessWidget {
+  final Widget primary;
+  final Widget secondary;
+
+  const _ResponsiveButtonRow({
+    required this.primary,
+    required this.secondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 560;
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              secondary,
+              const SizedBox(height: 12),
+              primary,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: secondary),
+            const SizedBox(width: 12),
+            Expanded(child: primary),
+          ],
+        );
+      },
     );
   }
 }

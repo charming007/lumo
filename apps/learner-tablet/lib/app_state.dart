@@ -176,14 +176,16 @@ class LumoAppState {
       if (learners.isNotEmpty) {
         final existingLearnerId = currentLearner?.id;
         currentLearner = existingLearnerId == null
-            ? suggestedLearnerForHome
-            : learners.firstWhere(
-                (item) => item.id == existingLearnerId,
-                orElse: () => suggestedLearnerForHome ?? learners.first,
-              );
+            ? null
+            : learners.cast<LearnerProfile?>().firstWhere(
+                  (item) => item?.id == existingLearnerId,
+                  orElse: () => null,
+                );
         if (currentLearner != null) {
           unawaited(refreshLearnerRuntimeSessions(currentLearner!));
         }
+      } else {
+        currentLearner = null;
       }
       if (selectedModule != null && modules.isNotEmpty) {
         selectedModule = modules.firstWhere(
