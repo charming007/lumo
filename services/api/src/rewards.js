@@ -25,6 +25,14 @@ const REWARD_STORE_ITEMS = [
     icon: 'menu_book',
   },
   {
+    id: 'sticker-badge',
+    title: 'Sticker Reward',
+    description: 'Pick a bright sticker or stamp right after the lesson.',
+    xpCost: 40,
+    kind: 'sticker',
+    icon: 'stars',
+  },
+  {
     id: 'helper-star',
     title: 'Helper Star',
     description: 'Celebrate teamwork with a helper star moment in class.',

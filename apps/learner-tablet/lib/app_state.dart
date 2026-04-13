@@ -145,7 +145,8 @@ class LumoAppState {
       if (decoded is! Map) return;
       final snapshot = Map<String, dynamic>.from(decoded);
       if (snapshot['schemaVersion']?.toString() != _kPersistenceSchemaVersion) {
-        persistenceError = 'Saved tablet state uses an older schema and was skipped safely.';
+        persistenceError =
+            'Saved tablet state uses an older schema and was skipped safely.';
         return;
       }
 
@@ -166,13 +167,15 @@ class LumoAppState {
           const <LessonCardModel>[];
       final restoredAssignmentPacks = (snapshot['assignmentPacks'] as List?)
               ?.whereType<Map>()
-              .map((item) => LearnerAssignmentPack.fromJson(Map<String, dynamic>.from(item)))
+              .map((item) => LearnerAssignmentPack.fromJson(
+                  Map<String, dynamic>.from(item)))
               .toList() ??
           const <LearnerAssignmentPack>[];
 
       learners
         ..clear()
-        ..addAll(restoredLearners.isEmpty ? learnerProfilesSeed : restoredLearners);
+        ..addAll(
+            restoredLearners.isEmpty ? learnerProfilesSeed : restoredLearners);
       modules
         ..clear()
         ..addAll(
@@ -197,46 +200,52 @@ class LumoAppState {
         ..addAll((snapshot['pendingSyncEvents'] as List?)
                 ?.whereType<Map>()
                 .map((item) {
-                  final map = Map<String, dynamic>.from(item);
-                  return SyncEvent(
-                    id: map['id']?.toString() ?? 'sync-event',
-                    type: map['type']?.toString() ?? 'unknown',
-                    payload: map['payload'] is Map
-                        ? Map<String, dynamic>.from(map['payload'])
-                        : const <String, dynamic>{},
-                  );
-                })
-                .toList() ??
+              final map = Map<String, dynamic>.from(item);
+              return SyncEvent(
+                id: map['id']?.toString() ?? 'sync-event',
+                type: map['type']?.toString() ?? 'unknown',
+                payload: map['payload'] is Map
+                    ? Map<String, dynamic>.from(map['payload'])
+                    : const <String, dynamic>{},
+              );
+            }).toList() ??
             const <SyncEvent>[]);
 
       recentRuntimeSessionsByLearnerId
         ..clear()
-        ..addAll(((snapshot['recentRuntimeSessionsByLearnerId'] as Map?) ?? const {})
-            .map((key, value) {
+        ..addAll(
+            ((snapshot['recentRuntimeSessionsByLearnerId'] as Map?) ?? const {})
+                .map((key, value) {
           final sessions = (value as List?)
                   ?.whereType<Map>()
-                  .map((item) => BackendLessonSession.fromJson(Map<String, dynamic>.from(item)))
+                  .map((item) => BackendLessonSession.fromJson(
+                      Map<String, dynamic>.from(item)))
                   .toList() ??
               const <BackendLessonSession>[];
           return MapEntry(key.toString(), sessions);
         }));
 
-      registrationDraft = _decodeRegistrationDraft(snapshot['registrationDraft']);
-      registrationContext = _decodeRegistrationContext(snapshot['registrationContext']);
+      registrationDraft =
+          _decodeRegistrationDraft(snapshot['registrationDraft']);
+      registrationContext =
+          _decodeRegistrationContext(snapshot['registrationContext']);
       usingFallbackData = snapshot['usingFallbackData'] != false;
       backendError = _readNullableString(snapshot['backendError']);
       lastSyncedAt = _parseDate(snapshot['lastSyncedAt']);
       backendGeneratedAt = _parseDate(snapshot['backendGeneratedAt']);
       lastSyncAttemptAt = _parseDate(snapshot['lastSyncAttemptAt']);
-      backendContractVersion = _readNullableString(snapshot['backendContractVersion']);
+      backendContractVersion =
+          _readNullableString(snapshot['backendContractVersion']);
       backendAssignmentCount = _asInt(snapshot['backendAssignmentCount']) ?? 0;
       lastSyncAcceptedCount = _asInt(snapshot['lastSyncAcceptedCount']) ?? 0;
       lastSyncIgnoredCount = _asInt(snapshot['lastSyncIgnoredCount']) ?? 0;
       lastSyncError = _readNullableString(snapshot['lastSyncError']);
-      learnerRuntimeError = _readNullableString(snapshot['learnerRuntimeError']);
+      learnerRuntimeError =
+          _readNullableString(snapshot['learnerRuntimeError']);
 
       final learnerId = _readNullableString(snapshot['currentLearnerId']);
-      currentLearner = learners.where((item) => item.id == learnerId).firstOrNull;
+      currentLearner =
+          learners.where((item) => item.id == learnerId).firstOrNull;
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
       final activeSessionRaw = snapshot['activeSession'];
@@ -1363,53 +1372,114 @@ class LumoAppState {
   ) {
     final points = learner.rewards?.points ?? learner.totalXp;
     final options = <RewardRedemptionOption>[
-      RewardRedemptionOption(
+      const RewardRedemptionOption(
         id: 'sticker-time',
         title: 'Sticker time',
         description: 'Pick a bright sticker or stamp for today\'s work.',
         cost: 40,
         icon: '🌟',
+        celebrationCue:
+            'Let the learner choose a sticker immediately after the lesson.',
+        category: 'quick win',
       ),
-      RewardRedemptionOption(
+      const RewardRedemptionOption(
+        id: 'line-leader',
+        title: 'Line leader turn',
+        description: 'Lead the line or classroom transition for one round.',
+        cost: 55,
+        icon: '🚶',
+        celebrationCue:
+            'Use this when the child needs a visible confidence boost.',
+        category: 'classroom privilege',
+      ),
+      const RewardRedemptionOption(
         id: 'song-choice',
         title: 'Choose the song',
         description: 'You pick the next celebration song or chant.',
         cost: 75,
         icon: '🎵',
+        celebrationCue:
+            'Offer two song choices so the learner feels the win quickly.',
+        category: 'voice & joy',
       ),
-      RewardRedemptionOption(
+      const RewardRedemptionOption(
         id: 'story-choice',
         title: 'Choose story time',
         description: 'Pick the next short story or picture prompt.',
         cost: 120,
         icon: '📚',
+        celebrationCue: 'Best redeemed right before the next reading block.',
+        category: 'learning treat',
       ),
-      RewardRedemptionOption(
+      const RewardRedemptionOption(
         id: 'helper-badge',
         title: 'Class helper badge',
         description: 'Wear the helper badge for the next activity.',
         cost: 180,
         icon: '🏅',
+        celebrationCue: 'Pair this with a real helper job so it feels earned.',
+        category: 'recognition',
+      ),
+      const RewardRedemptionOption(
+        id: 'mallam-assistant',
+        title: 'Mallam assistant',
+        description: 'Help Mallam start the next lesson or hand out materials.',
+        cost: 220,
+        icon: '🎤',
+        celebrationCue:
+            'Use for confident learners who are ready to model routines.',
+        category: 'leadership',
       ),
     ];
 
     return options
-        .map((option) => option.copyWith(unlocked: points >= option.cost))
+        .map(
+          (option) => option.copyWith(
+            unlocked: points >= option.cost,
+            shortfall: max(0, option.cost - points),
+          ),
+        )
         .toList();
+  }
+
+  RewardRedemptionOption? featuredRewardForLearner(LearnerProfile learner) {
+    final options = rewardRedemptionOptionsForLearner(learner);
+    final unlocked = options.where((item) => item.unlocked).toList();
+    if (unlocked.isNotEmpty) {
+      unlocked.sort((left, right) => left.cost.compareTo(right.cost));
+      return unlocked.first;
+    }
+
+    final locked = options.where((item) => !item.unlocked).toList();
+    if (locked.isEmpty) return null;
+    locked.sort((left, right) => left.shortfall.compareTo(right.shortfall));
+    return locked.first;
+  }
+
+  List<RewardRedemptionOption> nearlyUnlockedRewardsForLearner(
+    LearnerProfile learner,
+  ) {
+    final options = rewardRedemptionOptionsForLearner(learner)
+        .where((item) => !item.unlocked)
+        .toList();
+    options.sort((left, right) => left.shortfall.compareTo(right.shortfall));
+    return options.take(2).toList();
   }
 
   String rewardRedemptionSummaryForLearner(LearnerProfile learner) {
     final options = rewardRedemptionOptionsForLearner(learner);
     final unlocked = options.where((item) => item.unlocked).toList();
+    final featured = featuredRewardForLearner(learner);
+    if (featured == null) {
+      return 'Reward planner is waiting for the next point update.';
+    }
     if (unlocked.isEmpty) {
-      final next = options.first;
-      final points = learner.rewards?.points ?? learner.totalXp;
-      return '${next.cost - points} more points unlock ${next.title.toLowerCase()}.';
+      return '${featured.shortfall} more points unlock ${featured.title.toLowerCase()}. Keep the next reward close and concrete.';
     }
     if (unlocked.length == options.length) {
-      return 'All reward choices are unlocked. Let the child pick their favourite.';
+      return 'All reward choices are unlocked. Let the child pick a favourite now, then save the rest for later.';
     }
-    return '${unlocked.length} reward choice(s) unlocked now. Let the child choose one and keep saving for the next prize.';
+    return '${unlocked.length} reward choice(s) are ready now. Featured next: ${featured.title.toLowerCase()}.';
   }
 
   bool advanceLessonStep() {
@@ -2728,13 +2798,15 @@ class LumoAppState {
         'assignedLessons': assignedLessons.map(_encodeLesson).toList(),
         'assignmentPacks': assignmentPacks.map(_encodeAssignmentPack).toList(),
         'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),
-        'recentRuntimeSessionsByLearnerId': recentRuntimeSessionsByLearnerId.map(
+        'recentRuntimeSessionsByLearnerId':
+            recentRuntimeSessionsByLearnerId.map(
           (key, value) => MapEntry(
             key,
             value.map(_encodeBackendLessonSession).toList(),
           ),
         ),
-        'activeSession': activeSession == null ? null : _encodeLessonSession(activeSession!),
+        'activeSession':
+            activeSession == null ? null : _encodeLessonSession(activeSession!),
       };
       await prefs.setString(_kPersistenceStorageKey, jsonEncode(snapshot));
       persistenceError = null;
@@ -2787,7 +2859,10 @@ class RewardRedemptionOption {
   final String description;
   final int cost;
   final String icon;
+  final String category;
+  final String celebrationCue;
   final bool unlocked;
+  final int shortfall;
 
   const RewardRedemptionOption({
     required this.id,
@@ -2795,17 +2870,26 @@ class RewardRedemptionOption {
     required this.description,
     required this.cost,
     required this.icon,
+    this.category = 'reward',
+    this.celebrationCue = '',
     this.unlocked = false,
+    this.shortfall = 0,
   });
 
-  RewardRedemptionOption copyWith({bool? unlocked}) {
+  RewardRedemptionOption copyWith({
+    bool? unlocked,
+    int? shortfall,
+  }) {
     return RewardRedemptionOption(
       id: id,
       title: title,
       description: description,
       cost: cost,
       icon: icon,
+      category: category,
+      celebrationCue: celebrationCue,
       unlocked: unlocked ?? this.unlocked,
+      shortfall: shortfall ?? this.shortfall,
     );
   }
 }

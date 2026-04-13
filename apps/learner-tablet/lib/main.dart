@@ -793,6 +793,10 @@ class LearnerProfilePage extends StatelessWidget {
         learnerLeaderboardEntryFor(leaderboard, learner.id);
     final unlockedBadges =
         rewards?.badges.where((badge) => badge.earned).toList() ?? const [];
+    final rewardOptions = state.rewardRedemptionOptionsForLearner(learner);
+    final featuredReward = state.featuredRewardForLearner(learner);
+    final nearlyUnlockedRewards =
+        state.nearlyUnlockedRewardsForLearner(learner);
 
     return Scaffold(
       body: SafeArea(
@@ -1005,6 +1009,19 @@ class LearnerProfilePage extends StatelessWidget {
                                       ),
                                     ],
                                   ),
+                                ),
+                                const SizedBox(height: 18),
+                              ],
+                              if (rewardOptions.isNotEmpty) ...[
+                                _RewardRedemptionPlannerPanel(
+                                  learner: learner,
+                                  summary:
+                                      state.rewardRedemptionSummaryForLearner(
+                                    learner,
+                                  ),
+                                  featuredReward: featuredReward,
+                                  options: rewardOptions,
+                                  nearlyUnlockedRewards: nearlyUnlockedRewards,
                                 ),
                                 const SizedBox(height: 18),
                               ],
@@ -5495,177 +5512,182 @@ class _LearnerCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: compactHeight ? 24 : 28,
-                    backgroundColor: const Color(0xFFE9E7FF),
-                    child: Text(
-                      learner.name.characters.first,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          learner.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: compactHeight ? 17 : 18,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Age ${learner.age} • ${learner.village}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFF6B7280)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isActive && compactHeight)
-                    const Icon(
-                      Icons.check_circle_rounded,
-                      color: LumoTheme.primary,
-                      size: 24,
-                    )
-                  else if (leaderboardEntry != null)
-                    StatusPill(
-                      text: '#${leaderboardEntry!.rank}',
-                      color: leaderboardEntry!.rank == 1
-                          ? LumoTheme.accentOrange
-                          : LumoTheme.primary,
-                    ),
-                ],
-              ),
-              SizedBox(height: compactHeight ? 10 : 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  StatusPill(
-                    text: isActive
-                        ? (compactHeight ? 'Selected learner' : 'Active learner')
-                        : (compactHeight ? 'Ready now' : learner.readinessLabel),
-                    color: isActive ? LumoTheme.primary : LumoTheme.accentGreen,
-                  ),
-                  StatusPill(
-                    text: '$points pts',
-                    color: LumoTheme.accentOrange,
-                  ),
-                  StatusPill(
-                    text: '$streak day streak',
-                    color: const Color(0xFFEF4444),
-                  ),
-                ],
-              ),
-              SizedBox(height: compactHeight ? 10 : 12),
-              Container(
-                padding: EdgeInsets.all(compactHeight ? 10 : 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    CircleAvatar(
+                      radius: compactHeight ? 24 : 28,
+                      backgroundColor: const Color(0xFFE9E7FF),
+                      child: Text(
+                        learner.name.characters.first,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: _LearnerCardStat(
-                        label: 'XP',
-                        value: '$xp',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            learner.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: compactHeight ? 17 : 18,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Age ${learner.age} • ${learner.village}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFF6B7280)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isActive && compactHeight)
+                      const Icon(
+                        Icons.check_circle_rounded,
                         color: LumoTheme.primary,
+                        size: 24,
+                      )
+                    else if (leaderboardEntry != null)
+                      StatusPill(
+                        text: '#${leaderboardEntry!.rank}',
+                        color: leaderboardEntry!.rank == 1
+                            ? LumoTheme.accentOrange
+                            : LumoTheme.primary,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _LearnerCardStat(
-                        label: 'Minutes',
-                        value: '${learner.estimatedTotalMinutes}',
-                        color: const Color(0xFF0EA5E9),
-                      ),
-                    ),
                   ],
                 ),
-              ),
-              SizedBox(height: compactHeight ? 10 : 12),
-              Text(
-                learner.learnerCode,
-                style: const TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                compactHeight
-                    ? (nextPack == null
-                        ? 'Ready for ${learner.readinessLabel.toLowerCase()} work'
-                        : 'Assigned next: ${nextPack.lessonTitle}')
-                    : (nextPack == null
-                        ? learner.supportPlan
-                        : nextPack.lessonTitle),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: const Color(0xFF475569),
-                  height: 1.35,
-                  fontWeight:
-                      compactHeight ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Last attendance: ${learner.lastAttendance}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (hasActions) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: compactHeight ? 10 : 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    if (onSetActive != null && !compactHeight)
-                      OutlinedButton.icon(
-                        onPressed: onSetActive,
-                        icon: const Icon(Icons.person_pin_circle_rounded),
-                        label: Text(isActive ? 'Active now' : 'Set active'),
-                      ),
-                    if (onOpenProfile != null)
-                      OutlinedButton.icon(
-                        onPressed: onOpenProfile,
-                        icon: const Icon(Icons.badge_rounded),
-                        label: const Text('Profile'),
-                      ),
-                    if (onStartLesson != null)
-                      FilledButton.icon(
-                        onPressed: onStartLesson,
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        label: Text(
-                          compactHeight
-                              ? 'Start'
-                              : (nextPack == null
-                                  ? 'Start lesson'
-                                  : 'Start assigned'),
-                        ),
-                      ),
+                    StatusPill(
+                      text: isActive
+                          ? (compactHeight
+                              ? 'Selected learner'
+                              : 'Active learner')
+                          : (compactHeight
+                              ? 'Ready now'
+                              : learner.readinessLabel),
+                      color:
+                          isActive ? LumoTheme.primary : LumoTheme.accentGreen,
+                    ),
+                    StatusPill(
+                      text: '$points pts',
+                      color: LumoTheme.accentOrange,
+                    ),
+                    StatusPill(
+                      text: '$streak day streak',
+                      color: const Color(0xFFEF4444),
+                    ),
                   ],
                 ),
+                SizedBox(height: compactHeight ? 10 : 12),
+                Container(
+                  padding: EdgeInsets.all(compactHeight ? 10 : 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _LearnerCardStat(
+                          label: 'XP',
+                          value: '$xp',
+                          color: LumoTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _LearnerCardStat(
+                          label: 'Minutes',
+                          value: '${learner.estimatedTotalMinutes}',
+                          color: const Color(0xFF0EA5E9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: compactHeight ? 10 : 12),
+                Text(
+                  learner.learnerCode,
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  compactHeight
+                      ? (nextPack == null
+                          ? 'Ready for ${learner.readinessLabel.toLowerCase()} work'
+                          : 'Assigned next: ${nextPack.lessonTitle}')
+                      : (nextPack == null
+                          ? learner.supportPlan
+                          : nextPack.lessonTitle),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: const Color(0xFF475569),
+                    height: 1.35,
+                    fontWeight:
+                        compactHeight ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Last attendance: ${learner.lastAttendance}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (hasActions) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (onSetActive != null && !compactHeight)
+                        OutlinedButton.icon(
+                          onPressed: onSetActive,
+                          icon: const Icon(Icons.person_pin_circle_rounded),
+                          label: Text(isActive ? 'Active now' : 'Set active'),
+                        ),
+                      if (onOpenProfile != null)
+                        OutlinedButton.icon(
+                          onPressed: onOpenProfile,
+                          icon: const Icon(Icons.badge_rounded),
+                          label: const Text('Profile'),
+                        ),
+                      if (onStartLesson != null)
+                        FilledButton.icon(
+                          onPressed: onStartLesson,
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: Text(
+                            compactHeight
+                                ? 'Start'
+                                : (nextPack == null
+                                    ? 'Start lesson'
+                                    : 'Start assigned'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
         );
       },
     );
@@ -5880,6 +5902,177 @@ class _RewardHeroChip extends StatelessWidget {
               color: Colors.white,
               fontWeight: FontWeight.w700,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardRedemptionPlannerPanel extends StatelessWidget {
+  final LearnerProfile learner;
+  final String summary;
+  final RewardRedemptionOption? featuredReward;
+  final List<RewardRedemptionOption> options;
+  final List<RewardRedemptionOption> nearlyUnlockedRewards;
+
+  const _RewardRedemptionPlannerPanel({
+    required this.learner,
+    required this.summary,
+    required this.featuredReward,
+    required this.options,
+    required this.nearlyUnlockedRewards,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final unlockedCount = options.where((item) => item.unlocked).length;
+
+    return SoftPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.redeem_rounded, color: LumoTheme.accentGreen),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Reward planner',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                ),
+              ),
+              StatusPill(
+                text: '$unlockedCount ready now',
+                color: unlockedCount > 0
+                    ? LumoTheme.accentGreen
+                    : LumoTheme.accentOrange,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            summary,
+            style: const TextStyle(color: Color(0xFF475569), height: 1.4),
+          ),
+          if (featuredReward != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: featuredReward!.unlocked
+                    ? const Color(0xFFEEFBF3)
+                    : const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: featuredReward!.unlocked
+                      ? const Color(0xFFA7F3D0)
+                      : const Color(0xFFFCD34D),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        '${featuredReward!.icon} ${featuredReward!.title}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
+                      StatusPill(
+                        text: featuredReward!.category,
+                        color: featuredReward!.unlocked
+                            ? LumoTheme.accentGreen
+                            : LumoTheme.accentOrange,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    featuredReward!.description,
+                    style: const TextStyle(
+                      color: Color(0xFF334155),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  LabelValueWrap(
+                    items: [
+                      (
+                        'Status',
+                        featuredReward!.unlocked
+                            ? 'Ready to redeem'
+                            : '${featuredReward!.shortfall} pts to unlock',
+                      ),
+                      ('Cost', '${featuredReward!.cost} pts'),
+                      ('Best use', featuredReward!.celebrationCue),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (nearlyUnlockedRewards.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Text(
+              'Coming next',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 10),
+            ...nearlyUnlockedRewards.map(
+              (reward) => Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(reward.icon, style: const TextStyle(fontSize: 22)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            reward.title,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${reward.shortfall} pts away • ${reward.category}',
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${reward.cost} pts',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            'Keep ${learner.name}\'s reward choices visible and concrete. The point is instant motivation, not a spreadsheet with stickers.',
+            style: const TextStyle(color: Color(0xFF64748B), height: 1.4),
           ),
         ],
       ),

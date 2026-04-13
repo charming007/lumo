@@ -12,6 +12,8 @@ class SpeechTranscriptionService {
   bool _available = false;
   String? _lastError;
   String _lastStatus = 'idle';
+  int _consecutiveStartFailures = 0;
+  DateTime? _lastStartFailureAt;
 
   bool get isAvailable => _available;
   String? get lastError => _lastError;
@@ -22,10 +24,14 @@ class SpeechTranscriptionService {
     if (_available) {
       return 'Speech recognition is ready for live transcript capture.';
     }
-    return _lastError ??
-        (kIsWeb
-            ? 'Browser speech recognition is unavailable, so the app will save audio and let the facilitator confirm answers manually.'
-            : 'Speech recognition is unavailable on this device, so the app will save audio and let the facilitator confirm answers manually.');
+    final failureDetail = _consecutiveStartFailures >= 2
+        ? ' Lumo has already retried a few times, so it will favor audio capture and manual confirmation until the mic is stable again.'
+        : '';
+    return (_lastError ??
+            (kIsWeb
+                ? 'Browser speech recognition is unavailable, so the app will save audio and let the facilitator confirm answers manually.'
+                : 'Speech recognition is unavailable on this device, so the app will save audio and let the facilitator confirm answers manually.')) +
+        failureDetail;
   }
 
   Future<bool> initialize({bool forceRetry = false}) async {
@@ -64,38 +70,46 @@ class SpeechTranscriptionService {
       await _speech.stop();
     }
 
-    try {
-      await _speech.listen(
+    Future<void> startListening(SpeechListenOptions options) {
+      return _speech.listen(
         onResult: (SpeechRecognitionResult result) {
           final text = result.recognizedWords.trim();
           if (text.isEmpty) return;
+          _consecutiveStartFailures = 0;
           onResult(text, result.finalResult);
         },
-        listenOptions: SpeechListenOptions(
+        listenOptions: options,
+        pauseFor: const Duration(seconds: 4),
+        listenFor: const Duration(minutes: 2),
+      );
+    }
+
+    try {
+      await startListening(
+        SpeechListenOptions(
           partialResults: true,
           cancelOnError: false,
           listenMode: ListenMode.dictation,
           onDevice: !kIsWeb,
         ),
-        pauseFor: const Duration(seconds: 4),
-        listenFor: const Duration(minutes: 2),
       );
     } catch (_) {
-      await _speech.listen(
-        onResult: (SpeechRecognitionResult result) {
-          final text = result.recognizedWords.trim();
-          if (text.isEmpty) return;
-          onResult(text, result.finalResult);
-        },
-        listenOptions: SpeechListenOptions(
-          partialResults: true,
-          cancelOnError: false,
-          listenMode: ListenMode.confirmation,
-          onDevice: false,
-        ),
-        pauseFor: const Duration(seconds: 3),
-        listenFor: const Duration(minutes: 1),
-      );
+      try {
+        await startListening(
+          SpeechListenOptions(
+            partialResults: true,
+            cancelOnError: false,
+            listenMode: ListenMode.confirmation,
+            onDevice: false,
+          ),
+        );
+      } catch (error) {
+        _consecutiveStartFailures += 1;
+        _lastStartFailureAt = DateTime.now();
+        _lastError = _normalizeError(error.toString());
+        onStatus?.call(_lastStatus);
+        return false;
+      }
     }
     onStatus?.call(_lastStatus);
     return true;
@@ -119,8 +133,20 @@ class SpeechTranscriptionService {
     if (lower.contains('network') || lower.contains('timeout')) {
       return 'Speech recognition needs a steadier connection right now. Lumo will keep saving audio locally so the lesson can continue.';
     }
+    if (lower.contains('notallowed') || lower.contains('service-not-allowed')) {
+      return 'This browser or device blocked speech recognition for now. Keep the lesson moving with audio capture and a quick manual check.';
+    }
+    if (lower.contains('aborted')) {
+      return 'The browser or OS stopped listening early. Reopen the mic once, then switch to repeat mode if it keeps happening.';
+    }
     if (lower.contains('notavailable') || lower.contains('not available')) {
-      return availabilityLabel;
+      return kIsWeb
+          ? 'Browser speech recognition is unavailable here, so Lumo will save learner audio and let the facilitator confirm answers manually.'
+          : 'Speech recognition is unavailable on this device, so Lumo will save learner audio and let the facilitator confirm answers manually.';
+    }
+    if (_lastStartFailureAt != null &&
+        DateTime.now().difference(_lastStartFailureAt!).inMinutes < 2) {
+      return 'Speech recognition is still unstable after a recent retry. Keep the lesson in audio-first mode for now.';
     }
     return raw;
   }
