@@ -16,6 +16,9 @@ test('buildRewardsReport returns reward ops summary and scoped details', () => {
 
   assert.equal(report.scope.learnerCount > 0, true);
   assert.equal(report.summary.transactionCount >= 1, true);
+  assert.equal(typeof report.summary.averageOpenRequestAgeDays, 'number');
+  assert.equal(typeof report.summary.staleOpenRequestCount, 'number');
+  assert.ok(report.queueHealth);
   assert.ok(Array.isArray(report.dailyXpTrend));
   assert.ok(Array.isArray(report.learnerBreakdown));
   assert.ok(Array.isArray(report.leaderboard));
