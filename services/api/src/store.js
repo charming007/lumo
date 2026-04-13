@@ -332,25 +332,50 @@ function checkpointStorage(label) {
   };
 }
 
-function getStorageIntegrityReport() {
+function buildStorageIntegrityIssues() {
   const students = listStudents();
   const studentIds = new Set(students.map((item) => item.id));
   const rewardIds = new Set(listRewardTransactions().map((item) => item.id));
+  const progressIds = new Set(listProgress().map((item) => item.id));
+  const sessionIds = new Set(listLessonSessions().map((item) => item.sessionId));
   const itemIds = new Set((require('./rewards').REWARD_STORE_ITEMS || []).map((item) => item.id));
   const sessions = listLessonSessions();
   const requests = listRewardRedemptionRequests();
+  const overrides = listProgressionOverrides();
+  const repairs = listSessionRepairs();
 
   const issues = [];
 
   requests.forEach((entry) => {
-    if (!studentIds.has(entry.studentId)) issues.push({ type: 'reward-request-missing-student', id: entry.id });
-    if (!itemIds.has(entry.rewardItemId)) issues.push({ type: 'reward-request-missing-item', id: entry.id });
-    if (entry.transactionId && !rewardIds.has(entry.transactionId)) issues.push({ type: 'reward-request-missing-transaction', id: entry.id });
+    if (!studentIds.has(entry.studentId)) issues.push({ type: 'reward-request-missing-student', id: entry.id, entity: 'rewardRequest' });
+    if (!itemIds.has(entry.rewardItemId)) issues.push({ type: 'reward-request-missing-item', id: entry.id, entity: 'rewardRequest' });
+    if (entry.transactionId && !rewardIds.has(entry.transactionId)) issues.push({ type: 'reward-request-missing-transaction', id: entry.id, entity: 'rewardRequest' });
   });
 
   sessions.forEach((entry) => {
-    if (!studentIds.has(entry.studentId)) issues.push({ type: 'session-missing-student', id: entry.sessionId });
+    if (!studentIds.has(entry.studentId)) issues.push({ type: 'session-missing-student', id: entry.sessionId, entity: 'lessonSession' });
   });
+
+  overrides.forEach((entry) => {
+    if (!studentIds.has(entry.studentId)) issues.push({ type: 'progression-override-missing-student', id: entry.id, entity: 'progressionOverride' });
+    if (entry.progressId && !progressIds.has(entry.progressId)) issues.push({ type: 'progression-override-missing-progress', id: entry.id, entity: 'progressionOverride' });
+  });
+
+  repairs.forEach((entry) => {
+    if (entry.learnerId && !studentIds.has(entry.learnerId)) issues.push({ type: 'session-repair-missing-student', id: entry.id, entity: 'sessionRepair' });
+    if (entry.sessionId && !sessionIds.has(entry.sessionId)) issues.push({ type: 'session-repair-missing-session', id: entry.id, entity: 'sessionRepair' });
+  });
+
+  return {
+    students,
+    sessions,
+    requests,
+    issues,
+  };
+}
+
+function getStorageIntegrityReport() {
+  const { students, sessions, requests, issues } = buildStorageIntegrityIssues();
 
   return {
     checkedAt: new Date().toISOString(),
@@ -362,6 +387,78 @@ function getStorageIntegrityReport() {
       issueCount: issues.length,
     },
     issues,
+  };
+}
+
+function repairStorageIntegrity({ apply = false } = {}) {
+  const data = require('./data');
+  const report = buildStorageIntegrityIssues();
+  const fixes = [];
+
+  if (apply) {
+    const orphanRequestIds = new Set(
+      report.issues
+        .filter((issue) => issue.entity === 'rewardRequest')
+        .map((issue) => issue.id),
+    );
+    const orphanOverrideIds = new Set(
+      report.issues
+        .filter((issue) => issue.entity === 'progressionOverride')
+        .map((issue) => issue.id),
+    );
+    const orphanRepairIds = new Set(
+      report.issues
+        .filter((issue) => issue.entity === 'sessionRepair')
+        .map((issue) => issue.id),
+    );
+    const orphanSessionIds = new Set(
+      report.issues
+        .filter((issue) => issue.entity === 'lessonSession')
+        .map((issue) => issue.id),
+    );
+
+    const prune = (collectionName, matcher, idList) => {
+      const before = data[collectionName].length;
+      data[collectionName] = data[collectionName].filter((entry) => !matcher(entry));
+      const removed = before - data[collectionName].length;
+      if (removed > 0) {
+        fixes.push({ collection: collectionName, removed, ids: Array.from(idList) });
+      }
+    };
+
+    prune('rewardRedemptionRequests', (entry) => orphanRequestIds.has(entry.id), orphanRequestIds);
+    prune('progressionOverrides', (entry) => orphanOverrideIds.has(entry.id), orphanOverrideIds);
+    prune('sessionRepairs', (entry) => orphanRepairIds.has(entry.id), orphanRepairIds);
+    prune('lessonSessions', (entry) => orphanSessionIds.has(entry.sessionId), orphanSessionIds);
+
+    if (fixes.length > 0) {
+      data.persist();
+    }
+  }
+
+  return {
+    checkedAt: new Date().toISOString(),
+    apply,
+    issueCount: report.issues.length,
+    fixes,
+    report: getStorageIntegrityReport(),
+  };
+}
+
+function exportStorageSnapshot() {
+  const data = require('./data');
+  const snapshot = {};
+
+  Object.keys(data)
+    .filter((key) => !key.startsWith('__') && !['persist', 'reload', 'storage'].includes(key))
+    .forEach((key) => {
+      snapshot[key] = data[key];
+    });
+
+  return {
+    exportedAt: new Date().toISOString(),
+    mode: getDbMode(),
+    snapshot,
   };
 }
 
@@ -453,5 +550,7 @@ module.exports = {
   getStorageStatus,
   checkpointStorage,
   getStorageIntegrityReport,
+  repairStorageIntegrity,
+  exportStorageSnapshot,
   restoreStorageBackup,
 };

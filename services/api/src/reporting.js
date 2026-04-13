@@ -555,6 +555,94 @@ function buildProgressionRollup({ cohortId = null, podId = null, mallamId = null
   };
 }
 
+function buildRewardsReport({ cohortId = null, podId = null, mallamId = null, learnerId = null, since = null, until = null, limit = 20 } = {}) {
+  const students = learnerId
+    ? buildScopedStudentSet({ cohortId, podId, mallamId }).filter((student) => student.id === learnerId)
+    : buildScopedStudentSet({ cohortId, podId, mallamId });
+  const studentIds = new Set(students.map((student) => student.id));
+  const sinceDate = parseDate(since);
+  const untilDate = parseDate(until);
+  const transactions = repository
+    .listRewardTransactions()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }));
+  const requests = repository
+    .listRewardRedemptionRequests()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.updatedAt || entry.createdAt, { since: sinceDate, until: untilDate }));
+  const adjustments = repository
+    .listRewardAdjustments()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }));
+
+  const requestStatusCounts = {
+    pending: requests.filter((entry) => entry.status === 'pending').length,
+    approved: requests.filter((entry) => entry.status === 'approved').length,
+    fulfilled: requests.filter((entry) => entry.status === 'fulfilled').length,
+    rejected: requests.filter((entry) => entry.status === 'rejected').length,
+    cancelled: requests.filter((entry) => entry.status === 'cancelled').length,
+  };
+
+  const xpByDay = new Map();
+  transactions.forEach((entry) => {
+    const day = String(entry.createdAt || '').slice(0, 10) || 'unknown';
+    const row = xpByDay.get(day) || { date: day, xpAwarded: 0, xpRedeemed: 0, transactions: 0 };
+    row.transactions += 1;
+    if (Number(entry.xpDelta || 0) >= 0) {
+      row.xpAwarded += Number(entry.xpDelta || 0);
+    } else {
+      row.xpRedeemed += Math.abs(Number(entry.xpDelta || 0));
+    }
+    xpByDay.set(day, row);
+  });
+
+  const rewardDemand = requests.reduce((acc, entry) => {
+    const key = entry.rewardItemId || 'unknown';
+    const current = acc.get(key) || { rewardItemId: key, rewardTitle: entry.rewardTitle || key, requests: 0, fulfilled: 0, pending: 0 };
+    current.requests += 1;
+    current.fulfilled += entry.status === 'fulfilled' ? 1 : 0;
+    current.pending += ['pending', 'approved'].includes(entry.status) ? 1 : 0;
+    acc.set(key, current);
+    return acc;
+  }, new Map());
+
+  const learnerBreakdown = students.map((student) => {
+    const snapshot = rewards.buildLearnerRewards(student.id);
+    const learnerTransactions = transactions.filter((entry) => entry.studentId === student.id);
+    const learnerRequests = requests.filter((entry) => entry.studentId === student.id);
+    return {
+      learnerId: student.id,
+      learnerName: student.name,
+      totalXp: snapshot?.totalXp ?? 0,
+      badgesUnlocked: snapshot?.badgesUnlocked ?? 0,
+      transactions: learnerTransactions.length,
+      xpAwarded: learnerTransactions.filter((entry) => Number(entry.xpDelta || 0) >= 0).reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
+      xpRedeemed: learnerTransactions.filter((entry) => Number(entry.xpDelta || 0) < 0).reduce((sum, entry) => sum + Math.abs(Number(entry.xpDelta || 0)), 0),
+      requests: learnerRequests.length,
+      pendingRequests: learnerRequests.filter((entry) => ['pending', 'approved'].includes(entry.status)).length,
+    };
+  }).sort((a, b) => b.totalXp - a.totalXp || b.requests - a.requests || a.learnerName.localeCompare(b.learnerName));
+
+  return {
+    scope: { cohortId, podId, mallamId, learnerId, since, until, learnerCount: students.length },
+    summary: {
+      learners: students.length,
+      transactionCount: transactions.length,
+      totalXpAwarded: transactions.filter((entry) => Number(entry.xpDelta || 0) >= 0).reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
+      totalXpRedeemed: transactions.filter((entry) => Number(entry.xpDelta || 0) < 0).reduce((sum, entry) => sum + Math.abs(Number(entry.xpDelta || 0)), 0),
+      requestCount: requests.length,
+      correctionCount: adjustments.filter((entry) => entry.action === 'corrected').length,
+      revocationCount: adjustments.filter((entry) => entry.action === 'revoked').length,
+      fulfillmentRate: requests.length ? requestStatusCounts.fulfilled / requests.length : 0,
+      requestStatusCounts,
+    },
+    dailyXpTrend: Array.from(xpByDay.values()).sort((a, b) => a.date.localeCompare(b.date)),
+    rewardDemand: Array.from(rewardDemand.values()).sort((a, b) => b.requests - a.requests || a.rewardTitle.localeCompare(b.rewardTitle)),
+    recentTransactions: transactions.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, limit),
+    recentRequests: requests.slice().sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)).slice(0, limit),
+    recentAdjustments: adjustments.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, limit),
+    learnerBreakdown: learnerBreakdown.slice(0, Math.max(1, Math.min(Number(limit || 20), 100))),
+    leaderboard: rewards.buildScopedLeaderboard({ cohortId, podId, mallamId, limit }),
+  };
+}
+
 module.exports = {
   buildOverviewReport,
   buildDashboardInsights,
@@ -566,4 +654,5 @@ module.exports = {
   buildRuntimeAnalytics,
   buildEngagementReport,
   buildProgressionRollup,
+  buildRewardsReport,
 };

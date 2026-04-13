@@ -13,6 +13,8 @@ Before live production rollout, replace with a plain Node start command or a com
 ## Planned env vars
 - `PORT`
 - `DATABASE_URL`
+- `LUMO_DB_MODE` (`file` by default, `postgres` reserved for Prisma/Postgres wiring)
+- `LUMO_DATA_FILE` (override JSON snapshot location)
 
 ## Learner app integration slice
 
@@ -161,5 +163,26 @@ Both operations create event-log + repair/audit entries so admins can intervene 
 
 ### Persistence / storage integrity
 - `GET /api/v1/admin/storage/integrity`
+- `POST /api/v1/admin/storage/repair-integrity`
+- `GET /api/v1/admin/storage/export`
 
-Returns lightweight referential/integrity checks over the current persisted snapshot, including reward request references and runtime session ownership gaps.
+Returns lightweight referential/integrity checks over the current persisted snapshot, including reward request references, progression override links, session repair links, and runtime session ownership gaps.
+
+`POST /api/v1/admin/storage/repair-integrity` supports:
+```json
+{ "apply": false }
+```
+Use `apply: false` for a dry-run and `apply: true` to prune orphaned reward requests, orphaned progression overrides, orphaned session repair audits, and orphaned runtime sessions.
+
+`GET /api/v1/admin/storage/export` returns the full JSON snapshot with export metadata for manual backup/migration workflows.
+
+## Added rewards reporting depth
+
+### `GET /api/v1/reports/rewards`
+Returns reward-operations analytics for the selected scope, including:
+- XP awarded vs redeemed trend by day
+- reward request funnel/status counts
+- most-requested reward items
+- recent transactions / requests / adjustments
+- learner reward breakdown
+- scoped leaderboard

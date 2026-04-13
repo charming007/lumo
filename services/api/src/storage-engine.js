@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { getDbMode } = require('./db-mode');
+const { getDbMode, getDbModeMeta } = require('./db-mode');
 
 function ensureDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -129,6 +129,7 @@ function createFileStorageEngine(filePath) {
         backupFile: backupExists ? backupFile : null,
         backupUpdatedAt: backupStats?.mtime?.toISOString() ?? null,
         backups: listBackups(10),
+        db: getDbModeMeta(),
       };
     },
   };

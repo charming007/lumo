@@ -6,6 +6,7 @@
     "start": "node src/main.js",
     "start:dev": "node --watch src/main.js",
     "build": "echo 'Build step placeholder for modular API service'",
+    "test": "node --test",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push"
   },

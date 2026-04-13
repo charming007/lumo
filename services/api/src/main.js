@@ -1888,12 +1888,38 @@ app.get('/api/v1/reports/engagement', (req, res) => {
   }));
 });
 
+app.get('/api/v1/reports/rewards', (req, res) => {
+  res.json(reporting.buildRewardsReport({
+    cohortId: coerceOptionalString(req.query.cohortId),
+    podId: coerceOptionalString(req.query.podId),
+    mallamId: coerceOptionalString(req.query.mallamId),
+    learnerId: coerceOptionalString(req.query.learnerId),
+    since: coerceOptionalString(req.query.since),
+    until: coerceOptionalString(req.query.until),
+    limit: Number(req.query.limit || 20),
+  }));
+});
+
 app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
   res.json(store.getStorageStatus());
 });
 
 app.get('/api/v1/admin/storage/integrity', requireRole(['admin']), (_req, res) => {
   res.json(store.getStorageIntegrityReport());
+});
+
+app.post('/api/v1/admin/storage/repair-integrity', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.status(201).json(store.repairStorageIntegrity({
+      apply: Boolean(req.body?.apply),
+    }));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/api/v1/admin/storage/export', requireRole(['admin']), (_req, res) => {
+  res.json(store.exportStorageSnapshot());
 });
 
 app.post('/api/v1/admin/storage/checkpoint', requireRole(['admin']), (req, res, next) => {
