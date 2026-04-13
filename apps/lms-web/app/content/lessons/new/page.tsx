@@ -23,6 +23,12 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
   );
 }
 
+function sanitizeReturnPath(path?: string) {
+  if (!path || !path.startsWith('/')) return '/content';
+  if (path.startsWith('//')) return '/content';
+  return path;
+}
+
 export default async function NewLessonPage({ searchParams }: { searchParams?: Promise<{ subjectId?: string; moduleId?: string; duplicate?: string; from?: string; message?: string; createdLessonId?: string; createdLessonTitle?: string }> }) {
   const query = await searchParams;
   const [subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
@@ -43,23 +49,36 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
   ].filter(Boolean);
 
-  const scopedSubjectId = query?.subjectId ?? '';
-  const scopedModuleId = query?.moduleId ?? '';
+  const requestedSubjectId = query?.subjectId?.trim() ?? '';
+  const requestedModuleId = query?.moduleId?.trim() ?? '';
   const duplicateLessonId = query?.duplicate ?? '';
   const createdLessonId = query?.createdLessonId ?? '';
   const createdLessonTitle = query?.createdLessonTitle ?? '';
   const duplicateLesson = lessons.find((lesson) => lesson.id === duplicateLessonId) ?? null;
-  const activeModule = modules.find((module) => module.id === scopedModuleId)
-    ?? modules.find((module) => module.id === duplicateLesson?.moduleId)
-    ?? modules[0]
-    ?? null;
+  const requestedSubject = subjects.find((subject) => subject.id === requestedSubjectId) ?? null;
+  const duplicateModule = modules.find((module) => module.id === duplicateLesson?.moduleId) || null;
+  const requestedModule = modules.find((module) => module.id === requestedModuleId) || null;
+  const requestedModuleMatchesSubject = !requestedModule || !requestedSubject
+    ? true
+    : requestedModule.subjectId === requestedSubject.id;
+  const subjectScopedFallbackModule = requestedSubject
+    ? modules.find((module) => module.subjectId === requestedSubject.id) || null
+    : null;
+  const fallbackModule = duplicateModule || subjectScopedFallbackModule || modules[0] || null;
+  const activeModule = requestedModule && requestedModuleMatchesSubject ? requestedModule : fallbackModule;
+  const scopedSubjectId = activeModule?.subjectId ?? requestedSubject?.id ?? '';
+  const scopedModuleId = activeModule?.id ?? '';
   const relatedAssessments = activeModule
     ? assessments.filter((assessment) => assessment.moduleId === activeModule.id || assessment.moduleTitle === activeModule.title)
     : [];
   const siblingLessons = activeModule
     ? lessons.filter((lesson) => lesson.moduleId === activeModule.id || lesson.moduleTitle === activeModule.title)
     : [];
-  const returnPath = query?.from || '/content';
+  const returnPath = sanitizeReturnPath(query?.from);
+  const queryParamsWereAdjusted = Boolean(
+    (requestedSubjectId && requestedSubjectId !== scopedSubjectId)
+    || (requestedModuleId && requestedModuleId !== scopedModuleId)
+  );
   const authoringDependenciesReady = subjects.length > 0 && modules.length > 0 && lessonsResult.status === 'fulfilled';
 
   return (
@@ -90,6 +109,12 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           Lesson Studio is running in degraded mode: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        </div>
+      ) : null}
+
+      {queryParamsWereAdjusted ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          The requested lesson lane was invalid, so Lesson Studio snapped back to a real module instead of silently authoring into nonsense.
         </div>
       ) : null}
 

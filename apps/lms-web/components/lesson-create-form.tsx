@@ -299,13 +299,18 @@ export function LessonCreateForm({
     ?? (duplicateLesson?.subjectName
       ? subjects.find((item) => item.name === duplicateLesson.subjectName)?.id
       : undefined);
-  const fallbackSubjectId = initialSubjectId ?? duplicateSubjectId ?? subjects[0]?.id;
+  const initialSubjectIsValid = Boolean(initialSubjectId && subjects.some((subject) => subject.id === initialSubjectId));
+  const fallbackSubjectId = initialSubjectIsValid ? initialSubjectId : (duplicateSubjectId ?? subjects[0]?.id);
   const [subjectId, setSubjectId] = useState(String(fallbackSubjectId ?? subjects[0]?.id ?? ''));
-  const filteredModules = useMemo(() => {
-    const scoped = modules.filter((module) => module.subjectId === subjectId);
-    return scoped.length ? scoped : modules;
-  }, [modules, subjectId]);
-  const fallbackModuleId = initialModuleId ?? duplicateLesson?.moduleId ?? modules.find((item) => item.title === duplicateLesson?.moduleTitle)?.id ?? filteredModules[0]?.id ?? modules[0]?.id ?? '';
+  const filteredModules = useMemo(() => modules.filter((module) => module.subjectId === subjectId), [modules, subjectId]);
+  const initialModule = initialModuleId ? modules.find((item) => item.id === initialModuleId) : null;
+  const duplicateModule = duplicateLesson?.moduleId
+    ? modules.find((item) => item.id === duplicateLesson.moduleId)
+    : modules.find((item) => item.title === duplicateLesson?.moduleTitle);
+  const fallbackModuleId = (initialModule && initialModule.subjectId === subjectId ? initialModule.id : undefined)
+    ?? (duplicateModule && duplicateModule.subjectId === subjectId ? duplicateModule.id : undefined)
+    ?? filteredModules[0]?.id
+    ?? '';
   const [moduleId, setModuleId] = useState(String(fallbackModuleId));
   const [title, setTitle] = useState(duplicateLesson ? `${duplicateLesson.title} copy` : 'New lesson title');
   const [durationMinutes, setDurationMinutes] = useState(String(duplicateLesson?.durationMinutes ?? 8));
