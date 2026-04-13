@@ -29,14 +29,8 @@ export default async function LessonDetailPage({ params, searchParams }: { param
   const query = await searchParams;
   const returnPath = query?.from || '/content';
 
-  let lesson;
-  try {
-    lesson = await fetchLesson(id);
-  } catch {
-    notFound();
-  }
-
-  const [subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
+  const [lessonResult, subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
+    fetchLesson(id),
     fetchSubjects(),
     fetchCurriculumModules(),
     fetchLessons(),
@@ -47,6 +41,15 @@ export default async function LessonDetailPage({ params, searchParams }: { param
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const lesson = lessonResult.status === 'fulfilled'
+    ? lessonResult.value
+    : lessons.find((item) => item.id === id) ?? null;
+
+  if (!lesson) {
+    notFound();
+  }
+
+  const detailRecoveredFromList = lessonResult.status === 'rejected';
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
@@ -89,6 +92,12 @@ export default async function LessonDetailPage({ params, searchParams }: { param
       }
     >
       <FeedbackBanner message={query?.message} />
+
+      {detailRecoveredFromList ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', fontWeight: 700 }}>
+          Lesson detail API lookup failed, so this page recovered from the library snapshot instead of dumping you onto a useless blank route.
+        </div>
+      ) : null}
 
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
