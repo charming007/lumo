@@ -709,7 +709,23 @@ function buildRewardsReport({ cohortId = null, podId = null, mallamId = null, le
     fulfilled: requests.filter((entry) => entry.status === 'fulfilled').length,
     rejected: requests.filter((entry) => entry.status === 'rejected').length,
     cancelled: requests.filter((entry) => entry.status === 'cancelled').length,
+    expired: requests.filter((entry) => entry.status === 'expired').length,
   };
+  const queueHealth = rewards.buildRewardRedemptionQueue({ cohortId, podId, mallamId, learnerId, status: null, limit });
+  const lifecycle = requests.reduce((acc, entry) => {
+    const current = rewards.getRewardRequestLifecycleHours(entry);
+    if (current.approvalHours !== null) {
+      acc.approvalHours.push(current.approvalHours);
+    }
+    if (current.fulfillmentHours !== null) {
+      acc.fulfillmentHours.push(current.fulfillmentHours);
+    }
+    const ageDays = rewards.getRewardRequestAgeDays(entry);
+    if (['pending', 'approved'].includes(entry.status) && ageDays !== null) {
+      acc.openAgeDays.push(ageDays);
+    }
+    return acc;
+  }, { approvalHours: [], fulfillmentHours: [], openAgeDays: [] });
 
   const xpByDay = new Map();
   transactions.forEach((entry) => {
@@ -762,8 +778,13 @@ function buildRewardsReport({ cohortId = null, podId = null, mallamId = null, le
       correctionCount: adjustments.filter((entry) => entry.action === 'corrected').length,
       revocationCount: adjustments.filter((entry) => entry.action === 'revoked').length,
       fulfillmentRate: requests.length ? requestStatusCounts.fulfilled / requests.length : 0,
+      averageApprovalHours: lifecycle.approvalHours.length ? lifecycle.approvalHours.reduce((sum, value) => sum + value, 0) / lifecycle.approvalHours.length : null,
+      averageFulfillmentHours: lifecycle.fulfillmentHours.length ? lifecycle.fulfillmentHours.reduce((sum, value) => sum + value, 0) / lifecycle.fulfillmentHours.length : null,
+      averageOpenRequestAgeDays: lifecycle.openAgeDays.length ? lifecycle.openAgeDays.reduce((sum, value) => sum + value, 0) / lifecycle.openAgeDays.length : 0,
+      staleOpenRequestCount: queueHealth.summary.staleOpen,
       requestStatusCounts,
     },
+    queueHealth: queueHealth.summary,
     dailyXpTrend: Array.from(xpByDay.values()).sort((a, b) => a.date.localeCompare(b.date)),
     rewardDemand: Array.from(rewardDemand.values()).sort((a, b) => b.requests - a.requests || a.rewardTitle.localeCompare(b.rewardTitle)),
     recentTransactions: transactions.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, limit),
