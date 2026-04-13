@@ -35,6 +35,7 @@ test('buildOperationsReport returns combined runtime, progression, rewards, inte
   assert.equal(typeof report.summary.rewardFulfillmentRate, 'number');
   assert.equal(typeof report.summary.activeProgressionOverrides, 'number');
   assert.equal(typeof report.summary.sessionRepairs, 'number');
+  assert.equal(typeof report.summary.storageOperations, 'number');
   assert.ok(Array.isArray(report.hotlist.watchLearners));
   assert.ok(Array.isArray(report.hotlist.readyLearners));
   assert.ok(Array.isArray(report.recent.sessions));
@@ -55,6 +56,20 @@ test('buildStorageReport summarizes persistence mode, collections, integrity, an
   assert.ok(report.status);
   assert.ok(report.collections.students >= 1);
   assert.ok(Array.isArray(report.backups));
+  assert.ok(report.operations);
+  assert.equal(typeof report.summary.storageOperationCount, 'number');
+});
+
+test('storage operations report groups recent admin persistence actions', () => {
+  const created = store.checkpointStorage('reporting-storage-op', { actorName: 'Ops Admin', actorRole: 'admin' });
+  store.reloadStorageSnapshot({ actorName: 'Ops Admin', actorRole: 'admin' });
+
+  const report = reporting.buildStorageOperationsReport({ limit: 10 });
+
+  assert.equal(report.summary.totalOperations >= 2, true);
+  assert.ok(report.kinds.some((entry) => entry.kind === 'checkpoint'));
+  assert.ok(report.actors.some((entry) => entry.actorName === 'Ops Admin'));
+  assert.ok(report.recent.some((entry) => entry.backupPath === created.backupPath));
 });
 
 test('buildProgressionOverrideDetail exposes learner, progress, and reapply preview', () => {

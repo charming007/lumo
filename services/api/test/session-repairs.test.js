@@ -256,6 +256,41 @@ test('admin storage report endpoint and x-lumo-actor alias expose persisted cont
   assert.equal(reopenResponse.status, 201);
   assert.equal(reopenResponse.body.repair.actorName, 'Alias Admin');
 
+  const checkpointResponse = await request('/api/v1/admin/storage/checkpoint', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Alias Admin',
+    },
+    body: JSON.stringify({ label: 'alias-checkpoint' }),
+  });
+
+  assert.equal(checkpointResponse.status, 201);
+  assert.ok(checkpointResponse.body.backupPath);
+
+  const operationsResponse = await request('/api/v1/admin/storage/operations?limit=5', {
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Alias Admin',
+    },
+  });
+
+  assert.equal(operationsResponse.status, 200);
+  assert.equal(operationsResponse.body.summary.totalOperations >= 1, true);
+  assert.ok(operationsResponse.body.actors.some((entry) => entry.actorName === 'Alias Admin'));
+  const operationId = operationsResponse.body.recent[0]?.id;
+  assert.ok(operationId);
+
+  const operationDetailResponse = await request(`/api/v1/admin/storage/operations/${operationId}`, {
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Alias Admin',
+    },
+  });
+
+  assert.equal(operationDetailResponse.status, 200);
+  assert.equal(operationDetailResponse.body.actorName, 'Alias Admin');
+
   const storageResponse = await request('/api/v1/reports/storage?limit=5', {
     headers: {
       'x-lumo-role': 'admin',
@@ -266,6 +301,8 @@ test('admin storage report endpoint and x-lumo-actor alias expose persisted cont
   assert.equal(storageResponse.status, 200);
   assert.equal(storageResponse.body.summary.mode, 'file');
   assert.equal(typeof storageResponse.body.summary.recordCount, 'number');
+  assert.equal(typeof storageResponse.body.summary.storageOperationCount, 'number');
   assert.ok(storageResponse.body.status);
   assert.ok(storageResponse.body.collections.students >= 1);
+  assert.ok(storageResponse.body.operations);
 });

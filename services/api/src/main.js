@@ -55,6 +55,7 @@ function applyCors(req, res) {
     'Origin',
     'x-lumo-role',
     'x-lumo-user',
+    'x-lumo-actor',
     'x-lumo-sync-batch',
     'x-lumo-client-id',
   ].join(', '));
@@ -2231,10 +2232,30 @@ app.get('/api/v1/admin/storage/integrity', requireRole(['admin']), (_req, res) =
   res.json(store.getStorageIntegrityReport());
 });
 
+app.get('/api/v1/admin/storage/operations', requireRole(['admin']), (req, res) => {
+  res.json(reporting.buildStorageOperationsReport({
+    limit: Number(req.query.limit || 20),
+    kind: coerceOptionalString(req.query.kind),
+    actorName: coerceOptionalString(req.query.actorName),
+  }));
+});
+
+app.get('/api/v1/admin/storage/operations/:id', requireRole(['admin']), (req, res) => {
+  const operation = store.findStorageOperationById(req.params.id);
+
+  if (!operation) {
+    return res.status(404).json({ message: 'Storage operation not found' });
+  }
+
+  return res.json(operation);
+});
+
 app.post('/api/v1/admin/storage/repair-integrity', requireRole(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.repairStorageIntegrity({
       apply: Boolean(req.body?.apply),
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
     }));
   } catch (error) {
     return next(error);
@@ -2262,6 +2283,8 @@ app.post('/api/v1/admin/storage/import', requireRole(['admin']), (req, res, next
       snapshot: req.body?.snapshot,
       merge: Boolean(req.body?.merge),
       createCheckpoint: req.body?.createCheckpoint !== false,
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
     }));
   } catch (error) {
     return next(error);
@@ -2270,7 +2293,10 @@ app.post('/api/v1/admin/storage/import', requireRole(['admin']), (req, res, next
 
 app.post('/api/v1/admin/storage/reload', requireRole(['admin']), (_req, res, next) => {
   try {
-    return res.status(201).json(store.reloadStorageSnapshot());
+    return res.status(201).json(store.reloadStorageSnapshot({
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
   } catch (error) {
     return next(error);
   }
@@ -2285,7 +2311,10 @@ app.get('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res) => {
 
 app.post('/api/v1/admin/storage/checkpoint', requireRole(['admin']), (req, res, next) => {
   try {
-    return res.status(201).json(store.checkpointStorage(coerceOptionalString(req.body?.label) || 'manual-checkpoint'));
+    return res.status(201).json(store.checkpointStorage(coerceOptionalString(req.body?.label) || 'manual-checkpoint', {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
   } catch (error) {
     return next(error);
   }
@@ -2301,7 +2330,10 @@ app.delete('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res, n
       throw error;
     }
 
-    return res.json(store.deleteStorageBackup(backupPath));
+    return res.json(store.deleteStorageBackup(backupPath, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
   } catch (error) {
     return next(error);
   }
@@ -2317,7 +2349,10 @@ app.post('/api/v1/admin/storage/restore', requireRole(['admin']), (req, res, nex
       throw error;
     }
 
-    return res.json(store.restoreStorageBackup(backupPath));
+    return res.json(store.restoreStorageBackup(backupPath, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
   } catch (error) {
     return next(error);
   }
