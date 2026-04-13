@@ -24,6 +24,8 @@ class AudioStartResult {
   });
 }
 
+enum AudioPermissionState { granted, denied, unknown }
+
 class AudioCaptureService {
   AudioCaptureService() : _recorder = AudioRecorder();
 
@@ -31,6 +33,19 @@ class AudioCaptureService {
   DateTime? _recordingStartedAt;
 
   Future<bool> hasPermission() => _recorder.hasPermission();
+
+  Future<AudioPermissionState> inspectPermissionState() async {
+    try {
+      final granted = await _recorder.hasPermission();
+      return granted
+          ? AudioPermissionState.granted
+          : AudioPermissionState.denied;
+    } on MissingPluginException {
+      return AudioPermissionState.unknown;
+    } catch (_) {
+      return AudioPermissionState.unknown;
+    }
+  }
 
   Future<AudioStartResult> startSafely({String? fileStem}) async {
     final hasMicPermission = await _recorder.hasPermission();

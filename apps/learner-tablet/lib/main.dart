@@ -3017,6 +3017,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   String _recordingModeLabel = 'Standard recorder';
   int _consecutiveTranscriptMisses = 0;
   bool _autoPausedByTranscriptFailure = false;
+  AudioPermissionState _micPermissionState = AudioPermissionState.unknown;
 
   static const Duration _kMinimumUsefulRecording = Duration(milliseconds: 900);
 
@@ -3041,9 +3042,49 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
           : session.automationStatus;
     }
 
+    _primeDiagnostics();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakCurrentStepIfNeeded(force: true);
     });
+  }
+
+  Future<void> _primeDiagnostics() async {
+    final permission = await audioCaptureService.inspectPermissionState();
+    final transcriptReady = await speechTranscriptionService.initialize();
+    if (!mounted) return;
+    setState(() {
+      _micPermissionState = permission;
+      if (!transcriptReady && microphoneStatus == null) {
+        microphoneStatus = speechTranscriptionService.availabilityLabel;
+      }
+    });
+  }
+
+  bool get _micPermissionGranted =>
+      _micPermissionState == AudioPermissionState.granted;
+
+  Future<void> _confirmTranscriptAndAdvance() async {
+    final draft = responseController.text.trim();
+    if (draft.isEmpty) return;
+
+    final wasAutoMode = isAutoMode;
+    if (!wasAutoMode) {
+      setState(() {
+        isAutoMode = true;
+      });
+    }
+
+    await _handleSubmittedResponse(draft);
+    if (!mounted) return;
+
+    if (!wasAutoMode && widget.state.activeSession != null) {
+      setState(() {
+        microphoneStatus = _autoPausedByTranscriptFailure
+            ? 'Answer confirmed. Continue manually until you are ready to resume hands-free.'
+            : 'Answer confirmed. Mallam advanced and the hands-free loop is back on for the next step.';
+      });
+    }
   }
 
   @override
@@ -3577,6 +3618,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
       setState(() {
         isRecording = true;
         speechRecognitionActive = speechReady;
+        _micPermissionState = AudioPermissionState.granted;
         microphoneStatus = _buildFallbackCaptureStatus(
           audioMessage:
               'Recording learner voice with $_recordingModeLabel${audioStarted.message == null ? '' : '. ${audioStarted.message}'}',
@@ -3591,6 +3633,9 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         speechRecognitionActive = false;
         liveTranscript = '';
         _latestFinalTranscript = '';
+        if (error.toString().toLowerCase().contains('permission')) {
+          _micPermissionState = AudioPermissionState.denied;
+        }
         microphoneStatus = error.toString();
       });
     }
@@ -3837,11 +3882,13 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
         widget.state.lastSyncWarnings.isNotEmpty;
     final recordingHealthy =
         _recordingModeLabel.toLowerCase().contains('fallback') ? false : true;
+    final micPermissionHealthy = _micPermissionGranted;
     final latestAudioPath = session?.latestLearnerAudioPath;
     final latestAudioDuration = session?.latestLearnerAudioDuration;
     final diagnosticsPayload = const JsonEncoder.withIndent('  ').convert({
       'device': _deviceLabel,
       'recordingMode': _recordingModeLabel,
+      'micPermission': _micPermissionState.name,
       'speechAvailable': transcriptHealthy,
       'speechStatus': speechTranscriptionService.lastStatus,
       'speechAvailability': speechTranscriptionService.availabilityLabel,
@@ -3891,6 +3938,16 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                 warn: !recordingHealthy,
               ),
               _buildDiagnosticChip(
+                icon: Icons.perm_device_information_rounded,
+                label: _micPermissionGranted
+                    ? 'Mic permission granted'
+                    : (_micPermissionState == AudioPermissionState.denied
+                        ? 'Mic permission blocked'
+                        : 'Mic permission unknown'),
+                healthy: micPermissionHealthy,
+                warn: !micPermissionHealthy,
+              ),
+              _buildDiagnosticChip(
                 icon: Icons.subtitles_rounded,
                 label: transcriptHealthy
                     ? 'Transcript help ready'
@@ -3925,6 +3982,11 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
             ],
           ),
           const SizedBox(height: 12),
+          Text(
+            'Microphone: ${_micPermissionGranted ? 'Permission granted for learner capture.' : _micPermissionState == AudioPermissionState.denied ? 'Permission blocked. Open browser or device settings and allow the mic for this app.' : 'Permission state is still unknown until the recorder checks the device.'}',
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
+          ),
+          const SizedBox(height: 6),
           Text(
             'Transcript: ${speechTranscriptionService.availabilityLabel}',
             style: const TextStyle(color: Color(0xFF475569), height: 1.35),
@@ -4702,6 +4764,18 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                               'Confirm transcript',
                                             ),
                                           ),
+                                          FilledButton.icon(
+                                            onPressed:
+                                                _confirmTranscriptAndAdvance,
+                                            icon: const Icon(
+                                              Icons.auto_mode_rounded,
+                                            ),
+                                            label: Text(
+                                              isAutoMode
+                                                  ? 'Confirm and continue'
+                                                  : 'Confirm + resume hands-free',
+                                            ),
+                                          ),
                                           OutlinedButton.icon(
                                             onPressed: () {
                                               setState(() {
@@ -4785,7 +4859,8 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                           WrapCrossAlignment.center,
                                       children: [
                                         FilledButton.icon(
-                                          onPressed: isRecording
+                                          onPressed: isRecording ||
+                                                  !_micPermissionGranted
                                               ? null
                                               : startRecording,
                                           icon: const Icon(Icons.mic_rounded),
@@ -4804,6 +4879,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                           onPressed: isRecording
                                               ? null
                                               : () async {
+                                                  await _primeDiagnostics();
                                                   await _retryTranscriptEngine();
                                                 },
                                           icon: const Icon(
