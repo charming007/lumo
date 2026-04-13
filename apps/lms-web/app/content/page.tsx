@@ -37,6 +37,12 @@ function iconButtonStyle(background: string, color: string) {
   return { ...actionButtonStyle, background, color };
 }
 
+function blockerRiskMeta(missingLessons: number, hasAssessment: boolean) {
+  if (missingLessons > 0 && !hasAssessment) return { label: 'Hard block', tone: '#FEE2E2', text: '#991B1B' };
+  if (missingLessons > 0) return { label: 'Content gap', tone: '#FEF3C7', text: '#92400E' };
+  return { label: 'Gate missing', tone: '#E0E7FF', text: '#3730A3' };
+}
+
 function normalizeFilterValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) return value[0] ?? '';
   return value ?? '';
@@ -370,18 +376,48 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <Card title="Release blockers" eyebrow="What still stops publish">
           <SimpleTable
-            columns={['Module', 'Subject', 'Gap', 'Release risk']}
+            columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
             rows={filteredBlockedModules.map((module) => {
               const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
               const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
               const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
               const hasAssessment = assessmentLinkedModuleIds.has(module.id);
+              const blocker = blockerRiskMeta(missingLessons, hasAssessment);
 
               return [
-                module.title,
+                <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
+                  <strong>{module.title}</strong>
+                  <span style={{ color: '#64748b', fontSize: 13 }}>{module.level} • {readyLessonCount}/{module.lessonCount} ready lessons</span>
+                </div>,
                 module.subjectName ?? '—',
-                `${missingLessons} lesson gap${missingLessons === 1 ? '' : 's'}`,
-                hasAssessment ? 'Assessment linked but content is still incomplete.' : 'No assessment gate linked yet.',
+                <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
+                  <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
+                  <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
+                </div>,
+                <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 8 }}>
+                  <Pill label={blocker.label} tone={blocker.tone} text={blocker.text} />
+                  <span style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
+                    {missingLessons > 0 && !hasAssessment
+                      ? 'Module cannot ship: content is incomplete and progression has no gate.'
+                      : missingLessons > 0
+                        ? 'Assessment exists, but learner-facing lesson coverage is still short.'
+                        : 'Lessons are ready, but progression still has no gate.'}
+                  </span>
+                </div>,
+                <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
+                  <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                    Add lesson pack
+                  </Link>
+                  {!hasAssessment ? (
+                    <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate from the blockers board instead of hunting through the full content lane." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
+                      <CreateAssessmentForm modules={[module]} subjects={subjects} />
+                    </ModalLauncher>
+                  ) : (
+                    <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                      Review gate
+                    </Link>
+                  )}
+                </div>,
               ];
             })}
           />
