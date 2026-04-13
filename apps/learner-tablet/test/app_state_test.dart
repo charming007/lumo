@@ -44,7 +44,7 @@ void main() {
     );
 
     test('does not auto-select a learner during bootstrap refreshes', () async {
-      final state = LumoAppState(
+      final state = LumoAppState(includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/bootstrap') {
@@ -83,7 +83,7 @@ void main() {
 
     test('keeps live module list free of demo-only subjects during bootstrap',
         () async {
-      final state = LumoAppState(
+      final state = LumoAppState(includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/bootstrap') {
@@ -204,7 +204,7 @@ void main() {
 
     test('drops deprecated story/demo lessons even when the module id is messy',
         () async {
-      final state = LumoAppState(
+      final state = LumoAppState(includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/bootstrap') {
@@ -329,7 +329,7 @@ void main() {
         }),
       });
 
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
 
       await state.restorePersistedState();
 
@@ -344,7 +344,7 @@ void main() {
 
     test('builds a fallback module when lesson metadata arrives before modules',
         () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       final lesson = state.assignedLessons.first;
 
       state.modules.clear();
@@ -358,7 +358,7 @@ void main() {
     });
 
     test('does not crash when live learners exist but lessons are empty', () {
-      final state = LumoAppState()
+      final state = LumoAppState(includeSeedDemoContent: true)
         ..assignedLessons.clear()
         ..learners.clear()
         ..learners.add(beginner);
@@ -371,7 +371,7 @@ void main() {
 
     test('returns a safe draft module placeholder when subjects are missing',
         () {
-      final state = LumoAppState()..modules.clear();
+      final state = LumoAppState(includeSeedDemoContent: true)..modules.clear();
 
       final module = state.recommendedModuleForDraft;
 
@@ -381,7 +381,7 @@ void main() {
     });
 
     test('ranks english first for voice-first beginners', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
 
       final lessons = state.lessonsForLearner(beginner);
 
@@ -391,7 +391,7 @@ void main() {
     });
 
     test('ranks math first for guided practice learners', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
 
       final lessons = state.lessonsForLearner(emerging);
 
@@ -400,7 +400,7 @@ void main() {
     });
 
     test('ranks life skills first for confident responders', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
 
       final lessons = state.lessonsForLearner(confident);
 
@@ -413,7 +413,7 @@ void main() {
     });
 
     test('assigned lesson summary reflects next lesson title', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
 
       final summary = state.assignedLessonSummaryForLearner(beginner);
       final nextLesson = state.nextAssignedLessonForLearner(beginner);
@@ -424,7 +424,7 @@ void main() {
     });
 
     test('prefers backend assignment packs over heuristic lesson order', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       final lifeSkillsLesson = state.assignedLessons
           .firstWhere((lesson) => lesson.moduleId == 'life-skills');
 
@@ -452,7 +452,7 @@ void main() {
     });
 
     test('uses backend recommended module when available', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       final learner = beginner.copyWith(backendRecommendedModuleId: 'math');
 
       expect(state.recommendedModuleLabelForLearner(learner), contains('Math'));
@@ -460,7 +460,7 @@ void main() {
     });
 
     test('prefers resumable backend runtime lesson before fresh routing', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       final lesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'math',
       );
@@ -496,7 +496,7 @@ void main() {
     });
 
     test('routes away from the completed lesson when continuing', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       final currentLesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'english',
       );
@@ -519,7 +519,7 @@ void main() {
 
     test('falls back to backend recommended module after lesson completion',
         () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       final learner = beginner.copyWith(backendRecommendedModuleId: 'math');
       final completedLesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'english',
@@ -542,7 +542,7 @@ void main() {
     });
 
     test('maps registration cohort to backend mallam target', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       state.registrationContext = RegistrationContext(
         cohorts: const [
           BackendCohort(id: 'cohort-1', name: 'Cohort A', podId: 'pod-1'),
@@ -577,7 +577,7 @@ void main() {
 
     test('loads recent backend runtime sessions for the selected learner',
         () async {
-      final state = LumoAppState(
+      final state = LumoAppState(includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/sessions') {
@@ -625,7 +625,7 @@ void main() {
 
     test('applies synced runtime session updates into learner history',
         () async {
-      final state = LumoAppState(
+      final state = LumoAppState(includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/sync') {
@@ -689,7 +689,7 @@ void main() {
 
     test('auto-syncs queued lesson events when backend is live', () async {
       var syncCalls = 0;
-      final state = LumoAppState(
+      final state = LumoAppState(includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/sync') {
@@ -729,7 +729,7 @@ void main() {
     });
 
     test('resumes lesson state from backend runtime session metadata', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       state.currentLearner = beginner;
       final lesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'english',
@@ -765,7 +765,7 @@ void main() {
     });
 
     test('repeat-after-me mode uses stricter matching and can be toggled', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       state.currentLearner = beginner;
       final lesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'english',
@@ -781,7 +781,7 @@ void main() {
 
     test('creates local rewards for seed learners after lesson completion',
         () async {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       state.currentLearner = beginner;
       final lesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'english',
@@ -807,7 +807,7 @@ void main() {
 
     test('levels up reward snapshot when lesson XP crosses a threshold',
         () async {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       state.currentLearner = beginner.copyWith(
         rewards: const RewardSnapshot(
           learnerId: 'learner-1',
@@ -841,7 +841,7 @@ void main() {
     });
 
     test('degraded mode summary reflects queued offline work', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       state.usingFallbackData = true;
       state.pendingSyncEvents.add(
         const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
@@ -852,7 +852,7 @@ void main() {
     });
 
     test('degraded mode actions recommend audio-first recovery steps', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       state.usingFallbackData = true;
       state.lastSyncError = 'timeout';
       state.pendingSyncEvents.add(
@@ -871,7 +871,7 @@ void main() {
     });
 
     test('hands-free recovery helpers expose safe resume guidance', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
 
       expect(
         state.shouldOfferHandsFreeResume(
@@ -900,7 +900,7 @@ void main() {
 
     test('offline completion unlocks resilience and hands-free badges',
         () async {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       state.usingFallbackData = true;
       state.currentLearner = beginner;
       final lesson = state.assignedLessons.firstWhere(
@@ -931,7 +931,7 @@ void main() {
     });
 
     test('reward celebration helpers surface level and badge momentum', () {
-      final state = LumoAppState();
+      final state = LumoAppState(includeSeedDemoContent: true);
       final learner = beginner.copyWith(
         rewards: const RewardSnapshot(
           learnerId: 'learner-1',

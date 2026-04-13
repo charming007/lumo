@@ -19,10 +19,14 @@ const String _kPersistenceStorageKey = 'lumo_learner_tablet_state_v1';
 const String _kPersistenceSchemaVersion = '2026-04-13-runtime-persist';
 
 class LumoAppState {
-  LumoAppState({LumoApiClient? apiClient})
-      : _apiClient = apiClient ?? LumoApiClient();
+  LumoAppState({
+    LumoApiClient? apiClient,
+    bool includeSeedDemoContent = kEnableSeedDemoContent,
+  })  : _apiClient = apiClient ?? LumoApiClient(),
+        _includeSeedDemoContent = includeSeedDemoContent;
 
   final LumoApiClient _apiClient;
+  final bool _includeSeedDemoContent;
   VoiceReplay? voiceReplay;
   VoiceReplayStop? voiceReplayStop;
   Timer? _syncRetryTimer;
@@ -36,9 +40,15 @@ class LumoAppState {
   RegistrationContext registrationContext = const RegistrationContext();
 
   final List<SyncEvent> pendingSyncEvents = [];
-  final List<LearnerProfile> learners = List.of(learnerProfilesSeed);
-  final List<LearningModule> modules = List.of(learningModules);
-  final List<LessonCardModel> assignedLessons = List.of(assignedLessonsSeed);
+  late final List<LearnerProfile> learners = List.of(
+    _includeSeedDemoContent ? learnerProfilesSeed : const <LearnerProfile>[],
+  );
+  late final List<LearningModule> modules = List.of(
+    _includeSeedDemoContent ? learningModules : const <LearningModule>[],
+  );
+  late final List<LessonCardModel> assignedLessons = List.of(
+    _includeSeedDemoContent ? assignedLessonsSeed : const <LessonCardModel>[],
+  );
   final List<LearnerAssignmentPack> assignmentPacks = [];
   final Map<String, List<BackendLessonSession>>
       recentRuntimeSessionsByLearnerId = {};
@@ -178,13 +188,18 @@ class LumoAppState {
       learners
         ..clear()
         ..addAll(
-            restoredLearners.isEmpty ? learnerProfilesSeed : restoredLearners);
+          restoredLearners.isEmpty && _includeSeedDemoContent
+              ? learnerProfilesSeed
+              : restoredLearners,
+        );
       modules
         ..clear()
         ..addAll(
           _dedupeModules(
             _sanitizeModules(
-              restoredModules.isEmpty ? learningModules : restoredModules,
+              restoredModules.isEmpty && _includeSeedDemoContent
+                  ? learningModules
+                  : restoredModules,
             ),
           ),
         );
@@ -192,7 +207,9 @@ class LumoAppState {
         ..clear()
         ..addAll(
           _sanitizeLessons(
-            restoredLessons.isEmpty ? assignedLessonsSeed : restoredLessons,
+            restoredLessons.isEmpty && _includeSeedDemoContent
+                ? assignedLessonsSeed
+                : restoredLessons,
           ),
         );
       assignmentPacks
@@ -285,11 +302,15 @@ class LumoAppState {
       final data = await _apiClient.fetchBootstrap();
       learners
         ..clear()
-        ..addAll(data.learners.isEmpty ? learnerProfilesSeed : data.learners);
+        ..addAll(
+          data.learners.isEmpty && _includeSeedDemoContent
+              ? learnerProfilesSeed
+              : data.learners,
+        );
 
       final mergedModules = _dedupeModules(
         _sanitizeModules(
-          kEnableSeedDemoContent && data.modules.isEmpty
+          _includeSeedDemoContent && data.modules.isEmpty
               ? [
                   ...data.modules,
                   ...learningModules.where(
@@ -307,7 +328,7 @@ class LumoAppState {
         ..clear()
         ..addAll(
           _sanitizeLessons(
-            data.lessons.isEmpty && kEnableSeedDemoContent
+            data.lessons.isEmpty && _includeSeedDemoContent
                 ? assignedLessonsSeed
                 : data.lessons,
           ),
@@ -2187,10 +2208,19 @@ class LumoAppState {
     final preferredModuleId =
         preferredModuleIds.isEmpty ? null : preferredModuleIds.first;
     return modules.cast<LearningModule?>().firstWhere(
-              (item) => item?.id == preferredModuleId,
-              orElse: () => modules.isEmpty ? null : modules.first,
-            ) ??
-        learningModules.first;
+          (item) => item?.id == preferredModuleId,
+          orElse: () => modules.isEmpty ? null : modules.first,
+        ) ??
+        const LearningModule(
+          id: 'pending-module',
+          title: 'Subject sync pending',
+          description:
+              'Live subject routing has not loaded yet. Refresh the tablet or reconnect the backend before starting a learner route.',
+          voicePrompt:
+              'Live subject routing is still loading. Refresh the tablet before starting this learner.',
+          readinessGoal: 'Wait for backend lesson sync',
+          badge: 'Sync pending',
+        );
   }
 
   String recommendedModuleLabelForLearner(LearnerProfile learner) {

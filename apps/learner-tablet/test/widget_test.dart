@@ -10,7 +10,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const LumoApp());
+    await tester.pumpWidget(const LumoApp(includeSeedDemoContent: true));
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
   }
@@ -98,7 +98,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final state = LumoAppState();
+    final state = LumoAppState(includeSeedDemoContent: true);
     final learner = state.learners.first;
 
     await tester.pumpWidget(
@@ -124,7 +124,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final state = LumoAppState();
+    final state = LumoAppState(includeSeedDemoContent: true);
     final learner = state.learners.first;
     final lesson = state.assignedLessons.first;
     state.selectLearner(learner);
@@ -155,7 +155,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final state = LumoAppState();
+    final state = LumoAppState(includeSeedDemoContent: true);
     final learner = state.learners.first;
     final lesson = state.assignedLessons.first;
     state.selectLearner(learner);

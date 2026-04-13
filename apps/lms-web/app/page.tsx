@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchStudents, fetchWorkboard } from '../lib/api';
+import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchStudents, fetchSubjects, fetchWorkboard } from '../lib/api';
+import { CreateAssessmentForm } from '../components/admin-forms';
 import { InsightPanel } from '../components/insight-panel';
 import { KpiStrip } from '../components/kpi-strip';
+import { ModalLauncher } from '../components/modal-launcher';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
-import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Student, WorkboardItem } from '../lib/types';
+import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Student, Subject, WorkboardItem } from '../lib/types';
 
 const EMPTY_SUMMARY: DashboardSummary = {
   activeLearners: 0,
@@ -62,7 +64,7 @@ const tableLinkStyle = {
 } as const;
 
 export default async function HomePage() {
-  const [summaryResult, assignmentsResult, insightsResult, workboardResult, studentsResult, mallamsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
+  const [summaryResult, assignmentsResult, insightsResult, workboardResult, studentsResult, mallamsResult, modulesResult, lessonsResult, assessmentsResult, subjectsResult] = await Promise.allSettled([
     fetchDashboardSummary(),
     fetchAssignments(),
     fetchDashboardInsights(),
@@ -72,6 +74,7 @@ export default async function HomePage() {
     fetchCurriculumModules(),
     fetchLessons(),
     fetchAssessments(),
+    fetchSubjects(),
   ]);
 
   const summary = summaryResult.status === 'fulfilled' ? summaryResult.value : EMPTY_SUMMARY;
@@ -89,6 +92,7 @@ export default async function HomePage() {
   const modules: CurriculumModule[] = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons: Lesson[] = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const assessments: Assessment[] = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const subjects: Subject[] = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
 
   const failedSources = [
     { label: 'summary', result: summaryResult },
@@ -100,6 +104,7 @@ export default async function HomePage() {
     { label: 'modules', result: modulesResult },
     { label: 'lessons', result: lessonsResult },
     { label: 'assessments', result: assessmentsResult },
+    { label: 'subjects', result: subjectsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
 
   const stats = [
@@ -299,6 +304,8 @@ export default async function HomePage() {
                 rows={releaseBlockers.length ? releaseBlockers.slice(0, 5).map((module) => {
                   const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
                   const createLessonHref = `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+                  const scopedSubjects = module.subjectId ? subjects.filter((subject) => subject.id === module.subjectId) : subjects;
+                  const assessmentSubjects = scopedSubjects.length ? scopedSubjects : subjects;
 
                   return [
                     <div key={`${module.id}-module`} style={{ display: 'grid', gap: 6 }}>
@@ -316,7 +323,37 @@ export default async function HomePage() {
                       <span>{module.hasAssessmentGate ? 'Assessment linked; content still incomplete.' : 'Missing assessment gate before publish.'}</span>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <Link href={blockerBoardHref} style={tableLinkStyle}>Open blockers board</Link>
-                        {!module.hasAssessmentGate ? <Link href={blockerBoardHref} style={tableLinkStyle}>Add assessment gate</Link> : null}
+                        {!module.hasAssessmentGate ? (
+                          subjectsResult.status === 'fulfilled' && assessmentSubjects.length ? (
+                            <ModalLauncher
+                              buttonLabel="Add assessment gate"
+                              title={`Create assessment gate · ${module.title}`}
+                              description="Create the missing progression gate directly from the dashboard blocker row instead of bouncing back to the content board."
+                              eyebrow="Create assessment"
+                              triggerStyle={{
+                                border: 0,
+                                padding: 0,
+                                background: 'transparent',
+                                color: '#3730A3',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <CreateAssessmentForm modules={[{
+                                id: module.id,
+                                title: module.title,
+                                subjectId: module.subjectId,
+                                subjectName: module.subjectName,
+                                strandName: '',
+                                level: '',
+                                lessonCount: Math.max(module.missingLessons, 0),
+                                status: 'draft',
+                              } satisfies CurriculumModule]} subjects={assessmentSubjects} />
+                            </ModalLauncher>
+                          ) : (
+                            <Link href={blockerBoardHref} style={tableLinkStyle}>Add assessment gate</Link>
+                          )
+                        ) : null}
                       </div>
                     </div>,
                   ];
