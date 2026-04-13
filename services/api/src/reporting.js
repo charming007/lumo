@@ -387,7 +387,10 @@ function buildNgoSummary({ cohortId = null, podId = null, mallamId = null, since
       watch: progressEntries.filter((entry) => entry.progressionStatus === 'watch').length,
       onTrack: progressEntries.filter((entry) => entry.progressionStatus === 'on-track').length,
     },
-    rewardOps: rewards.buildRewardOpsSummary({ cohortId, podId, mallamId }),
+    rewardOps: {
+      ...rewards.buildRewardOpsSummary({ cohortId, podId, mallamId }),
+      recentQueue: rewards.buildRewardRedemptionQueue({ cohortId, podId, mallamId, limit: 10 }).items,
+    },
     subjectBreakdown,
     mallamSnapshots: teachers.map((teacher) => buildMallamSummary(teacher.id)).filter(Boolean),
     topLearners: rewards.buildScopedLeaderboard({ cohortId, podId, mallamId, limit: 10 }),
@@ -410,6 +413,9 @@ function buildEngagementReport({ cohortId = null, podId = null, mallamId = null,
   const rewardsTx = repository
     .listRewardTransactions()
     .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }));
+  const rewardRequests = repository
+    .listRewardRedemptionRequests()
+    .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.createdAt, { since: sinceDate, until: untilDate }));
   const progressEntries = repository
     .listProgress()
     .filter((entry) => studentIds.has(entry.studentId) && inRange(entry.lastActiveAt, { since: sinceDate, until: untilDate }));
@@ -423,7 +429,7 @@ function buildEngagementReport({ cohortId = null, podId = null, mallamId = null,
 
   sessions.forEach((session) => {
     const day = String(session.lastActivityAt || '').slice(0, 10) || 'unknown';
-    const row = byDayMap.get(day) || { date: day, sessions: 0, completedSessions: 0, xpAwarded: 0, supportActionsUsed: 0, responsesCaptured: 0 };
+    const row = byDayMap.get(day) || { date: day, sessions: 0, completedSessions: 0, xpAwarded: 0, supportActionsUsed: 0, responsesCaptured: 0, rewardRequests: 0, rewardFulfilled: 0 };
     row.sessions += 1;
     row.completedSessions += session.status === 'completed' ? 1 : 0;
     row.supportActionsUsed += Number(session.supportActionsUsed || 0);
@@ -437,8 +443,16 @@ function buildEngagementReport({ cohortId = null, podId = null, mallamId = null,
 
   rewardsTx.forEach((transaction) => {
     const day = String(transaction.createdAt || '').slice(0, 10) || 'unknown';
-    const row = byDayMap.get(day) || { date: day, sessions: 0, completedSessions: 0, xpAwarded: 0, supportActionsUsed: 0, responsesCaptured: 0 };
+    const row = byDayMap.get(day) || { date: day, sessions: 0, completedSessions: 0, xpAwarded: 0, supportActionsUsed: 0, responsesCaptured: 0, rewardRequests: 0, rewardFulfilled: 0 };
     row.xpAwarded += Number(transaction.xpDelta || 0);
+    byDayMap.set(day, row);
+  });
+
+  rewardRequests.forEach((request) => {
+    const day = String(request.updatedAt || request.createdAt || '').slice(0, 10) || 'unknown';
+    const row = byDayMap.get(day) || { date: day, sessions: 0, completedSessions: 0, xpAwarded: 0, supportActionsUsed: 0, responsesCaptured: 0, rewardRequests: 0, rewardFulfilled: 0 };
+    row.rewardRequests += 1;
+    row.rewardFulfilled += request.status === 'fulfilled' ? 1 : 0;
     byDayMap.set(day, row);
   });
 
@@ -484,8 +498,20 @@ function buildEngagementReport({ cohortId = null, podId = null, mallamId = null,
       totalXpAwarded: rewardsTx.reduce((sum, entry) => sum + Number(entry.xpDelta || 0), 0),
       observationsCaptured: observations.length,
       activeProgressRecords: progressEntries.length,
+      rewardRequests: rewardRequests.length,
+      rewardFulfilled: rewardRequests.filter((entry) => entry.status === 'fulfilled').length,
+      rewardPending: rewardRequests.filter((entry) => entry.status === 'pending').length,
+      rewardApproved: rewardRequests.filter((entry) => entry.status === 'approved').length,
+      totalXpRedeemed: rewardsTx.filter((entry) => entry.kind === 'redemption').reduce((sum, entry) => sum + Math.abs(Number(entry.xpDelta || 0)), 0),
     },
     reviewBreakdown,
+    rewardRequestBreakdown: {
+      pending: rewardRequests.filter((entry) => entry.status === 'pending').length,
+      approved: rewardRequests.filter((entry) => entry.status === 'approved').length,
+      fulfilled: rewardRequests.filter((entry) => entry.status === 'fulfilled').length,
+      rejected: rewardRequests.filter((entry) => entry.status === 'rejected').length,
+      cancelled: rewardRequests.filter((entry) => entry.status === 'cancelled').length,
+    },
     eventTypeCounts,
     dailyTrend: Array.from(byDayMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
     learnerBreakdown: learnerBreakdown.slice(0, 50),

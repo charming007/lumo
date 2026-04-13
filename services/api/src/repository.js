@@ -849,6 +849,77 @@ function createRewardAdjustment(input) {
   return commit(record);
 }
 
+
+function listRewardRedemptionRequests() {
+  return data.rewardRedemptionRequests;
+}
+
+function findRewardRedemptionRequestById(id) {
+  return data.rewardRedemptionRequests.find((item) => item.id === id) || null;
+}
+
+function createRewardRedemptionRequest(input) {
+  const record = {
+    id: `reward-request-${data.rewardRedemptionRequests.length + 1}`,
+    studentId: input.studentId,
+    rewardItemId: input.rewardItemId,
+    rewardTitle: input.rewardTitle || null,
+    xpCost: Number(input.xpCost || 0),
+    status: input.status || 'pending',
+    learnerNote: input.learnerNote || '',
+    adminNote: input.adminNote || '',
+    requestedBy: input.requestedBy || input.studentId || null,
+    requestedVia: input.requestedVia || 'learner-app',
+    clientRequestId: input.clientRequestId || null,
+    approvedAt: input.approvedAt || null,
+    approvedBy: input.approvedBy || null,
+    rejectedAt: input.rejectedAt || null,
+    rejectedBy: input.rejectedBy || null,
+    fulfilledAt: input.fulfilledAt || null,
+    fulfilledBy: input.fulfilledBy || null,
+    cancelledAt: input.cancelledAt || null,
+    cancelledBy: input.cancelledBy || null,
+    transactionId: input.transactionId || null,
+    metadata: input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null,
+    createdAt: input.createdAt || new Date().toISOString(),
+    updatedAt: input.updatedAt || input.createdAt || new Date().toISOString(),
+  };
+
+  data.rewardRedemptionRequests.push(record);
+  return commit(record);
+}
+
+function updateRewardRedemptionRequest(id, input) {
+  const record = findRewardRedemptionRequestById(id);
+  if (!record) return null;
+
+  Object.assign(record, {
+    rewardTitle: input.rewardTitle ?? record.rewardTitle,
+    xpCost: input.xpCost !== undefined ? Number(input.xpCost) : record.xpCost,
+    status: input.status ?? record.status,
+    learnerNote: input.learnerNote !== undefined ? input.learnerNote : record.learnerNote,
+    adminNote: input.adminNote !== undefined ? input.adminNote : record.adminNote,
+    requestedBy: input.requestedBy ?? record.requestedBy,
+    requestedVia: input.requestedVia ?? record.requestedVia,
+    clientRequestId: input.clientRequestId ?? record.clientRequestId,
+    approvedAt: input.approvedAt !== undefined ? input.approvedAt : record.approvedAt,
+    approvedBy: input.approvedBy !== undefined ? input.approvedBy : record.approvedBy,
+    rejectedAt: input.rejectedAt !== undefined ? input.rejectedAt : record.rejectedAt,
+    rejectedBy: input.rejectedBy !== undefined ? input.rejectedBy : record.rejectedBy,
+    fulfilledAt: input.fulfilledAt !== undefined ? input.fulfilledAt : record.fulfilledAt,
+    fulfilledBy: input.fulfilledBy !== undefined ? input.fulfilledBy : record.fulfilledBy,
+    cancelledAt: input.cancelledAt !== undefined ? input.cancelledAt : record.cancelledAt,
+    cancelledBy: input.cancelledBy !== undefined ? input.cancelledBy : record.cancelledBy,
+    transactionId: input.transactionId !== undefined ? input.transactionId : record.transactionId,
+    metadata: input.metadata !== undefined
+      ? (input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null)
+      : record.metadata,
+    updatedAt: input.updatedAt || new Date().toISOString(),
+  });
+
+  return commit(record);
+}
+
 function listProgressionOverrides() {
   return data.progressionOverrides;
 }
@@ -1003,6 +1074,10 @@ module.exports = {
   listRewardAdjustments,
   createRewardAdjustment,
   createRewardTransaction,
+  listRewardRedemptionRequests,
+  findRewardRedemptionRequestById,
+  createRewardRedemptionRequest,
+  updateRewardRedemptionRequest,
   listProgressionOverrides,
   createProgressionOverride,
   updateProgressionOverride,

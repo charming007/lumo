@@ -2,7 +2,7 @@
 
 _Last updated: 2026-04-13_
 
-A practical, visual guide to the **Lumo LMS dashboard**, with extra focus on **Content Library** and **English Curriculum Studio**.
+A practical, visual guide to the **Lumo LMS dashboard**, with extra focus on **Content Library**, **English Curriculum Studio**, **Mallam operations**, and **reporting / rewards surfaces**.
 
 **Audience:** admins, content ops, curriculum leads, implementation managers, and anyone onboarding into LMS operations.
 
@@ -29,8 +29,11 @@ In the current implementation, the LMS navigation includes:
 - Content Library
 - English Studio
 - Assessments
+- Assignments
 - Pods
-- Analytics
+- Progress
+- Reports
+- Rewards
 - Settings
 
 ---
@@ -48,9 +51,11 @@ Content Library
 English Studio
    ↓ helps admins author better English lessons using an activity spine
 Assignments / Pod delivery
-   ↓ push approved content to cohorts and pods
+   ↓ push approved content to cohorts, pods, and mallams
+Progress / Rewards
+   ↓ turn learner runtime into progression, XP, badge, and intervention signals
 Reports / Analytics
-   ↓ show what is working and what needs attention
+   ↓ show what is working, what is risky, and what is shareable upstream
 ```
 
 ### Core content hierarchy
@@ -1123,8 +1128,13 @@ This guide is designed to be maintainable, not frozen.
 Primary source files:
 
 - `apps/lms-web/app/page.tsx`
+- `apps/lms-web/app/mallams/page.tsx`
+- `apps/lms-web/app/mallams/[id]/page.tsx`
+- `apps/lms-web/app/reports/page.tsx`
+- `apps/lms-web/app/rewards/page.tsx`
 - `apps/lms-web/app/content/page.tsx`
 - `apps/lms-web/app/english/page.tsx`
+- `apps/lms-web/app/guide/page.tsx`
 - `apps/lms-web/components/english-studio-authoring-form.tsx`
 - `apps/lms-web/components/lesson-create-form.tsx`
 - `apps/lms-web/components/lesson-editor-form.tsx`
@@ -1132,6 +1142,8 @@ Primary source files:
 - `apps/lms-web/lib/navigation.ts`
 - `apps/lms-web/lib/english-curriculum.ts`
 - `apps/lms-web/lib/types.ts`
+- `apps/learner-tablet/lib/app_state.dart`
+- `apps/learner-tablet/lib/main.dart`
 
 ### Update checklist
 
@@ -1141,10 +1153,10 @@ When a new LMS feature lands, update this guide in this order:
    - Did the sidebar/menu change?
    - Add/remove the page in section 1 or 17.
 
-2. **Dashboard**
+2. **Dashboard + operator routes**
    - Did KPI cards change?
-   - Did a new operational panel appear?
-   - Update section 3.
+   - Did Mallams, Reports, or Rewards gain new decision surfaces?
+   - Update sections 3, 16, and 17.
 
 3. **Content model**
    - Did subject/strand/module/lesson/assessment relationships change?
@@ -1158,8 +1170,12 @@ When a new LMS feature lands, update this guide in this order:
    - Did readiness logic, activity spine, or blueprint fields change?
    - Update sections 10–13.
 
-6. **Operational best practice**
-   - If release policy changes, update sections 15 and 16.
+6. **Learner runtime + rewards**
+   - Did completion, XP, badges, lesson resume, or sync behavior change?
+   - Update the rewards and system-flow sections so the admin story still matches the tablet reality.
+
+7. **Operational best practice**
+   - If release policy, reporting surfaces, or coaching workflows change, update sections 15 and 16.
 
 ### Best maintenance pattern
 

@@ -261,6 +261,23 @@ function createRewardAdjustment(input) {
   return repository.createRewardAdjustment(input);
 }
 
+
+function listRewardRedemptionRequests() {
+  return repository.listRewardRedemptionRequests();
+}
+
+function findRewardRedemptionRequestById(id) {
+  return repository.findRewardRedemptionRequestById(id);
+}
+
+function createRewardRedemptionRequest(input) {
+  return repository.createRewardRedemptionRequest(input);
+}
+
+function updateRewardRedemptionRequest(id, input) {
+  return repository.updateRewardRedemptionRequest(id, input);
+}
+
 function listProgressionOverrides() {
   return repository.listProgressionOverrides();
 }
@@ -293,6 +310,7 @@ function getStoreMeta() {
     storageNote: data.__meta?.storageNote ?? null,
     runtimeSessionCount: listLessonSessions().length,
     rewardAdjustmentCount: listRewardAdjustments().length,
+    rewardRedemptionRequestCount: listRewardRedemptionRequests().length,
     progressionOverrideCount: listProgressionOverrides().length,
     sessionRepairCount: listSessionRepairs().length,
     storageStatus: typeof data.storage?.getStatus === 'function' ? data.storage.getStatus() : null,
@@ -311,6 +329,39 @@ function checkpointStorage(label) {
   return {
     backupPath,
     status: getStorageStatus(),
+  };
+}
+
+function getStorageIntegrityReport() {
+  const students = listStudents();
+  const studentIds = new Set(students.map((item) => item.id));
+  const rewardIds = new Set(listRewardTransactions().map((item) => item.id));
+  const itemIds = new Set((require('./rewards').REWARD_STORE_ITEMS || []).map((item) => item.id));
+  const sessions = listLessonSessions();
+  const requests = listRewardRedemptionRequests();
+
+  const issues = [];
+
+  requests.forEach((entry) => {
+    if (!studentIds.has(entry.studentId)) issues.push({ type: 'reward-request-missing-student', id: entry.id });
+    if (!itemIds.has(entry.rewardItemId)) issues.push({ type: 'reward-request-missing-item', id: entry.id });
+    if (entry.transactionId && !rewardIds.has(entry.transactionId)) issues.push({ type: 'reward-request-missing-transaction', id: entry.id });
+  });
+
+  sessions.forEach((entry) => {
+    if (!studentIds.has(entry.studentId)) issues.push({ type: 'session-missing-student', id: entry.sessionId });
+  });
+
+  return {
+    checkedAt: new Date().toISOString(),
+    summary: {
+      studentCount: students.length,
+      rewardTransactionCount: listRewardTransactions().length,
+      rewardRequestCount: requests.length,
+      runtimeSessionCount: sessions.length,
+      issueCount: issues.length,
+    },
+    issues,
   };
 }
 
@@ -392,6 +443,10 @@ module.exports = {
   findRewardTransactionById,
   listRewardAdjustments,
   createRewardAdjustment,
+  listRewardRedemptionRequests,
+  findRewardRedemptionRequestById,
+  createRewardRedemptionRequest,
+  updateRewardRedemptionRequest,
   getStoreMeta,
   getStorageStatus,
   checkpointStorage,

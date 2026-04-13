@@ -378,19 +378,242 @@ function buildLeaderboard(limit = 10) {
     .slice(0, limit);
 }
 
+function getRewardStoreItem(itemId) {
+  return REWARD_STORE_ITEMS.find((item) => item.id === itemId) || null;
+}
+
+function listRewardRedemptionRequests() {
+  return repository.listRewardRedemptionRequests();
+}
+
+function ensureRewardRequest(requestId) {
+  const existing = repository.findRewardRedemptionRequestById(requestId);
+  if (!existing) {
+    const error = new Error('Reward request not found');
+    error.statusCode = 404;
+    throw error;
+  }
+  return existing;
+}
+
+function buildRewardRequestHistory(studentId, { status = null, limit = 20 } = {}) {
+  const student = repository.findStudentById(studentId);
+  if (!student) return null;
+
+  const items = repository.listRewardRedemptionRequests()
+    .filter((item) => item.studentId === studentId && (!status || item.status === status))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, Math.max(1, Math.min(Number(limit || 20), 100)));
+
+  return { learnerId: studentId, status, count: items.length, items };
+}
+
+function buildRewardRedemptionQueue({ cohortId = null, podId = null, mallamId = null, learnerId = null, status = null, limit = 50 } = {}) {
+  const students = learnerId
+    ? buildScopedStudentSet({ cohortId, podId, mallamId }).filter((student) => student.id === learnerId)
+    : buildScopedStudentSet({ cohortId, podId, mallamId });
+  const studentIds = new Set(students.map((student) => student.id));
+
+  const items = repository.listRewardRedemptionRequests()
+    .filter((item) => (!studentIds.size || studentIds.has(item.studentId)) && (!status || item.status === status))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, Math.max(1, Math.min(Number(limit || 50), 100)))
+    .map((item) => ({
+      ...item,
+      learnerName: repository.findStudentById(item.studentId)?.name || 'Unknown learner',
+    }));
+
+  return {
+    items,
+    meta: { cohortId, podId, mallamId, learnerId, status, count: items.length },
+  };
+}
+
+function createRewardRedemptionRequest({ studentId, rewardItemId, learnerNote, requestedBy, requestedVia, clientRequestId, metadata } = {}) {
+  const student = repository.findStudentById(studentId);
+  if (!student) {
+    const error = new Error('Student not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const item = getRewardStoreItem(rewardItemId);
+  if (!item) {
+    const error = new Error('Reward item not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const snapshot = buildLearnerRewards(studentId);
+  if ((snapshot?.totalXp || 0) < Number(item.xpCost || 0)) {
+    const error = new Error('Not enough XP for this reward');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (clientRequestId) {
+    const duplicate = repository.listRewardRedemptionRequests().find((entry) => entry.clientRequestId && entry.clientRequestId === clientRequestId);
+    if (duplicate) {
+      return { request: duplicate, snapshot: buildLearnerRewards(studentId) };
+    }
+  }
+
+  const existingPending = repository.listRewardRedemptionRequests().find((entry) => entry.studentId === studentId && entry.rewardItemId === rewardItemId && ['pending', 'approved'].includes(entry.status));
+  if (existingPending) {
+    const error = new Error('A pending reward request for this item already exists');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const request = repository.createRewardRedemptionRequest({
+    studentId,
+    rewardItemId,
+    rewardTitle: item.title,
+    xpCost: item.xpCost,
+    learnerNote: learnerNote || '',
+    requestedBy: requestedBy || studentId,
+    requestedVia: requestedVia || 'learner-app',
+    clientRequestId: clientRequestId || null,
+    metadata: {
+      rewardKind: item.kind,
+      rewardIcon: item.icon,
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
+    },
+  });
+
+  return { request, snapshot: buildLearnerRewards(studentId) };
+}
+
+function approveRewardRedemptionRequest(requestId, { actorName, actorRole, adminNote } = {}) {
+  const existing = ensureRewardRequest(requestId);
+  if (existing.status !== 'pending') {
+    const error = new Error('Only pending requests can be approved');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const updated = repository.updateRewardRedemptionRequest(requestId, {
+    status: 'approved',
+    approvedAt: new Date().toISOString(),
+    approvedBy: actorName || 'Unknown actor',
+    adminNote: adminNote !== undefined ? adminNote : existing.adminNote,
+    metadata: { ...(existing.metadata || {}), approvedByRole: actorRole || 'admin' },
+  });
+
+  return { request: updated, snapshot: buildLearnerRewards(updated.studentId) };
+}
+
+function rejectRewardRedemptionRequest(requestId, { actorName, actorRole, reason, adminNote } = {}) {
+  const existing = ensureRewardRequest(requestId);
+  if (!['pending', 'approved'].includes(existing.status)) {
+    const error = new Error('Only pending or approved requests can be rejected');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const updated = repository.updateRewardRedemptionRequest(requestId, {
+    status: 'rejected',
+    rejectedAt: new Date().toISOString(),
+    rejectedBy: actorName || 'Unknown actor',
+    adminNote: adminNote !== undefined ? adminNote : existing.adminNote,
+    metadata: { ...(existing.metadata || {}), rejectionReason: reason || 'admin_rejected', rejectedByRole: actorRole || 'admin' },
+  });
+
+  return { request: updated, snapshot: buildLearnerRewards(updated.studentId) };
+}
+
+function cancelRewardRedemptionRequest(requestId, { actorName, actorRole, reason } = {}) {
+  const existing = ensureRewardRequest(requestId);
+  if (existing.status !== 'pending') {
+    const error = new Error('Only pending requests can be cancelled');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const updated = repository.updateRewardRedemptionRequest(requestId, {
+    status: 'cancelled',
+    cancelledAt: new Date().toISOString(),
+    cancelledBy: actorName || existing.studentId || 'Unknown actor',
+    metadata: { ...(existing.metadata || {}), cancellationReason: reason || 'cancelled', cancelledByRole: actorRole || 'learner' },
+  });
+
+  return { request: updated, snapshot: buildLearnerRewards(updated.studentId) };
+}
+
+function fulfillRewardRedemptionRequest(requestId, { actorName, actorRole, adminNote, metadata } = {}) {
+  const existing = ensureRewardRequest(requestId);
+  if (existing.status !== 'approved') {
+    const error = new Error('Only approved requests can be fulfilled');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (existing.transactionId) {
+    return { request: existing, transaction: repository.findRewardTransactionById(existing.transactionId), snapshot: buildLearnerRewards(existing.studentId) };
+  }
+
+  const item = getRewardStoreItem(existing.rewardItemId);
+  if (!item) {
+    const error = new Error('Reward item not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const snapshot = buildLearnerRewards(existing.studentId);
+  if ((snapshot?.totalXp || 0) < Number(existing.xpCost || item.xpCost || 0)) {
+    const error = new Error('Learner no longer has enough XP to fulfill this request');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const transaction = repository.createRewardTransaction({
+    studentId: existing.studentId,
+    kind: 'redemption',
+    xpDelta: Number(existing.xpCost || item.xpCost || 0) * -1,
+    label: `Redeemed ${item.title}`,
+    metadata: {
+      rewardItemId: item.id,
+      rewardRequestId: existing.id,
+      rewardKind: item.kind,
+      fulfilledBy: actorName || 'Unknown actor',
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
+    },
+  });
+
+  const updated = repository.updateRewardRedemptionRequest(requestId, {
+    status: 'fulfilled',
+    fulfilledAt: new Date().toISOString(),
+    fulfilledBy: actorName || 'Unknown actor',
+    transactionId: transaction.id,
+    adminNote: adminNote !== undefined ? adminNote : existing.adminNote,
+    metadata: { ...(existing.metadata || {}), fulfilledByRole: actorRole || 'admin', transactionId: transaction.id },
+  });
+
+  return { request: updated, transaction, snapshot: buildLearnerRewards(updated.studentId) };
+}
+
 function buildRewardOpsSummary({ cohortId = null, podId = null, mallamId = null } = {}) {
   const students = buildScopedStudentSet({ cohortId, podId, mallamId });
   const studentIds = new Set(students.map((student) => student.id));
   const transactions = repository.listRewardTransactions().filter((item) => studentIds.has(item.studentId));
   const adjustments = repository.listRewardAdjustments().filter((item) => studentIds.has(item.studentId));
+  const requests = repository.listRewardRedemptionRequests().filter((item) => studentIds.has(item.studentId));
 
   return {
     learnerCount: students.length,
     transactionCount: transactions.length,
     totalXpAwarded: transactions.reduce((sum, item) => sum + Number(item.xpDelta || 0), 0),
+    totalXpRedeemed: transactions.filter((item) => item.kind === 'redemption').reduce((sum, item) => sum + Math.abs(Number(item.xpDelta || 0)), 0),
     correctionCount: adjustments.filter((item) => item.action === 'corrected').length,
     revocationCount: adjustments.filter((item) => item.action === 'revoked').length,
+    rewardRequestCount: requests.length,
+    pendingRequestCount: requests.filter((item) => item.status === 'pending').length,
+    approvedRequestCount: requests.filter((item) => item.status === 'approved').length,
+    fulfilledRequestCount: requests.filter((item) => item.status === 'fulfilled').length,
+    rejectedRequestCount: requests.filter((item) => item.status === 'rejected').length,
+    cancelledRequestCount: requests.filter((item) => item.status === 'cancelled').length,
     lastAdjustedAt: adjustments.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]?.createdAt ?? null,
+    lastRequestAt: requests.slice().sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))[0]?.updatedAt ?? requests.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]?.createdAt ?? null,
   };
 }
 
@@ -517,6 +740,15 @@ module.exports = {
   buildRewardOpsSummary,
   listRewardTransactions,
   listRewardAdjustments,
+  listRewardRedemptionRequests,
+  buildRewardRequestHistory,
+  buildRewardRedemptionQueue,
+  createRewardRedemptionRequest,
+  approveRewardRedemptionRequest,
+  rejectRewardRedemptionRequest,
+  cancelRewardRedemptionRequest,
+  fulfillRewardRedemptionRequest,
+  getRewardStoreItem,
   awardLessonCompletion,
   awardManualReward,
   correctRewardTransaction,
