@@ -436,6 +436,12 @@ function deleteStorageBackup(backupPath, actor = {}) {
 function buildStorageIntegrityIssues() {
   const students = listStudents();
   const studentIds = new Set(students.map((item) => item.id));
+  const teacherIds = new Set(listTeachers().map((item) => item.id));
+  const cohortIds = new Set(listCohorts().map((item) => item.id));
+  const lessonIds = new Set(listLessons().map((item) => item.id));
+  const assessmentIds = new Set(listAssessments().map((item) => item.id));
+  const subjectIds = new Set(listSubjects().map((item) => item.id));
+  const moduleIds = new Set(listModules().map((item) => item.id));
   const rewardIds = new Set(listRewardTransactions().map((item) => item.id));
   const progressIds = new Set(listProgress().map((item) => item.id));
   const sessionIds = new Set(listLessonSessions().map((item) => item.sessionId));
@@ -444,6 +450,12 @@ function buildStorageIntegrityIssues() {
   const requests = listRewardRedemptionRequests();
   const overrides = listProgressionOverrides();
   const repairs = listSessionRepairs();
+  const assignments = listAssignments();
+  const attendance = listAttendance();
+  const progress = listProgress();
+  const observations = listObservations();
+  const syncEvents = listSyncEvents();
+  const sessionEvents = listSessionEventLog();
 
   const issues = [];
 
@@ -455,6 +467,38 @@ function buildStorageIntegrityIssues() {
 
   sessions.forEach((entry) => {
     if (!studentIds.has(entry.studentId)) issues.push({ type: 'session-missing-student', id: entry.sessionId, entity: 'lessonSession' });
+  });
+
+  sessionEvents.forEach((entry) => {
+    if (entry.studentId && !studentIds.has(entry.studentId)) issues.push({ type: 'session-event-missing-student', id: entry.id, entity: 'sessionEventLog' });
+    if (entry.sessionId && !sessionIds.has(entry.sessionId)) issues.push({ type: 'session-event-missing-session', id: entry.id, entity: 'sessionEventLog' });
+  });
+
+  syncEvents.forEach((entry) => {
+    if (entry.learnerId && !studentIds.has(entry.learnerId)) issues.push({ type: 'sync-event-missing-student', id: entry.id, entity: 'syncEvent' });
+  });
+
+  assignments.forEach((entry) => {
+    if (entry.cohortId && !cohortIds.has(entry.cohortId)) issues.push({ type: 'assignment-missing-cohort', id: entry.id, entity: 'assignment' });
+    if (entry.assignedBy && !teacherIds.has(entry.assignedBy)) issues.push({ type: 'assignment-missing-teacher', id: entry.id, entity: 'assignment' });
+    if (entry.lessonId && !lessonIds.has(entry.lessonId)) issues.push({ type: 'assignment-missing-lesson', id: entry.id, entity: 'assignment' });
+    if (entry.assessmentId && !assessmentIds.has(entry.assessmentId)) issues.push({ type: 'assignment-missing-assessment', id: entry.id, entity: 'assignment' });
+  });
+
+  attendance.forEach((entry) => {
+    if (!studentIds.has(entry.studentId)) issues.push({ type: 'attendance-missing-student', id: entry.id, entity: 'attendance' });
+  });
+
+  progress.forEach((entry) => {
+    if (!studentIds.has(entry.studentId)) issues.push({ type: 'progress-missing-student', id: entry.id, entity: 'progress' });
+    if (entry.subjectId && !subjectIds.has(entry.subjectId)) issues.push({ type: 'progress-missing-subject', id: entry.id, entity: 'progress' });
+    if (entry.moduleId && !moduleIds.has(entry.moduleId)) issues.push({ type: 'progress-missing-module', id: entry.id, entity: 'progress' });
+    if (entry.recommendedNextModuleId && !moduleIds.has(entry.recommendedNextModuleId)) issues.push({ type: 'progress-missing-recommended-module', id: entry.id, entity: 'progress' });
+  });
+
+  observations.forEach((entry) => {
+    if (!studentIds.has(entry.studentId)) issues.push({ type: 'observation-missing-student', id: entry.id, entity: 'observation' });
+    if (entry.teacherId && !teacherIds.has(entry.teacherId)) issues.push({ type: 'observation-missing-teacher', id: entry.id, entity: 'observation' });
   });
 
   overrides.forEach((entry) => {
@@ -485,6 +529,12 @@ function getStorageIntegrityReport() {
       rewardTransactionCount: listRewardTransactions().length,
       rewardRequestCount: requests.length,
       runtimeSessionCount: sessions.length,
+      syncEventCount: listSyncEvents().length,
+      assignmentCount: listAssignments().length,
+      attendanceCount: listAttendance().length,
+      progressCount: listProgress().length,
+      observationCount: listObservations().length,
+      sessionEventCount: listSessionEventLog().length,
       issueCount: issues.length,
     },
     issues,
@@ -497,40 +547,34 @@ function repairStorageIntegrity({ apply = false, actorName = null, actorRole = n
   const fixes = [];
 
   if (apply) {
-    const orphanRequestIds = new Set(
-      report.issues
-        .filter((issue) => issue.entity === 'rewardRequest')
-        .map((issue) => issue.id),
-    );
-    const orphanOverrideIds = new Set(
-      report.issues
-        .filter((issue) => issue.entity === 'progressionOverride')
-        .map((issue) => issue.id),
-    );
-    const orphanRepairIds = new Set(
-      report.issues
-        .filter((issue) => issue.entity === 'sessionRepair')
-        .map((issue) => issue.id),
-    );
-    const orphanSessionIds = new Set(
-      report.issues
-        .filter((issue) => issue.entity === 'lessonSession')
-        .map((issue) => issue.id),
-    );
+    const issueIdsByEntity = report.issues.reduce((acc, issue) => {
+      if (!acc[issue.entity]) acc[issue.entity] = new Set();
+      acc[issue.entity].add(issue.id);
+      return acc;
+    }, {});
 
-    const prune = (collectionName, matcher, idList) => {
+    const prune = (collectionName, entityName, matcher) => {
+      const idList = Array.from(issueIdsByEntity[entityName] || []);
+      if (!idList.length) return;
+
       const before = data[collectionName].length;
       data[collectionName] = data[collectionName].filter((entry) => !matcher(entry));
       const removed = before - data[collectionName].length;
       if (removed > 0) {
-        fixes.push({ collection: collectionName, removed, ids: Array.from(idList) });
+        fixes.push({ collection: collectionName, removed, ids: idList });
       }
     };
 
-    prune('rewardRedemptionRequests', (entry) => orphanRequestIds.has(entry.id), orphanRequestIds);
-    prune('progressionOverrides', (entry) => orphanOverrideIds.has(entry.id), orphanOverrideIds);
-    prune('sessionRepairs', (entry) => orphanRepairIds.has(entry.id), orphanRepairIds);
-    prune('lessonSessions', (entry) => orphanSessionIds.has(entry.sessionId), orphanSessionIds);
+    prune('rewardRedemptionRequests', 'rewardRequest', (entry) => (issueIdsByEntity.rewardRequest || new Set()).has(entry.id));
+    prune('progressionOverrides', 'progressionOverride', (entry) => (issueIdsByEntity.progressionOverride || new Set()).has(entry.id));
+    prune('sessionRepairs', 'sessionRepair', (entry) => (issueIdsByEntity.sessionRepair || new Set()).has(entry.id));
+    prune('lessonSessions', 'lessonSession', (entry) => (issueIdsByEntity.lessonSession || new Set()).has(entry.sessionId));
+    prune('sessionEventLog', 'sessionEventLog', (entry) => (issueIdsByEntity.sessionEventLog || new Set()).has(entry.id));
+    prune('syncEvents', 'syncEvent', (entry) => (issueIdsByEntity.syncEvent || new Set()).has(entry.id));
+    prune('assignments', 'assignment', (entry) => (issueIdsByEntity.assignment || new Set()).has(entry.id));
+    prune('attendance', 'attendance', (entry) => (issueIdsByEntity.attendance || new Set()).has(entry.id));
+    prune('progress', 'progress', (entry) => (issueIdsByEntity.progress || new Set()).has(entry.id));
+    prune('observations', 'observation', (entry) => (issueIdsByEntity.observation || new Set()).has(entry.id));
 
     if (fixes.length > 0) {
       data.persist();

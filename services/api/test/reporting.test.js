@@ -187,6 +187,73 @@ test('storage integrity repair dry-run reports without mutating data', () => {
   assert.ok(result.report.summary);
 });
 
+test('storage integrity repair prunes orphaned non-reward records when applied', () => {
+  const data = require('../src/data');
+
+  data.assignments.push({
+    id: 'assignment-orphan-1',
+    cohortId: 'missing-cohort',
+    lessonId: 'missing-lesson',
+    assignedBy: 'missing-teacher',
+    dueDate: '2026-04-20T00:00:00.000Z',
+    status: 'active',
+  });
+  data.attendance.push({
+    id: 'attendance-orphan-1',
+    studentId: 'missing-student',
+    date: '2026-04-13',
+    status: 'present',
+  });
+  data.progress.push({
+    id: 'progress-orphan-1',
+    studentId: 'missing-student',
+    subjectId: 'missing-subject',
+    moduleId: 'missing-module',
+    mastery: 0.2,
+    lessonsCompleted: 1,
+    progressionStatus: 'watch',
+    recommendedNextModuleId: 'missing-module',
+    lastActiveAt: '2026-04-13T10:00:00.000Z',
+  });
+  data.observations.push({
+    id: 'obs-orphan-1',
+    studentId: 'missing-student',
+    teacherId: 'missing-teacher',
+    note: 'orphan',
+    createdAt: '2026-04-13T10:00:00.000Z',
+  });
+  data.syncEvents.push({
+    id: 'sync-orphan-1',
+    clientId: 'sync-orphan-1',
+    learnerId: 'missing-student',
+    type: 'lesson_completed',
+    receivedAt: '2026-04-13T10:00:00.000Z',
+    appliedAt: '2026-04-13T10:00:00.000Z',
+  });
+  data.sessionEventLog.push({
+    id: 'runtime-event-orphan-1',
+    sessionId: 'missing-session',
+    studentId: 'missing-student',
+    type: 'session_repaired',
+    createdAt: '2026-04-13T10:00:00.000Z',
+  });
+  data.persist();
+
+  const result = store.repairStorageIntegrity({ apply: true, actorName: 'Ops Admin', actorRole: 'admin' });
+
+  assert.equal(result.apply, true);
+  assert.equal(result.issueCount >= 6, true);
+  assert.equal(store.listAssignments().some((entry) => entry.id === 'assignment-orphan-1'), false);
+  assert.equal(store.listAttendance().some((entry) => entry.id === 'attendance-orphan-1'), false);
+  assert.equal(store.listProgress().some((entry) => entry.id === 'progress-orphan-1'), false);
+  assert.equal(store.listObservations().some((entry) => entry.id === 'obs-orphan-1'), false);
+  assert.equal(store.listSyncEvents().some((entry) => entry.id === 'sync-orphan-1'), false);
+  assert.equal(store.listSessionEventLog().some((entry) => entry.id === 'runtime-event-orphan-1'), false);
+  assert.ok(result.fixes.some((entry) => entry.collection === 'assignments'));
+  assert.ok(result.fixes.some((entry) => entry.collection === 'sessionEventLog'));
+  assert.equal(result.report.summary.issueCount, 0);
+});
+
 test('storage import preview reports projected collection changes without mutating data', () => {
   const before = store.exportStorageSnapshot();
   const preview = store.previewStorageImport({

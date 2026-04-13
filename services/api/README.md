@@ -172,13 +172,13 @@ Returns scoped admin-control analytics across progression overrides and learner 
 - `POST /api/v1/admin/storage/repair-integrity`
 - `GET /api/v1/admin/storage/export`
 
-Returns lightweight referential/integrity checks over the current persisted snapshot, including reward request references, progression override links, session repair links, and runtime session ownership gaps.
+Returns lightweight referential/integrity checks over the current persisted snapshot, including reward request references, progression override links, session repair links, runtime session ownership gaps, and non-reward relational gaps across assignments, attendance, progress, observations, sync receipts, and session event logs.
 
 `POST /api/v1/admin/storage/repair-integrity` supports:
 ```json
 { "apply": false }
 ```
-Use `apply: false` for a dry-run and `apply: true` to prune orphaned reward requests, orphaned progression overrides, orphaned session repair audits, and orphaned runtime sessions.
+Use `apply: false` for a dry-run and `apply: true` to prune orphaned reward requests, orphaned progression overrides, orphaned session repair audits, orphaned runtime sessions, orphaned sync/session-event records, and broken non-reward learner ops records (assignments, attendance, progress, observations).
 
 `GET /api/v1/admin/storage/export` returns the full JSON snapshot with export metadata for manual backup/migration workflows.
 
