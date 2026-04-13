@@ -70,6 +70,8 @@ function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
 }
 
 async function updateStudentMallamAssignment(studentId: string, mallamId: string | null) {
+  // Keep roster ownership writes on the stable student PATCH route.
+  // The specialized mallam assignment endpoints are easier to miss in older deployments and were the source of 404s.
   return apiWrite(`/api/v1/students/${studentId}`, 'PATCH', { mallamId }, 'admin');
 }
 
