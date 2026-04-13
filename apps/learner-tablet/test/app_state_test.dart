@@ -870,6 +870,34 @@ void main() {
       expect(actions.join(' '), contains('Pause full auto-advance'));
     });
 
+    test('hands-free recovery helpers expose safe resume guidance', () {
+      final state = LumoAppState();
+
+      expect(
+        state.shouldOfferHandsFreeResume(
+          speechAvailable: false,
+          transcriptMisses: 2,
+        ),
+        isTrue,
+      );
+      expect(
+        state.handsFreeRecoverySummary(
+          speechAvailable: true,
+          transcriptMisses: 3,
+          autoPaused: true,
+        ),
+        contains('paused'),
+      );
+      expect(
+        state.handsFreeRecoverySummary(
+          speechAvailable: false,
+          transcriptMisses: 1,
+          hasDraftResponse: true,
+        ),
+        contains('Submit it'),
+      );
+    });
+
     test('offline completion unlocks resilience and hands-free badges',
         () async {
       final state = LumoAppState();

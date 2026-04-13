@@ -3015,6 +3015,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
   String _latestFinalTranscript = '';
   String _recordingModeLabel = 'Standard recorder';
   int _consecutiveTranscriptMisses = 0;
+  bool _autoPausedByTranscriptFailure = false;
 
   @override
   void initState() {
@@ -3593,7 +3594,47 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     if (_consecutiveTranscriptMisses >= 3 && isAutoMode) {
       isAutoMode = false;
       transcriptReviewPending = true;
+      _autoPausedByTranscriptFailure = true;
     }
+  }
+
+  void _resetTranscriptRecoveryState({bool clearReviewPending = false}) {
+    _consecutiveTranscriptMisses = 0;
+    _autoPausedByTranscriptFailure = false;
+    if (clearReviewPending) {
+      transcriptReviewPending = false;
+    }
+  }
+
+  Future<bool> _retryTranscriptEngine({bool announceStatus = true}) async {
+    final ready = await speechTranscriptionService.initialize(forceRetry: true);
+    if (!mounted) return ready;
+    setState(() {
+      if (ready) {
+        _resetTranscriptRecoveryState();
+        microphoneStatus = announceStatus
+            ? 'Transcript help is ready again. You can restart the hands-free loop.'
+            : microphoneStatus;
+      } else if (announceStatus) {
+        microphoneStatus = speechTranscriptionService.availabilityLabel;
+      }
+    });
+    return ready;
+  }
+
+  Future<void> _resumeHandsFreeLoop() async {
+    if (isRecording || isSpeaking) return;
+    final transcriptReady = await _retryTranscriptEngine(announceStatus: false);
+    if (!mounted) return;
+    setState(() {
+      isAutoMode = true;
+      _resetTranscriptRecoveryState(clearReviewPending: true);
+      microphoneStatus = transcriptReady
+          ? 'Hands-free loop resumed. Mallam will replay this step and reopen the mic.'
+          : 'Hands-free loop resumed in audio-first mode. Mallam will replay this step and keep saving learner audio until transcript help returns.';
+    });
+    _promptedCurrentStep = false;
+    await _speakCurrentStepIfNeeded(force: true);
   }
 
   Future<void> stopRecording({bool markReadyForResume = true}) async {
@@ -3629,7 +3670,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
     );
 
     if (transcript.isNotEmpty) {
-      _consecutiveTranscriptMisses = 0;
+      _resetTranscriptRecoveryState();
       responseController.text = transcript;
       transcriptReviewPending = !isAutoMode;
     } else {
@@ -3989,6 +4030,10 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                       onChanged: (value) {
                                         setState(() {
                                           isAutoMode = value;
+                                          if (value) {
+                                            _autoPausedByTranscriptFailure =
+                                                false;
+                                          }
                                           transcriptReviewPending =
                                               !value && transcriptReviewPending;
                                         });
@@ -4011,6 +4056,102 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                         height: 1.4,
                                       ),
                                     ),
+                                    if (widget.state.shouldOfferHandsFreeResume(
+                                      speechAvailable: speechRecognitionActive,
+                                      transcriptMisses:
+                                          _consecutiveTranscriptMisses,
+                                      autoPaused:
+                                          _autoPausedByTranscriptFailure,
+                                      hasDraftResponse: responseController.text
+                                          .trim()
+                                          .isNotEmpty,
+                                    )) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFFBEB),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: const Color(0xFFFCD34D),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Hands-free recovery',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFF78350F),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              widget.state
+                                                  .handsFreeRecoverySummary(
+                                                speechAvailable:
+                                                    speechRecognitionActive,
+                                                transcriptMisses:
+                                                    _consecutiveTranscriptMisses,
+                                                autoPaused:
+                                                    _autoPausedByTranscriptFailure,
+                                                hasDraftResponse:
+                                                    responseController.text
+                                                        .trim()
+                                                        .isNotEmpty,
+                                              ),
+                                              style: const TextStyle(
+                                                color: Color(0xFF92400E),
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                FilledButton.tonalIcon(
+                                                  onPressed: isRecording ||
+                                                          isSpeaking
+                                                      ? null
+                                                      : _resumeHandsFreeLoop,
+                                                  icon: const Icon(
+                                                    Icons.smart_toy_rounded,
+                                                  ),
+                                                  label: const Text(
+                                                    'Resume hands-free loop',
+                                                  ),
+                                                ),
+                                                if (_autoPausedByTranscriptFailure)
+                                                  OutlinedButton.icon(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        _resetTranscriptRecoveryState(
+                                                          clearReviewPending:
+                                                              false,
+                                                        );
+                                                        microphoneStatus =
+                                                            'Hands-free pause acknowledged. Keep coaching manually until you want to resume.';
+                                                      });
+                                                    },
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .pause_circle_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Stay manual for now',
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -4269,16 +4410,7 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                           onPressed: isRecording
                                               ? null
                                               : () async {
-                                                  await speechTranscriptionService
-                                                      .initialize(
-                                                    forceRetry: true,
-                                                  );
-                                                  if (!mounted) return;
-                                                  setState(() {
-                                                    microphoneStatus =
-                                                        speechTranscriptionService
-                                                            .availabilityLabel;
-                                                  });
+                                                  await _retryTranscriptEngine();
                                                 },
                                           icon: const Icon(
                                             Icons.refresh_rounded,
@@ -4373,6 +4505,18 @@ class _LessonSessionPageState extends State<LessonSessionPage> {
                                                   ),
                                                   label: const Text(
                                                     'Submit typed answer',
+                                                  ),
+                                                ),
+                                                FilledButton.tonalIcon(
+                                                  onPressed: isRecording ||
+                                                          isSpeaking
+                                                      ? null
+                                                      : _resumeHandsFreeLoop,
+                                                  icon: const Icon(
+                                                    Icons.smart_toy_rounded,
+                                                  ),
+                                                  label: const Text(
+                                                    'Resume hands-free loop',
                                                   ),
                                                 ),
                                                 OutlinedButton.icon(

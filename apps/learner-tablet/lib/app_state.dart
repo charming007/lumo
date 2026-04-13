@@ -714,7 +714,8 @@ class LumoAppState {
         title: 'Subject sync pending',
         description:
             'Live subject routing has not loaded yet. Finish registration now and open the learner once lessons sync.',
-        voicePrompt: 'Finish registration first. Subject routing will appear after sync.',
+        voicePrompt:
+            'Finish registration first. Subject routing will appear after sync.',
         readinessGoal: 'Wait for backend lesson sync',
         badge: 'Sync pending',
       );
@@ -1344,6 +1345,41 @@ class LumoAppState {
       actions.add('No degraded-mode action needed right now.');
     }
     return actions;
+  }
+
+  bool shouldOfferHandsFreeResume({
+    required bool speechAvailable,
+    required int transcriptMisses,
+    bool autoPaused = false,
+    bool hasDraftResponse = false,
+  }) {
+    if (autoPaused) return true;
+    if (transcriptMisses >= 2) return true;
+    return hasDraftResponse && !speechAvailable;
+  }
+
+  String handsFreeRecoverySummary({
+    required bool speechAvailable,
+    required int transcriptMisses,
+    bool autoPaused = false,
+    bool hasDraftResponse = false,
+  }) {
+    if (autoPaused && speechAvailable) {
+      return 'Hands-free mode was paused after repeated transcript misses. Transcript help looks ready again, so you can deliberately resume the Mallam → learner loop.';
+    }
+    if (autoPaused) {
+      return 'Hands-free mode was paused after repeated transcript misses. Resume when you are ready; Lumo will keep saving audio even if transcript help is still down.';
+    }
+    if (transcriptMisses >= 3) {
+      return 'Transcript help missed $transcriptMisses takes in a row, so keep the session in audio-first mode until you confirm the answer and resume safely.';
+    }
+    if (transcriptMisses >= 2) {
+      return 'Transcript help is getting shaky. Repeat mode and a deliberate hands-free restart will keep Mallam aligned with the learner.';
+    }
+    if (hasDraftResponse && !speechAvailable) {
+      return 'A response is already drafted. Submit it, then resume the hands-free loop when the mic is stable enough.';
+    }
+    return 'Hands-free mode is healthy.';
   }
 
   String rewardCelebrationHeadlineForLearner(LearnerProfile learner) {
