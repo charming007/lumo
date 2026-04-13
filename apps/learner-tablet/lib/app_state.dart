@@ -8,6 +8,9 @@ import 'seed_data.dart';
 typedef VoiceReplay = Future<void> Function(String text, SpeakerMode mode);
 typedef VoiceReplayStop = Future<void> Function();
 
+const bool kEnableSeedDemoContent =
+    bool.fromEnvironment('LUMO_ENABLE_SEED_DEMO_CONTENT');
+
 class LumoAppState {
   LumoAppState({LumoApiClient? apiClient})
       : _apiClient = apiClient ?? LumoApiClient();
@@ -133,19 +136,27 @@ class LumoAppState {
         ..clear()
         ..addAll(data.learners.isEmpty ? learnerProfilesSeed : data.learners);
 
-      final mergedModules = _dedupeModules([
-        ...data.modules,
-        ...learningModules.where(
-          (seed) => !data.modules.any((item) => item.id == seed.id),
-        ),
-      ]);
+      final mergedModules = _dedupeModules(
+        kEnableSeedDemoContent
+            ? [
+                ...data.modules,
+                ...learningModules.where(
+                  (seed) => !data.modules.any((item) => item.id == seed.id),
+                ),
+              ]
+            : data.modules,
+      );
       modules
         ..clear()
         ..addAll(mergedModules);
 
       assignedLessons
         ..clear()
-        ..addAll(data.lessons.isEmpty ? assignedLessonsSeed : data.lessons);
+        ..addAll(
+          data.lessons.isEmpty && kEnableSeedDemoContent
+              ? assignedLessonsSeed
+              : data.lessons,
+        );
 
       registrationContext = data.registrationContext;
       assignmentPacks
@@ -211,23 +222,29 @@ class LumoAppState {
       ..addAll(_dedupeModules(hydratedModules));
 
     if (hydratedLessons.isNotEmpty) {
-      final fallbackByModule = <String, List<LessonCardModel>>{};
-      for (final lesson in assignedLessonsSeed) {
-        fallbackByModule.putIfAbsent(lesson.moduleId, () => []).add(lesson);
+      if (kEnableSeedDemoContent) {
+        final fallbackByModule = <String, List<LessonCardModel>>{};
+        for (final lesson in assignedLessonsSeed) {
+          fallbackByModule.putIfAbsent(lesson.moduleId, () => []).add(lesson);
+        }
+
+        final liveModuleIds =
+            hydratedLessons.map((item) => item.moduleId).toSet();
+        final mergedLessons = <LessonCardModel>[
+          ...hydratedLessons,
+          ...fallbackByModule.entries
+              .where((entry) => !liveModuleIds.contains(entry.key))
+              .expand((entry) => entry.value),
+        ];
+
+        assignedLessons
+          ..clear()
+          ..addAll(mergedLessons);
+      } else {
+        assignedLessons
+          ..clear()
+          ..addAll(hydratedLessons);
       }
-
-      final liveModuleIds =
-          hydratedLessons.map((item) => item.moduleId).toSet();
-      final mergedLessons = <LessonCardModel>[
-        ...hydratedLessons,
-        ...fallbackByModule.entries
-            .where((entry) => !liveModuleIds.contains(entry.key))
-            .expand((entry) => entry.value),
-      ];
-
-      assignedLessons
-        ..clear()
-        ..addAll(mergedLessons);
     }
   }
 
