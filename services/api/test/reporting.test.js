@@ -31,8 +31,12 @@ test('buildOperationsReport returns combined runtime, progression, rewards, and 
   assert.equal(report.summary.learnersInScope > 0, true);
   assert.equal(typeof report.summary.runtimeCompletionRate, 'number');
   assert.equal(typeof report.summary.integrityIssueCount, 'number');
+  assert.equal(typeof report.summary.rewardPendingRequests, 'number');
+  assert.equal(typeof report.summary.rewardFulfillmentRate, 'number');
   assert.ok(Array.isArray(report.hotlist.watchLearners));
+  assert.ok(Array.isArray(report.hotlist.readyLearners));
   assert.ok(Array.isArray(report.recent.sessions));
+  assert.ok(Array.isArray(report.recent.integrityIssues));
 });
 
 test('storage snapshot export exposes persisted data and db metadata', () => {
@@ -59,12 +63,14 @@ test('storage integrity repair dry-run reports without mutating data', () => {
 test('storage checkpoints can be listed and deleted in file mode', () => {
   const created = store.checkpointStorage('unit-test-backup');
   assert.ok(created.backupPath);
+  assert.ok(created.status);
 
   const backups = store.listStorageBackups(20);
   assert.ok(backups.some((entry) => entry.path === created.backupPath));
 
   const deleted = store.deleteStorageBackup(created.backupPath);
   assert.equal(deleted.deleted, created.backupPath);
+  assert.ok(deleted.status);
 
   const after = store.listStorageBackups(20);
   assert.equal(after.some((entry) => entry.path === created.backupPath), false);
@@ -118,4 +124,51 @@ test('reward request lifecycle supports reopen and requeue repair controls', () 
 
   const reopened = rewards.reopenRewardRedemptionRequest(requestId, { actorName: 'Admin', actorRole: 'admin', reason: 'learner_confirmed' });
   assert.equal(reopened.request.status, 'pending');
+});
+
+test('reward queue analytics and stale expiry controls surface aged requests', () => {
+  const rewards = require('../src/rewards');
+  const student = store.listStudents()[1];
+  rewards.awardManualReward({ studentId: student.id, xpDelta: 80, label: 'Queue analytics top-up' });
+
+  const stalePending = store.createRewardRedemptionRequest({
+    studentId: student.id,
+    rewardItemId: 'story-time',
+    rewardTitle: 'Story Time Pick',
+    xpCost: 30,
+    status: 'pending',
+    requestedBy: student.id,
+    requestedVia: 'test',
+    createdAt: '2026-03-01T09:00:00.000Z',
+    updatedAt: '2026-03-01T09:00:00.000Z',
+  });
+  const staleApproved = store.createRewardRedemptionRequest({
+    studentId: student.id,
+    rewardItemId: 'helper-star',
+    rewardTitle: 'Helper Star',
+    xpCost: 45,
+    status: 'approved',
+    requestedBy: student.id,
+    requestedVia: 'test',
+    approvedAt: '2026-03-03T09:00:00.000Z',
+    approvedBy: 'Admin',
+    createdAt: '2026-03-02T09:00:00.000Z',
+    updatedAt: '2026-03-03T09:00:00.000Z',
+  });
+
+  const queue = rewards.buildRewardRedemptionQueue({ limit: 10 });
+  assert.equal(queue.summary.open >= 2, true);
+  assert.equal(queue.summary.staleOpen >= 2, true);
+  assert.equal(typeof queue.items[0].ageDays, 'number');
+  assert.equal(typeof queue.items[0].lifecycle.fulfillmentHours, 'object');
+
+  const report = reporting.buildRewardsReport({ limit: 10 });
+  assert.equal(report.summary.requestStatusCounts.approved >= 1, true);
+  assert.equal(report.summary.staleOpenRequestCount >= 2, true);
+  assert.equal(report.queueHealth.staleOpen >= 2, true);
+
+  const expired = rewards.expireStaleRewardRedemptionRequests({ olderThanDays: 14, actorName: 'Admin', actorRole: 'admin' });
+  assert.equal(expired.count >= 2, true);
+  assert.equal(store.findRewardRedemptionRequestById(stalePending.id).status, 'expired');
+  assert.equal(store.findRewardRedemptionRequestById(staleApproved.id).status, 'expired');
 });
