@@ -132,7 +132,7 @@ export function buildReadinessChecks({
   const checks = [
     { label: 'Lesson title is specific enough to map to a real speaking task', passed: toTopic(lessonTitle).trim().length >= 8 },
     { label: 'Duration is long enough for modelling, practice, and exit evidence', passed: durationMinutes >= 8 },
-    { label: 'Module lane is not stuck in draft', passed: moduleStatus === 'review' || moduleStatus === 'published' },
+    { label: 'Module lane is not stuck in draft', passed: moduleStatus === 'review' || moduleStatus === 'approved' || moduleStatus === 'published' },
     { label: 'Assessment gate exists for the module', passed: hasAssessment },
     { label: 'Lesson status matches publish intent', passed: status === 'approved' || status === 'published' },
   ];
