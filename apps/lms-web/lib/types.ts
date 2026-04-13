@@ -472,6 +472,7 @@ export type OperationsReport = {
     progressionWatch: number;
     rewardPendingRequests: number;
     rewardFulfillmentRate: number;
+    rewardBacklogUrgent?: number;
     integrityIssueCount: number;
   };
   runtime: Record<string, unknown>;
@@ -482,6 +483,8 @@ export type OperationsReport = {
     watchLearners: WorkboardItem[];
     readyLearners: WorkboardItem[];
     runtimeLearners: Array<Record<string, unknown>>;
+    stalledRuntimeLearners?: Array<Record<string, unknown>>;
+    highSupportLearners?: Array<Record<string, unknown>>;
     rewardQueue: Array<Record<string, unknown>>;
   };
   recent: {
@@ -489,6 +492,7 @@ export type OperationsReport = {
     events: Array<Record<string, unknown>>;
     overrides: Array<Record<string, unknown>>;
     rewardAdjustments: Array<Record<string, unknown>>;
+    rewardRequests?: Array<Record<string, unknown>>;
     integrityIssues: Array<{ type: string; id: string; entity?: string }>;
   };
 };

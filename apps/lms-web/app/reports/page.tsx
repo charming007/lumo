@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { DashboardInsight, OperationsReport, ReportsOverview } from '../../lib/types';
-import { fetchAssignments, fetchDashboardInsights, fetchMallams, fetchOperationsReport, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
+import { fetchAssignments, fetchCohorts, fetchDashboardInsights, fetchMallams, fetchOperationsReport, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const EMPTY_REPORT: ReportsOverview = {
@@ -36,6 +36,7 @@ const EMPTY_OPERATIONS_REPORT: OperationsReport = {
     progressionWatch: 0,
     rewardPendingRequests: 0,
     rewardFulfillmentRate: 0,
+    rewardBacklogUrgent: 0,
     integrityIssueCount: 0,
   },
   runtime: {},
@@ -46,6 +47,8 @@ const EMPTY_OPERATIONS_REPORT: OperationsReport = {
     watchLearners: [],
     readyLearners: [],
     runtimeLearners: [],
+    stalledRuntimeLearners: [],
+    highSupportLearners: [],
     rewardQueue: [],
   },
   recent: {
@@ -53,6 +56,7 @@ const EMPTY_OPERATIONS_REPORT: OperationsReport = {
     events: [],
     overrides: [],
     rewardAdjustments: [],
+    rewardRequests: [],
     integrityIssues: [],
   },
 };
@@ -72,8 +76,33 @@ function statusTone(status: string) {
   return { tone: '#E0E7FF', text: '#3730A3' };
 }
 
-export default async function ReportsPage() {
-  const [reportResult, insightsResult, studentsResult, mallamsResult, podsResult, assignmentsResult, progressResult, operationsResult] = await Promise.allSettled([
+function normalizeFilterValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
+}
+
+function matchesQuery(values: Array<string | null | undefined>, query: string) {
+  if (!query) return true;
+  return values.filter(Boolean).join(' ').toLowerCase().includes(query);
+}
+
+function formatDate(value: unknown) {
+  if (typeof value !== 'string' || !value) return '—';
+  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+}
+
+function asRecord(value: unknown) {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : null;
+}
+
+export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
+  const params = await searchParams;
+  const searchText = normalizeFilterValue(params?.q).trim().toLowerCase();
+  const cohortFilter = normalizeFilterValue(params?.cohort).trim();
+  const podFilter = normalizeFilterValue(params?.pod).trim();
+  const mallamFilter = normalizeFilterValue(params?.mallam).trim();
+
+  const [reportResult, insightsResult, studentsResult, mallamsResult, podsResult, assignmentsResult, progressResult, operationsResult, cohortsResult] = await Promise.allSettled([
     fetchReportsOverview(),
     fetchDashboardInsights(),
     fetchStudents(),
@@ -81,7 +110,12 @@ export default async function ReportsPage() {
     fetchPods(),
     fetchAssignments(),
     fetchProgress(),
-    fetchOperationsReport(10),
+    fetchOperationsReport(12, {
+      cohortId: cohortFilter || undefined,
+      podId: podFilter || undefined,
+      mallamId: mallamFilter || undefined,
+    }),
+    fetchCohorts(),
   ]);
 
   const report = reportResult.status === 'fulfilled' ? reportResult.value : EMPTY_REPORT;
@@ -92,6 +126,7 @@ export default async function ReportsPage() {
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const progress = progressResult.status === 'fulfilled' ? progressResult.value : [];
   const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : EMPTY_OPERATIONS_REPORT;
+  const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
 
   const failedSources = [
     reportResult.status === 'rejected' ? 'report metrics' : null,
@@ -102,41 +137,55 @@ export default async function ReportsPage() {
     assignmentsResult.status === 'rejected' ? 'assignments' : null,
     progressResult.status === 'rejected' ? 'progress' : null,
     operationsResult.status === 'rejected' ? 'operations report' : null,
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
   ].filter(Boolean);
 
-  const podSnapshots = pods.map((pod) => {
-    const podStudents = students.filter((student) => student.podId === pod.id);
-    const podProgress = progress.filter((item) => podStudents.some((student) => student.id === item.studentId));
-    const podAssignments = assignments.filter((assignment) => assignment.podLabel === pod.label);
-    const watchCount = podProgress.filter((item) => item.progressionStatus === 'watch').length;
-    const readyCount = podProgress.filter((item) => item.progressionStatus === 'ready').length;
-    const attendanceAverage = average(podStudents.map((student) => student.attendanceRate));
-    const masteryAverage = average(podProgress.map((item) => item.mastery));
-    return {
-      ...pod,
-      rosterCount: podStudents.length,
-      assignmentCount: podAssignments.length,
-      watchCount,
-      readyCount,
-      attendanceAverage,
-      masteryAverage,
-    };
+  const scopedStudents = students.filter((student) => {
+    const cohortMatches = !cohortFilter || student.cohortId === cohortFilter;
+    const podMatches = !podFilter || student.podId === podFilter;
+    const mallamMatches = !mallamFilter || student.mallamId === mallamFilter;
+    const queryMatches = matchesQuery([student.name, student.cohortName, student.podLabel, student.mallamName], searchText);
+    return cohortMatches && podMatches && mallamMatches && queryMatches;
   });
+  const scopedStudentIds = new Set(scopedStudents.map((student) => student.id));
 
-  const mallamSnapshots = mallams.map((mallam) => {
-    const roster = students.filter((student) => student.mallamId === mallam.id);
-    const rosterProgress = progress.filter((item) => roster.some((student) => student.id === item.studentId));
-    const readinessCount = rosterProgress.filter((item) => item.progressionStatus === 'ready').length;
-    const watchCount = rosterProgress.filter((item) => item.progressionStatus === 'watch').length;
-    return {
-      ...mallam,
-      rosterCount: roster.length,
-      attendanceAverage: average(roster.map((student) => student.attendanceRate)),
-      masteryAverage: average(rosterProgress.map((item) => item.mastery)),
-      readinessCount,
-      watchCount,
-    };
-  });
+  const podSnapshots = pods
+    .map((pod) => {
+      const podStudents = scopedStudents.filter((student) => student.podId === pod.id);
+      const podProgress = progress.filter((item) => podStudents.some((student) => student.id === item.studentId));
+      const podAssignments = assignments.filter((assignment) => assignment.podLabel === pod.label);
+      const watchCount = podProgress.filter((item) => item.progressionStatus === 'watch').length;
+      const readyCount = podProgress.filter((item) => item.progressionStatus === 'ready').length;
+      const attendanceAverage = average(podStudents.map((student) => student.attendanceRate));
+      const masteryAverage = average(podProgress.map((item) => item.mastery));
+      return {
+        ...pod,
+        rosterCount: podStudents.length,
+        assignmentCount: podAssignments.length,
+        watchCount,
+        readyCount,
+        attendanceAverage,
+        masteryAverage,
+      };
+    })
+    .filter((pod) => pod.rosterCount > 0 || (!cohortFilter && !podFilter && !mallamFilter && !searchText));
+
+  const mallamSnapshots = mallams
+    .map((mallam) => {
+      const roster = scopedStudents.filter((student) => student.mallamId === mallam.id);
+      const rosterProgress = progress.filter((item) => roster.some((student) => student.id === item.studentId));
+      const readinessCount = rosterProgress.filter((item) => item.progressionStatus === 'ready').length;
+      const watchCount = rosterProgress.filter((item) => item.progressionStatus === 'watch').length;
+      return {
+        ...mallam,
+        rosterCount: roster.length,
+        attendanceAverage: average(roster.map((student) => student.attendanceRate)),
+        masteryAverage: average(rosterProgress.map((item) => item.mastery)),
+        readinessCount,
+        watchCount,
+      };
+    })
+    .filter((mallam) => mallam.rosterCount > 0 || (!cohortFilter && !podFilter && !mallamFilter && !searchText));
 
   const highestRiskPods = [...podSnapshots]
     .sort((a, b) => (b.watchCount - a.watchCount) || (a.attendanceAverage - b.attendanceAverage))
@@ -153,99 +202,109 @@ export default async function ReportsPage() {
   }, {});
 
   const donorCoverage = report.totalStudents > 0 && report.totalCenters > 0
-    ? `${report.totalStudents} learners across ${report.totalCenters} center${report.totalCenters === 1 ? '' : 's'}`
+    ? `${scopedStudents.length || report.totalStudents} learners across ${report.totalCenters} center${report.totalCenters === 1 ? '' : 's'}`
     : 'Coverage feed unavailable';
-  const learnerRetentionSignal = report.totalStudents > 0
-    ? `${Math.round(report.averageAttendance * 100)}% average attendance suggests ${report.averageAttendance >= 0.9 ? 'strong' : report.averageAttendance >= 0.85 ? 'stable' : 'fragile'} retention`
+  const learnerRetentionSignal = scopedStudents.length
+    ? `${Math.round(average(scopedStudents.map((student) => student.attendanceRate)) * 100)}% average attendance suggests ${average(scopedStudents.map((student) => student.attendanceRate)) >= 0.9 ? 'strong' : average(scopedStudents.map((student) => student.attendanceRate)) >= 0.85 ? 'stable' : 'fragile'} retention`
     : 'Retention signal unavailable';
-  const readinessSignal = report.readinessCount > 0
-    ? `${report.readinessCount} learners are ready to progress with ${report.watchCount} still on watch`
+  const readinessSignal = operationsReport.summary.progressionReady > 0
+    ? `${operationsReport.summary.progressionReady} learners are ready to progress with ${operationsReport.summary.progressionWatch} still on watch`
     : 'No progression-ready learners visible yet';
   const staffingSignal = mallamSnapshots.length
     ? `${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length} mallams are carrying watchlist load`
     : 'Staffing signal unavailable';
 
   const donorNarratives = [
-    {
-      title: 'Coverage and reach',
-      detail: donorCoverage,
-      tone: '#EEF2FF',
-      text: '#3730A3',
-    },
-    {
-      title: 'Attendance retention signal',
-      detail: learnerRetentionSignal,
-      tone: '#ECFDF5',
-      text: '#166534',
-    },
-    {
-      title: 'Progression readiness signal',
-      detail: readinessSignal,
-      tone: '#FFF7ED',
-      text: '#9A3412',
-    },
-    {
-      title: 'Facilitator pressure signal',
-      detail: staffingSignal,
-      tone: '#F8FAFC',
-      text: '#334155',
-    },
+    { title: 'Coverage and reach', detail: donorCoverage, tone: '#EEF2FF', text: '#3730A3' },
+    { title: 'Attendance retention signal', detail: learnerRetentionSignal, tone: '#ECFDF5', text: '#166534' },
+    { title: 'Progression readiness signal', detail: readinessSignal, tone: '#FFF7ED', text: '#9A3412' },
+    { title: 'Facilitator pressure signal', detail: staffingSignal, tone: '#F8FAFC', text: '#334155' },
   ];
 
   const complianceRows = [
     ['Learner attendance logged', `${report.presentToday}/${report.totalStudents || 0} present today`, report.totalStudents ? `${Math.round((report.presentToday / report.totalStudents) * 100)}% capture` : 'No capture'],
     ['Assignments tracked', `${report.totalAssignments} live`, `${report.assignmentsDueThisWeek} due this week`],
     ['Pods under watch', `${report.podsNeedingAttention} flagged`, `${podSnapshots.filter((item) => item.attendanceAverage < 0.85).length} below 85% attendance`],
-    ['Promotion evidence', `${report.readinessCount} ready`, `${report.watchCount} watchlist`],
+    ['Promotion evidence', `${operationsReport.summary.progressionReady} ready`, `${operationsReport.summary.progressionWatch} watchlist`],
   ];
 
+  const recentRewardRequests = (operationsReport.recent.rewardRequests ?? []).slice(0, 6);
+  const recentIntegrityIssues = operationsReport.recent.integrityIssues.slice(0, 6);
+  const highSupportLearners = (operationsReport.hotlist.highSupportLearners ?? []).slice(0, 6);
+  const filtersActive = Boolean(searchText || cohortFilter || podFilter || mallamFilter);
+
   return (
-    <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, and cleaner NGO reporting in one place.">
+    <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, reward queue pressure, and cleaner NGO reporting in one place.">
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           Reports is running in degraded mode: {failedSources.join(' + ')} {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
         </div>
       ) : null}
+
+      <section style={{ marginBottom: 20 }}>
+        <Card title="Reporting filters" eyebrow="Scope the story before you share it">
+          <form style={{ display: 'grid', gap: 12 }}>
+            <div style={{ ...responsiveGrid(220), gap: 12 }}>
+              <input name="q" defaultValue={searchText} placeholder="Search learner, pod, mallam, or narrative signal" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
+              <select name="cohort" defaultValue={cohortFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All cohorts</option>
+                {cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
+              </select>
+              <select name="pod" defaultValue={podFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All pods</option>
+                {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}
+              </select>
+              <select name="mallam" defaultValue={mallamFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All mallams</option>
+                {mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button type="submit" style={{ background: '#4F46E5', color: 'white', border: 0, borderRadius: 12, padding: '12px 16px', fontWeight: 700 }}>Apply filters</button>
+              <a href="/reports" style={{ borderRadius: 12, padding: '12px 16px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>Clear filters</a>
+            </div>
+          </form>
+        </Card>
+      </section>
+
+      {filtersActive ? (
+        <div style={{ marginBottom: 16, color: '#475569', fontWeight: 700 }}>
+          Reporting scope now reflects {scopedStudents.length} learner{scopedStudents.length === 1 ? '' : 's'} with live ops pull-through on pods, mallams, and reward pressure.
+        </div>
+      ) : null}
+
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         <Card title="Program overview" eyebrow="Coverage">
-          <MetricList
-            items={[
-              { label: 'Total learners', value: String(report.totalStudents) },
-              { label: 'Mallams and facilitators', value: String(report.totalTeachers) },
-              { label: 'Centers live', value: String(report.totalCenters) },
-              { label: 'Active pods', value: String(report.activePods) },
-            ]}
-          />
+          <MetricList items={[
+            { label: 'Total learners', value: String(scopedStudents.length || report.totalStudents) },
+            { label: 'Mallams and facilitators', value: String(report.totalTeachers) },
+            { label: 'Centers live', value: String(report.totalCenters) },
+            { label: 'Active pods', value: String(podSnapshots.length || report.activePods) },
+          ]} />
         </Card>
         <Card title="Delivery metrics" eyebrow="Execution">
-          <MetricList
-            items={[
-              { label: 'Assignments tracked', value: String(report.totalAssignments) },
-              { label: 'Assignments due this week', value: String(report.assignmentsDueThisWeek) },
-              { label: 'Present today', value: String(report.presentToday) },
-              { label: 'Pods needing attention', value: String(report.podsNeedingAttention) },
-            ]}
-          />
+          <MetricList items={[
+            { label: 'Assignments tracked', value: String(report.totalAssignments) },
+            { label: 'Assignments due this week', value: String(report.assignmentsDueThisWeek) },
+            { label: 'Present today', value: String(report.presentToday) },
+            { label: 'Pods needing attention', value: String(report.podsNeedingAttention) },
+          ]} />
         </Card>
         <Card title="Learning metrics" eyebrow="Outcomes">
-          <MetricList
-            items={[
-              { label: 'Average attendance', value: `${Math.round(report.averageAttendance * 100)}%` },
-              { label: 'Average mastery', value: `${Math.round(report.averageMastery * 100)}%` },
-              { label: 'Ready to progress', value: String(report.readinessCount) },
-              { label: 'Watchlist learners', value: String(report.watchCount) },
-            ]}
-          />
+          <MetricList items={[
+            { label: 'Average attendance', value: `${Math.round((scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance) * 100)}%` },
+            { label: 'Average mastery', value: `${Math.round((podSnapshots.length ? average(podSnapshots.map((pod) => pod.masteryAverage)) : report.averageMastery) * 100)}%` },
+            { label: 'Ready to progress', value: String(operationsReport.summary.progressionReady) },
+            { label: 'Watchlist learners', value: String(operationsReport.summary.progressionWatch) },
+          ]} />
         </Card>
-        <Card title="Narrative signals" eyebrow="What leadership should not miss">
-          <MetricList
-            items={[
-              { label: 'Top assignment owner load', value: String(Math.max(0, ...Object.values(assignmentPressure))) },
-              { label: 'Pods under 85% attendance', value: String(podSnapshots.filter((item) => item.attendanceAverage < 0.85).length) },
-              { label: 'Mallams with ready learners', value: String(mallamSnapshots.filter((item) => item.readinessCount > 0).length) },
-              { label: 'Pods with zero live assignments', value: String(podSnapshots.filter((item) => item.assignmentCount === 0).length) },
-            ]}
-          />
+        <Card title="Operations pulse" eyebrow="Runtime + reward pressure">
+          <MetricList items={[
+            { label: 'Completion rate', value: `${Math.round(operationsReport.summary.runtimeCompletionRate * 100)}%` },
+            { label: 'Abandoned sessions', value: String(operationsReport.summary.runtimeAbandonedSessions) },
+            { label: 'Pending reward requests', value: String(operationsReport.summary.rewardPendingRequests) },
+            { label: 'Urgent reward backlog', value: String(operationsReport.summary.rewardBacklogUrgent ?? 0) },
+          ]} />
         </Card>
       </section>
 
@@ -272,7 +331,7 @@ export default async function ReportsPage() {
             {[
               ['Attendance is the earliest smoke alarm', 'If pod attendance drops before mastery drops, the delivery setup is probably slipping before the curriculum does.'],
               ['Readiness should concentrate, not vanish', 'If no mallam has ready learners, either the bar is broken or the content ladder is clogged upstream.'],
-              ['Assignment load needs taste', 'The same operator carrying every live assignment is not evidence of excellence. It is usually evidence of poor distribution.'],
+              ['Reward pressure is now part of the story', 'Donor reporting that ignores pending or urgent reward debt is just a prettier lie. Queue health belongs in the operating picture.'],
             ].map(([title, detail]) => (
               <div key={title} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
                 <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
@@ -296,10 +355,7 @@ export default async function ReportsPage() {
         </Card>
 
         <Card title="Reporting compliance board" eyebrow="What a grant or ministry review will ask first">
-          <SimpleTable
-            columns={['Check', 'Current state', 'Signal']}
-            rows={complianceRows}
-          />
+          <SimpleTable columns={['Check', 'Current state', 'Signal']} rows={complianceRows} />
         </Card>
       </section>
 
@@ -320,23 +376,21 @@ export default async function ReportsPage() {
           />
         </Card>
 
-        <Card title="Operations summary" eyebrow="Runtime consistency + reward pressure">
-          <div style={{ display: 'grid', gap: 12 }}>
-            {[
-              ['Completion rate', `${Math.round(operationsReport.summary.runtimeCompletionRate * 100)}%`],
-              ['Abandoned sessions', String(operationsReport.summary.runtimeAbandonedSessions)],
-              ['Pending reward requests', String(operationsReport.summary.rewardPendingRequests)],
-              ['Integrity issues', String(operationsReport.summary.integrityIssueCount)],
-            ].map(([label, value]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #eef2f7' }}>
-                <span style={{ color: '#64748b' }}>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
-            <div style={{ padding: 14, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', lineHeight: 1.7 }}>
-              This panel is wired to the combined operations report now, so runtime drop-off, progression pressure, reward queue health, and integrity noise are finally read from one place instead of stitched together by vibes.
-            </div>
-          </div>
+        <Card title="Recent reward requests" eyebrow="Queue pressure with timestamps">
+          <SimpleTable
+            columns={['When', 'Learner', 'Reward', 'Status']}
+            rows={recentRewardRequests.length ? recentRewardRequests.map((entry, index) => {
+              const record = asRecord(entry) ?? {};
+              const status = typeof record.status === 'string' ? record.status : 'pending';
+              const tone = status === 'fulfilled' ? { tone: '#DCFCE7', text: '#166534' } : status === 'approved' ? { tone: '#DBEAFE', text: '#1D4ED8' } : { tone: '#FEF3C7', text: '#92400E' };
+              return [
+                formatDate(record.updatedAt ?? record.createdAt),
+                typeof record.learnerName === 'string' ? record.learnerName : typeof record.studentId === 'string' ? record.studentId : '—',
+                typeof record.rewardTitle === 'string' ? record.rewardTitle : 'Reward request',
+                <Pill key={`request-${index}`} label={status} tone={tone.tone} text={tone.text} />,
+              ];
+            }) : safeRows('Reward request activity is unavailable right now.', 4)}
+          />
         </Card>
       </section>
 
@@ -373,6 +427,34 @@ export default async function ReportsPage() {
                 <Pill key={mallam.id} label={mallam.status} tone={tone.tone} text={tone.text} />,
               ];
             }) : safeRows('Mallam analytics are unavailable right now.', 8)}
+          />
+        </Card>
+      </section>
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="High-support runtime learners" eyebrow="Where facilitation effort is clustering">
+          <SimpleTable
+            columns={['Learner', 'Sessions', 'Completed', 'Support actions']}
+            rows={highSupportLearners.length ? highSupportLearners.map((entry, index) => {
+              const record = asRecord(entry) ?? {};
+              return [
+                typeof record.learnerName === 'string' ? record.learnerName : typeof record.studentName === 'string' ? record.studentName : `Learner ${index + 1}`,
+                String(record.sessions ?? 0),
+                String(record.completedSessions ?? 0),
+                String(record.totalSupportActions ?? 0),
+              ];
+            }) : safeRows('Runtime support analytics are unavailable right now.', 4)}
+          />
+        </Card>
+
+        <Card title="Integrity watchlist" eyebrow="Data issues still worth fixing">
+          <SimpleTable
+            columns={['Type', 'Entity', 'Identifier']}
+            rows={recentIntegrityIssues.length ? recentIntegrityIssues.map((issue) => [
+              issue.type,
+              issue.entity ?? '—',
+              issue.id,
+            ]) : safeRows('No integrity issues are visible right now.', 3)}
           />
         </Card>
       </section>

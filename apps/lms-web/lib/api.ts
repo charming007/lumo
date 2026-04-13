@@ -168,6 +168,13 @@ export function fetchStorageBackups(limit = 20) {
   return getJson<StorageBackupList>(`/api/v1/admin/storage/backups?limit=${limit}`);
 }
 
-export function fetchOperationsReport(limit = 20) {
-  return getJson<OperationsReport>(`/api/v1/reports/operations?limit=${limit}`);
+export function fetchOperationsReport(limit = 20, params?: { cohortId?: string; podId?: string; mallamId?: string; learnerId?: string; since?: string; until?: string }) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (params?.cohortId) query.set('cohortId', params.cohortId);
+  if (params?.podId) query.set('podId', params.podId);
+  if (params?.mallamId) query.set('mallamId', params.mallamId);
+  if (params?.learnerId) query.set('learnerId', params.learnerId);
+  if (params?.since) query.set('since', params.since);
+  if (params?.until) query.set('until', params.until);
+  return getJson<OperationsReport>(`/api/v1/reports/operations?${query.toString()}`);
 }
