@@ -22,7 +22,7 @@ const routeGuides = [
     title: 'English Studio',
     href: '/english',
     guideHref: '/guide#english-studio',
-    detail: 'English-specific authoring with readiness checks and an actual activity spine.',
+    detail: 'English-specific authoring with readiness checks, inline blockers, and an actual activity spine.',
     pillTone: '#DCFCE7',
     pillText: '#166534',
   },
@@ -233,7 +233,7 @@ Dashboard / learner views / workboards
         <div id="english-studio">
           <Card title="English Studio" eyebrow="English authoring">
             <div style={{ color: '#64748b', lineHeight: 1.7 }}>
-              English Studio is not a duplicate content page. It is the English-specific authoring layer for blueprints, readiness checks, editable activity spines, localization packs, and release visibility before a lesson record gets shipped.
+              English Studio is not a duplicate content page. It is the English-specific authoring layer for blueprints, readiness checks, inline release blockers, editable activity spines, localization packs, and release visibility before a lesson record gets shipped.
             </div>
           </Card>
         </div>
@@ -273,7 +273,7 @@ Dashboard / learner views / workboards
       <section id="lesson-studio" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
         <Card title="Lesson Studio" eyebrow="Full authoring lane">
           <div style={{ color: '#64748b', lineHeight: 1.7, marginBottom: 12 }}>
-            Use the full lesson editor when you need more than metadata. This is where the real payload gets shaped: objectives, localization, assessment items, activity steps, duration, mode, voice persona, and interactive answer options.
+            Use the full lesson editor when you need more than metadata. This is where the real payload gets shaped: objectives, localization, assessment items, activity steps, duration, mode, voice persona, interactive answer options, and the inline blockers that stop weak packs from being marked approved or published.
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Link href="/content/lessons/new" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>

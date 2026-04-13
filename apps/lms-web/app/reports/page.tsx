@@ -600,7 +600,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
             {[
               ['Scope before story', 'Filter by cohort, pod, or mallam first. A noisy all-system report is worse than useless when someone needs a decision.'],
               ['Narrative should match the evidence', 'If the copy-ready update says things are stable while the hotlist and reward backlog are on fire, the narrative is lying.'],
-              ['Use route handoffs on purpose', 'Jump from reports into mallam detail, assignments, or the LMS guide instead of making operators reconstruct the path from memory.'],
+              ['Use route handoffs on purpose', 'Jump from reports into mallam detail, assignments, or the synced LMS guide / printable handbook instead of making operators reconstruct the path from memory.'],
             ].map(([title, detail]) => (
               <div key={title} style={{ padding: 16, borderRadius: 18, background: '#F8FAFC', border: '1px solid #EEF2F7' }}>
                 <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
@@ -611,6 +611,9 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
               <Link href="/guide#reports" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
                 Reporting guide →
               </Link>
+              <a href="/LMS_DASHBOARD_GUIDE.html" target="_blank" rel="noreferrer" style={{ color: '#0f172a', fontWeight: 800, textDecoration: 'none' }}>
+                Printable handbook →
+              </a>
               <Link href="/guide#system-flow" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
                 End-to-end LMS flow →
               </Link>

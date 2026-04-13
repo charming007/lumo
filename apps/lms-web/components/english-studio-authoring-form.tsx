@@ -264,6 +264,18 @@ export function EnglishStudioAuthoringForm({
   })), [activityDrafts]);
 
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, item) => sum + (item.durationMinutes || 0), 0), [activitySteps]);
+  const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
+  const readinessBlockers = useMemo(() => ([
+    title.trim().length >= 8 ? null : 'Give the lesson a specific title with at least 8 characters.',
+    (Number(durationMinutes) || 0) >= 8 ? null : 'Set a credible lesson duration of at least 8 minutes.',
+    Boolean(activeAssessment) ? null : 'Wire a module assessment gate before treating this lesson as release-safe.',
+    lessonAssessment.items.length > 0 ? null : 'Add at least one assessment item so the lesson has observable evidence.',
+    activitySteps.length >= 3 ? null : 'Keep at least 3 activity steps so the English lesson has a real teaching spine.',
+    Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
+    !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing from English Studio is premature.',
+  ].filter(Boolean) as string[]), [title, durationMinutes, activeAssessment, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
+  const publishIntent = status === 'approved' || status === 'published';
+  const blockSubmit = publishIntent && readinessBlockers.length > 0;
 
   const readinessTone = useMemo(() => {
     if (readiness.readinessScore >= 5) return { bg: '#DCFCE7', border: '#86EFAC', text: '#166534' };
@@ -402,6 +414,29 @@ export function EnglishStudioAuthoringForm({
         <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 16, padding: 14, minWidth: 0 }}><strong>{activeModule?.status ?? '—'}</strong><div style={{ color: '#475569', marginTop: 4 }}>Module readiness</div></div>
         <div style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 16, padding: 14, minWidth: 0 }}><strong>{assessmentTitle}</strong><div style={{ color: '#475569', marginTop: 4 }}>Assessment link</div></div>
         <div style={{ background: readinessTone.bg, border: `1px solid ${readinessTone.border}`, borderRadius: 16, padding: 14, color: readinessTone.text, minWidth: 0 }}><strong>{readiness.readinessScore}/5 checks passed</strong><div style={{ marginTop: 4 }}>Recommended status: {recommendedStatus}</div></div>
+      </div>
+
+      <div style={{ padding: 16, borderRadius: 18, background: blockSubmit ? '#FEF2F2' : '#F8FAFC', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, display: 'grid', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 800, color: blockSubmit ? '#991B1B' : '#0f172a' }}>Inline readiness blockers</div>
+          <div style={{ color: blockSubmit ? '#991B1B' : '#475569', fontSize: 13, fontWeight: 700 }}>
+            {publishIntent ? (blockSubmit ? 'Approval/publish is blocked' : 'Approval/publish is clear') : 'Draft save stays available'}
+          </div>
+        </div>
+        <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+          English Studio now surfaces the obvious release blockers inline so authors stop guessing whether the blueprint is actually safe to ship.
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {readinessBlockers.length ? readinessBlockers.map((blocker) => (
+            <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, color: '#475569', lineHeight: 1.6 }}>
+              {blocker}
+            </div>
+          )) : (
+            <div style={{ padding: 12, borderRadius: 14, background: '#ECFDF5', border: '1px solid #BBF7D0', color: '#166534', lineHeight: 1.6 }}>
+              No visible blockers. The English lesson blueprint is structurally ready for approval or publish.
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={autoFitTwoUp}>
@@ -575,7 +610,7 @@ export function EnglishStudioAuthoringForm({
         </div>
       </div>
 
-      <ActionButton label="Create English lesson" pendingLabel="Creating lesson…" style={buttonStyle} />
+      <ActionButton label={blockSubmit ? 'Fix blockers before approval/publish' : 'Create English lesson'} pendingLabel="Creating lesson…" style={buttonStyle} disabled={blockSubmit} />
     </form>
   );
 }

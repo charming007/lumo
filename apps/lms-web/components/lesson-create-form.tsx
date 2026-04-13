@@ -350,6 +350,7 @@ export function LessonCreateForm({
     media: parseActivityMedia(draft.mediaLines),
   })), [activityDrafts]);
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0), [activitySteps]);
+  const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
   const readinessCount = useMemo(() => {
     let count = 0;
     if (title.trim().length >= 8) count += 1;
@@ -359,6 +360,17 @@ export function LessonCreateForm({
     if (activitySteps.length >= 3) count += 1;
     return count;
   }, [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length]);
+  const readinessBlockers = useMemo(() => ([
+    title.trim().length >= 8 ? null : 'Give the lesson a specific title with at least 8 characters.',
+    (Number(durationMinutes) || 0) >= 8 ? null : 'Set a credible lesson duration of at least 8 minutes.',
+    learningObjectives.length > 0 ? null : 'Add at least one learning objective so the lesson has an actual outcome.',
+    lessonAssessment.items.length > 0 ? null : 'Add at least one assessment item so evidence exists beyond vibes.',
+    activitySteps.length >= 3 ? null : 'Build at least 3 activity steps so the lesson has a real learner flow.',
+    Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
+    !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing the lesson is bullshit until the lane is release-safe.',
+  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
+  const publishIntent = status === 'approved' || status === 'published';
+  const blockSubmit = publishIntent && readinessBlockers.length > 0;
 
   const updateActivity = (index: number, patch: Partial<ActivityDraft>) => {
     setActivityDrafts((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
@@ -544,6 +556,29 @@ export function LessonCreateForm({
         </div>
       </div>
 
+      <div style={{ padding: 16, borderRadius: 18, background: blockSubmit ? '#FEF2F2' : '#F8FAFC', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, display: 'grid', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 800, color: blockSubmit ? '#991B1B' : '#0f172a' }}>Inline readiness blockers</div>
+          <div style={{ color: blockSubmit ? '#991B1B' : '#475569', fontSize: 13, fontWeight: 700 }}>
+            {publishIntent ? (blockSubmit ? 'Approval/publish is blocked' : 'Approval/publish is clear') : 'Draft save stays available'}
+          </div>
+        </div>
+        <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+          Save drafts whenever you want. But if you mark this lesson approved or published, the form now calls out the blockers instead of letting junk slip through quietly.
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {readinessBlockers.length ? readinessBlockers.map((blocker) => (
+            <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, color: '#475569', lineHeight: 1.6 }}>
+              {blocker}
+            </div>
+          )) : (
+            <div style={{ padding: 12, borderRadius: 14, background: '#ECFDF5', border: '1px solid #BBF7D0', color: '#166534', lineHeight: 1.6 }}>
+              No visible blockers. The lesson pack is structurally ready for approval or publish.
+            </div>
+          )}
+        </div>
+      </div>
+
       <div style={wideStack}>
         <div style={{ ...autoFitTwoUp, alignItems: 'start' }}>
           <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
@@ -697,7 +732,7 @@ export function LessonCreateForm({
         </div>
       </div>
 
-      <ActionButton label="Create full lesson pack" pendingLabel="Creating lesson pack…" style={buttonStyle} />
+      <ActionButton label={blockSubmit ? 'Fix blockers before approval/publish' : 'Create full lesson pack'} pendingLabel="Creating lesson pack…" style={buttonStyle} disabled={blockSubmit} />
     </form>
   );
 }

@@ -524,6 +524,7 @@ English Studio helps authors tighten the lesson before it ships by adding or val
 - vocabulary focus,
 - activity spine and pacing,
 - readiness checks,
+- inline release blockers,
 - linked assessment awareness,
 - release risk and publish intent.
 
@@ -812,7 +813,8 @@ Lesson Studio is the right surface when you need to define:
 - lesson assessment items,
 - the step-by-step learner activity flow,
 - choice options and correct answers,
-- facilitator guidance and evidence expectations.
+- facilitator guidance and evidence expectations,
+- inline approval/publish blockers that catch obvious readiness gaps before a weak pack gets marked done.
 
 #### Step 1 — create or open the lesson pack
 

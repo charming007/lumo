@@ -337,6 +337,17 @@ export function LessonEditorForm({
     [activitySteps],
   );
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
+  const readinessBlockers = useMemo(() => ([
+    title.trim().length >= 8 ? null : 'Give the lesson a specific title with at least 8 characters.',
+    (Number(durationMinutes) || 0) >= 8 ? null : 'Set a credible lesson duration of at least 8 minutes.',
+    learningObjectives.length > 0 ? null : 'Add at least one learning objective so the lesson has an actual outcome.',
+    lessonAssessment.items.length > 0 ? null : 'Add at least one assessment item so evidence exists beyond vibes.',
+    activitySteps.length >= 3 ? null : 'Build at least 3 activity steps so the lesson has a real learner flow.',
+    Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
+    !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing the lesson is bullshit until the lane is release-safe.',
+  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
+  const publishIntent = status === 'approved' || status === 'published';
+  const blockSubmit = publishIntent && readinessBlockers.length > 0;
   const activityHealthTone = durationGap === 0
     ? { background: '#DCFCE7', color: '#166534', label: 'Runtime aligned' }
     : Math.abs(durationGap) <= 2
@@ -522,6 +533,29 @@ export function LessonEditorForm({
         </div>
       </div>
 
+      <div style={{ padding: 16, borderRadius: 18, background: blockSubmit ? '#FEF2F2' : '#F8FAFC', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, display: 'grid', gap: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 800, color: blockSubmit ? '#991B1B' : '#0f172a' }}>Inline readiness blockers</div>
+          <div style={{ color: blockSubmit ? '#991B1B' : '#475569', fontSize: 13, fontWeight: 700 }}>
+            {publishIntent ? (blockSubmit ? 'Approval/publish is blocked' : 'Approval/publish is clear') : 'Draft save stays available'}
+          </div>
+        </div>
+        <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+          The editor now flags the exact blockers inline before someone saves an approved or published lesson that still has obvious holes.
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {readinessBlockers.length ? readinessBlockers.map((blocker) => (
+            <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, color: '#475569', lineHeight: 1.6 }}>
+              {blocker}
+            </div>
+          )) : (
+            <div style={{ padding: 12, borderRadius: 14, background: '#ECFDF5', border: '1px solid #BBF7D0', color: '#166534', lineHeight: 1.6 }}>
+              No visible blockers. This lesson pack is structurally ready for approval or publish.
+            </div>
+          )}
+        </div>
+      </div>
+
       <div style={wideStack}>
         <div style={{ ...autoFitTwoUp, alignItems: 'start' }}>
           <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
@@ -682,7 +716,7 @@ export function LessonEditorForm({
         </div>
       </div>
 
-      <ActionButton label="Save full lesson pack" pendingLabel="Saving lesson pack…" style={buttonStyle} />
+      <ActionButton label={blockSubmit ? 'Fix blockers before approval/publish' : 'Save full lesson pack'} pendingLabel="Saving lesson pack…" style={buttonStyle} disabled={blockSubmit} />
     </form>
   );
 }
