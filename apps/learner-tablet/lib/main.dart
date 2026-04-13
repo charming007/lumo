@@ -5466,13 +5466,14 @@ class _LearnerCard extends StatelessWidget {
     final points = learnerMotivationPoints(learner);
     final xp = learner.totalXp;
     final streak = learner.streakDays;
+    final hasActions =
+        onSetActive != null || onOpenProfile != null || onStartLesson != null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactHeight = dense || constraints.maxHeight < 470;
-
         return Container(
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.all(compactHeight ? 16 : 18),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
@@ -5489,207 +5490,179 @@ class _LearnerCard extends StatelessWidget {
               ),
             ],
           ),
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: compactHeight ? 24 : 28,
+                    backgroundColor: const Color(0xFFE9E7FF),
+                    child: Text(
+                      learner.name.characters.first,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          learner.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: compactHeight ? 17 : 18,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Age ${learner.age} • ${learner.village}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Color(0xFF6B7280)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isActive && compactHeight)
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: LumoTheme.primary,
+                      size: 24,
+                    )
+                  else if (leaderboardEntry != null)
+                    StatusPill(
+                      text: '#${leaderboardEntry!.rank}',
+                      color: leaderboardEntry!.rank == 1
+                          ? LumoTheme.accentOrange
+                          : LumoTheme.primary,
+                    ),
+                ],
+              ),
+              SizedBox(height: compactHeight ? 10 : 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  StatusPill(
+                    text: isActive
+                        ? (compactHeight ? 'Selected learner' : 'Active learner')
+                        : (compactHeight ? 'Ready now' : learner.readinessLabel),
+                    color: isActive ? LumoTheme.primary : LumoTheme.accentGreen,
+                  ),
+                  StatusPill(
+                    text: '$points pts',
+                    color: LumoTheme.accentOrange,
+                  ),
+                  StatusPill(
+                    text: '$streak day streak',
+                    color: const Color(0xFFEF4444),
+                  ),
+                ],
+              ),
+              SizedBox(height: compactHeight ? 10 : 12),
+              Container(
+                padding: EdgeInsets.all(compactHeight ? 10 : 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: const Color(0xFFE9E7FF),
-                      child: Text(
-                        learner.name.characters.first,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            learner.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            compactHeight
-                                ? 'Age ${learner.age}'
-                                : 'Age ${learner.age} • ${learner.village}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Color(0xFF6B7280)),
-                          ),
-                        ],
+                      child: _LearnerCardStat(
+                        label: 'XP',
+                        value: '$xp',
+                        color: LumoTheme.primary,
                       ),
                     ),
-                    if (leaderboardEntry != null)
-                      StatusPill(
-                        text: '#${leaderboardEntry!.rank}',
-                        color: leaderboardEntry!.rank == 1
-                            ? LumoTheme.accentOrange
-                            : LumoTheme.primary,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _LearnerCardStat(
+                        label: 'Minutes',
+                        value: '${learner.estimatedTotalMinutes}',
+                        color: const Color(0xFF0EA5E9),
                       ),
+                    ),
                   ],
                 ),
+              ),
+              SizedBox(height: compactHeight ? 10 : 12),
+              Text(
+                learner.learnerCode,
+                style: const TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                compactHeight
+                    ? (nextPack == null
+                        ? 'Ready for ${learner.readinessLabel.toLowerCase()} work'
+                        : 'Assigned next: ${nextPack.lessonTitle}')
+                    : (nextPack == null
+                        ? learner.supportPlan
+                        : nextPack.lessonTitle),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: const Color(0xFF475569),
+                  height: 1.35,
+                  fontWeight:
+                      compactHeight ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Last attendance: ${learner.lastAttendance}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (hasActions) ...[
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    StatusPill(
-                      text: compactHeight && !isActive
-                          ? 'Ready'
-                          : (isActive
-                              ? 'Active learner'
-                              : learner.readinessLabel),
-                      color:
-                          isActive ? LumoTheme.primary : LumoTheme.accentGreen,
-                    ),
-                    StatusPill(
-                      text: '$points pts',
-                      color: LumoTheme.accentOrange,
-                    ),
-                    if (!compactHeight)
-                      StatusPill(
-                        text: '$streak day streak',
-                        color: const Color(0xFFEF4444),
+                    if (onSetActive != null && !compactHeight)
+                      OutlinedButton.icon(
+                        onPressed: onSetActive,
+                        icon: const Icon(Icons.person_pin_circle_rounded),
+                        label: Text(isActive ? 'Active now' : 'Set active'),
+                      ),
+                    if (onOpenProfile != null)
+                      OutlinedButton.icon(
+                        onPressed: onOpenProfile,
+                        icon: const Icon(Icons.badge_rounded),
+                        label: const Text('Profile'),
+                      ),
+                    if (onStartLesson != null)
+                      FilledButton.icon(
+                        onPressed: onStartLesson,
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: Text(
+                          compactHeight
+                              ? 'Start'
+                              : (nextPack == null
+                                  ? 'Start lesson'
+                                  : 'Start assigned'),
+                        ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _LearnerCardStat(
-                              label: 'XP',
-                              value: '$xp',
-                              color: LumoTheme.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _LearnerCardStat(
-                              label: compactHeight ? 'Streak' : 'Minutes',
-                              value: compactHeight
-                                  ? '$streak d'
-                                  : '${learner.estimatedTotalMinutes}',
-                              color: compactHeight
-                                  ? const Color(0xFFEF4444)
-                                  : const Color(0xFF0EA5E9),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (!compactHeight && leaderboardEntry != null) ...[
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            leaderboardEntry!.rank == 1
-                                ? 'Top learner right now — keep the fire burning.'
-                                : '${leaderboardEntry!.pointsGapFromLeader} pts behind the leader.',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF475569),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  learner.learnerCode,
-                  style: const TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (!compactHeight) ...[
-                  Text(
-                    nextPack == null
-                        ? learner.supportPlan
-                        : nextPack.lessonTitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF475569),
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Text(
-                  compactHeight
-                      ? learner.lastAttendance
-                      : 'Last attendance: ${learner.lastAttendance}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (onSetActive != null ||
-                    onOpenProfile != null ||
-                    onStartLesson != null)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (onSetActive != null && !compactHeight)
-                        OutlinedButton.icon(
-                          onPressed: onSetActive,
-                          icon: const Icon(Icons.person_pin_circle_rounded),
-                          label: Text(isActive ? 'Active now' : 'Set active'),
-                        ),
-                      if (onOpenProfile != null)
-                        OutlinedButton.icon(
-                          onPressed: onOpenProfile,
-                          icon: const Icon(Icons.badge_rounded),
-                          label: const Text('Profile'),
-                        ),
-                      if (onStartLesson != null)
-                        FilledButton.icon(
-                          onPressed: onStartLesson,
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          label: Text(
-                            compactHeight
-                                ? 'Start'
-                                : (nextPack == null
-                                    ? 'Start lesson'
-                                    : 'Start assigned'),
-                          ),
-                        ),
-                    ],
-                  ),
               ],
-            ),
+            ],
           ),
         );
       },
