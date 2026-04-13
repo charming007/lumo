@@ -3187,6 +3187,18 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
   }
 
+  bool get _avoidConcurrentSpeechCapture {
+    if (kIsWeb) return false;
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.macOS || TargetPlatform.iOS => true,
+      _ => false,
+    };
+  }
+
+  String get _concurrentSpeechCaptureFallbackReason {
+    return 'Live transcript is paused on this device while local audio capture is running to avoid the mic handoff crash. Lumo will keep the learner recording and let the facilitator confirm the answer manually.';
+  }
+
   String _buildFallbackCaptureStatus({
     required String audioMessage,
     required bool speechReady,
@@ -3194,7 +3206,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (speechReady) {
       return audioMessage;
     }
-    return '$audioMessage ${speechTranscriptionService.availabilityLabel}';
+    final fallbackReason = _avoidConcurrentSpeechCapture
+        ? _concurrentSpeechCaptureFallbackReason
+        : speechTranscriptionService.availabilityLabel;
+    return '$audioMessage $fallbackReason';
   }
 
   Future<void> _speakCurrentStepIfNeeded({bool force = false}) async {
@@ -3656,22 +3671,25 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       }
       _recordingModeLabel = audioStarted.recordingModeLabel;
 
-      final speechReady = await speechTranscriptionService.start(
-        onResult: (transcript, isFinal) {
-          if (!mounted) return;
-          final cleaned = transcript.trim();
-          if (cleaned.isEmpty) return;
-          setState(() {
-            liveTranscript = cleaned;
-            if (isFinal) {
-              _latestFinalTranscript = cleaned;
-            }
-            transcriptCapturedThisTake =
-                cleaned.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').length >= 2;
-          });
-        },
-        onStatus: _handleSpeechStatus,
-      );
+      final speechReady = _avoidConcurrentSpeechCapture
+          ? false
+          : await speechTranscriptionService.start(
+              onResult: (transcript, isFinal) {
+                if (!mounted) return;
+                final cleaned = transcript.trim();
+                if (cleaned.isEmpty) return;
+                setState(() {
+                  liveTranscript = cleaned;
+                  if (isFinal) {
+                    _latestFinalTranscript = cleaned;
+                  }
+                  transcriptCapturedThisTake =
+                      cleaned.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').length >=
+                          2;
+                });
+              },
+              onStatus: _handleSpeechStatus,
+            );
 
       recordingTicker?.cancel();
       currentRecordingDuration = Duration.zero;
