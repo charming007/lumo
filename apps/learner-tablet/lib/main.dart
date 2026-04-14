@@ -3648,6 +3648,81 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
   }
 
+  Future<void> _playChoiceMedia(LessonActivityChoice choice) async {
+    final mediaKind = choice.mediaKind?.trim().toLowerCase();
+    final mediaValue = choice.mediaValue?.trim();
+    if (mediaValue == null || mediaValue.isEmpty) return;
+
+    try {
+      if (mediaKind == 'audio') {
+        await learnerAudioPlaybackService.play(mediaValue);
+        if (!mounted) return;
+        setState(() {
+          microphoneStatus = 'Mallam replayed the choice audio cue.';
+        });
+        return;
+      }
+
+      await _speakActivityText(choice.label, mode: SpeakerMode.guiding);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        microphoneStatus = 'Could not open the choice media yet: $error';
+      });
+    }
+  }
+
+  Widget _buildChoicePreview(LessonActivityChoice choice, String fallbackEmoji) {
+    final mediaKind = choice.mediaKind?.trim().toLowerCase();
+    final mediaValue = choice.mediaValue?.trim();
+
+    if (mediaKind == 'image' && mediaValue != null && mediaValue.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Image.network(
+          mediaValue,
+          width: double.infinity,
+          height: 96,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            height: 96,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              fallbackEmoji,
+              style: const TextStyle(fontSize: 40),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 96,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(fallbackEmoji, style: const TextStyle(fontSize: 40)),
+          if (mediaKind == 'audio') ...[
+            const SizedBox(height: 6),
+            const Icon(
+              Icons.volume_up_rounded,
+              color: Color(0xFF4338CA),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildActivityPanel(LessonStep step) {
     final activity = step.activity;
     if (activity == null) return const SizedBox.shrink();
@@ -3742,6 +3817,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         break;
       case LessonActivityType.imageChoice:
       case LessonActivityType.tapChoice:
+        final choiceItems = activity.choiceItems.isNotEmpty
+            ? activity.choiceItems
+            : List.generate(activity.choices.length, (index) {
+                final choice = activity.choices[index];
+                return LessonActivityChoice(
+                  id: 'choice-$index',
+                  label: choice,
+                  isCorrect: choice == activity.targetResponse,
+                );
+              });
         body = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3757,16 +3842,19 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             Wrap(
               spacing: 12,
               runSpacing: 12,
-              children: List.generate(activity.choices.length, (index) {
-                final choice = activity.choices[index];
+              children: List.generate(choiceItems.length, (index) {
+                final choiceItem = choiceItems[index];
                 final emoji = index < activity.choiceEmoji.length
                     ? activity.choiceEmoji[index]
                     : '🖼️';
                 return InkWell(
-                  onTap: () => _setResponseAndMaybeSubmit(choice, submit: true),
+                  onTap: () => _setResponseAndMaybeSubmit(
+                    choiceItem.label,
+                    submit: true,
+                  ),
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
-                    width: 130,
+                    width: 156,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -3774,13 +3862,26 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                       border: Border.all(color: const Color(0xFFD6D3FF)),
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(emoji, style: const TextStyle(fontSize: 42)),
+                        _buildChoicePreview(choiceItem, emoji),
                         const SizedBox(height: 10),
                         Text(
-                          choice,
+                          choiceItem.label,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
+                        if (choiceItem.mediaKind?.trim().toLowerCase() ==
+                                'audio' &&
+                            (choiceItem.mediaValue?.trim().isNotEmpty ??
+                                false)) ...[
+                          const SizedBox(height: 10),
+                          FilledButton.tonalIcon(
+                            onPressed: () => _playChoiceMedia(choiceItem),
+                            icon: const Icon(Icons.play_arrow_rounded),
+                            label: const Text('Hear choice'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
