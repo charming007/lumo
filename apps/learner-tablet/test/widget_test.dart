@@ -333,6 +333,67 @@ void main() {
   });
 
   testWidgets(
+      'lesson launch and subject module headers do not overflow on phone-width layouts',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final baseModule = state.modules.first;
+    final baseLesson = state.assignedLessons.first;
+    final module = LearningModule(
+      id: baseModule.id,
+      title: baseModule.title,
+      description: baseModule.description,
+      voicePrompt: baseModule.voicePrompt,
+      readinessGoal: baseModule.readinessGoal,
+      badge: 'Very long backend badge for narrow mobile layouts',
+    );
+    final lesson = LessonCardModel(
+      id: baseLesson.id,
+      moduleId: baseLesson.moduleId,
+      title: baseLesson.title,
+      subject: 'Very long subject label for narrow mobile layouts',
+      durationMinutes: baseLesson.durationMinutes,
+      status: baseLesson.status,
+      mascotName: baseLesson.mascotName,
+      readinessFocus: baseLesson.readinessFocus,
+      scenario: baseLesson.scenario,
+      steps: baseLesson.steps,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: module,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonLaunchSetupPage(
+          state: state,
+          onChanged: () {},
+          lesson: lesson,
+          module: module,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Choose learner'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets(
       'resume launch setup locks the original learner from backend session', (
     tester,
   ) async {

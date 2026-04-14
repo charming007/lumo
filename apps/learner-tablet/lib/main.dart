@@ -1956,13 +1956,15 @@ class SubjectModulesPage extends StatelessWidget {
                       final content = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               OutlinedButton(
                                 onPressed: () => Navigator.of(context).pop(),
                                 child: const Text('Back'),
                               ),
-                              const Spacer(),
                               StatusPill(
                                 text: module.badge,
                                 color: LumoTheme.primary,
@@ -3239,13 +3241,15 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                   }
 
                   final contentChildren = <Widget>[
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         OutlinedButton(
                           onPressed: () => Navigator.of(context).pop(),
                           child: const Text('Back'),
                         ),
-                        const Spacer(),
                         StatusPill(
                           text: lesson.subject,
                           color: LumoTheme.primary,
@@ -4057,6 +4061,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           builder: (_) => LessonCompletePage(
             state: widget.state,
             lesson: widget.lesson,
+            revealWithCountdown: true,
           ),
         ),
       );
@@ -6253,11 +6258,13 @@ int _adaptiveGridCount(
 class LessonCompletePage extends StatefulWidget {
   final LumoAppState state;
   final LessonCardModel lesson;
+  final bool revealWithCountdown;
 
   const LessonCompletePage({
     super.key,
     required this.state,
     required this.lesson,
+    this.revealWithCountdown = false,
   });
 
   @override
@@ -6282,7 +6289,17 @@ class _LessonCompletePageState extends State<LessonCompletePage>
       duration: const Duration(milliseconds: 2600),
     );
     _celebrationPlayer = AudioPlayer();
-    _startRevealCountdown();
+    if (widget.revealWithCountdown) {
+      _startRevealCountdown();
+    } else {
+      _secondsRemaining = 0;
+      _resultsVisible = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _confettiController.forward(from: 0);
+        unawaited(_playCelebrationSound());
+      });
+    }
   }
 
   void _startRevealCountdown() {
@@ -6305,7 +6322,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
       _secondsRemaining = 0;
       _resultsVisible = true;
     });
-    _confettiController.repeat();
+    _confettiController.forward(from: 0);
     await _playCelebrationSound();
   }
 
