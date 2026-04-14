@@ -64,8 +64,8 @@ export function MetricList({ items }: { items: { label: string; value: string }[
 
 export function SimpleTable({ columns, rows }: { columns: string[]; rows: React.ReactNode[][] }) {
   return (
-    <div style={{ overflowX: 'auto', background: 'white', borderRadius: 24, padding: 12, border: '1px solid #eef2f7', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div className="simple-table-shell" style={{ overflowX: 'auto', background: 'white', borderRadius: 24, padding: 12, border: '1px solid #eef2f7', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
+      <table className="simple-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
             {columns.map((column) => (
@@ -77,12 +77,80 @@ export function SimpleTable({ columns, rows }: { columns: string[]; rows: React.
           {rows.map((row, index) => (
             <tr key={index}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} style={{ padding: 14, borderBottom: '1px solid #f1f5f9', verticalAlign: 'top', color: '#0f172a' }}>{cell}</td>
+                <td key={cellIndex} data-label={columns[cellIndex] ?? `Column ${cellIndex + 1}`} style={{ padding: 14, borderBottom: '1px solid #f1f5f9', verticalAlign: 'top', color: '#0f172a' }}>{cell}</td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
+      <style>{`
+        @media (max-width: 720px) {
+          .simple-table-shell {
+            overflow: visible;
+            padding: 0;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+          }
+
+          .simple-table,
+          .simple-table thead,
+          .simple-table tbody,
+          .simple-table tr,
+          .simple-table th,
+          .simple-table td {
+            display: block;
+            width: 100%;
+          }
+
+          .simple-table thead {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+          }
+
+          .simple-table tbody {
+            display: grid;
+            gap: 12px;
+          }
+
+          .simple-table tr {
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            background: white;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+            overflow: hidden;
+          }
+
+          .simple-table td {
+            display: grid;
+            grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+            padding: 12px 14px;
+            border-bottom: 1px solid #f1f5f9;
+          }
+
+          .simple-table td:last-child {
+            border-bottom: 0;
+          }
+
+          .simple-table td::before {
+            content: attr(data-label);
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+          }
+        }
+      `}</style>
     </div>
   );
 }
