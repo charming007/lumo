@@ -25,6 +25,7 @@ import {
 } from '../app/actions';
 import type { Assessment, Center, Cohort, CurriculumModule, Lesson, Mallam, Pod, Strand, Student, Subject } from '../lib/types';
 import { ActionButton } from './action-button';
+import { CreateAssessmentFormClient } from './create-assessment-form';
 
 const cardStyle = {
   background: 'white',
@@ -401,28 +402,7 @@ export function DeleteLessonForm({ lessons }: { lessons: Lesson[] }) {
 }
 
 export function CreateAssessmentForm({ modules, subjects, returnPath }: { modules: CurriculumModule[]; subjects: Subject[]; returnPath?: string }) {
-  const defaultModule = modules[0];
-
-  return (
-    <form action={createAssessmentAction} style={cardStyle}>
-      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
-      <h2 style={{ margin: 0 }}>Create assessment gate</h2>
-      <FieldLabel>Subject<select name="subjectId" defaultValue={defaultModule?.subjectId ?? subjects[0]?.id ?? 'english'} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
-      <FieldLabel>Module<select name="moduleId" defaultValue={defaultModule?.id} style={inputStyle}>{modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select></FieldLabel>
-      <FieldLabel>Assessment title<input name="title" defaultValue="Bridge readiness checkpoint" style={inputStyle} /></FieldLabel>
-      <div style={twoColumnGrid}>
-        <FieldLabel>Kind<select name="kind" defaultValue="automatic" style={inputStyle}><option value="automatic">Automatic</option><option value="manual">Manual</option></select></FieldLabel>
-        <FieldLabel>Trigger<select name="trigger" defaultValue="module-complete" style={inputStyle}><option value="module-complete">After module complete</option><option value="lesson-cluster">After lesson cluster</option><option value="mallam-review">Mallam review</option></select></FieldLabel>
-      </div>
-      <FieldLabel>Trigger label<input name="triggerLabel" defaultValue={`After ${defaultModule?.title ?? 'selected module'}`} style={inputStyle} /></FieldLabel>
-      <div style={threeColumnGrid}>
-        <FieldLabel>Progression gate<input name="progressionGate" defaultValue="bridge" style={inputStyle} /></FieldLabel>
-        <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue="0.7" style={inputStyle} /></FieldLabel>
-        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
-      </div>
-      <ActionButton label="Create assessment" pendingLabel="Creating assessment…" style={buttonStyle} />
-    </form>
-  );
+  return <CreateAssessmentFormClient modules={modules} subjects={subjects} returnPath={returnPath} />;
 }
 
 export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[] }) {

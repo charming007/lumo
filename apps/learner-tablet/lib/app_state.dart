@@ -885,6 +885,20 @@ class LumoAppState {
     LessonCardModel lesson, {
     BackendLessonSession? resumeFrom,
   }) {
+    if (resumeFrom != null) {
+      if (currentLearner?.id != resumeFrom.studentId) {
+        final resumeLearnerIndex = learners.indexWhere(
+          (item) => item.id == resumeFrom.studentId,
+        );
+        if (resumeLearnerIndex == -1) {
+          throw StateError(
+            'Cannot resume lesson for learner ${resumeFrom.studentId} because that learner is not available on this tablet.',
+          );
+        }
+        currentLearner = learners[resumeLearnerIndex];
+      }
+    }
+
     final now = DateTime.now();
     final isResuming = resumeFrom != null;
     final resumedStepIndex = isResuming

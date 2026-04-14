@@ -2805,10 +2805,33 @@ class LessonLaunchSetupPage extends StatefulWidget {
 class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
   LearnerProfile? selectedLearner;
 
+  LearnerProfile? get _resumeLearner {
+    final resumeFrom = widget.resumeFrom;
+    if (resumeFrom == null) return null;
+
+    for (final learner in widget.state.learners) {
+      if (learner.id == resumeFrom.studentId) {
+        return learner;
+      }
+    }
+
+    return null;
+  }
+
+  bool get _resumeLocksLearner => widget.resumeFrom != null;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedLearner = _resumeLearner;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
     final lesson = widget.lesson;
+    final resumeLearner = _resumeLearner;
+    final resumeMissingLearner = widget.resumeFrom != null && resumeLearner == null;
 
     return Scaffold(
       body: SafeArea(
@@ -2917,27 +2940,35 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             final learner = state.learners[index];
                             final isSelected =
                                 selectedLearner?.id == learner.id;
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedLearner = learner;
-                                });
-                              },
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(28),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? LumoTheme.primary
-                                        : Colors.transparent,
-                                    width: 2,
+                            final isLockedOut = _resumeLocksLearner &&
+                                resumeLearner != null &&
+                                learner.id != resumeLearner.id;
+                            return Opacity(
+                              opacity: isLockedOut ? 0.45 : 1,
+                              child: GestureDetector(
+                                onTap: isLockedOut
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          selectedLearner = learner;
+                                        });
+                                      },
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(28),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? LumoTheme.primary
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
                                   ),
-                                ),
-                                child: _LearnerCard(
-                                  learner: learner,
-                                  state: state,
-                                  dense: true,
-                                  isActive: isSelected,
+                                  child: _LearnerCard(
+                                    learner: learner,
+                                    state: state,
+                                    dense: true,
+                                    isActive: isSelected,
+                                  ),
                                 ),
                               ),
                             );
@@ -2963,22 +2994,34 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     ),
                     const SizedBox(height: 20),
                     SectionTitle(
-                      title: 'Choose learner',
-                      subtitle:
-                          'Pick who is taking ${lesson.title}, then confirm to begin.',
+                      title: _resumeLocksLearner ? 'Resume learner' : 'Choose learner',
+                      subtitle: _resumeLocksLearner
+                          ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
+                          : 'Pick who is taking ${lesson.title}, then confirm to begin.',
                     ),
                     const SizedBox(height: 12),
                     if (widget.resumeFrom != null)
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2FF),
+                          color: resumeMissingLearner
+                              ? const Color(0xFFFEF2F2)
+                              : const Color(0xFFEEF2FF),
                           borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: resumeMissingLearner
+                                ? const Color(0xFFFECACA)
+                                : const Color(0xFFC7D2FE),
+                          ),
                         ),
                         child: Text(
-                          'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()}. Learner confirmation is still required before the lesson opens.',
-                          style: const TextStyle(
-                            color: Color(0xFF312E81),
+                          resumeMissingLearner
+                              ? 'Resume blocked: the original learner for this backend session is not available on this tablet yet. Sync that learner before reopening the session.'
+                              : 'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()} for ${resumeLearner!.name}. This learner is locked so the session cannot be resumed under the wrong child.',
+                          style: TextStyle(
+                            color: resumeMissingLearner
+                                ? const Color(0xFF991B1B)
+                                : const Color(0xFF312E81),
                             fontWeight: FontWeight.w600,
                             height: 1.35,
                           ),
@@ -3002,21 +3045,24 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                '${selectedLearner!.name} is selected for ${lesson.title}.',
+                                _resumeLocksLearner
+                                    ? '${selectedLearner!.name} is locked for this resume session.'
+                                    : '${selectedLearner!.name} is selected for ${lesson.title}.',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF0F172A),
                                 ),
                               ),
                             ),
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  selectedLearner = null;
-                                });
-                              },
-                              child: const Text('Clear'),
-                            ),
+                            if (!_resumeLocksLearner)
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    selectedLearner = null;
+                                  });
+                                },
+                                child: const Text('Clear'),
+                              ),
                           ],
                         ),
                       ),
@@ -3025,7 +3071,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                   ];
 
                   final ctaButton = FilledButton.icon(
-                    onPressed: state.learners.isEmpty
+                    onPressed: state.learners.isEmpty || resumeMissingLearner
                         ? null
                         : selectedLearner == null
                             ? null
@@ -3046,13 +3092,21 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                   ),
                                 );
                               },
-                    icon: const Icon(Icons.play_arrow_rounded),
+                    icon: Icon(
+                      _resumeLocksLearner
+                          ? Icons.play_circle_fill_rounded
+                          : Icons.play_arrow_rounded,
+                    ),
                     label: Text(
                       state.learners.isEmpty
                           ? 'Register learner to continue'
-                          : selectedLearner == null
-                              ? 'Select learner to continue'
-                              : 'Start with ${selectedLearner!.name}',
+                          : resumeMissingLearner
+                              ? 'Sync learner to resume'
+                              : selectedLearner == null
+                                  ? 'Select learner to continue'
+                                  : _resumeLocksLearner
+                                      ? 'Resume with ${selectedLearner!.name}'
+                                      : 'Start with ${selectedLearner!.name}',
                     ),
                   );
 

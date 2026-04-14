@@ -315,6 +315,70 @@ void main() {
     state.dispose();
   });
 
+  testWidgets('resume launch setup locks the original learner from backend session', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final module = state.modules.first;
+    final lesson = state.assignedLessons.firstWhere(
+      (item) => item.moduleId == module.id,
+      orElse: () => state.assignedLessons.first,
+    );
+    final learner = state.learners.first;
+    final otherLearner = state.learners.firstWhere(
+      (item) => item.id != learner.id,
+    );
+    final runtimeSession = BackendLessonSession(
+      id: 'runtime-learner-lock',
+      sessionId: 'session-lock',
+      studentId: learner.id,
+      learnerCode: learner.learnerCode,
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      moduleId: lesson.moduleId,
+      moduleTitle: module.title,
+      status: 'in_progress',
+      completionState: 'inProgress',
+      automationStatus: 'Resume the learner session.',
+      currentStepIndex: 1,
+      stepsTotal: lesson.steps.length,
+      responsesCaptured: 2,
+      supportActionsUsed: 0,
+      audioCaptures: 0,
+      facilitatorObservations: 0,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonLaunchSetupPage(
+          state: state,
+          onChanged: () {},
+          lesson: lesson,
+          module: module,
+          resumeFrom: runtimeSession,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Resume learner'), findsOneWidget);
+    expect(find.textContaining('${learner.name} is locked for this resume session.'), findsOneWidget);
+    expect(find.text('Resume with ${learner.name}'), findsOneWidget);
+
+    await tester.tap(find.text(otherLearner.name).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Resume with ${learner.name}'), findsOneWidget);
+    expect(find.text('Start with ${otherLearner.name}'), findsNothing);
+
+    state.dispose();
+  });
+
   testWidgets('lesson session exposes saved voice playback controls during audio-only review', (
     tester,
   ) async {

@@ -961,6 +961,41 @@ void main() {
       expect(state.activeSession!.automationStatus, contains('Resume from'));
     });
 
+    test('resume flow rebinds the active learner to the backend session learner', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+      final resumeLearner = state.learners.first;
+      final otherLearner = state.learners.firstWhere(
+        (item) => item.id != resumeLearner.id,
+      );
+      state.currentLearner = otherLearner;
+      final runtimeSession = BackendLessonSession(
+        id: 'runtime-2',
+        sessionId: 'session-77',
+        studentId: resumeLearner.id,
+        learnerCode: resumeLearner.learnerCode,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        moduleId: lesson.moduleId,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Resume the learner session.',
+        currentStepIndex: 1,
+        stepsTotal: lesson.steps.length,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+      );
+
+      state.startLesson(lesson, resumeFrom: runtimeSession);
+
+      expect(state.currentLearner?.id, resumeLearner.id);
+      expect(state.activeSession?.sessionId, 'session-77');
+    });
+
     test('repeat-after-me mode uses stricter matching and can be toggled', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.currentLearner = beginner;
