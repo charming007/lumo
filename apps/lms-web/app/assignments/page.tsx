@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { CreateAssignmentForm } from '../../components/create-assignment-form';
 import { ReassignAssignmentForm } from '../../components/reassign-assignment-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
-import { fetchAssignments, fetchAssessments, fetchCohorts, fetchLessons, fetchMallams } from '../../lib/api';
+import { fetchAssignments, fetchAssessments, fetchCohorts, fetchLessons, fetchMallams, fetchPods } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyAssignmentRows(message: string): ReactNode[][] {
@@ -44,12 +44,13 @@ function startOfDay(date: Date) {
 
 export default async function AssignmentsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; status?: string | string[]; cohort?: string | string[]; mallam?: string | string[]; pod?: string | string[] }> }) {
   const query = await searchParams;
-  const [assignmentsResult, cohortsResult, lessonsResult, mallamsResult, assessmentsResult] = await Promise.allSettled([
+  const [assignmentsResult, cohortsResult, lessonsResult, mallamsResult, assessmentsResult, podsResult] = await Promise.allSettled([
     fetchAssignments(),
     fetchCohorts(),
     fetchLessons(),
     fetchMallams(),
     fetchAssessments(),
+    fetchPods(),
   ]);
 
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
@@ -57,12 +58,14 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
   const failedSources = [
     assignmentsResult.status === 'rejected' ? 'assignment board' : null,
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
   ].filter(Boolean);
   const canCreateAssignment = cohorts.length > 0 && lessons.length > 0 && mallams.length > 0 && assessments.length > 0;
 
@@ -71,13 +74,16 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();
   const mallamFilter = normalizeFilterValue(query?.mallam).trim();
   const podFilter = normalizeFilterValue(query?.pod).trim();
-  const selectedMallamName = mallams.find((mallam) => mallam.id === mallamFilter)?.displayName ?? mallamFilter;
 
   const filteredAssignments = assignments.filter((item) => {
+    const matchedCohort = cohorts.find((cohort) => cohort.name === item.cohortName);
+    const matchedMallam = mallams.find((mallam) => mallam.displayName === item.teacherName || mallam.name === item.teacherName);
+    const matchedPod = pods.find((pod) => pod.label === (item.podLabel ?? ''));
+
     const statusMatches = !statusFilter || item.status === statusFilter;
-    const cohortMatches = !cohortFilter || item.cohortName === cohortFilter;
-    const mallamMatches = !selectedMallamName || item.teacherName === selectedMallamName;
-    const podMatches = !podFilter || (item.podLabel ?? 'Unassigned') === podFilter;
+    const cohortMatches = !cohortFilter || item.cohortName === cohortFilter || matchedCohort?.id === cohortFilter;
+    const mallamMatches = !mallamFilter || item.teacherName === mallamFilter || matchedMallam?.id === mallamFilter;
+    const podMatches = !podFilter || (item.podLabel ?? 'Unassigned') === podFilter || matchedPod?.id === podFilter;
     const queryMatches = matchesQuery([item.lessonTitle, item.cohortName, item.podLabel, item.assessmentTitle, item.teacherName, item.status, item.dueDate], searchText);
     return statusMatches && cohortMatches && mallamMatches && podMatches && queryMatches;
   });
@@ -108,11 +114,15 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const busiestOwnerEntry = Object.entries(workload).sort((a, b) => b[1] - a[1])[0];
   const busiestOwnerLabel = busiestOwnerEntry ? `${busiestOwnerEntry[0]} · ${busiestOwnerEntry[1]} live` : 'No live delivery load yet';
 
-  const podOptions = Array.from(new Set(assignments.map((item) => item.podLabel ?? 'Unassigned').filter(Boolean))).sort();
-  const cohortOptions = Array.from(new Set(assignments.map((item) => item.cohortName).filter(Boolean))).sort();
+  const podOptions = pods
+    .filter((pod) => assignments.some((item) => item.podLabel === pod.label))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const cohortOptions = cohorts
+    .filter((cohort) => assignments.some((item) => item.cohortName === cohort.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const mallamOptions = mallams
-    .map((mallam) => ({ value: mallam.id, label: mallam.displayName }))
-    .sort((left, right) => left.label.localeCompare(right.label));
+    .filter((mallam) => assignments.some((item) => item.teacherName === mallam.displayName || item.teacherName === mallam.name))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   return (
     <PageShell
@@ -149,15 +159,15 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
               </select>
               <select name="cohort" defaultValue={cohortFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
                 <option value="">All cohorts</option>
-                {cohortOptions.map((cohort) => <option key={cohort} value={cohort}>{cohort}</option>)}
+                {cohortOptions.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
               </select>
               <select name="mallam" defaultValue={mallamFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
                 <option value="">All mallams</option>
-                {mallamOptions.map((mallam) => <option key={mallam.value} value={mallam.value}>{mallam.label}</option>)}
+                {mallamOptions.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName}</option>)}
               </select>
               <select name="pod" defaultValue={podFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
                 <option value="">All pods</option>
-                {podOptions.map((pod) => <option key={pod} value={pod}>{pod}</option>)}
+                {podOptions.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
