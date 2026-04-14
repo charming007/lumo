@@ -102,10 +102,14 @@ class SpeechTranscriptionService {
   }
 
   Future<bool> initialize({bool forceRetry = false}) async {
+    final now = DateTime.now();
     final retryBlockedUntil = _retryBlockedUntil;
+    final recentRepeatedFailures = _consecutiveStartFailures >= 3 &&
+        _lastStartFailureAt != null &&
+        now.difference(_lastStartFailureAt!) < const Duration(seconds: 20);
     if (forceRetry &&
-        retryBlockedUntil != null &&
-        DateTime.now().isBefore(retryBlockedUntil)) {
+        ((retryBlockedUntil != null && now.isBefore(retryBlockedUntil)) ||
+            recentRepeatedFailures)) {
       _available = false;
       _lastStatus = 'retry-blocked';
       _lastError =
@@ -127,11 +131,6 @@ class SpeechTranscriptionService {
       debugLogging: false,
     );
     _initialized = true;
-    if (_available) {
-      _consecutiveStartFailures = 0;
-      _lastStartFailureAt = null;
-      _retryBlockedUntil = null;
-    }
     if (!_available && _lastError == null) {
       _lastError = availabilityLabel;
     }

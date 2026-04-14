@@ -3206,13 +3206,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     switch (state) {
       case AppLifecycleState.resumed:
         if (!mounted || !_resumePromptPendingFromLifecycle) return;
-        if (isAutoMode && _canAutoResumeHandsFreeFromRecovery) {
-          unawaited(_resumeHandsFreeLoop());
-          return;
-        }
         setState(() {
           microphoneStatus = isAutoMode
-              ? 'The app returned to the foreground. Resume is ready — Mallam can replay this step and reopen the mic safely.'
+              ? 'The app returned to the foreground. Tap Resume hands-free loop when the learner is ready so Mallam can replay this step and reopen the mic safely.'
               : 'The app returned to the foreground. Review the saved answer or tap Resume hands-free loop when the learner is ready.';
         });
         break;
@@ -3265,7 +3261,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       microphoneStatus = wasAutoMode
           ? (transcriptReviewPending
               ? 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. The saved answer is still attached for review before Mallam continues.'
-              : 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. Lumo will resume hands-free automatically when the tablet or browser is active again.')
+              : 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. When the tablet or browser is active again, tap Resume hands-free loop so Mallam can safely replay the step and reopen the mic.')
           : 'The app left the foreground, so Lumo stopped live mic playback/capture. The saved audio and draft answer are still attached for manual review.';
     });
   }
@@ -3297,11 +3293,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         session.latestLearnerAudioPath?.trim().isNotEmpty ?? false;
     return hasDraft || hasSavedAudio;
   }
-
-  bool get _canAutoResumeHandsFreeFromRecovery =>
-      !_hasRecoveredLearnerEvidence &&
-      !_autoPausedByTranscriptFailure &&
-      !transcriptReviewPending;
 
   bool get _avoidConcurrentSpeechCapture {
     if (kIsWeb) return false;
@@ -4740,16 +4731,19 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         height: 1.4,
                                       ),
                                     ),
-                                    if (widget.state.shouldOfferHandsFreeResume(
-                                      speechAvailable: speechRecognitionActive,
-                                      transcriptMisses:
-                                          _consecutiveTranscriptMisses,
-                                      autoPaused:
-                                          _autoPausedByTranscriptFailure,
-                                      hasDraftResponse: responseController.text
-                                          .trim()
-                                          .isNotEmpty,
-                                    )) ...[
+                                    if (_resumePromptPendingFromLifecycle ||
+                                        widget.state.shouldOfferHandsFreeResume(
+                                          speechAvailable:
+                                              speechRecognitionActive,
+                                          transcriptMisses:
+                                              _consecutiveTranscriptMisses,
+                                          autoPaused:
+                                              _autoPausedByTranscriptFailure,
+                                          hasDraftResponse: responseController
+                                              .text
+                                              .trim()
+                                              .isNotEmpty,
+                                        )) ...[
                                       const SizedBox(height: 12),
                                       Container(
                                         width: double.infinity,

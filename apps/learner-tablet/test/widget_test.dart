@@ -179,6 +179,7 @@ void main() {
 
     expect(find.textContaining('left the foreground'), findsWidgets);
     expect(find.textContaining('protect the learner session'), findsWidgets);
+    expect(find.textContaining('resume hands-free automatically'), findsNothing);
 
     pageState.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
