@@ -148,6 +148,43 @@ void main() {
     state.dispose();
   });
 
+  testWidgets('lesson session exposes saved voice playback controls during audio-only review', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+    state.attachLearnerAudioCapture(
+      path: 'https://example.com/audio/fallback-review.m4a',
+      duration: const Duration(seconds: 4),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Review saved voice before advancing'), findsOneWidget);
+    expect(find.text('Play saved voice'), findsWidgets);
+    expect(find.text('Accept saved voice + continue'), findsOneWidget);
+
+    state.dispose();
+  });
+
   testWidgets('lesson session hardens browser/device lifecycle interruptions', (
     tester,
   ) async {

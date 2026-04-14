@@ -9,6 +9,7 @@ import 'app_state.dart';
 import 'audio_capture_service.dart';
 import 'design_shell.dart';
 import 'instructions.dart';
+import 'learner_audio_playback_service.dart';
 import 'models.dart';
 import 'speech_transcription_service.dart';
 import 'theme.dart';
@@ -3056,6 +3057,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     with WidgetsBindingObserver {
   late final TextEditingController responseController;
   late final AudioCaptureService audioCaptureService;
+  late final LearnerAudioPlaybackService learnerAudioPlaybackService;
   late final SpeechTranscriptionService speechTranscriptionService;
   Timer? recordingTicker;
   Timer? _speechAutoStopDebounce;
@@ -3086,6 +3088,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     WidgetsBinding.instance.addObserver(this);
     responseController = TextEditingController();
     audioCaptureService = AudioCaptureService();
+    learnerAudioPlaybackService = LearnerAudioPlaybackService();
     speechTranscriptionService = SpeechTranscriptionService();
 
     final session = widget.state.activeSession;
@@ -3196,6 +3199,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     recordingTicker?.cancel();
     _speechAutoStopDebounce?.cancel();
     speechTranscriptionService.cancel();
+    learnerAudioPlaybackService.dispose();
     audioCaptureService.dispose();
     responseController.dispose();
     super.dispose();
@@ -3337,6 +3341,40 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   String get _reviewBannerBody => _isAudioOnlyReviewState
       ? 'This take was captured in audio-first mode, so Lumo kept the learner recording but could not safely fill the response box automatically on this device.'
       : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
+
+  Future<void> _toggleSavedAudioPlayback() async {
+    final audioPath = widget.state.activeSession?.latestLearnerAudioPath?.trim();
+    if (audioPath == null || audioPath.isEmpty) return;
+
+    try {
+      final isSameSource =
+          learnerAudioPlaybackService.currentSourcePath == audioPath;
+      final wasPlaying =
+          learnerAudioPlaybackService.isPlaying && isSameSource;
+      await learnerAudioPlaybackService.play(audioPath);
+      if (!mounted) return;
+      setState(() {
+        microphoneStatus = wasPlaying
+            ? 'Saved learner audio paused. You can type the answer or resume playback anytime.'
+            : 'Playing the saved learner audio now so you can review the response before advancing.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        microphoneStatus =
+            'Could not play the saved learner audio on this device yet: $error';
+      });
+    }
+  }
+
+  Future<void> _stopSavedAudioPlayback() async {
+    await learnerAudioPlaybackService.stop();
+    if (!mounted) return;
+    setState(() {
+      microphoneStatus =
+          'Saved learner audio stopped. Review the answer, then continue when ready.';
+    });
+  }
 
   Future<void> _speakCurrentStepIfNeeded({bool force = false}) async {
     final session = widget.state.activeSession;
@@ -5051,6 +5089,23 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           ),
                                           if (session.latestLearnerAudioPath !=
                                               null)
+                                            FilledButton.tonalIcon(
+                                              onPressed: _toggleSavedAudioPlayback,
+                                              icon: Icon(
+                                                learnerAudioPlaybackService
+                                                        .isPlaying
+                                                    ? Icons.pause_circle_rounded
+                                                    : Icons.play_circle_fill_rounded,
+                                              ),
+                                              label: Text(
+                                                learnerAudioPlaybackService
+                                                        .isPlaying
+                                                    ? 'Pause saved voice'
+                                                    : 'Play saved voice',
+                                              ),
+                                            ),
+                                          if (session.latestLearnerAudioPath !=
+                                              null)
                                             FilledButton.icon(
                                               onPressed:
                                                   _acceptSavedAudioAndContinue,
@@ -5346,6 +5401,41 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 color: Color(0xFF64748B),
                                                 fontSize: 12,
                                               ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                FilledButton.tonalIcon(
+                                                  onPressed:
+                                                      _toggleSavedAudioPlayback,
+                                                  icon: Icon(
+                                                    learnerAudioPlaybackService
+                                                            .isPlaying
+                                                        ? Icons.pause_circle_rounded
+                                                        : Icons.play_circle_fill_rounded,
+                                                  ),
+                                                  label: Text(
+                                                    learnerAudioPlaybackService
+                                                            .isPlaying
+                                                        ? 'Pause saved voice'
+                                                        : 'Play saved voice',
+                                                  ),
+                                                ),
+                                                if (learnerAudioPlaybackService
+                                                    .isPlaying)
+                                                  OutlinedButton.icon(
+                                                    onPressed:
+                                                        _stopSavedAudioPlayback,
+                                                    icon: const Icon(
+                                                      Icons.stop_circle_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Stop playback',
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
                                           ],
                                         ),
