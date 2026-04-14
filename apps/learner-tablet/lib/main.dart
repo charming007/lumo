@@ -134,20 +134,21 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
     _recoveryLaunchHandled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final recoveredRoute = session.completionState == LessonCompletionState.complete
-          ? MaterialPageRoute(
-              builder: (_) => LessonCompletePage(
-                state: widget.state,
-                lesson: lesson,
-              ),
-            )
-          : MaterialPageRoute(
-              builder: (_) => LessonSessionPage(
-                state: widget.state,
-                lesson: lesson,
-                onChanged: widget.onChanged,
-              ),
-            );
+      final recoveredRoute =
+          session.completionState == LessonCompletionState.complete
+              ? MaterialPageRoute(
+                  builder: (_) => LessonCompletePage(
+                    state: widget.state,
+                    lesson: lesson,
+                  ),
+                )
+              : MaterialPageRoute(
+                  builder: (_) => LessonSessionPage(
+                    state: widget.state,
+                    lesson: lesson,
+                    onChanged: widget.onChanged,
+                  ),
+                );
       Navigator.of(context).push(recoveredRoute);
     });
   }
@@ -1413,9 +1414,9 @@ class LearnerProfilePage extends StatelessWidget {
                                                               SnackBar(
                                                                 content: Text(
                                                                   session.lessonTitle
-                                                                          ?.trim()
-                                                                          .isNotEmpty ==
-                                                                      true
+                                                                              ?.trim()
+                                                                              .isNotEmpty ==
+                                                                          true
                                                                       ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
                                                                       : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.',
                                                                 ),
@@ -1720,7 +1721,8 @@ class SubjectModulesPage extends StatelessWidget {
                             ),
                             child: LayoutBuilder(
                               builder: (context, tileConstraints) {
-                                final compactTile = tileConstraints.maxWidth < 360;
+                                final compactTile =
+                                    tileConstraints.maxWidth < 360;
 
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1752,7 +1754,8 @@ class SubjectModulesPage extends StatelessWidget {
                                           ),
                                           const SizedBox(width: 12),
                                           StatusPill(
-                                            text: '${lesson.steps.length} steps',
+                                            text:
+                                                '${lesson.steps.length} steps',
                                             color: LumoTheme.accentOrange,
                                           ),
                                         ],
@@ -1787,7 +1790,8 @@ class SubjectModulesPage extends StatelessWidget {
                                           Expanded(
                                             child: InfoRow(
                                               label: 'Duration',
-                                              value: '${lesson.durationMinutes} min',
+                                              value:
+                                                  '${lesson.durationMinutes} min',
                                             ),
                                           ),
                                           const SizedBox(width: 12),
@@ -2067,563 +2071,517 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               ResponsivePane(
                 child: DetailCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                  child: LayoutBuilder(
+                    builder: (context, cardConstraints) {
+                      final compactCard = cardConstraints.maxWidth < 560 ||
+                          cardConstraints.maxHeight < 900;
+
+                      final formBody = Column(
                         children: [
-                          OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Cancel'),
+                          TextField(
+                            controller: nameController,
+                            onChanged: (_) => setState(syncDraft),
+                            decoration: const InputDecoration(
+                              labelText: 'Learner name',
+                            ),
                           ),
-                          const Spacer(),
-                          StatusPill(
-                            text: draft.isValid
-                                ? 'Ready to save'
-                                : 'Needs details',
-                            color: draft.isValid
-                                ? LumoTheme.accentGreen
-                                : LumoTheme.accentOrange,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      const SectionTitle(
-                        title: 'Register learner',
-                        subtitle:
-                            'Capture a fast intake, then save the learner profile.',
-                      ),
-                      const SizedBox(height: 18),
-                      _BackendStatusBanner(state: widget.state),
-                      const SizedBox(height: 18),
-                      _ProgressMeter(score: draft.completionScore),
-                      const SizedBox(height: 18),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              TextField(
-                                controller: nameController,
-                                onChanged: (_) => setState(syncDraft),
-                                decoration: const InputDecoration(
-                                  labelText: 'Learner name',
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 720;
+                              final backendCohorts =
+                                  widget.state.registrationContext.cohorts;
+                              final cohortValue =
+                                  cohortController.text.trim().isEmpty
+                                      ? null
+                                      : cohortController.text.trim();
+                              final fields = [
+                                TextField(
+                                  controller: ageController,
+                                  keyboardType: TextInputType.number,
+                                  onChanged: (_) => setState(syncDraft),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Age',
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 720;
-                                  final backendCohorts =
-                                      widget.state.registrationContext.cohorts;
-                                  final cohortValue =
-                                      cohortController.text.trim().isEmpty
-                                          ? null
-                                          : cohortController.text.trim();
-                                  final fields = [
-                                    TextField(
-                                      controller: ageController,
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (_) => setState(syncDraft),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Age',
-                                      ),
-                                    ),
-                                    backendCohorts.isEmpty
-                                        ? TextField(
-                                            controller: cohortController,
-                                            onChanged: (_) =>
-                                                setState(syncDraft),
-                                            decoration: const InputDecoration(
-                                              labelText: 'Cohort',
-                                            ),
-                                          )
-                                        : DropdownButtonFormField<String>(
-                                            initialValue: backendCohorts.any(
-                                              (cohort) =>
-                                                  cohort.name == cohortValue,
-                                            )
-                                                ? cohortValue
-                                                : null,
-                                            items: backendCohorts
-                                                .map(
-                                                  (cohort) => DropdownMenuItem(
-                                                    value: cohort.name,
-                                                    child: Text(cohort.name),
-                                                  ),
-                                                )
-                                                .toList(),
-                                            onChanged: (value) {
-                                              if (value == null) return;
-                                              setState(() {
-                                                cohortController.text = value;
-                                                syncDraft();
-                                              });
-                                            },
-                                            decoration: const InputDecoration(
-                                              labelText: 'Backend cohort',
-                                            ),
-                                          ),
-                                  ];
-
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < fields.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: fields[i],
-                                          ),
-                                          if (i < fields.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Row(
-                                    children: [
-                                      for (var i = 0;
-                                          i < fields.length;
-                                          i++) ...[
-                                        Expanded(child: fields[i]),
-                                        if (i < fields.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              Builder(
-                                builder: (context) {
-                                  final mallams =
-                                      widget.state.registrationContext.mallams;
-                                  final hasSelectedMallam = mallams.any(
-                                    (mallam) => mallam.id == selectedMallamId,
-                                  );
-
-                                  if (mallams.isEmpty) {
-                                    return const SizedBox.shrink();
-                                  }
-
-                                  return DropdownButtonFormField<String>(
-                                    initialValue: hasSelectedMallam
-                                        ? selectedMallamId
-                                        : null,
-                                    items: mallams
-                                        .map(
-                                          (mallam) => DropdownMenuItem(
-                                            value: mallam.id,
-                                            child: Text(mallam.name),
-                                          ),
+                                backendCohorts.isEmpty
+                                    ? TextField(
+                                        controller: cohortController,
+                                        onChanged: (_) => setState(syncDraft),
+                                        decoration: const InputDecoration(
+                                          labelText: 'Cohort',
+                                        ),
+                                      )
+                                    : DropdownButtonFormField<String>(
+                                        isExpanded: true,
+                                        initialValue: backendCohorts.any(
+                                          (cohort) =>
+                                              cohort.name == cohortValue,
                                         )
-                                        .toList(),
-                                    onChanged: (value) {
-                                      if (value == null) return;
-                                      setState(() {
-                                        selectedMallamId = value;
-                                        syncDraft();
-                                      });
-                                    },
-                                    decoration: const InputDecoration(
-                                      labelText: 'Assign mallam',
-                                      helperText:
-                                          'Choose the mallam responsible for this learner.',
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: guardianController,
-                                onChanged: (_) => setState(syncDraft),
-                                decoration: const InputDecoration(
-                                  labelText: 'Caregiver / facilitator name',
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 720;
-                                  final fields = [
-                                    DropdownButtonFormField<String>(
-                                      initialValue: caregiverRelationship,
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'Mother',
-                                          child: Text('Mother'),
+                                            ? cohortValue
+                                            : null,
+                                        items: backendCohorts
+                                            .map(
+                                              (cohort) => DropdownMenuItem(
+                                                value: cohort.name,
+                                                child: Text(cohort.name),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (value == null) return;
+                                          setState(() {
+                                            cohortController.text = value;
+                                            syncDraft();
+                                          });
+                                        },
+                                        decoration: const InputDecoration(
+                                          labelText: 'Backend cohort',
                                         ),
-                                        DropdownMenuItem(
-                                          value: 'Father',
-                                          child: Text('Father'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Aunt',
-                                          child: Text('Aunt'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Uncle',
-                                          child: Text('Uncle'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Guardian',
-                                          child: Text('Guardian'),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value == null) return;
-                                        setState(() {
-                                          caregiverRelationship = value;
-                                          syncDraft();
-                                        });
-                                      },
-                                      decoration: const InputDecoration(
-                                        labelText: 'Relationship',
                                       ),
-                                    ),
-                                    TextField(
-                                      controller: guardianPhoneController,
-                                      keyboardType: TextInputType.phone,
-                                      onChanged: (_) => setState(syncDraft),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Guardian phone',
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < fields.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: fields[i],
                                       ),
-                                    ),
-                                  ];
-
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < fields.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: fields[i],
-                                          ),
-                                          if (i < fields.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Row(
-                                    children: [
-                                      for (var i = 0;
-                                          i < fields.length;
-                                          i++) ...[
-                                        Expanded(child: fields[i]),
-                                        if (i < fields.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
+                                      if (i < fields.length - 1)
+                                        const SizedBox(height: 12),
                                     ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: villageController,
-                                onChanged: (_) => setState(syncDraft),
-                                decoration: const InputDecoration(
-                                  labelText: 'Village / area',
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 720;
-                                  final fields = [
-                                    DropdownButtonFormField<String>(
-                                      initialValue: sex,
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'Boy',
-                                          child: Text('Boy'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Girl',
-                                          child: Text('Girl'),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value == null) return;
-                                        setState(() {
-                                          sex = value;
-                                          syncDraft();
-                                        });
-                                      },
-                                      decoration: const InputDecoration(
-                                        labelText: 'Sex',
-                                      ),
-                                    ),
-                                    DropdownButtonFormField<String>(
-                                      initialValue: baselineLevel,
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'No prior exposure',
-                                          child: Text('No prior exposure'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Can repeat with support',
-                                          child:
-                                              Text('Can repeat with support'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Answers with short sentences',
-                                          child: Text(
-                                            'Answers with short sentences',
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value == null) return;
-                                        setState(() {
-                                          baselineLevel = value;
-                                          syncDraft();
-                                        });
-                                      },
-                                      decoration: const InputDecoration(
-                                        labelText: 'Baseline',
-                                      ),
-                                    ),
-                                  ];
+                                  ],
+                                );
+                              }
 
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < fields.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: fields[i],
-                                          ),
-                                          if (i < fields.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Row(
-                                    children: [
-                                      for (var i = 0;
-                                          i < fields.length;
-                                          i++) ...[
-                                        Expanded(child: fields[i]),
-                                        if (i < fields.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: preferredLanguage,
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'Hausa',
-                                    child: Text('Hausa'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'Hausa + English',
-                                    child: Text('Hausa + English'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'English',
-                                    child: Text('English'),
-                                  ),
+                              return Row(
+                                children: [
+                                  for (var i = 0; i < fields.length; i++) ...[
+                                    Expanded(child: fields[i]),
+                                    if (i < fields.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
                                 ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Builder(
+                            builder: (context) {
+                              final mallams =
+                                  widget.state.registrationContext.mallams;
+                              final hasSelectedMallam = mallams.any(
+                                (mallam) => mallam.id == selectedMallamId,
+                              );
+
+                              if (mallams.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue:
+                                    hasSelectedMallam ? selectedMallamId : null,
+                                items: mallams
+                                    .map(
+                                      (mallam) => DropdownMenuItem(
+                                        value: mallam.id,
+                                        child: Text(mallam.name),
+                                      ),
+                                    )
+                                    .toList(),
                                 onChanged: (value) {
                                   if (value == null) return;
                                   setState(() {
-                                    preferredLanguage = value;
+                                    selectedMallamId = value;
                                     syncDraft();
                                   });
                                 },
                                 decoration: const InputDecoration(
-                                  labelText: 'Preferred language',
+                                  labelText: 'Assign mallam',
+                                  helperText:
+                                      'Choose the mallam responsible for this learner.',
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: readinessLabel,
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'Voice-first beginner',
-                                    child: Text('Voice-first beginner'),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: guardianController,
+                            onChanged: (_) => setState(syncDraft),
+                            decoration: const InputDecoration(
+                              labelText: 'Caregiver / facilitator name',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 720;
+                              final fields = [
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: caregiverRelationship,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'Mother',
+                                      child: Text('Mother'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Father',
+                                      child: Text('Father'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Aunt',
+                                      child: Text('Aunt'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Uncle',
+                                      child: Text('Uncle'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Guardian',
+                                      child: Text('Guardian'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      caregiverRelationship = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Relationship',
                                   ),
-                                  DropdownMenuItem(
-                                    value: 'Ready for guided practice',
-                                    child: Text('Ready for guided practice'),
+                                ),
+                                TextField(
+                                  controller: guardianPhoneController,
+                                  keyboardType: TextInputType.phone,
+                                  onChanged: (_) => setState(syncDraft),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Guardian phone',
                                   ),
-                                  DropdownMenuItem(
-                                    value: 'Confident responder',
-                                    child: Text('Confident responder'),
-                                  ),
+                                ),
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < fields.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: fields[i],
+                                      ),
+                                      if (i < fields.length - 1)
+                                        const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  for (var i = 0; i < fields.length; i++) ...[
+                                    Expanded(child: fields[i]),
+                                    if (i < fields.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
                                 ],
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() {
-                                    readinessLabel = value;
-                                    syncDraft();
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  labelText: 'Readiness level',
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: villageController,
+                            onChanged: (_) => setState(syncDraft),
+                            decoration: const InputDecoration(
+                              labelText: 'Village / area',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 720;
+                              final fields = [
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: sex,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'Boy',
+                                      child: Text('Boy'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Girl',
+                                      child: Text('Girl'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      sex = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Sex',
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: supportPlanController,
-                                maxLines: 3,
-                                onChanged: (_) => setState(syncDraft),
-                                decoration: const InputDecoration(
-                                  labelText: 'Support plan for first lessons',
-                                  hintText:
-                                      'Use short prompts, pause for think time, and praise every clear answer.',
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              CheckboxListTile(
-                                contentPadding: EdgeInsets.zero,
-                                value: consentCaptured,
-                                onChanged: (value) {
-                                  setState(() {
-                                    consentCaptured = value ?? false;
-                                    syncDraft();
-                                  });
-                                },
-                                title: const Text(
-                                  'Consent captured for learner profile and voice session',
-                                ),
-                                subtitle: const Text(
-                                  'Required before save and backend sync.',
-                                ),
-                                controlAffinity:
-                                    ListTileControlAffinity.leading,
-                              ),
-                              const SizedBox(height: 8),
-                              _RegistrationReadinessStrip(draft: draft),
-                              const SizedBox(height: 18),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 760;
-                                  final panels = [
-                                    SoftPanel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Placement snapshot',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          InfoRow(
-                                            label: 'Learner code',
-                                            value: draft.learnerCode,
-                                          ),
-                                          InfoRow(
-                                            label: 'Language',
-                                            value: preferredLanguage,
-                                          ),
-                                          InfoRow(
-                                            label: 'Readiness',
-                                            value: readinessLabel,
-                                          ),
-                                          InfoRow(
-                                            label: 'Recommended start',
-                                            value: recommendedModule.title,
-                                          ),
-                                        ],
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: baselineLevel,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'No prior exposure',
+                                      child: Text('No prior exposure'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Can repeat with support',
+                                      child: Text('Can repeat with support'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Answers with short sentences',
+                                      child: Text(
+                                        'Answers with short sentences',
                                       ),
                                     ),
-                                    SoftPanel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Backend readiness',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          InfoRow(
-                                            label: 'Missing before save',
-                                            value: draft.missingFields.isEmpty
-                                                ? 'Nothing blocking this intake'
-                                                : draft.missingFields
-                                                    .join(', '),
-                                          ),
-                                          InfoRow(
-                                            label: 'Backend target',
-                                            value: widget.state
-                                                .registrationTargetSummary,
-                                          ),
-                                          if (registrationTarget != null)
-                                            InfoRow(
-                                              label: 'Assigned pod',
-                                              value: registrationTarget
-                                                  .cohort.podId,
-                                            ),
-                                          if (registrationTarget != null)
-                                            InfoRow(
-                                              label: 'Assigned mallam',
-                                              value: registrationTarget
-                                                  .mallam.name,
-                                            ),
-                                        ],
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      baselineLevel = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Baseline',
+                                  ),
+                                ),
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < fields.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: fields[i],
                                       ),
-                                    ),
-                                  ];
+                                      if (i < fields.length - 1)
+                                        const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                );
+                              }
 
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < panels.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: panels[i],
-                                          ),
-                                          if (i < panels.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Row(
+                              return Row(
+                                children: [
+                                  for (var i = 0; i < fields.length; i++) ...[
+                                    Expanded(child: fields[i]),
+                                    if (i < fields.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: preferredLanguage,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Hausa',
+                                child: Text('Hausa'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Hausa + English',
+                                child: Text('Hausa + English'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'English',
+                                child: Text('English'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() {
+                                preferredLanguage = value;
+                                syncDraft();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Preferred language',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: readinessLabel,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Voice-first beginner',
+                                child: Text('Voice-first beginner'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Ready for guided practice',
+                                child: Text('Ready for guided practice'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Confident responder',
+                                child: Text('Confident responder'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() {
+                                readinessLabel = value;
+                                syncDraft();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Readiness level',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: supportPlanController,
+                            maxLines: 3,
+                            onChanged: (_) => setState(syncDraft),
+                            decoration: const InputDecoration(
+                              labelText: 'Support plan for first lessons',
+                              hintText:
+                                  'Use short prompts, pause for think time, and praise every clear answer.',
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            value: consentCaptured,
+                            onChanged: (value) {
+                              setState(() {
+                                consentCaptured = value ?? false;
+                                syncDraft();
+                              });
+                            },
+                            title: const Text(
+                              'Consent captured for learner profile and voice session',
+                            ),
+                            subtitle: const Text(
+                              'Required before save and backend sync.',
+                            ),
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                          const SizedBox(height: 8),
+                          _RegistrationReadinessStrip(draft: draft),
+                          const SizedBox(height: 18),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 760;
+                              final panels = [
+                                SoftPanel(
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      for (var i = 0;
-                                          i < panels.length;
-                                          i++) ...[
-                                        Expanded(child: panels[i]),
-                                        if (i < panels.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
+                                      const Text(
+                                        'Placement snapshot',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      InfoRow(
+                                        label: 'Learner code',
+                                        value: draft.learnerCode,
+                                      ),
+                                      InfoRow(
+                                        label: 'Language',
+                                        value: preferredLanguage,
+                                      ),
+                                      InfoRow(
+                                        label: 'Readiness',
+                                        value: readinessLabel,
+                                      ),
+                                      InfoRow(
+                                        label: 'Recommended start',
+                                        value: recommendedModule.title,
+                                      ),
                                     ],
-                                  );
-                                },
-                              ),
-                            ],
+                                  ),
+                                ),
+                                SoftPanel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Backend readiness',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      InfoRow(
+                                        label: 'Missing before save',
+                                        value: draft.missingFields.isEmpty
+                                            ? 'Nothing blocking this intake'
+                                            : draft.missingFields.join(', '),
+                                      ),
+                                      InfoRow(
+                                        label: 'Backend target',
+                                        value: widget
+                                            .state.registrationTargetSummary,
+                                      ),
+                                      if (registrationTarget != null)
+                                        InfoRow(
+                                          label: 'Assigned pod',
+                                          value:
+                                              registrationTarget.cohort.podId,
+                                        ),
+                                      if (registrationTarget != null)
+                                        InfoRow(
+                                          label: 'Assigned mallam',
+                                          value: registrationTarget.mallam.name,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < panels.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: panels[i],
+                                      ),
+                                      if (i < panels.length - 1)
+                                        const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  for (var i = 0; i < panels.length; i++) ...[
+                                    Expanded(child: panels[i]),
+                                    if (i < panels.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
+                                ],
+                              );
+                            },
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
+                        ],
+                      );
+
+                      final saveButton = SizedBox(
                         width: double.infinity,
                         child: FilledButton(
                           onPressed: draft.isValid &&
@@ -2650,8 +2608,93 @@ class _RegisterPageState extends State<RegisterPage> {
                               ? 'Saving learner...'
                               : 'Save learner'),
                         ),
-                      ),
-                    ],
+                      );
+
+                      if (compactCard) {
+                        return SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  StatusPill(
+                                    text: draft.isValid
+                                        ? 'Ready to save'
+                                        : 'Needs details',
+                                    color: draft.isValid
+                                        ? LumoTheme.accentGreen
+                                        : LumoTheme.accentOrange,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              const SectionTitle(
+                                title: 'Register learner',
+                                subtitle:
+                                    'Capture a fast intake, then save the learner profile.',
+                              ),
+                              const SizedBox(height: 18),
+                              _BackendStatusBanner(state: widget.state),
+                              const SizedBox(height: 18),
+                              _ProgressMeter(score: draft.completionScore),
+                              const SizedBox(height: 18),
+                              formBody,
+                              const SizedBox(height: 18),
+                              saveButton,
+                            ],
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Cancel'),
+                              ),
+                              const Spacer(),
+                              StatusPill(
+                                text: draft.isValid
+                                    ? 'Ready to save'
+                                    : 'Needs details',
+                                color: draft.isValid
+                                    ? LumoTheme.accentGreen
+                                    : LumoTheme.accentOrange,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          const SectionTitle(
+                            title: 'Register learner',
+                            subtitle:
+                                'Capture a fast intake, then save the learner profile.',
+                          ),
+                          const SizedBox(height: 18),
+                          _BackendStatusBanner(state: widget.state),
+                          const SizedBox(height: 18),
+                          _ProgressMeter(score: draft.completionScore),
+                          const SizedBox(height: 18),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: formBody,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          saveButton,
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -2831,7 +2874,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final state = widget.state;
     final lesson = widget.lesson;
     final resumeLearner = _resumeLearner;
-    final resumeMissingLearner = widget.resumeFrom != null && resumeLearner == null;
+    final resumeMissingLearner =
+        widget.resumeFrom != null && resumeLearner == null;
 
     return Scaffold(
       body: SafeArea(
@@ -2842,8 +2886,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
               constraints: const BoxConstraints(maxWidth: 1320),
               child: LayoutBuilder(
                 builder: (context, viewportConstraints) {
-                  final useCompactLayout =
-                      viewportConstraints.maxWidth < 760 ||
+                  final useCompactLayout = viewportConstraints.maxWidth < 760 ||
                       viewportConstraints.maxHeight < 900;
 
                   Widget buildLearnerGrid({required bool shrinkWrap}) {
@@ -2930,7 +2973,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           physics: shrinkWrap
                               ? const NeverScrollableScrollPhysics()
                               : null,
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: crossAxisCount,
                             mainAxisSpacing: 12,
                             crossAxisSpacing: 12,
@@ -2994,7 +3038,9 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     ),
                     const SizedBox(height: 20),
                     SectionTitle(
-                      title: _resumeLocksLearner ? 'Resume learner' : 'Choose learner',
+                      title: _resumeLocksLearner
+                          ? 'Resume learner'
+                          : 'Choose learner',
                       subtitle: _resumeLocksLearner
                           ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
                           : 'Pick who is taking ${lesson.title}, then confirm to begin.',
@@ -3595,14 +3641,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
 
   Future<void> _toggleSavedAudioPlayback() async {
-    final audioPath = widget.state.activeSession?.latestLearnerAudioPath?.trim();
+    final audioPath =
+        widget.state.activeSession?.latestLearnerAudioPath?.trim();
     if (audioPath == null || audioPath.isEmpty) return;
 
     try {
       final isSameSource =
           learnerAudioPlaybackService.currentSourcePath == audioPath;
-      final wasPlaying =
-          learnerAudioPlaybackService.isPlaying && isSameSource;
+      final wasPlaying = learnerAudioPlaybackService.isPlaying && isSameSource;
       await learnerAudioPlaybackService.play(audioPath);
       if (!mounted) return;
       setState(() {
@@ -3810,7 +3856,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
   }
 
-  Widget _buildChoicePreview(LessonActivityChoice choice, String fallbackEmoji) {
+  Widget _buildChoicePreview(
+      LessonActivityChoice choice, String fallbackEmoji) {
     final mediaKind = choice.mediaKind?.trim().toLowerCase();
     final mediaValue = choice.mediaValue?.trim();
 
@@ -5443,12 +5490,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           if (session.latestLearnerAudioPath !=
                                               null)
                                             FilledButton.tonalIcon(
-                                              onPressed: _toggleSavedAudioPlayback,
+                                              onPressed:
+                                                  _toggleSavedAudioPlayback,
                                               icon: Icon(
                                                 learnerAudioPlaybackService
                                                         .isPlaying
                                                     ? Icons.pause_circle_rounded
-                                                    : Icons.play_circle_fill_rounded,
+                                                    : Icons
+                                                        .play_circle_fill_rounded,
                                               ),
                                               label: Text(
                                                 learnerAudioPlaybackService
@@ -5766,8 +5815,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                   icon: Icon(
                                                     learnerAudioPlaybackService
                                                             .isPlaying
-                                                        ? Icons.pause_circle_rounded
-                                                        : Icons.play_circle_fill_rounded,
+                                                        ? Icons
+                                                            .pause_circle_rounded
+                                                        : Icons
+                                                            .play_circle_fill_rounded,
                                                   ),
                                                   label: Text(
                                                     learnerAudioPlaybackService
@@ -6421,9 +6472,8 @@ class _RosterFreshnessBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFallback = state.usingFallbackData;
     final color = isFallback ? LumoTheme.accentOrange : LumoTheme.accentGreen;
-    final icon = isFallback
-        ? Icons.warning_amber_rounded
-        : Icons.update_rounded;
+    final icon =
+        isFallback ? Icons.warning_amber_rounded : Icons.update_rounded;
 
     return Container(
       width: double.infinity,

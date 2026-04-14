@@ -56,7 +56,8 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('reopens the completion page when a finished lesson is restored', (
+  testWidgets('reopens the completion page when a finished lesson is restored',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1600, 1500);
@@ -146,7 +147,8 @@ void main() {
     expect(find.textContaining('leaderboard'), findsWidgets);
   });
 
-  testWidgets('student list marks locally registered learners as sync pending', (
+  testWidgets('student list marks locally registered learners as sync pending',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 1280);
@@ -200,7 +202,22 @@ void main() {
     expect(find.text('Consent'), findsOneWidget);
   });
 
-  testWidgets('registration success page stays usable on narrow tablet widths', (
+  testWidgets('registration flow stays usable on narrow tablet widths', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(540, 960));
+
+    await tester.tap(find.text('Register'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Register learner'), findsOneWidget);
+    expect(find.text('Save learner'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsWidgets);
+  });
+
+  testWidgets('registration success page stays usable on narrow tablet widths',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(540, 960);
@@ -315,7 +332,8 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('resume launch setup locks the original learner from backend session', (
+  testWidgets(
+      'resume launch setup locks the original learner from backend session', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 1280);
@@ -367,7 +385,10 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Resume learner'), findsOneWidget);
-    expect(find.textContaining('${learner.name} is locked for this resume session.'), findsOneWidget);
+    expect(
+        find.textContaining(
+            '${learner.name} is locked for this resume session.'),
+        findsOneWidget);
     expect(find.text('Resume with ${learner.name}'), findsOneWidget);
 
     await tester.tap(find.text(otherLearner.name).first);
@@ -379,7 +400,9 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('lesson session exposes saved voice playback controls during audio-only review', (
+  testWidgets(
+      'lesson session exposes saved voice playback controls during audio-only review',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 1280);
@@ -447,7 +470,8 @@ void main() {
 
     expect(find.textContaining('left the foreground'), findsWidgets);
     expect(find.textContaining('protect the learner session'), findsWidgets);
-    expect(find.textContaining('resume hands-free automatically'), findsNothing);
+    expect(
+        find.textContaining('resume hands-free automatically'), findsNothing);
 
     pageState.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
