@@ -1,3 +1,4 @@
+import { assessmentMatchesModule } from './module-assessment-match';
 import type { Assessment, CurriculumModule, Lesson, Strand, Subject } from './types';
 
 export type CurriculumCanvasLesson = {
@@ -8,6 +9,8 @@ export type CurriculumCanvasLesson = {
   mode: string;
   assessmentTitle?: string | null;
   assessmentId?: string | null;
+  activityCount?: number;
+  objectiveCount?: number;
 };
 
 export type CurriculumCanvasModule = {
@@ -20,6 +23,10 @@ export type CurriculumCanvasModule = {
   gapCount: number;
   lessons: CurriculumCanvasLesson[];
   assessments: Assessment[];
+  coverageLabel: string;
+  assessmentCoverageLabel: string;
+  blockerSummary: string;
+  provenance: 'live' | 'rescue' | 'blended';
 };
 
 export type CurriculumCanvasStrand = {
@@ -78,6 +85,8 @@ export type CurriculumCanvasApiNode = {
   triggerLabel?: string | null;
   progressionGate?: string | null;
   passingScore?: number | null;
+  learningObjectives?: string[] | null;
+  activityCount?: number | null;
   children?: CurriculumCanvasApiNode[];
 };
 
@@ -93,6 +102,14 @@ export type CurriculumCanvasApiTree = {
   };
 };
 
+type IndexedTreeModule = {
+  subjectId?: string | null;
+  subjectName?: string | null;
+  strandId?: string | null;
+  strandName?: string | null;
+  module: CurriculumCanvasApiNode;
+};
+
 function sortByOrder<T extends { order?: number | null; name?: string | null; title?: string | null }>(items: T[]) {
   return [...items].sort((left, right) => {
     const orderDelta = (left.order ?? 999) - (right.order ?? 999);
@@ -101,15 +118,30 @@ function sortByOrder<T extends { order?: number | null; name?: string | null; ti
   });
 }
 
-function lessonSubjectMatches(lesson: Lesson, subject: Subject, module?: CurriculumModule) {
-  return lesson.subjectId === subject.id || lesson.subjectName === subject.name || module?.subjectId === subject.id || module?.subjectName === subject.name;
+function normalize(value?: string | null) {
+  return value?.trim().toLowerCase() ?? '';
 }
 
-function assessmentMatchesLesson(assessment: Assessment, lesson: Lesson, module?: CurriculumModule) {
-  return assessment.moduleId === lesson.moduleId
-    || assessment.moduleTitle === lesson.moduleTitle
+function matchesLooseIdOrName(leftId?: string | null, rightId?: string | null, leftName?: string | null, rightName?: string | null) {
+  if (leftId && rightId) return leftId === rightId;
+  const normalizedLeft = normalize(leftName);
+  const normalizedRight = normalize(rightName);
+  return Boolean(normalizedLeft) && normalizedLeft === normalizedRight;
+}
+
+function lessonSubjectMatches(lesson: Lesson, subject: Subject, module?: CurriculumModule) {
+  return matchesLooseIdOrName(lesson.subjectId, subject.id, lesson.subjectName, subject.name)
+    || matchesLooseIdOrName(module?.subjectId, subject.id, module?.subjectName, subject.name);
+}
+
+function lessonMatchesModule(lesson: Lesson, module: CurriculumModule) {
+  return matchesLooseIdOrName(lesson.moduleId, module.id, lesson.moduleTitle, module.title);
+}
+
+function assessmentMatchesLesson(assessment: Assessment, lesson: CurriculumCanvasLesson, module?: CurriculumModule) {
+  return matchesLooseIdOrName(assessment.moduleId, lesson.id, assessment.moduleTitle, lesson.title)
     || assessment.moduleId === module?.id
-    || assessment.moduleTitle === module?.title;
+    || normalize(assessment.moduleTitle) === normalize(module?.title);
 }
 
 function normalizeAssessmentFromNode(node: CurriculumCanvasApiNode): Assessment {
@@ -126,6 +158,51 @@ function normalizeAssessmentFromNode(node: CurriculumCanvasApiNode): Assessment 
     subjectName: node.subjectName ?? '',
     moduleTitle: node.moduleTitle ?? '',
     status: node.status ?? 'draft',
+  };
+}
+
+function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessments: Assessment[], module?: CurriculumModule): CurriculumCanvasLesson {
+  const rawTitle = 'name' in lesson ? (lesson.title ?? lesson.name) : lesson.title;
+  const title = rawTitle ?? 'Untitled lesson';
+  const linkedAssessment = moduleAssessments.find((assessment) => {
+    if ('moduleId' in lesson && lesson.moduleId && assessment.moduleId === lesson.moduleId) return true;
+    if ('moduleTitle' in lesson && lesson.moduleTitle && normalize(assessment.moduleTitle) === normalize(lesson.moduleTitle)) return true;
+    return normalize(assessment.title).includes(normalize(title)) || normalize(title).includes(normalize(assessment.title));
+  }) ?? null;
+
+  return {
+    id: lesson.id,
+    title,
+    status: lesson.status ?? 'draft',
+    durationMinutes: ('durationMinutes' in lesson ? lesson.durationMinutes : 0) ?? 0,
+    mode: ('mode' in lesson ? lesson.mode : 'guided') ?? 'guided',
+    assessmentTitle: linkedAssessment?.title ?? null,
+    assessmentId: linkedAssessment?.id ?? null,
+    activityCount: ('activityCount' in lesson ? lesson.activityCount : undefined) ?? undefined,
+    objectiveCount: ('learningObjectives' in lesson ? lesson.learningObjectives?.length : 'learningObjectives' in lesson ? lesson.learningObjectives?.length : undefined) ?? ('learningObjectives' in lesson && Array.isArray(lesson.learningObjectives) ? lesson.learningObjectives.length : undefined) ?? ('activityCount' in lesson ? undefined : undefined),
+  };
+}
+
+function summarizeModule(expectedLessonCount: number, lessonNodes: CurriculumCanvasLesson[], moduleAssessments: Assessment[]) {
+  const readyLessons = lessonNodes.filter((lesson) => ['approved', 'published', 'active'].includes(normalize(lesson.status))).length;
+  const missingLessons = Math.max(expectedLessonCount - lessonNodes.length, 0);
+  const lessonsMissingGate = lessonNodes.filter((lesson) => !lesson.assessmentId).length;
+  const missingAssessments = moduleAssessments.length ? 0 : 1;
+  const gapCount = missingLessons + Math.max(expectedLessonCount - readyLessons, 0) + missingAssessments;
+
+  const blockerParts = [
+    missingLessons ? `${missingLessons} lesson slot${missingLessons === 1 ? '' : 's'} still empty` : null,
+    readyLessons < expectedLessonCount ? `${expectedLessonCount - readyLessons} lesson${expectedLessonCount - readyLessons === 1 ? '' : 's'} not release-ready` : null,
+    missingAssessments ? 'assessment gate missing' : null,
+    !missingAssessments && lessonsMissingGate ? `${lessonsMissingGate} lesson${lessonsMissingGate === 1 ? '' : 's'} not linked to a gate` : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return {
+    readyLessons,
+    gapCount,
+    coverageLabel: `${lessonNodes.length}/${expectedLessonCount} lesson nodes mapped`,
+    assessmentCoverageLabel: moduleAssessments.length ? `${moduleAssessments.length} gate${moduleAssessments.length === 1 ? '' : 's'} attached` : 'No assessment gate attached',
+    blockerSummary: blockerParts.length ? blockerParts.join(' · ') : 'Release-ready with visible lessons and an assessment gate',
   };
 }
 
@@ -165,73 +242,139 @@ function finalizeCanvasSubjects(subjects: CurriculumCanvasSubject[]): Curriculum
   };
 }
 
+function indexTreeModules(tree: CurriculumCanvasApiTree | null | undefined) {
+  const modulesById = new Map<string, IndexedTreeModule>();
+  const modules = tree?.root?.children?.flatMap((subjectNode) => {
+    if (subjectNode.nodeType !== 'subject') return [] as IndexedTreeModule[];
+    return (subjectNode.children ?? []).flatMap((strandNode) => {
+      if (strandNode.nodeType !== 'strand') return [] as IndexedTreeModule[];
+      return (strandNode.children ?? [])
+        .filter((moduleNode) => moduleNode.nodeType === 'module')
+        .map((moduleNode) => ({
+          subjectId: subjectNode.id,
+          subjectName: subjectNode.name ?? subjectNode.title,
+          strandId: strandNode.id,
+          strandName: strandNode.name ?? strandNode.title,
+          module: moduleNode,
+        }));
+    });
+  }) ?? [];
+
+  modules.forEach((entry) => {
+    modulesById.set(entry.module.id, entry);
+  });
+
+  return {
+    modules,
+    modulesById,
+    find(module: CurriculumModule, strand?: Strand) {
+      const direct = modulesById.get(module.id);
+      if (direct) return direct;
+      return modules.find((entry) => {
+        if (normalize(entry.module.title ?? entry.module.name) !== normalize(module.title)) return false;
+        const subjectMatch = matchesLooseIdOrName(entry.subjectId, module.subjectId, entry.subjectName, module.subjectName);
+        const strandMatch = strand ? matchesLooseIdOrName(entry.strandId, module.strandId ?? strand.id, entry.strandName, module.strandName || strand.name) : true;
+        return subjectMatch && strandMatch;
+      }) ?? null;
+    },
+  };
+}
+
+function buildModuleNode({
+  module,
+  subject,
+  lessons,
+  assessments,
+  rescueModule,
+}: {
+  module: CurriculumModule;
+  subject: Subject;
+  lessons: Lesson[];
+  assessments: Assessment[];
+  rescueModule?: IndexedTreeModule | null;
+}): CurriculumCanvasModule {
+  const rescueChildren = rescueModule?.module.children ?? [];
+  const rescueLessons = rescueChildren.filter((node) => node.nodeType === 'lesson');
+  const rescueAssessments = rescueChildren.filter((node) => node.nodeType === 'assessment').map(normalizeAssessmentFromNode);
+
+  const liveAssessments = assessments
+    .filter((assessment) => assessmentMatchesModule(module, assessment))
+    .sort((left, right) => left.title.localeCompare(right.title));
+
+  const moduleAssessments = liveAssessments.length ? liveAssessments : rescueAssessments;
+
+  const liveLessons = lessons
+    .filter((lesson) => lessonMatchesModule(lesson, module) && lessonSubjectMatches(lesson, subject, module))
+    .sort((left, right) => left.title.localeCompare(right.title));
+
+  const lessonNodes = liveLessons.length
+    ? liveLessons.map((lesson) => buildLessonNode(lesson, moduleAssessments, module))
+    : rescueLessons.map((lessonNode) => buildLessonNode(lessonNode, moduleAssessments, module));
+
+  const expectedLessonCount = Math.max(module.lessonCount, rescueModule?.module.lessonCount ?? 0, lessonNodes.length);
+  const moduleSummary = summarizeModule(expectedLessonCount, lessonNodes, moduleAssessments);
+  const provenance: CurriculumCanvasModule['provenance'] = liveLessons.length && liveAssessments.length
+    ? 'live'
+    : lessonNodes.length || moduleAssessments.length
+      ? 'blended'
+      : 'rescue';
+
+  return {
+    id: module.id,
+    title: module.title,
+    status: module.status,
+    level: module.level,
+    lessonCount: expectedLessonCount,
+    readyLessons: moduleSummary.readyLessons,
+    gapCount: moduleSummary.gapCount,
+    lessons: lessonNodes,
+    assessments: moduleAssessments,
+    coverageLabel: moduleSummary.coverageLabel,
+    assessmentCoverageLabel: moduleSummary.assessmentCoverageLabel,
+    blockerSummary: moduleSummary.blockerSummary,
+    provenance,
+  };
+}
+
 export function buildCurriculumCanvasData({
   subjects,
   strands,
   modules,
   lessons,
   assessments,
+  tree,
 }: {
   subjects: Subject[];
   strands: Strand[];
   modules: CurriculumModule[];
   lessons: Lesson[];
   assessments: Assessment[];
+  tree?: CurriculumCanvasApiTree | null;
 }): CurriculumCanvasData {
   const orderedSubjects = sortByOrder(subjects);
   const orderedStrands = sortByOrder(strands);
+  const treeIndex = indexTreeModules(tree);
 
   const canvasSubjects: CurriculumCanvasSubject[] = orderedSubjects
     .map((subject): CurriculumCanvasSubject | null => {
-      const subjectStrands = orderedStrands.filter((strand) => strand.subjectId === subject.id || strand.subjectName === subject.name);
+      const subjectStrands = orderedStrands.filter((strand) => matchesLooseIdOrName(strand.subjectId, subject.id, strand.subjectName, subject.name));
 
       const strandNodes: CurriculumCanvasStrand[] = subjectStrands.map((strand) => {
         const strandModules = modules
           .filter((module) => {
-            const subjectMatches = module.subjectId === subject.id || module.subjectName === subject.name;
-            const strandMatches = module.strandId === strand.id || module.strandName === strand.name;
+            const subjectMatches = matchesLooseIdOrName(module.subjectId, subject.id, module.subjectName, subject.name);
+            const strandMatches = matchesLooseIdOrName(module.strandId, strand.id, module.strandName, strand.name);
             return subjectMatches && strandMatches;
           })
           .sort((left, right) => left.title.localeCompare(right.title));
 
-        const moduleNodes = strandModules.map((module) => {
-          const moduleLessons = lessons
-            .filter((lesson) => (lesson.moduleId === module.id || lesson.moduleTitle === module.title) && lessonSubjectMatches(lesson, subject, module))
-            .sort((left, right) => left.title.localeCompare(right.title));
-
-          const moduleAssessments = assessments
-            .filter((assessment) => assessment.moduleId === module.id || assessment.moduleTitle === module.title)
-            .sort((left, right) => left.title.localeCompare(right.title));
-
-          const lessonNodes = moduleLessons.map((lesson) => {
-            const lessonAssessment = moduleAssessments.find((assessment) => assessmentMatchesLesson(assessment, lesson, module)) ?? null;
-            return {
-              id: lesson.id,
-              title: lesson.title,
-              status: lesson.status,
-              durationMinutes: lesson.durationMinutes,
-              mode: lesson.mode,
-              assessmentTitle: lessonAssessment?.title ?? null,
-              assessmentId: lessonAssessment?.id ?? null,
-            } satisfies CurriculumCanvasLesson;
-          });
-
-          const expectedLessonCount = Math.max(module.lessonCount, lessonNodes.length);
-          const readyLessons = lessonNodes.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-          const gapCount = Math.max(expectedLessonCount - readyLessons, 0) + (moduleAssessments.length ? 0 : 1);
-
-          return {
-            id: module.id,
-            title: module.title,
-            status: module.status,
-            level: module.level,
-            lessonCount: expectedLessonCount,
-            readyLessons,
-            gapCount,
-            lessons: lessonNodes,
-            assessments: moduleAssessments,
-          } satisfies CurriculumCanvasModule;
-        });
+        const moduleNodes = strandModules.map((module) => buildModuleNode({
+          module,
+          subject,
+          lessons,
+          assessments,
+          rescueModule: treeIndex.find(module, strand),
+        }));
 
         return {
           id: strand.id,
@@ -242,7 +385,7 @@ export function buildCurriculumCanvasData({
 
       const fallbackModules = modules
         .filter((module) => {
-          const subjectMatches = module.subjectId === subject.id || module.subjectName === subject.name;
+          const subjectMatches = matchesLooseIdOrName(module.subjectId, subject.id, module.subjectName, subject.name);
           if (!subjectMatches) return false;
           return !strandNodes.some((strand) => strand.modules.some((strandModule) => strandModule.id === module.id));
         })
@@ -254,44 +397,13 @@ export function buildCurriculumCanvasData({
         fallbackModules.forEach((module) => {
           const strandName = module.strandName?.trim() || 'General lane';
           const existing = fallbackStrands.get(strandName) ?? [];
-
-          const moduleLessons = lessons
-            .filter((lesson) => (lesson.moduleId === module.id || lesson.moduleTitle === module.title) && lessonSubjectMatches(lesson, subject, module))
-            .sort((left, right) => left.title.localeCompare(right.title));
-
-          const moduleAssessments = assessments
-            .filter((assessment) => assessment.moduleId === module.id || assessment.moduleTitle === module.title)
-            .sort((left, right) => left.title.localeCompare(right.title));
-
-          const lessonNodes = moduleLessons.map((lesson) => {
-            const lessonAssessment = moduleAssessments.find((assessment) => assessmentMatchesLesson(assessment, lesson, module)) ?? null;
-            return {
-              id: lesson.id,
-              title: lesson.title,
-              status: lesson.status,
-              durationMinutes: lesson.durationMinutes,
-              mode: lesson.mode,
-              assessmentTitle: lessonAssessment?.title ?? null,
-              assessmentId: lessonAssessment?.id ?? null,
-            } satisfies CurriculumCanvasLesson;
-          });
-
-          const expectedLessonCount = Math.max(module.lessonCount, lessonNodes.length);
-          const readyLessons = lessonNodes.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-          const gapCount = Math.max(expectedLessonCount - readyLessons, 0) + (moduleAssessments.length ? 0 : 1);
-
-          existing.push({
-            id: module.id,
-            title: module.title,
-            status: module.status,
-            level: module.level,
-            lessonCount: expectedLessonCount,
-            readyLessons,
-            gapCount,
-            lessons: lessonNodes,
-            assessments: moduleAssessments,
-          } satisfies CurriculumCanvasModule);
-
+          existing.push(buildModuleNode({
+            module,
+            subject,
+            lessons,
+            assessments,
+            rescueModule: treeIndex.find(module),
+          }));
           fallbackStrands.set(strandName, existing);
         });
 
@@ -301,7 +413,7 @@ export function buildCurriculumCanvasData({
             strandNodes.push({
               id: `fallback-${subject.id}-${index}`,
               name,
-              modules: groupedModules as CurriculumCanvasModule[],
+              modules: groupedModules,
             } satisfies CurriculumCanvasStrand);
           });
       }
@@ -333,23 +445,9 @@ export function buildCurriculumCanvasDataFromTree(tree: CurriculumCanvasApiTree 
             const lessonNodes = sortByOrder(moduleNode.children ?? []).filter((node) => node.nodeType === 'lesson');
             const assessmentNodes = sortByOrder(moduleNode.children ?? []).filter((node) => node.nodeType === 'assessment');
             const assessments = assessmentNodes.map(normalizeAssessmentFromNode);
-
-            const lessons = lessonNodes.map((lessonNode) => {
-              const linkedAssessment = assessments.find((assessment) => assessment.moduleId === lessonNode.moduleId || assessment.moduleTitle === lessonNode.moduleTitle) ?? null;
-              return {
-                id: lessonNode.id,
-                title: lessonNode.title ?? lessonNode.name ?? 'Untitled lesson',
-                status: lessonNode.status ?? 'draft',
-                durationMinutes: lessonNode.durationMinutes ?? 0,
-                mode: lessonNode.mode ?? 'guided',
-                assessmentTitle: linkedAssessment?.title ?? null,
-                assessmentId: linkedAssessment?.id ?? null,
-              } satisfies CurriculumCanvasLesson;
-            });
-
+            const lessons = lessonNodes.map((lessonNode) => buildLessonNode(lessonNode, assessments));
             const expectedLessonCount = Math.max(moduleNode.lessonCount ?? 0, lessons.length);
-            const readyLessons = lessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-            const gapCount = Math.max(expectedLessonCount - readyLessons, 0) + (assessments.length ? 0 : 1);
+            const moduleSummary = summarizeModule(expectedLessonCount, lessons, assessments);
 
             return {
               id: moduleNode.id,
@@ -357,10 +455,14 @@ export function buildCurriculumCanvasDataFromTree(tree: CurriculumCanvasApiTree 
               status: moduleNode.status ?? 'draft',
               level: moduleNode.level ?? 'unassigned',
               lessonCount: expectedLessonCount,
-              readyLessons,
-              gapCount,
+              readyLessons: moduleSummary.readyLessons,
+              gapCount: moduleSummary.gapCount,
               lessons,
               assessments,
+              coverageLabel: moduleSummary.coverageLabel,
+              assessmentCoverageLabel: moduleSummary.assessmentCoverageLabel,
+              blockerSummary: moduleSummary.blockerSummary,
+              provenance: 'rescue',
             } satisfies CurriculumCanvasModule;
           });
 
