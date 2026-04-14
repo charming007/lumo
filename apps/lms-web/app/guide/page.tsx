@@ -63,6 +63,7 @@ const sectionLinks = [
   ['system-flow', 'How content, delivery, progress, and rewards connect'],
   ['lesson-studio', 'Lesson Studio'],
   ['interactive-authoring', 'Interactive / option-based lesson tutorial'],
+  ['qa-uat-guide', 'MVP QA / UAT guide'],
   ['workflow', 'Recommended workflow'],
   ['guardrails', 'UI guardrails'],
   ['printable-guide', 'Printable handbook'],
@@ -99,6 +100,9 @@ export default function GuidePage() {
           </Link>
           <a href="/LMS_DASHBOARD_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
             Open printable HTML guide
+          </a>
+          <a href="/LMS_ADMIN_VIDEO_TUTORIAL_PACK.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+            Open video tutorial pack
           </a>
         </div>
       }
@@ -373,7 +377,12 @@ choice-3|Go to school|wrong|image|school.png`}</pre>
         <div id="printable-guide">
           <Card title="Printable handbook" eyebrow="Shareable artifact">
             <div style={{ color: '#64748b', marginBottom: 14, lineHeight: 1.6 }}>
-              The full printable handbook is embedded below and also available as a standalone HTML file. The static file now tracks the same reporting and mallam-ops guidance as the live route instead of drifting off into stale demo-land.
+              The full printable handbook is embedded below and also available as a standalone HTML file. The static file now tracks the same reporting and mallam-ops guidance as the live route instead of drifting off into stale demo-land. There is also a separate printable admin video tutorial pack for recording or operator onboarding.
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <a href="/LMS_ADMIN_VIDEO_TUTORIAL_PACK.html" target="_blank" rel="noreferrer" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+                Open the admin video tutorial pack →
+              </a>
             </div>
             <iframe
               src="/LMS_DASHBOARD_GUIDE.html"

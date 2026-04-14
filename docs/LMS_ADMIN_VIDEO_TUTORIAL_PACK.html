@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumo LMS Admin Video Tutorial Pack</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --brand: #4f46e5;
+      --brand-soft: #eef2ff;
+      --good: #166534;
+      --good-bg: #dcfce7;
+      --warn: #92400e;
+      --warn-bg: #fef3c7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 260px);
+      color: var(--ink);
+    }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 48px 20px 80px; }
+    .hero, .card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06); }
+    .hero { padding: 32px; display: grid; gap: 18px; }
+    .eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brand); font-weight: 800; }
+    h1, h2, h3 { margin: 0; }
+    p, li { color: var(--muted); line-height: 1.7; }
+    .grid { display: grid; gap: 16px; }
+    .two { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .cards { margin-top: 24px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .card { padding: 24px; }
+    .pill { display: inline-block; padding: 8px 12px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-weight: 800; font-size: 12px; }
+    .good { background: var(--good-bg); color: var(--good); }
+    .warn { background: var(--warn-bg); color: var(--warn); }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    pre { margin: 0; padding: 16px; border-radius: 18px; background: #0f172a; color: #e2e8f0; overflow: auto; line-height: 1.7; white-space: pre-wrap; }
+    a { color: var(--brand); text-decoration: none; }
+    .section { margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Recording-ready training package</div>
+      <h1>Lumo LMS Admin Video Tutorial Pack</h1>
+      <p>This is the practical production pack for recording admin training on the Lumo LMS. It covers the actual surfaces that exist now: dashboard flow, Content Library, English Studio, Lesson Studio, and mallam/learner operations.</p>
+      <div class="grid two">
+        <div class="card" style="padding:20px;">
+          <div class="pill">What’s included</div>
+          <ul>
+            <li>Series outline and recommended viewing order</li>
+            <li>Per-video scripts and narration copy</li>
+            <li>Chapter timestamps and run-of-show structure</li>
+            <li>Shot lists for screen recording</li>
+            <li>Companion production checklist</li>
+          </ul>
+        </div>
+        <div class="card" style="padding:20px;">
+          <div class="pill good">Use this when</div>
+          <ul>
+            <li>You need to onboard LMS admins fast</li>
+            <li>You need training assets before final videos are recorded</li>
+            <li>You want consistent recordings that match the current product</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card">
+      <div class="eyebrow">Series overview</div>
+      <h2>Recommended tutorial series</h2>
+      <table>
+        <thead>
+          <tr><th>Video</th><th>Title</th><th>Audience</th><th>Length</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>LMS admin orientation and system flow</td><td>New admins and ops leads</td><td>9-11 min</td></tr>
+          <tr><td>2</td><td>Content Library and curriculum operations</td><td>Content ops and curriculum teams</td><td>11-13 min</td></tr>
+          <tr><td>3</td><td>English Studio and fast lesson authoring</td><td>English content teams</td><td>10-12 min</td></tr>
+          <tr><td>4</td><td>Lesson Studio for interactive and option-based lessons</td><td>Advanced lesson authors</td><td>14-16 min</td></tr>
+          <tr><td>5</td><td>Managing mallams, learners, and delivery follow-up</td><td>Ops managers and center leads</td><td>10-12 min</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="cards">
+      <article class="card">
+        <div class="pill">Video 1</div>
+        <h3 style="margin-top:12px;">Orientation and system flow</h3>
+        <p>Explains the route map and the end-to-end loop: structure, authoring, assignment, learner runtime, progress, rewards, and reporting.</p>
+        <pre>00:00 What this LMS is for
+00:45 Main navigation and route map
+02:00 Dashboard as the operational cockpit
+03:20 Content Library as the curriculum spine
+05:45 Assignments, learner runtime, and feedback loop</pre>
+      </article>
+      <article class="card">
+        <div class="pill">Video 2</div>
+        <h3 style="margin-top:12px;">Content Library and curriculum ops</h3>
+        <p>Shows how to manage the curriculum spine properly and use release blockers before treating a module as ready.</p>
+        <pre>00:00 Why Content Library matters
+00:40 The curriculum hierarchy
+03:20 Module cards and statuses
+06:30 Assessment gates
+08:10 Release blockers and release tracker</pre>
+      </article>
+      <article class="card">
+        <div class="pill">Video 3</div>
+        <h3 style="margin-top:12px;">English Studio authoring</h3>
+        <p>Covers English-specific blueprinting, presets, objectives, vocabulary, localization, and readiness checks.</p>
+        <pre>00:00 Why English Studio exists
+02:15 Starting from a preset
+05:00 Objective, vocabulary, and localization
+06:20 Assessment link and readiness checks
+07:30 Editing the activity spine</pre>
+      </article>
+      <article class="card">
+        <div class="pill warn">Video 4</div>
+        <h3 style="margin-top:12px;">Lesson Studio interactive authoring</h3>
+        <p>The dense one. Covers step sequencing, choices, expected answers, media cues, assessment items, and publish blockers.</p>
+        <pre>00:00 When to use Lesson Studio
+06:50 Activity spine overview
+08:10 Adding interactive steps
+10:00 Choices, expected answers, and media cues
+12:15 Readiness blockers and publish safety</pre>
+      </article>
+      <article class="card">
+        <div class="pill">Video 5</div>
+        <h3 style="margin-top:12px;">Mallam and learner operations</h3>
+        <p>Shows roster management, learner assignment, operator pressure, attendance signals, and follow-up through progress and reports.</p>
+        <pre>00:00 Why mallam and learner ops matter
+03:40 Adding a learner to a mallam
+05:00 Reassigning or removing a learner
+07:30 Progress and reward follow-up
+08:50 Reports and escalation logic</pre>
+      </article>
+      <article class="card">
+        <div class="pill good">Production notes</div>
+        <h3 style="margin-top:12px;">How to turn this into real video fast</h3>
+        <ul>
+          <li>Record in chapters, not one giant take</li>
+          <li>Use the per-video shot lists instead of improvising</li>
+          <li>Export this file and the dashboard guide as PDFs for non-video sharing</li>
+          <li>Re-record chapters if the UI changed; don’t fake it with vague narration</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section card">
+      <div class="eyebrow">Interactive lesson authoring reference</div>
+      <h2>Important recording insert for Video 4</h2>
+      <p>Use this on screen when demonstrating choice-based lesson steps.</p>
+      <pre>choice-1|Go to the market|correct|image|market.png
+choice-2|Go to sleep|wrong|image|sleep.png
+choice-3|Go to school|wrong|image|school.png</pre>
+      <p style="margin-top:16px;">And this for media cues:</p>
+      <pre>image|market.png
+audio|prompt-1.mp3</pre>
+    </section>
+
+    <section class="section card">
+      <div class="eyebrow">Source files</div>
+      <h2>Markdown source for maintainable updates</h2>
+      <ul>
+        <li><code>docs/lms-admin-video-tutorials/README.md</code></li>
+        <li><code>docs/lms-admin-video-tutorials/01-lms-admin-orientation.md</code></li>
+        <li><code>docs/lms-admin-video-tutorials/02-content-library-and-curriculum-ops.md</code></li>
+        <li><code>docs/lms-admin-video-tutorials/03-english-studio-authoring.md</code></li>
+        <li><code>docs/lms-admin-video-tutorials/04-lesson-studio-interactive-lessons.md</code></li>
+        <li><code>docs/lms-admin-video-tutorials/05-mallam-and-learner-operations.md</code></li>
+        <li><code>docs/lms-admin-video-tutorials/production-checklist.md</code></li>
+      </ul>
+      <p>Pair this with <code>docs/LMS_DASHBOARD_GUIDE.html</code> for a fuller admin onboarding packet.</p>
+    </section>
+  </div>
+</body>
+</html>

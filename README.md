@@ -34,6 +34,8 @@ Scaffold + planning phase.
 
 - `docs/LMS_DASHBOARD_GUIDE.md` — maintainable source guide for LMS/admin onboarding
 - `docs/LMS_DASHBOARD_GUIDE.html` — print/export-friendly visual handbook for download or PDF export
+- `docs/lms-admin-video-tutorials/README.md` — recording-ready LMS admin video training pack
+- `docs/LMS_ADMIN_VIDEO_TUTORIAL_PACK.html` — printable/shareable companion index for the tutorial series
 
 ## Next milestones
 
