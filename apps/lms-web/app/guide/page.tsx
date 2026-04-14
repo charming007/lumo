@@ -66,6 +66,7 @@ const sectionLinks = [
   ['interactive-authoring', 'Interactive / option-based lesson tutorial'],
   ['qa-uat-guide', 'MVP QA / UAT guide'],
   ['fallback-catalog', 'Fallback / failure mode catalog'],
+  ['data-map', 'LMS data map'],
   ['workflow', 'Recommended workflow'],
   ['guardrails', 'UI guardrails'],
   ['printable-guide', 'Printable handbook'],
@@ -108,6 +109,9 @@ export default function GuidePage() {
           </a>
           <a href="/LMS_FALLBACK_FAILURE_CATALOG.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none', border: '1px solid #FED7AA' }}>
             Open fallback catalog
+          </a>
+          <a href="/LMS_DATA_MAP.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', border: '1px solid #C7D2FE' }}>
+            Open data map
           </a>
           <a href="/LMS_DASHBOARD_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
             Open printable HTML guide
@@ -451,6 +455,26 @@ choice-3|Go to school|wrong|image|school.png`}</pre>
               title="Lumo LMS fallback and failure catalog"
               style={{ width: '100%', minHeight: '72vh', border: '1px solid #e2e8f0', borderRadius: 20, background: 'white', marginBottom: 18 }}
             />
+          </Card>
+        </div>
+
+        <div id="data-map">
+          <Card title="LMS data map" eyebrow="Where the data actually comes from">
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div style={{ color: '#64748b', lineHeight: 1.7 }}>
+                Use the data map when product, QA, or engineering needs the blunt answer to: which LMS values are live backend facts, which ones are learner-runtime driven upstream, which are derived in the UI, and which are still seeded metadata, static guidance, or graceful fallback.
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <a href="/LMS_DATA_MAP.html" target="_blank" rel="noreferrer" style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
+                  Open data map →
+                </a>
+              </div>
+              <iframe
+                src="/LMS_DATA_MAP.html"
+                title="Lumo LMS data map"
+                style={{ width: '100%', minHeight: '72vh', border: '1px solid #e2e8f0', borderRadius: 20, background: 'white' }}
+              />
+            </div>
           </Card>
         </div>
 

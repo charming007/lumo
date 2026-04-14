@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lumo LMS Data Map</title>
+  <style>
+    :root { --bg:#f8fafc; --card:#ffffff; --text:#0f172a; --muted:#475569; --line:#e2e8f0; --accent:#4f46e5; --accent-soft:#eef2ff; --green:#166534; --green-soft:#ecfdf5; --amber:#9a3412; --amber-soft:#fff7ed; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:16px/1.7 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:var(--bg); color:var(--text); }
+    .wrap { max-width:1100px; margin:0 auto; padding:32px 20px 64px; }
+    header { margin-bottom:24px; }
+    .hero { background:linear-gradient(135deg,#0f172a,#312e81); color:#fff; border-radius:28px; padding:28px; box-shadow:0 20px 50px rgba(15,23,42,.16); }
+    .hero p { color:rgba(255,255,255,.86); margin:10px 0 0; }
+    .meta { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+    .pill { display:inline-block; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.16); color:#fff; font-weight:700; font-size:14px; }
+    .layout { display:grid; grid-template-columns:280px 1fr; gap:20px; align-items:start; }
+    nav { position:sticky; top:20px; background:var(--card); border:1px solid var(--line); border-radius:24px; padding:18px; box-shadow:0 10px 30px rgba(15,23,42,.05); }
+    nav h2 { margin:0 0 10px; font-size:14px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+    nav a { display:block; padding:8px 10px; border-radius:12px; text-decoration:none; color:var(--muted); font-weight:600; }
+    nav a:hover { background:var(--accent-soft); color:var(--accent); }
+    article { background:var(--card); border:1px solid var(--line); border-radius:28px; padding:28px; box-shadow:0 10px 30px rgba(15,23,42,.05); }
+    h1,h2,h3 { line-height:1.2; }
+    h1 { margin:0; font-size:40px; }
+    h2 { margin-top:34px; padding-top:10px; font-size:28px; border-top:1px solid var(--line); }
+    h3 { margin-top:24px; font-size:20px; color:#1e293b; }
+    p, li { color:var(--muted); }
+    pre { background:#0f172a; color:#e2e8f0; padding:16px; border-radius:18px; overflow:auto; white-space:pre-wrap; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    ul,ol { padding-left:22px; }
+    .callout { margin:18px 0; padding:16px 18px; border-radius:18px; background:var(--amber-soft); border:1px solid #fed7aa; color:var(--amber); font-weight:700; }
+    @media (max-width: 920px) { .layout { grid-template-columns:1fr; } nav { position:static; } h1 { font-size:32px; } article { padding:22px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>Lumo LMS Data Map</h1>
+      <p>What the LMS shows, section by section, and where each datum comes from: live APIs, learner-app runtime/sync, UI rollups, seeded metadata, static guidance, or explicit fallback.</p>
+      <div class="meta">
+        <span class="pill">Updated 2026-04-14</span>
+        <span class="pill">Product + engineering reference</span>
+        <span class="pill">Readable HTML export</span>
+      </div>
+    </header>
+    <div class="layout">
+      <nav>
+        <h2>Jump to section</h2>
+        <a href="#1-reading-this-map">How to read this map</a>
+        <a href="#2-system-wide-data-lineage-at-a-glance">System-wide lineage</a>
+        <a href="#3-1-dashboard">Dashboard</a>
+        <a href="#3-2-learners-students">Learners</a>
+        <a href="#3-3-learner-detail-students-id">Learner detail</a>
+        <a href="#3-4-mallams-mallams">Mallams</a>
+        <a href="#3-6-content-library-content">Content Library</a>
+        <a href="#3-7-english-studio-english">English Studio</a>
+        <a href="#3-9-assignments-assignments">Assignments</a>
+        <a href="#3-12-progress-progress">Progress</a>
+        <a href="#3-13-rewards-progression-rewards">Rewards</a>
+        <a href="#3-14-reports-reports">Reports</a>
+        <a href="#3-15-settings-ops-settings">Settings / Ops</a>
+        <a href="#4-what-is-clearly-live-today-vs-synthetic-vs-placeholder">Live vs synthetic</a>
+        <a href="#5-gaps-ambiguities-and-places-to-tighten-next">Gaps and next tightening</a>
+        <a href="#7-bottom-line">Bottom line</a>
+      </nav>
+      <article>
+        <div class="callout">Use this document when someone asks the annoying-but-important question: “is that real data, derived UI logic, seeded demo material, or just static copy?”</div>
+        <h1 id="lumo-lms-data-map">Lumo LMS Data Map</h1>
+<p>_Last updated: 2026-04-14_</p>
+<p>A clean map of **what data the LMS currently shows**, organized by surface, with an explicit note on **where each datum comes from today** or **where it is clearly intended to come from**.</p>
+<p>**Audience:** product, engineering, curriculum ops, implementation leads, QA, and anyone trying to separate live system truth from seeded/demo scaffolding.</p>
+<p>**Companion docs:**</p>
+<ul>
+<li>`docs/LMS_DASHBOARD_GUIDE.md` / `.html` — operator-facing walkthrough</li>
+<li>`docs/LMS_FALLBACK_FAILURE_CATALOG.md` / `.html` — degraded/offline/failure behaviors</li>
+<li>`docs/LUMO_MVP_QA_UAT_GUIDE.md` / `.html` — structured test flows</li>
+</ul>
+<p>---</p>
+<h2 id="1-reading-this-map">1) Reading this map</h2>
+<p>Each item below is tagged with one or more source labels.</p>
+<h3 id="source-labels-used-in-this-document">Source labels used in this document</h3>
+<ul>
+<li>**Live backend API** — fetched directly by the LMS from API endpoints under `/api/v1/...`</li>
+<li>**Learner-app runtime / sync** — data ultimately produced by the learner tablet app bootstrap, session, registration, or sync-event flows, then surfaced back through LMS/reporting APIs</li>
+<li>**Derived rollup in LMS UI** — calculated in the web app from already-fetched records</li>
+<li>**Derived rollup in backend/report API** — calculated by backend reporting/dashboard endpoints before the LMS receives it</li>
+<li>**Seeded / demo / environment metadata** — seeded records or environment/meta summaries intended for pilot/demo/bootstrap visibility</li>
+<li>**Static guidance text** — explanatory copy, labels, operator hints, and UX help text hardcoded in the LMS</li>
+<li>**Placeholder / graceful fallback** — explicit empty-state, degraded-mode, or backup values shown when feeds fail or are absent</li>
+</ul>
+<h3 id="core-live-lms-feeds-referenced-across-surfaces">Core live LMS feeds referenced across surfaces</h3>
+<p>The LMS web app fetches the following primary feeds from `apps/lms-web/lib/api.ts`:</p>
+<ul>
+<li>`/api/v1/meta`</li>
+<li>`/api/v1/dashboard/summary`</li>
+<li>`/api/v1/dashboard/insights`</li>
+<li>`/api/v1/dashboard/workboard`</li>
+<li>`/api/v1/students`</li>
+<li>`/api/v1/students/:id`</li>
+<li>`/api/v1/mallams`</li>
+<li>`/api/v1/mallams/:id`</li>
+<li>`/api/v1/attendance`</li>
+<li>`/api/v1/assignments`</li>
+<li>`/api/v1/curriculum/modules`</li>
+<li>`/api/v1/lessons`</li>
+<li>`/api/v1/lessons/:id`</li>
+<li>`/api/v1/subjects`</li>
+<li>`/api/v1/strands`</li>
+<li>`/api/v1/assessments`</li>
+<li>`/api/v1/pods`</li>
+<li>`/api/v1/progress`</li>
+<li>`/api/v1/cohorts`</li>
+<li>`/api/v1/centers`</li>
+<li>`/api/v1/rewards/catalog`</li>
+<li>`/api/v1/rewards/leaderboard`</li>
+<li>`/api/v1/rewards/requests`</li>
+<li>`/api/v1/reports/overview`</li>
+<li>`/api/v1/reports/rewards`</li>
+<li>`/api/v1/reports/operations`</li>
+<li>`/api/v1/reports/ngo-summary`</li>
+<li>`/api/v1/admin/storage/status`</li>
+<li>`/api/v1/admin/storage/integrity`</li>
+<li>`/api/v1/admin/storage/backups`</li>
+</ul>
+<h3 id="learner-app-signals-that-matter-upstream">Learner app signals that matter upstream</h3>
+<p>The learner tablet app currently talks to these backend contracts from `apps/learner-tablet/lib/api_client.dart`:</p>
+<ul>
+<li>`/api/v1/learner-app/bootstrap`</li>
+<li>`/api/v1/learner-app/learners`</li>
+<li>`/api/v1/learner-app/modules/:id`</li>
+<li>`/api/v1/learner-app/sessions`</li>
+<li>`/api/v1/learner-app/sync`</li>
+</ul>
+<p>That means some LMS reporting/runtime surfaces are not authored inside the LMS itself; they are **downstream views of learner-app behavior**, especially around sessions, sync, completion, and operational reporting.</p>
+<p>---</p>
+<h2 id="2-system-wide-data-lineage-at-a-glance">2) System-wide data lineage at a glance</h2>
+<h3 id="curriculum-release-spine">Curriculum + release spine</h3>
+<p>**Subjects → Strands → Modules → Lessons → Assessment gates**</p>
+<ul>
+<li>**Current source:** Live backend APIs</li>
+<li>**LMS feeds:** `/subjects`, `/strands`, `/curriculum/modules`, `/lessons`, `/assessments`</li>
+<li>**Used in:** Content Library, English Studio, Dashboard blocker views, Assignments, Progress capture, Reports</li>
+</ul>
+<h3 id="delivery-roster-spine">Delivery + roster spine</h3>
+<p>**Learners / cohorts / pods / mallams / centers / assignments**</p>
+<ul>
+<li>**Current source:** Live backend APIs</li>
+<li>**LMS feeds:** `/students`, `/cohorts`, `/pods`, `/mallams`, `/centers`, `/assignments`</li>
+<li>**Used in:** Dashboard, Learners, Mallams, Assignments, Rewards filters, Reports, Progress filters</li>
+</ul>
+<h3 id="runtime-progression-spine">Runtime + progression spine</h3>
+<p>**Progress / workboard / runtime reporting / sync health / reward operations**</p>
+<ul>
+<li>**Current source:** Mixed</li>
+<p>- live backend APIs - backend rollups - learner-app runtime/sync inputs upstream of those rollups</p>
+<li>**LMS feeds:** `/progress`, `/dashboard/workboard`, `/reports/operations`, `/reports/rewards`, `/reports/ngo-summary`, `/dashboard/summary`</li>
+<li>**Used in:** Dashboard, Learners, Progress, Rewards, Reports, Settings</li>
+</ul>
+<h3 id="environment-admin-ops-spine">Environment + admin ops spine</h3>
+<p>**Meta / storage mode / backups / integrity / seed summary**</p>
+<ul>
+<li>**Current source:** Live admin APIs plus seeded/environment metadata</li>
+<li>**LMS feeds:** `/meta`, `/admin/storage/status`, `/admin/storage/integrity`, `/admin/storage/backups`</li>
+<li>**Used in:** Settings</li>
+</ul>
+<p>---</p>
+<h2 id="3-surface-by-surface-data-map">3) Surface-by-surface data map</h2>
+<h2 id="3-1-dashboard">3.1 Dashboard (`/`)</h2>
+<h3 id="kpi-strip">KPI strip</h3>
+<ul>
+<li>**Active learners**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+<li>**Mallams**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+<li>**Active pods**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+<li>**Ready to progress**</li>
+<p>- **Source:** Live backend API, likely backed by learner progression/runtime state - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+<li>**Assignments live**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+<li>**Assessments live**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+<li>**Lessons completed**</li>
+<p>- **Source:** Live backend API, likely downstream of learner progress/runtime - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+<li>**Sync success**</li>
+<p>- **Source:** Live backend API, likely downstream of learner-app sync events - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+</ul>
+<h3 id="operations-pulse-card">Operations pulse card</h3>
+<ul>
+<li>**Centers live**</li>
+<li>**Assignments running**</li>
+<li>**Assessment gates active**</li>
+<li>**Learners ready for progression**</li>
+<p>- **Source:** same summary feed as above - **Feed:** `/api/v1/dashboard/summary` - **Type:** Derived rollup in backend/report API</p>
+</ul>
+<h3 id="leadership-cues">Leadership cues</h3>
+<ul>
+<li>**Priority**</li>
+<li>**Headline**</li>
+<li>**Detail**</li>
+<li>**Metric**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/dashboard/insights` - **Type:** Derived narrative/priority objects produced in backend</p>
+<li>**Fallback insight card**</li>
+<p>- **Source:** Placeholder / graceful fallback - **When shown:** insights feed unavailable or empty</p>
+</ul>
+<h3 id="live-assignments-table">Live assignments table</h3>
+<ul>
+<li>**Lesson**</li>
+<li>**Cohort**</li>
+<li>**Pod**</li>
+<li>**Assessment**</li>
+<li>**Due**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/assignments` - **Type:** Mostly direct records, rendered as-is</p>
+<li>**Empty/degraded table messages**</li>
+<p>- **Source:** Placeholder / graceful fallback</p>
+</ul>
+<h3 id="escalations-to-clear">Escalations to clear</h3>
+<ul>
+<li>**At-risk learners** based on attendance under 85%</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feeds:** `/api/v1/students` - **Logic in LMS:** filters learners where `attendanceRate &lt; 0.85`</p>
+<li>**Training / non-active mallams**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/mallams` - **Logic in LMS:** filters mallams where `status !== active`</p>
+</ul>
+<h3 id="learner-workboard">Learner workboard</h3>
+<ul>
+<li>**Learner**</li>
+<li>**Mallam**</li>
+<li>**Cohort**</li>
+<li>**Attendance**</li>
+<li>**Mastery**</li>
+<li>**Focus area**</li>
+<li>**Progression status**</li>
+<li>**Recommended next module**</li>
+<p>- **Source:** Live backend API, with likely learner-runtime influence upstream - **Feed:** `/api/v1/dashboard/workboard` - **Type:** Derived rollup in backend/report API</p>
+</ul>
+<h3 id="content-release-blockers-on-dashboard">Content release blockers on dashboard</h3>
+<ul>
+<li>**Modules publish-ready**</li>
+<li>**Modules blocked**</li>
+<li>**Missing lesson gaps**</li>
+<li>**Missing assessment gates**</li>
+<li>**Top blocker rows per module**</li>
+<p>- **Source:** Live backend APIs + Derived rollup in LMS UI - **Feeds:** `/api/v1/curriculum/modules`, `/api/v1/lessons`, `/api/v1/assessments`, `/api/v1/subjects` - **Logic in LMS:** compares module lesson target counts to approved/published lessons and checks whether an assessment gate exists</p>
+</ul>
+<h3 id="static-dashboard-only-text">Static/dashboard-only text</h3>
+<ul>
+<li>Section subtitles, guidance copy, degradation warnings, release-risk labels, and call-to-action wording</li>
+<p>- **Source:** Static guidance text</p>
+</ul>
+<p>---</p>
+<h2 id="3-2-learners-students">3.2 Learners (`/students`)</h2>
+<h3 id="top-summary-cards">Top summary cards</h3>
+<ul>
+<li>**Learners live**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/students`</p>
+<li>**Below attendance comfort zone**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/students` - **Logic:** attendance under 85%</p>
+<li>**Ready to progress**</li>
+<li>**Watchlist**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/dashboard/workboard`</p>
+</ul>
+<h3 id="learner-roster-table">Learner roster table</h3>
+<ul>
+<li>**Learner name**</li>
+<li>**Cohort**</li>
+<li>**Mallam**</li>
+<li>**Pod**</li>
+<li>**Attendance**</li>
+<li>**Level / stage**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/students`</p>
+<li>**Edit/create form options**</li>
+<p>- **Source:** Live backend APIs - **Feeds:** `/api/v1/cohorts`, `/api/v1/pods`, `/api/v1/mallams`</p>
+<li>**Add learner unavailable warning**</li>
+<p>- **Source:** Placeholder / graceful fallback</p>
+</ul>
+<h3 id="learner-support-queue">Learner support queue</h3>
+<ul>
+<li>**Learner**</li>
+<li>**Focus area**</li>
+<li>**Attendance**</li>
+<li>**Mastery**</li>
+<li>**Progression**</li>
+<li>**Next module**</li>
+<p>- **Source:** Live backend API, likely downstream of runtime/progression logic - **Feed:** `/api/v1/dashboard/workboard` - **Type:** Derived rollup in backend/report API</p>
+</ul>
+<p>---</p>
+<h2 id="3-3-learner-detail-students-id">3.3 Learner detail (`/students/:id`)</h2>
+<h3 id="learner-snapshot">Learner snapshot</h3>
+<ul>
+<li>**Cohort**</li>
+<li>**Mallam**</li>
+<li>**Pod**</li>
+<li>**Guardian**</li>
+<li>**Device**</li>
+<li>**Stage**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/students/:id`</p>
+</ul>
+<h3 id="intervention-summary">Intervention summary</h3>
+<ul>
+<li>**Attendance**</li>
+<li>**Latest mastery**</li>
+<li>**Active assignments**</li>
+<li>**Recommended actions**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/students/:id` - **Type:** Mixed direct detail + backend-derived recommendations</p>
+</ul>
+<h3 id="progress-timeline">Progress timeline</h3>
+<ul>
+<li>**Subject**</li>
+<li>**Module**</li>
+<li>**Mastery**</li>
+<li>**Lessons completed**</li>
+<li>**Progression**</li>
+<li>**Next module**</li>
+<p>- **Source:** Live backend API, likely partially informed by learner-app completion/session sync upstream - **Feed:** `/api/v1/students/:id`</p>
+</ul>
+<h3 id="mallam-assignment-controls">Mallam assignment controls</h3>
+<ul>
+<li>**Available mallam choices**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/mallams`</p>
+<li>**If hidden/failing**</li>
+<p>- **Source:** Placeholder / graceful fallback</p>
+</ul>
+<h3 id="observation-form-support-notes">Observation form / support notes</h3>
+<ul>
+<li>**Intended source/destination:** Live backend write path for learner observations</li>
+<li>**Currently shown data:** observation history from `/api/v1/students/:id`</li>
+<li>**Type:** Live backend API</li>
+</ul>
+<h3 id="attendance-history">Attendance history</h3>
+<ul>
+<li>**Date**</li>
+<li>**Status**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/students/:id` - **Likely lineage:** could be facilitator/LMS capture and/or learner-runtime attendance capture depending on backend implementation</p>
+</ul>
+<h3 id="active-delivery">Active delivery</h3>
+<ul>
+<li>**Assignments for learner**</li>
+<li>**Observation history**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/students/:id`</p>
+</ul>
+<p>---</p>
+<h2 id="3-4-mallams-mallams">3.4 Mallams (`/mallams`)</h2>
+<h3 id="filters">Filters</h3>
+<ul>
+<li>**Center options**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/centers`</p>
+<li>**Pod options**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/pods`</p>
+<li>**Status / certification values**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/mallams` - **Logic:** certification list is built from values present in mallam records</p>
+</ul>
+<h3 id="deployment-coverage-card">Deployment coverage card</h3>
+<ul>
+<li>**Mallams in scope**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/mallams`</p>
+<li>**Rostered learners**</li>
+<li>**Avg learner attendance**</li>
+<li>**Watchlist learners**</li>
+<p>- **Source:** Live backend APIs + Derived rollup in LMS UI - **Feeds:** `/api/v1/mallams`, `/api/v1/students`</p>
+</ul>
+<h3 id="readiness-posture-card">Readiness posture card</h3>
+<ul>
+<li>**Active now**</li>
+<li>**Still in training**</li>
+<li>**On leave**</li>
+<li>**Pods covered**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feeds:** `/api/v1/mallams`</p>
+</ul>
+<h3 id="intervention-queue">Intervention queue</h3>
+<ul>
+<li>**Pressure score**</li>
+<li>**Rostered learners**</li>
+<li>**At-risk learners**</li>
+<li>**Average attendance**</li>
+<li>**Deployment status**</li>
+<p>- **Source:** Live backend APIs + Derived rollup in LMS UI - **Feeds:** `/api/v1/mallams`, `/api/v1/students` - **Logic:** pressure ranking combines at-risk learners, training status, and roster size</p>
+</ul>
+<h3 id="deployment-roster-tabular-roster-coverage-watchlist">Deployment roster / tabular roster / coverage watchlist</h3>
+<ul>
+<li>**Name**</li>
+<li>**Center / region**</li>
+<li>**Pod labels**</li>
+<li>**Roster size**</li>
+<li>**Average attendance**</li>
+<li>**At-risk learners**</li>
+<li>**Certification**</li>
+<li>**Role**</li>
+<li>**Languages**</li>
+<li>**Status**</li>
+<p>- **Source:** Mixed live direct + LMS UI rollups - **Feeds:** `/api/v1/mallams`, `/api/v1/students`, `/api/v1/centers`, `/api/v1/pods`</p>
+</ul>
+<h3 id="static-guidance">Static guidance</h3>
+<ul>
+<li>Pressure-ranking explanation and “what to look for first” cards</li>
+<p>- **Source:** Static guidance text</p>
+</ul>
+<p>---</p>
+<h2 id="3-5-mallam-detail-mallams-id">3.5 Mallam detail (`/mallams/:id`)</h2>
+<h3 id="important-note">Important note</h3>
+<p>The page is fed by **mallam detail plus student roster context**.</p>
+<ul>
+<li>**Mallam detail** comes from `/api/v1/mallams/:id`</li>
+<li>**Cross-check roster context** comes from `/api/v1/students` and `/api/v1/mallams`</li>
+</ul>
+<h3 id="surface-contents">Surface contents</h3>
+<p>From the route structure, this page includes:</p>
+<ul>
+<li>**Roster count**</li>
+<li>**Active assignments**</li>
+<li>**Average attendance**</li>
+<li>**Watchlist**</li>
+<li>**Deployment profile / readiness**</li>
+<li>**Roster detail**</li>
+<li>**Attendance spread**</li>
+<li>**Learners needing follow-up**</li>
+<li>**Assignment timeline**</li>
+<li>**Field narrative**</li>
+<li>**History summary**</li>
+</ul>
+<h3 id="source-pattern">Source pattern</h3>
+<ul>
+<li>**Roster / assignment / attendance / watch counts**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/mallams/:id` - **Type:** Mostly backend-composed detail object</p>
+<li>**Roster operations context / related mallam directory**</li>
+<p>- **Source:** Live backend APIs - **Feeds:** `/api/v1/students`, `/api/v1/mallams`</p>
+<li>**Narrative cards and coaching copy**</li>
+<p>- **Source:** Static guidance text layered over live mallam detail</p>
+</ul>
+<p>---</p>
+<h2 id="3-6-content-library-content">3.6 Content Library (`/content`)</h2>
+<h3 id="filters">Filters</h3>
+<ul>
+<li>**Search query**</li>
+<li>**Subject select**</li>
+<li>**Status select**</li>
+<li>**Focus view select**</li>
+<p>- **Source:** Mixed - **Filter options from:** `/api/v1/subjects` - **Filtered records from:** `/api/v1/curriculum/modules`, `/api/v1/lessons`, `/api/v1/assessments`, `/api/v1/strands` - **Logic:** Derived rollup/filtering in LMS UI</p>
+</ul>
+<h3 id="summary-cards">Summary cards</h3>
+<ul>
+<li>**Subjects**</li>
+<li>**Modules**</li>
+<li>**Lessons ready**</li>
+<li>**Assessment gates**</li>
+<p>- **Source:** Live backend APIs + Derived rollup in LMS UI - **Feeds:** `/api/v1/subjects`, `/api/v1/curriculum/modules`, `/api/v1/lessons`, `/api/v1/assessments`</p>
+</ul>
+<h3 id="subject-lanes-strand-grouping-curriculum-inventory">Subject lanes / strand grouping / curriculum inventory</h3>
+<ul>
+<li>**Subject name and lane**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/subjects`</p>
+<li>**Strands under subject**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/strands`</p>
+<li>**Modules under strand**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/curriculum/modules`</p>
+<li>**Lessons inventory**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/lessons`</p>
+<li>**Assessment control board**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/assessments`</p>
+</ul>
+<h3 id="release-blockers-board">Release blockers board</h3>
+<ul>
+<li>**Module title**</li>
+<li>**Subject**</li>
+<li>**Ready lesson count vs target lesson count**</li>
+<li>**Missing lessons**</li>
+<li>**Assessment gate missing/present**</li>
+<li>**Release risk label**</li>
+<p>- **Source:** Live backend APIs + Derived rollup in LMS UI - **Feeds:** `/api/v1/curriculum/modules`, `/api/v1/lessons`, `/api/v1/assessments` - **Logic:** module blocked if approved/published lesson count is short or assessment gate absent</p>
+</ul>
+<h3 id="content-create-edit-delete-forms">Content create/edit/delete forms</h3>
+<ul>
+<li>**Subject / strand / module / lesson / assessment records**</li>
+<p>- **Current record source:** Live backend API - **Form reference data:** live lists from modules/subjects/strands feeds - **Intended destination:** live backend write endpoints via form actions</p>
+</ul>
+<h3 id="guidance-warnings-fallback-copy">Guidance / warnings / fallback copy</h3>
+<ul>
+<li>**Source:** Static guidance text and placeholder/degraded messages</li>
+</ul>
+<p>---</p>
+<h2 id="3-7-english-studio-english">3.7 English Studio (`/english`)</h2>
+<p>This surface is important because it is **not purely a direct backend projection**. It combines real curriculum data with LMS-side synthesis.</p>
+<h3 id="base-feeds">Base feeds</h3>
+<ul>
+<li>**Modules**</li>
+<li>**Lessons**</li>
+<li>**Assessments**</li>
+<li>**Assignments**</li>
+<li>**Subjects**</li>
+<p>- **Source:** Live backend APIs - **Feeds:** `/api/v1/curriculum/modules`, `/api/v1/lessons`, `/api/v1/assessments`, `/api/v1/assignments`, `/api/v1/subjects`</p>
+</ul>
+<h3 id="english-summary-cards">English summary cards</h3>
+<ul>
+<li>**English modules**</li>
+<li>**Structured lessons**</li>
+<li>**Ready for release**</li>
+<li>**Modules missing gates**</li>
+<p>- **Source:** Live backend APIs + Derived rollup in LMS UI - **Logic:** calculated by `buildEnglishOpsSummary(...)`</p>
+</ul>
+<h3 id="lesson-blueprint-data">Lesson blueprint data</h3>
+<p>For each English lesson blueprint, the page shows:</p>
+<ul>
+<li>**Lesson title**</li>
+<li>**Module title**</li>
+<li>**Level**</li>
+<li>**Status**</li>
+<li>**Mode**</li>
+<li>**Duration**</li>
+<li>**Assessment title / trigger**</li>
+<p>- **Source:** Live backend APIs</p>
+<li>**Objective**</li>
+<li>**Vocabulary focus**</li>
+<li>**Activity spine**</li>
+<li>**Release label / release risk**</li>
+<li>**Readiness checks**</li>
+<li>**Readiness score**</li>
+<p>- **Source:** Derived rollup in LMS UI - **Logic:** built in `apps/lms-web/lib/english-curriculum.ts`</p>
+</ul>
+<h3 id="important-caveat-on-english-blueprint-fields">Important caveat on English blueprint fields</h3>
+<p>These fields are **currently synthesized in the LMS UI**, not fetched as authored lesson payloads from a dedicated English blueprint API:</p>
+<ul>
+<li>objective text</li>
+<li>inferred vocabulary focus</li>
+<li>activity templates such as warm welcome / model and echo / guided pair talk / interactive task / exit check</li>
+<li>readiness checks</li>
+<li>release labels like `pod-ready`, `queued`, `review`, `draft`</li>
+</ul>
+<p>That means they are **useful operator-facing scaffolding**, but they are not yet canonical authored content records unless backed elsewhere.</p>
+<h3 id="quick-english-authoring-blocker-state">Quick English authoring blocker state</h3>
+<ul>
+<li>**English subject missing** or **no English modules available**</li>
+<p>- **Source:** Derived UI gating from live subject/module feeds</p>
+<li>**Blocked copy shown to operator**</li>
+<p>- **Source:** Static guidance text / graceful fallback</p>
+</ul>
+<p>---</p>
+<h2 id="3-8-assessments-assessments">3.8 Assessments (`/assessments`)</h2>
+<h3 id="progression-picture">Progression picture</h3>
+<ul>
+<li>**Ready / watch / on-track counts**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/dashboard/workboard`</p>
+</ul>
+<h3 id="assessment-table">Assessment table</h3>
+<ul>
+<li>**Assessment**</li>
+<li>**Subject**</li>
+<li>**Module**</li>
+<li>**Trigger**</li>
+<li>**Gate**</li>
+<li>**Status**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/assessments`</p>
+</ul>
+<h3 id="interpretation">Interpretation</h3>
+<p>This is mostly a **direct live assessment inventory**, with only the readiness summary derived from workboard state.</p>
+<p>---</p>
+<h2 id="3-9-assignments-assignments">3.9 Assignments (`/assignments`)</h2>
+<h3 id="filters">Filters</h3>
+<ul>
+<li>**Status**</li>
+<li>**Cohort**</li>
+<li>**Mallam**</li>
+<li>**Pod**</li>
+<li>**Search**</li>
+<p>- **Source:** Mixed - **Assignment rows:** `/api/v1/assignments` - **Filter reference data:** `/api/v1/cohorts`, `/api/v1/mallams`, `/api/v1/pods`, `/api/v1/lessons`, `/api/v1/assessments` - **Logic:** derived filtering in LMS UI</p>
+</ul>
+<h3 id="delivery-pulse-metrics">Delivery pulse metrics</h3>
+<ul>
+<li>**Assignments visible**</li>
+<li>**Active windows**</li>
+<li>**Scheduled next**</li>
+<li>**Due in 7 days**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/assignments`</p>
+</ul>
+<h3 id="risk-readout-metrics">Risk readout metrics</h3>
+<ul>
+<li>**Overdue and not done**</li>
+<li>**Missing pod labels**</li>
+<li>**No assessment gate**</li>
+<li>**Busiest owner**</li>
+<p>- **Source:** Live backend APIs + Derived rollup in LMS UI - **Feeds:** `/api/v1/assignments`, supporting cohort/mallam/pod feeds</p>
+</ul>
+<h3 id="assignment-board">Assignment board</h3>
+<ul>
+<li>**Lesson**</li>
+<li>**Cohort**</li>
+<li>**Pod**</li>
+<li>**Assessment**</li>
+<li>**Mallam**</li>
+<li>**Due date**</li>
+<li>**Status**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/assignments`</p>
+</ul>
+<h3 id="create-assignment-reassign-controls">Create assignment / reassign controls</h3>
+<ul>
+<li>**Reference options from cohorts, lessons, mallams, assessments**</li>
+<p>- **Source:** Live backend APIs - **Feeds:** `/api/v1/cohorts`, `/api/v1/lessons`, `/api/v1/mallams`, `/api/v1/assessments`</p>
+<li>**Unavailable state when refs missing**</li>
+<p>- **Source:** Placeholder / graceful fallback</p>
+</ul>
+<h3 id="operator-guidance">Operator guidance</h3>
+<ul>
+<li>**Source:** Static guidance text</li>
+</ul>
+<p>---</p>
+<h2 id="3-10-pods-pods">3.10 Pods (`/pods`)</h2>
+<h3 id="pod-cards-and-matrix">Pod cards and matrix</h3>
+<ul>
+<li>**Pod**</li>
+<li>**Center**</li>
+<li>**Region**</li>
+<li>**Type**</li>
+<li>**Connectivity**</li>
+<li>**Learners**</li>
+<li>**Mallams**</li>
+<li>**Status**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/pods`</p>
+</ul>
+<h3 id="interpretation">Interpretation</h3>
+<p>This page appears to be a mostly **direct pod inventory/deployment view** rather than a heavy derived analytics page.</p>
+<p>---</p>
+<h2 id="3-11-attendance-attendance">3.11 Attendance (`/attendance`)</h2>
+<h3 id="attendance-board">Attendance board</h3>
+<ul>
+<li>**Today + recent capture** rows</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/attendance`</p>
+<li>**Learner reference context**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/students`</p>
+<li>**Capture attendance form unavailable state**</li>
+<p>- **Source:** Placeholder / graceful fallback</p>
+</ul>
+<h3 id="caveat">Caveat</h3>
+<p>The page clearly expects live attendance records, but whether those records come from LMS-side manual capture, facilitator input, or learner-runtime linked events depends on backend implementation. The LMS itself treats them as **live backend attendance records**.</p>
+<p>---</p>
+<h2 id="3-12-progress-progress">3.12 Progress (`/progress`)</h2>
+<h3 id="filters">Filters</h3>
+<ul>
+<li>**Learner / cohort / pod / mallam / subject / status / search**</li>
+<p>- **Source:** Mixed live data + LMS-side filtering - **Feeds:** `/api/v1/progress`, `/api/v1/students`, `/api/v1/subjects`, `/api/v1/curriculum/modules`, `/api/v1/cohorts`, `/api/v1/pods`, `/api/v1/mallams`</p>
+</ul>
+<h3 id="mastery-board">Mastery board</h3>
+<ul>
+<li>**Student**</li>
+<li>**Subject**</li>
+<li>**Module**</li>
+<li>**Mastery**</li>
+<li>**Lessons completed**</li>
+<li>**Progression**</li>
+<li>**Next module**</li>
+<p>- **Source:** Live backend API, likely downstream of learner progress/runtime - **Feed:** `/api/v1/progress`</p>
+</ul>
+<h3 id="capture-update-forms">Capture/update forms</h3>
+<ul>
+<li>**Students / subjects / modules used as reference data**</li>
+<p>- **Source:** Live backend APIs</p>
+<li>**Progress records being updated**</li>
+<p>- **Intended source/destination:** live backend write path for progress capture and override actions</p>
+</ul>
+<h3 id="interpretation">Interpretation</h3>
+<p>This page is the clearest **admin-facing progression control surface** over records that likely reflect both instructional/admin judgment and learner-runtime completion evidence upstream.</p>
+<p>---</p>
+<h2 id="3-13-rewards-progression-rewards">3.13 Rewards &amp; Progression (`/rewards`)</h2>
+<h3 id="filters">Filters</h3>
+<ul>
+<li>**Search / cohort / pod / mallam / status**</li>
+<p>- **Source:** Mixed live data + LMS-side filtering - **Feeds:** `/api/v1/rewards/leaderboard`, `/api/v1/rewards/requests`, `/api/v1/reports/rewards`, `/api/v1/students`, `/api/v1/dashboard/workboard`, `/api/v1/cohorts`, `/api/v1/pods`, `/api/v1/mallams`</p>
+</ul>
+<h3 id="reward-footprint-card">Reward footprint card</h3>
+<ul>
+<li>**Leaderboard learners**</li>
+<li>**Total XP tracked**</li>
+<li>**Badges unlocked**</li>
+<li>**Highest level reached**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/rewards/leaderboard`</p>
+</ul>
+<h3 id="queue-pressure-card">Queue pressure card</h3>
+<ul>
+<li>**Pending requests**</li>
+<li>**Urgent backlog**</li>
+<li>**Needs attention**</li>
+<li>**Expired requests**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/rewards/requests` - **Type:** direct queue summary from backend</p>
+</ul>
+<h3 id="progression-posture-card">Progression posture card</h3>
+<ul>
+<li>**Ready learners**</li>
+<li>**Watchlist learners**</li>
+<li>**On-track learners**</li>
+<li>**Configured badges**</li>
+<p>- **Source:** Mixed - **Workboard counts:** live backend API `/api/v1/dashboard/workboard` - **Configured badges:** live backend API `/api/v1/rewards/catalog` - **UI counts:** derived rollup in LMS UI</p>
+</ul>
+<h3 id="reward-analytics-card">Reward analytics card</h3>
+<ul>
+<li>**Fulfillment rate**</li>
+<li>**Transactions logged**</li>
+<li>**Corrections made**</li>
+<li>**Revocations made**</li>
+<p>- **Source:** Live backend/report API - **Feed:** `/api/v1/reports/rewards`</p>
+</ul>
+<h3 id="reward-demand-recent-adjustments">Reward demand / recent adjustments</h3>
+<ul>
+<li>**Reward demand by item**</li>
+<li>**Recent reward adjustments**</li>
+<p>- **Source:** Live backend/report API - **Feed:** `/api/v1/reports/rewards`</p>
+</ul>
+<h3 id="level-ladder-badge-catalogue">Level ladder / badge catalogue</h3>
+<ul>
+<li>**XP rules**</li>
+<li>**Levels**</li>
+<li>**Badges**</li>
+<li>**Badge targets / descriptions / categories**</li>
+<p>- **Source:** Live backend API - **Feed:** `/api/v1/rewards/catalog`</p>
+<li>**Badge unlocked counts / nearest learner progress**</li>
+<p>- **Source:** Live backend leaderboard data + Derived rollup in LMS UI - **Feed:** `/api/v1/rewards/leaderboard`</p>
+</ul>
+<h3 id="leaderboard">Leaderboard</h3>
+<ul>
+<li>**Learner**</li>
+<li>**Level**</li>
+<li>**XP status**</li>
+<li>**Badges**</li>
+<li>**Next move**</li>
+<li>**Progression pill**</li>
+<p>- **Source:** Mixed - **Leaderboard core:** `/api/v1/rewards/leaderboard` - **Next move / progression state enrichment:** `/api/v1/dashboard/workboard`, `/api/v1/students` - **Type:** LMS-side join across feeds</p>
+</ul>
+<h3 id="queue-watchlist-admin-reward-controls">Queue watchlist / admin reward controls</h3>
+<ul>
+<li>**Reward queue items**</li>
+<p>- **Source:** Live backend API `/api/v1/rewards/requests`</p>
+<li>**Reward adjustment write controls**</li>
+<p>- **Intended destination:** live backend write actions - **Guarding roster context:** `/api/v1/students`, `/api/v1/rewards/catalog`, `/api/v1/rewards/leaderboard`</p>
+</ul>
+<h3 id="upstream-lineage-note">Upstream lineage note</h3>
+<p>Rewards are one of the places where **learner-app/runtime evidence is very likely upstream of the visible numbers**, even though the LMS itself reads them back through reward/report APIs rather than directly from the learner app.</p>
+<p>---</p>
+<h2 id="3-14-reports-reports">3.14 Reports (`/reports`)</h2>
+<p>This is the densest mixed-source surface in the LMS.</p>
+<h3 id="primary-feeds">Primary feeds</h3>
+<ul>
+<li>`/api/v1/reports/overview`</li>
+<li>`/api/v1/dashboard/insights`</li>
+<li>`/api/v1/students`</li>
+<li>`/api/v1/mallams`</li>
+<li>`/api/v1/pods`</li>
+<li>`/api/v1/assignments`</li>
+<li>`/api/v1/progress`</li>
+<li>`/api/v1/cohorts`</li>
+<li>`/api/v1/reports/operations`</li>
+<li>`/api/v1/reports/ngo-summary`</li>
+</ul>
+<h3 id="scope-filters-and-scope-summary">Scope filters and scope summary</h3>
+<ul>
+<li>**Cohort / pod / mallam / search scope**</li>
+<p>- **Source:** live backend reference data + LMS-side filtering</p>
+<li>**Scope label / filter chips / scope narratives**</li>
+<p>- **Source:** Derived rollup in LMS UI + Static guidance text</p>
+</ul>
+<h3 id="program-overview-delivery-metrics-learning-metrics-operations-pulse">Program overview / delivery metrics / learning metrics / operations pulse</h3>
+<ul>
+<li>**Total learners / teachers / centers / pods**</li>
+<li>**Assignments tracked / due this week / present today / pods needing attention**</li>
+<li>**Average attendance / average mastery / ready / watch**</li>
+<li>**Completion rate / abandoned sessions / pending reward requests / urgent reward backlog**</li>
+<p>- **Source:** Mostly live backend/report APIs - **Feeds:** `/api/v1/reports/overview`, `/api/v1/reports/operations`, `/api/v1/reports/ngo-summary` - **Type:** Derived rollup in backend/report API</p>
+</ul>
+<h3 id="executive-narrative">Executive narrative</h3>
+<ul>
+<li>**Priority / headline / detail / metric**</li>
+<p>- **Source:** Live backend API `/api/v1/dashboard/insights`</p>
+<li>**Fallback insight**</li>
+<p>- **Source:** Placeholder / graceful fallback</p>
+</ul>
+<h3 id="pod-health-matrix-mallam-contribution-board">Pod health matrix / mallam contribution board</h3>
+<ul>
+<li>**Pod roster count, assignment count, watch count, ready count, attendance average, mastery average**</li>
+<li>**Mallam roster count, attendance average, mastery average, readiness count, watch count**</li>
+<p>- **Source:** Live backend APIs + Derived rollup in LMS UI - **Feeds:** `/api/v1/pods`, `/api/v1/mallams`, `/api/v1/students`, `/api/v1/progress`, `/api/v1/assignments`</p>
+</ul>
+<h3 id="ngo-donor-summary-and-subject-mastery-board">NGO / donor summary and subject mastery board</h3>
+<ul>
+<li>**Coverage totals**</li>
+<li>**Attendance retention signal**</li>
+<li>**Progression readiness signal**</li>
+<li>**Reward queue summary**</li>
+<li>**Subject learner counts / average mastery / lessons completed**</li>
+<p>- **Preferred source:** Live backend/report API `/api/v1/reports/ngo-summary` - **Fallback when feed absent:** derived fallback object built in LMS UI from students/progress/assignments/pods/mallams - **This matters:** some report sections will still show a plausible derived picture even when the dedicated NGO endpoint fails</p>
+</ul>
+<h3 id="operations-hotlist-recent-reward-requests-integrity-watchlist-high-support-learners">Operations hotlist / recent reward requests / integrity watchlist / high-support learners</h3>
+<ul>
+<li>**Preferred source:** Live backend/report API `/api/v1/reports/operations`</li>
+<li>**Fallback behavior:** some hotlist/reward queue constructs are synthesized in the LMS UI from students/progress/assignments if operations feed is unavailable</li>
+</ul>
+<h3 id="narrative-pack-copyable-text-cards-reporting-handoff-guidance">Narrative pack / copyable text cards / reporting handoff guidance</h3>
+<ul>
+<li>**Source:** Derived rollup in LMS UI + Static guidance text</li>
+<li>These are explicitly presentation-layer narrative artifacts, not canonical backend records</li>
+</ul>
+<h3 id="important-reporting-caveat">Important reporting caveat</h3>
+<p>Reports is a **hybrid truth surface**:</p>
+<ul>
+<li>some metrics are truly live backend report outputs,</li>
+<li>some cards are LMS-side derivations from lower-level feeds,</li>
+<li>some narrative blocks are intentionally editorial/static,</li>
+<li>some fallback constructs are synthetic so the route stays useful under partial outage.</li>
+</ul>
+<p>That is good UX, but it means anyone using Reports as a source of record should know **which part is authoritative backend output vs. graceful UI reconstruction**.</p>
+<p>---</p>
+<h2 id="3-15-settings-ops-settings">3.15 Settings / Ops (`/settings`)</h2>
+<h3 id="runtime-card">Runtime card</h3>
+<ul>
+<li>**Actor**</li>
+<li>**Role**</li>
+<li>**Mode**</li>
+<li>**Seed packs**</li>
+<p>- **Source:** Live backend API plus seeded/environment metadata - **Feed:** `/api/v1/meta` - **Type:** Seeded / demo / environment metadata</p>
+</ul>
+<h3 id="reward-system-card">Reward system card</h3>
+<ul>
+<li>**Learners on leaderboard**</li>
+<li>**Average XP**</li>
+<li>**Badges unlocked**</li>
+<li>**Highest level seen**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/rewards/leaderboard`</p>
+</ul>
+<h3 id="progression-policy-card">Progression policy card</h3>
+<ul>
+<li>**Ready right now**</li>
+<li>**Watchlist learners**</li>
+<p>- **Source:** Live backend API + Derived rollup in LMS UI - **Feed:** `/api/v1/dashboard/workboard`</p>
+<li>**Assessment-gated movement: Enabled**</li>
+<li>**Manual mallam review: Required on edge cases**</li>
+<p>- **Source:** Static guidance / policy copy - **Important:** these are not fetched configuration flags today; they are declared guidance text in the UI</p>
+</ul>
+<h3 id="storage-posture-storage-control-center-integrity-findings">Storage posture / storage control center / integrity findings</h3>
+<ul>
+<li>**Storage mode**</li>
+<li>**Persistence**</li>
+<li>**Driver**</li>
+<li>**Updated timestamps**</li>
+<li>**Database URL configured**</li>
+<p>- **Source:** Live backend admin APIs - **Feed:** `/api/v1/admin/storage/status`</p>
+<li>**Integrity issues, checked counts, issue details**</li>
+<p>- **Source:** Live backend admin APIs - **Feed:** `/api/v1/admin/storage/integrity`</p>
+<li>**Backups visible / backup metadata**</li>
+<p>- **Source:** Live backend admin APIs - **Feed:** `/api/v1/admin/storage/backups`</p>
+</ul>
+<h3 id="seed-summary">Seed summary</h3>
+<ul>
+<li>**What the environment loaded**</li>
+<p>- **Source:** Seeded / demo / environment metadata - **Feed:** `/api/v1/meta` - **Logic:** reads `seedSummary`</p>
+</ul>
+<h3 id="rewards-reporting-pulse-reward-demand-requests">Rewards reporting pulse / reward demand + requests</h3>
+<ul>
+<li>**Learners in scope**</li>
+<li>**XP awarded / redeemed**</li>
+<li>**Fulfillment rate**</li>
+<li>**Learner breakdown**</li>
+<li>**Request status counts**</li>
+<li>**Top reward demand items**</li>
+<p>- **Source:** Live backend/report API - **Feed:** `/api/v1/reports/rewards`</p>
+</ul>
+<h3 id="operations-report-card">Operations report card</h3>
+<ul>
+<li>**Learners in scope**</li>
+<li>**Runtime completion**</li>
+<li>**Ready to progress**</li>
+<li>**Pending reward queue**</li>
+<li>**Recent runtime sessions**</li>
+<p>- **Source:** Live backend/report API - **Feed:** `/api/v1/reports/operations`</p>
+</ul>
+<h3 id="release-safe-operational-cues-route-handoff-playbook-sections">Release-safe operational cues / route handoff / playbook sections</h3>
+<ul>
+<li>**Source:** Static guidance text, with some interpolated live metrics in the release-safe cue text</li>
+</ul>
+<h3 id="key-settings-caveat">Key Settings caveat</h3>
+<p>Settings mixes **true admin/runtime state** with **advisory product-policy text**. Those should not be confused. Some items are genuinely fetched operational facts; others are intentionally hardcoded guardrails.</p>
+<p>---</p>
+<h2 id="3-16-guide-printable-docs-guide-static-html-docs">3.16 Guide / printable docs (`/guide`, static HTML docs)</h2>
+<h3 id="what-is-data-vs-what-is-documentation">What is data vs what is documentation</h3>
+<p>The guide route and printable docs largely contain:</p>
+<ul>
+<li>route descriptions</li>
+<li>workflow guidance</li>
+<li>product framing</li>
+<li>tutorial steps</li>
+<li>embedded iframes of static HTML docs</li>
+</ul>
+<p>These are mostly:</p>
+<ul>
+<li>**Static guidance text**</li>
+<li>**Static published HTML artifacts**</li>
+</ul>
+<p>They are not operational dashboards and should not be treated as live data surfaces.</p>
+<p>---</p>
+<h2 id="4-what-is-clearly-live-today-vs-synthetic-vs-placeholder">4) What is clearly live today vs synthetic vs placeholder</h2>
+<h2 id="clearly-live-backend-driven">Clearly live backend-driven</h2>
+<p>These surfaces are primarily driven by live backend feeds:</p>
+<ul>
+<li>Learners roster/detail</li>
+<li>Mallams roster/detail</li>
+<li>Content Library inventory</li>
+<li>Assessments inventory</li>
+<li>Assignments board</li>
+<li>Pods</li>
+<li>Attendance</li>
+<li>Progress board</li>
+<li>Rewards queue/catalog/leaderboard/reporting</li>
+<li>Settings storage/integrity/meta</li>
+</ul>
+<h2 id="clearly-learner-app-runtime-influenced-upstream">Clearly learner-app/runtime-influenced upstream</h2>
+<p>These signals likely depend on learner-tablet runtime and sync even though the LMS reads them through backend APIs:</p>
+<ul>
+<li>sync success</li>
+<li>runtime completion rate</li>
+<li>abandoned sessions</li>
+<li>lessons completed</li>
+<li>portions of mastery/progression state</li>
+<li>operations report runtime hotlists</li>
+<li>some reward and readiness signals</li>
+</ul>
+<h2 id="clearly-synthesized-in-lms-ui">Clearly synthesized in LMS UI</h2>
+<p>These are derived in the web app itself:</p>
+<ul>
+<li>dashboard release blockers</li>
+<li>attendance-risk filters and watchlists built from student rows</li>
+<li>mallam pressure scores</li>
+<li>reports fallback NGO summary and fallback operations constructs</li>
+<li>English Studio lesson blueprints, objectives, vocabulary, activity templates, readiness checks, release labels</li>
+<li>many filter chips, scoped narratives, and copyable summaries</li>
+</ul>
+<h2 id="clearly-seeded-environment-metadata">Clearly seeded / environment metadata</h2>
+<ul>
+<li>meta actor / role / mode</li>
+<li>seedSummary counts</li>
+<li>any “Across the current seeded cohorts” framing on learner pages</li>
+</ul>
+<h2 id="clearly-static-guidance">Clearly static guidance</h2>
+<ul>
+<li>route subtitles</li>
+<li>operator playbook cards</li>
+<li>warning/help copy</li>
+<li>policy statements like “Assessment-gated movement: Enabled” where no dynamic config is fetched</li>
+<li>guide and printable handbook content</li>
+</ul>
+<h2 id="clearly-graceful-fallback-placeholder">Clearly graceful fallback / placeholder</h2>
+<ul>
+<li>degraded-mode banners</li>
+<li>empty tables with explanatory copy</li>
+<li>fallback insight cards</li>
+<li>empty summary objects used when APIs fail</li>
+<li>derived fallback reports on the Reports page when dedicated report endpoints fail</li>
+</ul>
+<p>---</p>
+<h2 id="5-gaps-ambiguities-and-places-to-tighten-next">5) Gaps, ambiguities, and places to tighten next</h2>
+<h3 id="1-english-studio-is-useful-but-partially-synthetic">1. English Studio is useful, but partially synthetic</h3>
+<p>The English Studio currently reads real lesson/module/assessment data, but the most attractive parts of the experience — objective text, vocabulary focus, activity spine, readiness checks, release labels — are generated in the LMS layer. If those should become canonical curriculum assets, they need a proper backend contract.</p>
+<h3 id="2-some-settings-statements-look-like-config-but-are-hardcoded-guidance">2. Some Settings statements look like config, but are hardcoded guidance</h3>
+<p>Examples:</p>
+<ul>
+<li>“Assessment-gated movement: Enabled”</li>
+<li>“Manual mallam review: Required on edge cases”</li>
+</ul>
+<p>These read like live policy settings, but the current route treats them as static product guidance. If they matter operationally, they should come from a config endpoint.</p>
+<h3 id="3-reports-is-a-hybrid-truth-surface">3. Reports is a hybrid truth surface</h3>
+<p>Some report sections are direct backend reports. Others are LMS-side fallbacks built from lower-level feeds. That is operationally smart, but the UI would benefit from a stronger “authoritative vs reconstructed” indicator.</p>
+<h3 id="4-attendance-lineage-is-not-fully-explicit-from-lms-code-alone">4. Attendance lineage is not fully explicit from LMS code alone</h3>
+<p>The LMS consumes attendance as a live feed, but it is not fully obvious from the UI code whether every attendance record originates in LMS capture, facilitator action, learner-app workflows, or a mix.</p>
+<h3 id="5-reward-progression-lineage-is-partly-hidden-behind-report-apis">5. Reward/progression lineage is partly hidden behind report APIs</h3>
+<p>The LMS shows strong reward/progression views, but exactly which portions are generated from learner runtime vs manual admin intervention is not always obvious at the presentation layer.</p>
+<p>---</p>
+<h2 id="6-recommended-next-documentation-hardening">6) Recommended next documentation hardening</h2>
+<p>If this needs to get even sharper, the next useful additions would be:</p>
+<ol>
+<li>**Field-level contract appendix**</li>
+<p>- list exact fields per endpoint and where each one is rendered in the LMS</p>
+<li>**Write-path map**</li>
+<p>- document which forms write to which backend actions/endpoints</p>
+<li>**Authoritative-source badges in UI**</li>
+<p>- label sections as Live API / Derived / Fallback / Static</p>
+<li>**Runtime lineage diagram**</li>
+<p>- show how learner-app bootstrap, session, and sync events become LMS reporting and progression state</p>
+</ol>
+<p>---</p>
+<h2 id="7-bottom-line">7) Bottom line</h2>
+<p>The Lumo LMS is already showing a lot of real data, but not all visible content has the same truth status.</p>
+<p>The cleanest way to think about it is:</p>
+<ul>
+<li>**Content, roster, assignments, rewards, storage, and most reporting feeds are live backend-driven.**</li>
+<li>**Progression/runtime/reward health often reflects learner-app behavior upstream, even when surfaced through backend rollups.**</li>
+<li>**English Studio and parts of Reports add genuinely useful LMS-side synthesis on top of live data.**</li>
+<li>**Guide pages and many policy/help cards are intentionally static.**</li>
+<li>**Fallback states are explicit and mostly honest, which is good — but they should still be recognized as fallback, not truth.**</li>
+</ul>
+      </article>
+    </div>
+  </div>
+</body>
+</html>
