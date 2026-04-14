@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ReassignAssignmentForm } from '../../components/admin-forms';
 import { CreateAssignmentForm } from '../../components/create-assignment-form';
+import { ReassignAssignmentForm } from '../../components/reassign-assignment-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAssignments, fetchAssessments, fetchCohorts, fetchLessons, fetchMallams } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
@@ -237,7 +237,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
               </div>
             </Card>
           )}
-          {assignments[0] && cohorts.length && mallams.length ? <ReassignAssignmentForm assignment={assignments[0]} cohorts={cohorts} mallams={mallams} /> : null}
+          {filteredAssignments.length && cohorts.length && mallams.length ? <ReassignAssignmentForm assignments={filteredAssignments} cohorts={cohorts} mallams={mallams} /> : null}
         </div>
       </section>
     </PageShell>

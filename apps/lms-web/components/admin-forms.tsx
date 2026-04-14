@@ -16,7 +16,6 @@ import {
   deleteStudentAction,
   deleteSubjectAction,
   updateAssessmentAction,
-  updateAssignmentAction,
   updateLessonAction,
   updateMallamAction,
   updateModuleAction,
@@ -24,7 +23,7 @@ import {
   updateStudentAction,
   updateSubjectAction,
 } from '../app/actions';
-import type { Assessment, Assignment, Center, Cohort, CurriculumModule, Lesson, Mallam, Pod, Strand, Student, Subject } from '../lib/types';
+import type { Assessment, Center, Cohort, CurriculumModule, Lesson, Mallam, Pod, Strand, Student, Subject } from '../lib/types';
 import { ActionButton } from './action-button';
 
 const cardStyle = {
@@ -206,25 +205,6 @@ export function DeleteMallamForm({ mallam, embedded = false }: { mallam: Mallam;
         </div>
       </div>
       <DeleteConfirmSubmit expectedText={mallam.displayName} entityLabel="mallam profile" actionLabel="Delete mallam" pendingLabel="Deleting mallam…" impactNote="Roster ownership and deployment visibility for this mallam will drop out of admin immediately." />
-    </form>
-  );
-}
-
-export function ReassignAssignmentForm({ assignment, cohorts, mallams }: { assignment: Assignment; cohorts: Cohort[]; mallams: Mallam[] }) {
-  return (
-    <form action={updateAssignmentAction} style={cardStyle}>
-      <input type="hidden" name="assignmentId" value={assignment.id} />
-      <h2 style={{ margin: 0 }}>Reassign live assignment</h2>
-      <div style={{ color: '#475569', fontSize: 14, lineHeight: 1.6 }}>
-        <strong>{assignment.lessonTitle}</strong> is currently mapped to {assignment.cohortName} with {assignment.teacherName}.
-      </div>
-      <FieldLabel>Target cohort<select name="cohortId" defaultValue={cohorts.find((item) => item.name === assignment.cohortName)?.id} style={inputStyle}>{cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select></FieldLabel>
-      <FieldLabel>Assign to mallam<select name="assignedBy" defaultValue={mallams.find((item) => item.displayName === assignment.teacherName)?.id} style={inputStyle}>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName}</option>)}</select></FieldLabel>
-      <div style={twoColumnGrid}>
-        <FieldLabel>Due date<input name="dueDate" defaultValue={assignment.dueDate} style={inputStyle} /></FieldLabel>
-        <FieldLabel>Status<select name="status" defaultValue={assignment.status} style={inputStyle}><option value="active">Active</option><option value="scheduled">Scheduled</option><option value="completed">Completed</option></select></FieldLabel>
-      </div>
-      <ActionButton label="Update assignment" pendingLabel="Updating assignment…" style={buttonStyle} />
     </form>
   );
 }
