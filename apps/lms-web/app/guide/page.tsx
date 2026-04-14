@@ -54,6 +54,7 @@ const routeGuides = [
 
 const sectionLinks = [
   ['overview', 'What this LMS is for'],
+  ['positioning-brief', 'Lumo positioning brief'],
   ['navigation', 'Route map and entry points'],
   ['dashboard', 'Dashboard'],
   ['content-library', 'Content Library'],
@@ -99,6 +100,9 @@ export default function GuidePage() {
           <Link href="/reports" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>
             Open reports
           </Link>
+          <a href="/LUMO_POSITIONING_BRIEF.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none', border: '1px solid #BBF7D0' }}>
+            Open positioning brief
+          </a>
           <a href="/LUMO_MVP_QA_UAT_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EFF6FF', color: '#1D4ED8', textDecoration: 'none', border: '1px solid #BFDBFE' }}>
             Open QA / UAT guide
           </a>
@@ -135,6 +139,32 @@ export default function GuidePage() {
                 <Pill key={item} label={item} tone="#F8FAFC" text="#334155" />
               ))}
             </div>
+          </div>
+        </Card>
+      </section>
+
+      <section id="positioning-brief" style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Lumo positioning brief" eyebrow="Product + partner context">
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ color: '#475569', lineHeight: 1.7 }}>
+              If someone needs the crisp external story — what Lumo is, why voice-first + facilitator-aware delivery matters, where the strongest NGO/operator fit is, and what still needs hardening before real pilot scale — this is the brief to hand them.
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <a href="/LUMO_POSITIONING_BRIEF.html" target="_blank" rel="noreferrer" style={{ color: '#166534', fontWeight: 800, textDecoration: 'none' }}>
+                Open positioning brief →
+              </a>
+              <a href="#printable-guide" style={{ color: '#64748b', fontWeight: 700, textDecoration: 'none' }}>
+                Back to printable handbook
+              </a>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="When to use it" eyebrow="Don’t make people dig for the story">
+          <div style={{ display: 'grid', gap: 10, color: '#475569', lineHeight: 1.7 }}>
+            <div><strong>Use the LMS Guide</strong> when operators need route-by-route workflow, authoring, delivery, and admin control details.</div>
+            <div><strong>Use the positioning brief</strong> when a funder, NGO partner, ministry contact, or implementation lead needs the product thesis and risk posture fast.</div>
+            <div><strong>Use both</strong> when someone wants the product story plus proof that the admin/control surfaces are not hand-wavy demo theatre.</div>
           </div>
         </Card>
       </section>

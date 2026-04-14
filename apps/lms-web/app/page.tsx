@@ -168,6 +168,9 @@ export default async function HomePage() {
           <Link href="/content" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
             Clear content blockers
           </Link>
+          <a href="/LUMO_POSITIONING_BRIEF.html" target="_blank" rel="noreferrer" style={{ ...quickActionStyle, background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' }}>
+            Positioning brief
+          </a>
         </div>
       )}
     >

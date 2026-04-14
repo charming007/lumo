@@ -10,6 +10,8 @@ A practical, visual guide to the **Lumo LMS dashboard**, with extra focus on **C
 
 **Companion doc:** `docs/LMS_FALLBACK_FAILURE_CATALOG.md` / `.html` covers degraded states, offline fallback, failure handling, and recovery expectations across the learner app and the LMS.
 
+**Positioning brief:** `docs/LUMO_POSITIONING_BRIEF.md` / `.html` is the concise external-facing product story for investors, NGO partners, and implementation leads who need the sharp version of what Lumo is and why the product shape matters.
+
 ---
 
 ## 1) What this LMS is for
@@ -37,6 +39,24 @@ In the current implementation, the LMS navigation includes:
 - Reports
 - Rewards
 - Settings
+
+---
+
+## 1A) Where to find the external-facing product story fast
+
+If someone needs the operational/admin walkthrough, stay in this LMS guide.
+If someone needs the sharper external story — what Lumo is, why it is voice-first and facilitator-aware, where it fits best, and what still needs hardening before pilot scale — open the positioning brief:
+
+- `docs/LUMO_POSITIONING_BRIEF.md`
+- `docs/LUMO_POSITIONING_BRIEF.html`
+- `apps/lms-web/public/LUMO_POSITIONING_BRIEF.html`
+
+Use the positioning brief for:
+
+- investor conversations,
+- NGO / implementation-partner onboarding,
+- ministry or stakeholder intros,
+- quick product-context handoff before someone dives into LMS operations.
 
 ---
 
