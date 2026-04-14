@@ -71,11 +71,12 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();
   const mallamFilter = normalizeFilterValue(query?.mallam).trim();
   const podFilter = normalizeFilterValue(query?.pod).trim();
+  const selectedMallamName = mallams.find((mallam) => mallam.id === mallamFilter)?.displayName ?? mallamFilter;
 
   const filteredAssignments = assignments.filter((item) => {
     const statusMatches = !statusFilter || item.status === statusFilter;
     const cohortMatches = !cohortFilter || item.cohortName === cohortFilter;
-    const mallamMatches = !mallamFilter || item.teacherName === mallamFilter;
+    const mallamMatches = !selectedMallamName || item.teacherName === selectedMallamName;
     const podMatches = !podFilter || (item.podLabel ?? 'Unassigned') === podFilter;
     const queryMatches = matchesQuery([item.lessonTitle, item.cohortName, item.podLabel, item.assessmentTitle, item.teacherName, item.status, item.dueDate], searchText);
     return statusMatches && cohortMatches && mallamMatches && podMatches && queryMatches;
@@ -109,7 +110,9 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
 
   const podOptions = Array.from(new Set(assignments.map((item) => item.podLabel ?? 'Unassigned').filter(Boolean))).sort();
   const cohortOptions = Array.from(new Set(assignments.map((item) => item.cohortName).filter(Boolean))).sort();
-  const mallamOptions = Array.from(new Set(assignments.map((item) => item.teacherName).filter(Boolean))).sort();
+  const mallamOptions = mallams
+    .map((mallam) => ({ value: mallam.id, label: mallam.displayName }))
+    .sort((left, right) => left.label.localeCompare(right.label));
 
   return (
     <PageShell
@@ -150,7 +153,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
               </select>
               <select name="mallam" defaultValue={mallamFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
                 <option value="">All mallams</option>
-                {mallamOptions.map((mallam) => <option key={mallam} value={mallam}>{mallam}</option>)}
+                {mallamOptions.map((mallam) => <option key={mallam.value} value={mallam.value}>{mallam.label}</option>)}
               </select>
               <select name="pod" defaultValue={podFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
                 <option value="">All pods</option>
