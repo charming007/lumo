@@ -257,7 +257,7 @@ LearningModule resolveLessonModule({
         title: lesson.subject,
         description:
             'Continue this ${lesson.subject.toLowerCase()} lesson while live module metadata is still syncing.',
-        voicePrompt: 'Let’s continue ${lesson.subject} together.',
+        voicePrompt: "Let's continue ${lesson.subject} together.",
         readinessGoal: lesson.readinessFocus,
         badge: 'Lesson ready',
       );
@@ -617,6 +617,11 @@ class HomePage extends StatelessWidget {
   }
 }
 
+bool _learnerNeedsBackendSync(LearnerProfile learner) {
+  final status = learner.enrollmentStatus.toLowerCase();
+  return status.contains('sync') || status.contains('pending');
+}
+
 class AllStudentsPage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
@@ -631,6 +636,8 @@ class AllStudentsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final leaderboard = buildLearnerLeaderboard(state.learners);
     final topLearner = leaderboard.firstOrNull;
+    final unsyncedLearners =
+        state.learners.where(_learnerNeedsBackendSync).toList(growable: false);
     final averagePoints = state.learners.isEmpty
         ? 0
         : state.learners
@@ -695,6 +702,11 @@ class AllStudentsPage extends StatelessWidget {
                               '${topLearner.learner.name.split(' ').first} leads • ${topLearner.points} pts',
                           color: LumoTheme.accentOrange,
                         ),
+                      if (unsyncedLearners.isNotEmpty)
+                        StatusPill(
+                          text: '${unsyncedLearners.length} sync pending',
+                          color: LumoTheme.accentOrange,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -729,9 +741,11 @@ class AllStudentsPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              topLearner == null
-                                  ? 'Open any learner card to view rewards, streaks, and assigned lessons.'
-                                  : '${topLearner.learner.name} is leading the board right now. Tap Profile for the full reward view or Start assigned to continue momentum.',
+                              unsyncedLearners.isNotEmpty
+                                  ? '${unsyncedLearners.length} learner ${unsyncedLearners.length == 1 ? 'still needs' : 'still need'} backend sync. Their cards are marked clearly so Mallam does not mistake local-only profiles for confirmed roster records.'
+                                  : topLearner == null
+                                      ? 'Open any learner card to view rewards, streaks, and assigned lessons.'
+                                      : '${topLearner.learner.name} is leading the board right now. Tap Profile for the full reward view or Start assigned to continue momentum.',
                               style: const TextStyle(
                                 color: Color(0xFF475569),
                                 height: 1.4,
@@ -3652,7 +3666,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             ? SpeakerMode.waiting
             : SpeakerMode.guiding;
     final status = switch (supportType) {
-      'hint' => 'Hint given. The mic will start for the learner’s next try.',
+      'hint' => "Hint given. The mic will start for the learner's next try.",
       'model' =>
         'Model answer played. The mic will start for the learner to repeat it.',
       'slow' =>
@@ -4716,7 +4730,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final segments =
         normalized.split('/').where((segment) => segment.isNotEmpty).toList();
     if (segments.length <= 2) return normalized;
-    return '…/${segments[segments.length - 2]}/${segments.last}';
+    return '.../${segments[segments.length - 2]}/${segments.last}';
   }
 
   @override
@@ -6928,6 +6942,7 @@ class _LearnerCard extends StatelessWidget {
     final streak = learner.streakDays;
     final hasActions =
         onSetActive != null || onOpenProfile != null || onStartLesson != null;
+    final needsBackendSync = _learnerNeedsBackendSync(learner);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -7029,6 +7044,11 @@ class _LearnerCard extends StatelessWidget {
                       text: '$streak day streak',
                       color: const Color(0xFFEF4444),
                     ),
+                    if (needsBackendSync)
+                      StatusPill(
+                        text: 'Sync pending',
+                        color: LumoTheme.accentOrange,
+                      ),
                   ],
                 ),
                 SizedBox(height: compactHeight ? 10 : 12),
@@ -7095,6 +7115,39 @@ class _LearnerCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                if (needsBackendSync) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFED7AA)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.cloud_off_rounded,
+                          color: LumoTheme.accentOrange,
+                          size: 18,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Profile is saved on this tablet and still waiting for backend sync. Refresh before trusting roster handoff or assignment freshness.',
+                            style: TextStyle(
+                              color: Color(0xFF9A3412),
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 if (hasActions) ...[
                   const SizedBox(height: 12),
                   Wrap(

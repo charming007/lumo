@@ -146,6 +146,45 @@ void main() {
     expect(find.textContaining('leaderboard'), findsWidgets);
   });
 
+  testWidgets('student list marks locally registered learners as sync pending', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.usingFallbackData = true;
+    state.registrationDraft = const RegistrationDraft(
+      name: 'Amina Bello',
+      age: '9',
+      cohort: 'Fallback cohort',
+      guardianName: 'Hauwa Bello',
+      village: 'Kawo',
+      consentCaptured: true,
+    );
+    await state.registerLearner();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AllStudentsPage(
+          state: state,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 sync pending'), findsOneWidget);
+    expect(find.text('Sync pending'), findsWidgets);
+    expect(
+      find.textContaining('waiting for backend sync'),
+      findsOneWidget,
+    );
+
+    state.dispose();
+  });
+
   testWidgets('registration flow stays usable on portrait tablet widths', (
     tester,
   ) async {
