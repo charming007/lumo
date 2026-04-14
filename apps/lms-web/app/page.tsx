@@ -63,6 +63,33 @@ const tableLinkStyle = {
   textDecoration: 'none',
 } as const;
 
+function describeReleaseRisk(blockerCount: number): { label: string; tone: string; text: string } {
+  if (blockerCount >= 5) {
+    return { label: 'Critical release blocker', tone: '#FEE2E2', text: '#991B1B' };
+  }
+
+  if (blockerCount >= 3) {
+    return { label: 'High release risk', tone: '#FEF3C7', text: '#92400E' };
+  }
+
+  return { label: 'Moderate release risk', tone: '#E0E7FF', text: '#3730A3' };
+}
+
+function describeNextAction(module: {
+  missingLessons: number;
+  hasAssessmentGate: boolean;
+}) {
+  if (module.missingLessons > 0 && !module.hasAssessmentGate) {
+    return `Create ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'} and add the assessment gate.`;
+  }
+
+  if (module.missingLessons > 0) {
+    return `Create ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'} to unblock publish.`;
+  }
+
+  return 'Add the missing assessment gate before publish.';
+}
+
 export default async function HomePage() {
   const [summaryResult, assignmentsResult, insightsResult, workboardResult, studentsResult, mallamsResult, modulesResult, lessonsResult, assessmentsResult, subjectsResult] = await Promise.allSettled([
     fetchDashboardSummary(),
@@ -149,6 +176,7 @@ export default async function HomePage() {
 
   const releaseFeedsFailed = modulesResult.status === 'rejected' || lessonsResult.status === 'rejected' || assessmentsResult.status === 'rejected';
   const publishReadyModules = modules.length - releaseBlockers.length;
+  const highestPriorityBlocker = releaseBlockers[0] ?? null;
   const partialOutageMessage = failedSources.length
     ? `Dashboard degraded gracefully: ${failedSources.join(', ')} data ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.`
     : null;
@@ -302,13 +330,35 @@ export default async function HomePage() {
           <Card title="Top blockers to clear" eyebrow="Admin watchlist">
             <div style={{ display: 'grid', gap: 12 }}>
               {releaseFeedsFailed ? sectionAlert('Blocker rows below may be incomplete because a curriculum feed is missing.', 'warning') : null}
+              {highestPriorityBlocker ? (() => {
+                const blockerBoardHref = `/content?view=blocked${highestPriorityBlocker.subjectId ? `&subject=${highestPriorityBlocker.subjectId}` : ''}&q=${encodeURIComponent(highestPriorityBlocker.title)}`;
+                const createLessonHref = `/content/lessons/new?subjectId=${highestPriorityBlocker.subjectId}&moduleId=${highestPriorityBlocker.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+                const risk = describeReleaseRisk(highestPriorityBlocker.blockerCount);
+
+                return (
+                  <div style={{ padding: 16, borderRadius: 18, background: '#FEFCE8', border: '1px solid #FDE68A', display: 'grid', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        <strong style={{ color: '#713F12' }}>Clear this module first: {highestPriorityBlocker.title}</strong>
+                        <span style={{ color: '#854D0E', lineHeight: 1.6 }}>{describeNextAction(highestPriorityBlocker)}</span>
+                      </div>
+                      <Pill label={risk.label} tone={risk.tone} text={risk.text} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Link href={blockerBoardHref} style={tableLinkStyle}>Open blocker board</Link>
+                      {highestPriorityBlocker.missingLessons > 0 ? <Link href={createLessonHref} style={tableLinkStyle}>Create next missing lesson</Link> : null}
+                    </div>
+                  </div>
+                );
+              })() : null}
               <SimpleTable
-                columns={['Module', 'Subject', 'Gaps', 'Release risk']}
+                columns={['Module', 'Subject', 'Gaps', 'Next action', 'Release risk']}
                 rows={releaseBlockers.length ? releaseBlockers.slice(0, 5).map((module) => {
                   const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
                   const createLessonHref = `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
                   const scopedSubjects = module.subjectId ? subjects.filter((subject) => subject.id === module.subjectId) : subjects;
                   const assessmentSubjects = scopedSubjects.length ? scopedSubjects : subjects;
+                  const risk = describeReleaseRisk(module.blockerCount);
 
                   return [
                     <div key={`${module.id}-module`} style={{ display: 'grid', gap: 6 }}>
@@ -322,8 +372,8 @@ export default async function HomePage() {
                       <span>{module.missingLessons > 0 ? `${module.missingLessons} lesson gap${module.missingLessons === 1 ? '' : 's'}` : 'Lessons complete'}</span>
                       {module.missingLessons > 0 ? <Link href={createLessonHref} style={tableLinkStyle}>Create missing lesson</Link> : null}
                     </div>,
-                    <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 6 }}>
-                      <span>{module.hasAssessmentGate ? 'Assessment linked; content still incomplete.' : 'Missing assessment gate before publish.'}</span>
+                    <div key={`${module.id}-next-action`} style={{ display: 'grid', gap: 6 }}>
+                      <span>{describeNextAction(module)}</span>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <Link href={blockerBoardHref} style={tableLinkStyle}>Open blockers board</Link>
                         {!module.hasAssessmentGate ? (
@@ -359,8 +409,9 @@ export default async function HomePage() {
                         ) : null}
                       </div>
                     </div>,
+                    <Pill key={`${module.id}-risk`} label={risk.label} tone={risk.tone} text={risk.text} />,
                   ];
-                }) : [[<span key="release-clear" style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseFeedsFailed ? 'Curriculum feeds unavailable — retry once content data is back.' : 'No blocker rows to clear. Content release lane is clean.'}</span>, '', '', '']]}
+                }) : [[<span key="release-clear" style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseFeedsFailed ? 'Curriculum feeds unavailable — retry once content data is back.' : 'No blocker rows to clear. Content release lane is clean.'}</span>, '', '', '', '']]}
               />
             </div>
           </Card>
