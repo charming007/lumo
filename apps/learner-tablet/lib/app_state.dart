@@ -382,15 +382,20 @@ class LumoAppState {
     if (usingFallbackData || sourceModules.isEmpty) return;
 
     final hydratedModules = <LearningModule>[];
-    final hydratedLessons = <LessonCardModel>[];
+    final baselineLessons = _sanitizeLessons(List<LessonCardModel>.from(assignedLessons));
+    final lessonsByModule = <String, List<LessonCardModel>>{};
+
+    for (final lesson in baselineLessons) {
+      final moduleId = lesson.moduleId.trim();
+      if (moduleId.isEmpty) continue;
+      lessonsByModule.putIfAbsent(moduleId, () => <LessonCardModel>[]).add(lesson);
+    }
 
     for (final module in sourceModules) {
       try {
         final bundle = await _apiClient.fetchModuleBundle(module.id);
         hydratedModules.add(bundle.module);
-        if (bundle.lessons.isNotEmpty) {
-          hydratedLessons.addAll(bundle.lessons);
-        }
+        lessonsByModule[bundle.module.id] = _sanitizeLessons(bundle.lessons);
       } catch (_) {
         hydratedModules.add(module);
       }
@@ -400,11 +405,13 @@ class LumoAppState {
       ..clear()
       ..addAll(_dedupeModules(_sanitizeModules(hydratedModules)));
 
-    if (hydratedLessons.isNotEmpty) {
-      assignedLessons
-        ..clear()
-        ..addAll(_sanitizeLessons(hydratedLessons));
-    }
+    assignedLessons
+      ..clear()
+      ..addAll(
+        _sanitizeLessons(
+          lessonsByModule.values.expand((lessons) => lessons).toList(),
+        ),
+      );
   }
 
   List<LearningModule> _sanitizeModules(List<LearningModule> source) {

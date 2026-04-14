@@ -342,6 +342,120 @@ void main() {
       state.dispose();
     });
 
+    test('preserves bootstrap lessons when one module hydration request fails',
+        () async {
+      final state = LumoAppState(includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': const [],
+                  'modules': [
+                    {
+                      'subjectId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Foundational English',
+                      'level': 'foundation-a',
+                    },
+                    {
+                      'subjectId': 'math',
+                      'subjectName': 'Basic Numeracy',
+                      'title': 'Basic Numeracy',
+                      'level': 'foundation-a',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'english-bootstrap-1',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Say hello',
+                      'durationMinutes': 8,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greetings',
+                      'scenario': 'Warm greeting practice',
+                      'steps': const [],
+                    },
+                    {
+                      'id': 'math-bootstrap-1',
+                      'moduleId': 'math',
+                      'subjectName': 'Basic Numeracy',
+                      'title': 'Count to 5',
+                      'durationMinutes': 10,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Counting',
+                      'scenario': 'Counting objects aloud',
+                      'steps': const [],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Foundational English',
+                  'level': 'foundation-a',
+                  'lessons': [
+                    {
+                      'id': 'english-live-1',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Introduce yourself',
+                      'durationMinutes': 12,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Speaking',
+                      'scenario': 'Learner says their name',
+                      'steps': const [],
+                    },
+                  ],
+                  'assignmentPacks': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/math') {
+              throw Exception('math bundle timed out');
+            }
+
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(
+        state.assignedLessons.map((lesson) => lesson.id),
+        equals(['english-live-1', 'math-bootstrap-1']),
+      );
+      expect(
+        state.assignedLessons
+            .where((lesson) => lesson.moduleId == 'english')
+            .map((lesson) => lesson.id),
+        equals(['english-live-1']),
+      );
+      expect(
+        state.assignedLessons
+            .where((lesson) => lesson.moduleId == 'math')
+            .map((lesson) => lesson.id),
+        equals(['math-bootstrap-1']),
+      );
+      state.dispose();
+    });
+
     test('builds a fallback module when lesson metadata arrives before modules',
         () {
       final state = LumoAppState(includeSeedDemoContent: true);
