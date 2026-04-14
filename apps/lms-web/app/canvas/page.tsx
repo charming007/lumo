@@ -69,7 +69,7 @@ export default async function CurriculumCanvasPage() {
         </div>
       ) : null}
 
-      <CurriculumCanvas data={data} />
+      <CurriculumCanvas data={data} failedSources={failedSources} />
     </PageShell>
   );
 }

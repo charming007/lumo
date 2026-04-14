@@ -185,7 +185,7 @@ export function buildCurriculumCanvasData({
     .map((subject): CurriculumCanvasSubject | null => {
       const subjectStrands = orderedStrands.filter((strand) => strand.subjectId === subject.id || strand.subjectName === subject.name);
 
-      const strandNodes = subjectStrands.map((strand) => {
+      const strandNodes: CurriculumCanvasStrand[] = subjectStrands.map((strand) => {
         const strandModules = modules
           .filter((module) => {
             const subjectMatches = module.subjectId === subject.id || module.subjectName === subject.name;
@@ -239,6 +239,72 @@ export function buildCurriculumCanvasData({
           modules: moduleNodes,
         } satisfies CurriculumCanvasStrand;
       }).filter((strand) => strand.modules.length > 0);
+
+      const fallbackModules = modules
+        .filter((module) => {
+          const subjectMatches = module.subjectId === subject.id || module.subjectName === subject.name;
+          if (!subjectMatches) return false;
+          return !strandNodes.some((strand) => strand.modules.some((strandModule) => strandModule.id === module.id));
+        })
+        .sort((left, right) => left.title.localeCompare(right.title));
+
+      if (fallbackModules.length) {
+        const fallbackStrands = new Map<string, CurriculumCanvasModule[]>();
+
+        fallbackModules.forEach((module) => {
+          const strandName = module.strandName?.trim() || 'General lane';
+          const existing = fallbackStrands.get(strandName) ?? [];
+
+          const moduleLessons = lessons
+            .filter((lesson) => (lesson.moduleId === module.id || lesson.moduleTitle === module.title) && lessonSubjectMatches(lesson, subject, module))
+            .sort((left, right) => left.title.localeCompare(right.title));
+
+          const moduleAssessments = assessments
+            .filter((assessment) => assessment.moduleId === module.id || assessment.moduleTitle === module.title)
+            .sort((left, right) => left.title.localeCompare(right.title));
+
+          const lessonNodes = moduleLessons.map((lesson) => {
+            const lessonAssessment = moduleAssessments.find((assessment) => assessmentMatchesLesson(assessment, lesson, module)) ?? null;
+            return {
+              id: lesson.id,
+              title: lesson.title,
+              status: lesson.status,
+              durationMinutes: lesson.durationMinutes,
+              mode: lesson.mode,
+              assessmentTitle: lessonAssessment?.title ?? null,
+              assessmentId: lessonAssessment?.id ?? null,
+            } satisfies CurriculumCanvasLesson;
+          });
+
+          const expectedLessonCount = Math.max(module.lessonCount, lessonNodes.length);
+          const readyLessons = lessonNodes.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+          const gapCount = Math.max(expectedLessonCount - readyLessons, 0) + (moduleAssessments.length ? 0 : 1);
+
+          existing.push({
+            id: module.id,
+            title: module.title,
+            status: module.status,
+            level: module.level,
+            lessonCount: expectedLessonCount,
+            readyLessons,
+            gapCount,
+            lessons: lessonNodes,
+            assessments: moduleAssessments,
+          } satisfies CurriculumCanvasModule);
+
+          fallbackStrands.set(strandName, existing);
+        });
+
+        Array.from(fallbackStrands.entries())
+          .sort(([left], [right]) => left.localeCompare(right))
+          .forEach(([name, groupedModules], index) => {
+            strandNodes.push({
+              id: `fallback-${subject.id}-${index}`,
+              name,
+              modules: groupedModules as CurriculumCanvasModule[],
+            } satisfies CurriculumCanvasStrand);
+          });
+      }
 
       if (!strandNodes.length) return null;
 
