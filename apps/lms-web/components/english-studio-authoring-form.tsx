@@ -198,6 +198,13 @@ export function EnglishStudioAuthoringForm({
   const [assessmentItemsText, setAssessmentItemsText] = useState('Can the learner say one complete sentence about the topic?|spoken-response\nCan the learner use at least one target word correctly?|teacher-check');
 
   const activeModule = englishModules.find((module) => module.id === moduleId) ?? englishModules[0];
+  const hasEnglishSubject = Boolean(englishSubject);
+  const hasEnglishModules = englishModules.length > 0;
+  const dependencyBlockers = [
+    hasEnglishSubject ? null : 'English Studio cannot create a lesson until the English subject feed loads.',
+    hasEnglishModules ? null : 'English Studio cannot create a lesson until at least one English module is available.',
+    moduleId && activeModule ? null : 'Pick a valid English module before creating a lesson.',
+  ].filter(Boolean) as string[];
   const activeAssessment = assessments.find((assessment) => assessment.moduleId === activeModule?.id || assessment.moduleTitle === activeModule?.title) ?? null;
   const objective = buildEnglishObjective(title);
   const vocabulary = inferVocabulary(title);
@@ -275,7 +282,7 @@ export function EnglishStudioAuthoringForm({
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing from English Studio is premature.',
   ].filter(Boolean) as string[]), [title, durationMinutes, activeAssessment, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
   const publishIntent = status === 'approved' || status === 'published';
-  const blockSubmit = publishIntent && readinessBlockers.length > 0;
+  const blockSubmit = dependencyBlockers.length > 0 || (publishIntent && readinessBlockers.length > 0);
 
   const readinessTone = useMemo(() => {
     if (readiness.readinessScore >= 5) return { bg: '#DCFCE7', border: '#86EFAC', text: '#166534' };
@@ -386,8 +393,8 @@ export function EnglishStudioAuthoringForm({
       <div style={autoFitFields}>
         <FieldLabel>
           English module
-          <select name="moduleId" value={moduleId} onChange={(event) => setModuleId(event.target.value)} style={inputStyle}>
-            {englishModules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}
+          <select name="moduleId" value={moduleId} onChange={(event) => setModuleId(event.target.value)} style={inputStyle} disabled={!hasEnglishModules}>
+            {englishModules.length ? englishModules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>) : <option value="">No English modules available</option>}
           </select>
         </FieldLabel>
         <FieldLabel>
@@ -420,22 +427,32 @@ export function EnglishStudioAuthoringForm({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontWeight: 800, color: blockSubmit ? '#991B1B' : '#0f172a' }}>Inline readiness blockers</div>
           <div style={{ color: blockSubmit ? '#991B1B' : '#475569', fontSize: 13, fontWeight: 700 }}>
-            {publishIntent ? (blockSubmit ? 'Approval/publish is blocked' : 'Approval/publish is clear') : 'Draft save stays available'}
+            {dependencyBlockers.length
+              ? 'Lesson creation is blocked until English dependencies recover'
+              : publishIntent
+                ? (blockSubmit ? 'Approval/publish is blocked' : 'Approval/publish is clear')
+                : 'Draft save stays available'}
           </div>
         </div>
         <div style={{ color: '#64748b', lineHeight: 1.6 }}>
           English Studio now surfaces the obvious release blockers inline so authors stop guessing whether the blueprint is actually safe to ship.
         </div>
         <div style={{ display: 'grid', gap: 8 }}>
+          {dependencyBlockers.length ? dependencyBlockers.map((blocker) => (
+            <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: '1px solid #FECACA', color: '#991B1B', lineHeight: 1.6 }}>
+              {blocker}
+            </div>
+          )) : null}
           {readinessBlockers.length ? readinessBlockers.map((blocker) => (
             <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, color: '#475569', lineHeight: 1.6 }}>
               {blocker}
             </div>
-          )) : (
+          )) : null}
+          {!dependencyBlockers.length && !readinessBlockers.length ? (
             <div style={{ padding: 12, borderRadius: 14, background: '#ECFDF5', border: '1px solid #BBF7D0', color: '#166534', lineHeight: 1.6 }}>
               No visible blockers. The English lesson blueprint is structurally ready for approval or publish.
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -610,7 +627,7 @@ export function EnglishStudioAuthoringForm({
         </div>
       </div>
 
-      <ActionButton label={blockSubmit ? 'Fix blockers before approval/publish' : 'Create English lesson'} pendingLabel="Creating lesson…" style={buttonStyle} disabled={blockSubmit} />
+      <ActionButton label={dependencyBlockers.length ? 'Load English subject and module data first' : blockSubmit ? 'Fix blockers before approval/publish' : 'Create English lesson'} pendingLabel="Creating lesson…" style={buttonStyle} disabled={blockSubmit} />
     </form>
   );
 }

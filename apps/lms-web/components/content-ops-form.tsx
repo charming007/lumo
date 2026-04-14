@@ -48,13 +48,16 @@ export function DynamicLessonCreateForm({
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? 'english');
   const [moduleId, setModuleId] = useState(modules[0]?.id ?? '');
 
-  const filteredModules = useMemo(() => {
-    const list = modules.filter((module) => module.subjectId === subjectId);
-    return list.length ? list : modules;
-  }, [modules, subjectId]);
+  const filteredModules = useMemo(() => modules.filter((module) => module.subjectId === subjectId), [modules, subjectId]);
 
-  const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0] ?? modules[0];
+  const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0];
   const activeSubject = subjects.find((item) => item.id === subjectId) ?? subjects[0];
+  const dependencyBlockers = [
+    subjects.length > 0 ? null : 'Create or reload a subject before creating a lesson.',
+    subjectId ? null : 'Pick a subject before creating a lesson.',
+    filteredModules.length > 0 ? null : 'Create or reload a module in this subject before creating a lesson.',
+    moduleId && activeModule ? null : 'Pick a valid module before creating a lesson.',
+  ].filter(Boolean) as string[];
 
   return (
     <form action={action} style={cardStyle}>
@@ -66,15 +69,15 @@ export function DynamicLessonCreateForm({
           const next = event.target.value;
           setSubjectId(next);
           const nextModules = modules.filter((module) => module.subjectId === next);
-          setModuleId(nextModules[0]?.id ?? modules[0]?.id ?? '');
+          setModuleId(nextModules[0]?.id ?? '');
         }} style={inputStyle}>
           {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
         </select>
       </FieldLabel>
       <FieldLabel>
         Module
-        <select name="moduleId" value={moduleId} onChange={(event) => setModuleId(event.target.value)} style={inputStyle}>
-          {filteredModules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}
+        <select name="moduleId" value={moduleId} onChange={(event) => setModuleId(event.target.value)} style={inputStyle} disabled={!filteredModules.length}>
+          {filteredModules.length ? filteredModules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>) : <option value="">No modules available for this subject</option>}
         </select>
       </FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
@@ -82,13 +85,18 @@ export function DynamicLessonCreateForm({
         <div style={{ background: '#f8fafc', borderRadius: 14, padding: 14, border: '1px solid #e2e8f0' }}><strong>{activeModule?.level ?? '—'}</strong><div style={{ color: '#64748b', marginTop: 4 }}>Target level</div></div>
         <div style={{ background: '#f8fafc', borderRadius: 14, padding: 14, border: '1px solid #e2e8f0' }}><strong>{activeModule?.status ?? '—'}</strong><div style={{ color: '#64748b', marginTop: 4 }}>Module state</div></div>
       </div>
+      {dependencyBlockers.length ? (
+        <div style={{ padding: 14, borderRadius: 16, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', lineHeight: 1.6, display: 'grid', gap: 8 }}>
+          {dependencyBlockers.map((blocker) => <div key={blocker}>{blocker}</div>)}
+        </div>
+      ) : null}
       <FieldLabel>Title<input name="title" defaultValue="Who helps in our community?" style={inputStyle} /></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue="8" style={inputStyle} /></FieldLabel>
         <FieldLabel>Mode<select name="mode" defaultValue="guided" style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option></select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
       </div>
-      <ActionButton label="Create lesson" pendingLabel="Creating lesson…" style={buttonStyle} />
+      <ActionButton label={dependencyBlockers.length ? 'Load subject and module data first' : 'Create lesson'} pendingLabel="Creating lesson…" style={buttonStyle} disabled={dependencyBlockers.length > 0} />
     </form>
   );
 }
