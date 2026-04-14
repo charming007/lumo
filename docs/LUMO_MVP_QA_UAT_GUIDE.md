@@ -8,6 +8,8 @@ A practical test guide for validating the **Lumo MVP** across the **LMS** and th
 
 **Format:** this Markdown file is the maintainable source. Export and sync the matching HTML file (`docs/LUMO_MVP_QA_UAT_GUIDE.html` and `apps/lms-web/public/LUMO_MVP_QA_UAT_GUIDE.html`) for browser-based review and PDF export.
 
+**Related appendix:** see `docs/LUMO_POSITIONING_BRIEF.md` and `docs/LUMO_POSITIONING_BRIEF.html` for the concise investor / implementation-partner positioning brief that sits alongside this QA/UAT guide family.
+
 ---
 
 ## 1) Purpose and testing posture
@@ -551,3 +553,13 @@ Do not sign off the MVP unless the answer is honestly **yes** to all of these:
 - Are blocker and major defects either fixed or explicitly accepted?
 
 If not, it is not sign-off. It is wishful thinking with better typography.
+
+---
+
+## 12) Appendix — positioning brief for investors and implementation partners
+
+For a concise one-page summary of what Lumo is, why the product is voice-first and facilitator-aware, where the strongest target market sits, what is differentiated, the main risks, and what still needs hardening, see:
+
+- `docs/LUMO_POSITIONING_BRIEF.md`
+- `docs/LUMO_POSITIONING_BRIEF.html`
+- `apps/lms-web/public/LUMO_POSITIONING_BRIEF.html`

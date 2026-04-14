@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumo Positioning Brief</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --brand: #4f46e5;
+      --brand-2: #7c3aed;
+      --good: #166534;
+      --good-bg: #dcfce7;
+      --warn: #92400e;
+      --warn-bg: #fef3c7;
+      --danger: #991b1b;
+      --danger-bg: #fee2e2;
+      --info: #1d4ed8;
+      --info-bg: #dbeafe;
+      --soft: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(124,58,237,0.10), transparent 26%),
+        radial-gradient(circle at top left, rgba(79,70,229,0.10), transparent 32%),
+        var(--bg);
+      line-height: 1.65;
+    }
+
+    a { color: var(--brand); }
+    .skip-link {
+      position: absolute;
+      left: 12px;
+      top: -40px;
+      background: #fff;
+      color: #111827;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      text-decoration: none;
+      z-index: 1000;
+    }
+    .skip-link:focus { top: 12px; }
+
+    .wrap {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f172a, #312e81 60%, #4f46e5);
+      color: white;
+      padding: 36px;
+      border-radius: 28px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 1.05;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 880px;
+      color: rgba(255,255,255,0.9);
+      font-size: 1.04rem;
+    }
+
+    .badge-row, .chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .badge, .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+    .badge { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.14); }
+    .chip { background: var(--soft); color: var(--muted); border: 1px solid var(--line); }
+    .chip.good { background: var(--good-bg); color: var(--good); border-color: #bbf7d0; }
+    .chip.warn { background: var(--warn-bg); color: var(--warn); border-color: #fcd34d; }
+    .chip.info { background: var(--info-bg); color: var(--info); border-color: #93c5fd; }
+    .chip.danger { background: var(--danger-bg); color: var(--danger); border-color: #fecaca; }
+
+    .grid { display: grid; gap: 18px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+    }
+
+    .card h2, .card h3 { margin-top: 0; line-height: 1.2; }
+    .section-title {
+      margin: 34px 0 14px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.74rem;
+      font-weight: 800;
+      color: var(--brand-2);
+    }
+
+    .sticky-nav { position: sticky; top: 18px; }
+    .toc a {
+      display: block;
+      padding: 8px 0;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px dashed #e5e7eb;
+      font-weight: 700;
+    }
+    .toc a:hover, .toc a:focus { color: var(--brand); }
+
+    .callout {
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    .callout.good { background: #ecfdf5; border-color: #bbf7d0; }
+    .callout.warn { background: #fff7ed; border-color: #fed7aa; }
+    .callout.danger { background: #fef2f2; border-color: #fecaca; }
+    .callout.info { background: #eff6ff; border-color: #bfdbfe; }
+
+    .checklist {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+    .checklist li + li { margin-top: 8px; }
+
+    .footer-note {
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 960px) {
+      .grid.two, .grid.three { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr !important; }
+      .sticky-nav { position: static; }
+    }
+
+    @media print {
+      body { background: white; }
+      .wrap { max-width: none; padding: 0; }
+      .hero, .card { box-shadow: none; }
+      .sticky-nav { position: static; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="wrap">
+    <section class="hero" aria-labelledby="brief-title">
+      <div class="badge-row" style="margin-bottom: 14px;">
+        <span class="badge">Lumo</span>
+        <span class="badge">Investor / partner brief</span>
+        <span class="badge">Appendix-ready</span>
+      </div>
+      <h1 id="brief-title">Positioning Brief</h1>
+      <p>A concise explanation of what Lumo is, why voice-first and facilitator-aware delivery matters, where the best market wedge sits, what is differentiated, what can work for NGOs and operators, and what still needs hardening before bigger pilot claims.</p>
+    </section>
+
+    <div class="grid layout" style="grid-template-columns: 280px 1fr; align-items: start;">
+      <aside class="card sticky-nav toc" aria-label="Brief contents">
+        <div class="eyebrow">Contents</div>
+        <a href="#what-is-lumo">1. What Lumo is</a>
+        <a href="#why-voice-first">2. Why voice-first matters</a>
+        <a href="#target-market">3. Strongest target market</a>
+        <a href="#ngo-fit">4. Why NGOs / operators can use it</a>
+        <a href="#differentiation">5. What is differentiated</a>
+        <a href="#risks">6. Main risks</a>
+        <a href="#hardening">7. What still needs hardening</a>
+        <a href="#bottom-line">8. Bottom line</a>
+      </aside>
+
+      <main id="main-content" class="grid">
+        <section class="card" id="what-is-lumo">
+          <div class="eyebrow">1. What Lumo is</div>
+          <h2>Voice-first learning infrastructure for underserved children</h2>
+          <p>Lumo is a <strong>voice-first learning platform</strong> for children who are poorly served by text-heavy edtech, unstable connectivity, and conventional classroom assumptions. The current MVP is aimed at <strong>facilitated shared-tablet learning</strong> for <strong>Almajiri children in northern Nigeria aged 8–12</strong>.</p>
+          <div class="chip-row" style="margin-top: 12px;">
+            <span class="chip good">Learner tablet app</span>
+            <span class="chip info">LMS / operator console</span>
+            <span class="chip warn">Offline-first sync</span>
+          </div>
+          <div class="grid two" style="margin-top: 16px;">
+            <div class="callout info">
+              <strong>Starting subject focus</strong>
+              <ul class="checklist">
+                <li>Foundational English oral literacy</li>
+                <li>Basic numeracy</li>
+                <li>Hygiene, safety, and life skills</li>
+              </ul>
+            </div>
+            <div class="callout good">
+              <strong>System shape</strong>
+              <ul class="checklist">
+                <li>Guided learner lesson delivery</li>
+                <li>Assignments, progress, and reporting in the LMS</li>
+                <li>Offline use with delayed sync when connectivity returns</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="why-voice-first">
+          <div class="eyebrow">2. Why voice-first and facilitator-aware delivery matters</div>
+          <h2>Because the normal edtech assumptions break fast</h2>
+          <p>Most mainstream edtech assumes the learner can already read, owns an individual device, and can rely on stable internet. In many informal or low-resource learning environments, that assumption falls apart immediately.</p>
+          <ul class="checklist">
+            <li>Many children need <strong>audio-led interaction before text-led interaction</strong>.</li>
+            <li>Devices are often <strong>shared</strong>, not personal.</li>
+            <li>Adult support matters, so the product has to work with <strong>facilitators / mallams / operators</strong>.</li>
+            <li>Lessons need to be <strong>short, guided, and operationally manageable</strong>.</li>
+            <li>Progress has to survive <strong>offline use with delayed sync</strong>.</li>
+          </ul>
+          <div class="callout warn" style="margin-top: 16px;"><strong>Point:</strong> this is not cosmetic UX positioning. It is the difference between a product that sounds inclusive in slides and one that can actually run in-field.</div>
+        </section>
+
+        <section class="card" id="target-market">
+          <div class="eyebrow">3. Strongest target market</div>
+          <h2>The best wedge is facilitated NGO / operator delivery</h2>
+          <p>The strongest near-term target is <strong>NGO- or operator-run facilitated learning programs serving children in low-resource, low-literacy contexts, especially where shared devices and intermittent connectivity are normal</strong>.</p>
+          <div class="grid two" style="margin-top: 16px;">
+            <div>
+              <h3>Why this segment fits first</h3>
+              <ul class="checklist">
+                <li>Standard edtech misses the real constraint set.</li>
+                <li>Programs are organized enough to support onboarding and pilot measurement.</li>
+                <li>Operators care about both learning outcomes and delivery accountability.</li>
+                <li>Shared-tablet and facilitator-led workflows are acceptable, not awkward.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Where it can plausibly land</h3>
+              <ul class="checklist">
+                <li>Bridge learning programs</li>
+                <li>Non-formal education initiatives</li>
+                <li>Remedial / catch-up programs</li>
+                <li>Community learning centers</li>
+                <li>NGO or ministry pilots in underserved regions</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="ngo-fit">
+          <div class="eyebrow">4. Why it can fit NGOs and operators</div>
+          <h2>It is shaped around delivery reality, not just child-facing novelty</h2>
+          <div class="grid two">
+            <div class="callout info">
+              <strong>For NGOs / funders / program leads</strong>
+              <ul class="checklist">
+                <li>Measurable progress and completion signals</li>
+                <li>Downloadable reporting and evidence trails</li>
+                <li>Governed content flows instead of unreviewed AI output</li>
+                <li>A clearer pilot-readiness story than a generic AI tutor pitch</li>
+              </ul>
+            </div>
+            <div class="callout good">
+              <strong>For facilitators / operators</strong>
+              <ul class="checklist">
+                <li>Shared-tablet learner handling</li>
+                <li>Assignment and roster management</li>
+                <li>Facilitator notes and evidence expectations in lesson packs</li>
+                <li>Operational visibility across attendance, progress, and follow-up</li>
+              </ul>
+            </div>
+          </div>
+          <p style="margin-top: 16px;">A lot of deployments fail from daily delivery friction rather than theory. Lumo’s operator layer is one of the reasons it can be deployable instead of merely demo-friendly.</p>
+        </section>
+
+        <section class="card" id="differentiation">
+          <div class="eyebrow">5. What is differentiated</div>
+          <h2>The defensible story is the whole field-delivery loop</h2>
+          <p>Lumo’s strongest differentiation is not “AI for education” in the abstract. That category is crowded and mostly mush. The sharper story is the combination of:</p>
+          <div class="grid two">
+            <ul class="checklist">
+              <li><strong>Voice-first lesson delivery</strong> for low reading dependence</li>
+              <li><strong>Facilitator-aware workflows</strong> instead of self-serve assumptions</li>
+              <li><strong>Offline-first operation</strong> with delayed sync</li>
+            </ul>
+            <ul class="checklist">
+              <li><strong>Shared-device design</strong></li>
+              <li><strong>Human-reviewed content governance</strong></li>
+              <li>LMS linkage between learner activity, content ops, and NGO-ready reporting</li>
+            </ul>
+          </div>
+          <div class="callout info" style="margin-top: 16px;"><strong>In plain English:</strong> Lumo is trying to solve the whole delivery loop, not just the front-end lesson experience.</div>
+        </section>
+
+        <section class="card" id="risks">
+          <div class="eyebrow">6. Main risks</div>
+          <h2>The opportunity is real. So are the failure modes.</h2>
+          <div class="grid three">
+            <div class="callout danger">
+              <strong>Product / technical</strong>
+              <ul class="checklist">
+                <li>Speech recognition reliability in accents, noise, and low-end hardware</li>
+                <li>Offline sync and state recovery robustness</li>
+                <li>Tablet performance and runtime stability</li>
+                <li>Consistency across learner progress, rewards, and reports</li>
+              </ul>
+            </div>
+            <div class="callout warn">
+              <strong>Market / deployment</strong>
+              <ul class="checklist">
+                <li>Scope creep across content areas and partner requests</li>
+                <li>Too much facilitator onboarding burden</li>
+                <li>Expectation risk if “AI” attention outruns field readiness</li>
+                <li>Pressure to prove impact before the system is hard enough</li>
+              </ul>
+            </div>
+            <div class="callout info">
+              <strong>Governance</strong>
+              <ul class="checklist">
+                <li>Minor data handling and child safety discipline</li>
+                <li>Curriculum quality and localization gaps</li>
+                <li>Trust collapse if reporting outruns actual delivery reality</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="hardening">
+          <div class="eyebrow">7. What still needs hardening</div>
+          <h2>The obvious pre-scale checklist</h2>
+          <ul class="checklist">
+            <li>Reliable end-to-end flow from LMS authoring → assignment → learner completion → downstream evidence</li>
+            <li>Stronger offline persistence and sync recovery</li>
+            <li>Cleaner lesson playback under interruption and shared-device switching</li>
+            <li>Proof that operator workflows stay usable under real field pressure</li>
+            <li>Confidence that reporting reflects true learner activity rather than stitched-together demo state</li>
+            <li>Curriculum quality, localization, and facilitator guidance depth</li>
+            <li>Device testing on realistic low-end hardware</li>
+          </ul>
+          <div class="callout good" style="margin-top: 16px;"><strong>The good news:</strong> these are execution hardening problems, not a sign that the thesis is nonsense.</div>
+        </section>
+
+        <section class="card" id="bottom-line">
+          <div class="eyebrow">8. Bottom line</div>
+          <h2>Where the story is strongest</h2>
+          <p>Lumo is most compelling as a <strong>field-deployable, voice-first, facilitator-aware learning platform for underserved children in low-resource settings</strong>.</p>
+          <p>Its best early story is not mass-market consumer edtech. It is a system that is:</p>
+          <ul class="checklist">
+            <li>credible in difficult environments,</li>
+            <li>operationally legible for NGOs and delivery partners,</li>
+            <li>safer and more governable than open-ended AI tutoring,</li>
+            <li>differentiated by matching how learning programs actually run on the ground.</li>
+          </ul>
+          <p class="footer-note">If reliability, evidence integrity, and pilot operations harden as planned, Lumo starts to look less like a shiny demo and more like real learning-delivery infrastructure.</p>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
