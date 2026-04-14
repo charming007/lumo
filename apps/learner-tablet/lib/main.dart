@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -3700,6 +3702,43 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     await widget.state.stopVoiceReplay();
   }
 
+  String? _buildAffirmationLine(LessonSessionState? session) {
+    if (session == null) return null;
+    final remainingSteps =
+        session.lesson.steps.length - (session.stepIndex + 1);
+    if (remainingSteps <= 0) {
+      return 'You did it.';
+    }
+    if (remainingSteps == 1) {
+      return 'One more to go.';
+    }
+
+    const affirmations = [
+      'Good job.',
+      'Nice one.',
+      'Well done.',
+      'You got it.',
+      'That is right.',
+    ];
+    final seed = session.totalResponses + session.stepIndex;
+    return affirmations[seed % affirmations.length];
+  }
+
+  Future<void> _speakAffirmation(String text) async {
+    await _prepareForMallamSpeech();
+    if (!mounted) return;
+    setState(() {
+      isSpeaking = true;
+      microphoneStatus = 'Mallam is praising the learner.';
+    });
+    await widget.state.replayVisiblePrompt(text, mode: SpeakerMode.affirming);
+    if (!mounted) return;
+    setState(() {
+      isSpeaking = false;
+      microphoneStatus = 'Mallam is preparing the next step.';
+    });
+  }
+
   Future<void> _speakAndMaybeAutoRecord(
     String text, {
     SpeakerMode mode = SpeakerMode.guiding,
@@ -3786,6 +3825,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   Future<void> _afterCorrectResponse() async {
+    final previousSession = widget.state.activeSession;
+    final celebrationLine = _buildAffirmationLine(previousSession);
+    if (celebrationLine != null) {
+      await _speakAffirmation(celebrationLine);
+      if (!mounted) return;
+    }
+
     final finished = widget.state.advanceLessonStep();
     widget.onChanged();
     if (finished) {
@@ -5990,7 +6036,7 @@ int _adaptiveGridCount(
   return rawCount.clamp(1, maxCount);
 }
 
-class LessonCompletePage extends StatelessWidget {
+class LessonCompletePage extends StatefulWidget {
   final LumoAppState state;
   final LessonCardModel lesson;
 
@@ -6001,15 +6047,84 @@ class LessonCompletePage extends StatelessWidget {
   });
 
   @override
+  State<LessonCompletePage> createState() => _LessonCompletePageState();
+}
+
+class _LessonCompletePageState extends State<LessonCompletePage>
+    with SingleTickerProviderStateMixin {
+  static const int _revealSeconds = 3;
+
+  late final AnimationController _confettiController;
+  late final AudioPlayer _celebrationPlayer;
+  Timer? _revealTimer;
+  int _secondsRemaining = _revealSeconds;
+  bool _resultsVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    );
+    _celebrationPlayer = AudioPlayer();
+    _startRevealCountdown();
+  }
+
+  void _startRevealCountdown() {
+    _revealTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) return;
+      if (_secondsRemaining <= 1) {
+        timer.cancel();
+        await _revealResults();
+        return;
+      }
+      setState(() {
+        _secondsRemaining -= 1;
+      });
+    });
+  }
+
+  Future<void> _revealResults() async {
+    if (_resultsVisible) return;
+    setState(() {
+      _secondsRemaining = 0;
+      _resultsVisible = true;
+    });
+    _confettiController.repeat();
+    await _playCelebrationSound();
+  }
+
+  Future<void> _playCelebrationSound() async {
+    try {
+      await _celebrationPlayer.play(
+        AssetSource('audio/lesson_complete_chime.wav'),
+        mode: PlayerMode.lowLatency,
+      );
+    } catch (_) {
+      await SystemSound.play(SystemSoundType.alert);
+    }
+  }
+
+  @override
+  void dispose() {
+    _revealTimer?.cancel();
+    _confettiController.dispose();
+    unawaited(_celebrationPlayer.dispose());
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final learner = state.currentLearner!;
-    final session = state.activeSession!;
-    final nextLesson = state.nextLessonAfterCompletion(
+    final learner = widget.state.currentLearner!;
+    final session = widget.state.activeSession!;
+    final lesson = widget.lesson;
+    final nextLesson = widget.state.nextLessonAfterCompletion(
       learner,
       completedLessonId: lesson.id,
     );
-    final recommendedModule = state.recommendedModuleForLearner(learner);
-    final routeSummary = state.nextLessonRouteSummaryForLearner(
+    final recommendedModule = widget.state.recommendedModuleForLearner(learner);
+    final routeSummary = widget.state.nextLessonRouteSummaryForLearner(
       learner,
       completedLessonId: lesson.id,
     );
@@ -6019,263 +6134,452 @@ class LessonCompletePage extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: DetailCard(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Color(0xFFDCFCE7),
-                      child: Icon(
-                        Icons.check_rounded,
-                        color: Colors.green,
-                        size: 46,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      state.rewardCelebrationHeadlineForLearner(learner),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'You completed ${lesson.title}. ${state.rewardCelebrationDetailForLearner(learner)}',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact = constraints.maxWidth < 720;
-                        final tiles = [
-                          MetricTile(
-                            label: 'Responses captured',
-                            value: '${session.totalResponses}',
-                            icon: Icons.hearing_rounded,
-                            color: LumoTheme.primary,
-                          ),
-                          MetricTile(
-                            label: 'Support actions',
-                            value: '${session.supportActionsUsed}',
-                            icon: Icons.volunteer_activism_rounded,
-                            color: LumoTheme.accentOrange,
-                          ),
-                          MetricTile(
-                            label: 'Queued sync',
-                            value: '${state.pendingSyncEvents.length}',
-                            icon: Icons.cloud_upload_rounded,
-                            color: LumoTheme.accentGreen,
-                          ),
-                        ];
-
-                        if (compact) {
-                          return Column(
-                            children: [
-                              for (var i = 0; i < tiles.length; i++) ...[
-                                SizedBox(
-                                    width: double.infinity, child: tiles[i]),
-                                if (i < tiles.length - 1)
-                                  const SizedBox(height: 12),
-                              ],
-                            ],
-                          );
-                        }
-
-                        return Row(
-                          children: [
-                            for (var i = 0; i < tiles.length; i++) ...[
-                              Expanded(child: tiles[i]),
-                              if (i < tiles.length - 1)
-                                const SizedBox(width: 12),
-                            ],
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    if (rewards != null) ...[
-                      SoftPanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.auto_awesome_rounded,
-                                    color: LumoTheme.accentOrange),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Reward boost',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: [
-                                Chip(
-                                  avatar:
-                                      const Icon(Icons.stars_rounded, size: 18),
-                                  label: Text('${rewards.points} pts'),
-                                ),
-                                Chip(
-                                  avatar: const Icon(Icons.trending_up_rounded,
-                                      size: 18),
-                                  label: Text(
-                                      '${rewards.levelLabel} • Level ${rewards.level}'),
-                                ),
-                                Chip(
-                                  avatar: const Icon(
-                                      Icons.workspace_premium_rounded,
-                                      size: 18),
-                                  label: Text(
-                                    unlockedBadges.isEmpty
-                                        ? 'First badge loading'
-                                        : '${unlockedBadges.length} badge(s) unlocked',
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            LinearProgressIndicator(
-                              value: rewards.progressToNextLevel,
-                              minHeight: 10,
-                              borderRadius:
-                                  const BorderRadius.all(Radius.circular(999)),
-                              backgroundColor: const Color(0xFFE2E8F0),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                LumoTheme.accentOrange,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              rewards.nextLevelLabel == null
-                                  ? 'Top celebration band reached. Keep the streak alive.'
-                                  : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
-                            ),
-                            if (unlockedBadges.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: unlockedBadges
-                                    .take(3)
-                                    .map(
-                                      (badge) => Chip(
-                                        avatar: const Icon(
-                                          Icons.emoji_events_rounded,
-                                          size: 18,
-                                          color: LumoTheme.accentOrange,
-                                        ),
-                                        label: Text(badge.title),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                    SoftPanel(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.route_rounded,
-                                  color: LumoTheme.primary),
-                              SizedBox(width: 8),
-                              Text(
-                                'Next lesson routing',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(routeSummary),
-                          const SizedBox(height: 12),
-                          LabelValueWrap(
-                            items: [
-                              (
-                                'Backend route',
-                                state.backendRoutingSummaryForLearner(learner),
-                              ),
-                              ('Recommended module', recommendedModule.title),
-                              (
-                                'Next lesson',
-                                nextLesson?.title ?? 'Open module to choose',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _ResponsiveButtonRow(
-                      primary: FilledButton(
-                        onPressed: () {
-                          state.selectLearner(learner);
-                          state.selectModule(recommendedModule);
-                          if (nextLesson != null) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => LessonLaunchSetupPage(
-                                  state: state,
-                                  onChanged: () {},
-                                  lesson: nextLesson,
-                                  module: recommendedModule,
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => SubjectModulesPage(
-                                state: state,
-                                onChanged: () {},
-                                module: recommendedModule,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Text(nextLesson == null
-                            ? 'Open recommended module'
-                            : 'Start next routed lesson'),
-                      ),
-                      secondary: OutlinedButton(
-                        onPressed: () {
-                          Navigator.of(context)
-                              .popUntil((route) => route.isFirst);
-                        },
-                        child: const Text('Back home'),
-                      ),
-                    ),
-                  ],
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: _resultsVisible ? 1 : 0,
+                  duration: const Duration(milliseconds: 500),
+                  child: _CelebrationConfettiOverlay(
+                    controller: _confettiController,
+                  ),
                 ),
               ),
             ),
-          ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 450),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: _resultsVisible
+                  ? SingleChildScrollView(
+                      key: const ValueKey('lesson-complete-results'),
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: DetailCard(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor: Color(0xFFDCFCE7),
+                                  child: Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.green,
+                                    size: 46,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  widget.state
+                                      .rewardCelebrationHeadlineForLearner(
+                                          learner),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'You completed ${lesson.title}. ${widget.state.rewardCelebrationDetailForLearner(learner)}',
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final compact = constraints.maxWidth < 720;
+                                    final tiles = [
+                                      MetricTile(
+                                        label: 'Responses captured',
+                                        value: '${session.totalResponses}',
+                                        icon: Icons.hearing_rounded,
+                                        color: LumoTheme.primary,
+                                      ),
+                                      MetricTile(
+                                        label: 'Support actions',
+                                        value: '${session.supportActionsUsed}',
+                                        icon: Icons.volunteer_activism_rounded,
+                                        color: LumoTheme.accentOrange,
+                                      ),
+                                      MetricTile(
+                                        label: 'Queued sync',
+                                        value:
+                                            '${widget.state.pendingSyncEvents.length}',
+                                        icon: Icons.cloud_upload_rounded,
+                                        color: LumoTheme.accentGreen,
+                                      ),
+                                    ];
+
+                                    if (compact) {
+                                      return Column(
+                                        children: [
+                                          for (var i = 0;
+                                              i < tiles.length;
+                                              i++) ...[
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: tiles[i],
+                                            ),
+                                            if (i < tiles.length - 1)
+                                              const SizedBox(height: 12),
+                                          ],
+                                        ],
+                                      );
+                                    }
+
+                                    return Row(
+                                      children: [
+                                        for (var i = 0;
+                                            i < tiles.length;
+                                            i++) ...[
+                                          Expanded(child: tiles[i]),
+                                          if (i < tiles.length - 1)
+                                            const SizedBox(width: 12),
+                                        ],
+                                      ],
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 20),
+                                if (rewards != null) ...[
+                                  SoftPanel(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(Icons.auto_awesome_rounded,
+                                                color: LumoTheme.accentOrange),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Reward boost',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Wrap(
+                                          spacing: 12,
+                                          runSpacing: 12,
+                                          children: [
+                                            Chip(
+                                              avatar: const Icon(
+                                                  Icons.stars_rounded,
+                                                  size: 18),
+                                              label:
+                                                  Text('${rewards.points} pts'),
+                                            ),
+                                            Chip(
+                                              avatar: const Icon(
+                                                  Icons.trending_up_rounded,
+                                                  size: 18),
+                                              label: Text(
+                                                  '${rewards.levelLabel} • Level ${rewards.level}'),
+                                            ),
+                                            Chip(
+                                              avatar: const Icon(
+                                                  Icons
+                                                      .workspace_premium_rounded,
+                                                  size: 18),
+                                              label: Text(
+                                                unlockedBadges.isEmpty
+                                                    ? 'First badge loading'
+                                                    : '${unlockedBadges.length} badge(s) unlocked',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        LinearProgressIndicator(
+                                          value: rewards.progressToNextLevel,
+                                          minHeight: 10,
+                                          borderRadius: const BorderRadius.all(
+                                            Radius.circular(999),
+                                          ),
+                                          backgroundColor:
+                                              const Color(0xFFE2E8F0),
+                                          valueColor:
+                                              const AlwaysStoppedAnimation<
+                                                  Color>(
+                                            LumoTheme.accentOrange,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          rewards.nextLevelLabel == null
+                                              ? 'Top celebration band reached. Keep the streak alive.'
+                                              : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
+                                        ),
+                                        if (unlockedBadges.isNotEmpty) ...[
+                                          const SizedBox(height: 12),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: unlockedBadges
+                                                .take(3)
+                                                .map(
+                                                  (badge) => Chip(
+                                                    avatar: const Icon(
+                                                      Icons
+                                                          .emoji_events_rounded,
+                                                      size: 18,
+                                                      color: LumoTheme
+                                                          .accentOrange,
+                                                    ),
+                                                    label: Text(badge.title),
+                                                  ),
+                                                )
+                                                .toList(),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                ],
+                                SoftPanel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.route_rounded,
+                                              color: LumoTheme.primary),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Next lesson routing',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(routeSummary),
+                                      const SizedBox(height: 12),
+                                      LabelValueWrap(
+                                        items: [
+                                          (
+                                            'Backend route',
+                                            widget.state
+                                                .backendRoutingSummaryForLearner(
+                                                    learner),
+                                          ),
+                                          (
+                                            'Recommended module',
+                                            recommendedModule.title,
+                                          ),
+                                          (
+                                            'Next lesson',
+                                            nextLesson?.title ??
+                                                'Open module to choose',
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                _ResponsiveButtonRow(
+                                  primary: FilledButton(
+                                    onPressed: () {
+                                      widget.state.selectLearner(learner);
+                                      widget.state
+                                          .selectModule(recommendedModule);
+                                      if (nextLesson != null) {
+                                        Navigator.of(context).pushReplacement(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                LessonLaunchSetupPage(
+                                              state: widget.state,
+                                              onChanged: () {},
+                                              lesson: nextLesson,
+                                              module: recommendedModule,
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(
+                                          builder: (_) => SubjectModulesPage(
+                                            state: widget.state,
+                                            onChanged: () {},
+                                            module: recommendedModule,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(nextLesson == null
+                                        ? 'Open recommended module'
+                                        : 'Start next routed lesson'),
+                                  ),
+                                  secondary: OutlinedButton(
+                                    onPressed: () {
+                                      Navigator.of(context)
+                                          .popUntil((route) => route.isFirst);
+                                    },
+                                    child: const Text('Back home'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      key: const ValueKey('lesson-complete-countdown'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 620),
+                          child: DetailCard(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 108,
+                                  height: 108,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEEF2FF),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '$_secondsRemaining',
+                                    style: const TextStyle(
+                                      fontSize: 44,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF312E81),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 22),
+                                Text(
+                                  'Nice work, ${learner.name.split(' ').first}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Mallam is getting your celebration ready. Full results will appear in a moment.',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Color(0xFF64748B),
+                                    height: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 22),
+                                const Text(
+                                  'Results unlock in about 3 seconds',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 22),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    onPressed: _revealResults,
+                                    icon: const Icon(Icons.celebration_rounded),
+                                    label: const Text('Show results now'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
     );
+  }
+}
+
+class _CelebrationConfettiOverlay extends StatelessWidget {
+  final Animation<double> controller;
+
+  const _CelebrationConfettiOverlay({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          return CustomPaint(
+            painter: _CelebrationConfettiPainter(progress: controller.value),
+            child: const SizedBox.expand(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CelebrationConfettiPainter extends CustomPainter {
+  final double progress;
+
+  const _CelebrationConfettiPainter({required this.progress});
+
+  static const _colors = [
+    Color(0xFF4338CA),
+    Color(0xFFF97316),
+    Color(0xFF22C55E),
+    Color(0xFFEAB308),
+    Color(0xFFEC4899),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    for (var index = 0; index < 42; index++) {
+      final color = _colors[index % _colors.length];
+      final lane = (index * 0.173) % 1;
+      final swaySeed = (index % 7) + 1;
+      final drop = ((progress + (index * 0.037)) % 1.0);
+      final x = lane * size.width +
+          math.sin((progress * math.pi * 2) + index) * (10 + swaySeed * 2);
+      final y = -24 + drop * (size.height + 80);
+      final width = 8 + (index % 4) * 2.0;
+      final height = 12 + (index % 5) * 2.0;
+
+      canvas.save();
+      canvas.translate(x.clamp(-24, size.width + 24), y);
+      canvas.rotate((progress * math.pi * 4) + (index * 0.31));
+      paint.color = color.withValues(alpha: 0.9);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: width,
+            height: height,
+          ),
+          const Radius.circular(3),
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CelebrationConfettiPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
 

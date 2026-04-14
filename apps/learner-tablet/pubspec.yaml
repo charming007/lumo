@@ -29,3 +29,4 @@ flutter:
     - assets/images/lumo_logo.jpg
     - assets/images/mallam_tutor.jpg
     - assets/video/mallam_voice.mp4
+    - assets/audio/lesson_complete_chime.wav
