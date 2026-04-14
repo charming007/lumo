@@ -127,7 +127,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     return subjectMatches && viewMatches && queryMatches;
   });
 
-  const activeResultCount = filteredModules.length + filteredLessons.length + filteredAssessments.length + filteredBlockedModules.length;
+  const showingBlockedView = viewFilter === 'blocked';
+  const activeResultCount = showingBlockedView
+    ? filteredBlockedModules.length
+    : filteredModules.length + filteredLessons.length + filteredAssessments.length;
   const filtersActive = Boolean(searchText || subjectFilter || statusFilter || viewFilter);
 
   return (
@@ -247,137 +250,192 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         ))}
       </section>
 
-      <ContentSubjectLanes
-        subjects={subjects}
-        strands={strands}
-        modules={filteredModules}
-        lessons={filteredLessons}
-        assessments={filteredAssessments}
-      />
+      {!showingBlockedView ? (
+        <>
+          <ContentSubjectLanes
+            subjects={subjects}
+            strands={strands}
+            modules={filteredModules}
+            lessons={filteredLessons}
+            assessments={filteredAssessments}
+          />
 
-      <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
-        <Card title="Release blockers" eyebrow="What still stops publish">
-          <SimpleTable
-            columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
-            rows={filteredBlockedModules.map((module) => {
-              const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
-              const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-              const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-              const hasAssessment = moduleHasAssessmentGate(module.id, module.title);
-              const blocker = blockerRiskMeta(missingLessons, hasAssessment);
+          <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+            <Card title="Release blockers" eyebrow="What still stops publish">
+              <SimpleTable
+                columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
+                rows={filteredBlockedModules.length ? filteredBlockedModules.map((module) => {
+                  const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+                  const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+                  const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
+                  const hasAssessment = moduleHasAssessmentGate(module.id, module.title);
+                  const blocker = blockerRiskMeta(missingLessons, hasAssessment);
 
-              return [
-                <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
-                  <strong>{module.title}</strong>
-                  <span style={{ color: '#64748b', fontSize: 13 }}>{module.level} • {readyLessonCount}/{module.lessonCount} ready lessons</span>
-                </div>,
-                module.subjectName ?? '—',
-                <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
-                  <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
-                  <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
-                </div>,
-                <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 8 }}>
-                  <Pill label={blocker.label} tone={blocker.tone} text={blocker.text} />
-                  <span style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
-                    {missingLessons > 0 && !hasAssessment
-                      ? 'Module cannot ship: content is incomplete and progression has no gate.'
-                      : missingLessons > 0
-                        ? 'Assessment exists, but learner-facing lesson coverage is still short.'
-                        : 'Lessons are ready, but progression still has no gate.'}
-                  </span>
-                </div>,
-                <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
-                  <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
-                    Add lesson pack
-                  </Link>
-                  {!hasAssessment ? (
-                    <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate from the blockers board instead of hunting through the full content lane." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
-                      <CreateAssessmentForm modules={[module]} subjects={subjects} />
+                  return [
+                    <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
+                      <strong>{module.title}</strong>
+                      <span style={{ color: '#64748b', fontSize: 13 }}>{module.level} • {readyLessonCount}/{module.lessonCount} ready lessons</span>
+                    </div>,
+                    module.subjectName ?? '—',
+                    <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
+                      <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
+                      <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
+                    </div>,
+                    <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 8 }}>
+                      <Pill label={blocker.label} tone={blocker.tone} text={blocker.text} />
+                      <span style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
+                        {missingLessons > 0 && !hasAssessment
+                          ? 'Module cannot ship: content is incomplete and progression has no gate.'
+                          : missingLessons > 0
+                            ? 'Assessment exists, but learner-facing lesson coverage is still short.'
+                            : 'Lessons are ready, but progression still has no gate.'}
+                      </span>
+                    </div>,
+                    <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
+                      <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                        Add lesson pack
+                      </Link>
+                      {!hasAssessment ? (
+                        <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate from the blockers board instead of hunting through the full content lane." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
+                          <CreateAssessmentForm modules={[module]} subjects={subjects} />
+                        </ModalLauncher>
+                      ) : (
+                        <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                          Review gate
+                        </Link>
+                      )}
+                    </div>,
+                  ];
+                }) : [[<span key="release-clear" style={{ color: '#64748b', lineHeight: 1.6 }}>No blocker rows match the current content filters.</span>, '', '', '', '']]}
+              />
+            </Card>
+
+            <Card title="Assessment control board" eyebrow="Gatekeeping progression">
+              <SimpleTable
+                columns={['Assessment', 'Module', 'Trigger', 'Pass mark', 'Status', 'Actions']}
+                rows={filteredAssessments.map((assessment) => [
+                  assessment.title,
+                  assessment.moduleTitle ?? '—',
+                  assessment.triggerLabel,
+                  `${Math.round((assessment.passingScore ?? 0) * 100)}%`,
+                  <Pill key={`${assessment.id}-status`} label={assessment.status} tone={statusPill(assessment.status).tone} text={statusPill(assessment.status).text} />,
+                  <div key={`${assessment.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <ModalLauncher buttonLabel="Edit assessment" title={`Edit assessment · ${assessment.title}`} description="Update the selected assessment gate from the control board." eyebrow="Edit assessment" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                      <UpdateAssessmentForm assessments={[assessment]} />
                     </ModalLauncher>
-                  ) : (
-                    <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
-                      Review gate
+                    <ModalLauncher buttonLabel="Delete assessment" title={`Delete assessment · ${assessment.title}`} description="Remove this gate from the control board if it should no longer exist." eyebrow="Delete assessment" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
+                      <DeleteAssessmentForm assessments={[assessment]} />
+                    </ModalLauncher>
+                  </div>,
+                ])}
+              />
+            </Card>
+          </section>
+
+          <section style={responsiveGrid(320)}>
+            <Card title="Curriculum release tracker" eyebrow="Ops visibility">
+              <SimpleTable
+                columns={['Subject', 'Strand', 'Module', 'Level', 'Lessons', 'Status', 'Actions']}
+                rows={filteredModules.map((module) => [
+                  module.subjectName ?? '—',
+                  module.strandName,
+                  module.title,
+                  module.level,
+                  String(module.lessonCount),
+                  <Pill key={`${module.id}-status`} label={module.status} tone={statusPill(module.status).tone} text={statusPill(module.status).text} />,
+                  <div key={`${module.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <ModalLauncher buttonLabel="Edit module" title={`Edit module · ${module.title}`} description="Update the selected module without leaving the tracker." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                      <UpdateModuleForm modules={[module]} />
+                    </ModalLauncher>
+                    <ModalLauncher buttonLabel="Delete module" title={`Delete module · ${module.title}`} description="Remove this module from the release tracker." eyebrow="Delete module" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
+                      <DeleteModuleForm modules={[module]} />
+                    </ModalLauncher>
+                  </div>,
+                ])}
+              />
+            </Card>
+
+            <Card title="Lesson inventory" eyebrow="Deployment-ready detail">
+              <SimpleTable
+                columns={['Lesson', 'Subject', 'Module', 'Mode', 'Duration', 'Status', 'Actions']}
+                rows={filteredLessons.map((lesson) => [
+                  lesson.title,
+                  lesson.subjectName ?? '—',
+                  lesson.moduleTitle ?? '—',
+                  lesson.mode,
+                  `${lesson.durationMinutes} min`,
+                  <Pill key={`${lesson.id}-status`} label={lesson.status} tone={statusPill(lesson.status).tone} text={statusPill(lesson.status).text} />,
+                  <div key={`${lesson.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <Link href={`/content/lessons/${lesson.id}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none', textAlign: 'center' }}>
+                      Open full editor
                     </Link>
-                  )}
-                </div>,
-              ];
-            })}
-          />
-        </Card>
+                    <Link href={`/content/lessons/new?duplicate=${lesson.id}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                      Duplicate as new
+                    </Link>
+                    <ModalLauncher buttonLabel="Quick edit" title={`Quick edit · ${lesson.title}`} description="Use the compact editor for status/mode/duration only. For actual authoring, open the full lesson editor." eyebrow="Quick edit" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                      <UpdateLessonForm lessons={[lesson]} />
+                    </ModalLauncher>
+                    <ModalLauncher buttonLabel="Delete lesson" title={`Delete lesson · ${lesson.title}`} description="Remove this lesson from the inventory if it no longer belongs here." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
+                      <DeleteLessonForm lessons={[lesson]} />
+                    </ModalLauncher>
+                  </div>,
+                ])}
+              />
+            </Card>
+          </section>
+        </>
+      ) : (
+        <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+          <Card title="Release blockers" eyebrow="Blocked modules only">
+            <SimpleTable
+              columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
+              rows={filteredBlockedModules.length ? filteredBlockedModules.map((module) => {
+                const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+                const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+                const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
+                const hasAssessment = moduleHasAssessmentGate(module.id, module.title);
+                const blocker = blockerRiskMeta(missingLessons, hasAssessment);
 
-        <Card title="Assessment control board" eyebrow="Gatekeeping progression">
-          <SimpleTable
-            columns={['Assessment', 'Module', 'Trigger', 'Pass mark', 'Status', 'Actions']}
-            rows={filteredAssessments.map((assessment) => [
-              assessment.title,
-              assessment.moduleTitle ?? '—',
-              assessment.triggerLabel,
-              `${Math.round((assessment.passingScore ?? 0) * 100)}%`,
-              <Pill key={`${assessment.id}-status`} label={assessment.status} tone={statusPill(assessment.status).tone} text={statusPill(assessment.status).text} />,
-              <div key={`${assessment.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <ModalLauncher buttonLabel="Edit assessment" title={`Edit assessment · ${assessment.title}`} description="Update the selected assessment gate from the control board." eyebrow="Edit assessment" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                  <UpdateAssessmentForm assessments={[assessment]} />
-                </ModalLauncher>
-                <ModalLauncher buttonLabel="Delete assessment" title={`Delete assessment · ${assessment.title}`} description="Remove this gate from the control board if it should no longer exist." eyebrow="Delete assessment" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                  <DeleteAssessmentForm assessments={[assessment]} />
-                </ModalLauncher>
-              </div>,
-            ])}
-          />
-        </Card>
-      </section>
-
-      <section style={responsiveGrid(320)}>
-        <Card title="Curriculum release tracker" eyebrow="Ops visibility">
-          <SimpleTable
-            columns={['Subject', 'Strand', 'Module', 'Level', 'Lessons', 'Status', 'Actions']}
-            rows={filteredModules.map((module) => [
-              module.subjectName ?? '—',
-              module.strandName,
-              module.title,
-              module.level,
-              String(module.lessonCount),
-              <Pill key={`${module.id}-status`} label={module.status} tone={statusPill(module.status).tone} text={statusPill(module.status).text} />,
-              <div key={`${module.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <ModalLauncher buttonLabel="Edit module" title={`Edit module · ${module.title}`} description="Update the selected module without leaving the tracker." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                  <UpdateModuleForm modules={[module]} />
-                </ModalLauncher>
-                <ModalLauncher buttonLabel="Delete module" title={`Delete module · ${module.title}`} description="Remove this module from the release tracker." eyebrow="Delete module" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                  <DeleteModuleForm modules={[module]} />
-                </ModalLauncher>
-              </div>,
-            ])}
-          />
-        </Card>
-
-        <Card title="Lesson inventory" eyebrow="Deployment-ready detail">
-          <SimpleTable
-            columns={['Lesson', 'Subject', 'Module', 'Mode', 'Duration', 'Status', 'Actions']}
-            rows={filteredLessons.map((lesson) => [
-              lesson.title,
-              lesson.subjectName ?? '—',
-              lesson.moduleTitle ?? '—',
-              lesson.mode,
-              `${lesson.durationMinutes} min`,
-              <Pill key={`${lesson.id}-status`} label={lesson.status} tone={statusPill(lesson.status).tone} text={statusPill(lesson.status).text} />,
-              <div key={`${lesson.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <Link href={`/content/lessons/${lesson.id}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none', textAlign: 'center' }}>
-                  Open full editor
-                </Link>
-                <Link href={`/content/lessons/new?duplicate=${lesson.id}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
-                  Duplicate as new
-                </Link>
-                <ModalLauncher buttonLabel="Quick edit" title={`Quick edit · ${lesson.title}`} description="Use the compact editor for status/mode/duration only. For actual authoring, open the full lesson editor." eyebrow="Quick edit" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                  <UpdateLessonForm lessons={[lesson]} />
-                </ModalLauncher>
-                <ModalLauncher buttonLabel="Delete lesson" title={`Delete lesson · ${lesson.title}`} description="Remove this lesson from the inventory if it no longer belongs here." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                  <DeleteLessonForm lessons={[lesson]} />
-                </ModalLauncher>
-              </div>,
-            ])}
-          />
-        </Card>
-      </section>
+                return [
+                  <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
+                    <strong>{module.title}</strong>
+                    <span style={{ color: '#64748b', fontSize: 13 }}>{module.level} • {readyLessonCount}/{module.lessonCount} ready lessons</span>
+                  </div>,
+                  module.subjectName ?? '—',
+                  <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
+                    <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
+                    <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
+                  </div>,
+                  <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 8 }}>
+                    <Pill label={blocker.label} tone={blocker.tone} text={blocker.text} />
+                    <span style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
+                      {missingLessons > 0 && !hasAssessment
+                        ? 'Module cannot ship: content is incomplete and progression has no gate.'
+                        : missingLessons > 0
+                          ? 'Assessment exists, but learner-facing lesson coverage is still short.'
+                          : 'Lessons are ready, but progression still has no gate.'}
+                    </span>
+                  </div>,
+                  <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
+                    <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent%3Fview%3Dblocked&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                      Add lesson pack
+                    </Link>
+                    {!hasAssessment ? (
+                      <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate directly from the blockers-only view." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
+                        <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath="/content?view=blocked" />
+                      </ModalLauncher>
+                    ) : (
+                      <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                        Review gate
+                      </Link>
+                    )}
+                  </div>,
+                ];
+              }) : [[<span key="release-clear" style={{ color: '#64748b', lineHeight: 1.6 }}>No blocker rows match the current content filters.</span>, '', '', '', '']]}
+            />
+          </Card>
+        </section>
+      )}
     </PageShell>
   );
 }
