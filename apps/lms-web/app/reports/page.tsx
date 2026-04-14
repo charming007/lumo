@@ -138,6 +138,15 @@ function buildScopeLabel({ cohortName, podLabel, mallamName }: { cohortName?: st
   return parts.length ? parts.join(' • ') : 'All cohorts • all pods • all mallams';
 }
 
+function buildFilterChips({ searchText, cohortName, podLabel, mallamName }: { searchText?: string; cohortName?: string | null; podLabel?: string | null; mallamName?: string | null }) {
+  return [
+    searchText ? `Search: ${searchText}` : null,
+    cohortName ? `Cohort: ${cohortName}` : null,
+    podLabel ? `Pod: ${podLabel}` : null,
+    mallamName ? `Mallam: ${mallamName}` : null,
+  ].filter(Boolean) as string[];
+}
+
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
   const params = await searchParams;
   const searchText = normalizeFilterValue(params?.q).trim().toLowerCase();
@@ -441,6 +450,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
   const selectedPod = pods.find((pod) => pod.id === podFilter) ?? null;
   const selectedMallam = mallams.find((mallam) => mallam.id === mallamFilter) ?? null;
   const scopeLabel = buildScopeLabel({ cohortName: selectedCohort?.name, podLabel: selectedPod?.label, mallamName: selectedMallam?.displayName });
+  const activeFilterChips = buildFilterChips({
+    searchText: searchText || undefined,
+    cohortName: selectedCohort?.name,
+    podLabel: selectedPod?.label,
+    mallamName: selectedMallam?.displayName,
+  });
   const scopedReportNarratives = [
     `Scope: ${scopeLabel}. ${scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents} learner${(scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents) === 1 ? '' : 's'} are represented in this pull.`,
     `${ngoSummary.progression.ready || operationsReport.summary.progressionReady} learner${(ngoSummary.progression.ready || operationsReport.summary.progressionReady) === 1 ? '' : 's'} are ready to progress, while ${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} remain on watch.`,
@@ -474,7 +489,20 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
   ].join('\n');
 
   return (
-    <PageShell title="Reports" subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, reward queue pressure, and cleaner NGO reporting in one place.">
+    <PageShell
+      title="Reports"
+      subtitle="Program, donor, and government-ready analytics with operational depth: pod health, mallam contribution, assignment pressure, progression reality, reward queue pressure, and cleaner NGO reporting in one place."
+      aside={
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Link href="/guide#reports" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+            Reporting guide
+          </Link>
+          <Link href="/settings" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
+            Open settings
+          </Link>
+        </div>
+      }
+    >
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           Reports is running in degraded mode: {failedSources.join(' + ')} {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
@@ -508,9 +536,41 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
       </section>
 
       {filtersActive ? (
-        <div style={{ marginBottom: 16, color: '#475569', fontWeight: 700 }}>
-          Reporting scope now reflects {scopedStudents.length} learner{scopedStudents.length === 1 ? '' : 's'} with live ops pull-through on pods, mallams, and reward pressure.
+        <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+          <div style={{ marginBottom: 0, color: '#475569', fontWeight: 700 }}>
+            Reporting scope now reflects {scopedStudents.length} learner{scopedStudents.length === 1 ? '' : 's'} with live ops pull-through on pods, mallams, and reward pressure.
+          </div>
+          {activeFilterChips.length ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {activeFilterChips.map((chip) => (
+                <Pill key={chip} label={chip} tone="#F8FAFC" text="#334155" />
+              ))}
+            </div>
+          ) : null}
         </div>
+      ) : null}
+
+      {filtersActive && scopedStudents.length === 0 ? (
+        <section style={{ marginBottom: 20 }}>
+          <Card title="No learners matched this reporting scope" eyebrow="Route-safe empty state">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>
+                The page is still healthy, but this exact filter combination returned nothing useful. Reset the scope or jump to another admin surface instead of screenshotting an empty board and pretending it means something.
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Link href="/reports" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+                  Reset report scope
+                </Link>
+                <Link href="/assignments" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+                  Check assignments
+                </Link>
+                <Link href="/mallams" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none' }}>
+                  Open mallams
+                </Link>
+              </div>
+            </div>
+          </Card>
+        </section>
       ) : null}
 
       <section style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, marginBottom: 20 }}>

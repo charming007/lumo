@@ -225,7 +225,25 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
         </Card>
       </section>
 
-      <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+      <section style={{ ...responsiveGrid(280), marginBottom: 20 }}>
+        <Card title="Route handoff" eyebrow="Use the right surface next">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {[
+              { label: 'Rewards board', href: '/rewards', detail: 'Adjust transactions, queue decisions, and live learner reward state.' },
+              { label: 'Reports', href: '/reports', detail: 'Check whether reward, progression, or integrity changes actually improved the operating picture.' },
+              { label: 'LMS guide', href: '/guide#guardrails', detail: 'Use the guardrails section when someone wants to “just tweak the UI” into a regression.' },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #e2e8f0', textDecoration: 'none' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                  <strong style={{ color: '#0f172a' }}>{item.label}</strong>
+                  <span style={{ color: '#4F46E5', fontWeight: 800 }}>Open →</span>
+                </div>
+                <div style={{ color: '#64748b', lineHeight: 1.6, marginTop: 6 }}>{item.detail}</div>
+              </Link>
+            ))}
+          </div>
+        </Card>
+
         <Card title="Reward configuration playbook" eyebrow="Admin guidance">
           <div style={{ display: 'grid', gap: 12 }}>
             {[
@@ -474,7 +492,11 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                   </div>
                 ))}
               </div>
-            ) : null}
+            ) : (
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', lineHeight: 1.6 }}>
+                No restorable backups are visible right now. Create a checkpoint before doing anything spicy to storage, otherwise this page is just giving you false confidence in nice shoes.
+              </div>
+            )}
             {rewardsReport.recentAdjustments.length ? (
               <SimpleTable
                 columns={['Recent adjustment', 'Learner', 'At']}
