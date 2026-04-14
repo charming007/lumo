@@ -83,8 +83,72 @@ class _LumoAppState extends State<LumoApp> {
       theme: LumoTheme.light,
       home: showSplash
           ? SplashScreen(onFinish: handleSplashFinished)
-          : HomePage(state: state, onChanged: () => setState(() {})),
+          : SessionRecoveryGate(
+              state: state,
+              onChanged: () => setState(() {}),
+            ),
     );
+  }
+}
+
+class SessionRecoveryGate extends StatefulWidget {
+  const SessionRecoveryGate({
+    super.key,
+    required this.state,
+    required this.onChanged,
+  });
+
+  final LumoAppState state;
+  final VoidCallback onChanged;
+
+  @override
+  State<SessionRecoveryGate> createState() => _SessionRecoveryGateState();
+}
+
+class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
+  bool _recoveryLaunchHandled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _launchRecoveredSessionIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant SessionRecoveryGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _launchRecoveredSessionIfNeeded();
+  }
+
+  void _launchRecoveredSessionIfNeeded() {
+    if (_recoveryLaunchHandled || !widget.state.restoredFromPersistence) {
+      return;
+    }
+    final session = widget.state.activeSession;
+    final lesson = session?.lesson;
+    if (session == null || lesson == null) {
+      _recoveryLaunchHandled = true;
+      return;
+    }
+
+    _recoveryLaunchHandled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LessonSessionPage(
+            state: widget.state,
+            lesson: lesson,
+            onChanged: widget.onChanged,
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HomePage(state: widget.state, onChanged: widget.onChanged);
   }
 }
 

@@ -5,11 +5,13 @@ import 'package:speech_to_text/speech_to_text.dart';
 class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   FakeSpeechRecognitionEngine({
     this.initializeResult = true,
+    this.failInitializeAttempts = 0,
     this.failListenAttempts = 0,
     this.emitTranscriptOnListen,
   });
 
   bool initializeResult;
+  int failInitializeAttempts;
   int failListenAttempts;
   void Function(void Function(String transcript, bool isFinal) onResult)?
       emitTranscriptOnListen;
@@ -26,6 +28,11 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     bool debugLogging = false,
   }) async {
     onStatus('initialized');
+    if (failInitializeAttempts > 0) {
+      failInitializeAttempts -= 1;
+      onError('not available');
+      return false;
+    }
     return initializeResult;
   }
 
@@ -82,6 +89,21 @@ void main() {
     expect(service.lastStatus, 'retry-blocked');
     expect(service.lastError, contains('cooling down'));
     expect(engine.listenCalls, listenCallsBeforeCooldownRetry);
+  });
+
+  test('blocks force-retry after repeated initialize failures too', () async {
+    final engine = FakeSpeechRecognitionEngine(failInitializeAttempts: 3);
+    final service = SpeechTranscriptionService(engine: engine);
+
+    expect(await service.initialize(forceRetry: true), isFalse);
+    expect(await service.initialize(forceRetry: true), isFalse);
+    expect(await service.initialize(forceRetry: true), isFalse);
+
+    final ready = await service.initialize(forceRetry: true);
+
+    expect(ready, isFalse);
+    expect(service.lastStatus, 'retry-blocked');
+    expect(service.lastError, contains('cooling down'));
   });
 
   test('clears retry cooldown after a transcript arrives', () async {

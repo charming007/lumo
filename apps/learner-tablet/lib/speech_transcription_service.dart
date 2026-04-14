@@ -82,6 +82,8 @@ class SpeechTranscriptionService {
   DateTime? _lastStartFailureAt;
   DateTime? _retryBlockedUntil;
 
+  static const Duration _retryCooldown = Duration(seconds: 20);
+
   bool get isAvailable => _available;
   String? get lastError => _lastError;
   String get lastStatus => _lastStatus;
@@ -106,7 +108,7 @@ class SpeechTranscriptionService {
     final retryBlockedUntil = _retryBlockedUntil;
     final recentRepeatedFailures = _consecutiveStartFailures >= 3 &&
         _lastStartFailureAt != null &&
-        now.difference(_lastStartFailureAt!) < const Duration(seconds: 20);
+        now.difference(_lastStartFailureAt!) < _retryCooldown;
     if (forceRetry &&
         ((retryBlockedUntil != null && now.isBefore(retryBlockedUntil)) ||
             recentRepeatedFailures)) {
@@ -121,20 +123,28 @@ class SpeechTranscriptionService {
 
     _lastError = null;
     _lastStatus = 'initializing';
-    _available = await _engine.initialize(
-      onError: (errorMsg) {
-        _lastError = _normalizeError(errorMsg);
-      },
-      onStatus: (status) {
-        _lastStatus = status;
-      },
-      debugLogging: false,
-    );
-    _initialized = true;
-    if (!_available && _lastError == null) {
-      _lastError = availabilityLabel;
+    try {
+      _available = await _engine.initialize(
+        onError: (errorMsg) {
+          _lastError = _normalizeError(errorMsg);
+        },
+        onStatus: (status) {
+          _lastStatus = status;
+        },
+        debugLogging: false,
+      );
+    } catch (error) {
+      _available = false;
+      _lastError = _normalizeError(error.toString());
     }
-    return _available;
+    _initialized = true;
+    if (_available) {
+      return true;
+    }
+
+    _registerStartFailure();
+    _lastError ??= availabilityLabel;
+    return false;
   }
 
   Future<bool> start({
@@ -157,9 +167,7 @@ class SpeechTranscriptionService {
         onResult: (transcript, isFinal) {
           final text = transcript.trim();
           if (text.isEmpty) return;
-          _consecutiveStartFailures = 0;
-          _lastStartFailureAt = null;
-          _retryBlockedUntil = null;
+          _clearFailureCooldown();
           _available = true;
           onResult(text, isFinal);
         },
@@ -191,11 +199,7 @@ class SpeechTranscriptionService {
         );
         _available = true;
       } catch (error) {
-        _consecutiveStartFailures += 1;
-        _lastStartFailureAt = DateTime.now();
-        if (_consecutiveStartFailures >= 3) {
-          _retryBlockedUntil = DateTime.now().add(const Duration(seconds: 20));
-        }
+        _registerStartFailure();
         _lastError = _normalizeError(error.toString());
         _available = false;
         onStatus?.call(_lastStatus);
@@ -214,6 +218,20 @@ class SpeechTranscriptionService {
   Future<void> cancel() async {
     if (!_initialized) return;
     await _engine.cancel();
+  }
+
+  void _registerStartFailure() {
+    _consecutiveStartFailures += 1;
+    _lastStartFailureAt = DateTime.now();
+    if (_consecutiveStartFailures >= 3) {
+      _retryBlockedUntil = _lastStartFailureAt!.add(_retryCooldown);
+    }
+  }
+
+  void _clearFailureCooldown() {
+    _consecutiveStartFailures = 0;
+    _lastStartFailureAt = null;
+    _retryBlockedUntil = null;
   }
 
   String _normalizeError(String raw) {

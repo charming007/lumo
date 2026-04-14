@@ -22,6 +22,39 @@ void main() {
     expect(find.text('Student List'), findsOneWidget);
   });
 
+  testWidgets('auto-reopens a recovered in-progress lesson after splash', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1500);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+    state.restoredFromPersistence = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionRecoveryGate(
+          state: state,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Learner microphone capture'), findsOneWidget);
+    expect(find.textContaining(lesson.title), findsWidgets);
+
+    state.dispose();
+  });
+
   testWidgets('home screen stays usable on portrait tablet widths', (
     tester,
   ) async {
