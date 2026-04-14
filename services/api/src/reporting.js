@@ -796,8 +796,7 @@ function buildSessionRepairDetail(repairId) {
 function buildStorageOperationsReport({ limit = 20, kind = null, actorName = null } = {}) {
   const store = require('./store');
   const operations = store
-    .listStorageOperations()
-    .filter((entry) => (!kind || entry.kind === kind) && (!actorName || entry.actorName === actorName))
+    .listStorageOperations({ limit: Math.max(1, Math.min(Number(limit || 20), 100)), kind, actorName })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const kindCounts = operations.reduce((acc, entry) => {
     const key = entry.kind || 'unknown';
@@ -867,7 +866,7 @@ function buildStorageReport({ limit = 10 } = {}) {
       sessionRepairCount: snapshot.collectionCounts?.sessionRepairs || 0,
       progressionOverrideCount: snapshot.collectionCounts?.progressionOverrides || 0,
       syncEventCount: snapshot.collectionCounts?.syncEvents || 0,
-      storageOperationCount: snapshot.collectionCounts?.storageOperations || 0,
+      storageOperationCount: operations.summary.totalOperations,
       mutationCount: status?.journal?.total || mutations.length,
       restorableMutationCount: mutations.filter((entry) => entry.hasSnapshot).length,
       updatedAt: status?.updatedAt || snapshot.exportedAt,

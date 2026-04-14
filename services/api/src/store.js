@@ -309,16 +309,39 @@ function createSessionRepair(input) {
   return repository.createSessionRepair(input);
 }
 
-function listStorageOperations() {
+function getStorageEngine() {
+  return require('./data').storage || null;
+}
+
+function listStorageOperations(filters = {}) {
+  const storage = getStorageEngine();
+
+  if (typeof storage?.listOperations === 'function' && storage.kind === 'postgres') {
+    return storage.listOperations(filters);
+  }
+
   return repository.listStorageOperations();
 }
 
 function findStorageOperationById(id) {
+  const storage = getStorageEngine();
+
+  if (typeof storage?.getOperation === 'function' && storage.kind === 'postgres') {
+    return storage.getOperation(id);
+  }
+
   return repository.findStorageOperationById(id);
 }
 
 function createStorageOperation(input) {
-  return repository.createStorageOperation(input);
+  const created = repository.createStorageOperation(input);
+  const storage = getStorageEngine();
+
+  if (typeof storage?.recordOperation === 'function' && storage.kind === 'postgres') {
+    storage.recordOperation(created);
+  }
+
+  return created;
 }
 
 function rebuildLessonSessionFromEventLog(sessionId, { apply = false, actorName = null, actorRole = null, reason = 'event_log_rebuild' } = {}) {

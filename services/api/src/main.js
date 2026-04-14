@@ -2419,6 +2419,57 @@ app.post('/api/v1/admin/storage/restore', requireRole(['admin']), (req, res, nex
   }
 });
 
+app.get('/api/v1/admin/storage/recovery', requireRole(['admin']), (req, res) => {
+  const limit = Number(req.query.limit || 10);
+  const backups = store.listStorageBackups(limit);
+  const latestBackup = backups[0] || null;
+  const storageReport = reporting.buildStorageReport({ limit });
+  const operationsReport = reporting.buildStorageOperationsReport({
+    limit,
+    kind: coerceOptionalString(req.query.kind),
+    actorName: coerceOptionalString(req.query.actorName),
+  });
+  const latestMutation = typeof store.getStorageMutationDetail === 'function' && storageReport.journal?.recent?.[0]?.id
+    ? store.getStorageMutationDetail(storageReport.journal.recent[0].id)
+    : null;
+
+  return res.json({
+    generatedAt: new Date().toISOString(),
+    status: store.getStorageStatus(),
+    latestBackup,
+    latestMutation,
+    integrity: store.getStorageIntegrityReport(),
+    operations: operationsReport,
+    storage: storageReport,
+  });
+});
+
+app.post('/api/v1/admin/storage/restore-latest', requireRole(['admin']), (req, res, next) => {
+  try {
+    const backups = store.listStorageBackups(100);
+    const label = coerceOptionalString(req.body?.label);
+    const candidate = label
+      ? backups.find((entry) => [entry.label, entry.name, entry.path].some((value) => String(value || '').toLowerCase().includes(label.toLowerCase()))) || null
+      : backups[0] || null;
+
+    if (!candidate?.path) {
+      const error = new Error(label ? `No backup found for label: ${label}` : 'No backups available');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return res.status(201).json({
+      selectedBackup: candidate,
+      result: store.restoreStorageBackup(candidate.path, {
+        actorName: req.actor?.name,
+        actorRole: req.actor?.role,
+      }),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.use((error, _req, res, _next) => {
   const statusCode = error.statusCode || 500;
   res.status(statusCode).json({

@@ -512,3 +512,37 @@ test('admin storage mutation endpoints expose journal detail and restore control
     data.reload = originalReload;
   }
 });
+
+
+test('admin storage recovery endpoints expose durable recovery summary and latest restore control', async () => {
+  const checkpoint = store.checkpointStorage('latest-restore-test', {
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+  });
+
+  const recoveryResponse = await request('/api/v1/admin/storage/recovery?limit=5', {
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+  });
+
+  assert.equal(recoveryResponse.status, 200);
+  assert.ok(recoveryResponse.body.status);
+  assert.ok(recoveryResponse.body.storage);
+  assert.ok(recoveryResponse.body.operations);
+  assert.ok(typeof recoveryResponse.body.latestBackup.path === 'string');
+
+  const restoreLatestResponse = await request('/api/v1/admin/storage/restore-latest', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({ label: 'latest-restore-test' }),
+  });
+
+  assert.equal(restoreLatestResponse.status, 201);
+  assert.ok(typeof restoreLatestResponse.body.selectedBackup.path === 'string');
+  assert.ok(typeof restoreLatestResponse.body.result.restoredFrom === 'string');
+});

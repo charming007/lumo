@@ -124,6 +124,15 @@ function createFileStorageEngine(filePath) {
       return backupPath;
     },
     listBackups,
+    listOperations() {
+      return [];
+    },
+    getOperation() {
+      return null;
+    },
+    recordOperation(record) {
+      return clone(record);
+    },
     getStatus() {
       ensureDir(resolvedFile);
       const exists = fs.existsSync(resolvedFile);
@@ -190,6 +199,7 @@ const { Client } = require('pg');
     await client.query('CREATE TABLE IF NOT EXISTS lumo_storage_snapshots (id TEXT PRIMARY KEY, snapshot JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())');
     await client.query('CREATE TABLE IF NOT EXISTS lumo_storage_backups (id BIGSERIAL PRIMARY KEY, label TEXT NOT NULL, snapshot JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())');
     await client.query("CREATE TABLE IF NOT EXISTS lumo_storage_mutations (id BIGSERIAL PRIMARY KEY, action TEXT NOT NULL, snapshot_id TEXT NOT NULL DEFAULT 'primary', snapshot_hash TEXT NULL, snapshot JSONB NULL, collection_counts JSONB NULL, metadata JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+    await client.query("CREATE TABLE IF NOT EXISTS lumo_storage_operations (operation_id TEXT PRIMARY KEY, kind TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'succeeded', actor_name TEXT NULL, actor_role TEXT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), payload JSONB NOT NULL)");
     await client.query('ALTER TABLE lumo_storage_mutations ADD COLUMN IF NOT EXISTS snapshot JSONB NULL');
     const summarize = (snapshot) => Object.fromEntries(Object.entries(snapshot || {}).filter(([, value]) => Array.isArray(value)).map(([key, value]) => [key, value.length]));
     const hashSnapshot = (snapshot) => require('crypto').createHash('sha1').update(JSON.stringify(snapshot || {})).digest('hex');
@@ -285,6 +295,47 @@ const { Client } = require('pg');
     if ('getMutation' === ${JSON.stringify(action)}) {
       const row = await client.query('SELECT id, action, snapshot_id, snapshot_hash, snapshot, snapshot IS NOT NULL AS has_snapshot, collection_counts, metadata, created_at FROM lumo_storage_mutations WHERE id = $1', [payload.id]);
       process.stdout.write(JSON.stringify(row.rows[0] || null));
+      return;
+    }
+    if ('listOperations' === ${JSON.stringify(action)}) {
+      const limit = Math.max(1, Math.min(Number(payload.limit || 20), 100));
+      const filters = [];
+      const params = [];
+      if (payload.kind) {
+        params.push(payload.kind);
+        filters.push('kind = $' + params.length);
+      }
+      if (payload.actorName) {
+        params.push(payload.actorName);
+        filters.push('actor_name = $' + params.length);
+      }
+      const where = filters.length ? 'WHERE ' + filters.join(' AND ') : '';
+      const rows = await client.query('SELECT operation_id, kind, status, actor_name, actor_role, created_at, payload FROM lumo_storage_operations ' + where + ' ORDER BY created_at DESC LIMIT ' + limit, params);
+      process.stdout.write(JSON.stringify(rows.rows || []));
+      return;
+    }
+    if ('getOperation' === ${JSON.stringify(action)}) {
+      const row = await client.query('SELECT operation_id, kind, status, actor_name, actor_role, created_at, payload FROM lumo_storage_operations WHERE operation_id = $1', [String(payload.id)]);
+      process.stdout.write(JSON.stringify(row.rows[0] || null));
+      return;
+    }
+    if ('recordOperation' === ${JSON.stringify(action)}) {
+      const record = payload.record || {};
+      const operationId = String(record.id || payload.id || 'storage-operation-' + Date.now());
+      const merged = {
+        ...record,
+        id: operationId,
+        kind: record.kind || 'unknown',
+        status: record.status || 'succeeded',
+        actorName: record.actorName || null,
+        actorRole: record.actorRole || null,
+        createdAt: record.createdAt || new Date().toISOString(),
+      };
+      await client.query(
+        'INSERT INTO lumo_storage_operations (operation_id, kind, status, actor_name, actor_role, created_at, payload) VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::jsonb) ON CONFLICT (operation_id) DO UPDATE SET kind = EXCLUDED.kind, status = EXCLUDED.status, actor_name = EXCLUDED.actor_name, actor_role = EXCLUDED.actor_role, created_at = EXCLUDED.created_at, payload = EXCLUDED.payload',
+        [operationId, merged.kind, merged.status, merged.actorName, merged.actorRole, merged.createdAt, JSON.stringify(merged)],
+      );
+      process.stdout.write(JSON.stringify(merged));
       return;
     }
     if ('restoreMutation' === ${JSON.stringify(action)}) {
@@ -426,6 +477,33 @@ const { Client } = require('pg');
     restoreFromMutation(id) {
       runPg('restoreMutation', { id: Number(id) });
       return Number(id);
+    },
+    listOperations({ limit = 20, kind = null, actorName = null } = {}) {
+      return (runPg('listOperations', { limit, kind, actorName }) || []).map((row) => ({
+        ...(row.payload || {}),
+        id: row.operation_id,
+        kind: row.kind,
+        status: row.status,
+        actorName: row.actor_name || row.payload?.actorName || null,
+        actorRole: row.actor_role || row.payload?.actorRole || null,
+        createdAt: row.created_at || row.payload?.createdAt || null,
+      }));
+    },
+    getOperation(id) {
+      const row = runPg('getOperation', { id: String(id) });
+      if (!row) return null;
+      return {
+        ...(row.payload || {}),
+        id: row.operation_id,
+        kind: row.kind,
+        status: row.status,
+        actorName: row.actor_name || row.payload?.actorName || null,
+        actorRole: row.actor_role || row.payload?.actorRole || null,
+        createdAt: row.created_at || row.payload?.createdAt || null,
+      };
+    },
+    recordOperation(record) {
+      return runPg('recordOperation', { record });
     },
     getStatus() {
       const status = runPg('status') || {};
