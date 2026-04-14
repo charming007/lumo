@@ -88,11 +88,26 @@ class SpeechTranscriptionService {
   String? get lastError => _lastError;
   String get lastStatus => _lastStatus;
   bool get isListening => _engine.isListening;
+  bool get isInRetryCooldown =>
+      _retryBlockedUntil != null && DateTime.now().isBefore(_retryBlockedUntil!);
+  Duration? get retryCooldownRemaining {
+    final retryBlockedUntil = _retryBlockedUntil;
+    if (retryBlockedUntil == null) return null;
+    final remaining = retryBlockedUntil.difference(DateTime.now());
+    if (remaining.isNegative || remaining == Duration.zero) {
+      return Duration.zero;
+    }
+    return remaining;
+  }
 
   String get availabilityLabel {
     if (_available) {
       return 'Speech recognition is ready for live transcript capture.';
     }
+    final remainingCooldown = retryCooldownRemaining;
+    final cooldownDetail = remainingCooldown != null && remainingCooldown > Duration.zero
+        ? ' Retry cooldown: ${remainingCooldown.inSeconds}s remaining before the next transcript restart.'
+        : '';
     final failureDetail = _consecutiveStartFailures >= 2
         ? ' Lumo has already retried a few times, so it will favor audio capture and manual confirmation until the mic is stable again.'
         : '';
@@ -100,7 +115,8 @@ class SpeechTranscriptionService {
             (kIsWeb
                 ? 'Browser speech recognition is unavailable, so the app will save audio and let the facilitator confirm answers manually.'
                 : 'Speech recognition is unavailable on this device, so the app will save audio and let the facilitator confirm answers manually.')) +
-        failureDetail;
+        failureDetail +
+        cooldownDetail;
   }
 
   Future<bool> initialize({bool forceRetry = false}) async {
@@ -114,8 +130,9 @@ class SpeechTranscriptionService {
             recentRepeatedFailures)) {
       _available = false;
       _lastStatus = 'retry-blocked';
+      final seconds = retryCooldownRemaining?.inSeconds ?? _retryCooldown.inSeconds;
       _lastError =
-          'Speech recognition is cooling down after repeated start failures. Keep saving audio locally for a moment, then try again.';
+          'Speech recognition is cooling down after repeated start failures. Keep saving audio locally for about ${seconds}s, then try again.';
       return false;
     }
 
@@ -127,6 +144,10 @@ class SpeechTranscriptionService {
       _available = await _engine.initialize(
         onError: (errorMsg) {
           _lastError = _normalizeError(errorMsg);
+          if (_shouldCooldownAfterRuntimeError(errorMsg)) {
+            _available = false;
+            _registerStartFailure();
+          }
         },
         onStatus: (status) {
           _lastStatus = status;
@@ -232,6 +253,17 @@ class SpeechTranscriptionService {
     _consecutiveStartFailures = 0;
     _lastStartFailureAt = null;
     _retryBlockedUntil = null;
+  }
+
+  bool _shouldCooldownAfterRuntimeError(String raw) {
+    final lower = raw.toLowerCase();
+    return lower.contains('network') ||
+        lower.contains('timeout') ||
+        lower.contains('audio-capture') ||
+        lower.contains('microphone unavailable') ||
+        lower.contains('service-not-allowed') ||
+        lower.contains('notallowed') ||
+        lower.contains('aborted');
   }
 
   String _normalizeError(String raw) {

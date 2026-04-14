@@ -134,15 +134,21 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
     _recoveryLaunchHandled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => LessonSessionPage(
-            state: widget.state,
-            lesson: lesson,
-            onChanged: widget.onChanged,
-          ),
-        ),
-      );
+      final recoveredRoute = session.completionState == LessonCompletionState.complete
+          ? MaterialPageRoute(
+              builder: (_) => LessonCompletePage(
+                state: widget.state,
+                lesson: lesson,
+              ),
+            )
+          : MaterialPageRoute(
+              builder: (_) => LessonSessionPage(
+                state: widget.state,
+                lesson: lesson,
+                onChanged: widget.onChanged,
+              ),
+            );
+      Navigator.of(context).push(recoveredRoute);
     });
   }
 

@@ -6,12 +6,14 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   FakeSpeechRecognitionEngine({
     this.initializeResult = true,
     this.failInitializeAttempts = 0,
+    this.failInitializeError = 'not available',
     this.failListenAttempts = 0,
     this.emitTranscriptOnListen,
   });
 
   bool initializeResult;
   int failInitializeAttempts;
+  String failInitializeError;
   int failListenAttempts;
   void Function(void Function(String transcript, bool isFinal) onResult)?
       emitTranscriptOnListen;
@@ -30,7 +32,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     onStatus('initialized');
     if (failInitializeAttempts > 0) {
       failInitializeAttempts -= 1;
-      onError('not available');
+      onError(failInitializeError);
       return false;
     }
     return initializeResult;
@@ -115,5 +117,23 @@ void main() {
     expect(await service.start(onResult: (_, __) {}), isTrue);
     expect(service.isAvailable, isTrue);
     expect(service.availabilityLabel, contains('ready'));
+  });
+
+  test('runtime-style transcript errors expose cooldown guidance with remaining time',
+      () async {
+    final engine = FakeSpeechRecognitionEngine(
+      failInitializeAttempts: 3,
+      failInitializeError: 'network timeout',
+    );
+    final service = SpeechTranscriptionService(engine: engine);
+
+    expect(await service.initialize(forceRetry: true), isFalse);
+    expect(await service.initialize(forceRetry: true), isFalse);
+    expect(await service.initialize(forceRetry: true), isFalse);
+
+    expect(service.isInRetryCooldown, isTrue);
+    expect(service.availabilityLabel, contains('Retry cooldown'));
+    expect(service.availabilityLabel, contains('manual confirmation'));
+    expect(service.lastError, contains('cooling down'));
   });
 }

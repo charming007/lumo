@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/main.dart';
+import 'package:lumo_learner_tablet/models.dart';
 
 void main() {
   Future<void> pumpAppAtSize(WidgetTester tester, Size size) async {
@@ -51,6 +52,42 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Learner microphone capture'), findsOneWidget);
     expect(find.textContaining(lesson.title), findsWidgets);
+
+    state.dispose();
+  });
+
+  testWidgets('reopens the completion page when a finished lesson is restored', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1500);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+    state.activeSession = state.activeSession?.copyWith(
+      completionState: LessonCompletionState.complete,
+    );
+    state.restoredFromPersistence = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionRecoveryGate(
+          state: state,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Back home'), findsOneWidget);
+    expect(find.textContaining('lesson'), findsWidgets);
 
     state.dispose();
   });
