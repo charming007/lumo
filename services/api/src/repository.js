@@ -20,6 +20,54 @@ function normalizeLessonActivities(input = {}) {
   return cloneActivitySteps(input.activitySteps ?? input.activities ?? []);
 }
 
+
+function recalculateModuleLessonCount(moduleId) {
+  if (!moduleId) return null;
+  const module = findModuleById(moduleId);
+  if (!module) return null;
+
+  module.lessonCount = data.lessons.filter((item) => item.moduleId === moduleId).length;
+  return module;
+}
+
+function recalculateAllModuleLessonCounts() {
+  data.modules.forEach((module) => {
+    module.lessonCount = data.lessons.filter((item) => item.moduleId === module.id).length;
+  });
+}
+
+function ensureOrderWithinSiblings(items, parentKey = null, parentValue = null) {
+  const siblings = items
+    .filter((item) => (parentKey ? item[parentKey] === parentValue : true))
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || String(a.id).localeCompare(String(b.id)));
+
+  siblings.forEach((item, index) => {
+    item.order = index + 1;
+  });
+
+  return siblings;
+}
+
+function reorderCollection({ collection, ids, parentKey = null, parentValue = null }) {
+  const idSet = new Set(ids);
+  const siblings = collection.filter((item) => (parentKey ? item[parentKey] === parentValue : true));
+  const existingIds = siblings.map((item) => item.id);
+
+  if (existingIds.length !== ids.length || ids.some((id) => !existingIds.includes(id))) {
+    const error = new Error('Reorder payload must include every sibling exactly once');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  ids.forEach((id, index) => {
+    const target = siblings.find((item) => item.id === id);
+    target.order = index + 1;
+  });
+
+  siblings.sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  return siblings;
+}
+
 function listCenters() {
   return data.centers;
 }
@@ -350,6 +398,7 @@ function createModule(input) {
   };
 
   data.modules.push(module);
+  ensureOrderWithinSiblings(data.modules, 'strandId', module.strandId);
   return commit(module);
 }
 
@@ -360,6 +409,8 @@ function updateModule(id, input) {
     return null;
   }
 
+  const previousStrandId = module.strandId;
+
   Object.assign(module, {
     strandId: input.strandId ?? module.strandId,
     level: input.level ?? module.level,
@@ -368,6 +419,11 @@ function updateModule(id, input) {
     order: input.order !== undefined ? Number(input.order) : module.order,
     status: input.status ?? module.status,
   });
+
+  ensureOrderWithinSiblings(data.modules, 'strandId', module.strandId);
+  if (previousStrandId !== module.strandId) {
+    ensureOrderWithinSiblings(data.modules, 'strandId', previousStrandId);
+  }
 
   return commit(module);
 }
@@ -411,6 +467,7 @@ function createLesson(input) {
     durationMinutes: Number(input.durationMinutes || 0),
     mode: input.mode || 'guided',
     status: input.status || 'draft',
+    order: Number(input.order || data.lessons.filter((item) => item.moduleId === input.moduleId).length + 1),
     targetAgeRange: input.targetAgeRange || null,
     voicePersona: input.voicePersona || null,
     learningObjectives: Array.isArray(input.learningObjectives) ? [...input.learningObjectives] : [],
@@ -422,6 +479,8 @@ function createLesson(input) {
   };
 
   data.lessons.push(lesson);
+  ensureOrderWithinSiblings(data.lessons, 'moduleId', lesson.moduleId);
+  recalculateModuleLessonCount(lesson.moduleId);
   return commit(lesson);
 }
 
@@ -432,6 +491,8 @@ function updateLesson(id, input) {
     return null;
   }
 
+  const previousModuleId = lesson.moduleId;
+
   Object.assign(lesson, {
     subjectId: input.subjectId ?? lesson.subjectId,
     moduleId: input.moduleId ?? lesson.moduleId,
@@ -439,6 +500,7 @@ function updateLesson(id, input) {
     durationMinutes: input.durationMinutes !== undefined ? Number(input.durationMinutes) : lesson.durationMinutes,
     mode: input.mode ?? lesson.mode,
     status: input.status ?? lesson.status,
+    order: input.order !== undefined ? Number(input.order) : lesson.order,
     targetAgeRange: input.targetAgeRange ?? lesson.targetAgeRange ?? null,
     voicePersona: input.voicePersona ?? lesson.voicePersona ?? null,
     learningObjectives: input.learningObjectives ?? lesson.learningObjectives ?? [],
@@ -460,6 +522,13 @@ function updateLesson(id, input) {
       : lesson.activitySteps ?? normalizeLessonActivities(lesson),
   });
 
+  ensureOrderWithinSiblings(data.lessons, 'moduleId', lesson.moduleId);
+  if (previousModuleId !== lesson.moduleId) {
+    ensureOrderWithinSiblings(data.lessons, 'moduleId', previousModuleId);
+    recalculateModuleLessonCount(previousModuleId);
+  }
+  recalculateModuleLessonCount(lesson.moduleId);
+
   return commit(lesson);
 }
 
@@ -472,6 +541,8 @@ function deleteLesson(id) {
 
   const [lesson] = data.lessons.splice(index, 1);
   data.assignments = data.assignments.filter((assignment) => assignment.lessonId !== id);
+  ensureOrderWithinSiblings(data.lessons, 'moduleId', lesson.moduleId);
+  recalculateModuleLessonCount(lesson.moduleId);
 
   return commit(lesson);
 }
@@ -496,10 +567,12 @@ function createAssessment(input) {
     progressionGate: input.progressionGate || 'foundation-a',
     passingScore: Number(input.passingScore || 0.6),
     status: input.status || 'draft',
+    order: Number(input.order || data.assessments.filter((item) => item.moduleId === input.moduleId).length + 1),
     items: Array.isArray(input.items) ? input.items.map((item) => ({ ...item })) : [],
   };
 
   data.assessments.push(assessment);
+  ensureOrderWithinSiblings(data.assessments, 'moduleId', assessment.moduleId);
   return commit(assessment);
 }
 
@@ -509,6 +582,8 @@ function updateAssessment(id, input) {
   if (!assessment) {
     return null;
   }
+
+  const previousModuleId = assessment.moduleId;
 
   Object.assign(assessment, {
     moduleId: input.moduleId ?? assessment.moduleId,
@@ -520,10 +595,16 @@ function updateAssessment(id, input) {
     progressionGate: input.progressionGate ?? assessment.progressionGate,
     passingScore: input.passingScore !== undefined ? Number(input.passingScore) : assessment.passingScore,
     status: input.status ?? assessment.status,
+    order: input.order !== undefined ? Number(input.order) : assessment.order,
     items: input.items !== undefined
       ? (Array.isArray(input.items) ? input.items.map((item) => ({ ...item })) : [])
       : assessment.items ?? [],
   });
+
+  ensureOrderWithinSiblings(data.assessments, 'moduleId', assessment.moduleId);
+  if (previousModuleId !== assessment.moduleId) {
+    ensureOrderWithinSiblings(data.assessments, 'moduleId', previousModuleId);
+  }
 
   return commit(assessment);
 }
@@ -541,6 +622,7 @@ function deleteAssessment(id) {
       assignment.assessmentId = null;
     }
   });
+  ensureOrderWithinSiblings(data.assessments, 'moduleId', assessment.moduleId);
 
   return commit(assessment);
 }
@@ -1047,6 +1129,62 @@ function createRewardTransaction(input) {
   return commit(record);
 }
 
+
+function listCurriculumNodeChildren(nodeType, nodeId) {
+  if (nodeType === 'root') {
+    return listSubjects().slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  }
+  if (nodeType === 'subject') {
+    return listStrands().filter((item) => item.subjectId === nodeId).slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  }
+  if (nodeType === 'strand') {
+    return listModules().filter((item) => item.strandId === nodeId).slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  }
+  if (nodeType === 'module') {
+    const lessons = listLessons().filter((item) => item.moduleId === nodeId).map((item) => ({ ...item, nodeType: 'lesson' }));
+    const assessments = listAssessments().filter((item) => item.moduleId === nodeId).map((item) => ({ ...item, nodeType: 'assessment' }));
+    return [...lessons, ...assessments].sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || String(a.title || '').localeCompare(String(b.title || '')));
+  }
+  return [];
+}
+
+function reorderCurriculumNodes({ parentType, parentId = null, nodeType, orderedIds }) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    const error = new Error('orderedIds must be a non-empty array');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (nodeType === 'subject' && parentType === 'root') {
+    reorderCollection({ collection: data.subjects, ids: orderedIds });
+    return commit(listSubjects().slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0)));
+  }
+
+  if (nodeType === 'strand' && parentType === 'subject') {
+    reorderCollection({ collection: data.strands, ids: orderedIds, parentKey: 'subjectId', parentValue: parentId });
+    return commit(listStrands().filter((item) => item.subjectId === parentId).sort((a, b) => Number(a.order || 0) - Number(b.order || 0)));
+  }
+
+  if (nodeType === 'module' && parentType === 'strand') {
+    reorderCollection({ collection: data.modules, ids: orderedIds, parentKey: 'strandId', parentValue: parentId });
+    return commit(listModules().filter((item) => item.strandId === parentId).sort((a, b) => Number(a.order || 0) - Number(b.order || 0)));
+  }
+
+  if (nodeType === 'lesson' && parentType === 'module') {
+    reorderCollection({ collection: data.lessons, ids: orderedIds, parentKey: 'moduleId', parentValue: parentId });
+    return commit(listLessons().filter((item) => item.moduleId === parentId).sort((a, b) => Number(a.order || 0) - Number(b.order || 0)));
+  }
+
+  if (nodeType === 'assessment' && parentType === 'module') {
+    reorderCollection({ collection: data.assessments, ids: orderedIds, parentKey: 'moduleId', parentValue: parentId });
+    return commit(listAssessments().filter((item) => item.moduleId === parentId).sort((a, b) => Number(a.order || 0) - Number(b.order || 0)));
+  }
+
+  const error = new Error(`Unsupported curriculum reorder: ${parentType} -> ${nodeType}`);
+  error.statusCode = 400;
+  throw error;
+}
+
 module.exports = {
   listCenters,
   findCenterById,
@@ -1119,6 +1257,8 @@ module.exports = {
   findRewardRedemptionRequestById,
   createRewardRedemptionRequest,
   updateRewardRedemptionRequest,
+  listCurriculumNodeChildren,
+  reorderCurriculumNodes,
   listProgressionOverrides,
   findProgressionOverrideById,
   createProgressionOverride,
@@ -1129,4 +1269,6 @@ module.exports = {
   listStorageOperations,
   findStorageOperationById,
   createStorageOperation,
+  recalculateModuleLessonCount,
+  recalculateAllModuleLessonCounts,
 };
