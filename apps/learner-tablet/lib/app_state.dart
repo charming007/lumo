@@ -382,13 +382,16 @@ class LumoAppState {
     if (usingFallbackData || sourceModules.isEmpty) return;
 
     final hydratedModules = <LearningModule>[];
-    final baselineLessons = _sanitizeLessons(List<LessonCardModel>.from(assignedLessons));
+    final baselineLessons =
+        _sanitizeLessons(List<LessonCardModel>.from(assignedLessons));
     final lessonsByModule = <String, List<LessonCardModel>>{};
 
     for (final lesson in baselineLessons) {
       final moduleId = lesson.moduleId.trim();
       if (moduleId.isEmpty) continue;
-      lessonsByModule.putIfAbsent(moduleId, () => <LessonCardModel>[]).add(lesson);
+      lessonsByModule
+          .putIfAbsent(moduleId, () => <LessonCardModel>[])
+          .add(lesson);
     }
 
     for (final module in sourceModules) {
@@ -856,6 +859,7 @@ class LumoAppState {
       learnerCode: registrationDraft.learnerCode,
       caregiverRelationship: registrationDraft.caregiverRelationship,
       supportPlan: registrationDraft.supportPlan.trim(),
+      profilePhotoBase64: registrationDraft.profilePhotoBase64,
       lastLessonSummary:
           'Profile created locally. Backend registration pending.',
       lastAttendance: 'Registered today',
@@ -2107,7 +2111,8 @@ class LumoAppState {
       if (lesson.id == session.lessonId) return lesson;
     }
 
-    final normalizedSessionTitle = (session.lessonTitle ?? '').trim().toLowerCase();
+    final normalizedSessionTitle =
+        (session.lessonTitle ?? '').trim().toLowerCase();
     if (normalizedSessionTitle.isNotEmpty) {
       final titleMatches = assigned
           .where(
@@ -2279,9 +2284,9 @@ class LumoAppState {
     final preferredModuleId =
         preferredModuleIds.isEmpty ? null : preferredModuleIds.first;
     return modules.cast<LearningModule?>().firstWhere(
-          (item) => item?.id == preferredModuleId,
-          orElse: () => modules.isEmpty ? null : modules.first,
-        ) ??
+              (item) => item?.id == preferredModuleId,
+              orElse: () => modules.isEmpty ? null : modules.first,
+            ) ??
         const LearningModule(
           id: 'pending-module',
           title: 'Subject sync pending',
@@ -2752,6 +2757,7 @@ class LumoAppState {
         'enrollmentStatus': learner.enrollmentStatus,
         'attendanceBand': learner.attendanceBand,
         'supportPlan': learner.supportPlan,
+        'profilePhotoBase64': learner.profilePhotoBase64,
         'lastLessonSummary': learner.lastLessonSummary,
         'lastAttendance': learner.lastAttendance,
         'backendRecommendedModuleId': learner.backendRecommendedModuleId,
@@ -2783,6 +2789,7 @@ class LumoAppState {
             raw['attendanceBand']?.toString() ?? 'Stable attendance',
         supportPlan: raw['supportPlan']?.toString() ??
             'Short prompts and praise after every answer.',
+        profilePhotoBase64: _readNullableString(raw['profilePhotoBase64']),
         lastLessonSummary:
             raw['lastLessonSummary']?.toString() ?? 'No lesson captured yet.',
         lastAttendance: raw['lastAttendance']?.toString() ?? 'Checked in today',

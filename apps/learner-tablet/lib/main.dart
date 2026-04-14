@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'app_state.dart';
 import 'audio_capture_service.dart';
@@ -876,6 +877,236 @@ class AllStudentsPage extends StatelessWidget {
   }
 }
 
+Uint8List? _decodeProfilePhoto(String? base64Value) {
+  if (base64Value == null || base64Value.trim().isEmpty) return null;
+  try {
+    return base64Decode(base64Value);
+  } catch (_) {
+    return null;
+  }
+}
+
+class _DefaultLearnerAvatar extends StatelessWidget {
+  const _DefaultLearnerAvatar({this.size = 120});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x140F172A),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: size * 0.16,
+              child: Container(
+                width: size * 0.44,
+                height: size * 0.3,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              top: size * 0.24,
+              child: Container(
+                width: size * 0.4,
+                height: size * 0.4,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF4C7A1),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              top: size * 0.38,
+              left: size * 0.34,
+              child: Container(
+                  width: size * 0.04,
+                  height: size * 0.04,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFF0F172A), shape: BoxShape.circle)),
+            ),
+            Positioned(
+              top: size * 0.38,
+              right: size * 0.34,
+              child: Container(
+                  width: size * 0.04,
+                  height: size * 0.04,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFF0F172A), shape: BoxShape.circle)),
+            ),
+            Positioned(
+              top: size * 0.48,
+              child: Container(
+                width: size * 0.12,
+                height: size * 0.05,
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFF7C2D12), width: 2),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: size * 0.06,
+              child: Container(
+                width: size * 0.64,
+                height: size * 0.34,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF4F46E5),
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(999)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LearnerAvatar extends StatelessWidget {
+  const _LearnerAvatar({required this.photoBase64, this.size = 120});
+
+  final String? photoBase64;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = _decodeProfilePhoto(photoBase64);
+    if (bytes == null) {
+      return _DefaultLearnerAvatar(size: size);
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x140F172A),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Image.memory(bytes,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _DefaultLearnerAvatar(size: size)),
+      ),
+    );
+  }
+}
+
+class _LearnerIdentityHero extends StatelessWidget {
+  const _LearnerIdentityHero({
+    required this.learner,
+    required this.totalPoints,
+    required this.totalXp,
+    required this.totalMinutes,
+    required this.leaderboardEntry,
+  });
+
+  final LearnerProfile learner;
+  final int totalPoints;
+  final int totalXp;
+  final int totalMinutes;
+  final LearnerLeaderboardEntry? leaderboardEntry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftPanel(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 680;
+          final avatar = _LearnerAvatar(
+            photoBase64: learner.profilePhotoBase64,
+            size: compact ? 112 : 136,
+          );
+          final textBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                learner.name,
+                style:
+                    const TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${learner.age} years • ${learner.cohort} • ${learner.preferredLanguage}',
+                style: const TextStyle(color: Color(0xFF475569), height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  StatusPill(
+                      text: learner.readinessLabel, color: LumoTheme.primary),
+                  StatusPill(
+                      text: '$totalPoints pts', color: LumoTheme.accentGreen),
+                  StatusPill(
+                      text: '${learner.streakDays} day streak',
+                      color: LumoTheme.accentOrange),
+                  if (leaderboardEntry != null)
+                    StatusPill(
+                        text: 'Rank #${leaderboardEntry!.rank}',
+                        color: const Color(0xFF0EA5E9)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                learner.profilePhotoBase64 == null
+                    ? 'Default learner avatar is active for now. Add a photo during registration whenever you want. $totalXp XP earned across about $totalMinutes learning minutes so far.'
+                    : 'Profile photo captured for this learner. $totalXp XP earned across about $totalMinutes learning minutes so far.',
+                style: const TextStyle(color: Color(0xFF64748B), height: 1.4),
+              ),
+            ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [avatar, const SizedBox(height: 16), textBlock],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              avatar,
+              const SizedBox(width: 20),
+              Expanded(child: textBlock)
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
 class LearnerProfilePage extends StatelessWidget {
   final LumoAppState state;
   final LearnerProfile learner;
@@ -912,72 +1143,27 @@ class LearnerProfilePage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: _ResponsiveWorkspaceRow(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ResponsivePane(
-                child: MallamPanel(
-                  instruction:
-                      'This learner data page now shows the child\'s rewards, leaderboard rank, streak, XP, time spent, and assigned lesson momentum.',
-                  onVoiceTap: () {
-                    state.replayVisiblePrompt(
-                      'You are viewing ${learner.name}. This page shows points, streaks, badge rewards, leaderboard rank, and the fastest way to continue learning.',
-                    );
-                  },
-                  prompt:
-                      'You are viewing ${learner.name}. This page shows points, streaks, badge rewards, leaderboard rank, and the fastest way to continue learning.',
-                  speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'AI Mallam explains this learner page',
-                ),
-              ),
-              ResponsivePane(
-                child: DetailCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final compactHeader = constraints.maxWidth < 560;
-
-                          if (compactHeader) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('Back'),
-                                ),
-                                const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 10,
-                                  runSpacing: 10,
-                                  children: [
-                                    if (leaderboardEntry != null)
-                                      StatusPill(
-                                        text:
-                                            '#${leaderboardEntry.rank} on leaderboard',
-                                        color: leaderboardEntry.rank == 1
-                                            ? LumoTheme.accentOrange
-                                            : LumoTheme.primary,
-                                      ),
-                                    StatusPill(
-                                      text: learner.enrollmentStatus,
-                                      color: LumoTheme.primary,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            );
-                          }
-
-                          return Row(
+          child: DetailCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compactHeader = constraints.maxWidth < 560;
+                    if (compactHeader) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Back'),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
                             children: [
-                              OutlinedButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('Back'),
-                              ),
-                              const Spacer(),
-                              if (leaderboardEntry != null) ...[
+                              if (leaderboardEntry != null)
                                 StatusPill(
                                   text:
                                       '#${leaderboardEntry.rank} on leaderboard',
@@ -985,663 +1171,581 @@ class LearnerProfilePage extends StatelessWidget {
                                       ? LumoTheme.accentOrange
                                       : LumoTheme.primary,
                                 ),
-                                const SizedBox(width: 10),
-                              ],
                               StatusPill(
-                                text: learner.enrollmentStatus,
+                                  text: learner.enrollmentStatus,
+                                  color: LumoTheme.primary),
+                            ],
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Back'),
+                        ),
+                        const Spacer(),
+                        if (leaderboardEntry != null) ...[
+                          StatusPill(
+                            text: '#${leaderboardEntry.rank} on leaderboard',
+                            color: leaderboardEntry.rank == 1
+                                ? LumoTheme.accentOrange
+                                : LumoTheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        StatusPill(
+                            text: learner.enrollmentStatus,
+                            color: LumoTheme.primary),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _LearnerIdentityHero(
+                          learner: learner,
+                          totalPoints: totalPoints,
+                          totalXp: totalXp,
+                          totalMinutes: totalMinutes,
+                          leaderboardEntry: leaderboardEntry,
+                        ),
+                        const SizedBox(height: 18),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final compact = constraints.maxWidth < 640;
+                            final tiles = [
+                              MetricTile(
+                                label: 'Streak',
+                                value: '${learner.streakDays} days',
+                                icon: Icons.local_fire_department_rounded,
+                                color: LumoTheme.accentOrange,
+                              ),
+                              MetricTile(
+                                label: 'Total XP',
+                                value: '$totalXp XP',
+                                icon: Icons.stars_rounded,
                                 color: LumoTheme.primary,
                               ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: SingleChildScrollView(
+                              MetricTile(
+                                label: 'Points',
+                                value: '$totalPoints pts',
+                                icon: Icons.workspace_premium_rounded,
+                                color: LumoTheme.accentGreen,
+                              ),
+                              MetricTile(
+                                label: 'Learning time',
+                                value: '$totalMinutes min',
+                                icon: Icons.schedule_rounded,
+                                color: const Color(0xFF0EA5E9),
+                              ),
+                            ];
+
+                            if (compact) {
+                              return Column(
+                                children: [
+                                  for (var i = 0; i < tiles.length; i++) ...[
+                                    SizedBox(
+                                        width: double.infinity,
+                                        child: tiles[i]),
+                                    if (i < tiles.length - 1)
+                                      const SizedBox(height: 12),
+                                  ],
+                                ],
+                              );
+                            }
+
+                            return Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: tiles
+                                  .map((tile) => SizedBox(
+                                        width: (constraints.maxWidth - 12) / 2,
+                                        child: tile,
+                                      ))
+                                  .toList(),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                        if (rewards != null) ...[
+                          SoftPanel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.emoji_events_rounded,
+                                        color: LumoTheme.accentOrange),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Rewards spotlight',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 18),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                LabelValueWrap(
+                                  items: [
+                                    (
+                                      'Level',
+                                      '${rewards.levelLabel} • Lv ${rewards.level}'
+                                    ),
+                                    ('Points', '${rewards.points} points'),
+                                    (
+                                      'Badges unlocked',
+                                      '${unlockedBadges.length} of ${rewards.badges.length}'
+                                    ),
+                                    (
+                                      'Next level',
+                                      rewards.nextLevelLabel == null
+                                          ? 'Top celebration band'
+                                          : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                LinearProgressIndicator(
+                                  value:
+                                      rewards.progressToNextLevel.clamp(0, 1),
+                                  minHeight: 10,
+                                  borderRadius: const BorderRadius.all(
+                                      Radius.circular(999)),
+                                  color: LumoTheme.accentGreen,
+                                  backgroundColor: const Color(0xFFD1FAE5),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: rewards.badges.isEmpty
+                                      ? const [
+                                          StatusPill(
+                                              text: 'No badges yet',
+                                              color: Color(0xFF94A3B8)),
+                                        ]
+                                      : rewards.badges
+                                          .take(6)
+                                          .map((badge) => StatusPill(
+                                                text: badge.earned
+                                                    ? '${badge.icon} ${badge.title}'
+                                                    : '${badge.title} ${badge.progress}/${badge.target}',
+                                                color: badge.earned
+                                                    ? LumoTheme.accentGreen
+                                                    : LumoTheme.accentOrange,
+                                              ))
+                                          .toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+                        if (rewardOptions.isNotEmpty) ...[
+                          _RewardRedemptionPlannerPanel(
+                            learner: learner,
+                            summary: state
+                                .rewardRedemptionSummaryForLearner(learner),
+                            featuredReward: featuredReward,
+                            options: rewardOptions,
+                            nearlyUnlockedRewards: nearlyUnlockedRewards,
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+                        if (leaderboard.isNotEmpty) ...[
+                          _LearnerLeaderboardPanel(
+                            leaderboard: leaderboard.take(5).toList(),
+                            currentLearnerId: learner.id,
+                            title: 'Points leaderboard',
+                            subtitle:
+                                'Use this to celebrate progress publicly and keep momentum visible.',
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+                        SoftPanel(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _LearnerRewardHero(
-                                learner: learner,
-                                rewards: rewards,
-                                totalXp: totalXp,
-                                totalPoints: totalPoints,
-                                totalMinutes: totalMinutes,
-                                leaderboardEntry: leaderboardEntry,
-                                unlockedBadgeCount: unlockedBadges.length,
-                              ),
-                              const SizedBox(height: 18),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 640;
-                                  final tiles = [
-                                    MetricTile(
-                                      label: 'Streak',
-                                      value: '${learner.streakDays} days',
-                                      icon: Icons.local_fire_department_rounded,
-                                      color: LumoTheme.accentOrange,
-                                    ),
-                                    MetricTile(
-                                      label: 'Total XP',
-                                      value: '$totalXp XP',
-                                      icon: Icons.stars_rounded,
-                                      color: LumoTheme.primary,
-                                    ),
-                                    MetricTile(
-                                      label: 'Points',
-                                      value: '$totalPoints pts',
-                                      icon: Icons.workspace_premium_rounded,
-                                      color: LumoTheme.accentGreen,
-                                    ),
-                                    MetricTile(
-                                      label: 'Learning time',
-                                      value: '$totalMinutes min',
-                                      icon: Icons.schedule_rounded,
-                                      color: const Color(0xFF0EA5E9),
-                                    ),
-                                  ];
-
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < tiles.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: tiles[i],
-                                          ),
-                                          if (i < tiles.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Wrap(
-                                    spacing: 12,
-                                    runSpacing: 12,
-                                    children: tiles
-                                        .map(
-                                          (tile) => SizedBox(
-                                            width:
-                                                (constraints.maxWidth - 12) / 2,
-                                            child: tile,
-                                          ),
-                                        )
-                                        .toList(),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 18),
-                              if (rewards != null) ...[
-                                SoftPanel(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Row(
-                                        children: [
-                                          Icon(Icons.emoji_events_rounded,
-                                              color: LumoTheme.accentOrange),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Rewards spotlight',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      LabelValueWrap(
-                                        items: [
-                                          (
-                                            'Level',
-                                            '${rewards.levelLabel} • Lv ${rewards.level}',
-                                          ),
-                                          (
-                                            'Points',
-                                            '${rewards.points} points'
-                                          ),
-                                          (
-                                            'Badges unlocked',
-                                            '${unlockedBadges.length} of ${rewards.badges.length}',
-                                          ),
-                                          (
-                                            'Next level',
-                                            rewards.nextLevelLabel == null
-                                                ? 'Top celebration band'
-                                                : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      LinearProgressIndicator(
-                                        value: rewards.progressToNextLevel
-                                            .clamp(0, 1),
-                                        minHeight: 10,
-                                        borderRadius: const BorderRadius.all(
-                                          Radius.circular(999),
-                                        ),
-                                        color: LumoTheme.accentGreen,
-                                        backgroundColor:
-                                            const Color(0xFFD1FAE5),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: rewards.badges.isEmpty
-                                            ? const [
-                                                StatusPill(
-                                                  text: 'No badges yet',
-                                                  color: Color(0xFF94A3B8),
-                                                ),
-                                              ]
-                                            : rewards.badges
-                                                .take(6)
-                                                .map(
-                                                  (badge) => StatusPill(
-                                                    text: badge.earned
-                                                        ? '${badge.icon} ${badge.title}'
-                                                        : '${badge.title} ${badge.progress}/${badge.target}',
-                                                    color: badge.earned
-                                                        ? LumoTheme.accentGreen
-                                                        : LumoTheme
-                                                            .accentOrange,
-                                                  ),
-                                                )
-                                                .toList(),
-                                      ),
-                                    ],
+                              const Text('Basic information',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 12),
+                              InfoRow(
+                                  label: 'Guardian',
+                                  value: learner.guardianName),
+                              InfoRow(
+                                  label: 'Relationship',
+                                  value: learner.caregiverRelationship),
+                              InfoRow(
+                                  label: 'Language',
+                                  value: learner.preferredLanguage),
+                              InfoRow(
+                                  label: 'Readiness',
+                                  value: learner.readinessLabel),
+                              InfoRow(
+                                  label: 'Support plan',
+                                  value: learner.supportPlan),
+                              InfoRow(
+                                  label: 'Last lesson',
+                                  value: learner.lastLessonSummary),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SoftPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Expanded(
+                                      child: Text('Backend routing',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800))),
+                                  StatusPill(
+                                    text: nextAssignmentPack == null
+                                        ? 'Fallback routing'
+                                        : 'Live assignment',
+                                    color: nextAssignmentPack == null
+                                        ? LumoTheme.accentOrange
+                                        : LumoTheme.accentGreen,
                                   ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                state.backendRoutingSummaryForLearner(learner),
+                                style: const TextStyle(
+                                    color: Color(0xFF475569), height: 1.4),
+                              ),
+                              const SizedBox(height: 12),
+                              InfoRow(
+                                  label: 'Recommended module',
+                                  value: recommendedModule.title),
+                              if (nextAssignmentPack != null) ...[
+                                InfoRow(
+                                    label: 'Assigned lesson',
+                                    value: nextAssignmentPack.lessonTitle),
+                                InfoRow(
+                                  label: 'Assessment',
+                                  value: nextAssignmentPack.assessmentTitle ??
+                                      'No assessment gate',
                                 ),
-                                const SizedBox(height: 18),
                               ],
-                              if (rewardOptions.isNotEmpty) ...[
-                                _RewardRedemptionPlannerPanel(
-                                  learner: learner,
-                                  summary:
-                                      state.rewardRedemptionSummaryForLearner(
-                                    learner,
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SoftPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Expanded(
+                                      child: Text('Recent backend runtime',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800))),
+                                  StatusPill(
+                                    text: recentSessions.isEmpty
+                                        ? 'Waiting for sync'
+                                        : '${recentSessions.length} session(s)',
+                                    color: recentSessions.isEmpty
+                                        ? LumoTheme.accentOrange
+                                        : LumoTheme.accentGreen,
                                   ),
-                                  featuredReward: featuredReward,
-                                  options: rewardOptions,
-                                  nearlyUnlockedRewards: nearlyUnlockedRewards,
-                                ),
-                                const SizedBox(height: 18),
-                              ],
-                              if (leaderboard.isNotEmpty) ...[
-                                _LearnerLeaderboardPanel(
-                                  leaderboard: leaderboard.take(5).toList(),
-                                  currentLearnerId: learner.id,
-                                  title: 'Points leaderboard',
-                                  subtitle:
-                                      'Use this to celebrate progress publicly and keep momentum visible.',
-                                ),
-                                const SizedBox(height: 18),
-                              ],
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Basic information',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    InfoRow(
-                                      label: 'Guardian',
-                                      value: learner.guardianName,
-                                    ),
-                                    InfoRow(
-                                      label: 'Relationship',
-                                      value: learner.caregiverRelationship,
-                                    ),
-                                    InfoRow(
-                                      label: 'Language',
-                                      value: learner.preferredLanguage,
-                                    ),
-                                    InfoRow(
-                                      label: 'Readiness',
-                                      value: learner.readinessLabel,
-                                    ),
-                                    InfoRow(
-                                      label: 'Support plan',
-                                      value: learner.supportPlan,
-                                    ),
-                                    InfoRow(
-                                      label: 'Last lesson',
-                                      value: learner.lastLessonSummary,
-                                    ),
-                                  ],
-                                ),
+                                ],
                               ),
-                              const SizedBox(height: 18),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Text(
-                                            'Backend routing',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        StatusPill(
-                                          text: nextAssignmentPack == null
-                                              ? 'Fallback routing'
-                                              : 'Live assignment',
-                                          color: nextAssignmentPack == null
-                                              ? LumoTheme.accentOrange
-                                              : LumoTheme.accentGreen,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      state.backendRoutingSummaryForLearner(
-                                        learner,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    InfoRow(
-                                      label: 'Recommended module',
-                                      value: recommendedModule.title,
-                                    ),
-                                    if (nextAssignmentPack != null) ...[
-                                      InfoRow(
-                                        label: 'Assigned lesson',
-                                        value: nextAssignmentPack.lessonTitle,
-                                      ),
-                                      InfoRow(
-                                        label: 'Assessment',
-                                        value: nextAssignmentPack
-                                                .assessmentTitle ??
-                                            'No assessment gate',
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                              const SizedBox(height: 10),
+                              Text(
+                                state.runtimeSessionSummaryForLearner(learner),
+                                style: const TextStyle(
+                                    color: Color(0xFF475569), height: 1.4),
                               ),
-                              const SizedBox(height: 18),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Text(
-                                            'Recent backend runtime',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        StatusPill(
-                                          text: recentSessions.isEmpty
-                                              ? 'Waiting for sync'
-                                              : '${recentSessions.length} session(s)',
-                                          color: recentSessions.isEmpty
-                                              ? LumoTheme.accentOrange
-                                              : LumoTheme.accentGreen,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      state.runtimeSessionSummaryForLearner(
-                                        learner,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    if (recentSessions.isNotEmpty) ...[
-                                      const SizedBox(height: 12),
-                                      ...recentSessions.take(3).map(
-                                            (session) => Container(
-                                              width: double.infinity,
-                                              margin: const EdgeInsets.only(
-                                                bottom: 10,
-                                              ),
-                                              padding: const EdgeInsets.all(14),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF8FAFC),
-                                                borderRadius:
-                                                    BorderRadius.circular(18),
-                                                border: Border.all(
-                                                  color:
-                                                      const Color(0xFFE2E8F0),
-                                                ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          session.lessonTitle ??
-                                                              'Live runtime session',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color: Color(
-                                                              0xFF0F172A,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      StatusPill(
-                                                        text:
-                                                            session.statusLabel,
-                                                        color: session.status ==
-                                                                'completed'
-                                                            ? LumoTheme
-                                                                .accentGreen
-                                                            : LumoTheme
-                                                                .accentOrange,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    session.automationStatus,
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF475569),
-                                                      height: 1.35,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 10),
-                                                  Wrap(
-                                                    spacing: 10,
-                                                    runSpacing: 8,
-                                                    children: [
-                                                      _MiniMetricChip(
-                                                        icon:
-                                                            Icons.route_rounded,
-                                                        label: session
-                                                            .progressLabel,
-                                                      ),
-                                                      _MiniMetricChip(
-                                                        icon: Icons
-                                                            .record_voice_over_rounded,
-                                                        label:
-                                                            '${session.responsesCaptured} responses',
-                                                      ),
-                                                      _MiniMetricChip(
-                                                        icon: Icons
-                                                            .tips_and_updates_rounded,
-                                                        label:
-                                                            '${session.supportActionsUsed} supports',
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  if (session.status ==
-                                                      'in_progress') ...[
-                                                    const SizedBox(height: 12),
-                                                    Align(
-                                                      alignment:
-                                                          Alignment.centerLeft,
-                                                      child: FilledButton
-                                                          .tonalIcon(
-                                                        onPressed: () {
-                                                          final resumeLesson = state
-                                                              .lessonForBackendSession(
-                                                            session,
-                                                          );
-                                                          if (resumeLesson ==
-                                                              null) {
-                                                            ScaffoldMessenger
-                                                                .of(
-                                                              context,
-                                                            ).showSnackBar(
-                                                              SnackBar(
-                                                                content: Text(
-                                                                  session.lessonTitle
-                                                                              ?.trim()
-                                                                              .isNotEmpty ==
-                                                                          true
-                                                                      ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
-                                                                      : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.',
-                                                                ),
-                                                              ),
-                                                            );
-                                                            return;
-                                                          }
-
-                                                          launchLessonFlow(
-                                                            context: context,
-                                                            state: state,
-                                                            onChanged: () {},
-                                                            lesson:
-                                                                resumeLesson,
-                                                            resumeFrom: session,
-                                                          );
-                                                        },
-                                                        icon: const Icon(
-                                                          Icons
-                                                              .play_circle_fill_rounded,
-                                                        ),
-                                                        label: const Text(
-                                                          'Resume from backend session',
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Text(
-                                            'Assigned lessons',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        StatusPill(
-                                          text:
-                                              '${assignedLessons.length} shown',
-                                          color: LumoTheme.accentOrange,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      state.assignedLessonSummaryForLearner(
-                                        learner,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    if (nextLesson != null)
-                                      Container(
+                              if (recentSessions.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ...recentSessions.take(3).map(
+                                      (session) => Container(
                                         width: double.infinity,
+                                        margin:
+                                            const EdgeInsets.only(bottom: 10),
                                         padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFEEF2FF),
+                                          color: const Color(0xFFF8FAFC),
                                           borderRadius:
                                               BorderRadius.circular(18),
+                                          border: Border.all(
+                                              color: const Color(0xFFE2E8F0)),
                                         ),
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            const Text(
-                                              'Continue learning',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFF312E81),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              '${nextLesson.title} • ${nextLesson.durationMinutes} min',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(nextLesson.readinessFocus),
-                                            const SizedBox(height: 12),
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: FilledButton.icon(
-                                                onPressed: () {
-                                                  launchLessonFlow(
-                                                    context: context,
-                                                    state: state,
-                                                    onChanged: () {},
-                                                    lesson: nextLesson,
-                                                    resumeFrom:
-                                                        resumableSession,
-                                                  );
-                                                },
-                                                icon: Icon(
-                                                  resumableSession == null
-                                                      ? Icons.play_arrow_rounded
-                                                      : Icons
-                                                          .play_circle_fill_rounded,
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    session.lessonTitle ??
+                                                        'Live runtime session',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
+                                                  ),
                                                 ),
-                                                label: Text(
-                                                  resumableSession == null
-                                                      ? 'Start assigned lesson'
-                                                      : 'Resume assigned lesson',
+                                                StatusPill(
+                                                  text: session.statusLabel,
+                                                  color: session.status ==
+                                                          'completed'
+                                                      ? LumoTheme.accentGreen
+                                                      : LumoTheme.accentOrange,
                                                 ),
-                                              ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                    if (assignedLessons.isNotEmpty) ...[
-                                      const SizedBox(height: 12),
-                                      ...assignedLessons.map(
-                                        (lesson) => Container(
-                                          width: double.infinity,
-                                          margin: const EdgeInsets.only(
-                                            bottom: 10,
-                                          ),
-                                          padding: const EdgeInsets.all(14),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
-                                            borderRadius:
-                                                BorderRadius.circular(18),
-                                            border: Border.all(
-                                              color: const Color(0xFFE2E8F0),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                lesson.title,
+                                            const SizedBox(height: 8),
+                                            Text(session.automationStatus,
                                                 style: const TextStyle(
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                '${lesson.subject} • ${lesson.durationMinutes} min',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF64748B),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                lesson.scenario,
-                                                style: const TextStyle(
-                                                  height: 1.35,
+                                                    color: Color(0xFF475569),
+                                                    height: 1.35)),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 10,
+                                              runSpacing: 8,
+                                              children: [
+                                                _MiniMetricChip(
+                                                    icon: Icons.route_rounded,
+                                                    label:
+                                                        session.progressLabel),
+                                                _MiniMetricChip(
+                                                    icon: Icons
+                                                        .record_voice_over_rounded,
+                                                    label:
+                                                        '${session.responsesCaptured} responses'),
+                                                _MiniMetricChip(
+                                                    icon: Icons
+                                                        .tips_and_updates_rounded,
+                                                    label:
+                                                        '${session.supportActionsUsed} supports'),
+                                              ],
+                                            ),
+                                            if (session.status ==
+                                                'in_progress') ...[
+                                              const SizedBox(height: 12),
+                                              Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: FilledButton.tonalIcon(
+                                                  onPressed: () {
+                                                    final resumeLesson = state
+                                                        .lessonForBackendSession(
+                                                            session);
+                                                    if (resumeLesson == null) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                            session.lessonTitle
+                                                                        ?.trim()
+                                                                        .isNotEmpty ==
+                                                                    true
+                                                                ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
+                                                                : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.',
+                                                          ),
+                                                        ),
+                                                      );
+                                                      return;
+                                                    }
+
+                                                    launchLessonFlow(
+                                                      context: context,
+                                                      state: state,
+                                                      onChanged: () {},
+                                                      lesson: resumeLesson,
+                                                      resumeFrom: session,
+                                                    );
+                                                  },
+                                                  icon: const Icon(Icons
+                                                      .play_circle_fill_rounded),
+                                                  label: const Text(
+                                                      'Resume from backend session'),
                                                 ),
                                               ),
                                             ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SoftPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Expanded(
+                                      child: Text('Assigned lessons',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800))),
+                                  StatusPill(
+                                      text: '${assignedLessons.length} shown',
+                                      color: LumoTheme.accentOrange),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                state.assignedLessonSummaryForLearner(learner),
+                                style: const TextStyle(
+                                    color: Color(0xFF475569), height: 1.4),
+                              ),
+                              const SizedBox(height: 12),
+                              if (nextLesson != null)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEEF2FF),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Continue learning',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF312E81)),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${nextLesson.title} • ${nextLesson.durationMinutes} min',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(nextLesson.readinessFocus),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: FilledButton.icon(
+                                          onPressed: () {
+                                            launchLessonFlow(
+                                              context: context,
+                                              state: state,
+                                              onChanged: () {},
+                                              lesson: nextLesson,
+                                              resumeFrom: resumableSession,
+                                            );
+                                          },
+                                          icon: Icon(
+                                            resumableSession == null
+                                                ? Icons.play_arrow_rounded
+                                                : Icons
+                                                    .play_circle_fill_rounded,
+                                          ),
+                                          label: Text(
+                                            resumableSession == null
+                                                ? 'Start assigned lesson'
+                                                : 'Resume assigned lesson',
                                           ),
                                         ),
                                       ),
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              if (assignedLessons.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ...assignedLessons.map(
+                                  (lesson) => Container(
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                          color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(lesson.title,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w800)),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${lesson.subject} • ${lesson.durationMinutes} min',
+                                          style: const TextStyle(
+                                              color: Color(0xFF64748B)),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(lesson.scenario,
+                                            style:
+                                                const TextStyle(height: 1.35)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: () async {
-                            final messenger = ScaffoldMessenger.of(context);
-                            final json =
-                                const JsonEncoder.withIndent('  ').convert({
-                              'learner': {
-                                'id': learner.id,
-                                'name': learner.name,
-                                'learnerCode': learner.learnerCode,
-                                'age': learner.age,
-                                'cohort': learner.cohort,
-                                'guardianName': learner.guardianName,
-                                'preferredLanguage': learner.preferredLanguage,
-                                'readinessLabel': learner.readinessLabel,
-                                'streakDays': learner.streakDays,
-                                'points': totalPoints,
-                                'totalXp': totalXp,
-                                'attendanceBand': learner.attendanceBand,
-                                'enrollmentStatus': learner.enrollmentStatus,
-                                'lastLessonSummary': learner.lastLessonSummary,
-                              },
-                            });
-                            await ClipboardBridge.copy(json);
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Learner data copied. Hook file export next if needed.',
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.download_rounded),
-                          label: const Text('Download data'),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final json = const JsonEncoder.withIndent('  ').convert({
+                        'learner': {
+                          'id': learner.id,
+                          'name': learner.name,
+                          'learnerCode': learner.learnerCode,
+                          'age': learner.age,
+                          'cohort': learner.cohort,
+                          'guardianName': learner.guardianName,
+                          'preferredLanguage': learner.preferredLanguage,
+                          'readinessLabel': learner.readinessLabel,
+                          'streakDays': learner.streakDays,
+                          'points': totalPoints,
+                          'totalXp': totalXp,
+                          'attendanceBand': learner.attendanceBand,
+                          'enrollmentStatus': learner.enrollmentStatus,
+                          'lastLessonSummary': learner.lastLessonSummary,
+                        },
+                      });
+                      await ClipboardBridge.copy(json);
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Learner data copied. Hook file export next if needed.'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.download_rounded),
+                    label: const Text('Download data'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1961,6 +2065,8 @@ class _RegisterPageState extends State<RegisterPage> {
   late String caregiverRelationship;
   late bool consentCaptured;
   late String selectedMallamId;
+  String? profilePhotoBase64;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -1992,6 +2098,7 @@ class _RegisterPageState extends State<RegisterPage> {
     caregiverRelationship = draft.caregiverRelationship;
     consentCaptured = draft.consentCaptured;
     selectedMallamId = draft.mallamId;
+    profilePhotoBase64 = draft.profilePhotoBase64;
   }
 
   @override
@@ -2022,9 +2129,43 @@ class _RegisterPageState extends State<RegisterPage> {
         consentCaptured: consentCaptured,
         caregiverRelationship: caregiverRelationship,
         supportPlan: supportPlanController.text,
+        profilePhotoBase64: profilePhotoBase64,
         mallamId: selectedMallamId,
       ),
     );
+  }
+
+  Future<void> _captureProfilePhoto() async {
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 70,
+        maxWidth: 1200,
+      );
+      if (photo == null) return;
+      final bytes = await photo.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        profilePhotoBase64 = base64Encode(bytes);
+        syncDraft();
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Photo capture is not available on this device yet. You can skip for now and use the default avatar. $error',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _removeProfilePhoto() {
+    setState(() {
+      profilePhotoBase64 = null;
+      syncDraft();
+    });
   }
 
   @override
@@ -2043,6 +2184,7 @@ class _RegisterPageState extends State<RegisterPage> {
       consentCaptured: consentCaptured,
       caregiverRelationship: caregiverRelationship,
       supportPlan: supportPlanController.text,
+      profilePhotoBase64: profilePhotoBase64,
       mallamId: selectedMallamId,
     );
     final recommendedModule = widget.state.recommendedModuleForDraft;
@@ -2479,6 +2621,78 @@ class _RegisterPageState extends State<RegisterPage> {
                           const SizedBox(height: 8),
                           _RegistrationReadinessStrip(draft: draft),
                           const SizedBox(height: 18),
+                          SoftPanel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Photo capture (optional)',
+                                  style: TextStyle(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Take a learner photo now or skip it. If you skip, Lumo uses the default kid avatar on a white background.',
+                                  style: TextStyle(
+                                      color: Color(0xFF475569), height: 1.4),
+                                ),
+                                const SizedBox(height: 14),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    _LearnerAvatar(
+                                        photoBase64: profilePhotoBase64,
+                                        size: 88),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            profilePhotoBase64 == null
+                                                ? 'No photo captured yet'
+                                                : 'Photo captured and ready for this learner',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            profilePhotoBase64 == null
+                                                ? 'This step is optional.'
+                                                : 'You can retake it or remove it before saving.',
+                                            style: const TextStyle(
+                                                color: Color(0xFF64748B)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    FilledButton.tonalIcon(
+                                      onPressed: _captureProfilePhoto,
+                                      icon: const Icon(
+                                          Icons.photo_camera_rounded),
+                                      label: Text(profilePhotoBase64 == null
+                                          ? 'Take photo'
+                                          : 'Retake photo'),
+                                    ),
+                                    if (profilePhotoBase64 != null)
+                                      OutlinedButton.icon(
+                                        onPressed: _removeProfilePhoto,
+                                        icon: const Icon(
+                                            Icons.delete_outline_rounded),
+                                        label: const Text('Use default avatar'),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final compact = constraints.maxWidth < 760;
@@ -7646,171 +7860,6 @@ LearnerLeaderboardEntry? learnerLeaderboardEntryFor(
     if (entry.learner.id == learnerId) return entry;
   }
   return null;
-}
-
-class _LearnerRewardHero extends StatelessWidget {
-  final LearnerProfile learner;
-  final RewardSnapshot? rewards;
-  final int totalXp;
-  final int totalPoints;
-  final int totalMinutes;
-  final LearnerLeaderboardEntry? leaderboardEntry;
-  final int unlockedBadgeCount;
-
-  const _LearnerRewardHero({
-    required this.learner,
-    required this.rewards,
-    required this.totalXp,
-    required this.totalPoints,
-    required this.totalMinutes,
-    required this.leaderboardEntry,
-    required this.unlockedBadgeCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final headline = leaderboardEntry?.rank == 1
-        ? 'Top of the board'
-        : leaderboardEntry == null
-            ? 'Learning momentum'
-            : 'Chasing the top spot';
-    final subline = leaderboardEntry?.rank == 1
-        ? '${learner.name} is leading with $totalPoints points. Keep the streak alive.'
-        : leaderboardEntry == null
-            ? '${learner.name} has $totalPoints points, $totalXp XP, and ${learner.streakDays} streak days.'
-            : '${leaderboardEntry!.pointsGapFromLeader} more points to catch the leader.';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF312E81), Color(0xFF6D28D9), Color(0xFF2563EB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF312E81).withValues(alpha: 0.18),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  headline,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              if (rewards != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '${rewards!.levelLabel} • Level ${rewards!.level}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            learner.name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subline,
-            style: const TextStyle(
-              color: Color(0xFFE0E7FF),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _RewardHeroChip(
-                  icon: Icons.workspace_premium_rounded,
-                  label: '$totalPoints pts'),
-              _RewardHeroChip(icon: Icons.stars_rounded, label: '$totalXp XP'),
-              _RewardHeroChip(
-                  icon: Icons.local_fire_department_rounded,
-                  label: '${learner.streakDays} day streak'),
-              _RewardHeroChip(
-                  icon: Icons.schedule_rounded, label: '$totalMinutes mins'),
-              _RewardHeroChip(
-                  icon: Icons.emoji_events_rounded,
-                  label: '$unlockedBadgeCount badge(s)'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RewardHeroChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _RewardHeroChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _RewardRedemptionPlannerPanel extends StatelessWidget {
