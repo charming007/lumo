@@ -20,6 +20,7 @@ export function ModalLauncher({
   description,
   eyebrow = 'Create record',
   triggerStyle,
+  disabled = false,
   children,
 }: {
   buttonLabel: string;
@@ -27,13 +28,19 @@ export function ModalLauncher({
   description?: string;
   eyebrow?: string;
   triggerStyle?: CSSProperties;
+  disabled?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} style={{ ...defaultTriggerStyle, ...triggerStyle }}>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{ ...defaultTriggerStyle, ...(disabled ? { opacity: 0.55, cursor: 'not-allowed', boxShadow: 'none' } : null), ...triggerStyle }}
+        disabled={disabled}
+      >
         {buttonLabel}
       </button>
 

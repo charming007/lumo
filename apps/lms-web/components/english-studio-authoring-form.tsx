@@ -183,7 +183,7 @@ export function EnglishStudioAuthoringForm({
   assessments: Assessment[];
   action: (formData: FormData) => void;
 }) {
-  const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? subjects[0];
+  const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
   const englishModules = modules.filter((module) => module.subjectId === englishSubject?.id || module.subjectName?.toLowerCase().includes('english'));
   const starterPreset = templatePresets[0];
   const [moduleId, setModuleId] = useState(englishModules[0]?.id ?? '');

@@ -54,6 +54,12 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
+  const englishModules = modules.filter((module) => module.subjectId === englishSubject?.id || module.subjectName?.toLowerCase().includes('english'));
+  const quickAuthoringBlocker = !englishSubject
+    ? 'Quick English authoring is disabled until the English subject feed loads.'
+    : !englishModules.length
+      ? 'Quick English authoring is disabled until at least one English module is available.'
+      : null;
 
   const failedSources = [
     modulesResult.status === 'rejected' ? 'modules' : null,
@@ -65,7 +71,6 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
 
   const blueprints = buildEnglishLessonBlueprints({ modules, lessons, assessments });
   const summary = buildEnglishOpsSummary({ modules, lessons, assignments });
-  const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
   const topBlueprint = blueprints[0];
   const releaseQueue = blueprints.filter((item) => item.releaseLabel !== 'pod-ready');
   const podReady = blueprints.filter((item) => item.releaseLabel === 'pod-ready');
@@ -87,9 +92,13 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
       aside={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <div style={{ background: '#0f172a', color: 'white', padding: '12px 14px', borderRadius: 16, fontWeight: 800 }}>Interactive curriculum lane</div>
-          <a href={`/content/lessons/new?subjectId=${encodeURIComponent(englishSubject?.id ?? '')}&from=%2Fenglish`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>Open full lesson studio</a>
+          {quickAuthoringBlocker ? (
+            <div style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#E2E8F0', color: '#64748B' }}>Full lesson studio waits for English data</div>
+          ) : (
+            <a href={`/content/lessons/new?subjectId=${encodeURIComponent(englishSubject?.id ?? '')}&from=%2Fenglish`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>Open full lesson studio</a>
+          )}
           <Link href="/guide#english-studio" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>Open LMS guide</Link>
-          <ModalLauncher buttonLabel="Quick English authoring" title="Quick English authoring" description="Build the lesson from an activity spine, inspect readiness, then create it in the live content lane." eyebrow="English studio">
+          <ModalLauncher buttonLabel="Quick English authoring" title="Quick English authoring" description="Build the lesson from an activity spine, inspect readiness, then create it in the live content lane." eyebrow="English studio" disabled={Boolean(quickAuthoringBlocker)} triggerStyle={quickAuthoringBlocker ? { background: '#CBD5E1', color: '#475569' } : undefined}>
             <EnglishStudioAuthoringForm subjects={subjects} modules={modules} assessments={assessments} action={createLessonAction} />
           </ModalLauncher>
         </div>
@@ -100,6 +109,12 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           English curriculum view degraded gracefully: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        </div>
+      ) : null}
+
+      {quickAuthoringBlocker ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontWeight: 700 }}>
+          {quickAuthoringBlocker}
         </div>
       ) : null}
 

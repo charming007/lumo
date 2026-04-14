@@ -371,6 +371,13 @@ export async function createLessonAction(formData: FormData) {
     activitySteps: parseJsonField<Array<Record<string, unknown>>>(formData, 'activitySteps', []),
   };
 
+  if (!payload.subjectId || !payload.moduleId) {
+    const errorParams = new URLSearchParams({
+      message: 'Pick a valid subject and module before creating a lesson.',
+    });
+    redirect(`${returnPath}?${errorParams.toString()}`);
+  }
+
   const lesson = await apiWrite<{ id: string; title?: string; moduleId?: string; subjectId?: string }>('/api/v1/lessons', 'POST', payload);
   revalidatePath('/content');
   revalidatePath('/english');
