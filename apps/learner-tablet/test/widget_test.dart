@@ -175,6 +175,37 @@ void main() {
     state.dispose();
   });
 
+  testWidgets('lesson launch setup stays usable on narrow tablet widths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(540, 960);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final module = state.modules.first;
+    final lesson = state.assignedLessons.first;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonLaunchSetupPage(
+          state: state,
+          onChanged: () {},
+          lesson: lesson,
+          module: module,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Choose learner'), findsOneWidget);
+    expect(find.text('Select learner to continue'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsWidgets);
+
+    state.dispose();
+  });
+
   testWidgets('lesson session exposes saved voice playback controls during audio-only review', (
     tester,
   ) async {

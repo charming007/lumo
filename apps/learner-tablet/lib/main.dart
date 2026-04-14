@@ -2726,205 +2726,214 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1320),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Back'),
-                      ),
-                      const Spacer(),
-                      StatusPill(
-                        text: lesson.subject,
-                        color: LumoTheme.primary,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  SectionTitle(
-                    title: 'Choose learner',
-                    subtitle:
-                        'Pick who is taking ${lesson.title}, then confirm to begin.',
-                  ),
-                  const SizedBox(height: 12),
-                  if (widget.resumeFrom != null)
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEEF2FF),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Text(
-                        'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()}. Learner confirmation is still required before the lesson opens.',
-                        style: const TextStyle(
-                          color: Color(0xFF312E81),
-                          fontWeight: FontWeight.w600,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  if (selectedLearner != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            color: LumoTheme.primary,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              '${selectedLearner!.name} is selected for ${lesson.title}.',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                selectedLearner = null;
-                              });
-                            },
-                            child: const Text('Clear'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Expanded(
-                    child: state.learners.isEmpty
-                        ? Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 560),
-                              child: SoftPanel(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: LayoutBuilder(
+                builder: (context, viewportConstraints) {
+                  final useCompactLayout =
+                      viewportConstraints.maxWidth < 760 ||
+                      viewportConstraints.maxHeight < 900;
+
+                  Widget buildLearnerGrid({required bool shrinkWrap}) {
+                    if (state.learners.isEmpty) {
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 560),
+                          child: SoftPanel(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
                                   children: [
-                                    const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.person_off_rounded,
-                                          color: LumoTheme.accentOrange,
-                                        ),
-                                        SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            'No learners available for this lesson yet',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 20,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                    Icon(
+                                      Icons.person_off_rounded,
+                                      color: LumoTheme.accentOrange,
                                     ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      'You cannot start ${lesson.title} until at least one learner is registered on this tablet or synced from the backend. Register the first learner now instead of leaving the facilitator on a blank chooser.',
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.45,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: FilledButton.icon(
-                                        onPressed: () {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (_) => RegisterPage(
-                                                state: state,
-                                                onChanged: widget.onChanged,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        icon: const Icon(
-                                          Icons.person_add_alt_1_rounded,
-                                        ),
-                                        label: const Text(
-                                          'Register first learner',
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'No learners available for this lesson yet',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 20,
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'You cannot start ${lesson.title} until at least one learner is registered on this tablet or synced from the backend. Register the first learner now instead of leaving the facilitator on a blank chooser.',
+                                  style: const TextStyle(
+                                    color: Color(0xFF475569),
+                                    height: 1.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => RegisterPage(
+                                            state: state,
+                                            onChanged: widget.onChanged,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.person_add_alt_1_rounded,
+                                    ),
+                                    label: const Text('Register first learner'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount = _adaptiveGridCount(
+                          constraints.maxWidth,
+                          minTileWidth: 280,
+                          maxCount: 4,
+                        );
+
+                        final mainAxisExtent = constraints.maxWidth < 760
+                            ? 276.0
+                            : constraints.maxWidth < 1180
+                                ? 292.0
+                                : 308.0;
+
+                        return GridView.builder(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          itemCount: state.learners.length,
+                          shrinkWrap: shrinkWrap,
+                          physics: shrinkWrap
+                              ? const NeverScrollableScrollPhysics()
+                              : null,
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            mainAxisExtent: mainAxisExtent,
+                          ),
+                          itemBuilder: (context, index) {
+                            final learner = state.learners[index];
+                            final isSelected =
+                                selectedLearner?.id == learner.id;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedLearner = learner;
+                                });
+                              },
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? LumoTheme.primary
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: _LearnerCard(
+                                  learner: learner,
+                                  state: state,
+                                  dense: true,
+                                  isActive: isSelected,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  }
+
+                  final contentChildren = <Widget>[
+                    Row(
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Back'),
+                        ),
+                        const Spacer(),
+                        StatusPill(
+                          text: lesson.subject,
+                          color: LumoTheme.primary,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SectionTitle(
+                      title: 'Choose learner',
+                      subtitle:
+                          'Pick who is taking ${lesson.title}, then confirm to begin.',
+                    ),
+                    const SizedBox(height: 12),
+                    if (widget.resumeFrom != null)
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()}. Learner confirmation is still required before the lesson opens.',
+                          style: const TextStyle(
+                            color: Color(0xFF312E81),
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    if (selectedLearner != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_rounded,
+                              color: LumoTheme.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '${selectedLearner!.name} is selected for ${lesson.title}.',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                ),
                               ),
                             ),
-                          )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              final crossAxisCount = _adaptiveGridCount(
-                                constraints.maxWidth,
-                                minTileWidth: 280,
-                                maxCount: 4,
-                              );
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  selectedLearner = null;
+                                });
+                              },
+                              child: const Text('Clear'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ];
 
-                              final mainAxisExtent = constraints.maxWidth < 760
-                                  ? 276.0
-                                  : constraints.maxWidth < 1180
-                                      ? 292.0
-                                      : 308.0;
-
-                              return GridView.builder(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                itemCount: state.learners.length,
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  mainAxisSpacing: 12,
-                                  crossAxisSpacing: 12,
-                                  mainAxisExtent: mainAxisExtent,
-                                ),
-                                itemBuilder: (context, index) {
-                                  final learner = state.learners[index];
-                                  final isSelected =
-                                      selectedLearner?.id == learner.id;
-                                  return GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        selectedLearner = learner;
-                                      });
-                                    },
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(28),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? LumoTheme.primary
-                                              : Colors.transparent,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: _LearnerCard(
-                                        learner: learner,
-                                        state: state,
-                                        dense: true,
-                                        isActive: isSelected,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
+                  final ctaButton = FilledButton.icon(
                     onPressed: state.learners.isEmpty
                         ? null
                         : selectedLearner == null
@@ -2954,8 +2963,33 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                               ? 'Select learner to continue'
                               : 'Start with ${selectedLearner!.name}',
                     ),
-                  ),
-                ],
+                  );
+
+                  if (useCompactLayout) {
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ...contentChildren,
+                          buildLearnerGrid(shrinkWrap: true),
+                          const SizedBox(height: 16),
+                          ctaButton,
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...contentChildren,
+                      Expanded(child: buildLearnerGrid(shrinkWrap: false)),
+                      const SizedBox(height: 16),
+                      ctaButton,
+                    ],
+                  );
+                },
               ),
             ),
           ),
