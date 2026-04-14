@@ -522,6 +522,72 @@ function listStorageBackups(limit = 20) {
   return data.storage.listBackups(limit);
 }
 
+function getStorageMutationDetail(id) {
+  const data = require('./data');
+
+  if (typeof data.storage?.getMutation !== 'function') {
+    return null;
+  }
+
+  return data.storage.getMutation(id);
+}
+
+function restoreStorageMutation(id, actor = {}) {
+  const data = require('./data');
+
+  if (typeof data.storage?.restoreFromMutation !== 'function') {
+    const error = new Error('Storage mutation restore is not available');
+    error.statusCode = 501;
+    throw error;
+  }
+
+  const detail = getStorageMutationDetail(id);
+
+  if (!detail) {
+    const error = new Error('Storage mutation not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!detail.hasSnapshot) {
+    const error = new Error('Storage mutation does not contain a restorable snapshot');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  data.storage.restoreFromMutation(id);
+  data.reload();
+
+  const status = getStorageStatus();
+  const snapshot = exportStorageSnapshot();
+  const result = {
+    mutationId: Number(id),
+    restoredFromMutationId: Number(id),
+    status,
+    collectionCounts: snapshot.collectionCounts,
+  };
+
+  recordStorageOperation('restore-mutation', result, {
+    actorName: actor.actorName,
+    actorRole: actor.actorRole,
+    summary: {
+      restoredFromMutationId: Number(id),
+      recordsAfterRestore: summarizeCollectionCounts(snapshot.collectionCounts),
+    },
+    metadata: {
+      mutation: {
+        id: detail.id,
+        action: detail.action,
+        createdAt: detail.createdAt,
+        snapshotHash: detail.snapshotHash,
+        collectionCounts: detail.collectionCounts,
+      },
+    },
+  });
+
+  return result;
+}
+
 function deleteStorageBackup(backupPath, actor = {}) {
   const data = require('./data');
 
@@ -963,6 +1029,8 @@ module.exports = {
   getStorageStatus,
   checkpointStorage,
   listStorageBackups,
+  getStorageMutationDetail,
+  restoreStorageMutation,
   deleteStorageBackup,
   getStorageIntegrityReport,
   repairStorageIntegrity,

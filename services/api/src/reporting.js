@@ -837,11 +837,20 @@ function buildStorageOperationsReport({ limit = 20, kind = null, actorName = nul
 
 function buildStorageReport({ limit = 10 } = {}) {
   const store = require('./store');
+  const normalizedLimit = Math.max(1, Math.min(Number(limit || 10), 100));
   const status = store.getStorageStatus() || null;
   const integrity = store.getStorageIntegrityReport();
   const snapshot = store.exportStorageSnapshot();
-  const backups = store.listStorageBackups(Math.max(1, Math.min(Number(limit || 10), 100)));
-  const operations = buildStorageOperationsReport({ limit: Math.min(Number(limit || 10), 50) });
+  const backups = store.listStorageBackups(normalizedLimit);
+  const operations = buildStorageOperationsReport({ limit: Math.min(normalizedLimit, 50) });
+  const mutations = typeof require('./data').storage?.listMutations === 'function'
+    ? require('./data').storage.listMutations(Math.min(normalizedLimit, 50))
+    : [];
+  const journalActionCounts = mutations.reduce((acc, entry) => {
+    const key = entry.action || 'unknown';
+    acc[key] = Number(acc[key] || 0) + 1;
+    return acc;
+  }, {});
 
   return {
     summary: {
@@ -859,8 +868,11 @@ function buildStorageReport({ limit = 10 } = {}) {
       progressionOverrideCount: snapshot.collectionCounts?.progressionOverrides || 0,
       syncEventCount: snapshot.collectionCounts?.syncEvents || 0,
       storageOperationCount: snapshot.collectionCounts?.storageOperations || 0,
+      mutationCount: status?.journal?.total || mutations.length,
+      restorableMutationCount: mutations.filter((entry) => entry.hasSnapshot).length,
       updatedAt: status?.updatedAt || snapshot.exportedAt,
       lastOperationAt: operations.summary.lastOperationAt,
+      lastMutationAt: status?.journal?.latestAt || mutations[0]?.createdAt || null,
     },
     status,
     integrity: {
@@ -869,7 +881,18 @@ function buildStorageReport({ limit = 10 } = {}) {
         acc[issue.type] = Number(acc[issue.type] || 0) + 1;
         return acc;
       }, {}),
-      recentIssues: integrity.issues.slice(0, Math.max(1, Math.min(Number(limit || 10), 100))),
+      recentIssues: integrity.issues.slice(0, normalizedLimit),
+    },
+    journal: {
+      summary: {
+        total: status?.journal?.total || mutations.length,
+        latestAt: status?.journal?.latestAt || mutations[0]?.createdAt || null,
+        restorable: mutations.filter((entry) => entry.hasSnapshot).length,
+      },
+      actions: Object.entries(journalActionCounts)
+        .map(([action, count]) => ({ action, count }))
+        .sort((a, b) => b.count - a.count || a.action.localeCompare(b.action)),
+      recent: mutations,
     },
     collections: snapshot.collectionCounts,
     backups,

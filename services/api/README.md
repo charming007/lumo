@@ -202,4 +202,16 @@ Admin-only persistence report for the current storage engine, including:
 - collection + total record counts
 - integrity issue totals and recent issue samples
 - recent storage checkpoints/backups
+- mutation journal totals, restorable mutation counts, action mix, and recent mutation entries
 - raw storage status metadata (`updatedAt`, cache file path, backup metadata)
+
+### Mutation journal control endpoints
+- `GET /api/v1/admin/storage/mutations`
+- `GET /api/v1/admin/storage/mutations/:id`
+- `POST /api/v1/admin/storage/restore-mutation`
+
+Behavior:
+- Postgres-backed durability now stores a restorable snapshot copy on each journaled storage mutation (`write`, `checkpoint`, `restore`, `restore-mutation`)
+- admins can inspect individual journal entries, including whether they contain a recoverable snapshot
+- `POST /api/v1/admin/storage/restore-mutation` restores the primary snapshot to the exact state captured by a prior mutation id, then records a fresh `restore-mutation` audit/journal entry
+- file mode still exposes an empty mutation journal rather than pretending this capability exists

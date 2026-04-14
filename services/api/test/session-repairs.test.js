@@ -401,3 +401,114 @@ test('admin can preview and apply session rebuild from event log', async () => {
   assert.equal(rebuilt.currentStepIndex, 3);
   assert.equal(rebuilt.stepsTotal, 3);
 });
+
+
+test('admin storage mutation endpoints expose journal detail and restore control', async () => {
+  const data = require('../src/data');
+  const originalStorage = data.storage;
+  const originalReload = data.reload;
+  let restoredMutationId = null;
+
+  data.storage = {
+    ...originalStorage,
+    listMutations(limit = 20) {
+      return [
+        {
+          id: 42,
+          action: 'write',
+          snapshotId: 'primary',
+          snapshotHash: 'abc123',
+          hasSnapshot: true,
+          collectionCounts: { students: 4 },
+          metadata: { source: 'test' },
+          createdAt: '2026-04-14T12:00:00.000Z',
+        },
+      ].slice(0, limit);
+    },
+    getMutation(id) {
+      if (Number(id) !== 42) return null;
+      return {
+        id: 42,
+        action: 'write',
+        snapshotId: 'primary',
+        snapshotHash: 'abc123',
+        hasSnapshot: true,
+        collectionCounts: { students: 4 },
+        metadata: { source: 'test' },
+        createdAt: '2026-04-14T12:00:00.000Z',
+        snapshot: { students: [{ id: 'student-1' }] },
+      };
+    },
+    restoreFromMutation(id) {
+      restoredMutationId = Number(id);
+      return restoredMutationId;
+    },
+    getStatus() {
+      const base = originalStorage.getStatus ? originalStorage.getStatus() : {};
+      return {
+        ...base,
+        kind: 'postgres',
+        db: { ...(base.db || {}), persistent: true, driver: 'pg-jsonb-snapshot+journal' },
+        journal: { total: 1, latestAt: '2026-04-14T12:00:00.000Z' },
+      };
+    },
+  };
+  data.reload = () => {};
+
+  try {
+    const listResponse = await request('/api/v1/admin/storage/mutations?limit=5', {
+      headers: {
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Ops Admin',
+      },
+    });
+
+    assert.equal(listResponse.status, 200);
+    assert.equal(listResponse.body.summary.total, 1);
+    assert.equal(listResponse.body.summary.restorable, 1);
+    assert.equal(listResponse.body.items[0].id, 42);
+
+    const detailResponse = await request('/api/v1/admin/storage/mutations/42', {
+      headers: {
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Ops Admin',
+      },
+    });
+
+    assert.equal(detailResponse.status, 200);
+    assert.equal(detailResponse.body.mutation.id, 42);
+    assert.equal(detailResponse.body.mutation.hasSnapshot, true);
+    assert.deepEqual(detailResponse.body.mutation.snapshot, { students: [{ id: 'student-1' }] });
+
+    const restoreResponse = await request('/api/v1/admin/storage/restore-mutation', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Ops Admin',
+      },
+      body: JSON.stringify({ mutationId: 42 }),
+    });
+
+    assert.equal(restoreResponse.status, 200);
+    assert.equal(restoredMutationId, 42);
+    assert.equal(restoreResponse.body.restoredFromMutationId, 42);
+    assert.equal(restoreResponse.body.status.journal.total, 1);
+
+    const storageReport = await request('/api/v1/reports/storage?limit=5', {
+      headers: {
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Ops Admin',
+      },
+    });
+
+    assert.equal(storageReport.status, 200);
+    assert.equal(storageReport.body.summary.mutationCount, 1);
+    assert.equal(storageReport.body.summary.restorableMutationCount, 1);
+    assert.equal(storageReport.body.journal.summary.total, 1);
+    assert.equal(storageReport.body.journal.recent[0].id, 42);
+  } finally {
+    data.storage = originalStorage;
+    data.reload = originalReload;
+  }
+});

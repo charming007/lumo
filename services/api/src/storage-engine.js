@@ -189,7 +189,8 @@ const { Client } = require('pg');
   try {
     await client.query('CREATE TABLE IF NOT EXISTS lumo_storage_snapshots (id TEXT PRIMARY KEY, snapshot JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())');
     await client.query('CREATE TABLE IF NOT EXISTS lumo_storage_backups (id BIGSERIAL PRIMARY KEY, label TEXT NOT NULL, snapshot JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())');
-    await client.query('CREATE TABLE IF NOT EXISTS lumo_storage_mutations (id BIGSERIAL PRIMARY KEY, action TEXT NOT NULL, snapshot_id TEXT NOT NULL DEFAULT 'primary', snapshot_hash TEXT NULL, collection_counts JSONB NULL, metadata JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())');
+    await client.query("CREATE TABLE IF NOT EXISTS lumo_storage_mutations (id BIGSERIAL PRIMARY KEY, action TEXT NOT NULL, snapshot_id TEXT NOT NULL DEFAULT 'primary', snapshot_hash TEXT NULL, snapshot JSONB NULL, collection_counts JSONB NULL, metadata JSONB NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+    await client.query('ALTER TABLE lumo_storage_mutations ADD COLUMN IF NOT EXISTS snapshot JSONB NULL');
     const summarize = (snapshot) => Object.fromEntries(Object.entries(snapshot || {}).filter(([, value]) => Array.isArray(value)).map(([key, value]) => [key, value.length]));
     const hashSnapshot = (snapshot) => require('crypto').createHash('sha1').update(JSON.stringify(snapshot || {})).digest('hex');
     if (${JSON.stringify(action)} === 'read') {
@@ -206,8 +207,8 @@ const { Client } = require('pg');
       const counts = summarize(snapshot);
       const snapshotHash = hashSnapshot(snapshot);
       await client.query(
-        'INSERT INTO lumo_storage_mutations (action, snapshot_id, snapshot_hash, collection_counts, metadata) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)',
-        ['write', 'primary', snapshotHash, JSON.stringify(counts), JSON.stringify(payload.metadata || {})],
+        'INSERT INTO lumo_storage_mutations (action, snapshot_id, snapshot_hash, snapshot, collection_counts, metadata) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb)',
+        ['write', 'primary', snapshotHash, JSON.stringify(snapshot), JSON.stringify(counts), JSON.stringify(payload.metadata || {})],
       );
       process.stdout.write(JSON.stringify({ updatedAt: result.rows[0]?.updated_at || null, snapshotHash, collectionCounts: counts }));
       return;
@@ -224,8 +225,8 @@ const { Client } = require('pg');
         [payload.label || 'manual-checkpoint', JSON.stringify(snapshot)],
       );
       await client.query(
-        'INSERT INTO lumo_storage_mutations (action, snapshot_id, snapshot_hash, collection_counts, metadata) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)',
-        ['checkpoint', 'primary', hashSnapshot(snapshot), JSON.stringify(summarize(snapshot)), JSON.stringify({ label: payload.label || 'manual-checkpoint', backupId: created.rows[0]?.id || null })],
+        'INSERT INTO lumo_storage_mutations (action, snapshot_id, snapshot_hash, snapshot, collection_counts, metadata) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb)',
+        ['checkpoint', 'primary', hashSnapshot(snapshot), JSON.stringify(snapshot), JSON.stringify(summarize(snapshot)), JSON.stringify({ label: payload.label || 'manual-checkpoint', backupId: created.rows[0]?.id || null })],
       );
       process.stdout.write(JSON.stringify(created.rows[0] || null));
       return;
@@ -250,8 +251,8 @@ const { Client } = require('pg');
         ['primary', JSON.stringify(snapshot)],
       );
       await client.query(
-        'INSERT INTO lumo_storage_mutations (action, snapshot_id, snapshot_hash, collection_counts, metadata) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)',
-        ['restore', 'primary', hashSnapshot(snapshot), JSON.stringify(summarize(snapshot)), JSON.stringify({ backupId })],
+        'INSERT INTO lumo_storage_mutations (action, snapshot_id, snapshot_hash, snapshot, collection_counts, metadata) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb)',
+        ['restore', 'primary', hashSnapshot(snapshot), JSON.stringify(snapshot), JSON.stringify(summarize(snapshot)), JSON.stringify({ backupId })],
       );
       process.stdout.write(JSON.stringify({ restored: true, backupId }));
       return;
@@ -277,8 +278,33 @@ const { Client } = require('pg');
     }
     if (${JSON.stringify(action)} === 'listMutations') {
       const limit = Math.max(1, Math.min(Number(payload.limit || 20), 100));
-      const rows = await client.query('SELECT id, action, snapshot_id, snapshot_hash, collection_counts, metadata, created_at FROM lumo_storage_mutations ORDER BY created_at DESC LIMIT ' + limit);
+      const rows = await client.query('SELECT id, action, snapshot_id, snapshot_hash, snapshot IS NOT NULL AS has_snapshot, collection_counts, metadata, created_at FROM lumo_storage_mutations ORDER BY created_at DESC LIMIT ' + limit);
       process.stdout.write(JSON.stringify(rows.rows || []));
+      return;
+    }
+    if ('getMutation' === ${JSON.stringify(action)}) {
+      const row = await client.query('SELECT id, action, snapshot_id, snapshot_hash, snapshot, snapshot IS NOT NULL AS has_snapshot, collection_counts, metadata, created_at FROM lumo_storage_mutations WHERE id = $1', [payload.id]);
+      process.stdout.write(JSON.stringify(row.rows[0] || null));
+      return;
+    }
+    if ('restoreMutation' === ${JSON.stringify(action)}) {
+      const row = await client.query('SELECT id, snapshot FROM lumo_storage_mutations WHERE id = $1', [payload.id]);
+      if (!row.rows[0]) {
+        throw Object.assign(new Error('Mutation row not found'), { statusCode: 404 });
+      }
+      const snapshot = row.rows[0].snapshot || null;
+      if (!snapshot) {
+        throw Object.assign(new Error('Mutation does not contain a restorable snapshot'), { statusCode: 409 });
+      }
+      await client.query(
+        'INSERT INTO lumo_storage_snapshots (id, snapshot, updated_at) VALUES ($1, $2::jsonb, NOW()) ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, updated_at = NOW()',
+        ['primary', JSON.stringify(snapshot)],
+      );
+      await client.query(
+        'INSERT INTO lumo_storage_mutations (action, snapshot_id, snapshot_hash, snapshot, collection_counts, metadata) VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb)',
+        ['restore-mutation', 'primary', hashSnapshot(snapshot), JSON.stringify(snapshot), JSON.stringify(summarize(snapshot)), JSON.stringify({ mutationId: payload.id })],
+      );
+      process.stdout.write(JSON.stringify({ restored: true, mutationId: payload.id }));
       return;
     }
     throw new Error('Unsupported action');
@@ -376,10 +402,30 @@ const { Client } = require('pg');
         action: row.action,
         snapshotId: row.snapshot_id,
         snapshotHash: row.snapshot_hash || null,
+        hasSnapshot: Boolean(row.has_snapshot),
         collectionCounts: row.collection_counts || null,
         metadata: row.metadata || null,
         createdAt: row.created_at,
       }));
+    },
+    getMutation(id) {
+      const row = runPg('getMutation', { id: Number(id) });
+      if (!row) return null;
+      return {
+        id: row.id,
+        action: row.action,
+        snapshotId: row.snapshot_id,
+        snapshotHash: row.snapshot_hash || null,
+        hasSnapshot: Boolean(row.has_snapshot),
+        collectionCounts: row.collection_counts || null,
+        metadata: row.metadata || null,
+        createdAt: row.created_at,
+        snapshot: row.snapshot || null,
+      };
+    },
+    restoreFromMutation(id) {
+      runPg('restoreMutation', { id: Number(id) });
+      return Number(id);
     },
     getStatus() {
       const status = runPg('status') || {};

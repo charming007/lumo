@@ -2259,11 +2259,27 @@ app.get('/api/v1/admin/storage/mutations', requireRole(['admin']), (req, res) =>
   const status = store.getStorageStatus();
   const data = require('./data');
   const limit = Number(req.query.limit || 20);
+  const items = typeof data.storage?.listMutations === 'function' ? data.storage.listMutations(limit) : [];
 
   return res.json({
-    items: typeof data.storage?.listMutations === 'function' ? data.storage.listMutations(limit) : [],
+    items,
+    summary: {
+      total: status?.journal?.total || items.length,
+      latestAt: status?.journal?.latestAt || items[0]?.createdAt || null,
+      restorable: items.filter((entry) => entry.hasSnapshot).length,
+    },
     status,
   });
+});
+
+app.get('/api/v1/admin/storage/mutations/:id', requireRole(['admin']), (req, res) => {
+  const mutation = store.getStorageMutationDetail(req.params.id);
+
+  if (!mutation) {
+    return res.status(404).json({ message: 'Storage mutation not found' });
+  }
+
+  return res.json({ mutation });
 });
 
 app.get('/api/v1/admin/storage/operations/:id', requireRole(['admin']), (req, res) => {
@@ -2357,6 +2373,25 @@ app.delete('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res, n
     }
 
     return res.json(store.deleteStorageBackup(backupPath, {
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/admin/storage/restore-mutation', requireRole(['admin']), (req, res, next) => {
+  try {
+    const mutationId = Number(req.body?.mutationId);
+
+    if (!Number.isInteger(mutationId) || mutationId <= 0) {
+      const error = new Error('Provide mutationId');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return res.json(store.restoreStorageMutation(mutationId, {
       actorName: req.actor?.name,
       actorRole: req.actor?.role,
     }));
