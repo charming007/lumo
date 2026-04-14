@@ -49,6 +49,12 @@ function encodeMessage(message: string) {
   return encodeURIComponent(message);
 }
 
+function sanitizeReturnPath(path?: string, fallback = '/content') {
+  if (!path || !path.startsWith('/')) return fallback;
+  if (path.startsWith('//')) return fallback;
+  return path;
+}
+
 function rethrowRedirectError(error: unknown) {
   if (isRedirectError(error)) {
     throw error;
@@ -181,7 +187,7 @@ export async function deleteStudentAction(formData: FormData) {
 
 export async function assignLearnerMallamAction(formData: FormData) {
   const studentId = String(formData.get('studentId') || '');
-  const returnPath = String(formData.get('returnPath') || `/students/${studentId}`);
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), `/students/${studentId}`);
   const mallamId = String(formData.get('mallamId') || 'unassigned');
   const resolvedMallamId = mallamId === 'unassigned' ? null : mallamId;
 
@@ -196,7 +202,7 @@ export async function assignLearnerMallamAction(formData: FormData) {
 export async function assignLearnerToMallamAction(formData: FormData) {
   const mallamId = String(formData.get('mallamId') || '');
   const studentId = String(formData.get('studentId') || '');
-  const returnPath = String(formData.get('returnPath') || `/mallams/${mallamId}`);
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), `/mallams/${mallamId}`);
 
   await updateStudentMallamAssignment(studentId, mallamId || null);
   revalidatePath('/');
@@ -355,7 +361,7 @@ export async function updateModuleAction(formData: FormData) {
 }
 
 export async function createLessonAction(formData: FormData) {
-  const returnPath = String(formData.get('returnPath') || '/content');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     subjectId: String(formData.get('subjectId') || ''),
     moduleId: String(formData.get('moduleId') || ''),
@@ -400,7 +406,7 @@ export async function createLessonAction(formData: FormData) {
 
 export async function updateLessonAction(formData: FormData) {
   const lessonId = String(formData.get('lessonId') || '');
-  const returnPath = String(formData.get('returnPath') || '/content');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     subjectId: String(formData.get('subjectId') || '') || undefined,
     moduleId: String(formData.get('moduleId') || '') || undefined,
@@ -424,6 +430,7 @@ export async function updateLessonAction(formData: FormData) {
 }
 
 export async function createAssessmentAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     subjectId: String(formData.get('subjectId') || ''),
     moduleId: String(formData.get('moduleId') || ''),
@@ -437,8 +444,9 @@ export async function createAssessmentAction(formData: FormData) {
   };
 
   await apiWrite('/api/v1/assessments', 'POST', payload);
+  revalidatePath('/');
   revalidatePath('/content');
-  redirect('/content?message=Assessment%20created%20and%20linked%20to%20a%20release%20gate');
+  redirect(`${returnPath}?message=Assessment%20created%20and%20linked%20to%20a%20release%20gate`);
 }
 
 export async function updateAssessmentAction(formData: FormData) {

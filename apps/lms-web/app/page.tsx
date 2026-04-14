@@ -392,16 +392,20 @@ export default async function HomePage() {
                                 cursor: 'pointer',
                               }}
                             >
-                              <CreateAssessmentForm modules={[{
-                                id: module.id,
-                                title: module.title,
-                                subjectId: module.subjectId,
-                                subjectName: module.subjectName,
-                                strandName: '',
-                                level: '',
-                                lessonCount: Math.max(module.missingLessons, 0),
-                                status: 'draft',
-                              } satisfies CurriculumModule]} subjects={assessmentSubjects} />
+                              <CreateAssessmentForm
+                                modules={[{
+                                  id: module.id,
+                                  title: module.title,
+                                  subjectId: module.subjectId,
+                                  subjectName: module.subjectName,
+                                  strandName: '',
+                                  level: '',
+                                  lessonCount: Math.max(module.missingLessons, 0),
+                                  status: 'draft',
+                                } satisfies CurriculumModule]}
+                                subjects={assessmentSubjects}
+                                returnPath="/"
+                              />
                             </ModalLauncher>
                           ) : (
                             <Link href={blockerBoardHref} style={tableLinkStyle}>Add assessment gate</Link>

@@ -400,11 +400,12 @@ export function DeleteLessonForm({ lessons }: { lessons: Lesson[] }) {
   );
 }
 
-export function CreateAssessmentForm({ modules, subjects }: { modules: CurriculumModule[]; subjects: Subject[] }) {
+export function CreateAssessmentForm({ modules, subjects, returnPath }: { modules: CurriculumModule[]; subjects: Subject[]; returnPath?: string }) {
   const defaultModule = modules[0];
 
   return (
     <form action={createAssessmentAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Create assessment gate</h2>
       <FieldLabel>Subject<select name="subjectId" defaultValue={defaultModule?.subjectId ?? subjects[0]?.id ?? 'english'} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
       <FieldLabel>Module<select name="moduleId" defaultValue={defaultModule?.id} style={inputStyle}>{modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select></FieldLabel>
