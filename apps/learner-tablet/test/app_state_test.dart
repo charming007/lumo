@@ -934,6 +934,29 @@ void main() {
       expect(state.degradedModeSummary, contains('queued locally'));
     });
 
+    test('roster freshness labels expose offline fallback and queued sync work', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.usingFallbackData = true;
+      state.lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 12));
+      state.pendingSyncEvents.add(
+        const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+      );
+
+      expect(state.rosterFreshnessLabel, contains('Roster last synced'));
+      expect(state.rosterFreshnessLabel, contains('offline fallback active'));
+      expect(state.rosterFreshnessDetail, contains('last confirmed'));
+      expect(state.rosterFreshnessDetail, contains('refresh before trusting'));
+    });
+
+    test('roster freshness detail confirms when live roster is current', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.usingFallbackData = false;
+      state.lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 5));
+
+      expect(state.rosterFreshnessLabel, contains('Roster last synced'));
+      expect(state.rosterFreshnessDetail, contains('current enough to trust'));
+    });
+
     test('degraded mode actions recommend audio-first recovery steps', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.usingFallbackData = true;

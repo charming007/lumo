@@ -629,6 +629,8 @@ class AllStudentsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _BackendStatusBanner(state: state),
+                  const SizedBox(height: 12),
+                  _RosterFreshnessBanner(state: state),
                   const SizedBox(height: 16),
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -6165,6 +6167,72 @@ class _LessonTranscriptPanel extends StatelessWidget {
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+}
+
+class _RosterFreshnessBanner extends StatelessWidget {
+  final LumoAppState state;
+
+  const _RosterFreshnessBanner({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final isFallback = state.usingFallbackData;
+    final color = isFallback ? LumoTheme.accentOrange : LumoTheme.accentGreen;
+    final icon = isFallback
+        ? Icons.warning_amber_rounded
+        : Icons.update_rounded;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  state.rosterFreshnessLabel,
+                  style: TextStyle(fontWeight: FontWeight.w800, color: color),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            state.rosterFreshnessDetail,
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              StatusPill(
+                text: state.rosterFreshnessLabel,
+                color: color,
+              ),
+              StatusPill(
+                text: state.syncQueueLabel,
+                color: color,
+              ),
+              StatusPill(
+                text: state.lastSyncSummaryLabel,
+                color: color,
+              ),
+            ],
+          ),
         ],
       ),
     );

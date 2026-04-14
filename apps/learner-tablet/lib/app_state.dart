@@ -2030,6 +2030,37 @@ class LumoAppState {
     return '$contract • snapshot ${_formatTime(generatedAt)}';
   }
 
+  String get rosterFreshnessLabel {
+    if (lastSyncedAt == null) {
+      return usingFallbackData
+          ? 'Roster running from offline seed fallback'
+          : 'Roster not synced yet';
+    }
+
+    final freshness = _formatRelativeTime(lastSyncedAt!);
+    if (usingFallbackData) {
+      return 'Roster last synced $freshness • offline fallback active';
+    }
+    return 'Roster last synced $freshness';
+  }
+
+  String get rosterFreshnessDetail {
+    if (lastSyncedAt == null) {
+      return usingFallbackData
+          ? 'This tablet is teaching from cached learners and lessons until the backend comes back.'
+          : 'This tablet has not completed its first backend roster refresh yet.';
+    }
+
+    final syncAge = _formatRelativeTime(lastSyncedAt!);
+    if (usingFallbackData) {
+      return 'Learners and lessons were last confirmed $syncAge. Keep teaching, but refresh before trusting any newly assigned content.';
+    }
+    if (pendingSyncEvents.isNotEmpty) {
+      return 'Learners and lessons were refreshed $syncAge. ${pendingSyncEvents.length} learner event(s) are still queued locally for the next sync.';
+    }
+    return 'Learners and lessons were refreshed $syncAge. This roster is current enough to trust for the next lesson handoff.';
+  }
+
   List<BackendLessonSession> recentRuntimeSessionsForLearner(
     LearnerProfile? learner,
   ) {
@@ -3123,6 +3154,22 @@ class LumoAppState {
     final hour = value.hour.toString().padLeft(2, '0');
     final minute = value.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  String _formatRelativeTime(DateTime value) {
+    final delta = DateTime.now().difference(value);
+    if (delta.inMinutes <= 1) return 'just now';
+    if (delta.inMinutes < 60) return '${delta.inMinutes}m ago';
+    if (delta.inHours < 24) {
+      final hours = delta.inHours;
+      final minutes = delta.inMinutes % 60;
+      if (minutes == 0) return '${hours}h ago';
+      return '${hours}h ${minutes}m ago';
+    }
+    final days = delta.inDays;
+    final hours = delta.inHours % 24;
+    if (hours == 0) return '${days}d ago';
+    return '${days}d ${hours}h ago';
   }
 }
 
