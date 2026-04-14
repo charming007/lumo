@@ -1,23 +1,22 @@
 const LOCAL_API_BASE = 'http://localhost:4000';
-const PROD_API_BASE = 'https://lumo-api-production-303a.up.railway.app';
+
+export type ApiBaseSource = 'env' | 'local-fallback' | 'missing-production-env';
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, '');
 }
 
-function resolveApiBaseUrl() {
+function resolveConfiguredApiBaseUrl() {
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-
-  if (configured) {
-    return normalizeBaseUrl(configured);
-  }
-
-  return process.env.NODE_ENV === 'production' ? PROD_API_BASE : LOCAL_API_BASE;
+  return configured ? normalizeBaseUrl(configured) : null;
 }
 
-export const API_BASE = resolveApiBaseUrl();
-export const API_BASE_SOURCE = process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
+const configuredApiBase = resolveConfiguredApiBaseUrl();
+const isProduction = process.env.NODE_ENV === 'production';
+
+export const API_BASE = configuredApiBase ?? (isProduction ? '' : LOCAL_API_BASE);
+export const API_BASE_SOURCE: ApiBaseSource = configuredApiBase
   ? 'env'
-  : process.env.NODE_ENV === 'production'
-    ? 'production-fallback'
+  : isProduction
+    ? 'missing-production-env'
     : 'local-fallback';
