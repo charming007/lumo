@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Pill } from '../lib/ui';
 import type { Assessment } from '../lib/types';
-import type { CurriculumCanvasData, CurriculumCanvasLesson } from '../lib/curriculum-canvas';
+import type { CurriculumCanvasData, CurriculumCanvasLesson, CurriculumCanvasModule } from '../lib/curriculum-canvas';
 
 const palettes = ['#8B5CF6', '#14B8A6', '#F97316', '#60A5FA', '#F43F5E'];
 
@@ -26,7 +26,10 @@ function statusTone(status: string) {
 }
 
 function lessonSummary(lesson: CurriculumCanvasLesson) {
-  return `${lesson.mode} · ${lesson.durationMinutes} min`;
+  const details = [`${lesson.mode} · ${lesson.durationMinutes} min`];
+  if (lesson.activityCount) details.push(`${lesson.activityCount} activities`);
+  if (lesson.objectiveCount) details.push(`${lesson.objectiveCount} objectives`);
+  return details.join(' · ');
 }
 
 function assessmentLabel(assessment: Assessment | null) {
@@ -34,25 +37,10 @@ function assessmentLabel(assessment: Assessment | null) {
   return `${assessment.triggerLabel} · ${Math.round(assessment.passingScore * 100)}% pass mark`;
 }
 
-function moduleHealthLabel(readyLessons: number, lessonCount: number, gapCount: number) {
-  if (gapCount === 0) return 'Release-ready';
-  if (readyLessons === 0) return 'Cold start';
-  if (readyLessons < lessonCount) return 'Needs lesson coverage';
-  return 'Needs gate coverage';
-}
-
-function moduleHealthTone(readyLessons: number, lessonCount: number, gapCount: number) {
-  if (gapCount === 0) return { background: '#052e16', color: '#86efac', border: '1px solid rgba(134,239,172,0.16)' };
-  if (readyLessons === 0) return { background: '#3f0a22', color: '#fda4af', border: '1px solid rgba(253,164,175,0.16)' };
-  return { background: '#3b2f0d', color: '#fcd34d', border: '1px solid rgba(252,211,77,0.16)' };
-}
-
-function focusHeadline(selected: { subject: CurriculumCanvasData['subjects'][number]; strand: CurriculumCanvasData['subjects'][number]['strands'][number]; module: CurriculumCanvasData['subjects'][number]['strands'][number]['modules'][number] } | null) {
-  if (!selected) return 'Pick a module';
-  if (!selected.module.lessons.length) return 'No lessons mapped yet';
-  if (!selected.module.assessments.length) return 'Lessons exist, but release gate is still missing';
-  if (selected.module.gapCount === 0) return 'This module looks genuinely shippable';
-  return `${selected.module.gapCount} blocker${selected.module.gapCount === 1 ? '' : 's'} still standing`;
+function provenancePill(module: CurriculumCanvasModule) {
+  if (module.provenance === 'live') return { label: 'live graph', tone: '#052e16', text: '#86efac' };
+  if (module.provenance === 'rescue') return { label: 'tree rescue', tone: '#0c4a6e', text: '#a5f3fc' };
+  return { label: 'live + rescue', tone: '#312e81', text: '#c7d2fe' };
 }
 
 export function CurriculumCanvas({ data, failedSources = [] }: { data: CurriculumCanvasData; failedSources?: string[] }) {
@@ -100,52 +88,17 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
           ['Assessment gates', String(data.summary.assessments)],
           ['Blocked modules', String(data.summary.blockedModules)],
         ].map(([label, value]) => (
-          <div key={label} style={{ padding: 16, borderRadius: 20, background: 'linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(15,23,42,0.84) 100%)', border: '1px solid rgba(148,163,184,0.18)', boxShadow: '0 18px 32px rgba(2, 6, 23, 0.24)' }}>
+          <div key={label} style={{ padding: 16, borderRadius: 20, background: 'rgba(15,23,42,0.88)', border: '1px solid rgba(148,163,184,0.16)', boxShadow: '0 18px 32px rgba(2, 6, 23, 0.24)' }}>
             <div style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
             <div style={{ marginTop: 8, fontSize: 28, fontWeight: 900, color: '#f8fafc' }}>{value}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-        {[
-          {
-            label: 'Focused module',
-            value: selected?.module.title ?? 'No module selected',
-            note: selected ? `${selected.subject.name} → ${selected.strand.name}` : 'Pick any card to inspect it in detail.',
-            tone: 'rgba(79,70,229,0.14)',
-            border: 'rgba(129,140,248,0.26)',
-            color: '#e0e7ff',
-          },
-          {
-            label: 'Current release signal',
-            value: selected ? moduleHealthLabel(selected.module.readyLessons, selected.module.lessonCount, selected.module.gapCount) : 'Waiting for module focus',
-            note: selected ? `${selected.module.gapCount} blocker${selected.module.gapCount === 1 ? '' : 's'} · ${selected.module.assessments.length} gate${selected.module.assessments.length === 1 ? '' : 's'}` : 'The detail panel updates as soon as you click a module card.',
-            tone: 'rgba(15,118,110,0.14)',
-            border: 'rgba(45,212,191,0.24)',
-            color: '#ccfbf1',
-          },
-          {
-            label: 'Canvas posture',
-            value: failedSources.length ? 'Degraded but usable' : 'Healthy render path',
-            note: failedSources.length ? `Down feeds: ${failedSources.join(', ')}` : 'Live graph and detail rail are rendering normally.',
-            tone: failedSources.length ? 'rgba(120,53,15,0.2)' : 'rgba(30,41,59,0.68)',
-            border: failedSources.length ? 'rgba(251,146,60,0.28)' : 'rgba(148,163,184,0.18)',
-            color: failedSources.length ? '#fdba74' : '#cbd5e1',
-          },
-        ].map((item) => (
-          <div key={item.label} style={{ padding: 16, borderRadius: 20, background: item.tone, border: `1px solid ${item.border}`, display: 'grid', gap: 8 }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.9 }}>{item.label}</div>
-            <div style={{ color: '#f8fafc', fontSize: 20, fontWeight: 900 }}>{item.value}</div>
-            <div style={{ color: item.color, lineHeight: 1.5, fontSize: 14 }}>{item.note}</div>
-          </div>
-        ))}
-      </div>
-
       <div className="curriculum-canvas__grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(320px, 0.9fr)', gap: 18, alignItems: 'start' }}>
-        <div style={{ padding: 18, borderRadius: 28, background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.98) 100%)', border: '1px solid rgba(99,102,241,0.16)', boxShadow: '0 24px 44px rgba(2, 6, 23, 0.34)' }}>
+        <div style={{ padding: 18, borderRadius: 28, background: 'linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.98) 100%)', border: '1px solid rgba(99,102,241,0.16)', boxShadow: '0 24px 44px rgba(2, 6, 23, 0.34)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ maxWidth: 760 }}>
+            <div>
               <div style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6 }}>Curriculum graph</div>
               <div style={{ color: '#cbd5e1', lineHeight: 1.6 }}>The canvas is live, dark, and operational. Every visible card below can hand you into authoring, blocker cleanup, or assessment work without pretending to be a blank whiteboard.</div>
             </div>
@@ -159,10 +112,10 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
             {data.subjects.map((subject, index) => {
               const accent = palettes[index % palettes.length];
               return (
-                <div key={subject.id} style={{ padding: 18, borderRadius: 24, background: 'linear-gradient(180deg, rgba(15,23,42,0.84) 0%, rgba(15,23,42,0.7) 100%)', border: '1px solid rgba(148, 163, 184, 0.18)', display: 'grid', gap: 14 }}>
+                <div key={subject.id} style={{ padding: 18, borderRadius: 24, background: 'rgba(15, 23, 42, 0.72)', border: '1px solid rgba(148, 163, 184, 0.18)', display: 'grid', gap: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 14, alignSelf: 'stretch', minHeight: 58, borderRadius: 999, background: accent, boxShadow: `0 0 0 6px ${accent}22` }} />
+                      <div style={{ width: 14, alignSelf: 'stretch', minHeight: 58, borderRadius: 999, background: accent }} />
                       <div>
                         <div style={{ fontSize: 24, fontWeight: 900, color: '#f8fafc' }}>{subject.name}</div>
                         <div style={{ color: '#94a3b8' }}>{subject.totals.modules} modules · {subject.totals.lessons} lessons · {subject.totals.assessments} assessments</div>
@@ -177,8 +130,8 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
                   <div style={{ display: 'grid', gap: 14 }}>
                     {subject.strands.map((strand) => (
                       <div key={strand.id} style={{ display: 'grid', gap: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#e2e8f0', fontWeight: 800, flexWrap: 'wrap' }}>
-                          <span style={{ width: 10, height: 10, borderRadius: 999, background: accent, boxShadow: `0 0 0 5px ${accent}24` }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#e2e8f0', fontWeight: 800 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 999, background: accent }} />
                           <span>{strand.name}</span>
                           <span style={{ color: '#64748b', fontWeight: 700 }}>→</span>
                           <span style={{ color: '#94a3b8', fontWeight: 600 }}>{strand.modules.length} module nodes</span>
@@ -187,7 +140,7 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
                           {strand.modules.map((module) => {
                             const active = selected?.module.id === module.id;
                             const pill = statusTone(module.status);
-                            const moduleHealth = moduleHealthTone(module.readyLessons, module.lessonCount, module.gapCount);
+                            const provenance = provenancePill(module);
                             return (
                               <button
                                 key={module.id}
@@ -198,47 +151,36 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
                                   borderRadius: 22,
                                   padding: 16,
                                   border: active ? `2px solid ${accent}` : '1px solid rgba(148,163,184,0.18)',
-                                  background: active ? 'linear-gradient(180deg, rgba(30,41,59,0.98) 0%, rgba(30,27,75,0.94) 100%)' : 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(15,23,42,0.9) 100%)',
-                                  boxShadow: active ? `0 18px 34px ${accent}33` : '0 12px 22px rgba(2, 6, 23, 0.18)',
+                                  background: active ? 'linear-gradient(180deg, rgba(30,41,59,0.96) 0%, rgba(30,27,75,0.92) 100%)' : 'rgba(15,23,42,0.92)',
+                                  boxShadow: active ? '0 18px 34px rgba(79, 70, 229, 0.22)' : '0 12px 22px rgba(2, 6, 23, 0.18)',
                                   cursor: 'pointer',
                                   display: 'grid',
                                   gap: 12,
                                 }}
                               >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                                  <div style={{ display: 'grid', gap: 6 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                      <div style={{ fontSize: 18, fontWeight: 900, color: '#f8fafc' }}>{module.title}</div>
-                                      {active ? <span style={{ padding: '4px 8px', borderRadius: 999, background: `${accent}20`, color: '#e2e8f0', fontSize: 11, fontWeight: 900, letterSpacing: 0.8, textTransform: 'uppercase' }}>Focused</span> : null}
-                                    </div>
-                                    <div style={{ color: '#94a3b8' }}>{module.level} · {module.readyLessons}/{module.lessonCount} ready lessons</div>
+                                  <div>
+                                    <div style={{ fontSize: 18, fontWeight: 900, color: '#f8fafc' }}>{module.title}</div>
+                                    <div style={{ color: '#94a3b8' }}>{module.level} · {module.coverageLabel}</div>
                                   </div>
-                                  <Pill label={module.status} tone={pill.tone} text={pill.text} />
-                                </div>
-
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
-                                  {[
-                                    { label: 'Lesson coverage', value: `${module.lessons.length}/${module.lessonCount}` },
-                                    { label: 'Assessment gates', value: String(module.assessments.length) },
-                                    { label: 'Release health', value: moduleHealthLabel(module.readyLessons, module.lessonCount, module.gapCount) },
-                                  ].map((item) => (
-                                    <div key={item.label} style={{ padding: 10, borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.12)' }}>
-                                      <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8 }}>{item.label}</div>
-                                      <div style={{ color: '#f8fafc', fontWeight: 800, marginTop: 6 }}>{item.value}</div>
-                                    </div>
-                                  ))}
+                                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                    <Pill label={module.status} tone={pill.tone} text={pill.text} />
+                                    <Pill label={provenance.label} tone={provenance.tone} text={provenance.text} />
+                                  </div>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                  <Pill label={`${module.lessons.length} lesson nodes`} tone="#172554" text="#93c5fd" />
-                                  <Pill label={`${module.assessments.length} assessment nodes`} tone="#3b0764" text="#d8b4fe" />
-                                  <div style={{ padding: '6px 10px', borderRadius: 999, background: moduleHealth.background, color: moduleHealth.color, border: moduleHealth.border, fontSize: 12, fontWeight: 800 }}>
-                                    {module.gapCount ? `${module.gapCount} gaps` : 'release-ready'}
-                                  </div>
+                                  <Pill label={`${module.readyLessons}/${module.lessonCount} ready lessons`} tone="#172554" text="#93c5fd" />
+                                  <Pill label={module.assessmentCoverageLabel} tone="#3b0764" text="#d8b4fe" />
+                                  <Pill label={module.gapCount ? `${module.gapCount} gaps` : 'release-ready'} tone={module.gapCount ? '#3b2f0d' : '#052e16'} text={module.gapCount ? '#fcd34d' : '#86efac'} />
+                                </div>
+
+                                <div style={{ padding: '12px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.12)', color: module.gapCount ? '#fde68a' : '#bbf7d0', lineHeight: 1.6, fontSize: 14 }}>
+                                  {module.blockerSummary}
                                 </div>
 
                                 <div style={{ display: 'grid', gap: 8 }}>
-                                  {module.lessons.length ? module.lessons.slice(0, 3).map((lesson) => {
+                                  {module.lessons.slice(0, 3).map((lesson) => {
                                     const lessonTone = statusTone(lesson.status);
                                     return (
                                       <div key={lesson.id} style={{ display: 'grid', gap: 4, padding: '10px 12px', borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.12)' }}>
@@ -249,11 +191,7 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
                                         <div style={{ color: '#94a3b8', fontSize: 13 }}>{lessonSummary(lesson)}</div>
                                       </div>
                                     );
-                                  }) : (
-                                    <div style={{ padding: '12px 14px', borderRadius: 16, background: 'rgba(248,113,113,0.08)', border: '1px dashed rgba(248,113,113,0.3)', color: '#fecaca', lineHeight: 1.5 }}>
-                                      No lesson cards exist yet. This module needs authoring before the canvas can pretend it’s alive.
-                                    </div>
-                                  )}
+                                  })}
                                   {module.lessons.length > 3 ? <div style={{ color: '#c4b5fd', fontWeight: 800, fontSize: 13 }}>+{module.lessons.length - 3} more lesson nodes</div> : null}
                                 </div>
                               </button>
@@ -269,37 +207,24 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
           </div>
         </div>
 
-        <aside className="curriculum-canvas__sidebar" style={{ padding: 18, borderRadius: 28, background: 'linear-gradient(180deg, rgba(2,6,23,1) 0%, rgba(15,23,42,0.98) 100%)', color: 'white', border: '1px solid rgba(99,102,241,0.18)', boxShadow: '0 20px 44px rgba(2, 6, 23, 0.38)', position: 'sticky', top: 20 }}>
+        <aside style={{ padding: 18, borderRadius: 28, background: '#020617', color: 'white', border: '1px solid rgba(99,102,241,0.18)', boxShadow: '0 20px 44px rgba(2, 6, 23, 0.38)', position: 'sticky', top: 20 }}>
           {selected ? (
             <div style={{ display: 'grid', gap: 18 }}>
-              <div style={{ padding: 16, borderRadius: 20, background: 'linear-gradient(180deg, rgba(30,41,59,0.88) 0%, rgba(17,24,39,0.9) 100%)', border: '1px solid rgba(148,163,184,0.14)' }}>
+              <div>
                 <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 }}>Selected node</div>
                 <div style={{ fontSize: 28, fontWeight: 900 }}>{selected.module.title}</div>
                 <div style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.6 }}>{selected.subject.name} → {selected.strand.name} → {selected.module.level}</div>
-                <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 16, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(129,140,248,0.22)' }}>
-                  <div style={{ fontSize: 11, color: '#c4b5fd', textTransform: 'uppercase', letterSpacing: 0.9, fontWeight: 900 }}>Focus summary</div>
-                  <div style={{ marginTop: 6, color: '#f8fafc', fontWeight: 800 }}>{focusHeadline(selected)}</div>
-                </div>
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Pill label={`${selected.module.readyLessons}/${selected.module.lessonCount} ready`} tone="#052e16" text="#86efac" />
-                <Pill label={`${selected.module.assessments.length} gates`} tone="#3b0764" text="#d8b4fe" />
+                <Pill label={selected.module.assessmentCoverageLabel} tone="#3b0764" text="#d8b4fe" />
                 <Pill label={selected.module.gapCount ? `${selected.module.gapCount} gaps to clear` : 'ready to release'} tone={selected.module.gapCount ? '#3b2f0d' : '#1e1b4b'} text={selected.module.gapCount ? '#fcd34d' : '#c4b5fd'} />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
-                {[
-                  { label: 'Lessons mapped', value: `${selected.module.lessons.length}` },
-                  { label: 'Ready lessons', value: `${selected.module.readyLessons}` },
-                  { label: 'Assessment gates', value: `${selected.module.assessments.length}` },
-                  { label: 'Blockers', value: `${selected.module.gapCount}` },
-                ].map((item) => (
-                  <div key={item.label} style={{ padding: 12, borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.12)' }}>
-                    <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8 }}>{item.label}</div>
-                    <div style={{ marginTop: 6, fontSize: 22, fontWeight: 900, color: '#f8fafc' }}>{item.value}</div>
-                  </div>
-                ))}
+              <div style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
+                <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Release readout</div>
+                <div style={{ color: selected.module.gapCount ? '#fde68a' : '#bbf7d0', lineHeight: 1.7 }}>{selected.module.blockerSummary}</div>
               </div>
 
               <div style={{ display: 'grid', gap: 10 }}>
@@ -313,11 +238,7 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
                 <div>
                   <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 }}>Lesson nodes</div>
                   <div style={{ display: 'grid', gap: 10 }}>
-                    {selected.module.lessons.length ? selected.module.lessons.map((lesson) => <LessonNode key={lesson.id} lesson={lesson} />) : (
-                      <div style={{ padding: 16, borderRadius: 18, background: 'rgba(248,113,113,0.08)', border: '1px dashed rgba(248,113,113,0.32)', color: '#fecaca', lineHeight: 1.6 }}>
-                        No lessons mapped yet. Start authoring from this module and the canvas will stop looking half-starved.
-                      </div>
-                    )}
+                    {selected.module.lessons.length ? selected.module.lessons.map((lesson) => <LessonNode key={lesson.id} lesson={lesson} />) : <div style={{ color: '#cbd5e1' }}>No lessons mapped yet.</div>}
                   </div>
                 </div>
 
@@ -335,7 +256,7 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
                           <div style={{ color: '#cbd5e1', lineHeight: 1.5 }}>{assessmentLabel(assessment)}</div>
                         </div>
                       );
-                    }) : <div style={{ padding: 16, borderRadius: 18, background: 'rgba(251,191,36,0.08)', border: '1px dashed rgba(251,191,36,0.32)', color: '#fde68a', lineHeight: 1.6 }}>No gate linked. That module is not truly release-ready yet.</div>}
+                    }) : <div style={{ color: '#fbbf24', lineHeight: 1.6 }}>No gate linked. That module is not truly release-ready yet.</div>}
                   </div>
                 </div>
               </div>
@@ -352,7 +273,7 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
             grid-template-columns: minmax(0, 1fr);
           }
 
-          .curriculum-canvas__sidebar {
+          aside {
             position: static !important;
           }
         }
