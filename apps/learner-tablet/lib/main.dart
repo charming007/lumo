@@ -1600,101 +1600,54 @@ class SubjectModulesPage extends StatelessWidget {
               const SizedBox(width: 20),
               Expanded(
                 child: DetailCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Back'),
-                          ),
-                          const Spacer(),
-                          StatusPill(
-                              text: module.badge, color: LumoTheme.primary),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        module.title,
-                        style: const TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        module.description,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 16,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _BackendStatusBanner(state: state),
-                      const SizedBox(height: 16),
-                      if (selectedLearner != null) ...[
-                        _CurrentLearnerBanner(
-                          title: 'Current learner: ${selectedLearner.name}',
-                          learner: selectedLearner,
-                          nextLesson: state.nextAssignedLessonForLearner(
-                            selectedLearner,
-                          ),
-                          backendSummary: state.backendRoutingSummaryForLearner(
-                            selectedLearner,
-                          ),
-                          onOpenProfile: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => LearnerProfilePage(
-                                  state: state,
-                                  learner: selectedLearner,
-                                ),
-                              ),
+                  child: LayoutBuilder(
+                    builder: (context, detailConstraints) {
+                      final useScrollableLayout =
+                          detailConstraints.maxHeight < 940;
+
+                      Widget lessonTile(LessonCardModel lesson) {
+                        return GestureDetector(
+                          onTap: () {
+                            state.selectModule(module);
+                            onChanged();
+                            launchLessonFlow(
+                              context: context,
+                              state: state,
+                              onChanged: onChanged,
+                              lesson: lesson,
+                              module: module,
                             );
                           },
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      if (lessons.isEmpty)
-                        const SoftPanel(
-                          child: Text(
-                              'No lessons are mapped to this subject yet.'),
-                        )
-                      else
-                        Expanded(
-                          child: ListView.separated(
-                            itemCount: lessons.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final lesson = lessons[index];
-                              return GestureDetector(
-                                onTap: () {
-                                  state.selectModule(module);
-                                  onChanged();
-                                  launchLessonFlow(
-                                    context: context,
-                                    state: state,
-                                    onChanged: onChanged,
-                                    lesson: lesson,
-                                    module: module,
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                      color: const Color(0xFFE2E8F0),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
+                          child: Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: LayoutBuilder(
+                              builder: (context, tileConstraints) {
+                                final compactTile = tileConstraints.maxWidth < 360;
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (compactTile) ...[
+                                      Text(
+                                        lesson.title,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      StatusPill(
+                                        text: '${lesson.steps.length} steps',
+                                        color: LumoTheme.accentOrange,
+                                      ),
+                                    ] else
                                       Row(
                                         children: [
                                           Expanded(
@@ -1706,51 +1659,171 @@ class SubjectModulesPage extends StatelessWidget {
                                               ),
                                             ),
                                           ),
+                                          const SizedBox(width: 12),
                                           StatusPill(
-                                            text:
-                                                '${lesson.steps.length} steps',
+                                            text: '${lesson.steps.length} steps',
                                             color: LumoTheme.accentOrange,
                                           ),
                                         ],
                                       ),
+                                    const SizedBox(height: 8),
+                                    Text(lesson.readinessFocus),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      lesson.scenario,
+                                      style: const TextStyle(
+                                        color: Color(0xFF64748B),
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (compactTile) ...[
+                                      InfoRow(
+                                        label: 'Duration',
+                                        value: '${lesson.durationMinutes} min',
+                                      ),
                                       const SizedBox(height: 8),
-                                      Text(lesson.readinessFocus),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        lesson.scenario,
-                                        style: const TextStyle(
-                                          color: Color(0xFF64748B),
-                                          height: 1.35,
+                                      const Text(
+                                        'Tap to choose learner',
+                                        style: TextStyle(
+                                          color: LumoTheme.primary,
+                                          fontWeight: FontWeight.w800,
                                         ),
                                       ),
-                                      const SizedBox(height: 12),
+                                    ] else
                                       Row(
                                         children: [
                                           Expanded(
                                             child: InfoRow(
                                               label: 'Duration',
-                                              value:
-                                                  '${lesson.durationMinutes} min',
+                                              value: '${lesson.durationMinutes} min',
                                             ),
                                           ),
                                           const SizedBox(width: 12),
-                                          const Text(
-                                            'Tap to choose learner',
-                                            style: TextStyle(
-                                              color: LumoTheme.primary,
-                                              fontWeight: FontWeight.w800,
+                                          const Flexible(
+                                            child: Text(
+                                              'Tap to choose learner',
+                                              textAlign: TextAlign.end,
+                                              style: TextStyle(
+                                                color: LumoTheme.primary,
+                                                fontWeight: FontWeight.w800,
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
+                                  ],
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                    ],
+                        );
+                      }
+
+                      Widget lessonList() {
+                        if (lessons.isEmpty) {
+                          return const SoftPanel(
+                            child: Text(
+                              'No lessons are mapped to this subject yet.',
+                            ),
+                          );
+                        }
+
+                        if (useScrollableLayout) {
+                          return Column(
+                            children: [
+                              for (var i = 0; i < lessons.length; i++) ...[
+                                lessonTile(lessons[i]),
+                                if (i < lessons.length - 1)
+                                  const SizedBox(height: 12),
+                              ],
+                            ],
+                          );
+                        }
+
+                        return Expanded(
+                          child: ListView.separated(
+                            itemCount: lessons.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) =>
+                                lessonTile(lessons[index]),
+                          ),
+                        );
+                      }
+
+                      final content = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Back'),
+                              ),
+                              const Spacer(),
+                              StatusPill(
+                                text: module.badge,
+                                color: LumoTheme.primary,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            module.title,
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            module.description,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 16,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _BackendStatusBanner(state: state),
+                          const SizedBox(height: 16),
+                          if (selectedLearner != null) ...[
+                            _CurrentLearnerBanner(
+                              title: 'Current learner: ${selectedLearner.name}',
+                              learner: selectedLearner,
+                              nextLesson: state.nextAssignedLessonForLearner(
+                                selectedLearner,
+                              ),
+                              backendSummary:
+                                  state.backendRoutingSummaryForLearner(
+                                selectedLearner,
+                              ),
+                              onOpenProfile: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LearnerProfilePage(
+                                      state: state,
+                                      learner: selectedLearner,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          lessonList(),
+                        ],
+                      );
+
+                      if (!useScrollableLayout) {
+                        return content;
+                      }
+
+                      return SingleChildScrollView(
+                        child: content,
+                      );
+                    },
                   ),
                 ),
               ),
