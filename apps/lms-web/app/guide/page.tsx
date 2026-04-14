@@ -64,6 +64,7 @@ const sectionLinks = [
   ['lesson-studio', 'Lesson Studio'],
   ['interactive-authoring', 'Interactive / option-based lesson tutorial'],
   ['qa-uat-guide', 'MVP QA / UAT guide'],
+  ['fallback-catalog', 'Fallback / failure mode catalog'],
   ['workflow', 'Recommended workflow'],
   ['guardrails', 'UI guardrails'],
   ['printable-guide', 'Printable handbook'],
@@ -100,6 +101,9 @@ export default function GuidePage() {
           </Link>
           <a href="/LUMO_MVP_QA_UAT_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EFF6FF', color: '#1D4ED8', textDecoration: 'none', border: '1px solid #BFDBFE' }}>
             Open QA / UAT guide
+          </a>
+          <a href="/LMS_FALLBACK_FAILURE_CATALOG.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none', border: '1px solid #FED7AA' }}>
+            Open fallback catalog
           </a>
           <a href="/LMS_DASHBOARD_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
             Open printable HTML guide
@@ -396,6 +400,29 @@ choice-3|Go to school|wrong|image|school.png`}</pre>
             ))}
           </div>
         </Card>
+
+        <div id="fallback-catalog">
+          <Card title="Fallback / failure mode catalog" eyebrow="Companion guide">
+            <div style={{ display: 'grid', gap: 12, color: '#64748b', marginBottom: 14, lineHeight: 1.7 }}>
+              <div>
+                The companion fallback catalog maps the messy states across the learner tablet and the LMS: offline bootstrap, stale content, transcript failure, saved-audio review, partial LMS feeds, reward correction, and reporting-confidence gaps.
+              </div>
+              <div>
+                Use it when you need the blunt operational answer to “what happens when the system is not on the happy path?” instead of the cleaner onboarding walkthrough.
+              </div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <a href="/LMS_FALLBACK_FAILURE_CATALOG.html" target="_blank" rel="noreferrer" style={{ color: '#C2410C', fontWeight: 800, textDecoration: 'none' }}>
+                Open the printable fallback catalog →
+              </a>
+            </div>
+            <iframe
+              src="/LMS_FALLBACK_FAILURE_CATALOG.html"
+              title="Lumo LMS fallback and failure catalog"
+              style={{ width: '100%', minHeight: '72vh', border: '1px solid #e2e8f0', borderRadius: 20, background: 'white', marginBottom: 18 }}
+            />
+          </Card>
+        </div>
 
         <div id="printable-guide">
           <Card title="Printable handbook" eyebrow="Shareable artifact">

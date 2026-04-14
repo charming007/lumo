@@ -8,6 +8,8 @@ A practical, visual guide to the **Lumo LMS dashboard**, with extra focus on **C
 
 **Format:** this Markdown file is the update-friendly source. Export the matching HTML file (`docs/LMS_DASHBOARD_GUIDE.html`) to PDF for sharing or download.
 
+**Companion doc:** `docs/LMS_FALLBACK_FAILURE_CATALOG.md` / `.html` covers degraded states, offline fallback, failure handling, and recovery expectations across the learner app and the LMS.
+
 ---
 
 ## 1) What this LMS is for
@@ -1137,6 +1139,7 @@ Primary source files:
 - `apps/lms-web/app/content/page.tsx`
 - `apps/lms-web/app/english/page.tsx`
 - `apps/lms-web/app/guide/page.tsx`
+- `docs/LMS_FALLBACK_FAILURE_CATALOG.md`
 - `apps/lms-web/components/english-studio-authoring-form.tsx`
 - `apps/lms-web/components/lesson-create-form.tsx`
 - `apps/lms-web/components/lesson-editor-form.tsx`
@@ -1183,6 +1186,7 @@ When a new LMS feature lands, update this guide in this order:
 
 - Treat this Markdown file as the **source of truth**.
 - Treat the HTML file as the **export/download artifact**.
+- Keep the fallback catalog (`docs/LMS_FALLBACK_FAILURE_CATALOG.md` / `.html`) in sync whenever runtime resilience, degraded LMS states, sync behavior, or recovery guidance changes.
 - After updating the Markdown, update the matching HTML so non-technical users can print or download it.
 
 ---

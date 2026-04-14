@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumo LMS Fallback & Failure Modes Catalog</title>
+  <style>
+:root {
+  --bg: #f8fafc;
+  --paper: #ffffff;
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: #e2e8f0;
+  --brand: #4f46e5;
+  --brand-2: #7c3aed;
+  --good: #166534;
+  --good-bg: #dcfce7;
+  --warn: #92400e;
+  --warn-bg: #fef3c7;
+  --soft: #f8fafc;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background: radial-gradient(circle at top right, rgba(124,58,237,0.10), transparent 26%), radial-gradient(circle at top left, rgba(79,70,229,0.10), transparent 32%), var(--bg); line-height:1.65; }
+.wrap { max-width: 1200px; margin:0 auto; padding:32px 20px 80px; }
+.hero { background: linear-gradient(135deg, #0f172a, #312e81 60%, #4f46e5); color:white; padding:36px; border-radius:28px; box-shadow:0 20px 50px rgba(15,23,42,0.18); margin-bottom:24px; }
+.hero h1 { margin:0 0 10px; font-size:clamp(2rem, 4vw, 3.2rem); line-height:1.05; }
+.hero p { margin:0; max-width:900px; color:rgba(255,255,255,0.9); font-size:1.03rem; }
+.badge-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+.badge, .chip { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; font-size:.92rem; font-weight:700; }
+.badge { background: rgba(255,255,255,0.12); color:white; border:1px solid rgba(255,255,255,0.14); }
+.chip { background: var(--soft); color: var(--muted); border:1px solid var(--line); }
+.chip.good { background: var(--good-bg); color: var(--good); border-color:#bbf7d0; }
+.chip.warn { background: var(--warn-bg); color: var(--warn); border-color:#fcd34d; }
+.grid { display:grid; gap:18px; }
+.card { background:var(--paper); border:1px solid var(--line); border-radius:24px; padding:22px; box-shadow:0 12px 30px rgba(15,23,42,0.05); }
+.sticky-nav { position:sticky; top:18px; }
+.eyebrow { display:inline-block; margin-bottom:10px; text-transform:uppercase; letter-spacing:.12em; font-size:.74rem; font-weight:800; color:var(--brand-2); }
+.toc a { display:block; padding:8px 0; color:var(--muted); text-decoration:none; border-bottom:1px dashed #e5e7eb; }
+.toc a:hover { color:var(--brand); }
+.mode { padding:18px; border-radius:20px; border:1px solid var(--line); background:linear-gradient(180deg,#fff,#f8fafc); }
+.mode h3 { margin:0 0 12px; line-height:1.2; }
+.dl { display:grid; grid-template-columns: 220px 1fr; gap:10px 16px; }
+.dt { font-weight:800; color:var(--ink); }
+.dd { color:var(--muted); }
+.section-title { margin:34px 0 14px; font-size:1.55rem; font-weight:900; letter-spacing:-0.02em; }
+.callout { padding:16px 18px; border-radius:18px; border:1px solid var(--line); background:#f8fafc; }
+.callout.warn { background:#fff7ed; border-color:#fed7aa; }
+.callout.good { background:#ecfdf5; border-color:#bbf7d0; }
+@media (max-width: 980px) { .layout { grid-template-columns:1fr !important; } .sticky-nav { position:static; } .dl { grid-template-columns:1fr; } }
+@media print { body { background:white; } .wrap { max-width:none; padding:0; } .hero, .card, .mode { box-shadow:none; } .sticky-nav { position:static; } a { color:inherit; text-decoration:none; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="badge-row">
+        <span class="badge">Lumo LMS</span>
+        <span class="badge">Fallback catalog</span>
+        <span class="badge">Learner app + LMS</span>
+        <span class="badge">Print / export ready</span>
+      </div>
+      <h1>Fallback &amp; Failure Modes Catalog</h1>
+      <p>A practical field guide to what can degrade, break, or fall back across the learner tablet app and the LMS: what users see, what the system does next, what is already handled well, and where human intervention or tighter product guardrails are still needed.</p>
+    </section>
+
+    <div class="grid layout" style="grid-template-columns: 290px 1fr; align-items:start;">
+      <aside class="card sticky-nav toc">
+        <div class="eyebrow">Contents</div>
+        <a href="#bootstrap">A. Learner app bootstrap, connectivity, and device state</a><a href="#content-integrity">B. Content, assignments, and curriculum integrity</a><a href="#audio-speech">C. Voice capture, speech recognition, and hands-free lesson flow</a><a href="#progress-sync">D. Learner progress, persistence, and sync</a><a href="#registration-roster">E. Learner registration, roster, and launch safety</a><a href="#lms-degraded">F. LMS page-level degraded states and admin visibility gaps</a><a href="#rewards-progression">G. Rewards, progression, and correction workflows</a><a href="#reporting-analytics">H. Reporting, analytics, and export confidence</a>
+      </aside>
+
+      <main class="grid">
+        <section class="card">
+          <div class="eyebrow">How to read this</div>
+          <h2>Why this document exists</h2>
+          <p style="color:var(--muted)">The main LMS guide explains the happy path. This document covers the real world: offline starts, partial sync, stale content, degraded LMS feeds, transcript failure, reward correction, and reporting confidence gaps. Some of these are bugs. Some are intentional resilience patterns. The important thing is that operators can tell the difference.</p>
+          <div class="callout warn"><strong>Operator rule:</strong> a polished UI is not proof that the underlying data is complete. Pay attention to degraded-state banners, freshness, sync backlog, and assessment/release guardrails.</div>
+        </section>
+        
+    <section class="card" id="bootstrap">
+      <div class="eyebrow">Catalog section</div>
+      <h2>A. Learner app bootstrap, connectivity, and device state</h2>
+      <div class="grid">
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>1. Backend bootstrap unavailable at app start</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The learner tablet cannot fetch live learners, modules, assignments, or registration targets during startup.</div>
+            <div class="dt">Likely causes</div><div class="dd">API downtime, DNS/network failure, expired backend endpoint config, captive portal, or device offline state.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Tablet still opens, but status shows offline/fallback language and the experience may rely on cached or local fallback data instead of fresh backend content.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Learners can still use previously persisted/local data when available; truly new live backend changes will not appear until connectivity returns.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">No fresh bootstrap snapshot; sync queue may continue to grow; admin-side changes are not reflected on device yet.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Grounded in `backendStatusLabel`, `backendStatusDetail`, `usingFallbackData`, and persisted-state restore paths in `apps/learner-tablet/lib/app_state.dart`. Recommendation: expose last successful sync age more prominently on the learner home screen.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>2. Persisted runtime state skipped because schema changed</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">A saved learner-tablet snapshot exists locally but no longer matches the expected persistence schema.</div>
+            <div class="dt">Likely causes</div><div class="dd">App update changed the runtime persistence schema version or old stored state is malformed.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">The app starts, but previously saved local tablet state may not be restored; operators may see a cleaner-than-expected device state after update.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">The app safely ignores incompatible local state rather than crashing or loading corrupt data.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Local continuity is lost for that stale snapshot; backend remains source of truth once reachable.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Explicitly guarded by `_kPersistenceSchemaVersion` and the “older schema was skipped safely” branch. Recommendation: surface a small admin-facing recovery note so this does not look like random disappearance.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>3. Foreground/background interruption during active lesson</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The tablet app leaves the foreground while Mallam speech, recording, or hands-free capture is active.</div>
+            <div class="dt">Likely causes</div><div class="dd">App switch, browser tab change, phone call, OS interruption, screen lock, or facilitator leaving the app mid-step.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Live mic playback/capture stops and the app asks the facilitator to explicitly tap Resume hands-free loop when ready.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">The current learner session is protected; the app avoids silently reopening the mic on resume.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">No data corruption expected; the session remains paused with manual confirmation required to continue the automation loop.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">This was recently hardened. Recommendation: keep this strict; automatic hot-mic resume would be the dumb failure mode here.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>4. Live module metadata missing for a lesson launch</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">A lesson exists but its full module metadata is not yet available locally when the user launches it.</div>
+            <div class="dt">Likely causes</div><div class="dd">Partial sync, stale cache, module deleted/renamed upstream, or timing gap between lesson payload and module payload.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">The app still launches using a fallback module shell with generic title/description language instead of blocking outright.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Lesson launch is preserved so delivery can continue while metadata catches up later.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Telemetry still ties back to the lesson, but contextual module information may be reduced until next sync.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Grounded in `resolveLessonModule` fallback behavior in `apps/learner-tablet/lib/main.dart`. Recommendation: log these occurrences so LMS/content ops can spot drift between lesson and module payloads.</div>
+          </div>
+        </article>
+        </div>
+    </section>
+    
+    <section class="card" id="content-integrity">
+      <div class="eyebrow">Catalog section</div>
+      <h2>B. Content, assignments, and curriculum integrity</h2>
+      <div class="grid">
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>5. Assigned content is stale, deprecated, or ghost content appears on tablet</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Learners see subject/module/lesson items that no longer exist in the live LMS/backend contract.</div>
+            <div class="dt">Likely causes</div><div class="dd">Persisted device state, old seed/demo content, stale assignment caches, or backend/bootstrap mismatch.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Unexpected subjects or lessons appear in the learner app even though admins cannot find them in the LMS.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Current implementation sanitizes deprecated demo modules/lessons during restore/bootstrap, reducing this class of ghost content.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Without cleanup, learners may enter wrong content and operators lose trust in LMS-to-device integrity.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Recent repo history shows this was specifically fixed. Recommendation: keep cataloging any future ghost-content incidents because they are credibility killers.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>6. Module exists but is not actually release-safe</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Curriculum structure exists in LMS, but the module is missing approved lessons, missing counts, or missing an assessment gate.</div>
+            <div class="dt">Likely causes</div><div class="dd">Admins create structure before content is complete, editorial review incomplete, or assessment setup skipped.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">In LMS, content looks partly present but blockers/readiness indicators show gaps; on learner side, content may be withheld or routed through fallback delivery expectations.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Admins are expected to hold release/assignment until blockers clear.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Bad release hygiene creates broken assignments, false readiness, and unreliable downstream reporting.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Current guides and LMS surfaces already encode release blockers and assessment-gate expectations. Recommendation: keep assignment creation opinionated; do not let draft trash masquerade as live curriculum.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>7. No assessment gate wired to a module</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">A module can be taught, but progression logic lacks a real assessment checkpoint.</div>
+            <div class="dt">Likely causes</div><div class="dd">Assessment not created, not linked, retired without replacement, or content ops oversight.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Learner app can show “No assessment gate” / fallback routing style messaging; LMS shows module incompleteness.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Learning can continue, but progression certainty and release confidence are weakened.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Progression, rewards, and reporting can drift away from mastery evidence.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">The system surfaces the gap, which is good, but it still depends on human ops discipline to fix it. Recommendation: add a stronger LMS warning before assignment/publish for modules without gates.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>8. Assignment exists in LMS but has not reached the tablet yet</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Admins publish or assign valid content, but the learner app has not synced it yet.</div>
+            <div class="dt">Likely causes</div><div class="dd">Device offline, sync backlog, recent assignment creation, or backend lag.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Learner-facing UI may show waiting-for-sync cues or continue showing older assigned lesson state.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Operators can continue with already-cached work, but newly assigned content is delayed until the next successful sync.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Temporary delivery skew between LMS truth and tablet truth.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Current app language explicitly references waiting for sync. Recommendation: show assignment freshness timestamps in both LMS and tablet to reduce “is this broken or just delayed?” confusion.</div>
+          </div>
+        </article>
+        </div>
+    </section>
+    
+    <section class="card" id="audio-speech">
+      <div class="eyebrow">Catalog section</div>
+      <h2>C. Voice capture, speech recognition, and hands-free lesson flow</h2>
+      <div class="grid">
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>9. Microphone permission denied</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The device/browser blocks mic access for recording or speech recognition.</div>
+            <div class="dt">Likely causes</div><div class="dd">User denied permission, browser privacy settings, OS-level restriction, MDM policy, or missing permission prompt acceptance.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Transcript help is unavailable; learner audio capture or speech recognition messaging explains that mic permission is required or fallback/manual confirmation is in effect.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Lesson can continue in degraded/manual mode where possible, especially with saved audio and facilitator confirmation.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">No live transcript assistance; lower automation quality; facilitator workload increases.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Speech service normalizes permission errors into clear operator language. Recommendation: also expose a one-tap “how to re-enable mic” hint per platform.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>10. Preferred recorder/encoder unavailable</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The primary audio recorder or preferred encoder cannot start on the current device.</div>
+            <div class="dt">Likely causes</div><div class="dd">Platform codec support gaps, plugin/device incompatibility, file-system path issues, or recorder initialization failure.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Capture falls back to alternate recorder/WAV path with explicit fallback status messaging.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Audio recording still proceeds using a less-ideal but functional mode.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Potentially larger files or reduced capture ergonomics, but lesson evidence is preserved.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Grounded in `AudioCaptureService.startSafely()` fallback behavior. Recommendation: log which recorder path is used so deployment can spot weak hardware profiles.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>11. Speech recognition service unavailable on device/browser</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Speech-to-text cannot initialize even though the lesson itself can continue.</div>
+            <div class="dt">Likely causes</div><div class="dd">Unsupported browser/device, missing engine, blocked web speech APIs, or unstable speech plugin startup.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">The app tells operators that Lumo will save learner audio and allow manual answer confirmation instead of live transcript capture.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">The lesson remains usable in audio-first/manual-review mode.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Reduced automation, more manual checks, and weaker real-time transcript signals.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">This is one of the core intentional fallbacks in the learner app. Recommendation: in the LMS, document expected facilitator SOP for transcript-unavailable sessions.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>12. Repeated speech-recognition start failures trigger cooldown</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Speech recognition keeps failing to start, so the app blocks immediate repeated retries for a short cooldown window.</div>
+            <div class="dt">Likely causes</div><div class="dd">Engine instability, browser API churn, permission race conditions, or transient device/audio stack faults.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Operators see cooldown language telling them to keep saving audio locally and try again after a moment.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">The app avoids thrashing the speech engine and falls back to stable audio-first/manual review behavior.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Temporary loss of hands-free transcript help; prevents retry storms.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Recently hardened. Recommendation: keep the cooldown visible and time-bound so facilitators do not keep tapping into a wall.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>13. No speech detected / speech timeout / missed transcript</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The learner response window ends without usable transcript capture.</div>
+            <div class="dt">Likely causes</div><div class="dd">Quiet learner, noisy room, mic distance, speech engine timeout, overlapping Mallam audio, or concurrency guardrails.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">The app reports that no clear speech was detected, preserves saved audio, and may guide the facilitator into manual acceptance or another try.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Response review continues using saved audio fallback; the lesson does not need to hard-fail.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Extra facilitator step and possible slower progression through the lesson.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Grounded in normalized speech errors plus degraded audio recovery in `main.dart`. Recommendation: track repeated misses per device/pod to separate pedagogy issues from hardware issues.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>14. Shared-device concurrent speech capture conflict</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The app intentionally avoids reopening live transcript capture when the capture conditions are unsafe or overlapping.</div>
+            <div class="dt">Likely causes</div><div class="dd">Shared mic reuse, Mallam playback overlap, concurrent capture protections, or unresolved prior recording state.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Status shifts to audio-only fallback with saved-audio review guidance instead of forcing unreliable speech recognition.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">The system chooses a safer degraded mode instead of producing junk transcripts.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Lower automation, but better correctness and less operator confusion than flaky mixed capture.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">This is a good trade-off. Recommendation: reflect this in facilitator training so “fallback” is understood as safety, not random failure.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>15. Saved learner audio cannot be played back on device yet</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The app captured fallback audio but playback fails when the facilitator tries to review it.</div>
+            <div class="dt">Likely causes</div><div class="dd">Device playback codec issue, file access problem, deleted temp file, audio output failure, or plugin/runtime bug.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">The UI reports that saved audio could not be played on the device yet.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">The lesson can still continue, but facilitator confidence in confirming the answer is reduced.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Evidence exists but is harder to verify in-session; possible need for manual override/coach judgment.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Playback failure is surfaced, but operator recovery options are limited beyond trying again or moving forward. Recommendation: add a clearer branch for “accept manually / replay prompt / retry playback.”</div>
+          </div>
+        </article>
+        </div>
+    </section>
+    
+    <section class="card" id="progress-sync">
+      <div class="eyebrow">Catalog section</div>
+      <h2>D. Learner progress, persistence, and sync</h2>
+      <div class="grid">
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>16. Progress saved locally but not yet synced</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The learner completes work, but the device has not yet posted queued events upstream.</div>
+            <div class="dt">Likely causes</div><div class="dd">Offline state, transient API failure, retry window, or backend sync outage.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Tablet indicates pending sync / queue status rather than pretending the backend already accepted the activity.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Learner momentum is preserved locally; backend truth catches up later when sync resumes.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Temporary reporting lag in LMS dashboards, rewards, and progression boards.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">This is the intended offline-first behavior. Recommendation: in LMS reporting, call out data freshness so lag is visible but not alarming.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>17. Sync attempt fails after local work was recorded</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Queued progress events exist, but the latest sync push to backend fails.</div>
+            <div class="dt">Likely causes</div><div class="dd">API outage, validation failure, auth/config drift, or backend write error.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Tablet backend detail/status mentions failed sync attempt and pending queue remains.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Events stay queued for later retry instead of being silently dropped.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">No immediate LMS reflection of the work; queue growth can increase operator anxiety if prolonged.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Current status model is solid. Recommendation: add warning thresholds for “queue too old / too large.”</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>18. Resume-from-backend session points to lesson no longer available locally</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Backend says a learner has resumable session progress, but the referenced lesson cannot be resolved on the tablet.</div>
+            <div class="dt">Likely causes</div><div class="dd">Lesson deleted, assignment changed, stale backend session, or device content lag.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Resume path may be absent or less useful even though backend history implies there is something resumable.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Facilitator may need to relaunch the closest available lesson manually instead of true resume.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Session continuity becomes approximate rather than exact.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">The app does sensible lookup work, but end-to-end resilience still depends on lesson availability. Recommendation: add explicit orphaned-session messaging when resume records cannot be matched.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>19. Local profile save succeeds while backend registration is unavailable</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">A new learner profile or edit is captured on tablet even though the backend cannot accept it immediately.</div>
+            <div class="dt">Likely causes</div><div class="dd">Backend outage or offline registration path.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">The app reports that the profile was saved locally because backend sync was unavailable.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Operator can continue using the tablet without losing registration intent.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Backend/LMS learner roster remains behind until sync/registration succeeds upstream.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Good fallback. Recommendation: show unsynced learner roster entries distinctly in both tablet and future LMS reconciliation views.</div>
+          </div>
+        </article>
+        </div>
+    </section>
+    
+    <section class="card" id="registration-roster">
+      <div class="eyebrow">Catalog section</div>
+      <h2>E. Learner registration, roster, and launch safety</h2>
+      <div class="grid">
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>20. No learners registered on the tablet when a lesson is launched</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">A facilitator tries to start a lesson before at least one learner profile exists locally.</div>
+            <div class="dt">Likely causes</div><div class="dd">Fresh install, unsynced device, or operator skipped registration.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">The app blocks the launch with guidance to register the first learner instead of leaving a blank chooser.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Operators are redirected into a safe setup step rather than a confusing dead end.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">No lesson session is created until roster preconditions exist.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">This is the right kind of hard stop. Recommendation: keep it explicit and never allow a “ghost learner” launch.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>21. Learner roster/data is present locally but stale versus LMS</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Tablet learner cards exist, but mallam assignment, cohort, or linked lessons have changed upstream.</div>
+            <div class="dt">Likely causes</div><div class="dd">Delayed sync, cached roster, offline edits, or backend update after last device fetch.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Profile and assignment views may lag behind current LMS state until sync succeeds.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Operators can still work with the local roster, but should expect eventual reconciliation.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Short-term mismatch between device action and LMS oversight views.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">The system is resilient but not magically real-time while offline. Recommendation: include “last roster refresh” metadata near learner cards.</div>
+          </div>
+        </article>
+        </div>
+    </section>
+    
+    <section class="card" id="lms-degraded">
+      <div class="eyebrow">Catalog section</div>
+      <h2>F. LMS page-level degraded states and admin visibility gaps</h2>
+      <div class="grid">
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>22. LMS pages load in degraded mode because one or more data feeds are unavailable</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">An LMS route renders, but one or more upstream feeds fail and the page falls back to partial data.</div>
+            <div class="dt">Likely causes</div><div class="dd">API/feed timeout, service partial outage, or backend query failure for that route.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Pages such as Assignments, Attendance, Assessments, Progress, and Settings explicitly show degraded-mode banners naming failed sources.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Admins still get a usable page instead of a total blank/fatal error, but must treat the view as incomplete.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Decision quality drops if users miss the banner; some actions may be based on partial evidence.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Grounded in current route copy. Recommendation: standardize severity and freshness badges across all LMS pages so degraded mode is impossible to miss.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>23. LMS operator mistakes partial data for complete truth</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The page technically loads, but admins act on incomplete/degraded data as if nothing is wrong.</div>
+            <div class="dt">Likely causes</div><div class="dd">Banner blindness, hurried ops work, or inconsistent degraded-state styling across pages.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">No software crash; the failure is human interpretation of a partial UI.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Potentially wrong intervention, reporting, or assignment decisions.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Operational mistakes, especially in attendance/progress/rewards correction contexts.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">The system surfaces degradation, but humans still miss banners. Recommendation: add stronger page-level status chips and export warnings when data is partial.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>24. Guide/documentation drift versus live LMS behavior</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Admins read a guide that no longer matches the current routes, labels, or release workflow.</div>
+            <div class="dt">Likely causes</div><div class="dd">Fast product changes without doc refresh.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Operators cannot find controls where the guide says they live or assume a feature exists in a stronger state than reality.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Training friction, longer onboarding, and fake bug reports caused by stale docs.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Indirect but real: slower operations and lower trust in documentation.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">This catalog itself is part of the mitigation. Recommendation: keep the live guide route and printable guide family updated in the same change sets as product shifts.</div>
+          </div>
+        </article>
+        </div>
+    </section>
+    
+    <section class="card" id="rewards-progression">
+      <div class="eyebrow">Catalog section</div>
+      <h2>G. Rewards, progression, and correction workflows</h2>
+      <div class="grid">
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>25. Reward did not fire automatically after legitimate learner activity</h3>
+            <span class="chip good">Handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">A learner should have received XP/badge credit, but the automatic path missed it.</div>
+            <div class="dt">Likely causes</div><div class="dd">Offline gap, sync lag, rule mismatch, or backend reward-processing miss.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Learner app/LMS rewards view looks lower than facilitator expectation until corrected.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Admins can apply manual XP or badge corrections with reasons.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Short-term learner motivation/reporting distortion until corrected; audit trail matters.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Manual correction controls now exist. Recommendation: keep reasons mandatory and visible in audit history.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>26. Manual reward correction is used as a substitute for mastery/progression logic</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">Operators use rewards admin controls to paper over curriculum/progression problems.</div>
+            <div class="dt">Likely causes</div><div class="dd">Pressure to show progress, misunderstanding of rewards role, or weak release/assessment hygiene.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Learner gets points/badges, but real readiness or assessment evidence still does not exist.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">The UI allows the action, but documentation explicitly says not to use rewards as fake readiness.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Corrupts trust in progression, donor reporting, and learner status interpretation.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">This is mostly a governance problem. Recommendation: add sharper LMS copy or policy checks when manual corrections are unusually large or frequent.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>27. Progression override or correction decisions are not legible later</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">A learner status changes, but future admins cannot easily tell whether it came from assessed mastery, manual correction, or degraded/offline recovery.</div>
+            <div class="dt">Likely causes</div><div class="dd">Weak audit narratives, partial metadata, or inconsistent reason capture.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Current state looks real, but its provenance is fuzzy.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">Operators may have to investigate across multiple surfaces to reconstruct what happened.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Poor auditability and harder QA/UAT review.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Manual rewards reasons exist, which helps. Recommendation: extend the same discipline to progression overrides and recovery actions where possible.</div>
+          </div>
+        </article>
+        </div>
+    </section>
+    
+    <section class="card" id="reporting-analytics">
+      <div class="eyebrow">Catalog section</div>
+      <h2>H. Reporting, analytics, and export confidence</h2>
+      <div class="grid">
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>28. Reports reflect lagged learner reality because sync backlog exists</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">The LMS reporting layer is technically healthy, but the underlying learner activity has not all reached the backend yet.</div>
+            <div class="dt">Likely causes</div><div class="dd">Offline-first delivery, queued sync events, rural connectivity gaps, or delayed tablet reconnection.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">Admins see lower attendance/progress/reward numbers than facilitators expect from recent on-ground activity.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">The system eventually catches up after sync, but near-real-time confidence is limited.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Program dashboards and external reporting can temporarily understate activity.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">This is an inherent trade-off in offline-first systems. Recommendation: make data-freshness timestamps unavoidable in analytics and export surfaces.</div>
+          </div>
+        </article>
+        
+        <article class="mode">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <h3>29. External/donor-ready reporting is generated from incomplete operational evidence</h3>
+            <span class="chip warn">Partially handled</span>
+          </div>
+          <div class="dl">
+            <div class="dt">What it is</div><div class="dd">A report is shareable in format, but the underlying evidence is partial due to degraded feeds or sync lag.</div>
+            <div class="dt">Likely causes</div><div class="dd">Same-day export during outage/lag, ignored degraded banners, or incomplete upstream sync.</div>
+            <div class="dt">User-visible behavior</div><div class="dd">The report looks polished, which is exactly why this failure mode is dangerous.</div>
+            <div class="dt">Expected outcome in app/LMS</div><div class="dd">There is no automatic guarantee that every export is fully current unless users pay attention to source health and freshness.</div>
+            <div class="dt">Backend/system impact</div><div class="dd">Reputational risk and bad downstream decisions by NGO/ministry stakeholders.</div>
+            <div class="dt">Notes / recommendations</div><div class="dd">Strong recommendation: watermark/export-note any report generated while source freshness or feed completeness is compromised.</div>
+          </div>
+        </article>
+        </div>
+    </section>
+    
+        <section class="card">
+          <div class="eyebrow">Takeaway</div>
+          <h2>Current resilience posture</h2>
+          <div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <div class="callout good"><strong>Handled well now:</strong> offline/bootstrap fallback, persisted local recovery, explicit degraded LMS messaging, transcript-to-audio fallback, lifecycle-safe hands-free resume, and release blocker visibility.</div>
+            <div class="callout warn"><strong>Still easy to get wrong:</strong> stale data mistaken for current truth, report confidence during sync lag, governance around manual correction workflows, and orphaned or partially synced content/session relationships.</div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
