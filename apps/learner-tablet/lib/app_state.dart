@@ -2050,21 +2050,30 @@ class LumoAppState {
   LessonCardModel? lessonForBackendSession(BackendLessonSession? session) {
     if (session == null) return null;
 
-    final directLesson = assignedLessons.cast<LessonCardModel?>().firstWhere(
-          (lesson) => lesson?.id == session.lessonId,
-          orElse: () => null,
-        );
-    if (directLesson != null) return directLesson;
+    final assigned = assignedLessons.toList(growable: false);
+    for (final lesson in assigned) {
+      if (lesson.id == session.lessonId) return lesson;
+    }
 
-    final moduleMatch = assignedLessons.cast<LessonCardModel?>().firstWhere(
-          (lesson) =>
-              lesson != null &&
-              (lesson.moduleId == session.moduleId ||
-                  lesson.title.toLowerCase() ==
-                      (session.lessonTitle ?? '').toLowerCase()),
-          orElse: () => null,
-        );
-    return moduleMatch;
+    final normalizedSessionTitle = (session.lessonTitle ?? '').trim().toLowerCase();
+    if (normalizedSessionTitle.isNotEmpty) {
+      final titleMatches = assigned
+          .where(
+            (lesson) =>
+                lesson.title.trim().toLowerCase() == normalizedSessionTitle,
+          )
+          .toList(growable: false);
+      if (titleMatches.length == 1) return titleMatches.first;
+    }
+
+    final moduleMatches = assigned
+        .where((lesson) => lesson.moduleId == session.moduleId)
+        .toList(growable: false);
+    if (moduleMatches.length == 1) {
+      return moduleMatches.first;
+    }
+
+    return null;
   }
 
   LessonCardModel? resumableLessonForLearner(LearnerProfile? learner) {

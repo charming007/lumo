@@ -1324,9 +1324,14 @@ class LearnerProfilePage extends StatelessWidget {
                                                                 .of(
                                                               context,
                                                             ).showSnackBar(
-                                                              const SnackBar(
+                                                              SnackBar(
                                                                 content: Text(
-                                                                  'Backend session found, but its lesson is not loaded on this tablet yet.',
+                                                                  session.lessonTitle
+                                                                          ?.trim()
+                                                                          .isNotEmpty ==
+                                                                      true
+                                                                      ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
+                                                                      : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.',
                                                                 ),
                                                               ),
                                                             );

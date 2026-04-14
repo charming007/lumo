@@ -495,6 +495,48 @@ void main() {
       );
     });
 
+    test('does not map backend resume to the wrong lesson when only module matches', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final sourceLesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+      state.assignedLessons.add(
+        LessonCardModel(
+          id: 'english-shadow',
+          moduleId: sourceLesson.moduleId,
+          title: 'English shadow lesson',
+          subject: sourceLesson.subject,
+          durationMinutes: sourceLesson.durationMinutes,
+          status: sourceLesson.status,
+          mascotName: sourceLesson.mascotName,
+          readinessFocus: sourceLesson.readinessFocus,
+          scenario: sourceLesson.scenario,
+          steps: sourceLesson.steps,
+        ),
+      );
+
+      final resumeSession = BackendLessonSession(
+        id: 'runtime-ambiguous',
+        sessionId: 'session-ambiguous',
+        studentId: beginner.id,
+        learnerCode: beginner.learnerCode,
+        lessonId: 'missing-lesson-id',
+        lessonTitle: 'Missing backend lesson',
+        moduleId: sourceLesson.moduleId,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Mallam is waiting for the next response.',
+        currentStepIndex: 2,
+        stepsTotal: sourceLesson.steps.length,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 1,
+        facilitatorObservations: 0,
+      );
+
+      expect(state.lessonForBackendSession(resumeSession), isNull);
+    });
+
     test('routes away from the completed lesson when continuing', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       final currentLesson = state.assignedLessons.firstWhere(
