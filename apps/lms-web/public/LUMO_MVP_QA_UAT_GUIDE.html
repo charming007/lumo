@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumo MVP QA / UAT Guide</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --brand: #4f46e5;
+      --brand-2: #7c3aed;
+      --good: #166534;
+      --good-bg: #dcfce7;
+      --warn: #92400e;
+      --warn-bg: #fef3c7;
+      --danger: #991b1b;
+      --danger-bg: #fee2e2;
+      --info: #1d4ed8;
+      --info-bg: #dbeafe;
+      --soft: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(124,58,237,0.10), transparent 26%),
+        radial-gradient(circle at top left, rgba(79,70,229,0.10), transparent 32%),
+        var(--bg);
+      line-height: 1.65;
+    }
+
+    a { color: var(--brand); }
+    .skip-link {
+      position: absolute;
+      left: 12px;
+      top: -40px;
+      background: #fff;
+      color: #111827;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      text-decoration: none;
+      z-index: 1000;
+    }
+    .skip-link:focus { top: 12px; }
+
+    .wrap {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f172a, #312e81 60%, #4f46e5);
+      color: white;
+      padding: 36px;
+      border-radius: 28px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.05;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 900px;
+      color: rgba(255,255,255,0.9);
+      font-size: 1.04rem;
+    }
+
+    .badge-row, .chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .badge, .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+    .badge { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.14); }
+    .chip { background: var(--soft); color: var(--muted); border: 1px solid var(--line); }
+    .chip.good { background: var(--good-bg); color: var(--good); border-color: #bbf7d0; }
+    .chip.warn { background: var(--warn-bg); color: var(--warn); border-color: #fcd34d; }
+    .chip.info { background: var(--info-bg); color: var(--info); border-color: #93c5fd; }
+    .chip.danger { background: var(--danger-bg); color: var(--danger); border-color: #fecaca; }
+
+    .grid { display: grid; gap: 18px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+    }
+
+    .card h2, .card h3 { margin-top: 0; line-height: 1.2; }
+    .section-title {
+      margin: 34px 0 14px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.74rem;
+      font-weight: 800;
+      color: var(--brand-2);
+    }
+
+    .sticky-nav { position: sticky; top: 18px; }
+    .toc a {
+      display: block;
+      padding: 8px 0;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px dashed #e5e7eb;
+      font-weight: 700;
+    }
+    .toc a:hover, .toc a:focus { color: var(--brand); }
+
+    .callout {
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    .callout.good { background: #ecfdf5; border-color: #bbf7d0; }
+    .callout.warn { background: #fff7ed; border-color: #fed7aa; }
+    .callout.danger { background: #fef2f2; border-color: #fecaca; }
+    .callout.info { background: #eff6ff; border-color: #bfdbfe; }
+
+    .checklist {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+    .checklist li + li { margin-top: 8px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    pre {
+      margin: 0;
+      padding: 18px;
+      border-radius: 18px;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: auto;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .footer-note {
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 960px) {
+      .grid.two, .grid.three { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr !important; }
+      .sticky-nav { position: static; }
+    }
+
+    @media print {
+      body { background: white; }
+      .wrap { max-width: none; padding: 0; }
+      .hero, .card { box-shadow: none; }
+      .sticky-nav { position: static; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="wrap">
+    <section class="hero" aria-labelledby="guide-title">
+      <div class="badge-row" style="margin-bottom: 14px;">
+        <span class="badge">Lumo MVP</span>
+        <span class="badge">QA / UAT handbook</span>
+        <span class="badge">Browser + print ready</span>
+      </div>
+      <h1 id="guide-title">MVP QA / UAT Guide</h1>
+      <p>An accessible, practical test guide for validating the current Lumo MVP across the LMS and learner tablet app, with real tasks, expected outcomes, pass/fail criteria, troubleshooting notes, and a clean issue capture format.</p>
+    </section>
+
+    <div class="grid layout" style="grid-template-columns: 280px 1fr; align-items: start;">
+      <aside class="card sticky-nav toc" aria-label="Guide contents">
+        <div class="eyebrow">Contents</div>
+        <a href="#purpose">1. Purpose and posture</a>
+        <a href="#scope">2. MVP areas in scope</a>
+        <a href="#environment">3. Test environment checklist</a>
+        <a href="#smoke">4. Fast smoke test</a>
+        <a href="#lms-tests">5. LMS test scenarios</a>
+        <a href="#learner-tests">6. Learner app test scenarios</a>
+        <a href="#end-to-end">7. End-to-end flows</a>
+        <a href="#rating">8. Pass / fail model</a>
+        <a href="#troubleshooting">9. Troubleshooting notes</a>
+        <a href="#issue-capture">10. Issue capture template</a>
+        <a href="#signoff">11. Sign-off checklist</a>
+      </aside>
+
+      <main id="main-content" class="grid">
+        <section class="card" id="purpose">
+          <div class="eyebrow">1. Purpose and testing posture</div>
+          <h2>Test the MVP like it matters</h2>
+          <p>This guide is for real validation, not ceremonial clicking. Use it to prove that the LMS, lesson authoring, assignments, learner runtime, and downstream evidence all behave like one coherent MVP instead of a loose pile of screens.</p>
+          <div class="chip-row" style="margin-top: 12px;">
+            <span class="chip info">LMS coverage</span>
+            <span class="chip good">Learner app coverage</span>
+            <span class="chip warn">End-to-end checks</span>
+            <span class="chip danger">Release blockers called out</span>
+          </div>
+          <div class="grid two" style="margin-top: 16px;">
+            <div class="callout info">
+              <strong>Recommended posture</strong>
+              <ul class="checklist">
+                <li>Run at least one clean content-to-learner-to-evidence flow first.</li>
+                <li>Capture screenshots, route names, and exact steps.</li>
+                <li>Rate issues as blocker, major, or minor.</li>
+              </ul>
+            </div>
+            <div class="callout warn">
+              <strong>Do not fake confidence</strong>
+              <ul class="checklist">
+                <li>If smoke test fails, stop and fix the blocker first.</li>
+                <li>If LMS and learner app disagree, treat that as a system issue.</li>
+                <li>If a route goes blank, that is not a “small polish bug.”</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="scope">
+          <div class="eyebrow">2. MVP areas in scope</div>
+          <h2>What this guide covers</h2>
+          <div class="grid two">
+            <div>
+              <h3>LMS surfaces</h3>
+              <ul class="checklist">
+                <li>Dashboard</li>
+                <li>Learners / Students</li>
+                <li>Mallams</li>
+                <li>Content Library</li>
+                <li>English Studio</li>
+                <li>Lesson Studio / lesson editor</li>
+                <li>Assignments</li>
+                <li>Progress, Reports, Rewards, Settings</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Learner app surfaces</h3>
+              <ul class="checklist">
+                <li>Learner selection / registration</li>
+                <li>Subject and module visibility</li>
+                <li>Lesson launch and interaction</li>
+                <li>Completion and progress persistence</li>
+                <li>Recovery after interruption</li>
+                <li>Sync / delayed sync behavior where available</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="environment">
+          <div class="eyebrow">3. Test environment checklist</div>
+          <h2>Before you start</h2>
+          <div class="grid two">
+            <div>
+              <ul class="checklist">
+                <li>LMS is reachable in browser.</li>
+                <li>Learner app build is installed and launches.</li>
+                <li>Backend / seed data is available.</li>
+                <li>At least one active subject, strand, module, and lesson exists.</li>
+                <li>At least one mallam, pod, and learner record exists.</li>
+              </ul>
+            </div>
+            <div>
+              <ul class="checklist">
+                <li>If testing rewards, a visible learner progression path exists.</li>
+                <li>If testing sync recovery, know whether you are using live or cached data.</li>
+                <li>Know which browser, device, and build you are testing.</li>
+                <li>Have a bug capture template ready.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="smoke">
+          <div class="eyebrow">4. Fast smoke test</div>
+          <h2>The 10-step “is this release even alive?” check</h2>
+          <ol class="checklist">
+            <li>Open LMS dashboard.</li>
+            <li>Open Content Library and confirm subject → strand → module → lesson renders.</li>
+            <li>Create or edit a lesson without the screen going blank.</li>
+            <li>Confirm the lesson appears in the right module.</li>
+            <li>Open English Studio and confirm authoring context loads.</li>
+            <li>Open learner app and select a learner.</li>
+            <li>Confirm expected subjects appear and no ghost content is shown.</li>
+            <li>Open an assigned lesson.</li>
+            <li>Complete one guided or interactive activity.</li>
+            <li>Confirm completion / progress updates appear somewhere believable.</li>
+          </ol>
+          <div class="callout danger" style="margin-top: 16px;"><strong>Rule:</strong> if this smoke test fails, the release is not healthy. Fix the blocker before running deeper UAT.</div>
+        </section>
+
+        <section id="lms-tests" class="grid">
+          <div class="section-title">5. LMS test scenarios</div>
+
+          <section class="card" id="dashboard-test">
+            <div class="eyebrow">5.1 Dashboard</div>
+            <h2>Dashboard and operational visibility</h2>
+            <table>
+              <thead><tr><th>Task</th><th>Expected outcome</th><th>Pass / Fail trigger</th></tr></thead>
+              <tbody>
+                <tr><td>Open Dashboard and review KPI cards, escalations, and linked routes.</td><td>Dashboard loads without blank sections, metrics render or show honest empty states, links open correctly.</td><td><strong>Pass:</strong> readable, linked, credible. <br /><strong>Fail:</strong> blank page, hard error, nonsense metrics, or broken route links.</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="card" id="content-library-test">
+            <div class="eyebrow">5.2 Content Library</div>
+            <h2>Curriculum structure management</h2>
+            <table>
+              <thead><tr><th>Task</th><th>Expected outcome</th><th>Pass / Fail trigger</th></tr></thead>
+              <tbody>
+                <tr><td>Review subjects, strands, modules, lessons, and assessment gates. Use filters / search. Create or edit one item if allowed.</td><td>Hierarchy is clear, search works, CRUD actions save cleanly, and edited content lands in the correct structure.</td><td><strong>Pass:</strong> hierarchy remains correct and stable after save. <br /><strong>Fail:</strong> content disappears, duplicates, lands in the wrong parent, or triggers a blank screen.</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="card" id="english-studio-test">
+            <div class="eyebrow">5.3 English Studio</div>
+            <h2>Authoring and readiness checks</h2>
+            <table>
+              <thead><tr><th>Task</th><th>Expected outcome</th><th>Pass / Fail trigger</th></tr></thead>
+              <tbody>
+                <tr><td>Open English Studio, inspect lesson blueprint, review objectives, activity spine, vocabulary, and blockers, then save a safe edit.</td><td>Studio loads with real curriculum context, readiness notes are visible, and the save flow returns a stable lesson state.</td><td><strong>Pass:</strong> useful, stable, structurally connected. <br /><strong>Fail:</strong> blank editor, missing context, save failure, or detached lesson state.</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="card" id="lesson-studio-test">
+            <div class="eyebrow">5.4 Lesson Studio</div>
+            <h2>Interactive / option-based authoring</h2>
+            <table>
+              <thead><tr><th>Task</th><th>Expected outcome</th><th>Pass / Fail trigger</th></tr></thead>
+              <tbody>
+                <tr><td>Open create or edit route, review metadata, add or edit steps, configure an option-based activity, save, then re-open.</td><td>Full lesson editor stays usable, authored structure persists, and the saved lesson remains accessible.</td><td><strong>Pass:</strong> editing works and persists. <br /><strong>Fail:</strong> save breaks route, structure is lost, or editor becomes unusable.</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="card" id="assignment-test">
+            <div class="eyebrow">5.5 Assignments</div>
+            <h2>Delivery setup</h2>
+            <table>
+              <thead><tr><th>Task</th><th>Expected outcome</th><th>Pass / Fail trigger</th></tr></thead>
+              <tbody>
+                <tr><td>Create or inspect an assignment tied to a real lesson or module and targeted learner group / pod / mallam.</td><td>Assignment form loads, saves, and appears in relevant LMS delivery views with believable status context.</td><td><strong>Pass:</strong> assignment is valid and visible. <br /><strong>Fail:</strong> save fails, content link is lost, or assignment never appears.</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="card" id="reports-test">
+            <div class="eyebrow">5.6 Reports, progress, rewards</div>
+            <h2>Admin evidence surfaces</h2>
+            <table>
+              <thead><tr><th>Task</th><th>Expected outcome</th><th>Pass / Fail trigger</th></tr></thead>
+              <tbody>
+                <tr><td>Open Reports, Progress, and Rewards. After learner testing, check whether downstream evidence is visible or honestly queued for sync.</td><td>Views load, data is believable, and learner activity changes at least one relevant downstream indicator when expected.</td><td><strong>Pass:</strong> evidence is believable and surfaces are navigable. <br /><strong>Fail:</strong> views contradict each other or show impossible stale state.</td></tr>
+              </tbody>
+            </table>
+          </section>
+        </section>
+
+        <section id="learner-tests" class="grid">
+          <div class="section-title">6. Learner app test scenarios</div>
+
+          <section class="card">
+            <div class="eyebrow">6.1 App launch</div>
+            <h2>Learner selection and entry flow</h2>
+            <ul class="checklist">
+              <li>Launch learner tablet app.</li>
+              <li>Select an existing learner or complete registration flow.</li>
+              <li>Confirm mallam / pod / learner selection does not dead-end.</li>
+            </ul>
+            <div class="callout good"><strong>Pass:</strong> learner can be selected and continue into content. <br /><strong>Fail:</strong> crash, blocked selection, missing options, or layout overflow that blocks progress.</div>
+          </section>
+
+          <section class="card">
+            <div class="eyebrow">6.2 Curriculum visibility</div>
+            <h2>Subject and module inventory</h2>
+            <ul class="checklist">
+              <li>Inspect visible subjects and compare with live LMS / backend expectation.</li>
+              <li>Open one subject and inspect modules / lessons.</li>
+              <li>Confirm no ghost subjects, stale demo content, or duplicate lanes appear.</li>
+            </ul>
+            <div class="callout warn"><strong>Pass:</strong> learner inventory matches real curriculum. <br /><strong>Fail:</strong> ghost content, stale cache residue, duplicate subjects, or missing assigned material.</div>
+          </section>
+
+          <section class="card">
+            <div class="eyebrow">6.3 Lesson playback</div>
+            <h2>Prompt, response, and progression flow</h2>
+            <ul class="checklist">
+              <li>Open an assigned or available lesson.</li>
+              <li>Confirm prompts, instructions, and controls render.</li>
+              <li>Complete at least one response using speaking, listening, tapping, or choice selection.</li>
+              <li>Confirm the app advances or provides feedback.</li>
+            </ul>
+            <div class="callout good"><strong>Pass:</strong> learner completes meaningful interaction without being trapped. <br /><strong>Fail:</strong> lesson cannot open, controls break, or progression blocks mid-flow.</div>
+          </section>
+
+          <section class="card">
+            <div class="eyebrow">6.4 Persistence and recovery</div>
+            <h2>Resume after interruption</h2>
+            <ul class="checklist">
+              <li>Start a lesson and background the app or navigate away if safe.</li>
+              <li>Re-open the app and confirm session recovery is sensible.</li>
+              <li>Complete the lesson and confirm completion still records correctly.</li>
+            </ul>
+            <div class="callout info"><strong>Pass:</strong> recovery is controlled and understandable. <br /><strong>Fail:</strong> duplicate sessions, auto-resume loops, lost progress, or corrupted state after return.</div>
+          </section>
+        </section>
+
+        <section id="end-to-end" class="card">
+          <div class="eyebrow">7. End-to-end flows</div>
+          <h2>Prove the LMS and learner app are the same product</h2>
+          <div class="grid three">
+            <div class="callout">
+              <strong>Flow A — LMS content to learner runtime</strong>
+              <ol class="checklist">
+                <li>Create or edit a lesson in LMS.</li>
+                <li>Confirm lesson is valid for delivery.</li>
+                <li>Create or confirm assignment.</li>
+                <li>Open learner app and targeted learner.</li>
+                <li>Confirm lesson appears and can be completed.</li>
+              </ol>
+              <div><strong>Pass:</strong> authored content reaches the learner path. <strong>Fail:</strong> content stays trapped or learner sees something else.</div>
+            </div>
+            <div class="callout">
+              <strong>Flow B — learner completion back to LMS evidence</strong>
+              <ol class="checklist">
+                <li>Complete a lesson in learner app.</li>
+                <li>Return to LMS.</li>
+                <li>Check Progress, Reports, and Rewards.</li>
+                <li>Confirm at least one downstream state reflects the work.</li>
+              </ol>
+              <div><strong>Pass:</strong> learner activity produces believable evidence. <strong>Fail:</strong> completion vanishes or views disagree.</div>
+            </div>
+            <div class="callout">
+              <strong>Flow C — interruption and recovery</strong>
+              <ol class="checklist">
+                <li>Interrupt a flow with refresh, route change, or app backgrounding.</li>
+                <li>Return to the prior context.</li>
+                <li>Confirm state recovery is clear and not corrupted.</li>
+              </ol>
+              <div><strong>Pass:</strong> recovery feels controlled. <strong>Fail:</strong> blank pages, duplicates, or misleading fake-success states.</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="rating" class="card">
+          <div class="eyebrow">8. Pass / fail model</div>
+          <h2>Rate defects honestly</h2>
+          <div class="grid three">
+            <div class="callout danger">
+              <strong>Blocker</strong>
+              <ul class="checklist">
+                <li>Blank page or route crash</li>
+                <li>Learner cannot launch or open lessons</li>
+                <li>Authored content cannot be saved or reopened</li>
+                <li>LMS and learner app disconnect on core flow</li>
+                <li>Visible data corruption or impossible state</li>
+              </ul>
+            </div>
+            <div class="callout warn">
+              <strong>Major</strong>
+              <ul class="checklist">
+                <li>Core flow works but is unreliable</li>
+                <li>Workflow confusion causes serious operator risk</li>
+                <li>Progress / reward / report evidence is inconsistent</li>
+                <li>Workaround exists but is not acceptable for pilot trust</li>
+              </ul>
+            </div>
+            <div class="callout info">
+              <strong>Minor</strong>
+              <ul class="checklist">
+                <li>Copy or styling issue</li>
+                <li>Small non-critical UX rough edge</li>
+                <li>Issue does not block core MVP completion</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="troubleshooting" class="card">
+          <div class="eyebrow">9. Troubleshooting notes</div>
+          <h2>When things look wrong, check the boring-but-real causes first</h2>
+          <div class="grid two">
+            <div>
+              <h3>If learner app shows ghost or stale content</h3>
+              <ul class="checklist">
+                <li>Check local cached learner state.</li>
+                <li>Check fallback / seed data.</li>
+                <li>Check whether deprecated demo subjects or modules persist locally.</li>
+                <li>Check whether assignment or bootstrap data was refreshed.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>If LMS content is missing from learner app</h3>
+              <ul class="checklist">
+                <li>Check lesson status / publish readiness.</li>
+                <li>Check assignment existence and learner targeting.</li>
+                <li>Check backend sync availability.</li>
+                <li>Check stale app cache or offline persistence.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>If LMS editor pages go blank</h3>
+              <ul class="checklist">
+                <li>Check whether create / edit route returned the saved lesson id correctly.</li>
+                <li>Check required lesson data shape.</li>
+                <li>Check whether modal or layout overlays masked the page.</li>
+                <li>Check browser console for route or payload errors.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>If reports or rewards look wrong</h3>
+              <ul class="checklist">
+                <li>Check whether learner completion actually persisted.</li>
+                <li>Check whether sync is delayed.</li>
+                <li>Check whether correction / revocation logic changed totals.</li>
+                <li>Check whether you are comparing live data with stale expectations.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="issue-capture" class="card">
+          <div class="eyebrow">10. Issue capture template</div>
+          <h2>Log bugs in a way engineers can actually use</h2>
+          <pre>Bug title: Learner app shows stale Story Time subject after live bootstrap refresh
+
+- ID: UAT-___
+- Area: LMS / Learner App / End-to-end
+- Severity: Blocker / Major / Minor
+- Environment: browser / device / build
+- Preconditions:
+- Steps to reproduce:
+  1.
+  2.
+  3.
+- Expected result:
+- Actual result:
+- Evidence: screenshot / recording / log
+- Owner:
+- Status: Open / In progress / Fixed / Retest / Closed</pre>
+        </section>
+
+        <section id="signoff" class="card">
+          <div class="eyebrow">11. Sign-off checklist</div>
+          <h2>Do not sign off unless the answer is honestly yes</h2>
+          <ul class="checklist">
+            <li>Can an admin navigate the LMS without route failures?</li>
+            <li>Can curriculum structure be reviewed and edited safely?</li>
+            <li>Can an English or interactive lesson be authored and re-opened?</li>
+            <li>Can a learner open and complete a real lesson?</li>
+            <li>Does the learner app show the right content, not stale nonsense?</li>
+            <li>Does at least one end-to-end content-to-delivery-to-evidence flow work?</li>
+            <li>Are blocker and major defects either fixed or explicitly accepted?</li>
+          </ul>
+          <p class="footer-note">If not, it is not sign-off. It is wishful thinking with cleaner typography.</p>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -98,6 +98,9 @@ export default function GuidePage() {
           <Link href="/reports" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>
             Open reports
           </Link>
+          <a href="/LUMO_MVP_QA_UAT_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EFF6FF', color: '#1D4ED8', textDecoration: 'none', border: '1px solid #BFDBFE' }}>
+            Open QA / UAT guide
+          </a>
           <a href="/LMS_DASHBOARD_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
             Open printable HTML guide
           </a>
@@ -343,6 +346,26 @@ choice-3|Go to school|wrong|image|school.png`}</pre>
             </div>
           </div>
         </Card>
+
+        <div id="qa-uat-guide">
+          <Card title="MVP QA / UAT guide" eyebrow="Cross-product test handbook">
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>
+                The MVP now has a dedicated QA / UAT guide for structured validation across the LMS and learner tablet app: smoke test, LMS checks, learner app checks, end-to-end flows, pass / fail criteria, troubleshooting, and issue capture.
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <a href="/LUMO_MVP_QA_UAT_GUIDE.html" target="_blank" rel="noreferrer" style={{ color: '#1D4ED8', fontWeight: 800, textDecoration: 'none' }}>
+                  Open QA / UAT HTML guide →
+                </a>
+              </div>
+              <iframe
+                src="/LUMO_MVP_QA_UAT_GUIDE.html"
+                title="Lumo MVP QA and UAT guide"
+                style={{ width: '100%', minHeight: '72vh', border: '1px solid #e2e8f0', borderRadius: 20, background: 'white' }}
+              />
+            </div>
+          </Card>
+        </div>
 
         <div id="workflow">
           <Card title="Recommended workflow" eyebrow="Use the thing properly">
