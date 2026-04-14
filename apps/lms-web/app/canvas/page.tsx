@@ -62,28 +62,28 @@ export default async function CurriculumCanvasPage() {
       )}
     >
       {failedSources.length ? (
-        <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', display: 'grid', gap: 6 }}>
+        <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(67,20,7,0.98) 0%, rgba(88,28,12,0.94) 100%)', border: '1px solid rgba(251,146,60,0.32)', color: '#fed7aa', display: 'grid', gap: 6, boxShadow: '0 18px 32px rgba(15,23,42,0.18)' }}>
           <div style={{ fontWeight: 800 }}>Canvas is running in degraded mode.</div>
           <div style={{ lineHeight: 1.6 }}>
             {healthyFeeds}/{totalFeeds} curriculum feeds responded. These sources are currently down or stale: <strong>{failedSources.join(', ')}</strong>.
           </div>
-          <div style={{ lineHeight: 1.6, fontSize: 14 }}>
+          <div style={{ lineHeight: 1.6, fontSize: 14, color: '#fdba74' }}>
             You can still inspect modules and release blockers below, but counts may be partial until those feeds recover.
           </div>
         </div>
       ) : null}
 
       {usedRescueTree ? (
-        <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', display: 'grid', gap: 6 }}>
+        <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(30,41,59,0.98) 0%, rgba(30,27,75,0.94) 100%)', border: '1px solid rgba(129,140,248,0.28)', color: '#c7d2fe', display: 'grid', gap: 6, boxShadow: '0 18px 32px rgba(15,23,42,0.18)' }}>
           <div style={{ fontWeight: 800 }}>Canvas recovered from the authoritative curriculum tree.</div>
           <div style={{ lineHeight: 1.6 }}>
-            The split subject/strand/module feeds did not shape into a renderable graph, so this page switched to <code>/api/v1/curriculum/canvas</code> to keep the route usable.
+            The split subject/strand/module feeds did not shape into a renderable graph, so this page switched to <code style={{ color: '#e0e7ff' }}>/api/v1/curriculum/canvas</code> to keep the route usable.
           </div>
         </div>
       ) : null}
 
       {blendedFromTree ? (
-        <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: '#ecfeff', border: '1px solid #a5f3fc', color: '#155e75', display: 'grid', gap: 6 }}>
+        <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(8,47,73,0.98) 0%, rgba(15,23,42,0.94) 100%)', border: '1px solid rgba(103,232,249,0.22)', color: '#a5f3fc', display: 'grid', gap: 6, boxShadow: '0 18px 32px rgba(15,23,42,0.18)' }}>
           <div style={{ fontWeight: 800 }}>Canvas is blending live feeds with rescue data.</div>
           <div style={{ lineHeight: 1.6 }}>
             Some modules were missing lesson or assessment detail, so the page filled those gaps from the authoritative tree instead of showing a skinny, misleading card.

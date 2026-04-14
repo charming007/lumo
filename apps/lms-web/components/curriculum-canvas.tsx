@@ -107,6 +107,41 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
         ))}
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        {[
+          {
+            label: 'Focused module',
+            value: selected?.module.title ?? 'No module selected',
+            note: selected ? `${selected.subject.name} → ${selected.strand.name}` : 'Pick any card to inspect it in detail.',
+            tone: 'rgba(79,70,229,0.14)',
+            border: 'rgba(129,140,248,0.26)',
+            color: '#e0e7ff',
+          },
+          {
+            label: 'Current release signal',
+            value: selected ? moduleHealthLabel(selected.module.readyLessons, selected.module.lessonCount, selected.module.gapCount) : 'Waiting for module focus',
+            note: selected ? `${selected.module.gapCount} blocker${selected.module.gapCount === 1 ? '' : 's'} · ${selected.module.assessments.length} gate${selected.module.assessments.length === 1 ? '' : 's'}` : 'The detail panel updates as soon as you click a module card.',
+            tone: 'rgba(15,118,110,0.14)',
+            border: 'rgba(45,212,191,0.24)',
+            color: '#ccfbf1',
+          },
+          {
+            label: 'Canvas posture',
+            value: failedSources.length ? 'Degraded but usable' : 'Healthy render path',
+            note: failedSources.length ? `Down feeds: ${failedSources.join(', ')}` : 'Live graph and detail rail are rendering normally.',
+            tone: failedSources.length ? 'rgba(120,53,15,0.2)' : 'rgba(30,41,59,0.68)',
+            border: failedSources.length ? 'rgba(251,146,60,0.28)' : 'rgba(148,163,184,0.18)',
+            color: failedSources.length ? '#fdba74' : '#cbd5e1',
+          },
+        ].map((item) => (
+          <div key={item.label} style={{ padding: 16, borderRadius: 20, background: item.tone, border: `1px solid ${item.border}`, display: 'grid', gap: 8 }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.9 }}>{item.label}</div>
+            <div style={{ color: '#f8fafc', fontSize: 20, fontWeight: 900 }}>{item.value}</div>
+            <div style={{ color: item.color, lineHeight: 1.5, fontSize: 14 }}>{item.note}</div>
+          </div>
+        ))}
+      </div>
+
       <div className="curriculum-canvas__grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(320px, 0.9fr)', gap: 18, alignItems: 'start' }}>
         <div style={{ padding: 18, borderRadius: 28, background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.98) 100%)', border: '1px solid rgba(99,102,241,0.16)', boxShadow: '0 24px 44px rgba(2, 6, 23, 0.34)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
