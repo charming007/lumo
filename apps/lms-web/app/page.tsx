@@ -196,6 +196,9 @@ export default async function HomePage() {
           <Link href="/content" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
             Clear content blockers
           </Link>
+          <a href="/LMS_DATA_MAP.html" target="_blank" rel="noreferrer" style={{ ...quickActionStyle, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
+            LMS data map
+          </a>
           <a href="/LUMO_POSITIONING_BRIEF.html" target="_blank" rel="noreferrer" style={{ ...quickActionStyle, background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' }}>
             Positioning brief
           </a>
