@@ -192,55 +192,82 @@ class _SplashScreenState extends State<SplashScreen> {
             colors: [Color(0xFFF9FAFF), Color(0xFFEFEFFF), Color(0xFFFDF7EE)],
           ),
         ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(40),
-                  boxShadow: [
-                    BoxShadow(
-                      color: LumoTheme.primary.withValues(alpha: 0.16),
-                      blurRadius: 30,
-                      offset: const Offset(0, 18),
-                    ),
-                  ],
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
-                  child: Image.asset(
-                    'assets/images/lumo_logo.jpg',
-                    height: 168,
-                    width: 168,
-                    fit: BoxFit.cover,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 64,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(40),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    LumoTheme.primary.withValues(alpha: 0.16),
+                                blurRadius: 30,
+                                offset: const Offset(0, 18),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(30),
+                            child: Image.asset(
+                              'assets/images/lumo_logo.jpg',
+                              height: 168,
+                              width: 168,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        const Text(
+                          'Lumo learner tablet',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Preparing AI Mallam, learners, and voice-first lessons...',
+                          style: TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        const SizedBox(
+                          width: 220,
+                          child: LinearProgressIndicator(
+                            minHeight: 8,
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(999),
+                            ),
+                            color: LumoTheme.primary,
+                            backgroundColor: Color(0xFFE9E7FF),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Lumo learner tablet',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Preparing AI Mallam, learners, and voice-first lessons...',
-                style: TextStyle(color: Color(0xFF6B7280), fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              const SizedBox(
-                width: 220,
-                child: LinearProgressIndicator(
-                  minHeight: 8,
-                  borderRadius: BorderRadius.all(Radius.circular(999)),
-                  color: LumoTheme.primary,
-                  backgroundColor: Color(0xFFE9E7FF),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -1351,12 +1378,17 @@ class LearnerProfilePage extends StatelessWidget {
                         ],
                         if (rewardOptions.isNotEmpty) ...[
                           _RewardRedemptionPlannerPanel(
+                            state: state,
                             learner: learner,
                             summary: state
                                 .rewardRedemptionSummaryForLearner(learner),
                             featuredReward: featuredReward,
                             options: rewardOptions,
                             nearlyUnlockedRewards: nearlyUnlockedRewards,
+                            history: state
+                                .rewardRedemptionHistoryForLearner(learner),
+                            spendablePoints:
+                                state.spendableRewardPointsForLearner(learner),
                           ),
                           const SizedBox(height: 18),
                         ],
@@ -3593,6 +3625,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   bool _resumedSession = false;
   bool _resumePromptPendingFromLifecycle = false;
   String _latestFinalTranscript = '';
+  bool _capturedStableFinalTranscript = false;
+  bool _latestTranscriptNeedsManualReview = false;
   String _recordingModeLabel = 'Standard recorder';
   int _consecutiveTranscriptMisses = 0;
   bool _autoPausedByTranscriptFailure = false;
@@ -3624,6 +3658,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       }
       if (hasDraftResponse) {
         liveTranscript = session.latestLearnerResponse!.trim();
+        _latestTranscriptNeedsManualReview = hasSavedAudio;
       }
       microphoneStatus = hasSavedAudio
           ? 'Recovered ${widget.lesson.title} with saved learner audio attached. Review the answer, then continue cleanly from this step.'
@@ -3697,6 +3732,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
     setState(() {
       transcriptReviewPending = false;
+      _latestTranscriptNeedsManualReview = false;
       if (resumeHandsFree) {
         isAutoMode = true;
         _autoPausedByTranscriptFailure = false;
@@ -3848,17 +3884,33 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           false) &&
       (!speechRecognitionActive || _avoidConcurrentSpeechCapture);
 
+  bool get _hasSavedLearnerAudio =>
+      widget.state.activeSession?.latestLearnerAudioPath?.trim().isNotEmpty ??
+      false;
+
+  bool get _draftTranscriptNeedsVoiceCheck =>
+      transcriptReviewPending &&
+      _latestTranscriptNeedsManualReview &&
+      responseController.text.trim().isNotEmpty &&
+      _hasSavedLearnerAudio;
+
   String get _learnerResponseHintText => _isAudioOnlyReviewState
       ? 'No transcript was captured. Listen to the saved voice note, then type the learner response here if needed.'
-      : 'Transcript or typed response appears here';
+      : _draftTranscriptNeedsVoiceCheck
+          ? 'Saved audio and a draft transcript are attached. Listen once, then edit or confirm the text here.'
+          : 'Transcript or typed response appears here';
 
   String get _reviewBannerTitle => _isAudioOnlyReviewState
       ? 'Review saved voice before advancing'
-      : 'Review transcript before advancing';
+      : _draftTranscriptNeedsVoiceCheck
+          ? 'Verify draft transcript with saved voice'
+          : 'Review transcript before advancing';
 
   String get _reviewBannerBody => _isAudioOnlyReviewState
       ? 'This take was captured in audio-first mode, so Lumo kept the learner recording but could not safely fill the response box automatically on this device.'
-      : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
+      : _draftTranscriptNeedsVoiceCheck
+          ? 'Lumo saved both the learner audio and this draft transcript. Use the saved voice as the source of truth, then edit or confirm the text before Mallam continues.'
+          : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
 
   Future<void> _toggleSavedAudioPlayback() async {
     final audioPath =
@@ -4436,6 +4488,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final outcome = widget.state.submitLearnerResponse(trimmed);
     responseController.text = trimmed;
     transcriptReviewPending = false;
+    _latestTranscriptNeedsManualReview = false;
     widget.onChanged();
     setState(() {});
 
@@ -4486,6 +4539,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       transcriptCapturedThisTake = false;
       liveTranscript = '';
       _latestFinalTranscript = '';
+      _capturedStableFinalTranscript = false;
+      _latestTranscriptNeedsManualReview = false;
       transcriptReviewPending = false;
       if (shouldClearStaleDraft) {
         responseController.clear();
@@ -4511,6 +4566,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   liveTranscript = cleaned;
                   if (isFinal) {
                     _latestFinalTranscript = cleaned;
+                    _capturedStableFinalTranscript = true;
+                    _latestTranscriptNeedsManualReview = false;
                   }
                   transcriptCapturedThisTake =
                       cleaned.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').length >=
@@ -4673,6 +4730,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             ? _latestFinalTranscript
             : liveTranscript)
         .trim();
+    final transcriptIsStable =
+        transcript.isNotEmpty && _capturedStableFinalTranscript;
+    final transcriptNeedsManualReview =
+        transcript.isNotEmpty && !transcriptIsStable;
     final wasSpeechRecognitionActive = speechRecognitionActive;
     final result = await audioCaptureService.stop();
     if (!mounted) return;
@@ -4697,10 +4758,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           : 'Shared mic on tablet • audio-only fallback',
     );
 
+    _latestTranscriptNeedsManualReview = transcriptNeedsManualReview;
+
     if (transcript.isNotEmpty) {
       _resetTranscriptRecoveryState();
       responseController.text = transcript;
-      transcriptReviewPending = !isAutoMode;
+      transcriptReviewPending = !isAutoMode || transcriptNeedsManualReview;
+      if (transcriptNeedsManualReview) {
+        isAutoMode = false;
+        _autoPausedByTranscriptFailure = true;
+      }
     } else {
       _consecutiveTranscriptMisses += 1;
       final previousLearnerResponse =
@@ -4720,19 +4787,26 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     setState(() {
       currentRecordingDuration = result.duration;
       final savedLabel = transcript.isNotEmpty
-          ? 'Learner voice saved (${formatDuration(result.duration)}). Transcript captured.'
+          ? (transcriptNeedsManualReview
+              ? 'Learner voice saved (${formatDuration(result.duration)}). Lumo captured only a draft transcript, so it is waiting for a manual voice check before advancing.'
+              : 'Learner voice saved (${formatDuration(result.duration)}). Transcript captured and ready.')
           : 'Learner voice saved (${formatDuration(result.duration)}). No transcript was detected, so the app kept the audio and is ready for a manual check.';
-      final recoveryLabel = _consecutiveTranscriptMisses >= 3
-          ? ' Auto mode paused after repeated transcript misses. Confirm the answer manually or keep teaching with audio-first support.'
-          : _consecutiveTranscriptMisses >= 2
-              ? ' Transcript help is struggling, so Repeat mode is now active for a safer hands-free loop.'
-              : '';
+      final recoveryLabel = transcriptNeedsManualReview
+          ? ' Auto mode paused so the facilitator can verify the saved voice against the draft transcript.'
+          : _consecutiveTranscriptMisses >= 3
+              ? ' Auto mode paused after repeated transcript misses. Confirm the answer manually or keep teaching with audio-first support.'
+              : _consecutiveTranscriptMisses >= 2
+                  ? ' Transcript help is struggling, so Repeat mode is now active for a safer hands-free loop.'
+                  : '';
       microphoneStatus = markReadyForResume && !transcriptReviewPending
           ? '$savedLabel Ready for Mallam or the next learner attempt.$recoveryLabel'
           : '$savedLabel$recoveryLabel';
     });
 
-    if (transcript.isNotEmpty && isAutoMode && !isProcessingTranscript) {
+    if (transcript.isNotEmpty &&
+        !transcriptNeedsManualReview &&
+        isAutoMode &&
+        !isProcessingTranscript) {
       isProcessingTranscript = true;
       try {
         await _handleSubmittedResponse(transcript, auto: true);
@@ -5107,6 +5181,86 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final suggestions = widget.state.suggestedResponsesForCurrentStep();
     final expectedResponse =
         widget.state.personalizeExpectedResponse(step.expectedResponse);
+    final isStackedLayout = MediaQuery.sizeOf(context).width < 1180;
+
+    Widget buildLessonGuidePane() {
+      if (isStackedLayout) {
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              SizedBox(
+                height: 360,
+                child: MallamPanel(
+                  instruction: lessonInstruction,
+                  onVoiceTap: () async {
+                    _promptedCurrentStep = false;
+                    await _speakCurrentStepIfNeeded(force: true);
+                    widget.onChanged();
+                    setState(() {});
+                  },
+                  prompt: widget.state.personalizePrompt(step.coachPrompt),
+                  speakerMode: session.speakerMode,
+                  statusLabel: _speakerModeLabel(session.speakerMode),
+                  secondaryStatus:
+                      'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
+                  voiceButtonLabel: 'Replay Mallam',
+                  speakerOutputMode: session.speakerOutputMode,
+                  voiceHint: isSpeaking
+                      ? 'Mallam is active on the left while the learner task stays visible on the right.'
+                      : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
+                ),
+              ),
+              const SizedBox(height: 16),
+              _LessonStageStrip(
+                session: session,
+                lesson: widget.lesson,
+              ),
+              const SizedBox(height: 16),
+              _LessonTranscriptPanel(
+                session: session,
+                learnerName: learner.name,
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Column(
+        children: [
+          Expanded(
+            child: MallamPanel(
+              instruction: lessonInstruction,
+              onVoiceTap: () async {
+                _promptedCurrentStep = false;
+                await _speakCurrentStepIfNeeded(force: true);
+                widget.onChanged();
+                setState(() {});
+              },
+              prompt: widget.state.personalizePrompt(step.coachPrompt),
+              speakerMode: session.speakerMode,
+              statusLabel: _speakerModeLabel(session.speakerMode),
+              secondaryStatus:
+                  'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
+              voiceButtonLabel: 'Replay Mallam',
+              speakerOutputMode: session.speakerOutputMode,
+              voiceHint: isSpeaking
+                  ? 'Mallam is active on the left while the learner task stays visible on the right.'
+                  : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
+            ),
+          ),
+          const SizedBox(height: 16),
+          _LessonStageStrip(
+            session: session,
+            lesson: widget.lesson,
+          ),
+          const SizedBox(height: 16),
+          _LessonTranscriptPanel(
+            session: session,
+            learnerName: learner.name,
+          ),
+        ],
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -5116,42 +5270,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: MallamPanel(
-                        instruction: lessonInstruction,
-                        onVoiceTap: () async {
-                          _promptedCurrentStep = false;
-                          await _speakCurrentStepIfNeeded(force: true);
-                          widget.onChanged();
-                          setState(() {});
-                        },
-                        prompt:
-                            widget.state.personalizePrompt(step.coachPrompt),
-                        speakerMode: session.speakerMode,
-                        statusLabel: _speakerModeLabel(session.speakerMode),
-                        secondaryStatus:
-                            'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
-                        voiceButtonLabel: 'Replay Mallam',
-                        speakerOutputMode: session.speakerOutputMode,
-                        voiceHint: isSpeaking
-                            ? 'Mallam is active on the left while the learner task stays visible on the right.'
-                            : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _LessonStageStrip(
-                      session: session,
-                      lesson: widget.lesson,
-                    ),
-                    const SizedBox(height: 16),
-                    _LessonTranscriptPanel(
-                      session: session,
-                      learnerName: learner.name,
-                    ),
-                  ],
-                ),
+                child: buildLessonGuidePane(),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -5695,6 +5814,36 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         spacing: 8,
                                         runSpacing: 8,
                                         children: [
+                                          _buildDiagnosticChip(
+                                            icon: _isAudioOnlyReviewState
+                                                ? Icons.mic_none_rounded
+                                                : _draftTranscriptNeedsVoiceCheck
+                                                    ? Icons.hearing_rounded
+                                                    : Icons.subtitles_rounded,
+                                            label: _isAudioOnlyReviewState
+                                                ? 'Transcript missing • use saved voice'
+                                                : _draftTranscriptNeedsVoiceCheck
+                                                    ? 'Draft transcript • verify with audio'
+                                                    : 'Transcript ready for facilitator check',
+                                            healthy: !_isAudioOnlyReviewState &&
+                                                !_draftTranscriptNeedsVoiceCheck,
+                                            warn: _isAudioOnlyReviewState ||
+                                                _draftTranscriptNeedsVoiceCheck,
+                                          ),
+                                          if (_hasSavedLearnerAudio)
+                                            _buildDiagnosticChip(
+                                              icon: Icons.library_music_rounded,
+                                              label:
+                                                  'Saved learner voice attached',
+                                              healthy: true,
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
                                           FilledButton.tonalIcon(
                                             onPressed: responseController.text
                                                     .trim()
@@ -6059,6 +6208,57 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                     Duration.zero,
                                               ),
                                             ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children:
+                                                  List.generate(18, (index) {
+                                                final active =
+                                                    learnerAudioPlaybackService
+                                                            .isPlaying
+                                                        ? (index % 3 != 0)
+                                                        : index.isEven;
+                                                const heights = [
+                                                  8.0,
+                                                  16.0,
+                                                  24.0,
+                                                  14.0,
+                                                  20.0,
+                                                  10.0
+                                                ];
+                                                return Container(
+                                                  width: 6,
+                                                  height: active
+                                                      ? heights[index %
+                                                          heights.length]
+                                                      : 8,
+                                                  margin: const EdgeInsets.only(
+                                                      right: 4),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        learnerAudioPlaybackService
+                                                                .isPlaying
+                                                            ? const Color(
+                                                                0xFF4F46E5)
+                                                            : const Color(
+                                                                0xFFCBD5E1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            999),
+                                                  ),
+                                                );
+                                              }),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              learnerAudioPlaybackService
+                                                      .isPlaying
+                                                  ? 'Playback is running now. Listen, then accept, type a note, or replay.'
+                                                  : 'Preview the saved learner answer before advancing. This stays available even when transcript capture fails.',
+                                              style: const TextStyle(
+                                                color: Color(0xFF475569),
+                                                height: 1.35,
+                                              ),
+                                            ),
                                             const SizedBox(height: 6),
                                             Text(
                                               compactPath(
@@ -6195,7 +6395,7 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
         Flexible() => child.child,
         _ => child,
       };
-      final paneHeight = viewportHeight < 700 ? 700.0 : viewportHeight * 0.96;
+      final paneHeight = viewportHeight < 700 ? 760.0 : viewportHeight * 1.4;
       return isPane
           ? SizedBox(
               height: paneHeight,
@@ -7880,23 +8080,98 @@ LearnerLeaderboardEntry? learnerLeaderboardEntryFor(
 }
 
 class _RewardRedemptionPlannerPanel extends StatelessWidget {
+  final LumoAppState state;
   final LearnerProfile learner;
   final String summary;
   final RewardRedemptionOption? featuredReward;
   final List<RewardRedemptionOption> options;
   final List<RewardRedemptionOption> nearlyUnlockedRewards;
+  final List<RewardRedemptionRecord> history;
+  final int spendablePoints;
 
   const _RewardRedemptionPlannerPanel({
+    required this.state,
     required this.learner,
     required this.summary,
     required this.featuredReward,
     required this.options,
     required this.nearlyUnlockedRewards,
+    required this.history,
+    required this.spendablePoints,
   });
+
+  String _formatRedeemedAt(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '${value.month}/${value.day} $hour:$minute';
+  }
+
+  Future<void> _showRewardRedeemDialog(
+    BuildContext context,
+    RewardRedemptionOption reward,
+  ) async {
+    final controller = TextEditingController();
+    final record = await showDialog<RewardRedemptionRecord>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Redeem ${reward.title}?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${reward.icon} ${reward.description}'),
+            const SizedBox(height: 12),
+            Text('Best use: ${reward.celebrationCue}'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Celebration note',
+                hintText:
+                    'What did the learner choose or how was it celebrated?',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final result = state.redeemRewardForLearner(
+                learner: learner,
+                option: reward,
+                note: controller.text,
+              );
+              Navigator.of(dialogContext).pop(result);
+            },
+            child: const Text('Redeem reward'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || record == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${learner.name} redeemed ${record.title}. ${record.pointsRemaining} point(s) remain.',
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final unlockedCount = options.where((item) => item.unlocked).length;
+    final resolvedOptions = options
+        .map((item) => state.rewardOptionStateForLearner(learner, item))
+        .toList();
+    final unlockedCount = resolvedOptions.where((item) => item.unlocked).length;
+    final resolvedFeaturedReward = featuredReward == null
+        ? null
+        : state.rewardOptionStateForLearner(learner, featuredReward!);
 
     return SoftPanel(
       child: Column(
@@ -7925,18 +8200,35 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
             summary,
             style: const TextStyle(color: Color(0xFF475569), height: 1.4),
           ),
-          if (featuredReward != null) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _MiniMetricChip(
+                icon: Icons.wallet_giftcard_rounded,
+                label: '$spendablePoints pts available',
+              ),
+              _MiniMetricChip(
+                icon: Icons.history_rounded,
+                label: history.isEmpty
+                    ? 'No redemptions yet'
+                    : '${history.length} redemption(s)',
+              ),
+            ],
+          ),
+          if (resolvedFeaturedReward != null) ...[
             const SizedBox(height: 14),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: featuredReward!.unlocked
+                color: resolvedFeaturedReward.unlocked
                     ? const Color(0xFFEEFBF3)
                     : const Color(0xFFFFF7ED),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: featuredReward!.unlocked
+                  color: resolvedFeaturedReward.unlocked
                       ? const Color(0xFFA7F3D0)
                       : const Color(0xFFFCD34D),
                 ),
@@ -7950,15 +8242,15 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        '${featuredReward!.icon} ${featuredReward!.title}',
+                        '${resolvedFeaturedReward.icon} ${resolvedFeaturedReward.title}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 18,
                         ),
                       ),
                       StatusPill(
-                        text: featuredReward!.category,
-                        color: featuredReward!.unlocked
+                        text: resolvedFeaturedReward.category,
+                        color: resolvedFeaturedReward.unlocked
                             ? LumoTheme.accentGreen
                             : LumoTheme.accentOrange,
                       ),
@@ -7966,7 +8258,7 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    featuredReward!.description,
+                    resolvedFeaturedReward.description,
                     style: const TextStyle(
                       color: Color(0xFF334155),
                       height: 1.4,
@@ -7977,13 +8269,28 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
                     items: [
                       (
                         'Status',
-                        featuredReward!.unlocked
+                        resolvedFeaturedReward.unlocked
                             ? 'Ready to redeem'
-                            : '${featuredReward!.shortfall} pts to unlock',
+                            : '${resolvedFeaturedReward.shortfall} pts to unlock',
                       ),
-                      ('Cost', '${featuredReward!.cost} pts'),
-                      ('Best use', featuredReward!.celebrationCue),
+                      ('Cost', '${resolvedFeaturedReward.cost} pts'),
+                      ('Best use', resolvedFeaturedReward.celebrationCue),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: resolvedFeaturedReward.unlocked
+                        ? () => _showRewardRedeemDialog(
+                              context,
+                              resolvedFeaturedReward,
+                            )
+                        : null,
+                    icon: const Icon(Icons.redeem_rounded),
+                    label: Text(
+                      resolvedFeaturedReward.unlocked
+                          ? 'Redeem now'
+                          : 'Keep earning',
+                    ),
                   ),
                 ],
               ),
@@ -7996,48 +8303,107 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
-            ...nearlyUnlockedRewards.map(
-              (reward) => Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(reward.icon, style: const TextStyle(fontSize: 22)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            reward.title,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+            ...nearlyUnlockedRewards
+                .map((reward) =>
+                    state.rewardOptionStateForLearner(learner, reward))
+                .map(
+                  (reward) => Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(reward.icon, style: const TextStyle(fontSize: 22)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                reward.title,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${reward.shortfall} pts away • ${reward.category}',
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${reward.shortfall} pts away • ${reward.category}',
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 12,
+                        ),
+                        Text(
+                          '${reward.cost} pts',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+          ],
+          if (history.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Text(
+              'Redemption history',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 10),
+            ...history.take(3).map(
+                  (entry) => Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${entry.icon} ${entry.title}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
                             ),
+                            Text(
+                              '-${entry.cost} pts',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Redeemed ${_formatRedeemedAt(entry.redeemedAt)} • ${entry.pointsRemaining} pts left',
+                          style: const TextStyle(
+                              color: Color(0xFF64748B), fontSize: 12),
+                        ),
+                        if ((entry.note ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            entry.note!,
+                            style: const TextStyle(
+                                color: Color(0xFF334155), height: 1.35),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    Text(
-                      '${reward.cost} pts',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
           ],
           const SizedBox(height: 4),
           Text(

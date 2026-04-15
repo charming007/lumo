@@ -38,6 +38,7 @@ class LumoAppState {
   SpeakerMode speakerMode = SpeakerMode.guiding;
   RegistrationDraft registrationDraft = const RegistrationDraft();
   RegistrationContext registrationContext = const RegistrationContext();
+  Map<String, dynamic>? pendingRecoveredSessionSnapshot;
 
   final List<SyncEvent> pendingSyncEvents = [];
   late final List<LearnerProfile> learners = List.of(
@@ -52,6 +53,8 @@ class LumoAppState {
   final List<LearnerAssignmentPack> assignmentPacks = [];
   final Map<String, List<BackendLessonSession>>
       recentRuntimeSessionsByLearnerId = {};
+  final Map<String, List<RewardRedemptionRecord>>
+      rewardRedemptionHistoryByLearnerId = {};
 
   bool isBootstrapping = false;
   bool isRegisteringLearner = false;
@@ -247,6 +250,20 @@ class LumoAppState {
           return MapEntry(key.toString(), sessions);
         }));
 
+      final persistedRewardHistory =
+          (snapshot['rewardRedemptionHistoryByLearnerId'] as Map?) ?? const {};
+      rewardRedemptionHistoryByLearnerId
+        ..clear()
+        ..addAll(persistedRewardHistory.map((key, value) {
+          final history = (value as List?)
+                  ?.whereType<Map>()
+                  .map((item) => RewardRedemptionRecord.fromJson(
+                      Map<String, dynamic>.from(item)))
+                  .toList() ??
+              const <RewardRedemptionRecord>[];
+          return MapEntry(key.toString(), history);
+        }));
+
       registrationDraft =
           _decodeRegistrationDraft(snapshot['registrationDraft']);
       registrationContext =
@@ -279,6 +296,10 @@ class LumoAppState {
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
       final activeSessionRaw = snapshot['activeSession'];
       activeSession = _decodeActiveSession(activeSessionRaw);
+      pendingRecoveredSessionSnapshot =
+          activeSession == null && activeSessionRaw is Map
+              ? Map<String, dynamic>.from(activeSessionRaw)
+              : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
       restoredFromPersistence = true;
       persistenceError = null;
@@ -371,6 +392,7 @@ class LumoAppState {
           orElse: () => modules.first,
         );
       }
+      _recoverPendingSessionAfterRefresh();
     } catch (error) {
       usingFallbackData = true;
       backendError = error.toString().replaceFirst('Exception: ', '');
@@ -1543,7 +1565,7 @@ class LumoAppState {
   List<RewardRedemptionOption> rewardRedemptionOptionsForLearner(
     LearnerProfile learner,
   ) {
-    final points = learner.rewards?.points ?? learner.totalXp;
+    final points = spendableRewardPointsForLearner(learner);
     final options = <RewardRedemptionOption>[
       const RewardRedemptionOption(
         id: 'sticker-time',
@@ -1639,12 +1661,116 @@ class LumoAppState {
     return options.take(2).toList();
   }
 
+  List<RewardRedemptionRecord> rewardRedemptionHistoryForLearner(
+    LearnerProfile? learner,
+  ) {
+    if (learner == null) return const [];
+    return rewardRedemptionHistoryByLearnerId[learner.id] ?? const [];
+  }
+
+  RewardRedemptionRecord? latestRewardRedemptionForLearner(
+    LearnerProfile? learner,
+  ) {
+    final history = rewardRedemptionHistoryForLearner(learner);
+    return history.isEmpty ? null : history.first;
+  }
+
+  int spendableRewardPointsForLearner(LearnerProfile learner) {
+    final earned = learner.rewards?.points ?? learner.totalXp;
+    final spent = rewardRedemptionHistoryForLearner(learner)
+        .where((entry) => entry.status != 'voided')
+        .fold<int>(0, (sum, entry) => sum + entry.cost);
+    return max(0, earned - spent);
+  }
+
+  bool canRedeemRewardForLearner(
+    LearnerProfile learner,
+    RewardRedemptionOption option,
+  ) {
+    return spendableRewardPointsForLearner(learner) >= option.cost;
+  }
+
+  RewardRedemptionOption rewardOptionStateForLearner(
+    LearnerProfile learner,
+    RewardRedemptionOption option,
+  ) {
+    final spendable = spendableRewardPointsForLearner(learner);
+    return option.copyWith(
+      unlocked: spendable >= option.cost,
+      shortfall: max(0, option.cost - spendable),
+    );
+  }
+
+  RewardRedemptionRecord redeemRewardForLearner({
+    required LearnerProfile learner,
+    required RewardRedemptionOption option,
+    String? note,
+  }) {
+    final resolved = rewardOptionStateForLearner(learner, option);
+    if (!resolved.unlocked) {
+      throw StateError(
+        '${learner.name} needs ${resolved.shortfall} more point(s) before redeeming ${resolved.title}.',
+      );
+    }
+
+    final record = RewardRedemptionRecord(
+      id: 'reward-${DateTime.now().millisecondsSinceEpoch}',
+      learnerId: learner.id,
+      optionId: resolved.id,
+      title: resolved.title,
+      icon: resolved.icon,
+      category: resolved.category,
+      cost: resolved.cost,
+      celebrationCue: resolved.celebrationCue,
+      note: note?.trim().isEmpty ?? true ? null : note!.trim(),
+      redeemedAt: DateTime.now(),
+      pointsRemaining: spendableRewardPointsForLearner(learner) - resolved.cost,
+      status: 'redeemed',
+    );
+
+    final updatedHistory = [
+      record,
+      ...rewardRedemptionHistoryForLearner(learner),
+    ];
+    rewardRedemptionHistoryByLearnerId[learner.id] = updatedHistory;
+
+    pendingSyncEvents.add(
+      SyncEvent(
+        id: 'sync-${pendingSyncEvents.length + 1}',
+        type: 'learner_reward_redeemed',
+        payload: {
+          'learnerId': learner.id,
+          'learnerCode': learner.learnerCode,
+          'rewardId': record.id,
+          'optionId': resolved.id,
+          'title': resolved.title,
+          'category': resolved.category,
+          'cost': resolved.cost,
+          'celebrationCue': resolved.celebrationCue,
+          'note': record.note,
+          'redeemedAt': record.redeemedAt.toIso8601String(),
+          'pointsRemaining': record.pointsRemaining,
+          'status': record.status,
+        },
+      ),
+    );
+    persistStateSoon();
+    _attemptSyncSoon();
+    return record;
+  }
+
   String rewardRedemptionSummaryForLearner(LearnerProfile learner) {
     final options = rewardRedemptionOptionsForLearner(learner);
+    final spendable = spendableRewardPointsForLearner(learner);
+    final history = rewardRedemptionHistoryForLearner(learner);
     final unlocked = options.where((item) => item.unlocked).toList();
     final featured = featuredRewardForLearner(learner);
     if (featured == null) {
       return 'Reward planner is waiting for the next point update.';
+    }
+    if (history.isNotEmpty) {
+      final latest = history.first;
+      return '${history.length} redemption(s) logged. $spendable point(s) still available after ${latest.title.toLowerCase()}. ';
     }
     if (unlocked.isEmpty) {
       return '${featured.shortfall} more points unlock ${featured.title.toLowerCase()}. Keep the next reward close and concrete.';
@@ -2585,6 +2711,11 @@ class LumoAppState {
         (key, value) =>
             MapEntry(key, value.map(_encodeBackendLessonSession).toList()),
       ),
+      'rewardRedemptionHistoryByLearnerId':
+          rewardRedemptionHistoryByLearnerId.map(
+        (key, value) =>
+            MapEntry(key, value.map(_encodeRewardRedemptionRecord).toList()),
+      ),
       'currentLearnerId': currentLearner?.id,
       'selectedModuleId': selectedModule?.id,
       'activeSession':
@@ -2667,6 +2798,53 @@ class LumoAppState {
           const <BackendLessonSession>[];
     }
     return output;
+  }
+
+  Map<String, List<RewardRedemptionRecord>> _decodeRewardRedemptionHistory(
+      Object? raw) {
+    final output = <String, List<RewardRedemptionRecord>>{};
+    if (raw is! Map) return output;
+    for (final entry in raw.entries) {
+      output[entry.key.toString()] = (entry.value as List?)
+              ?.whereType<Map>()
+              .map((item) => RewardRedemptionRecord.fromJson(
+                  Map<String, dynamic>.from(item)))
+              .toList() ??
+          const <RewardRedemptionRecord>[];
+    }
+    return output;
+  }
+
+  bool get hasPendingRecoveredSession =>
+      pendingRecoveredSessionSnapshot != null;
+
+  String get pendingRecoveredSessionLabel {
+    final snapshot = pendingRecoveredSessionSnapshot;
+    if (snapshot == null) return 'No pending recovery.';
+    final lessonTitle = snapshot['lessonTitle']?.toString();
+    final lessonId = snapshot['lessonId']?.toString();
+    final stepNumber = (_asInt(snapshot['stepIndex']) ?? 0) + 1;
+    final progress = 'Step $stepNumber';
+    final lessonLabel = lessonTitle?.trim().isNotEmpty == true
+        ? lessonTitle!.trim()
+        : (lessonId?.trim().isNotEmpty == true ? lessonId!.trim() : 'lesson');
+    return 'Recovered $lessonLabel is waiting for lesson sync before $progress can resume.';
+  }
+
+  void _recoverPendingSessionAfterRefresh() {
+    final snapshot = pendingRecoveredSessionSnapshot;
+    if (snapshot == null || activeSession != null) return;
+    final recovered = _decodeActiveSession(snapshot);
+    if (recovered == null) return;
+    activeSession = recovered;
+    pendingRecoveredSessionSnapshot = null;
+    final learnerId = snapshot['currentLearnerId']?.toString();
+    if (learnerId != null && learnerId.trim().isNotEmpty) {
+      currentLearner = learners.cast<LearnerProfile?>().firstWhere(
+            (item) => item?.id == learnerId,
+            orElse: () => currentLearner,
+          );
+    }
   }
 
   LessonSessionState? _decodeActiveSession(Object? raw) {
@@ -2801,6 +2979,23 @@ class LumoAppState {
             ? _decodeRewardSnapshot(Map<String, dynamic>.from(raw['rewards']))
             : null,
       );
+
+  Map<String, dynamic> _encodeRewardRedemptionRecord(
+          RewardRedemptionRecord record) =>
+      {
+        'id': record.id,
+        'learnerId': record.learnerId,
+        'optionId': record.optionId,
+        'title': record.title,
+        'icon': record.icon,
+        'category': record.category,
+        'cost': record.cost,
+        'celebrationCue': record.celebrationCue,
+        'note': record.note,
+        'redeemedAt': record.redeemedAt.toIso8601String(),
+        'pointsRemaining': record.pointsRemaining,
+        'status': record.status,
+      };
 
   Map<String, dynamic> _encodeRewardSnapshot(RewardSnapshot reward) => {
         'learnerId': reward.learnerId,
@@ -3063,6 +3258,8 @@ class LumoAppState {
   Map<String, dynamic> _encodeLessonSession(LessonSessionState session) => {
         'sessionId': session.sessionId,
         'lessonId': session.lesson.id,
+        'lessonTitle': session.lesson.title,
+        'currentLearnerId': currentLearner?.id,
         'stepIndex': session.stepIndex,
         'completionState': session.completionState.name,
         'speakerMode': session.speakerMode.name,
@@ -3200,6 +3397,67 @@ class LumoAppState {
     final hours = delta.inHours % 24;
     if (hours == 0) return '${days}d ago';
     return '${days}d ${hours}h ago';
+  }
+}
+
+class RewardRedemptionRecord {
+  final String id;
+  final String learnerId;
+  final String optionId;
+  final String title;
+  final String icon;
+  final String category;
+  final int cost;
+  final String celebrationCue;
+  final String? note;
+  final DateTime redeemedAt;
+  final int pointsRemaining;
+  final String status;
+
+  const RewardRedemptionRecord({
+    required this.id,
+    required this.learnerId,
+    required this.optionId,
+    required this.title,
+    required this.icon,
+    required this.category,
+    required this.cost,
+    required this.celebrationCue,
+    required this.redeemedAt,
+    required this.pointsRemaining,
+    this.note,
+    this.status = 'redeemed',
+  });
+
+  factory RewardRedemptionRecord.fromJson(Map<String, dynamic> json) {
+    int? asInt(Object? raw) =>
+        raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+    String? nullableString(Object? raw) {
+      final value = raw?.toString();
+      if (value == null || value.trim().isEmpty || value == 'null') return null;
+      return value;
+    }
+
+    DateTime? parseDate(Object? raw) {
+      final value = raw?.toString();
+      if (value == null || value.trim().isEmpty) return null;
+      return DateTime.tryParse(value);
+    }
+
+    return RewardRedemptionRecord(
+      id: json['id']?.toString() ?? 'reward-record',
+      learnerId: json['learnerId']?.toString() ?? '',
+      optionId: json['optionId']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Reward',
+      icon: json['icon']?.toString() ?? '🎉',
+      category: json['category']?.toString() ?? 'reward',
+      cost: asInt(json['cost']) ?? 0,
+      celebrationCue: json['celebrationCue']?.toString() ?? '',
+      note: nullableString(json['note']),
+      redeemedAt: parseDate(json['redeemedAt']) ?? DateTime.now(),
+      pointsRemaining: asInt(json['pointsRemaining']) ?? 0,
+      status: json['status']?.toString() ?? 'redeemed',
+    );
   }
 }
 
