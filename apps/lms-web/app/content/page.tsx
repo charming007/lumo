@@ -266,7 +266,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             assignments={assignments}
           />
 
-          <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+          <section style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
             <Card title="Release blockers" eyebrow="What still stops publish">
               <SimpleTable
                 columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
