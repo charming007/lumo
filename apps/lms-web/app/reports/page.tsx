@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { DashboardInsight, NgoSummary, OperationsReport, ReportsOverview } from '../../lib/types';
 import { fetchAssignments, fetchCohorts, fetchDashboardInsights, fetchMallams, fetchNgoSummary, fetchOperationsReport, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
 import { CopyableTextCard } from '../../components/copyable-text-card';
+import { ExportShareCard } from '../../components/export-share-card';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const EMPTY_REPORT: ReportsOverview = {
@@ -145,6 +146,16 @@ function buildFilterChips({ searchText, cohortName, podLabel, mallamName }: { se
     podLabel ? `Pod: ${podLabel}` : null,
     mallamName ? `Mallam: ${mallamName}` : null,
   ].filter(Boolean) as string[];
+}
+
+function csvEscape(value: string | number) {
+  const text = String(value ?? '');
+  if (!/[",\n]/.test(text)) return text;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function toCsv(rows: Array<Array<string | number>>) {
+  return rows.map((row) => row.map(csvEscape).join(',')).join('\n');
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
@@ -487,6 +498,59 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
     '',
     ...narrativePack.map((item) => `${item.title}: ${item.detail}`),
   ].join('\n');
+  const reportDateStamp = new Date().toISOString().slice(0, 10);
+  const reportJson = JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    scope: {
+      label: scopeLabel,
+      searchText: searchText || null,
+      cohortId: cohortFilter || null,
+      podId: podFilter || null,
+      mallamId: mallamFilter || null,
+      learnerCount: scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents,
+    },
+    metrics: {
+      attendanceAverage: ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance),
+      averageMastery: ngoSummary.totals.averageMastery || (podSnapshots.length ? average(podSnapshots.map((pod) => pod.masteryAverage)) : report.averageMastery),
+      progressionReady: ngoSummary.progression.ready || operationsReport.summary.progressionReady,
+      progressionWatch: ngoSummary.progression.watch || operationsReport.summary.progressionWatch,
+      rewardBacklogUrgent: operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0,
+    },
+    narratives: narrativePack,
+    hotPods: highestRiskPods,
+    hotMallams: highestImpactMallams,
+  }, null, 2);
+  const reportCsv = toCsv([
+    ['Scope', 'Learners', 'Attendance', 'Mastery', 'Ready', 'Watch', 'Urgent reward backlog'],
+    [
+      scopeLabel,
+      scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents,
+      `${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}%`,
+      `${Math.round((ngoSummary.totals.averageMastery || (podSnapshots.length ? average(podSnapshots.map((pod) => pod.masteryAverage)) : report.averageMastery)) * 100)}%`,
+      ngoSummary.progression.ready || operationsReport.summary.progressionReady,
+      ngoSummary.progression.watch || operationsReport.summary.progressionWatch,
+      operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0,
+    ],
+    [],
+    ['Pod', 'Center', 'Learners', 'Attendance', 'Mastery', 'Ready', 'Watch', 'Assignments'],
+    ...highestRiskPods.map((pod) => [
+      pod.label,
+      pod.centerName,
+      pod.rosterCount,
+      `${Math.round(pod.attendanceAverage * 100)}%`,
+      `${Math.round(pod.masteryAverage * 100)}%`,
+      pod.readyCount,
+      pod.watchCount,
+      pod.assignmentCount,
+    ]),
+  ]);
+  const shareSummary = [
+    `Lumo reporting pull · ${scopeLabel}`,
+    `${scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents} learners in scope.`,
+    `${ngoSummary.progression.ready || operationsReport.summary.progressionReady} ready to progress; ${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} on watch.`,
+    `Attendance ${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}% · urgent reward backlog ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0}.`,
+    highestRiskPods[0] ? `Top intervention pod: ${highestRiskPods[0].label} at ${Math.round(highestRiskPods[0].attendanceAverage * 100)}% attendance with ${highestRiskPods[0].watchCount} watch learners.` : 'No intervention pod is dominating the queue right now.',
+  ].join('\n');
 
   return (
     <PageShell
@@ -617,6 +681,37 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
               tone="#eef2ff"
               border="#c7d2fe"
             />
+          </div>
+        </Card>
+      </section>
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1.02fr 0.98fr', gap: 16, marginBottom: 20 }}>
+        <ExportShareCard
+          title="Export and share"
+          eyebrow="Reporting workflow"
+          summary="This route finally does the boring grown-up part properly: copy the narrative, download the lightweight handoff files, and share a scoped summary without rebuilding the same update in five places."
+          shareTitle={`Lumo report · ${scopeLabel}`}
+          shareText={shareSummary}
+          artifacts={[
+            { label: 'Download summary (.txt)', filename: `lumo-report-${reportDateStamp}.txt`, mimeType: 'text/plain', content: consolidatedNarrative, tone: '#EEF2FF', text: '#3730A3' },
+            { label: 'Download scope CSV', filename: `lumo-report-${reportDateStamp}.csv`, mimeType: 'text/csv', content: reportCsv, tone: '#ECFDF5', text: '#166534' },
+            { label: 'Download JSON snapshot', filename: `lumo-report-${reportDateStamp}.json`, mimeType: 'application/json', content: reportJson, tone: '#FFF7ED', text: '#9A3412' },
+          ]}
+        />
+
+        <Card title="Share discipline" eyebrow="Trust before distribution">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {[
+              ['Scope the report first', 'If the scope pill still says all cohorts and all pods, you are sharing a broad operating picture — not a targeted decision memo. That difference matters.'],
+              ['Share the degraded-mode warning too', 'When feeds are missing, the export should travel with the caution. A neat PDF-shaped lie is still a lie.'],
+              ['Use CSV for finance/admin follow-up', 'The CSV is for spreadsheets and trackers. The text summary is for humans. Mixing the two usually creates chaos with better typography.'],
+              ['JSON is the audit trail', 'Use the structured snapshot when product, data, or ops needs to prove what the report actually contained at send time.'],
+            ].map(([title, detail]) => (
+              <div key={title} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
+                <div style={{ color: '#64748b', lineHeight: 1.6 }}>{detail}</div>
+              </div>
+            ))}
           </div>
         </Card>
       </section>

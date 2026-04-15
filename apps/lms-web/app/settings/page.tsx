@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { checkpointStorageAction, deleteStorageBackupAction, repairStorageIntegrityAction, restoreStorageBackupAction } from '../actions';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ActionButton } from '../../components/action-button';
+import { ExportShareCard } from '../../components/export-share-card';
 import { fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { MetaResponse, OperationsReport, RewardSnapshot, RewardsReport, StorageBackupList, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
@@ -156,6 +157,52 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const integrityRewardRequests = integrity.summary.rewardRequestCount ?? integrity.summary.rewardRequests ?? 0;
   const issuePreview = integrity.issues.slice(0, 6);
   const visibleBackups = backups.items.length ? backups.items : (storageStatus?.backups ?? []);
+  const trustState = failedSources.length
+    ? 'Operator review required'
+    : integrity.summary.issueCount
+      ? 'Integrity issues need cleanup'
+      : storagePersistent
+        ? 'Production-safe posture visible'
+        : 'Volatile mode — do not fake confidence';
+  const trustDetail = failedSources.length
+    ? `Settings is missing ${failedSources.join(', ')} data, so treat this surface as advisory until the feeds recover.`
+    : integrity.summary.issueCount
+      ? `${integrity.summary.issueCount} integrity issue${integrity.summary.issueCount === 1 ? '' : 's'} are visible. Fix those before calling the stack healthy.`
+      : storagePersistent
+        ? `Storage is running in ${String(storageMode || 'unknown')} mode with persistent backing and ${visibleBackups.length} visible backup${visibleBackups.length === 1 ? '' : 's'}.`
+        : 'This environment is still volatile. Nice-looking controls do not magically make ephemeral storage safe.';
+  const settingsDateStamp = new Date().toISOString().slice(0, 10);
+  const settingsShareText = [
+    `Lumo settings trust snapshot · ${trustState}`,
+    trustDetail,
+    `Storage mode: ${String(storageMode || 'unknown')} (${storagePersistent ? 'persistent' : 'volatile'}) via ${storageDriver}.`,
+    `Progression watch: ${watch} · ready now: ${ready}.`,
+    `Reward queue: ${operationsReport.summary.rewardPendingRequests} pending with ${operationsReport.summary.integrityIssueCount} integrity issues reported.`,
+  ].join('\n');
+  const settingsJson = JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    trustState,
+    trustDetail,
+    storage: {
+      mode: storageMode,
+      persistent: storagePersistent,
+      driver: storageDriver,
+      backupsVisible: visibleBackups.length,
+      updatedAt: storageStatus?.updatedAt ?? null,
+    },
+    rewards: {
+      leaderboardLearners: leaderboard.length,
+      averageXp,
+      badgesUnlocked: totalBadgesUnlocked,
+      pendingRequests: operationsReport.summary.rewardPendingRequests,
+    },
+    progression: {
+      ready,
+      watch,
+      fulfillmentRate: rewardsReport.summary.fulfillmentRate,
+    },
+    integrity: integrity,
+  }, null, 2);
 
   return (
     <PageShell
@@ -178,6 +225,44 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
           Settings is running in degraded mode: {failedSources.join(', ')} {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
         </div>
       ) : null}
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Production trust center" eyebrow="Operational truth, not vibes">
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ padding: '18px 20px', borderRadius: 18, background: failedSources.length ? '#fff7ed' : integrity.summary.issueCount ? '#FEF2F2' : storagePersistent ? '#ECFDF5' : '#FEF3C7', border: `1px solid ${failedSources.length ? '#fed7aa' : integrity.summary.issueCount ? '#fecaca' : storagePersistent ? '#bbf7d0' : '#FDE68A'}` }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800, marginBottom: 8 }}>Trust status</div>
+              <strong style={{ display: 'block', fontSize: 22, color: '#0f172a', marginBottom: 6 }}>{trustState}</strong>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>{trustDetail}</div>
+            </div>
+            <div style={{ ...responsiveGrid(180), gap: 12 }}>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
+                <div style={{ color: '#64748b', marginBottom: 6 }}>Persistence</div>
+                <strong>{storagePersistent ? 'Durable backing live' : 'Volatile / demo-safe only'}</strong>
+              </div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
+                <div style={{ color: '#64748b', marginBottom: 6 }}>Integrity load</div>
+                <strong>{integrity.summary.issueCount} issue{integrity.summary.issueCount === 1 ? '' : 's'}</strong>
+              </div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
+                <div style={{ color: '#64748b', marginBottom: 6 }}>Backup visibility</div>
+                <strong>{visibleBackups.length} checkpoint{visibleBackups.length === 1 ? '' : 's'} visible</strong>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <ExportShareCard
+          title="Ops handoff pack"
+          eyebrow="Share / export"
+          summary="This is the clean handoff for product, ops, or deployment review: copy the trust summary, share it from mobile, or download the JSON snapshot before anyone starts making risky changes with selective memory."
+          shareTitle="Lumo settings trust snapshot"
+          shareText={settingsShareText}
+          artifacts={[
+            { label: 'Download trust summary (.txt)', filename: `lumo-settings-${settingsDateStamp}.txt`, mimeType: 'text/plain', content: settingsShareText, tone: '#EEF2FF', text: '#3730A3' },
+            { label: 'Download settings snapshot (.json)', filename: `lumo-settings-${settingsDateStamp}.json`, mimeType: 'application/json', content: settingsJson, tone: '#ECFDF5', text: '#166534' },
+          ]}
+        />
+      </section>
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         <Card title="Runtime" eyebrow="Environment">

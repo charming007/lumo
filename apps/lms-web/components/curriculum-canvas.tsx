@@ -91,6 +91,20 @@ function moduleUrl(subjectId: string, moduleId: string, searchTerm: string, read
   return `/canvas?${params.toString()}`;
 }
 
+function panelUrl(baseUrl: string, panel: 'lesson' | 'assessment', entityId: string) {
+  const [path, existingQuery] = baseUrl.split('?');
+  const params = new URLSearchParams(existingQuery ?? '');
+  params.set('panel', panel);
+  if (panel === 'lesson') {
+    params.set('lesson', entityId);
+    params.delete('assessment');
+  } else {
+    params.set('assessment', entityId);
+    params.delete('lesson');
+  }
+  return `${path}?${params.toString()}`;
+}
+
 function copyText(value: string, onDone?: () => void) {
   if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return Promise.resolve(false);
   return navigator.clipboard.writeText(value).then(() => {
@@ -142,7 +156,9 @@ export function CurriculumCanvas({
   generatedAt,
   mode = 'live',
   quickUpdateLessonStatusAction,
+  quickUpdateCanvasLessonAction,
   quickUpdateAssessmentStatusAction,
+  quickUpdateCanvasAssessmentAction,
   createCanvasAssessmentQuickAction,
 }: {
   data: CurriculumCanvasData;
@@ -150,7 +166,9 @@ export function CurriculumCanvas({
   generatedAt?: string | null;
   mode?: 'live' | 'blended' | 'rescue-tree' | 'hard-rescue';
   quickUpdateLessonStatusAction: (formData: FormData) => void;
+  quickUpdateCanvasLessonAction: (formData: FormData) => void;
   quickUpdateAssessmentStatusAction: (formData: FormData) => void;
+  quickUpdateCanvasAssessmentAction: (formData: FormData) => void;
   createCanvasAssessmentQuickAction: (formData: FormData) => void;
 }) {
   const firstModule = data.subjects[0]?.strands[0]?.modules[0] ?? null;
@@ -165,10 +183,13 @@ export function CurriculumCanvas({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
+    const panel = params.get('panel');
     setSearchTerm(params.get('q') ?? '');
     setSubjectFilter(params.get('subject') ?? 'all');
     setReadinessFilter(params.get('readiness') ?? 'all');
     setSelectedModuleId(params.get('module') ?? firstModule?.id ?? '');
+    setSelectedLessonId(panel === 'lesson' ? params.get('lesson') : null);
+    setSelectedAssessmentId(panel === 'assessment' ? params.get('assessment') : null);
   }, [firstModule?.id]);
 
   useEffect(() => {
@@ -290,22 +311,39 @@ export function CurriculumCanvas({
     if (subjectFilter !== 'all') params.set('subject', subjectFilter); else params.delete('subject');
     if (readinessFilter !== 'all') params.set('readiness', readinessFilter); else params.delete('readiness');
     if (selectedModuleId) params.set('module', selectedModuleId); else params.delete('module');
+    if (selectedLessonId) {
+      params.set('panel', 'lesson');
+      params.set('lesson', selectedLessonId);
+      params.delete('assessment');
+    } else if (selectedAssessmentId) {
+      params.set('panel', 'assessment');
+      params.set('assessment', selectedAssessmentId);
+      params.delete('lesson');
+    } else {
+      params.delete('panel');
+      params.delete('lesson');
+      params.delete('assessment');
+    }
     const nextQuery = params.toString();
     const nextUrl = nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname;
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     if (nextUrl !== currentUrl) {
       window.history.replaceState(null, '', nextUrl);
     }
-  }, [readinessFilter, searchTerm, selectedModuleId, subjectFilter]);
-
-  useEffect(() => {
-    setSelectedLessonId(null);
-    setSelectedAssessmentId(null);
-  }, [selectedModuleId]);
+  }, [readinessFilter, searchTerm, selectedAssessmentId, selectedLessonId, selectedModuleId, subjectFilter]);
 
   const selectedLesson = selected?.module.lessons.find((lesson) => lesson.id === selectedLessonId) ?? null;
   const selectedAssessment = selected?.module.assessments.find((assessment) => assessment.id === selectedAssessmentId) ?? null;
   const selectedModuleUrl = selected ? moduleUrl(selected.subject.id, selected.module.id, searchTerm, readinessFilter) : '/canvas';
+
+  useEffect(() => {
+    if (selectedLessonId && !selectedLesson) {
+      setSelectedLessonId(null);
+    }
+    if (selectedAssessmentId && !selectedAssessment) {
+      setSelectedAssessmentId(null);
+    }
+  }, [selectedAssessment, selectedAssessmentId, selectedLesson, selectedLessonId]);
 
   if (!data.subjects.length) {
     return <CanvasEmptyState failedSources={failedSources} />;
@@ -644,6 +682,7 @@ export function CurriculumCanvas({
                           lesson={lesson}
                           selected={selectedLessonId === lesson.id}
                           onInspect={() => setSelectedLessonId(lesson.id)}
+                          returnPath={panelUrl(selectedModuleUrl, 'lesson', lesson.id)}
                         />
                       )) : <div style={{ color: '#cbd5e1' }}>No lessons mapped yet.</div>}
                     </div>
@@ -661,6 +700,7 @@ export function CurriculumCanvas({
                           assessment={assessment}
                           selected={selectedAssessmentId === assessment.id}
                           onInspect={() => setSelectedAssessmentId(assessment.id)}
+                          returnPath={panelUrl(selectedModuleUrl, 'assessment', assessment.id)}
                         />
                       )) : <div style={{ color: '#fbbf24', lineHeight: 1.6 }}>No gate linked. That module is not truly release-ready yet.</div>}
                     </div>
@@ -679,8 +719,9 @@ export function CurriculumCanvas({
           lesson={selectedLesson}
           subjectId={selected.subject.id}
           moduleId={selected.module.id}
-          returnPath={selectedModuleUrl}
+          returnPath={panelUrl(selectedModuleUrl, 'lesson', selectedLesson.id)}
           quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
+          quickUpdateCanvasLessonAction={quickUpdateCanvasLessonAction}
           onClose={() => setSelectedLessonId(null)}
         />
       ) : null}
@@ -690,7 +731,7 @@ export function CurriculumCanvas({
           assessment={selectedAssessment}
           subjectId={selected.subject.id}
           moduleTitle={selected.module.title}
-          returnPath={selectedModuleUrl}
+          returnPath={panelUrl(selectedModuleUrl, 'assessment', selectedAssessment.id)}
           quickUpdateAssessmentStatusAction={quickUpdateAssessmentStatusAction}
           onClose={() => setSelectedAssessmentId(null)}
         />
@@ -760,7 +801,7 @@ function CanvasEmptyState({ failedSources, compact = false, searchAware = false 
   );
 }
 
-function LessonNode({ lesson, selected, onInspect }: { lesson: CurriculumCanvasLesson; selected?: boolean; onInspect: () => void }) {
+function LessonNode({ lesson, selected, onInspect, returnPath }: { lesson: CurriculumCanvasLesson; selected?: boolean; onInspect: () => void; returnPath: string }) {
   const pill = statusTone(lesson.status);
   return (
     <div style={{ padding: 14, borderRadius: 18, background: selected ? 'rgba(79,70,229,0.14)' : 'rgba(255,255,255,0.05)', border: selected ? '1px solid rgba(129,140,248,0.34)' : '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
@@ -774,14 +815,14 @@ function LessonNode({ lesson, selected, onInspect }: { lesson: CurriculumCanvasL
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" onClick={onInspect} style={{ ...filterButtonStyle, background: selected ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>{selected ? 'Inspecting now' : 'Inspect & edit'}</button>
-        <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent('/canvas')}`} style={{ color: 'white', fontWeight: 800, textDecoration: 'none' }}>Open lesson →</Link>
-        <Link href={`/content/lessons/new?duplicate=${lesson.id}&from=${encodeURIComponent('/canvas')}`} style={{ color: '#c4b5fd', fontWeight: 800, textDecoration: 'none' }}>Duplicate →</Link>
+        <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ color: 'white', fontWeight: 800, textDecoration: 'none' }}>Open lesson →</Link>
+        <Link href={`/content/lessons/new?duplicate=${lesson.id}&from=${encodeURIComponent(returnPath)}`} style={{ color: '#c4b5fd', fontWeight: 800, textDecoration: 'none' }}>Duplicate →</Link>
       </div>
     </div>
   );
 }
 
-function AssessmentNode({ assessment, selected, onInspect }: { assessment: Assessment; selected?: boolean; onInspect: () => void }) {
+function AssessmentNode({ assessment, selected, onInspect, returnPath }: { assessment: Assessment; selected?: boolean; onInspect: () => void; returnPath: string }) {
   const pill = statusTone(assessment.status);
   return (
     <div style={{ padding: 14, borderRadius: 18, background: selected ? 'rgba(79,70,229,0.14)' : 'rgba(255,255,255,0.05)', border: selected ? '1px solid rgba(129,140,248,0.34)' : '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
@@ -792,7 +833,7 @@ function AssessmentNode({ assessment, selected, onInspect }: { assessment: Asses
       <div style={{ color: '#cbd5e1', lineHeight: 1.5 }}>{assessmentLabel(assessment)}</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" onClick={onInspect} style={{ ...filterButtonStyle, background: selected ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>{selected ? 'Inspecting now' : 'Inspect gate'}</button>
-        <Link href="/assessments" style={{ color: '#ddd6fe', fontWeight: 800, textDecoration: 'none' }}>Open assessments →</Link>
+        <Link href={`/assessments?from=${encodeURIComponent(returnPath)}`} style={{ color: '#ddd6fe', fontWeight: 800, textDecoration: 'none' }}>Open assessments →</Link>
       </div>
     </div>
   );
@@ -815,7 +856,7 @@ function ModalShell({ title, eyebrow, children, onClose }: { title: string; eyeb
   );
 }
 
-function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUpdateLessonStatusAction, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; onClose: () => void }) {
+function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUpdateLessonStatusAction, quickUpdateCanvasLessonAction, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; quickUpdateCanvasLessonAction: (formData: FormData) => void; onClose: () => void }) {
   const pill = statusTone(lesson.status);
   return (
     <ModalShell title={lesson.title} eyebrow="Lesson quick edit lane" onClose={onClose}>
@@ -863,6 +904,42 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUp
           ))}
         </div>
       </div>
+
+      <form action={quickUpdateCanvasLessonAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
+        <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Safe inline edit</div>
+        <input type="hidden" name="lessonId" value={lesson.id} />
+        <input type="hidden" name="returnPath" value={returnPath} />
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Lesson title</span>
+          <input name="title" defaultValue={lesson.title} maxLength={120} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Status</span>
+            <select name="status" defaultValue={lesson.status} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
+              <option value="draft">Draft</option>
+              <option value="review">Review</option>
+              <option value="approved">Approved</option>
+            </select>
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Mode</span>
+            <select name="mode" defaultValue={lesson.mode} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
+              <option value="guided">Guided</option>
+              <option value="group">Group</option>
+              <option value="independent">Independent</option>
+              <option value="practice">Practice</option>
+              <option value="ops">Ops</option>
+            </select>
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Duration (min)</span>
+            <input name="durationMinutes" type="number" min="1" max="240" defaultValue={lesson.durationMinutes} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+          </label>
+        </div>
+        <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 13 }}>This only edits the safe metadata operators usually need mid-triage. If the actual lesson body is wrong, open the full editor and fix it properly.</div>
+        <button type="submit" style={{ ...actionLinkStyle, background: '#4F46E5', color: '#ffffff', border: 0 }}>Save inline lesson edits</button>
+      </form>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
         <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open lesson editor</Link>
