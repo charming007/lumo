@@ -1093,6 +1093,153 @@ function exportStorageSnapshot() {
   };
 }
 
+function buildImportAnalysis({ currentSnapshot = {}, incomingSnapshot = {}, merge = false } = {}) {
+  const knownCollections = Array.from(new Set([
+    ...Object.keys(currentSnapshot || {}),
+    ...Object.keys(incomingSnapshot || {}),
+  ]));
+  const nextSnapshot = {};
+
+  knownCollections.forEach((key) => {
+    const current = Array.isArray(currentSnapshot[key]) ? currentSnapshot[key] : [];
+    const incoming = Array.isArray(incomingSnapshot[key]) ? incomingSnapshot[key] : [];
+    nextSnapshot[key] = merge ? [...current, ...incoming] : incoming;
+  });
+
+  const issues = [];
+  const pushIssue = (severity, code, message, details = {}) => {
+    issues.push({ severity, code, message, ...details });
+  };
+
+  knownCollections.forEach((key) => {
+    const incoming = Array.isArray(incomingSnapshot[key]) ? incomingSnapshot[key] : [];
+    const next = Array.isArray(nextSnapshot[key]) ? nextSnapshot[key] : [];
+    const current = Array.isArray(currentSnapshot[key]) ? currentSnapshot[key] : [];
+
+    if (incomingSnapshot[key] !== undefined && !Array.isArray(incomingSnapshot[key])) {
+      pushIssue('critical', 'invalid-collection-shape', `${key} must be an array when provided`, { collection: key });
+      return;
+    }
+
+    const nextIdMap = new Map();
+    next.forEach((entry, index) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        pushIssue('critical', 'invalid-record-shape', `${key} contains a non-object record`, { collection: key, index });
+        return;
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(entry, 'id') || entry.id === undefined || entry.id === null || entry.id === '') {
+        pushIssue('critical', 'missing-record-id', `${key} contains a record without an id`, { collection: key, index });
+        return;
+      }
+
+      const recordId = String(entry.id);
+      if (!nextIdMap.has(recordId)) {
+        nextIdMap.set(recordId, []);
+      }
+      nextIdMap.get(recordId).push(index);
+    });
+
+    Array.from(nextIdMap.entries())
+      .filter(([, indexes]) => indexes.length > 1)
+      .forEach(([recordId, indexes]) => {
+        pushIssue(merge ? 'critical' : 'warning', 'duplicate-record-id', `${key} contains duplicate id ${recordId}`, {
+          collection: key,
+          id: recordId,
+          occurrences: indexes.length,
+        });
+      });
+
+    if (merge) {
+      const currentIds = new Set(current.map((entry) => String(entry?.id || '')).filter(Boolean));
+      incoming.forEach((entry, index) => {
+        const recordId = String(entry?.id || '');
+        if (recordId && currentIds.has(recordId)) {
+          pushIssue('critical', 'merge-id-collision', `${key} would collide with existing id ${recordId}`, {
+            collection: key,
+            id: recordId,
+            index,
+          });
+        }
+      });
+    }
+  });
+
+  const idSets = {
+    students: new Set((nextSnapshot.students || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    teachers: new Set((nextSnapshot.teachers || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    cohorts: new Set((nextSnapshot.cohorts || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    lessons: new Set((nextSnapshot.lessons || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    assessments: new Set((nextSnapshot.assessments || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    subjects: new Set((nextSnapshot.subjects || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    modules: new Set((nextSnapshot.modules || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    rewardTransactions: new Set((nextSnapshot.rewardTransactions || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    progression: new Set((nextSnapshot.progress || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+    lessonSessions: new Set((nextSnapshot.lessonSessions || []).map((entry) => String(entry?.sessionId || '')).filter(Boolean)),
+    rewardItems: new Set((require('./rewards').REWARD_STORE_ITEMS || []).map((entry) => String(entry?.id || '')).filter(Boolean)),
+  };
+
+  const checkReference = ({ collection, entries = [], field, targetSet, code, message, useSessionId = false }) => {
+    entries.forEach((entry, index) => {
+      const value = entry?.[field];
+      if (!value) return;
+      const normalized = String(value);
+      if (!targetSet.has(normalized)) {
+        pushIssue('critical', code, message(normalized), {
+          collection,
+          field,
+          id: useSessionId ? String(entry?.sessionId || '') : String(entry?.id || ''),
+          index,
+          missing: normalized,
+        });
+      }
+    });
+  };
+
+  checkReference({ collection: 'rewardRedemptionRequests', entries: nextSnapshot.rewardRedemptionRequests || [], field: 'studentId', targetSet: idSets.students, code: 'reward-request-missing-student', message: (value) => `rewardRedemptionRequests references missing student ${value}` });
+  checkReference({ collection: 'rewardRedemptionRequests', entries: nextSnapshot.rewardRedemptionRequests || [], field: 'rewardItemId', targetSet: idSets.rewardItems, code: 'reward-request-missing-item', message: (value) => `rewardRedemptionRequests references missing reward item ${value}` });
+  checkReference({ collection: 'rewardRedemptionRequests', entries: nextSnapshot.rewardRedemptionRequests || [], field: 'transactionId', targetSet: idSets.rewardTransactions, code: 'reward-request-missing-transaction', message: (value) => `rewardRedemptionRequests references missing reward transaction ${value}` });
+  checkReference({ collection: 'lessonSessions', entries: nextSnapshot.lessonSessions || [], field: 'studentId', targetSet: idSets.students, code: 'session-missing-student', message: (value) => `lessonSessions references missing student ${value}`, useSessionId: true });
+  checkReference({ collection: 'sessionEventLog', entries: nextSnapshot.sessionEventLog || [], field: 'studentId', targetSet: idSets.students, code: 'session-event-missing-student', message: (value) => `sessionEventLog references missing student ${value}` });
+  checkReference({ collection: 'sessionEventLog', entries: nextSnapshot.sessionEventLog || [], field: 'sessionId', targetSet: idSets.lessonSessions, code: 'session-event-missing-session', message: (value) => `sessionEventLog references missing runtime session ${value}` });
+  checkReference({ collection: 'syncEvents', entries: nextSnapshot.syncEvents || [], field: 'learnerId', targetSet: idSets.students, code: 'sync-event-missing-student', message: (value) => `syncEvents references missing student ${value}` });
+  checkReference({ collection: 'assignments', entries: nextSnapshot.assignments || [], field: 'cohortId', targetSet: idSets.cohorts, code: 'assignment-missing-cohort', message: (value) => `assignments references missing cohort ${value}` });
+  checkReference({ collection: 'assignments', entries: nextSnapshot.assignments || [], field: 'assignedBy', targetSet: idSets.teachers, code: 'assignment-missing-teacher', message: (value) => `assignments references missing teacher ${value}` });
+  checkReference({ collection: 'assignments', entries: nextSnapshot.assignments || [], field: 'lessonId', targetSet: idSets.lessons, code: 'assignment-missing-lesson', message: (value) => `assignments references missing lesson ${value}` });
+  checkReference({ collection: 'assignments', entries: nextSnapshot.assignments || [], field: 'assessmentId', targetSet: idSets.assessments, code: 'assignment-missing-assessment', message: (value) => `assignments references missing assessment ${value}` });
+  checkReference({ collection: 'attendance', entries: nextSnapshot.attendance || [], field: 'studentId', targetSet: idSets.students, code: 'attendance-missing-student', message: (value) => `attendance references missing student ${value}` });
+  checkReference({ collection: 'progress', entries: nextSnapshot.progress || [], field: 'studentId', targetSet: idSets.students, code: 'progress-missing-student', message: (value) => `progress references missing student ${value}` });
+  checkReference({ collection: 'progress', entries: nextSnapshot.progress || [], field: 'subjectId', targetSet: idSets.subjects, code: 'progress-missing-subject', message: (value) => `progress references missing subject ${value}` });
+  checkReference({ collection: 'progress', entries: nextSnapshot.progress || [], field: 'moduleId', targetSet: idSets.modules, code: 'progress-missing-module', message: (value) => `progress references missing module ${value}` });
+  checkReference({ collection: 'progress', entries: nextSnapshot.progress || [], field: 'recommendedNextModuleId', targetSet: idSets.modules, code: 'progress-missing-recommended-module', message: (value) => `progress references missing recommended module ${value}` });
+  checkReference({ collection: 'observations', entries: nextSnapshot.observations || [], field: 'studentId', targetSet: idSets.students, code: 'observation-missing-student', message: (value) => `observations references missing student ${value}` });
+  checkReference({ collection: 'observations', entries: nextSnapshot.observations || [], field: 'teacherId', targetSet: idSets.teachers, code: 'observation-missing-teacher', message: (value) => `observations references missing teacher ${value}` });
+  checkReference({ collection: 'progressionOverrides', entries: nextSnapshot.progressionOverrides || [], field: 'studentId', targetSet: idSets.students, code: 'progression-override-missing-student', message: (value) => `progressionOverrides references missing student ${value}` });
+  checkReference({ collection: 'progressionOverrides', entries: nextSnapshot.progressionOverrides || [], field: 'progressId', targetSet: idSets.progression, code: 'progression-override-missing-progress', message: (value) => `progressionOverrides references missing progress record ${value}` });
+  checkReference({ collection: 'sessionRepairs', entries: nextSnapshot.sessionRepairs || [], field: 'learnerId', targetSet: idSets.students, code: 'session-repair-missing-student', message: (value) => `sessionRepairs references missing student ${value}` });
+  checkReference({ collection: 'sessionRepairs', entries: nextSnapshot.sessionRepairs || [], field: 'sessionId', targetSet: idSets.lessonSessions, code: 'session-repair-missing-session', message: (value) => `sessionRepairs references missing runtime session ${value}` });
+
+  const severityCounts = issues.reduce((acc, issue) => {
+    acc[issue.severity] = Number(acc[issue.severity] || 0) + 1;
+    return acc;
+  }, { critical: 0, warning: 0, info: 0 });
+
+  return {
+    issues,
+    summary: {
+      issueCount: issues.length,
+      criticalCount: severityCounts.critical || 0,
+      warningCount: severityCounts.warning || 0,
+      safeToImport: issues.every((issue) => issue.severity !== 'critical'),
+      trust: issues.some((issue) => issue.severity === 'critical')
+        ? 'blocked'
+        : issues.some((issue) => issue.severity === 'warning')
+          ? 'review'
+          : 'clean',
+    },
+  };
+}
+
 function previewStorageImport({ snapshot, merge = false } = {}) {
   const before = exportStorageSnapshot();
 
@@ -1118,16 +1265,23 @@ function previewStorageImport({ snapshot, merge = false } = {}) {
     };
   });
 
+  const analysis = buildImportAnalysis({
+    currentSnapshot: before.snapshot,
+    incomingSnapshot: snapshot,
+    merge,
+  });
+
   return {
     previewedAt: new Date().toISOString(),
     merge,
     before: before.collectionCounts,
     after,
     changes,
+    analysis,
   };
 }
 
-function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = true, actorName = null, actorRole = null } = {}) {
+function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = true, force = false, actorName = null, actorRole = null } = {}) {
   const data = require('./data');
 
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
@@ -1137,6 +1291,14 @@ function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = tru
   }
 
   const before = exportStorageSnapshot();
+  const preview = previewStorageImport({ snapshot, merge });
+
+  if (!force && !preview.analysis.summary.safeToImport) {
+    const error = new Error('Import blocked by critical integrity issues. Preview the import or retry with force: true after review.');
+    error.statusCode = 409;
+    error.details = preview.analysis;
+    throw error;
+  }
 
   if (createCheckpoint && typeof data.storage?.checkpoint === 'function') {
     data.storage.checkpoint('pre-import');
@@ -1162,8 +1324,10 @@ function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = tru
   const result = {
     importedAt: new Date().toISOString(),
     merge,
+    force,
     before: before.collectionCounts,
     after,
+    preview: preview.analysis,
     status: getStorageStatus(),
   };
 
@@ -1176,6 +1340,12 @@ function importStorageSnapshot({ snapshot, merge = false, createCheckpoint = tru
       beforeRecords: summarizeCollectionCounts(before.collectionCounts),
       afterRecords: summarizeCollectionCounts(after),
       deltaRecords: summarizeCollectionCounts(after) - summarizeCollectionCounts(before.collectionCounts),
+      importTrust: preview.analysis.summary.trust,
+      blockedCriticalIssues: preview.analysis.summary.criticalCount,
+    },
+    metadata: {
+      importPreview: preview.analysis,
+      force,
     },
   });
 

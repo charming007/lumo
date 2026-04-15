@@ -514,6 +514,87 @@ test('admin storage mutation endpoints expose journal detail and restore control
 });
 
 
+test('admin storage import preview surfaces trust signals and blocked imports return analysis details', async () => {
+  const baseline = store.exportStorageSnapshot();
+  const previewResponse = await request('/api/v1/admin/storage/import/preview', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({
+      merge: true,
+      snapshot: {
+        students: [{ id: 'student-1', cohortId: 'cohort-1', podId: 'pod-1', mallamId: 'teacher-1', name: 'Collision Learner', age: 9 }],
+        rewardRedemptionRequests: [{ id: 'reward-request-import-test', studentId: 'missing-student', rewardItemId: 'story-time', xpCost: 30, status: 'pending' }],
+      },
+    }),
+  });
+
+  assert.equal(previewResponse.status, 200);
+  assert.equal(previewResponse.body.analysis.summary.safeToImport, false);
+  assert.equal(previewResponse.body.analysis.summary.trust, 'blocked');
+  assert.ok(previewResponse.body.analysis.issues.some((issue) => issue.code === 'merge-id-collision'));
+  assert.ok(previewResponse.body.analysis.issues.some((issue) => issue.code === 'reward-request-missing-student'));
+
+  const blockedImport = await request('/api/v1/admin/storage/import', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({
+      merge: true,
+      snapshot: {
+        students: [{ id: 'student-1', cohortId: 'cohort-1', podId: 'pod-1', mallamId: 'teacher-1', name: 'Collision Learner', age: 9 }],
+      },
+    }),
+  });
+
+  assert.equal(blockedImport.status, 409);
+  assert.equal(blockedImport.body.details.summary.safeToImport, false);
+  assert.equal(blockedImport.body.details.summary.trust, 'blocked');
+
+  const forcedImport = await request('/api/v1/admin/storage/import', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({
+      force: true,
+      merge: false,
+      snapshot: {
+        students: [{ id: 'student-force-import', cohortId: 'cohort-1', podId: 'pod-1', mallamId: 'teacher-1', name: 'Forced Learner', age: 10 }],
+      },
+    }),
+  });
+
+  assert.equal(forcedImport.status, 201);
+  assert.equal(forcedImport.body.force, true);
+  assert.ok(forcedImport.body.preview.summary);
+
+  const restoreResponse = await request('/api/v1/admin/storage/import', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({
+      force: true,
+      merge: false,
+      createCheckpoint: false,
+      snapshot: baseline.snapshot,
+    }),
+  });
+
+  assert.equal(restoreResponse.status, 201);
+});
+
 test('admin storage recovery endpoints expose durable recovery summary and latest restore control', async () => {
   const checkpoint = store.checkpointStorage('latest-restore-test', {
     actorName: 'Ops Admin',

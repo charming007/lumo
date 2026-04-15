@@ -213,6 +213,17 @@ Admin-only persistence report for the current storage engine, including:
 - `GET /api/v1/admin/storage/recovery-plan`
 - `POST /api/v1/admin/storage/restore-smart`
 - `POST /api/v1/admin/storage/restore-latest`
+- `POST /api/v1/admin/storage/import/preview`
+- `POST /api/v1/admin/storage/import`
+
+Import preview now returns an `analysis` block with trust signals before any data is mutated:
+- `summary.safeToImport`
+- `summary.trust` (`clean` | `review` | `blocked`)
+- `criticalCount` / `warningCount`
+- concrete collision / dangling-reference issues
+
+`POST /api/v1/admin/storage/import` now blocks on critical integrity issues by default.
+Use `force: true` only after reviewing the preview output and deciding to accept the risk.
 
 Behavior:
 - Postgres-backed durability now stores a restorable snapshot copy on each journaled storage mutation (`write`, `checkpoint`, `restore`, `restore-mutation`)

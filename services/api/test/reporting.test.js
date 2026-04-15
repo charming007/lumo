@@ -269,7 +269,57 @@ test('storage import preview reports projected collection changes without mutati
 
   assert.equal(preview.changes.students.delta, 1);
   assert.equal(preview.changes.rewardRedemptionRequests.delta, 1);
+  assert.equal(preview.analysis.summary.safeToImport, true);
+  assert.equal(preview.analysis.summary.trust, 'clean');
   assert.deepEqual(after.collectionCounts, before.collectionCounts);
+});
+
+test('storage import preview surfaces critical collisions and import blocks unless forced', () => {
+  const baseline = store.exportStorageSnapshot();
+  const conflictingSnapshot = {
+    students: [
+      { id: 'student-1', cohortId: 'cohort-1', podId: 'pod-1', mallamId: 'teacher-1', name: 'Collision Learner', age: 9 },
+    ],
+    rewardRedemptionRequests: [
+      { id: 'reward-request-bad-ref', studentId: 'missing-student', rewardItemId: 'story-time', xpCost: 30, status: 'pending' },
+    ],
+  };
+
+  const preview = store.previewStorageImport({ snapshot: conflictingSnapshot, merge: true });
+  assert.equal(preview.analysis.summary.safeToImport, false);
+  assert.equal(preview.analysis.summary.trust, 'blocked');
+  assert.ok(preview.analysis.issues.some((issue) => issue.code === 'merge-id-collision' && issue.collection === 'students'));
+  assert.ok(preview.analysis.issues.some((issue) => issue.code === 'reward-request-missing-student'));
+
+  assert.throws(
+    () => store.importStorageSnapshot({ snapshot: conflictingSnapshot, merge: true, actorName: 'Ops Admin', actorRole: 'admin' }),
+    (error) => {
+      assert.equal(error.statusCode, 409);
+      assert.ok(error.details);
+      assert.equal(error.details.summary.safeToImport, false);
+      return true;
+    },
+  );
+
+  const forced = store.importStorageSnapshot({
+    snapshot: conflictingSnapshot,
+    merge: false,
+    force: true,
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+  });
+  assert.equal(forced.force, true);
+  assert.equal(forced.preview.summary.safeToImport, false);
+  assert.equal(forced.preview.summary.trust, 'blocked');
+
+  store.importStorageSnapshot({
+    snapshot: baseline.snapshot,
+    merge: false,
+    force: true,
+    createCheckpoint: false,
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+  });
 });
 
 

@@ -2697,6 +2697,7 @@ app.post('/api/v1/admin/storage/import', requireRole(['admin']), (req, res, next
       snapshot: req.body?.snapshot,
       merge: Boolean(req.body?.merge),
       createCheckpoint: req.body?.createCheckpoint !== false,
+      force: Boolean(req.body?.force),
       actorName: req.actor?.name,
       actorRole: req.actor?.role,
     }));
@@ -2897,6 +2898,7 @@ app.use((error, _req, res, _next) => {
   const statusCode = error.statusCode || 500;
   res.status(statusCode).json({
     message: error.message || 'Internal server error',
+    ...(error.details ? { details: error.details } : {}),
   });
 });
 
