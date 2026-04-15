@@ -845,6 +845,12 @@ function buildStorageReport({ limit = 10 } = {}) {
   const recoveryPlan = typeof store.buildStorageRecoveryPlan === 'function'
     ? store.buildStorageRecoveryPlan({ limit: Math.min(normalizedLimit, 10) })
     : null;
+  const freshness = typeof store.buildStorageFreshnessSignals === 'function'
+    ? store.buildStorageFreshnessSignals(status)
+    : null;
+  const drift = typeof store.buildStorageDriftReport === 'function'
+    ? store.buildStorageDriftReport()
+    : null;
   const mutations = typeof require('./data').storage?.listMutations === 'function'
     ? require('./data').storage.listMutations(Math.min(normalizedLimit, 50))
     : [];
@@ -877,6 +883,11 @@ function buildStorageReport({ limit = 10 } = {}) {
       updatedAt: status?.updatedAt || snapshot.exportedAt,
       lastOperationAt: operations.summary.lastOperationAt,
       lastMutationAt: status?.journal?.latestAt || mutations[0]?.createdAt || null,
+      freshnessSeverity: freshness?.primary?.severity || null,
+      cacheFreshnessSeverity: freshness?.cache?.severity || null,
+      journalFreshnessSeverity: freshness?.journal?.severity || null,
+      driftSeverity: drift?.summary?.severity || null,
+      driftDetected: Boolean(drift?.summary?.hasDrift),
     },
     status,
     integrity: {
@@ -899,6 +910,8 @@ function buildStorageReport({ limit = 10 } = {}) {
       recent: mutations,
     },
     recovery: recoveryPlan,
+    freshness,
+    drift,
     collections: snapshot.collectionCounts,
     backups,
     operations,

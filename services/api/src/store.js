@@ -1,6 +1,97 @@
 const repository = require('./repository');
 const { getDbMode } = require('./db-mode');
 
+
+function parseIsoDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getAgeHours(value, now = new Date()) {
+  const parsed = parseIsoDate(value);
+  if (!parsed) return null;
+  return Math.max(0, (now.getTime() - parsed.getTime()) / (1000 * 60 * 60));
+}
+
+function buildStorageFreshnessSignals(status = getStorageStatus(), now = new Date()) {
+  const primaryAgeHours = getAgeHours(status?.updatedAt, now);
+  const cacheAgeHours = getAgeHours(status?.cache?.updatedAt, now);
+  const journalAgeHours = getAgeHours(status?.journal?.latestAt, now);
+  const thresholds = {
+    primaryWarningHours: 24,
+    primaryCriticalHours: 72,
+    cacheWarningHours: 12,
+    cacheCriticalHours: 48,
+    journalWarningHours: 24,
+    journalCriticalHours: 72,
+  };
+  const classify = (ageHours, warning, critical) => {
+    if (ageHours === null) return 'unknown';
+    if (ageHours >= critical) return 'critical';
+    if (ageHours >= warning) return 'warning';
+    return 'healthy';
+  };
+
+  return {
+    checkedAt: now.toISOString(),
+    thresholds,
+    primary: {
+      updatedAt: status?.updatedAt || null,
+      ageHours: primaryAgeHours,
+      severity: classify(primaryAgeHours, thresholds.primaryWarningHours, thresholds.primaryCriticalHours),
+    },
+    cache: {
+      updatedAt: status?.cache?.updatedAt || null,
+      ageHours: cacheAgeHours,
+      severity: classify(cacheAgeHours, thresholds.cacheWarningHours, thresholds.cacheCriticalHours),
+      exists: Boolean(status?.cache?.exists),
+      inSync: status?.cache?.inSync ?? null,
+    },
+    journal: {
+      updatedAt: status?.journal?.latestAt || null,
+      ageHours: journalAgeHours,
+      severity: classify(journalAgeHours, thresholds.journalWarningHours, thresholds.journalCriticalHours),
+      total: Number(status?.journal?.total || 0),
+      latestMutationId: status?.journal?.latestMutationId || null,
+      latestMutationRestorable: Boolean(status?.journal?.latestMutationRestorable),
+    },
+  };
+}
+
+function buildStorageDriftReport() {
+  const status = getStorageStatus();
+  const freshness = buildStorageFreshnessSignals(status);
+  const drift = {
+    generatedAt: new Date().toISOString(),
+    status,
+    freshness,
+    summary: {
+      hasDrift: false,
+      severity: 'healthy',
+      reasons: [],
+    },
+  };
+
+  const reasons = [];
+  if (status?.cache?.exists === false) reasons.push({ type: 'cache-missing', severity: 'critical' });
+  if (status?.cache?.inSync === false) reasons.push({ type: 'cache-out-of-sync', severity: 'warning' });
+  if (status?.primaryIntegrity?.journalAligned === false) reasons.push({ type: 'journal-drift', severity: 'critical' });
+  if (['warning', 'critical'].includes(freshness.primary.severity)) reasons.push({ type: 'primary-stale', severity: freshness.primary.severity });
+  if (['warning', 'critical'].includes(freshness.cache.severity)) reasons.push({ type: 'cache-stale', severity: freshness.cache.severity });
+  if (['warning', 'critical'].includes(freshness.journal.severity)) reasons.push({ type: 'journal-stale', severity: freshness.journal.severity });
+
+  const sevRank = { healthy: 0, warning: 1, critical: 2 };
+  const severity = reasons.reduce((current, entry) => (sevRank[entry.severity] > sevRank[current] ? entry.severity : current), 'healthy');
+  drift.summary = {
+    hasDrift: reasons.length > 0,
+    severity,
+    reasons,
+  };
+
+  return drift;
+}
+
 function listStudents() {
   return repository.listStudents();
 }
@@ -488,6 +579,7 @@ function getStoreMeta() {
     sessionRepairCount: listSessionRepairs().length,
     storageOperationCount: listStorageOperations().length,
     storageStatus: typeof data.storage?.getStatus === 'function' ? data.storage.getStatus() : null,
+    storageFreshness: buildStorageFreshnessSignals(typeof data.storage?.getStatus === 'function' ? data.storage.getStatus() : null),
   };
 }
 
@@ -790,6 +882,7 @@ function buildStorageIntegrityIssues() {
   });
 
   const status = getStorageStatus();
+  const freshness = buildStorageFreshnessSignals(status);
   if (status?.kind === 'postgres') {
     if (!status.cache?.exists) {
       issues.push({ type: 'storage-cache-missing', id: status.file, entity: 'storageCache' });
@@ -826,6 +919,36 @@ function buildStorageIntegrityIssues() {
         type: 'storage-no-recovery-path',
         id: status.file,
         entity: 'storageRecovery',
+      });
+    }
+
+    if (['warning', 'critical'].includes(freshness.primary.severity)) {
+      issues.push({
+        type: 'storage-primary-stale',
+        id: status.file,
+        entity: 'storagePrimary',
+        ageHours: freshness.primary.ageHours,
+        severity: freshness.primary.severity,
+      });
+    }
+
+    if (status.cache?.exists && ['warning', 'critical'].includes(freshness.cache.severity)) {
+      issues.push({
+        type: 'storage-cache-stale',
+        id: status.file,
+        entity: 'storageCache',
+        ageHours: freshness.cache.ageHours,
+        severity: freshness.cache.severity,
+      });
+    }
+
+    if (status.journal?.total > 0 && ['warning', 'critical'].includes(freshness.journal.severity)) {
+      issues.push({
+        type: 'storage-journal-stale',
+        id: status.file,
+        entity: 'storageJournal',
+        ageHours: freshness.journal.ageHours,
+        severity: freshness.journal.severity,
       });
     }
   }
@@ -908,7 +1031,18 @@ function repairStorageIntegrity({ apply = false, actorName = null, actorRole = n
       });
     }
 
-    const dataFixesApplied = fixes.some((entry) => entry.collection !== 'storageCache' && Number(entry.removed || 0) > 0);
+    if ((issueIdsByEntity.storagePrimary || new Set()).size > 0 && typeof data.storage?.repairPrimaryFromLatestSnapshot === 'function') {
+      const repaired = data.storage.repairPrimaryFromLatestSnapshot() || {};
+      fixes.push({
+        collection: 'storagePrimary',
+        removed: 0,
+        ids: Array.from(issueIdsByEntity.storagePrimary || []),
+        repaired: Boolean(repaired.repaired),
+        source: repaired.source || null,
+      });
+    }
+
+    const dataFixesApplied = fixes.some((entry) => !['storageCache', 'storagePrimary'].includes(entry.collection) && Number(entry.removed || 0) > 0);
     if (dataFixesApplied) {
       data.persist();
     }
@@ -1099,12 +1233,13 @@ function restoreStorageBackup(backupPath, actor = {}) {
   return result;
 }
 
-function buildStorageRecoveryPlan({ label = null, limit = 10 } = {}) {
+function buildStorageRecoveryPlan({ label = null, limit = 10, includeStale = true } = {}) {
   const data = require('./data');
   const normalizedLimit = Math.max(1, Math.min(Number(limit || 10), 100));
   const labelQuery = String(label || '').trim().toLowerCase();
   const status = getStorageStatus();
   const integrity = getStorageIntegrityReport();
+  const freshness = buildStorageFreshnessSignals(status);
   const backups = listStorageBackups(Math.max(normalizedLimit, 20));
   const mutations = typeof data.storage?.listMutations === 'function'
     ? data.storage.listMutations(Math.max(normalizedLimit, 20))
@@ -1117,43 +1252,53 @@ function buildStorageRecoveryPlan({ label = null, limit = 10 } = {}) {
   backups
     .filter((entry) => matchesLabel([entry.label, entry.name, entry.path]))
     .forEach((entry, index) => {
+      const ageHours = getAgeHours(entry.modifiedAt || null);
       candidates.push({
         source: 'backup',
         id: entry.path,
         label: entry.label || entry.name || null,
         path: entry.path,
         createdAt: entry.modifiedAt || null,
+        ageHours,
         restorable: true,
-        score: 100 - index,
+        stale: ageHours !== null && ageHours >= 72,
+        score: 100 - index - Math.min(Math.floor((ageHours || 0) / 24), 20),
         reason: index === 0 ? 'latest durable checkpoint' : 'durable checkpoint',
       });
     });
 
   restorableMutations.slice(0, Math.max(normalizedLimit, 20)).forEach((entry, index) => {
+    const ageHours = getAgeHours(entry.createdAt || null);
     candidates.push({
       source: 'mutation',
       id: entry.id,
       mutationId: entry.id,
       action: entry.action,
       createdAt: entry.createdAt || null,
+      ageHours,
+      stale: ageHours !== null && ageHours >= 72,
       restorable: true,
-      score: 90 - index,
+      score: 90 - index - Math.min(Math.floor((ageHours || 0) / 24), 20),
       reason: index === 0 ? 'latest journal snapshot' : 'journal snapshot restore point',
     });
   });
 
   if (status?.primaryIntegrity?.recoverableFromWarmCache) {
+    const ageHours = getAgeHours(status?.cache?.updatedAt || null);
     candidates.push({
       source: 'warm-cache',
       id: 'warm-cache',
       createdAt: status?.cache?.updatedAt || null,
+      ageHours,
+      stale: ageHours !== null && ageHours >= 48,
       restorable: true,
-      score: (status?.cache?.inSync === true ? 80 : 65),
+      score: (status?.cache?.inSync === true ? 80 : 65) - Math.min(Math.floor((ageHours || 0) / 12), 20),
       reason: status?.cache?.inSync === true ? 'warm cache matches primary snapshot' : 'warm cache can repopulate primary snapshot',
     });
   }
 
   const ranked = candidates
+    .filter((entry) => includeStale || !entry.stale)
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
     .slice(0, normalizedLimit);
 
@@ -1168,9 +1313,13 @@ function buildStorageRecoveryPlan({ label = null, limit = 10 } = {}) {
       warmCacheRecoverable: Boolean(status?.primaryIntegrity?.recoverableFromWarmCache),
       recommendedSource: ranked[0]?.source || null,
       recommendedReason: ranked[0]?.reason || null,
+      freshness,
+      includeStale,
     },
     status,
     integrity,
+    freshness,
+    drift: buildStorageDriftReport(),
     candidates: ranked,
   };
 }
@@ -1233,6 +1382,54 @@ function restoreStorageSmart({ label = null, backupPath = null, mutationId = nul
   });
 
   return output;
+}
+
+
+function repairStorageDrift({ actorName = null, actorRole = null } = {}) {
+  const data = require('./data');
+  const before = buildStorageDriftReport();
+  const actions = [];
+
+  if (before.status?.kind !== 'postgres') {
+    return {
+      repairedAt: new Date().toISOString(),
+      mode: before.status?.kind || getDbMode(),
+      actions,
+      before,
+      after: before,
+    };
+  }
+
+  if (before.status?.cache?.inSync === false && typeof data.storage?.reconcileCache === 'function') {
+    const reconciled = data.storage.reconcileCache() || {};
+    actions.push({ action: 'reconcile-cache', reconciled: Boolean(reconciled.reconciled) });
+  }
+
+  if (before.status?.primaryIntegrity?.journalAligned === false && typeof data.storage?.repairPrimaryFromLatestSnapshot === 'function') {
+    const repaired = data.storage.repairPrimaryFromLatestSnapshot() || {};
+    actions.push({ action: 'repair-primary-from-latest-snapshot', repaired: Boolean(repaired.repaired), source: repaired.source || null });
+  }
+
+  const after = buildStorageDriftReport();
+  const result = {
+    repairedAt: new Date().toISOString(),
+    mode: before.status?.kind || getDbMode(),
+    actions,
+    before,
+    after,
+  };
+
+  recordStorageOperation('repair-drift', result, {
+    actorName,
+    actorRole,
+    summary: {
+      hadDrift: before.summary.hasDrift,
+      hasDrift: after.summary.hasDrift,
+      actionCount: actions.length,
+    },
+  });
+
+  return result;
 }
 
 module.exports = {
@@ -1331,4 +1528,7 @@ module.exports = {
   restoreStorageSmart,
   reconcileStorageCache,
   recoverStoragePrimaryFromWarmCache,
+  buildStorageFreshnessSignals,
+  buildStorageDriftReport,
+  repairStorageDrift,
 };

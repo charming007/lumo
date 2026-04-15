@@ -516,3 +516,58 @@ test('reward integrity report and repair controls detect and fix mismatched fulf
   assert.equal(typeof afterReport.summary.rewardIntegrityIssueCount, 'number');
   assert.ok(afterReport.integrity);
 });
+
+
+test('storage freshness and drift reporting surface stale postgres durability signals', () => {
+  const data = require('../src/data');
+  const originalStorage = data.storage;
+
+  data.storage = {
+    kind: 'postgres',
+    getStatus() {
+      return {
+        kind: 'postgres',
+        file: '/tmp/lumo-cache.json',
+        updatedAt: '2026-04-10T00:00:00.000Z',
+        cache: {
+          exists: true,
+          inSync: false,
+          updatedAt: '2026-04-10T00:00:00.000Z',
+          snapshotHash: 'db-hash',
+          cacheHash: 'cache-hash',
+        },
+        journal: {
+          total: 7,
+          latestAt: '2026-04-10T00:00:00.000Z',
+          latestMutationId: 7,
+          latestMutationRestorable: true,
+          latestMutationHash: 'cache-hash',
+        },
+        primaryIntegrity: {
+          snapshotHash: 'db-hash',
+          journalAligned: false,
+          recoverableFromWarmCache: true,
+        },
+        db: { mode: 'postgres', persistent: true, hasDatabaseUrl: true, driver: 'pg-jsonb-snapshot+journal' },
+      };
+    },
+  };
+
+  try {
+    const freshness = store.buildStorageFreshnessSignals();
+    const drift = store.buildStorageDriftReport();
+    const report = reporting.buildStorageReport({ limit: 5 });
+
+    assert.equal(freshness.primary.severity, 'critical');
+    assert.equal(drift.summary.hasDrift, true);
+    assert.equal(drift.summary.severity, 'critical');
+    assert.ok(drift.summary.reasons.some((entry) => entry.type === 'journal-drift'));
+    assert.equal(report.summary.driftDetected, true);
+    assert.equal(report.summary.driftSeverity, 'critical');
+    assert.equal(report.summary.freshnessSeverity, 'critical');
+    assert.ok(report.drift);
+    assert.ok(report.freshness);
+  } finally {
+    data.storage = originalStorage;
+  }
+});

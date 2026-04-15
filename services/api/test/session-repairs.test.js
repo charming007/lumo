@@ -645,3 +645,95 @@ test('admin storage recovery control restores Postgres primary from warm cache w
     data.reload = originalReload;
   }
 });
+
+
+test('admin storage drift endpoints expose drift report and repair control for postgres mode', async () => {
+  const data = require('../src/data');
+  const originalStorage = data.storage;
+  let reconciled = false;
+  let repairedPrimary = false;
+
+  data.storage = {
+    kind: 'postgres',
+    getStatus() {
+      return {
+        kind: 'postgres',
+        file: '/tmp/lumo-cache.json',
+        updatedAt: '2026-04-10T00:00:00.000Z',
+        cache: {
+          exists: true,
+          inSync: reconciled,
+          updatedAt: '2026-04-10T00:00:00.000Z',
+          snapshotHash: 'db-hash',
+          cacheHash: reconciled ? 'db-hash' : 'cache-hash',
+        },
+        journal: {
+          total: 11,
+          latestAt: '2026-04-10T00:00:00.000Z',
+          latestMutationId: 11,
+          latestMutationRestorable: true,
+          latestMutationHash: repairedPrimary ? 'db-hash' : 'cache-hash',
+        },
+        primaryIntegrity: {
+          snapshotHash: 'db-hash',
+          journalAligned: repairedPrimary,
+          recoverableFromWarmCache: true,
+        },
+        db: { mode: 'postgres', persistent: true, hasDatabaseUrl: true, driver: 'pg-jsonb-snapshot+journal' },
+      };
+    },
+    reconcileCache() {
+      reconciled = true;
+      return { reconciled: true, cache: { exists: true, inSync: true } };
+    },
+    repairPrimaryFromLatestSnapshot() {
+      repairedPrimary = true;
+      return { repaired: true, source: 'latest-mutation' };
+    },
+    listOperations() { return []; },
+    getOperation() { return null; },
+    recordOperation(record) { return record; },
+  };
+
+  try {
+    const driftResponse = await request('/api/v1/admin/storage/drift', {
+      headers: {
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Ops Admin',
+      },
+    });
+
+    assert.equal(driftResponse.status, 200);
+    assert.equal(driftResponse.body.summary.hasDrift, true);
+    assert.equal(driftResponse.body.summary.severity, 'critical');
+
+    const freshnessResponse = await request('/api/v1/admin/storage/freshness', {
+      headers: {
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Ops Admin',
+      },
+    });
+
+    assert.equal(freshnessResponse.status, 200);
+    assert.equal(freshnessResponse.body.primary.severity, 'critical');
+
+    const repairResponse = await request('/api/v1/admin/storage/repair-drift', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Ops Admin',
+      },
+      body: JSON.stringify({}),
+    });
+
+    assert.equal(repairResponse.status, 201);
+    assert.equal(reconciled, true);
+    assert.equal(repairedPrimary, true);
+    assert.equal(repairResponse.body.after.summary.hasDrift, true);
+    assert.ok(repairResponse.body.actions.some((entry) => entry.action === 'reconcile-cache'));
+    assert.ok(repairResponse.body.actions.some((entry) => entry.action === 'repair-primary-from-latest-snapshot'));
+  } finally {
+    data.storage = originalStorage;
+  }
+});

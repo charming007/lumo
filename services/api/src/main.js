@@ -2599,6 +2599,25 @@ app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
 app.get('/api/v1/admin/storage/integrity', requireRole(['admin']), (_req, res) => {
   res.json(store.getStorageIntegrityReport());
 });
+app.get('/api/v1/admin/storage/freshness', requireRole(['admin']), (_req, res) => {
+  res.json(store.buildStorageFreshnessSignals());
+});
+
+app.get('/api/v1/admin/storage/drift', requireRole(['admin']), (_req, res) => {
+  res.json(store.buildStorageDriftReport());
+});
+
+app.post('/api/v1/admin/storage/repair-drift', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.status(201).json(store.repairStorageDrift({
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
+  } catch (error) {
+    return next(error);
+  }
+});
+
 
 app.get('/api/v1/admin/storage/operations', requireRole(['admin']), (req, res) => {
   res.json(reporting.buildStorageOperationsReport({

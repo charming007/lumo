@@ -415,6 +415,28 @@ const { Client } = require('pg');
     return describeWarmCache(snapshot);
   }
 
+  function repairPrimaryFromLatestSnapshot() {
+    const mutation = (runPg('listMutations', { limit: 1 }) || [])[0] || null;
+    if (!mutation?.has_snapshot) {
+      const error = new Error('Latest journal mutation does not contain a restorable snapshot');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    runPg('restoreMutation', { id: Number(mutation.id) });
+    const row = runPg('read');
+    if (row?.snapshot && typeof row.snapshot === 'object') {
+      syncWarmCache(row.snapshot);
+    }
+
+    return {
+      repaired: true,
+      source: 'latest-mutation',
+      mutationId: Number(mutation.id),
+      snapshotHash: mutation.snapshot_hash || null,
+    };
+  }
+
   function recoverPrimaryFromWarmCache() {
     const cache = describeWarmCache(null);
     if (!cache.exists) {
@@ -598,6 +620,7 @@ const { Client } = require('pg');
       };
     },
     recoverPrimaryFromWarmCache,
+    repairPrimaryFromLatestSnapshot,
     getStatus() {
       const status = runPg('status') || {};
       const snapshot = status.snapshot?.snapshot && typeof status.snapshot.snapshot === 'object'
