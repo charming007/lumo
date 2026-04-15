@@ -396,10 +396,38 @@ class LumoAppState {
     } catch (error) {
       usingFallbackData = true;
       backendError = error.toString().replaceFirst('Exception: ', '');
+      _restoreGuaranteedOfflineFallbackIfNeeded();
     } finally {
       isBootstrapping = false;
       persistStateSoon();
     }
+  }
+
+  void _restoreGuaranteedOfflineFallbackIfNeeded() {
+    final hasOfflinePath =
+        learners.isNotEmpty && modules.isNotEmpty && assignedLessons.isNotEmpty;
+    if (hasOfflinePath) return;
+
+    if (learners.isEmpty) {
+      learners
+        ..clear()
+        ..addAll(learnerProfilesSeed);
+    }
+
+    if (modules.isEmpty) {
+      modules
+        ..clear()
+        ..addAll(_dedupeModules(_sanitizeModules(learningModules)));
+    }
+
+    if (assignedLessons.isEmpty) {
+      assignedLessons
+        ..clear()
+        ..addAll(_sanitizeLessons(assignedLessonsSeed));
+    }
+
+    selectedModule ??= modules.isNotEmpty ? modules.first : null;
+    currentLearner ??= suggestedLearnerForHome;
   }
 
   Future<void> _hydrateModuleBundles(List<LearningModule> sourceModules) async {

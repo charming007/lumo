@@ -3775,6 +3775,84 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     super.dispose();
   }
 
+  bool get _hasPendingLessonEvidence {
+    final session = widget.state.activeSession;
+    if (session == null) return false;
+    return responseController.text.trim().isNotEmpty ||
+        transcriptReviewPending ||
+        (session.latestLearnerAudioPath?.trim().isNotEmpty ?? false);
+  }
+
+  bool get _shouldConfirmLessonExit =>
+      isRecording ||
+      isSpeaking ||
+      speechRecognitionActive ||
+      _resumePromptPendingFromLifecycle ||
+      _hasPendingLessonEvidence ||
+      isAutoMode;
+
+  Future<void> _leaveLessonSession() async {
+    if (isRecording ||
+        isSpeaking ||
+        speechRecognitionActive ||
+        _resumePromptPendingFromLifecycle ||
+        _hasPendingLessonEvidence) {
+      await _handleLifecycleInterruption(
+        AppLifecycleState.inactive,
+        reason: 'You left the lesson page',
+        forceResumePrompt: true,
+      );
+      if (!mounted) return;
+    }
+
+    unawaited(learnerAudioPlaybackService.stop());
+    unawaited(speechTranscriptionService.cancel());
+    unawaited(widget.state.stopVoiceReplay());
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
+  Future<bool> _confirmLeaveLessonSession() async {
+    if (!_shouldConfirmLessonExit) {
+      await _leaveLessonSession();
+      return false;
+    }
+
+    final shouldLeave = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Leave lesson safely?'),
+              content: Text(
+                _hasPendingLessonEvidence
+                    ? 'Lumo will keep this learner step, saved voice, and draft answer so you can resume cleanly instead of losing the take.'
+                    : isRecording || isSpeaking || speechRecognitionActive
+                        ? 'Lumo is actively speaking or listening. Leaving now will pause the hands-free loop so the learner does not get interrupted mid-turn.'
+                        : 'Lumo will pause the hands-free loop and keep this lesson ready to resume from the same step.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Stay here'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Leave lesson'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!shouldLeave || !mounted) {
+      return false;
+    }
+
+    await _leaveLessonSession();
+    return false;
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
@@ -5544,1217 +5622,1252 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       );
     }
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: _ResponsiveWorkspaceRow(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: buildLessonGuidePane(),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: DetailCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Back'),
-                          ),
-                          const Spacer(),
-                          StatusPill(
-                            text: widget.lesson.subject,
-                            color: LumoTheme.primary,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        widget.lesson.title,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Learner: ${learner.name} • ${learner.readinessLabel}',
-                      ),
-                      const SizedBox(height: 16),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final compact = constraints.maxWidth < 640;
-                          final tiles = [
-                            MetricTile(
-                              label: 'Progress',
-                              value:
-                                  '${session.stepIndex + 1}/${widget.lesson.steps.length}',
-                              icon: Icons.alt_route_rounded,
+    return WillPopScope(
+      onWillPop: _confirmLeaveLessonSession,
+      child: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: _ResponsiveWorkspaceRow(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: buildLessonGuidePane(),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: DetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            OutlinedButton(
+                              onPressed: _confirmLeaveLessonSession,
+                              child: const Text('Back'),
+                            ),
+                            const Spacer(),
+                            StatusPill(
+                              text: widget.lesson.subject,
                               color: LumoTheme.primary,
                             ),
-                            MetricTile(
-                              label: 'Responses',
-                              value: '${session.totalResponses}',
-                              icon: Icons.chat_bubble_outline_rounded,
-                              color: LumoTheme.accentGreen,
-                            ),
-                            MetricTile(
-                              label: 'Auto mode',
-                              value: isAutoMode ? 'On' : 'Off',
-                              icon: Icons.smart_toy_rounded,
-                              color: LumoTheme.accentOrange,
-                            ),
-                          ];
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          widget.lesson.title,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Learner: ${learner.name} • ${learner.readinessLabel}',
+                        ),
+                        const SizedBox(height: 16),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final compact = constraints.maxWidth < 640;
+                            final tiles = [
+                              MetricTile(
+                                label: 'Progress',
+                                value:
+                                    '${session.stepIndex + 1}/${widget.lesson.steps.length}',
+                                icon: Icons.alt_route_rounded,
+                                color: LumoTheme.primary,
+                              ),
+                              MetricTile(
+                                label: 'Responses',
+                                value: '${session.totalResponses}',
+                                icon: Icons.chat_bubble_outline_rounded,
+                                color: LumoTheme.accentGreen,
+                              ),
+                              MetricTile(
+                                label: 'Auto mode',
+                                value: isAutoMode ? 'On' : 'Off',
+                                icon: Icons.smart_toy_rounded,
+                                color: LumoTheme.accentOrange,
+                              ),
+                            ];
 
-                          if (compact) {
-                            return Column(
+                            if (compact) {
+                              return Column(
+                                children: [
+                                  for (var i = 0; i < tiles.length; i++) ...[
+                                    SizedBox(
+                                        width: double.infinity,
+                                        child: tiles[i]),
+                                    if (i < tiles.length - 1)
+                                      const SizedBox(height: 12),
+                                  ],
+                                ],
+                              );
+                            }
+
+                            return Row(
                               children: [
                                 for (var i = 0; i < tiles.length; i++) ...[
-                                  SizedBox(
-                                      width: double.infinity, child: tiles[i]),
+                                  Expanded(child: tiles[i]),
                                   if (i < tiles.length - 1)
-                                    const SizedBox(height: 12),
+                                    const SizedBox(width: 12),
                                 ],
                               ],
                             );
-                          }
-
-                          return Row(
-                            children: [
-                              for (var i = 0; i < tiles.length; i++) ...[
-                                Expanded(child: tiles[i]),
-                                if (i < tiles.length - 1)
-                                  const SizedBox(width: 12),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      LinearProgressIndicator(
-                        value: session.progress,
-                        minHeight: 10,
-                        borderRadius:
-                            const BorderRadius.all(Radius.circular(999)),
-                        color: LumoTheme.primary,
-                        backgroundColor: const Color(0xFFE9E7FF),
-                      ),
-                      const SizedBox(height: 16),
-                      SoftPanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.subtitles_rounded,
-                                  color: LumoTheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Transcript strategy',
-                                  style: TextStyle(fontWeight: FontWeight.w800),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                _buildDiagnosticChip(
-                                  icon: speechRecognitionActive
-                                      ? Icons.hearing_rounded
-                                      : _avoidConcurrentSpeechCapture
-                                          ? Icons.mic_none_rounded
-                                          : Icons.warning_amber_rounded,
-                                  label: _transcriptStrategyHeadline,
-                                  healthy: speechRecognitionActive &&
-                                      !_avoidConcurrentSpeechCapture,
-                                  warn: !speechRecognitionActive ||
-                                      _avoidConcurrentSpeechCapture,
-                                ),
-                                _buildDiagnosticChip(
-                                  icon: Icons.mic_rounded,
-                                  label: _recordingModeLabel,
-                                  healthy: true,
-                                ),
-                                _buildDiagnosticChip(
-                                  icon: _isAudioOnlyReviewState ||
-                                          _draftTranscriptNeedsVoiceCheck ||
-                                          _hasTranscriptSafetyBlock
-                                      ? Icons.verified_user_rounded
-                                      : Icons.fact_check_rounded,
-                                  label: _transcriptSourceOfTruthLabel,
-                                  healthy: !_isAudioOnlyReviewState &&
-                                      !_draftTranscriptNeedsVoiceCheck &&
-                                      !_hasTranscriptSafetyBlock,
-                                  warn: _isAudioOnlyReviewState ||
-                                      _draftTranscriptNeedsVoiceCheck ||
-                                      _hasTranscriptSafetyBlock,
-                                ),
-                                _buildDiagnosticChip(
-                                  icon: _consecutiveTranscriptMisses >= 2
-                                      ? Icons.repeat_rounded
-                                      : isAutoMode
-                                          ? Icons.auto_mode_rounded
-                                          : Icons.pan_tool_alt_rounded,
-                                  label: _automationSafetyLabel,
-                                  healthy: isAutoMode &&
-                                      _consecutiveTranscriptMisses < 2 &&
-                                      !_isAudioOnlyReviewState &&
-                                      !_draftTranscriptNeedsVoiceCheck &&
-                                      !_hasTranscriptSafetyBlock,
-                                  warn: _consecutiveTranscriptMisses >= 2 ||
-                                      _isAudioOnlyReviewState ||
-                                      _draftTranscriptNeedsVoiceCheck ||
-                                      _hasTranscriptSafetyBlock,
-                                ),
-                                _buildDiagnosticChip(
-                                  icon: speechRecognitionActive
-                                      ? Icons.settings_voice_rounded
-                                      : Icons.hearing_disabled_rounded,
-                                  label: _transcriptModeLabel,
-                                  healthy: speechRecognitionActive,
-                                  warn: !speechRecognitionActive,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              _transcriptStrategySummary,
-                              style: const TextStyle(
-                                color: Color(0xFF475569),
-                                height: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _automationSafetySummary,
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                height: 1.35,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            ..._transcriptStrategyActions.take(3).map(
-                                  (action) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Padding(
-                                          padding: EdgeInsets.only(top: 2),
-                                          child: Icon(
-                                            Icons.arrow_forward_rounded,
-                                            size: 16,
-                                            color: LumoTheme.primary,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            action,
-                                            style: const TextStyle(
-                                              color: Color(0xFF475569),
-                                              height: 1.35,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                          ],
+                          },
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      SoftPanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Practice mode',
-                              style: TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              widget.state.degradedModeSummary,
-                              style: const TextStyle(
-                                color: Color(0xFF475569),
-                                height: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            ...widget.state
-                                .degradedModeActions(
-                                  speechAvailable: speechRecognitionActive,
-                                  transcriptMisses:
-                                      _consecutiveTranscriptMisses,
-                                )
-                                .take(3)
-                                .map(
-                                  (action) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Padding(
-                                          padding: EdgeInsets.only(top: 2),
-                                          child: Icon(
-                                            Icons.check_circle_outline_rounded,
-                                            size: 16,
-                                            color: LumoTheme.accentGreen,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            action,
-                                            style: const TextStyle(
-                                              color: Color(0xFF475569),
-                                              height: 1.35,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: PracticeMode.values.map((mode) {
-                                final selected = session.practiceMode == mode;
-                                final label = switch (mode) {
-                                  PracticeMode.standard => 'Standard',
-                                  PracticeMode.repeatAfterMe => 'Repeat',
-                                  PracticeMode.independentCheck =>
-                                    'Independent',
-                                };
-                                return ChoiceChip(
-                                  label: Text(label),
-                                  selected: selected,
-                                  onSelected: (_) {
-                                    widget.state.setPracticeMode(mode);
-                                    widget.onChanged();
-                                    setState(() {
-                                      microphoneStatus = widget
-                                              .state
-                                              .activeSession
-                                              ?.automationStatus ??
-                                          microphoneStatus;
-                                    });
-                                  },
-                                );
-                              }).toList(),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              session.practiceMode == PracticeMode.repeatAfterMe
-                                  ? 'Best for explicit practice loops: Mallam expects a close echo and will slow-repeat when ASR or the learner misses it.'
-                                  : session.practiceMode ==
-                                          PracticeMode.independentCheck
-                                      ? 'Best for freer answers: lighter matching, less hand-holding.'
-                                      : 'Balanced guided practice with hints before stronger support.',
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
+                        const SizedBox(height: 16),
+                        LinearProgressIndicator(
+                          value: session.progress,
+                          minHeight: 10,
+                          borderRadius:
+                              const BorderRadius.all(Radius.circular(999)),
+                          color: LumoTheme.primary,
+                          backgroundColor: const Color(0xFFE9E7FF),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: SingleChildScrollView(
+                        const SizedBox(height: 16),
+                        SoftPanel(
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            step.title,
-                                            style: const TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        _SpeakerStateBadge(
-                                          mode: session.speakerMode,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(step.instruction),
-                                    const SizedBox(height: 12),
-                                    LabelValueWrap(
-                                      items: [
-                                        ('Expected response', expectedResponse),
-                                        (
-                                          'Facilitator tip',
-                                          step.facilitatorTip
-                                        ),
-                                        (
-                                          'Real-world check',
-                                          step.realWorldCheck
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.subtitles_rounded,
+                                    color: LumoTheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Transcript strategy',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _buildDiagnosticChip(
+                                    icon: speechRecognitionActive
+                                        ? Icons.hearing_rounded
+                                        : _avoidConcurrentSpeechCapture
+                                            ? Icons.mic_none_rounded
+                                            : Icons.warning_amber_rounded,
+                                    label: _transcriptStrategyHeadline,
+                                    healthy: speechRecognitionActive &&
+                                        !_avoidConcurrentSpeechCapture,
+                                    warn: !speechRecognitionActive ||
+                                        _avoidConcurrentSpeechCapture,
+                                  ),
+                                  _buildDiagnosticChip(
+                                    icon: Icons.mic_rounded,
+                                    label: _recordingModeLabel,
+                                    healthy: true,
+                                  ),
+                                  _buildDiagnosticChip(
+                                    icon: _isAudioOnlyReviewState ||
+                                            _draftTranscriptNeedsVoiceCheck ||
+                                            _hasTranscriptSafetyBlock
+                                        ? Icons.verified_user_rounded
+                                        : Icons.fact_check_rounded,
+                                    label: _transcriptSourceOfTruthLabel,
+                                    healthy: !_isAudioOnlyReviewState &&
+                                        !_draftTranscriptNeedsVoiceCheck &&
+                                        !_hasTranscriptSafetyBlock,
+                                    warn: _isAudioOnlyReviewState ||
+                                        _draftTranscriptNeedsVoiceCheck ||
+                                        _hasTranscriptSafetyBlock,
+                                  ),
+                                  _buildDiagnosticChip(
+                                    icon: _consecutiveTranscriptMisses >= 2
+                                        ? Icons.repeat_rounded
+                                        : isAutoMode
+                                            ? Icons.auto_mode_rounded
+                                            : Icons.pan_tool_alt_rounded,
+                                    label: _automationSafetyLabel,
+                                    healthy: isAutoMode &&
+                                        _consecutiveTranscriptMisses < 2 &&
+                                        !_isAudioOnlyReviewState &&
+                                        !_draftTranscriptNeedsVoiceCheck &&
+                                        !_hasTranscriptSafetyBlock,
+                                    warn: _consecutiveTranscriptMisses >= 2 ||
+                                        _isAudioOnlyReviewState ||
+                                        _draftTranscriptNeedsVoiceCheck ||
+                                        _hasTranscriptSafetyBlock,
+                                  ),
+                                  _buildDiagnosticChip(
+                                    icon: speechRecognitionActive
+                                        ? Icons.settings_voice_rounded
+                                        : Icons.hearing_disabled_rounded,
+                                    label: _transcriptModeLabel,
+                                    healthy: speechRecognitionActive,
+                                    warn: !speechRecognitionActive,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                _transcriptStrategySummary,
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.35,
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              if (step.activity != null) ...[
-                                _buildActivityPanel(step),
-                                const SizedBox(height: 16),
-                              ],
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Automation',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    SwitchListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      value: isAutoMode,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          isAutoMode = value;
-                                          if (value) {
-                                            _autoPausedByTranscriptFailure =
-                                                false;
-                                          }
-                                          transcriptReviewPending =
-                                              !value && transcriptReviewPending;
-                                        });
-                                      },
-                                      title: const Text('Auto lesson mode'),
-                                      subtitle: Text(isAutoMode
-                                          ? 'Mallam speaks the step, checks the captured answer, advances on correct responses, and repeats when the answer needs help.'
-                                          : 'Facilitator confirms each response manually.'),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      isSpeaking
-                                          ? 'Mallam is speaking now.'
-                                          : (widget.state.activeSession
-                                                  ?.automationStatus ??
-                                              microphoneStatus ??
-                                              'Tap AI Mallam to replay the current instruction.'),
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    if (_resumePromptPendingFromLifecycle ||
-                                        widget.state.shouldOfferHandsFreeResume(
-                                          speechAvailable:
-                                              speechRecognitionActive,
-                                          transcriptMisses:
-                                              _consecutiveTranscriptMisses,
-                                          autoPaused:
-                                              _autoPausedByTranscriptFailure,
-                                          hasDraftResponse: responseController
-                                              .text
-                                              .trim()
-                                              .isNotEmpty,
-                                        )) ...[
-                                      const SizedBox(height: 12),
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFFBEB),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          border: Border.all(
-                                            color: const Color(0xFFFCD34D),
+                              const SizedBox(height: 8),
+                              Text(
+                                _automationSafetySummary,
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ..._transcriptStrategyActions.take(3).map(
+                                    (action) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 6),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Padding(
+                                            padding: EdgeInsets.only(top: 2),
+                                            child: Icon(
+                                              Icons.arrow_forward_rounded,
+                                              size: 16,
+                                              color: LumoTheme.primary,
+                                            ),
                                           ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Hands-free recovery',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFF78350F),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              widget.state
-                                                  .handsFreeRecoverySummary(
-                                                speechAvailable:
-                                                    speechRecognitionActive,
-                                                transcriptMisses:
-                                                    _consecutiveTranscriptMisses,
-                                                autoPaused:
-                                                    _autoPausedByTranscriptFailure,
-                                                hasDraftResponse:
-                                                    responseController.text
-                                                        .trim()
-                                                        .isNotEmpty,
-                                              ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              action,
                                               style: const TextStyle(
-                                                color: Color(0xFF92400E),
-                                                height: 1.4,
+                                                color: Color(0xFF475569),
+                                                height: 1.35,
                                               ),
                                             ),
-                                            const SizedBox(height: 10),
-                                            Wrap(
-                                              spacing: 8,
-                                              runSpacing: 8,
-                                              children: [
-                                                FilledButton.tonalIcon(
-                                                  onPressed: isRecording ||
-                                                          isSpeaking
-                                                      ? null
-                                                      : _resumeHandsFreeLoop,
-                                                  icon: const Icon(
-                                                    Icons.smart_toy_rounded,
-                                                  ),
-                                                  label: const Text(
-                                                    'Resume hands-free loop',
-                                                  ),
-                                                ),
-                                                if (_autoPausedByTranscriptFailure)
-                                                  OutlinedButton.icon(
-                                                    onPressed: () {
-                                                      setState(() {
-                                                        _resetTranscriptRecoveryState(
-                                                          clearReviewPending:
-                                                              false,
-                                                        );
-                                                        microphoneStatus =
-                                                            'Hands-free pause acknowledged. Keep coaching manually until you want to resume.';
-                                                      });
-                                                    },
-                                                    icon: const Icon(
-                                                      Icons
-                                                          .pause_circle_rounded,
-                                                    ),
-                                                    label: const Text(
-                                                      'Stay manual for now',
-                                                    ),
-                                                  ),
-                                              ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SoftPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Practice mode',
+                                style: TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                widget.state.degradedModeSummary,
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.35,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...widget.state
+                                  .degradedModeActions(
+                                    speechAvailable: speechRecognitionActive,
+                                    transcriptMisses:
+                                        _consecutiveTranscriptMisses,
+                                  )
+                                  .take(3)
+                                  .map(
+                                    (action) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 6),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Padding(
+                                            padding: EdgeInsets.only(top: 2),
+                                            child: Icon(
+                                              Icons
+                                                  .check_circle_outline_rounded,
+                                              size: 16,
+                                              color: LumoTheme.accentGreen,
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              action,
+                                              style: const TextStyle(
+                                                color: Color(0xFF475569),
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: PracticeMode.values.map((mode) {
+                                  final selected = session.practiceMode == mode;
+                                  final label = switch (mode) {
+                                    PracticeMode.standard => 'Standard',
+                                    PracticeMode.repeatAfterMe => 'Repeat',
+                                    PracticeMode.independentCheck =>
+                                      'Independent',
+                                  };
+                                  return ChoiceChip(
+                                    label: Text(label),
+                                    selected: selected,
+                                    onSelected: (_) {
+                                      widget.state.setPracticeMode(mode);
+                                      widget.onChanged();
+                                      setState(() {
+                                        microphoneStatus = widget
+                                                .state
+                                                .activeSession
+                                                ?.automationStatus ??
+                                            microphoneStatus;
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                session.practiceMode ==
+                                        PracticeMode.repeatAfterMe
+                                    ? 'Best for explicit practice loops: Mallam expects a close echo and will slow-repeat when ASR or the learner misses it.'
+                                    : session.practiceMode ==
+                                            PracticeMode.independentCheck
+                                        ? 'Best for freer answers: lighter matching, less hand-holding.'
+                                        : 'Balanced guided practice with hints before stronger support.',
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                SoftPanel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              step.title,
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          _SpeakerStateBadge(
+                                            mode: session.speakerMode,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(step.instruction),
+                                      const SizedBox(height: 12),
+                                      LabelValueWrap(
+                                        items: [
+                                          (
+                                            'Expected response',
+                                            expectedResponse
+                                          ),
+                                          (
+                                            'Facilitator tip',
+                                            step.facilitatorTip
+                                          ),
+                                          (
+                                            'Real-world check',
+                                            step.realWorldCheck
+                                          ),
+                                        ],
                                       ),
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 16),
-                              if (_resumedSession ||
-                                  session.latestLearnerAudioPath != null ||
-                                  session.latestLearnerResponse != null) ...[
+                                const SizedBox(height: 16),
+                                if (step.activity != null) ...[
+                                  _buildActivityPanel(step),
+                                  const SizedBox(height: 16),
+                                ],
                                 SoftPanel(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       const Text(
-                                        'Resume continuity',
+                                        'Automation',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      SwitchListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        value: isAutoMode,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            isAutoMode = value;
+                                            if (value) {
+                                              _autoPausedByTranscriptFailure =
+                                                  false;
+                                            }
+                                            transcriptReviewPending = !value &&
+                                                transcriptReviewPending;
+                                          });
+                                        },
+                                        title: const Text('Auto lesson mode'),
+                                        subtitle: Text(isAutoMode
+                                            ? 'Mallam speaks the step, checks the captured answer, advances on correct responses, and repeats when the answer needs help.'
+                                            : 'Facilitator confirms each response manually.'),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        isSpeaking
+                                            ? 'Mallam is speaking now.'
+                                            : (widget.state.activeSession
+                                                    ?.automationStatus ??
+                                                microphoneStatus ??
+                                                'Tap AI Mallam to replay the current instruction.'),
+                                        style: const TextStyle(
+                                          color: Color(0xFF475569),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                      if (_resumePromptPendingFromLifecycle ||
+                                          widget.state
+                                              .shouldOfferHandsFreeResume(
+                                            speechAvailable:
+                                                speechRecognitionActive,
+                                            transcriptMisses:
+                                                _consecutiveTranscriptMisses,
+                                            autoPaused:
+                                                _autoPausedByTranscriptFailure,
+                                            hasDraftResponse: responseController
+                                                .text
+                                                .trim()
+                                                .isNotEmpty,
+                                          )) ...[
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFFBEB),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: const Color(0xFFFCD34D),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Hands-free recovery',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF78350F),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                widget.state
+                                                    .handsFreeRecoverySummary(
+                                                  speechAvailable:
+                                                      speechRecognitionActive,
+                                                  transcriptMisses:
+                                                      _consecutiveTranscriptMisses,
+                                                  autoPaused:
+                                                      _autoPausedByTranscriptFailure,
+                                                  hasDraftResponse:
+                                                      responseController.text
+                                                          .trim()
+                                                          .isNotEmpty,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: Color(0xFF92400E),
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: [
+                                                  FilledButton.tonalIcon(
+                                                    onPressed: isRecording ||
+                                                            isSpeaking
+                                                        ? null
+                                                        : _resumeHandsFreeLoop,
+                                                    icon: const Icon(
+                                                      Icons.smart_toy_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Resume hands-free loop',
+                                                    ),
+                                                  ),
+                                                  if (_autoPausedByTranscriptFailure)
+                                                    OutlinedButton.icon(
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          _resetTranscriptRecoveryState(
+                                                            clearReviewPending:
+                                                                false,
+                                                          );
+                                                          microphoneStatus =
+                                                              'Hands-free pause acknowledged. Keep coaching manually until you want to resume.';
+                                                        });
+                                                      },
+                                                      icon: const Icon(
+                                                        Icons
+                                                            .pause_circle_rounded,
+                                                      ),
+                                                      label: const Text(
+                                                        'Stay manual for now',
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                if (_resumedSession ||
+                                    session.latestLearnerAudioPath != null ||
+                                    session.latestLearnerResponse != null) ...[
+                                  SoftPanel(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Resume continuity',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          session.latestLearnerResponse !=
+                                                      null &&
+                                                  session.latestLearnerResponse!
+                                                      .trim()
+                                                      .isNotEmpty
+                                              ? 'Last captured learner answer: ${session.latestLearnerResponse}'
+                                              : 'This lesson can continue from the saved step even when transcript help drops out.',
+                                          style: const TextStyle(
+                                            color: Color(0xFF475569),
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            if (session.latestLearnerResponse !=
+                                                    null &&
+                                                session.latestLearnerResponse!
+                                                    .trim()
+                                                    .isNotEmpty)
+                                              FilledButton.tonalIcon(
+                                                onPressed: () =>
+                                                    _setResponseAndMaybeSubmit(
+                                                  session
+                                                      .latestLearnerResponse!,
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.restore_rounded,
+                                                ),
+                                                label: const Text(
+                                                  'Reuse last answer',
+                                                ),
+                                              ),
+                                            if (session
+                                                    .latestLearnerAudioPath !=
+                                                null)
+                                              OutlinedButton.icon(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    microphoneStatus =
+                                                        'Saved learner audio is still attached. You can record again, type the answer, or keep going manually.';
+                                                  });
+                                                },
+                                                icon: const Icon(
+                                                  Icons.library_music_rounded,
+                                                ),
+                                                label: const Text(
+                                                  'Keep saved audio',
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                _buildDeviceDiagnosticsPanel(),
+                                const SizedBox(height: 16),
+                                _CoachActionsRow(
+                                  onReplay: () async {
+                                    _promptedCurrentStep = false;
+                                    await widget.state.repeatCurrentStep();
+                                    if (!mounted) return;
+                                    setState(() {
+                                      microphoneStatus =
+                                          'Mallam replayed the current step and can reopen the mic.';
+                                    });
+                                    if (isAutoMode) {
+                                      await _startRecordingIfPossible(
+                                        fallbackMessage:
+                                            'Mallam replayed the current step. The mic is reopening for the learner.',
+                                      );
+                                    }
+                                    widget.onChanged();
+                                  },
+                                  onHint: () => _runCoachSupport('hint'),
+                                  onModel: () => _runCoachSupport('model'),
+                                  onSlow: () => _runCoachSupport('slow'),
+                                  onWait: () => _runCoachSupport('wait'),
+                                  onTranslate: () =>
+                                      _runCoachSupport('translate'),
+                                ),
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: responseController,
+                                  onChanged: (_) => setState(() {}),
+                                  decoration: InputDecoration(
+                                    labelText: 'Learner response',
+                                    hintText: _learnerResponseHintText,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: suggestions
+                                      .map(
+                                        (suggestion) => ActionChip(
+                                          label: Text(suggestion),
+                                          onPressed: () =>
+                                              _handleSubmittedResponse(
+                                                  suggestion),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                                const SizedBox(height: 12),
+                                if (transcriptReviewPending) ...[
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFFBEB),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: const Color(0xFFFCD34D),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _reviewBannerTitle,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF78350F),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          _reviewBannerBody,
+                                          style: const TextStyle(
+                                            color: Color(0xFF92400E),
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            _buildDiagnosticChip(
+                                              icon: _isAudioOnlyReviewState
+                                                  ? Icons.mic_none_rounded
+                                                  : _hasTranscriptSafetyBlock
+                                                      ? Icons.gpp_maybe_rounded
+                                                      : _draftTranscriptNeedsVoiceCheck
+                                                          ? Icons
+                                                              .hearing_rounded
+                                                          : Icons
+                                                              .subtitles_rounded,
+                                              label: _isAudioOnlyReviewState
+                                                  ? 'Transcript missing • use saved voice'
+                                                  : _hasTranscriptSafetyBlock
+                                                      ? 'Stable transcript blocked • verify with audio'
+                                                      : _draftTranscriptNeedsVoiceCheck
+                                                          ? 'Draft transcript • verify with audio'
+                                                          : 'Transcript ready for facilitator check',
+                                              healthy: !_isAudioOnlyReviewState &&
+                                                  !_draftTranscriptNeedsVoiceCheck &&
+                                                  !_hasTranscriptSafetyBlock,
+                                              warn: _isAudioOnlyReviewState ||
+                                                  _draftTranscriptNeedsVoiceCheck ||
+                                                  _hasTranscriptSafetyBlock,
+                                            ),
+                                            if (_hasSavedLearnerAudio)
+                                              _buildDiagnosticChip(
+                                                icon:
+                                                    Icons.library_music_rounded,
+                                                label:
+                                                    'Saved learner voice attached',
+                                                healthy: true,
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            FilledButton.tonalIcon(
+                                              onPressed: responseController.text
+                                                      .trim()
+                                                      .isEmpty
+                                                  ? null
+                                                  : () =>
+                                                      _handleSubmittedResponse(
+                                                        responseController.text,
+                                                      ),
+                                              icon: const Icon(
+                                                Icons.check_circle_rounded,
+                                              ),
+                                              label: Text(
+                                                _isAudioOnlyReviewState
+                                                    ? 'Confirm typed note'
+                                                    : 'Confirm transcript',
+                                              ),
+                                            ),
+                                            FilledButton.icon(
+                                              onPressed: responseController.text
+                                                      .trim()
+                                                      .isEmpty
+                                                  ? null
+                                                  : _confirmTranscriptAndAdvance,
+                                              icon: const Icon(
+                                                Icons.auto_mode_rounded,
+                                              ),
+                                              label:
+                                                  Text(_reviewPrimaryCtaLabel),
+                                            ),
+                                            OutlinedButton.icon(
+                                              onPressed: () {
+                                                setState(() {
+                                                  transcriptReviewPending =
+                                                      false;
+                                                  isAutoMode = false;
+                                                  _autoPausedByTranscriptFailure =
+                                                      true;
+                                                  if (responseController.text
+                                                      .trim()
+                                                      .isEmpty) {
+                                                    microphoneStatus =
+                                                        'Transcript review skipped. Lumo is staying in audio-first manual mode so nobody auto-advances without checking the saved voice.';
+                                                  } else {
+                                                    microphoneStatus =
+                                                        'Transcript review skipped. The draft answer stays editable, the saved audio remains attached, and hands-free auto-advance is paused for this take.';
+                                                  }
+                                                });
+                                              },
+                                              icon: const Icon(
+                                                Icons.graphic_eq_rounded,
+                                              ),
+                                              label: Text(
+                                                  _reviewSecondaryCtaLabel),
+                                            ),
+                                            if (session
+                                                    .latestLearnerAudioPath !=
+                                                null)
+                                              FilledButton.tonalIcon(
+                                                onPressed:
+                                                    _toggleSavedAudioPlayback,
+                                                icon: Icon(
+                                                  learnerAudioPlaybackService
+                                                          .isPlaying
+                                                      ? Icons
+                                                          .pause_circle_rounded
+                                                      : Icons
+                                                          .play_circle_fill_rounded,
+                                                ),
+                                                label: Text(
+                                                  learnerAudioPlaybackService
+                                                          .isPlaying
+                                                      ? 'Pause saved voice'
+                                                      : 'Play saved voice',
+                                                ),
+                                              ),
+                                            if (session
+                                                    .latestLearnerAudioPath !=
+                                                null)
+                                              FilledButton.icon(
+                                                onPressed:
+                                                    _acceptSavedAudioAndContinue,
+                                                icon: const Icon(
+                                                  Icons.library_music_rounded,
+                                                ),
+                                                label: const Text(
+                                                  'Accept saved voice + continue',
+                                                ),
+                                              ),
+                                            if (session
+                                                    .latestLearnerAudioPath !=
+                                                null)
+                                              OutlinedButton.icon(
+                                                onPressed: () =>
+                                                    _acceptSavedAudioAndContinue(
+                                                  resumeHandsFree: false,
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.pan_tool_alt_rounded,
+                                                ),
+                                                label: const Text(
+                                                  'Accept saved voice, stay manual',
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: FilledButton.tonal(
+                                        onPressed: () =>
+                                            _handleSubmittedResponse(
+                                          responseController.text,
+                                        ),
+                                        child:
+                                            const Text('Save typed response'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: FilledButton(
+                                        onPressed: session.hasLearnerInput &&
+                                                !transcriptReviewPending
+                                            ? () async {
+                                                await _afterCorrectResponse();
+                                              }
+                                            : null,
+                                        child: Text(
+                                          session.isLastStep
+                                              ? 'Finish lesson'
+                                              : 'Next step',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                SoftPanel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Learner microphone capture',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w800,
                                         ),
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        session.latestLearnerResponse != null &&
-                                                session.latestLearnerResponse!
-                                                    .trim()
-                                                    .isNotEmpty
-                                            ? 'Last captured learner answer: ${session.latestLearnerResponse}'
-                                            : 'This lesson can continue from the saved step even when transcript help drops out.',
+                                        microphoneStatus ??
+                                            'Press Start recording after Mallam speaks. The app will save audio and use live transcript when possible.',
                                         style: const TextStyle(
                                           color: Color(0xFF475569),
                                           height: 1.4,
                                         ),
                                       ),
-                                      const SizedBox(height: 10),
+                                      const SizedBox(height: 12),
                                       Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
+                                        spacing: 12,
+                                        runSpacing: 12,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
                                         children: [
-                                          if (session.latestLearnerResponse !=
-                                                  null &&
-                                              session.latestLearnerResponse!
-                                                  .trim()
-                                                  .isNotEmpty)
-                                            FilledButton.tonalIcon(
-                                              onPressed: () =>
-                                                  _setResponseAndMaybeSubmit(
-                                                session.latestLearnerResponse!,
-                                              ),
-                                              icon: const Icon(
-                                                Icons.restore_rounded,
-                                              ),
-                                              label: const Text(
-                                                'Reuse last answer',
+                                          FilledButton.icon(
+                                            onPressed: isRecording ||
+                                                    !_micPermissionGranted
+                                                ? null
+                                                : startRecording,
+                                            icon: const Icon(Icons.mic_rounded),
+                                            label:
+                                                const Text('Start recording'),
+                                          ),
+                                          FilledButton.tonalIcon(
+                                            onPressed: isRecording
+                                                ? stopRecording
+                                                : null,
+                                            icon: const Icon(
+                                              Icons.stop_circle_outlined,
+                                            ),
+                                            label: const Text('Stop and save'),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: isRecording
+                                                ? null
+                                                : () async {
+                                                    await _primeDiagnostics();
+                                                    await _retryTranscriptEngine();
+                                                  },
+                                            icon: const Icon(
+                                              Icons.refresh_rounded,
+                                            ),
+                                            label:
+                                                const Text('Retry transcript'),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isRecording
+                                                  ? const Color(0xFFFFF1F2)
+                                                  : const Color(0xFFF8FAFC),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              border: Border.all(
+                                                color: isRecording
+                                                    ? const Color(0xFFFDA4AF)
+                                                    : const Color(0xFFE2E8F0),
                                               ),
                                             ),
-                                          if (session.latestLearnerAudioPath !=
-                                              null)
-                                            OutlinedButton.icon(
-                                              onPressed: () {
-                                                setState(() {
-                                                  microphoneStatus =
-                                                      'Saved learner audio is still attached. You can record again, type the answer, or keep going manually.';
-                                                });
-                                              },
-                                              icon: const Icon(
-                                                Icons.library_music_rounded,
-                                              ),
-                                              label: const Text(
-                                                'Keep saved audio',
+                                            child: Text(
+                                              isRecording
+                                                  ? 'Recording ${formatDuration(currentRecordingDuration)}'
+                                                  : 'Ready for learner audio',
+                                              style: TextStyle(
+                                                color: isRecording
+                                                    ? const Color(0xFFBE123C)
+                                                    : const Color(0xFF475569),
+                                                fontWeight: FontWeight.w700,
                                               ),
                                             ),
+                                          ),
                                         ],
                                       ),
+                                      if (!speechRecognitionActive &&
+                                          !isRecording) ...[
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFFBEB),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: const Color(0xFFFCD34D),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Audio fallback recovery',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF78350F),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                _consecutiveTranscriptMisses >=
+                                                        2
+                                                    ? 'Transcript help missed $_consecutiveTranscriptMisses takes in a row. Stay in audio-first mode, use Repeat or Model answer, and sync later if the network is flaky. ${speechTranscriptionService.availabilityLabel}'
+                                                    : speechTranscriptionService
+                                                        .availabilityLabel,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF92400E),
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: [
+                                                  FilledButton.tonalIcon(
+                                                    onPressed: responseController
+                                                            .text
+                                                            .trim()
+                                                            .isEmpty
+                                                        ? null
+                                                        : () =>
+                                                            _handleSubmittedResponse(
+                                                              responseController
+                                                                  .text,
+                                                            ),
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .check_circle_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Submit typed answer',
+                                                    ),
+                                                  ),
+                                                  FilledButton.tonalIcon(
+                                                    onPressed: isRecording ||
+                                                            isSpeaking
+                                                        ? null
+                                                        : _resumeHandsFreeLoop,
+                                                    icon: const Icon(
+                                                      Icons.smart_toy_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Resume hands-free loop',
+                                                    ),
+                                                  ),
+                                                  OutlinedButton.icon(
+                                                    onPressed: () =>
+                                                        _runCoachSupport(
+                                                            'model'),
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .record_voice_over_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Play model answer',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      if (liveTranscript.isNotEmpty ||
+                                          speechRecognitionActive) ...[
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEEF2FF),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: const Color(0xFFC7D2FE),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                speechRecognitionActive
+                                                    ? 'Live transcript'
+                                                    : 'Captured transcript',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF312E81),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                liveTranscript.isEmpty
+                                                    ? 'Listening for learner speech...'
+                                                    : liveTranscript,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF4338CA),
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      if (session.latestLearnerAudioPath !=
+                                          null) ...[
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF8FAFC),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              InfoRow(
+                                                label: 'Latest learner audio',
+                                                value: formatDuration(
+                                                  session.latestLearnerAudioDuration ??
+                                                      Duration.zero,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children:
+                                                    List.generate(18, (index) {
+                                                  final active =
+                                                      learnerAudioPlaybackService
+                                                              .isPlaying
+                                                          ? (index % 3 != 0)
+                                                          : index.isEven;
+                                                  const heights = [
+                                                    8.0,
+                                                    16.0,
+                                                    24.0,
+                                                    14.0,
+                                                    20.0,
+                                                    10.0
+                                                  ];
+                                                  return Container(
+                                                    width: 6,
+                                                    height: active
+                                                        ? heights[index %
+                                                            heights.length]
+                                                        : 8,
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                            right: 4),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          learnerAudioPlaybackService
+                                                                  .isPlaying
+                                                              ? const Color(
+                                                                  0xFF4F46E5)
+                                                              : const Color(
+                                                                  0xFFCBD5E1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              999),
+                                                    ),
+                                                  );
+                                                }),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                learnerAudioPlaybackService
+                                                        .isPlaying
+                                                    ? 'Playback is running now. Listen, then accept, type a note, or replay.'
+                                                    : 'Preview the saved learner answer before advancing. This stays available even when transcript capture fails.',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF475569),
+                                                  height: 1.35,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                compactPath(
+                                                  session
+                                                      .latestLearnerAudioPath!,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: Color(0xFF64748B),
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: [
+                                                  FilledButton.tonalIcon(
+                                                    onPressed:
+                                                        _toggleSavedAudioPlayback,
+                                                    icon: Icon(
+                                                      learnerAudioPlaybackService
+                                                              .isPlaying
+                                                          ? Icons
+                                                              .pause_circle_rounded
+                                                          : Icons
+                                                              .play_circle_fill_rounded,
+                                                    ),
+                                                    label: Text(
+                                                      learnerAudioPlaybackService
+                                                              .isPlaying
+                                                          ? 'Pause saved voice'
+                                                          : 'Play saved voice',
+                                                    ),
+                                                  ),
+                                                  if (learnerAudioPlaybackService
+                                                      .isPlaying)
+                                                    OutlinedButton.icon(
+                                                      onPressed:
+                                                          _stopSavedAudioPlayback,
+                                                      icon: const Icon(
+                                                        Icons
+                                                            .stop_circle_rounded,
+                                                      ),
+                                                      label: const Text(
+                                                        'Stop playback',
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
                                 const SizedBox(height: 16),
+                                _ResponseReviewBanner(
+                                    review: session.latestReview),
                               ],
-                              _buildDeviceDiagnosticsPanel(),
-                              const SizedBox(height: 16),
-                              _CoachActionsRow(
-                                onReplay: () async {
-                                  _promptedCurrentStep = false;
-                                  await widget.state.repeatCurrentStep();
-                                  if (!mounted) return;
-                                  setState(() {
-                                    microphoneStatus =
-                                        'Mallam replayed the current step and can reopen the mic.';
-                                  });
-                                  if (isAutoMode) {
-                                    await _startRecordingIfPossible(
-                                      fallbackMessage:
-                                          'Mallam replayed the current step. The mic is reopening for the learner.',
-                                    );
-                                  }
-                                  widget.onChanged();
-                                },
-                                onHint: () => _runCoachSupport('hint'),
-                                onModel: () => _runCoachSupport('model'),
-                                onSlow: () => _runCoachSupport('slow'),
-                                onWait: () => _runCoachSupport('wait'),
-                                onTranslate: () =>
-                                    _runCoachSupport('translate'),
-                              ),
-                              const SizedBox(height: 16),
-                              TextField(
-                                controller: responseController,
-                                onChanged: (_) => setState(() {}),
-                                decoration: InputDecoration(
-                                  labelText: 'Learner response',
-                                  hintText: _learnerResponseHintText,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: suggestions
-                                    .map(
-                                      (suggestion) => ActionChip(
-                                        label: Text(suggestion),
-                                        onPressed: () =>
-                                            _handleSubmittedResponse(
-                                                suggestion),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                              const SizedBox(height: 12),
-                              if (transcriptReviewPending) ...[
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFFBEB),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: const Color(0xFFFCD34D),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _reviewBannerTitle,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF78350F),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        _reviewBannerBody,
-                                        style: const TextStyle(
-                                          color: Color(0xFF92400E),
-                                          height: 1.35,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: [
-                                          _buildDiagnosticChip(
-                                            icon: _isAudioOnlyReviewState
-                                                ? Icons.mic_none_rounded
-                                                : _hasTranscriptSafetyBlock
-                                                    ? Icons.gpp_maybe_rounded
-                                                    : _draftTranscriptNeedsVoiceCheck
-                                                        ? Icons.hearing_rounded
-                                                        : Icons
-                                                            .subtitles_rounded,
-                                            label: _isAudioOnlyReviewState
-                                                ? 'Transcript missing • use saved voice'
-                                                : _hasTranscriptSafetyBlock
-                                                    ? 'Stable transcript blocked • verify with audio'
-                                                    : _draftTranscriptNeedsVoiceCheck
-                                                        ? 'Draft transcript • verify with audio'
-                                                        : 'Transcript ready for facilitator check',
-                                            healthy: !_isAudioOnlyReviewState &&
-                                                !_draftTranscriptNeedsVoiceCheck &&
-                                                !_hasTranscriptSafetyBlock,
-                                            warn: _isAudioOnlyReviewState ||
-                                                _draftTranscriptNeedsVoiceCheck ||
-                                                _hasTranscriptSafetyBlock,
-                                          ),
-                                          if (_hasSavedLearnerAudio)
-                                            _buildDiagnosticChip(
-                                              icon: Icons.library_music_rounded,
-                                              label:
-                                                  'Saved learner voice attached',
-                                              healthy: true,
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: [
-                                          FilledButton.tonalIcon(
-                                            onPressed: responseController.text
-                                                    .trim()
-                                                    .isEmpty
-                                                ? null
-                                                : () =>
-                                                    _handleSubmittedResponse(
-                                                      responseController.text,
-                                                    ),
-                                            icon: const Icon(
-                                              Icons.check_circle_rounded,
-                                            ),
-                                            label: Text(
-                                              _isAudioOnlyReviewState
-                                                  ? 'Confirm typed note'
-                                                  : 'Confirm transcript',
-                                            ),
-                                          ),
-                                          FilledButton.icon(
-                                            onPressed: responseController.text
-                                                    .trim()
-                                                    .isEmpty
-                                                ? null
-                                                : _confirmTranscriptAndAdvance,
-                                            icon: const Icon(
-                                              Icons.auto_mode_rounded,
-                                            ),
-                                            label: Text(_reviewPrimaryCtaLabel),
-                                          ),
-                                          OutlinedButton.icon(
-                                            onPressed: () {
-                                              setState(() {
-                                                transcriptReviewPending = false;
-                                                isAutoMode = false;
-                                                _autoPausedByTranscriptFailure =
-                                                    true;
-                                                if (responseController.text
-                                                    .trim()
-                                                    .isEmpty) {
-                                                  microphoneStatus =
-                                                      'Transcript review skipped. Lumo is staying in audio-first manual mode so nobody auto-advances without checking the saved voice.';
-                                                } else {
-                                                  microphoneStatus =
-                                                      'Transcript review skipped. The draft answer stays editable, the saved audio remains attached, and hands-free auto-advance is paused for this take.';
-                                                }
-                                              });
-                                            },
-                                            icon: const Icon(
-                                              Icons.graphic_eq_rounded,
-                                            ),
-                                            label:
-                                                Text(_reviewSecondaryCtaLabel),
-                                          ),
-                                          if (session.latestLearnerAudioPath !=
-                                              null)
-                                            FilledButton.tonalIcon(
-                                              onPressed:
-                                                  _toggleSavedAudioPlayback,
-                                              icon: Icon(
-                                                learnerAudioPlaybackService
-                                                        .isPlaying
-                                                    ? Icons.pause_circle_rounded
-                                                    : Icons
-                                                        .play_circle_fill_rounded,
-                                              ),
-                                              label: Text(
-                                                learnerAudioPlaybackService
-                                                        .isPlaying
-                                                    ? 'Pause saved voice'
-                                                    : 'Play saved voice',
-                                              ),
-                                            ),
-                                          if (session.latestLearnerAudioPath !=
-                                              null)
-                                            FilledButton.icon(
-                                              onPressed:
-                                                  _acceptSavedAudioAndContinue,
-                                              icon: const Icon(
-                                                Icons.library_music_rounded,
-                                              ),
-                                              label: const Text(
-                                                'Accept saved voice + continue',
-                                              ),
-                                            ),
-                                          if (session.latestLearnerAudioPath !=
-                                              null)
-                                            OutlinedButton.icon(
-                                              onPressed: () =>
-                                                  _acceptSavedAudioAndContinue(
-                                                resumeHandsFree: false,
-                                              ),
-                                              icon: const Icon(
-                                                Icons.pan_tool_alt_rounded,
-                                              ),
-                                              label: const Text(
-                                                'Accept saved voice, stay manual',
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: FilledButton.tonal(
-                                      onPressed: () => _handleSubmittedResponse(
-                                        responseController.text,
-                                      ),
-                                      child: const Text('Save typed response'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: FilledButton(
-                                      onPressed: session.hasLearnerInput &&
-                                              !transcriptReviewPending
-                                          ? () async {
-                                              await _afterCorrectResponse();
-                                            }
-                                          : null,
-                                      child: Text(
-                                        session.isLastStep
-                                            ? 'Finish lesson'
-                                            : 'Next step',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Learner microphone capture',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      microphoneStatus ??
-                                          'Press Start recording after Mallam speaks. The app will save audio and use live transcript when possible.',
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Wrap(
-                                      spacing: 12,
-                                      runSpacing: 12,
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      children: [
-                                        FilledButton.icon(
-                                          onPressed: isRecording ||
-                                                  !_micPermissionGranted
-                                              ? null
-                                              : startRecording,
-                                          icon: const Icon(Icons.mic_rounded),
-                                          label: const Text('Start recording'),
-                                        ),
-                                        FilledButton.tonalIcon(
-                                          onPressed: isRecording
-                                              ? stopRecording
-                                              : null,
-                                          icon: const Icon(
-                                            Icons.stop_circle_outlined,
-                                          ),
-                                          label: const Text('Stop and save'),
-                                        ),
-                                        OutlinedButton.icon(
-                                          onPressed: isRecording
-                                              ? null
-                                              : () async {
-                                                  await _primeDiagnostics();
-                                                  await _retryTranscriptEngine();
-                                                },
-                                          icon: const Icon(
-                                            Icons.refresh_rounded,
-                                          ),
-                                          label: const Text('Retry transcript'),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isRecording
-                                                ? const Color(0xFFFFF1F2)
-                                                : const Color(0xFFF8FAFC),
-                                            borderRadius:
-                                                BorderRadius.circular(999),
-                                            border: Border.all(
-                                              color: isRecording
-                                                  ? const Color(0xFFFDA4AF)
-                                                  : const Color(0xFFE2E8F0),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            isRecording
-                                                ? 'Recording ${formatDuration(currentRecordingDuration)}'
-                                                : 'Ready for learner audio',
-                                            style: TextStyle(
-                                              color: isRecording
-                                                  ? const Color(0xFFBE123C)
-                                                  : const Color(0xFF475569),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (!speechRecognitionActive &&
-                                        !isRecording) ...[
-                                      const SizedBox(height: 12),
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFFBEB),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          border: Border.all(
-                                            color: const Color(0xFFFCD34D),
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Audio fallback recovery',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFF78350F),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              _consecutiveTranscriptMisses >= 2
-                                                  ? 'Transcript help missed $_consecutiveTranscriptMisses takes in a row. Stay in audio-first mode, use Repeat or Model answer, and sync later if the network is flaky. ${speechTranscriptionService.availabilityLabel}'
-                                                  : speechTranscriptionService
-                                                      .availabilityLabel,
-                                              style: const TextStyle(
-                                                color: Color(0xFF92400E),
-                                                height: 1.4,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                            Wrap(
-                                              spacing: 8,
-                                              runSpacing: 8,
-                                              children: [
-                                                FilledButton.tonalIcon(
-                                                  onPressed: responseController
-                                                          .text
-                                                          .trim()
-                                                          .isEmpty
-                                                      ? null
-                                                      : () =>
-                                                          _handleSubmittedResponse(
-                                                            responseController
-                                                                .text,
-                                                          ),
-                                                  icon: const Icon(
-                                                    Icons.check_circle_rounded,
-                                                  ),
-                                                  label: const Text(
-                                                    'Submit typed answer',
-                                                  ),
-                                                ),
-                                                FilledButton.tonalIcon(
-                                                  onPressed: isRecording ||
-                                                          isSpeaking
-                                                      ? null
-                                                      : _resumeHandsFreeLoop,
-                                                  icon: const Icon(
-                                                    Icons.smart_toy_rounded,
-                                                  ),
-                                                  label: const Text(
-                                                    'Resume hands-free loop',
-                                                  ),
-                                                ),
-                                                OutlinedButton.icon(
-                                                  onPressed: () =>
-                                                      _runCoachSupport('model'),
-                                                  icon: const Icon(
-                                                    Icons
-                                                        .record_voice_over_rounded,
-                                                  ),
-                                                  label: const Text(
-                                                    'Play model answer',
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    if (liveTranscript.isNotEmpty ||
-                                        speechRecognitionActive) ...[
-                                      const SizedBox(height: 12),
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFEEF2FF),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          border: Border.all(
-                                            color: const Color(0xFFC7D2FE),
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              speechRecognitionActive
-                                                  ? 'Live transcript'
-                                                  : 'Captured transcript',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFF312E81),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              liveTranscript.isEmpty
-                                                  ? 'Listening for learner speech...'
-                                                  : liveTranscript,
-                                              style: const TextStyle(
-                                                color: Color(0xFF4338CA),
-                                                height: 1.4,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    if (session.latestLearnerAudioPath !=
-                                        null) ...[
-                                      const SizedBox(height: 12),
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF8FAFC),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          border: Border.all(
-                                            color: const Color(0xFFE2E8F0),
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            InfoRow(
-                                              label: 'Latest learner audio',
-                                              value: formatDuration(
-                                                session.latestLearnerAudioDuration ??
-                                                    Duration.zero,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children:
-                                                  List.generate(18, (index) {
-                                                final active =
-                                                    learnerAudioPlaybackService
-                                                            .isPlaying
-                                                        ? (index % 3 != 0)
-                                                        : index.isEven;
-                                                const heights = [
-                                                  8.0,
-                                                  16.0,
-                                                  24.0,
-                                                  14.0,
-                                                  20.0,
-                                                  10.0
-                                                ];
-                                                return Container(
-                                                  width: 6,
-                                                  height: active
-                                                      ? heights[index %
-                                                          heights.length]
-                                                      : 8,
-                                                  margin: const EdgeInsets.only(
-                                                      right: 4),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        learnerAudioPlaybackService
-                                                                .isPlaying
-                                                            ? const Color(
-                                                                0xFF4F46E5)
-                                                            : const Color(
-                                                                0xFFCBD5E1),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            999),
-                                                  ),
-                                                );
-                                              }),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              learnerAudioPlaybackService
-                                                      .isPlaying
-                                                  ? 'Playback is running now. Listen, then accept, type a note, or replay.'
-                                                  : 'Preview the saved learner answer before advancing. This stays available even when transcript capture fails.',
-                                              style: const TextStyle(
-                                                color: Color(0xFF475569),
-                                                height: 1.35,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              compactPath(
-                                                session.latestLearnerAudioPath!,
-                                              ),
-                                              style: const TextStyle(
-                                                color: Color(0xFF64748B),
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                            Wrap(
-                                              spacing: 8,
-                                              runSpacing: 8,
-                                              children: [
-                                                FilledButton.tonalIcon(
-                                                  onPressed:
-                                                      _toggleSavedAudioPlayback,
-                                                  icon: Icon(
-                                                    learnerAudioPlaybackService
-                                                            .isPlaying
-                                                        ? Icons
-                                                            .pause_circle_rounded
-                                                        : Icons
-                                                            .play_circle_fill_rounded,
-                                                  ),
-                                                  label: Text(
-                                                    learnerAudioPlaybackService
-                                                            .isPlaying
-                                                        ? 'Pause saved voice'
-                                                        : 'Play saved voice',
-                                                  ),
-                                                ),
-                                                if (learnerAudioPlaybackService
-                                                    .isPlaying)
-                                                  OutlinedButton.icon(
-                                                    onPressed:
-                                                        _stopSavedAudioPlayback,
-                                                    icon: const Icon(
-                                                      Icons.stop_circle_rounded,
-                                                    ),
-                                                    label: const Text(
-                                                      'Stop playback',
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              _ResponseReviewBanner(
-                                  review: session.latestReview),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

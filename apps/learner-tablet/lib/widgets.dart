@@ -30,7 +30,10 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final maxWidth = MediaQuery.sizeOf(context).width * 0.7;
+
     return Container(
+      constraints: BoxConstraints(maxWidth: maxWidth),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
@@ -38,6 +41,9 @@ class StatusPill extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        softWrap: true,
         style: TextStyle(color: color, fontWeight: FontWeight.w700),
       ),
     );

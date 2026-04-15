@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:lumo_learner_tablet/api_client.dart';
 import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/main.dart';
 import 'package:lumo_learner_tablet/models.dart';
+
+class _FailingApiClient extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap() async {
+    throw Exception('backend offline');
+  }
+}
 
 void _noop() {}
 
@@ -137,6 +145,28 @@ void main() {
           .automationStatus,
       'Resume ready',
     );
+  });
+
+  testWidgets('bootstrap failure restores guaranteed offline lesson pack', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+
+    final state = LumoAppState(
+      apiClient: _FailingApiClient(),
+      includeSeedDemoContent: false,
+    );
+    addTearDown(state.dispose);
+
+    await state.bootstrap();
+    await tester.pump(const Duration(milliseconds: 450));
+
+    expect(state.usingFallbackData, isTrue);
+    expect(state.backendError, 'backend offline');
+    expect(state.learners, isNotEmpty);
+    expect(state.modules, isNotEmpty);
+    expect(state.assignedLessons, isNotEmpty);
+    expect(state.suggestedLearnerForHome, isNotNull);
   });
 
   testWidgets('home screen stays usable on portrait tablet widths', (
@@ -664,6 +694,72 @@ void main() {
 
     expect(find.textContaining('returned to the foreground'), findsWidgets);
     expect(find.textContaining('Resume hands-free loop'), findsWidgets);
+
+    state.dispose();
+  });
+
+  testWidgets('lesson exit pauses safely instead of dropping learner evidence',
+      (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+    state.attachLearnerAudioCapture(
+      path: 'https://example.com/audio/exit-review.m4a',
+      duration: const Duration(seconds: 3),
+    );
+    state.submitLearnerResponse('I still need a quick review');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => LessonSessionPage(
+                    state: state,
+                    lesson: lesson,
+                    onChanged: () {},
+                  ),
+                ),
+              );
+            },
+            child: const Text('Open lesson'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open lesson'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LessonSessionPage), findsOneWidget);
+
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Leave lesson safely?'), findsOneWidget);
+    expect(
+        find.textContaining('saved voice, and draft answer'), findsOneWidget);
+
+    await tester.tap(find.text('Leave lesson'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LessonSessionPage), findsNothing);
+    expect(find.text('Open lesson'), findsOneWidget);
+    expect(state.activeSession, isNotNull);
+    expect(state.activeSession?.latestLearnerAudioPath, isNotNull);
+    expect(state.activeSession?.latestLearnerResponse, isNotNull);
+    expect(state.activeSession?.stepIndex, 0);
 
     state.dispose();
   });
