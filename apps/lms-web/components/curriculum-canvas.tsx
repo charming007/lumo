@@ -2,7 +2,6 @@
 
 import type React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Pill } from '../lib/ui';
 import type { Assessment } from '../lib/types';
@@ -29,6 +28,18 @@ const filterButtonStyle: React.CSSProperties = {
   border: '1px solid rgba(148,163,184,0.18)',
   background: 'rgba(15,23,42,0.72)',
   color: '#cbd5e1',
+};
+
+const quickActionButtonStyle: React.CSSProperties = {
+  borderRadius: 14,
+  padding: '11px 12px',
+  fontWeight: 800,
+  fontSize: 13,
+  cursor: 'pointer',
+  border: '1px solid rgba(148,163,184,0.18)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#f8fafc',
+  textAlign: 'left',
 };
 
 function statusTone(status: string) {
@@ -71,6 +82,60 @@ function formatGeneratedAt(value?: string | null) {
   }).format(date);
 }
 
+function moduleUrl(subjectId: string, moduleId: string, searchTerm: string, readinessFilter: string) {
+  const params = new URLSearchParams();
+  params.set('subject', subjectId);
+  params.set('module', moduleId);
+  if (searchTerm) params.set('q', searchTerm);
+  if (readinessFilter !== 'all') params.set('readiness', readinessFilter);
+  return `/canvas?${params.toString()}`;
+}
+
+function copyText(value: string, onDone?: () => void) {
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return Promise.resolve(false);
+  return navigator.clipboard.writeText(value).then(() => {
+    onDone?.();
+    return true;
+  }).catch(() => false);
+}
+
+function laneCards(module: CurriculumCanvasModule) {
+  const lessonsWithoutGate = module.lessons.filter((lesson) => !lesson.assessmentId).length;
+  const lessonsNeedingReadiness = Math.max(module.lessonCount - module.readyLessons, 0);
+  const missingLessonSlots = Math.max(module.lessonCount - module.lessons.length, 0);
+
+  return [
+    {
+      id: 'delivery',
+      label: 'Lesson delivery lane',
+      value: `${module.readyLessons}/${module.lessonCount}`,
+      note: lessonsNeedingReadiness ? `${lessonsNeedingReadiness} lesson${lessonsNeedingReadiness === 1 ? '' : 's'} still not release-ready` : 'Lessons are ready to ship',
+      tone: lessonsNeedingReadiness ? '#3b2f0d' : '#052e16',
+      text: lessonsNeedingReadiness ? '#fcd34d' : '#86efac',
+    },
+    {
+      id: 'mapping',
+      label: 'Mapped lesson lane',
+      value: `${module.lessons.length}/${module.lessonCount}`,
+      note: missingLessonSlots ? `${missingLessonSlots} lesson slot${missingLessonSlots === 1 ? '' : 's'} still empty` : 'Every expected lesson node is mapped',
+      tone: missingLessonSlots ? '#7c2d12' : '#082f49',
+      text: missingLessonSlots ? '#fdba74' : '#a5f3fc',
+    },
+    {
+      id: 'gates',
+      label: 'Assessment gate lane',
+      value: module.assessments.length ? `${module.assessments.length} linked` : 'Missing',
+      note: !module.assessments.length
+        ? 'No progression gate is linked yet'
+        : lessonsWithoutGate
+          ? `${lessonsWithoutGate} lesson${lessonsWithoutGate === 1 ? '' : 's'} still not mapped to a gate`
+          : 'Gate coverage is clean',
+      tone: !module.assessments.length || lessonsWithoutGate ? '#3b0764' : '#052e16',
+      text: !module.assessments.length || lessonsWithoutGate ? '#d8b4fe' : '#86efac',
+    },
+  ];
+}
+
 export function CurriculumCanvas({
   data,
   failedSources = [],
@@ -83,13 +148,13 @@ export function CurriculumCanvas({
   mode?: 'live' | 'blended' | 'rescue-tree' | 'hard-rescue';
 }) {
   const firstModule = data.subjects[0]?.strands[0]?.modules[0] ?? null;
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [readinessFilter, setReadinessFilter] = useState('all');
   const [selectedModuleId, setSelectedModuleId] = useState(firstModule?.id ?? '');
+  const [copiedState, setCopiedState] = useState<'idle' | 'copied'>('idle');
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -105,6 +170,12 @@ export function CurriculumCanvas({
       setSelectedModuleId(firstModule.id);
     }
   }, [firstModule?.id, selectedModuleId]);
+
+  useEffect(() => {
+    if (copiedState !== 'copied') return undefined;
+    const timeout = window.setTimeout(() => setCopiedState('idle'), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [copiedState]);
 
   const filteredSubjects = useMemo(() => {
     const query = normalize(searchTerm);
@@ -220,6 +291,15 @@ export function CurriculumCanvas({
       window.history.replaceState(null, '', nextUrl);
     }
   }, [readinessFilter, searchTerm, selectedModuleId, subjectFilter]);
+
+  useEffect(() => {
+    setSelectedLessonId(null);
+    setSelectedAssessmentId(null);
+  }, [selectedModuleId]);
+
+  const selectedLesson = selected?.module.lessons.find((lesson) => lesson.id === selectedLessonId) ?? null;
+  const selectedAssessment = selected?.module.assessments.find((assessment) => assessment.id === selectedAssessmentId) ?? null;
+  const selectedModuleUrl = selected ? moduleUrl(selected.subject.id, selected.module.id, searchTerm, readinessFilter) : '/canvas';
 
   if (!data.subjects.length) {
     return <CanvasEmptyState failedSources={failedSources} />;
@@ -351,20 +431,24 @@ export function CurriculumCanvas({
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gap: 14 }}>
+                    <div style={{ display: 'grid', gap: 18 }}>
                       {subject.strands.map((strand) => (
                         <div key={strand.id} style={{ display: 'grid', gap: 12 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#e2e8f0', fontWeight: 800 }}>
-                            <span style={{ width: 10, height: 10, borderRadius: 999, background: accent }} />
-                            <span>{strand.name}</span>
-                            <span style={{ color: '#64748b', fontWeight: 700 }}>→</span>
-                            <span style={{ color: '#94a3b8', fontWeight: 600 }}>{strand.modules.length} module nodes</span>
+                          <div style={{ display: 'grid', gap: 6 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#e2e8f0', fontWeight: 800 }}>
+                              <span style={{ width: 10, height: 10, borderRadius: 999, background: accent }} />
+                              <span>{strand.name}</span>
+                              <span style={{ color: '#64748b', fontWeight: 700 }}>→</span>
+                              <span style={{ color: '#94a3b8', fontWeight: 600 }}>{strand.modules.length} module nodes</span>
+                            </div>
+                            <div style={{ color: '#64748b', fontSize: 13 }}>Lane view: each card shows delivery readiness, mapped lesson coverage, and gate coverage before you even open the details rail.</div>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
                             {strand.modules.map((module) => {
                               const active = selected?.module.id === module.id;
                               const pill = statusTone(module.status);
                               const provenance = provenancePill(module);
+                              const lanes = laneCards(module);
                               return (
                                 <button
                                   key={module.id}
@@ -397,6 +481,16 @@ export function CurriculumCanvas({
                                     <Pill label={`${module.readyLessons}/${module.lessonCount} ready lessons`} tone="#172554" text="#93c5fd" />
                                     <Pill label={module.assessmentCoverageLabel} tone="#3b0764" text="#d8b4fe" />
                                     <Pill label={module.gapCount ? `${module.gapCount} gaps` : 'release-ready'} tone={module.gapCount ? '#3b2f0d' : '#052e16'} text={module.gapCount ? '#fcd34d' : '#86efac'} />
+                                  </div>
+
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+                                    {lanes.map((lane) => (
+                                      <div key={lane.id} style={{ padding: '12px 12px 10px', borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.12)', display: 'grid', gap: 6 }}>
+                                        <div style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.9 }}>{lane.label}</div>
+                                        <div style={{ fontSize: 18, fontWeight: 900, color: '#f8fafc' }}>{lane.value}</div>
+                                        <div style={{ color: lane.text, lineHeight: 1.45, fontSize: 12 }}>{lane.note}</div>
+                                      </div>
+                                    ))}
                                   </div>
 
                                   <div style={{ padding: '12px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.12)', color: module.gapCount ? '#fde68a' : '#bbf7d0', lineHeight: 1.6, fontSize: 14 }}>
@@ -446,46 +540,89 @@ export function CurriculumCanvas({
                   <Pill label={selected.module.gapCount ? `${selected.module.gapCount} gaps to clear` : 'ready to release'} tone={selected.module.gapCount ? '#3b2f0d' : '#1e1b4b'} text={selected.module.gapCount ? '#fcd34d' : '#c4b5fd'} />
                 </div>
 
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Quick actions</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof window === 'undefined') return;
+                        const url = `${window.location.origin}${selectedModuleUrl}`;
+                        void copyText(url, () => setCopiedState('copied'));
+                      }}
+                      style={quickActionButtonStyle}
+                    >
+                      {copiedState === 'copied' ? 'Copied node link' : 'Copy share link'}
+                    </button>
+                    <Link href={`/content?subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                      Open module board
+                    </Link>
+                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent('/canvas')}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(79,70,229,0.28)', border: '1px solid rgba(129,140,248,0.34)' }}>
+                      Add lesson in module
+                    </Link>
+                    <Link href={`/content?view=blocked&subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(254,243,199,0.14)', color: '#fde68a', border: '1px solid rgba(252,211,77,0.24)' }}>
+                      Clear this blocker stack
+                    </Link>
+                  </div>
+                </div>
+
                 <div style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
                   <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Release readout</div>
                   <div style={{ color: selected.module.gapCount ? '#fde68a' : '#bbf7d0', lineHeight: 1.7 }}>{selected.module.blockerSummary}</div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 18, background: 'rgba(79,70,229,0.12)', border: '1px solid rgba(129,140,248,0.24)', display: 'grid', gap: 10 }}>
-                  <div style={{ color: '#c7d2fe', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Shareable node link</div>
-                  <div style={{ color: '#e0e7ff', lineHeight: 1.6, fontSize: 14 }}>The URL now keeps this selected module and the active filters. Copy the address bar and someone lands on the same node instead of a random first card.</div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Lane structure</div>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {laneCards(selected.module).map((lane) => (
+                      <div key={lane.id} style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                          <div style={{ color: '#e2e8f0', fontWeight: 800 }}>{lane.label}</div>
+                          <Pill label={lane.value} tone={lane.tone} text={lane.text} />
+                        </div>
+                        <div style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14 }}>{lane.note}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <Link href={`/content?subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...actionLinkStyle, background: 'white', color: '#0f172a' }}>Open module in content board</Link>
-                  <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent('/canvas')}`} style={{ ...actionLinkStyle, background: '#4F46E5', color: 'white' }}>Author a new lesson in this module</Link>
-                  <Link href={`/content?view=blocked&subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>Inspect release blockers</Link>
-                  <Link href="/assessments" style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Open assessment control board</Link>
+                <div style={{ padding: 14, borderRadius: 18, background: 'rgba(79,70,229,0.12)', border: '1px solid rgba(129,140,248,0.24)', display: 'grid', gap: 10 }}>
+                  <div style={{ color: '#c7d2fe', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Shareable node link</div>
+                  <div style={{ color: '#e0e7ff', lineHeight: 1.6, fontSize: 14 }}>The URL keeps this selected module plus the active filters. Copy the link from here and someone lands on the exact same operating context instead of a random first card.</div>
                 </div>
 
                 <div style={{ display: 'grid', gap: 12 }}>
                   <div>
-                    <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 }}>Lesson nodes</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Lesson nodes</div>
+                      <div style={{ color: '#64748b', fontSize: 12 }}>Click a lesson for inline triage</div>
+                    </div>
                     <div style={{ display: 'grid', gap: 10 }}>
-                      {selected.module.lessons.length ? selected.module.lessons.map((lesson) => <LessonNode key={lesson.id} lesson={lesson} />) : <div style={{ color: '#cbd5e1' }}>No lessons mapped yet.</div>}
+                      {selected.module.lessons.length ? selected.module.lessons.map((lesson) => (
+                        <LessonNode
+                          key={lesson.id}
+                          lesson={lesson}
+                          selected={selectedLessonId === lesson.id}
+                          onInspect={() => setSelectedLessonId(lesson.id)}
+                        />
+                      )) : <div style={{ color: '#cbd5e1' }}>No lessons mapped yet.</div>}
                     </div>
                   </div>
 
                   <div>
-                    <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 }}>Assessment gates</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Assessment gates</div>
+                      <div style={{ color: '#64748b', fontSize: 12 }}>Open a gate card for quick triage</div>
+                    </div>
                     <div style={{ display: 'grid', gap: 10 }}>
-                      {selected.module.assessments.length ? selected.module.assessments.map((assessment) => {
-                        const pill = statusTone(assessment.status);
-                        return (
-                          <div key={assessment.id} style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                              <strong>{assessment.title}</strong>
-                              <Pill label={assessment.status} tone={pill.tone} text={pill.text} />
-                            </div>
-                            <div style={{ color: '#cbd5e1', lineHeight: 1.5 }}>{assessmentLabel(assessment)}</div>
-                          </div>
-                        );
-                      }) : <div style={{ color: '#fbbf24', lineHeight: 1.6 }}>No gate linked. That module is not truly release-ready yet.</div>}
+                      {selected.module.assessments.length ? selected.module.assessments.map((assessment) => (
+                        <AssessmentNode
+                          key={assessment.id}
+                          assessment={assessment}
+                          selected={selectedAssessmentId === assessment.id}
+                          onInspect={() => setSelectedAssessmentId(assessment.id)}
+                        />
+                      )) : <div style={{ color: '#fbbf24', lineHeight: 1.6 }}>No gate linked. That module is not truly release-ready yet.</div>}
                     </div>
                   </div>
                 </div>
@@ -496,6 +633,24 @@ export function CurriculumCanvas({
           </aside>
         </div>
       )}
+
+      {selected && selectedLesson ? (
+        <LessonInspectorModal
+          lesson={selectedLesson}
+          subjectId={selected.subject.id}
+          moduleId={selected.module.id}
+          onClose={() => setSelectedLessonId(null)}
+        />
+      ) : null}
+
+      {selected && selectedAssessment ? (
+        <AssessmentInspectorModal
+          assessment={selectedAssessment}
+          subjectId={selected.subject.id}
+          moduleTitle={selected.module.title}
+          onClose={() => setSelectedAssessmentId(null)}
+        />
+      ) : null}
 
       <style jsx>{`
         @media (max-width: 1180px) {
@@ -511,6 +666,13 @@ export function CurriculumCanvas({
 
           aside {
             position: static !important;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .curriculum-canvas__filters,
+          .curriculum-canvas__grid {
+            grid-template-columns: minmax(0, 1fr);
           }
         }
       `}</style>
@@ -554,10 +716,10 @@ function CanvasEmptyState({ failedSources, compact = false, searchAware = false 
   );
 }
 
-function LessonNode({ lesson }: { lesson: CurriculumCanvasLesson }) {
+function LessonNode({ lesson, selected, onInspect }: { lesson: CurriculumCanvasLesson; selected?: boolean; onInspect: () => void }) {
   const pill = statusTone(lesson.status);
   return (
-    <div style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
+    <div style={{ padding: 14, borderRadius: 18, background: selected ? 'rgba(79,70,229,0.14)' : 'rgba(255,255,255,0.05)', border: selected ? '1px solid rgba(129,140,248,0.34)' : '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
         <strong>{lesson.title}</strong>
         <Pill label={lesson.status} tone={pill.tone} text={pill.text} />
@@ -567,9 +729,126 @@ function LessonNode({ lesson }: { lesson: CurriculumCanvasLesson }) {
         {lesson.assessmentTitle ? `Linked gate: ${lesson.assessmentTitle}` : 'No linked assessment gate yet'}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" onClick={onInspect} style={{ ...filterButtonStyle, background: selected ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>{selected ? 'Inspecting now' : 'Inspect & edit'}</button>
         <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent('/canvas')}`} style={{ color: 'white', fontWeight: 800, textDecoration: 'none' }}>Open lesson →</Link>
         <Link href={`/content/lessons/new?duplicate=${lesson.id}&from=${encodeURIComponent('/canvas')}`} style={{ color: '#c4b5fd', fontWeight: 800, textDecoration: 'none' }}>Duplicate →</Link>
       </div>
     </div>
+  );
+}
+
+function AssessmentNode({ assessment, selected, onInspect }: { assessment: Assessment; selected?: boolean; onInspect: () => void }) {
+  const pill = statusTone(assessment.status);
+  return (
+    <div style={{ padding: 14, borderRadius: 18, background: selected ? 'rgba(79,70,229,0.14)' : 'rgba(255,255,255,0.05)', border: selected ? '1px solid rgba(129,140,248,0.34)' : '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+        <strong>{assessment.title}</strong>
+        <Pill label={assessment.status} tone={pill.tone} text={pill.text} />
+      </div>
+      <div style={{ color: '#cbd5e1', lineHeight: 1.5 }}>{assessmentLabel(assessment)}</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" onClick={onInspect} style={{ ...filterButtonStyle, background: selected ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>{selected ? 'Inspecting now' : 'Inspect gate'}</button>
+        <Link href="/assessments" style={{ color: '#ddd6fe', fontWeight: 800, textDecoration: 'none' }}>Open assessments →</Link>
+      </div>
+    </div>
+  );
+}
+
+function ModalShell({ title, eyebrow, children, onClose }: { title: string; eyebrow: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(2,6,23,0.74)', backdropFilter: 'blur(6px)', padding: 'clamp(16px, 4vw, 28px)', display: 'grid', placeItems: 'center' }}>
+      <div style={{ width: 'min(760px, 100%)', maxHeight: '90vh', overflow: 'auto', borderRadius: 28, background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,1) 100%)', border: '1px solid rgba(99,102,241,0.24)', boxShadow: '0 28px 60px rgba(2,6,23,0.4)', padding: 22, display: 'grid', gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ display: 'grid', gap: 6 }}>
+            <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>{eyebrow}</div>
+            <div style={{ color: '#f8fafc', fontSize: 28, fontWeight: 900 }}>{title}</div>
+          </div>
+          <button type="button" onClick={onClose} style={{ ...filterButtonStyle, background: 'rgba(255,255,255,0.05)', color: '#f8fafc' }}>Close</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function LessonInspectorModal({ lesson, subjectId, moduleId, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; onClose: () => void }) {
+  const pill = statusTone(lesson.status);
+  return (
+    <ModalShell title={lesson.title} eyebrow="Lesson quick edit lane" onClose={onClose}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Pill label={lesson.status} tone={pill.tone} text={pill.text} />
+        <Pill label={`${lesson.durationMinutes} min`} tone="#082f49" text="#a5f3fc" />
+        <Pill label={lesson.mode} tone="#172554" text="#93c5fd" />
+        <Pill label={lesson.assessmentTitle ? 'Gate linked' : 'Gate missing'} tone={lesson.assessmentTitle ? '#052e16' : '#3b2f0d'} text={lesson.assessmentTitle ? '#86efac' : '#fcd34d'} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+        {[
+          ['Objectives', String(lesson.objectiveCount ?? 0)],
+          ['Activities', String(lesson.activityCount ?? 0)],
+          ['Module link', lesson.assessmentTitle ? 'Connected' : 'Needs triage'],
+        ].map(([label, value]) => (
+          <div key={label} style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1 }}>{label}</div>
+            <div style={{ color: '#f8fafc', fontSize: 20, fontWeight: 900, marginTop: 8 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding: 14, borderRadius: 18, background: 'rgba(79,70,229,0.12)', border: '1px solid rgba(129,140,248,0.24)', display: 'grid', gap: 8 }}>
+        <div style={{ color: '#c7d2fe', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Operator readout</div>
+        <div style={{ color: '#e2e8f0', lineHeight: 1.7 }}>
+          {lesson.assessmentTitle
+            ? `This lesson already maps to ${lesson.assessmentTitle}. If the content is wrong, edit the lesson body rather than creating another orphaned gate.`
+            : 'This lesson is still floating without a linked assessment gate. That is the kind of tiny operational mess that turns into release chaos later.'}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+        <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent('/canvas')}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open lesson editor</Link>
+        <Link href={`/content/lessons/new?duplicate=${lesson.id}&subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent('/canvas')}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Duplicate into module</Link>
+        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent('/canvas')}`} style={{ ...actionLinkStyle, background: '#4F46E5', color: '#ffffff' }}>Create sibling lesson</Link>
+        <Link href="/assessments" style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>{lesson.assessmentTitle ? 'Review linked gate' : 'Link a gate now'}</Link>
+      </div>
+    </ModalShell>
+  );
+}
+
+function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, onClose }: { assessment: Assessment; subjectId: string; moduleTitle: string; onClose: () => void }) {
+  const pill = statusTone(assessment.status);
+  return (
+    <ModalShell title={assessment.title} eyebrow="Assessment quick triage" onClose={onClose}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Pill label={assessment.status} tone={pill.tone} text={pill.text} />
+        <Pill label={assessment.triggerLabel} tone="#082f49" text="#a5f3fc" />
+        <Pill label={`${Math.round(assessment.passingScore * 100)}% pass`} tone="#3b0764" text="#d8b4fe" />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+        {[
+          ['Progression gate', assessment.progressionGate],
+          ['Subject scope', subjectId],
+          ['Module search', moduleTitle],
+        ].map(([label, value]) => (
+          <div key={label} style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1 }}>{label}</div>
+            <div style={{ color: '#f8fafc', fontSize: 18, fontWeight: 900, marginTop: 8, lineHeight: 1.4 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding: 14, borderRadius: 18, background: 'rgba(79,70,229,0.12)', border: '1px solid rgba(129,140,248,0.24)', display: 'grid', gap: 8 }}>
+        <div style={{ color: '#c7d2fe', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Gate sanity check</div>
+        <div style={{ color: '#e2e8f0', lineHeight: 1.7 }}>
+          This gate is attached to the selected module context. Use the assessments board for real edits, but this modal makes it obvious whether the gate is actually fit for progression or just technically present.
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+        <Link href="/assessments" style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>
+        <Link href={`/content?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Open related module work</Link>
+        <Link href={`/content?view=blocked&subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>See blockers around this gate</Link>
+      </div>
+    </ModalShell>
   );
 }
