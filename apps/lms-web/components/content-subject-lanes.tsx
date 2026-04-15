@@ -263,13 +263,13 @@ export function ContentSubjectLanes({
                                   </div>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                     <Pill label={module.status} tone={pill.tone} text={pill.text} />
-                                    <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+                                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
                                       Open lesson studio →
                                     </Link>
                                     <ModalLauncher buttonLabel="＋ Lesson" title={`Create lesson in ${module.title}`} description="Create a lesson shell from the module card, then hand off immediately into the full lesson studio flow." eyebrow="Create lesson" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
                                       <div style={{ display: 'grid', gap: 12 }}>
                                         <div style={{ color: '#64748b', lineHeight: 1.6 }}>For the real payload, use the full lesson studio. This shortcut only creates the lesson record in the correct curriculum lane.</div>
-                                        <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
+                                        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
                                           Open full lesson studio
                                         </Link>
                                       </div>
@@ -297,7 +297,7 @@ export function ContentSubjectLanes({
                                             </div>
                                             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
                                               <Link href={`/content/lessons/${lesson.id}?from=%2Fcontent`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open authoring editor →</Link>
-                                              <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&duplicate=${lesson.id}&from=%2Fcontent`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
+                                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&duplicate=${encodeURIComponent(lesson.id)}&from=%2Fcontent`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
                                               <Link href={`/assignments?q=${encodeURIComponent(lesson.title)}`} style={{ color: '#C2410C', fontWeight: 700, textDecoration: 'none' }}>View delivery usage →</Link>
                                             </div>
                                           </div>

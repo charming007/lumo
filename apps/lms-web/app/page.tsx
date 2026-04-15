@@ -451,8 +451,8 @@ export default async function HomePage() {
             <div style={{ display: 'grid', gap: 12 }}>
               {releaseFeedsFailed ? sectionAlert('Blocker rows below may be incomplete because a curriculum feed is missing.', 'warning') : null}
               {highestPriorityBlocker ? (() => {
-                const blockerBoardHref = `/content?view=blocked${highestPriorityBlocker.subjectId ? `&subject=${highestPriorityBlocker.subjectId}` : ''}&q=${encodeURIComponent(highestPriorityBlocker.title)}`;
-                const createLessonHref = `/content/lessons/new?subjectId=${highestPriorityBlocker.subjectId}&moduleId=${highestPriorityBlocker.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+                const blockerBoardHref = `/content?view=blocked${highestPriorityBlocker.subjectId ? `&subject=${encodeURIComponent(highestPriorityBlocker.subjectId)}` : ''}&q=${encodeURIComponent(highestPriorityBlocker.title)}`;
+                const createLessonHref = `/content/lessons/new?subjectId=${encodeURIComponent(highestPriorityBlocker.subjectId ?? '')}&moduleId=${encodeURIComponent(highestPriorityBlocker.id)}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
                 const risk = describeReleaseRisk(highestPriorityBlocker.blockerCount);
                 const moduleDraftStatusButton = highestPriorityBlocker.isDraftModule ? (
                   <ModalLauncher
@@ -502,8 +502,8 @@ export default async function HomePage() {
               <SimpleTable
                 columns={['Module', 'Subject', 'Gaps', 'Next action', 'Release risk']}
                 rows={releaseBlockers.length ? releaseBlockers.slice(0, 5).map((module) => {
-                  const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
-                  const createLessonHref = `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+                  const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${encodeURIComponent(module.subjectId)}` : ''}&q=${encodeURIComponent(module.title)}`;
+                  const createLessonHref = `/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
                   const scopedSubjects = module.subjectId ? subjects.filter((subject) => subject.id === module.subjectId) : subjects;
                   const assessmentSubjects = scopedSubjects.length ? scopedSubjects : subjects;
                   const risk = describeReleaseRisk(module.blockerCount);

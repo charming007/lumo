@@ -298,7 +298,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       </span>
                     </div>,
                     <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
-                      <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                      <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
                         Add lesson pack
                       </Link>
                       {!hasAssessment ? (
@@ -423,7 +423,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     </span>
                   </div>,
                   <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
-                    <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent%3Fview%3Dblocked&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent%3Fview%3Dblocked&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
                       Add lesson pack
                     </Link>
                     {!hasAssessment ? (
