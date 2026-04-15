@@ -1,7 +1,195 @@
 import { CurriculumCanvas } from '../../components/curriculum-canvas';
 import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { PageShell, Pill } from '../../lib/ui';
+
+function buildHardRescueCanvasData(reason: string) {
+  return {
+    subjects: [
+      {
+        id: 'rescue-ops',
+        name: 'Canvas Rescue Lane',
+        icon: 'construction',
+        strands: [
+          {
+            id: 'rescue-actions',
+            name: 'Operator actions',
+            modules: [
+              {
+                id: 'rescue-config',
+                title: 'Restore API wiring',
+                status: 'review',
+                level: 'production blocker',
+                lessonCount: 2,
+                readyLessons: 1,
+                gapCount: 1,
+                provenance: 'rescue' as const,
+                coverageLabel: '2/2 rescue steps mapped',
+                assessmentCoverageLabel: '1 recovery checkpoint attached',
+                blockerSummary: reason,
+                lessons: [
+                  {
+                    id: 'rescue-config-check',
+                    title: 'Check the deployed API base URL',
+                    status: API_BASE_SOURCE === 'missing-production-env' ? 'review' : 'approved',
+                    durationMinutes: 5,
+                    mode: 'ops',
+                    assessmentTitle: 'Production config checkpoint',
+                    assessmentId: 'rescue-assessment-config',
+                    objectiveCount: 2,
+                    activityCount: 2,
+                  },
+                  {
+                    id: 'rescue-config-redeploy',
+                    title: 'Redeploy and confirm /canvas is visibly populated',
+                    status: 'draft',
+                    durationMinutes: 8,
+                    mode: 'ops',
+                    assessmentTitle: 'Production config checkpoint',
+                    assessmentId: 'rescue-assessment-config',
+                    objectiveCount: 2,
+                    activityCount: 3,
+                  },
+                ],
+                assessments: [
+                  {
+                    id: 'rescue-assessment-config',
+                    subjectId: 'rescue-ops',
+                    moduleId: 'rescue-config',
+                    title: 'Production config checkpoint',
+                    kind: 'manual',
+                    trigger: 'module-complete',
+                    triggerLabel: 'After env + redeploy verification',
+                    progressionGate: 'restore-canvas',
+                    passingScore: 1,
+                    subjectName: 'Canvas Rescue Lane',
+                    moduleTitle: 'Restore API wiring',
+                    status: 'review',
+                  },
+                ],
+              },
+              {
+                id: 'rescue-content',
+                title: 'Use the real content boards now',
+                status: 'active',
+                level: 'fallback workflow',
+                lessonCount: 3,
+                readyLessons: 3,
+                gapCount: 0,
+                provenance: 'rescue' as const,
+                coverageLabel: '3/3 rescue paths mapped',
+                assessmentCoverageLabel: '1 operator handoff attached',
+                blockerSummary: 'Content board, blocker view, and assessments remain usable even if the visual graph feed is down.',
+                lessons: [
+                  {
+                    id: 'rescue-content-board',
+                    title: 'Open the content board',
+                    status: 'approved',
+                    durationMinutes: 2,
+                    mode: 'ops',
+                    assessmentTitle: 'Operator handoff confirmed',
+                    assessmentId: 'rescue-assessment-content',
+                    objectiveCount: 1,
+                    activityCount: 1,
+                  },
+                  {
+                    id: 'rescue-content-blockers',
+                    title: 'Review blocked modules',
+                    status: 'approved',
+                    durationMinutes: 3,
+                    mode: 'ops',
+                    assessmentTitle: 'Operator handoff confirmed',
+                    assessmentId: 'rescue-assessment-content',
+                    objectiveCount: 1,
+                    activityCount: 1,
+                  },
+                  {
+                    id: 'rescue-content-assessments',
+                    title: 'Open assessment control board',
+                    status: 'approved',
+                    durationMinutes: 3,
+                    mode: 'ops',
+                    assessmentTitle: 'Operator handoff confirmed',
+                    assessmentId: 'rescue-assessment-content',
+                    objectiveCount: 1,
+                    activityCount: 1,
+                  },
+                ],
+                assessments: [
+                  {
+                    id: 'rescue-assessment-content',
+                    subjectId: 'rescue-ops',
+                    moduleId: 'rescue-content',
+                    title: 'Operator handoff confirmed',
+                    kind: 'manual',
+                    trigger: 'module-complete',
+                    triggerLabel: 'After fallback workflow review',
+                    progressionGate: 'fallback-ready',
+                    passingScore: 1,
+                    subjectName: 'Canvas Rescue Lane',
+                    moduleTitle: 'Use the real content boards now',
+                    status: 'active',
+                  },
+                ],
+              },
+              {
+                id: 'rescue-observability',
+                title: 'Inspect failed curriculum feeds',
+                status: 'draft',
+                level: 'triage',
+                lessonCount: 2,
+                readyLessons: 1,
+                gapCount: 1,
+                provenance: 'rescue' as const,
+                coverageLabel: '2/2 triage steps mapped',
+                assessmentCoverageLabel: 'No assessment gate attached',
+                blockerSummary: 'The route is intentionally showing rescue cards so operators can see what broke instead of getting an empty body.',
+                lessons: [
+                  {
+                    id: 'rescue-observability-feeds',
+                    title: 'List the failing curriculum feeds',
+                    status: 'approved',
+                    durationMinutes: 4,
+                    mode: 'ops',
+                    objectiveCount: 2,
+                    activityCount: 2,
+                  },
+                  {
+                    id: 'rescue-observability-fix',
+                    title: 'Patch the feed or route renderer before release',
+                    status: 'draft',
+                    durationMinutes: 10,
+                    mode: 'ops',
+                    objectiveCount: 2,
+                    activityCount: 3,
+                  },
+                ],
+                assessments: [],
+              },
+            ],
+          },
+        ],
+        totals: {
+          modules: 3,
+          lessons: 7,
+          assessments: 2,
+          readyLessons: 5,
+          gaps: 2,
+        },
+      },
+    ],
+    summary: {
+      subjects: 1,
+      strands: 1,
+      modules: 3,
+      lessons: 7,
+      assessments: 2,
+      readyLessons: 5,
+      blockedModules: 2,
+    },
+  };
+}
 
 export default async function CurriculumCanvasPage() {
   const [
@@ -40,19 +228,31 @@ export default async function CurriculumCanvasPage() {
     rescueData = buildCurriculumCanvasDataFromTree(canvasTree);
   }
 
-  const data = liveData.summary.modules > 0 ? liveData : rescueData;
-  const usedRescueTree = liveData.summary.modules === 0 && rescueData.summary.modules > 0;
-  const blendedFromTree = liveData.summary.modules > 0 && canvasTree && (liveData.summary.lessons > lessons.length || liveData.summary.assessments > assessments.length);
-
   const failedSources = [
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
-    strandsResult.status === 'rejected' ? 'strands' : null,
-    modulesResult.status === 'rejected' ? 'modules' : null,
-    lessonsResult.status === 'rejected' ? 'lessons' : null,
-    assessmentsResult.status === 'rejected' ? 'assessments' : null,
-    canvasTreeResult.status === 'rejected' ? 'canvas-tree' : null,
-    canvasBuildFailed ? 'canvas-render' : null,
-  ].filter((value): value is string => Boolean(value));
+     subjectsResult.status === 'rejected' ? 'subjects' : null,
+     strandsResult.status === 'rejected' ? 'strands' : null,
+     modulesResult.status === 'rejected' ? 'modules' : null,
+     lessonsResult.status === 'rejected' ? 'lessons' : null,
+     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+     canvasTreeResult.status === 'rejected' ? 'canvas-tree' : null,
+     canvasBuildFailed ? 'canvas-render' : null,
+   ].filter((value): value is string => Boolean(value));
+
+  const hardRescueReason = API_BASE_SOURCE === 'missing-production-env'
+    ? 'NEXT_PUBLIC_API_BASE_URL is missing in production, so the canvas is rendering an explicit rescue lane instead of pretending the empty route is acceptable.'
+    : failedSources.length
+      ? `These curriculum feeds failed: ${failedSources.join(', ')}. The route is rendering operator rescue cards so production never collapses into a blank page.`
+      : 'The curriculum graph shaped into zero visible modules, so the route is rendering an explicit rescue lane instead of an empty shell.';
+
+  const hardRescueData = buildHardRescueCanvasData(hardRescueReason);
+  const data = liveData.summary.modules > 0
+    ? liveData
+    : rescueData.summary.modules > 0
+      ? rescueData
+      : hardRescueData;
+  const usedRescueTree = liveData.summary.modules === 0 && rescueData.summary.modules > 0;
+  const usedHardRescue = liveData.summary.modules === 0 && rescueData.summary.modules === 0;
+  const blendedFromTree = liveData.summary.modules > 0 && canvasTree && (liveData.summary.lessons > lessons.length || liveData.summary.assessments > assessments.length);
 
   const totalFeeds = 6;
   const healthyFeeds = totalFeeds - failedSources.length;
@@ -99,6 +299,15 @@ export default async function CurriculumCanvasPage() {
           <div style={{ fontWeight: 800 }}>Canvas is blending live feeds with rescue data.</div>
           <div style={{ lineHeight: 1.6 }}>
             Some modules were missing lesson or assessment detail, so the page filled those gaps from the authoritative tree instead of showing a skinny, misleading card.
+          </div>
+        </div>
+      ) : null}
+
+      {usedHardRescue ? (
+        <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(49,46,129,0.98) 0%, rgba(15,23,42,0.96) 100%)', border: '1px solid rgba(165,180,252,0.3)', color: '#e0e7ff', display: 'grid', gap: 6, boxShadow: '0 18px 32px rgba(15,23,42,0.18)' }}>
+          <div style={{ fontWeight: 800 }}>Canvas hard rescue is active.</div>
+          <div style={{ lineHeight: 1.6 }}>
+            Live shaping and tree rescue both produced zero module cards, so the route injected an explicit operations lane with visible actions instead of rendering a blank production body.
           </div>
         </div>
       ) : null}
