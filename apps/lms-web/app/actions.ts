@@ -481,6 +481,28 @@ export async function quickUpdateLessonStatusAction(formData: FormData) {
   }));
 }
 
+export async function quickUpdateCanvasLessonAction(formData: FormData) {
+  const lessonId = String(formData.get('lessonId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const title = String(formData.get('title') || '').trim();
+  const status = String(formData.get('status') || 'draft');
+  const mode = String(formData.get('mode') || 'guided');
+  const durationMinutes = Number(formData.get('durationMinutes') || 0);
+
+  await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', {
+    title,
+    status,
+    mode,
+    durationMinutes,
+  });
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  revalidatePath(`/content/lessons/${lessonId}`);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Lesson quick edit saved',
+  }));
+}
+
 export async function quickUpdateAssessmentStatusAction(formData: FormData) {
   const assessmentId = String(formData.get('assessmentId') || '');
   const status = String(formData.get('status') || 'draft');
@@ -491,6 +513,30 @@ export async function quickUpdateAssessmentStatusAction(formData: FormData) {
   revalidatePath('/content');
   redirect(appendSearchParams(returnPath, {
     message: `Assessment moved to ${status}`,
+  }));
+}
+
+export async function quickUpdateCanvasAssessmentAction(formData: FormData) {
+  const assessmentId = String(formData.get('assessmentId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const title = String(formData.get('title') || '').trim();
+  const status = String(formData.get('status') || 'draft');
+  const triggerLabel = String(formData.get('triggerLabel') || '').trim();
+  const progressionGate = String(formData.get('progressionGate') || '').trim();
+  const passingScore = Number(formData.get('passingScore') || 0);
+
+  await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', {
+    title,
+    status,
+    triggerLabel,
+    progressionGate,
+    passingScore,
+  });
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  revalidatePath('/assessments');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Assessment quick edit saved',
   }));
 }
 

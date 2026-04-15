@@ -5,7 +5,13 @@ import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fe
 import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
 import { API_BASE_SOURCE } from '../../lib/config';
 import { PageShell, Pill } from '../../lib/ui';
-import { createCanvasAssessmentQuickAction, quickUpdateAssessmentStatusAction, quickUpdateLessonStatusAction } from '../actions';
+import {
+  createCanvasAssessmentQuickAction,
+  quickUpdateAssessmentStatusAction,
+  quickUpdateCanvasAssessmentAction,
+  quickUpdateCanvasLessonAction,
+  quickUpdateLessonStatusAction,
+} from '../actions';
 
 function buildHardRescueCanvasData(reason: string) {
   return {
@@ -429,7 +435,9 @@ export default async function CurriculumCanvasPage({ searchParams }: { searchPar
         generatedAt={canvasTree?.meta?.generatedAt ?? null}
         mode={canvasMode}
         quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
+        quickUpdateCanvasLessonAction={quickUpdateCanvasLessonAction}
         quickUpdateAssessmentStatusAction={quickUpdateAssessmentStatusAction}
+        quickUpdateCanvasAssessmentAction={quickUpdateCanvasAssessmentAction}
         createCanvasAssessmentQuickAction={createCanvasAssessmentQuickAction}
       />
     </PageShell>

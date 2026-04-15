@@ -733,6 +733,7 @@ export function CurriculumCanvas({
           moduleTitle={selected.module.title}
           returnPath={panelUrl(selectedModuleUrl, 'assessment', selectedAssessment.id)}
           quickUpdateAssessmentStatusAction={quickUpdateAssessmentStatusAction}
+          quickUpdateCanvasAssessmentAction={quickUpdateCanvasAssessmentAction}
           onClose={() => setSelectedAssessmentId(null)}
         />
       ) : null}
@@ -951,7 +952,7 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUp
   );
 }
 
-function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPath, quickUpdateAssessmentStatusAction, onClose }: { assessment: Assessment; subjectId: string; moduleTitle: string; returnPath: string; quickUpdateAssessmentStatusAction: (formData: FormData) => void; onClose: () => void }) {
+function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPath, quickUpdateAssessmentStatusAction, quickUpdateCanvasAssessmentAction, onClose }: { assessment: Assessment; subjectId: string; moduleTitle: string; returnPath: string; quickUpdateAssessmentStatusAction: (formData: FormData) => void; quickUpdateCanvasAssessmentAction: (formData: FormData) => void; onClose: () => void }) {
   const pill = statusTone(assessment.status);
   return (
     <ModalShell title={assessment.title} eyebrow="Assessment quick triage" onClose={onClose}>
@@ -996,6 +997,42 @@ function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPa
           ))}
         </div>
       </div>
+
+      <form action={quickUpdateCanvasAssessmentAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
+        <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Safe inline gate edit</div>
+        <input type="hidden" name="assessmentId" value={assessment.id} />
+        <input type="hidden" name="returnPath" value={returnPath} />
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Gate title</span>
+          <input name="title" defaultValue={assessment.title} maxLength={120} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Status</span>
+            <select name="status" defaultValue={assessment.status} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
+              <option value="draft">Draft</option>
+              <option value="review">Review</option>
+              <option value="active">Active</option>
+            </select>
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Passing score</span>
+            <input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue={assessment.passingScore} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+          </label>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Trigger label</span>
+            <input name="triggerLabel" defaultValue={assessment.triggerLabel} maxLength={120} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Progression gate</span>
+            <input name="progressionGate" defaultValue={assessment.progressionGate} maxLength={80} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+          </label>
+        </div>
+        <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 13 }}>This keeps common gate corrections inside the canvas. If trigger type or broader assessment logic needs surgery, use the full assessments board.</div>
+        <button type="submit" style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6', border: 0 }}>Save inline gate edits</button>
+      </form>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
         <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>
