@@ -328,6 +328,11 @@ export function LessonCreateForm({
   const [activityDrafts, setActivityDrafts] = useState(buildDraftsFromLesson(duplicateLesson));
 
   const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0] ?? modules[0];
+  const dependencyBlockers = useMemo(() => ([
+    subjects.length > 0 ? null : 'Load subject data first so the lesson can be attached to a real curriculum lane.',
+    modules.length > 0 ? null : 'Load module data first so Lesson Studio does not create a floating orphan lesson.',
+    filteredModules.length > 0 ? null : 'The selected subject has no modules yet. Create or restore a module before authoring a lesson here.',
+  ].filter(Boolean) as string[]), [subjects.length, modules.length, filteredModules.length]);
 
   const learningObjectives = useMemo(() => learningObjectivesText.split('\n').map((item) => item.trim()).filter(Boolean), [learningObjectivesText]);
   const localization = useMemo(() => ({ locale: 'en-NG', supportLanguage, supportLanguageLabel, notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean) }), [supportLanguage, supportLanguageLabel, localizationNotesText]);
@@ -375,7 +380,7 @@ export function LessonCreateForm({
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing the lesson is bullshit until the lane is release-safe.',
   ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
   const publishIntent = status === 'approved' || status === 'published';
-  const blockSubmit = publishIntent && readinessBlockers.length > 0;
+  const blockSubmit = dependencyBlockers.length > 0 || (publishIntent && readinessBlockers.length > 0);
 
   const updateActivity = (index: number, patch: Partial<ActivityDraft>) => {
     setActivityDrafts((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
@@ -464,8 +469,8 @@ export function LessonCreateForm({
         </FieldLabel>
         <FieldLabel>
           Module
-          <select name="moduleId" value={moduleId} onChange={(event) => setModuleId(event.target.value)} style={inputStyle}>
-            {filteredModules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}
+          <select name="moduleId" value={moduleId} onChange={(event) => setModuleId(event.target.value)} style={inputStyle} disabled={!filteredModules.length}>
+            {filteredModules.length ? filteredModules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>) : <option value="">No modules available for this subject</option>}
           </select>
         </FieldLabel>
         <FieldLabel>
@@ -565,18 +570,27 @@ export function LessonCreateForm({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontWeight: 800, color: blockSubmit ? '#991B1B' : '#0f172a' }}>Inline readiness blockers</div>
           <div style={{ color: blockSubmit ? '#991B1B' : '#475569', fontSize: 13, fontWeight: 700 }}>
-            {publishIntent ? (blockSubmit ? 'Approval/publish is blocked' : 'Approval/publish is clear') : 'Draft save stays available'}
+            {dependencyBlockers.length
+              ? 'Lesson creation is blocked until subject and module dependencies recover'
+              : publishIntent
+                ? (blockSubmit ? 'Approval/publish is blocked' : 'Approval/publish is clear')
+                : 'Draft save stays available'}
           </div>
         </div>
         <div style={{ color: '#64748b', lineHeight: 1.6 }}>
           Save drafts whenever you want. But if you mark this lesson approved or published, the form now calls out the blockers instead of letting junk slip through quietly.
         </div>
         <div style={{ display: 'grid', gap: 8 }}>
+          {dependencyBlockers.length ? dependencyBlockers.map((blocker) => (
+            <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: '1px solid #FECACA', color: '#991B1B', lineHeight: 1.6 }}>
+              {blocker}
+            </div>
+          )) : null}
           {readinessBlockers.length ? readinessBlockers.map((blocker) => (
             <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, color: '#475569', lineHeight: 1.6 }}>
               {blocker}
             </div>
-          )) : (
+          )) : dependencyBlockers.length ? null : (
             <div style={{ padding: 12, borderRadius: 14, background: '#ECFDF5', border: '1px solid #BBF7D0', color: '#166534', lineHeight: 1.6 }}>
               No visible blockers. The lesson pack is structurally ready for approval or publish.
             </div>
@@ -671,7 +685,7 @@ export function LessonCreateForm({
                 <div style={{ ...autoFitCompactFields, gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
                   <FieldLabel>
                     Step title
-                    <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value, prompt: event.target.value })} style={inputStyle} />
+                    <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
                   </FieldLabel>
                   <FieldLabel>
                     Type
@@ -737,7 +751,7 @@ export function LessonCreateForm({
         </div>
       </div>
 
-      <ActionButton label={blockSubmit ? 'Fix blockers before approval/publish' : 'Create full lesson pack'} pendingLabel="Creating lesson pack…" style={buttonStyle} disabled={blockSubmit} />
+      <ActionButton label={dependencyBlockers.length ? 'Load subject and module data first' : blockSubmit ? 'Fix blockers before approval/publish' : 'Create full lesson pack'} pendingLabel="Creating lesson pack…" style={buttonStyle} disabled={blockSubmit} />
     </form>
   );
 }
