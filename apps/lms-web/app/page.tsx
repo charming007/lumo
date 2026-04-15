@@ -188,6 +188,7 @@ export default async function HomePage() {
   ]);
 
   const summary = summaryResult.status === 'fulfilled' ? summaryResult.value : EMPTY_SUMMARY;
+  const summaryFeedFailed = summaryResult.status === 'rejected';
   const assignmentsFeedFailed = assignmentsResult.status === 'rejected';
   const insightsFeedFailed = insightsResult.status === 'rejected';
   const workboardFeedFailed = workboardResult.status === 'rejected';
@@ -217,16 +218,27 @@ export default async function HomePage() {
     { label: 'subjects', result: subjectsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
 
-  const stats = [
-    { label: 'Active learners', value: String(summary.activeLearners) },
-    { label: 'Mallams', value: String(summary.mallams), tone: '#0F766E' },
-    { label: 'Active pods', value: String(summary.activePods), tone: '#2563EB' },
-    { label: 'Ready to progress', value: String(summary.learnersReadyToProgress), tone: '#6C63FF' },
-    { label: 'Assignments live', value: String(summary.activeAssignments) },
-    { label: 'Assessments live', value: String(summary.assessmentsLive), tone: '#9333EA' },
-    { label: 'Lessons completed', value: String(summary.lessonsCompleted) },
-    { label: 'Sync success', value: `${Math.round(summary.syncSuccessRate * 100)}%`, tone: '#16A34A' },
-  ];
+  const stats = summaryFeedFailed
+    ? [
+      { label: 'Active learners', value: 'Unavailable', tone: '#9CA3AF' },
+      { label: 'Mallams', value: 'Unavailable', tone: '#9CA3AF' },
+      { label: 'Active pods', value: 'Unavailable', tone: '#9CA3AF' },
+      { label: 'Ready to progress', value: 'Unavailable', tone: '#9CA3AF' },
+      { label: 'Assignments live', value: 'Unavailable', tone: '#9CA3AF' },
+      { label: 'Assessments live', value: 'Unavailable', tone: '#9CA3AF' },
+      { label: 'Lessons completed', value: 'Unavailable', tone: '#9CA3AF' },
+      { label: 'Sync success', value: 'Unavailable', tone: '#9CA3AF' },
+    ]
+    : [
+      { label: 'Active learners', value: String(summary.activeLearners) },
+      { label: 'Mallams', value: String(summary.mallams), tone: '#0F766E' },
+      { label: 'Active pods', value: String(summary.activePods), tone: '#2563EB' },
+      { label: 'Ready to progress', value: String(summary.learnersReadyToProgress), tone: '#6C63FF' },
+      { label: 'Assignments live', value: String(summary.activeAssignments) },
+      { label: 'Assessments live', value: String(summary.assessmentsLive), tone: '#9333EA' },
+      { label: 'Lessons completed', value: String(summary.lessonsCompleted) },
+      { label: 'Sync success', value: `${Math.round(summary.syncSuccessRate * 100)}%`, tone: '#16A34A' },
+    ];
 
   const topInsight = insights[0] ?? FALLBACK_INSIGHT;
   const atRiskLearners = students.filter((student) => student.attendanceRate < 0.85);
@@ -342,14 +354,24 @@ export default async function HomePage() {
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <InsightPanel headline={topInsight.headline} detail={topInsight.detail} metric={topInsight.metric} />
         <Card title="Operations pulse" eyebrow="This week">
-          <MetricList
-            items={[
-              { label: 'Centers live', value: String(summary.centers) },
-              { label: 'Assignments running', value: String(summary.activeAssignments) },
-              { label: 'Assessment gates active', value: String(summary.assessmentsLive) },
-              { label: 'Learners ready for progression', value: String(summary.learnersReadyToProgress) },
-            ]}
-          />
+          <div style={{ display: 'grid', gap: 12 }}>
+            {summaryFeedFailed ? sectionAlert('The summary feed failed, so operations totals are intentionally marked unavailable instead of pretending zero is real.', 'warning') : null}
+            <MetricList
+              items={summaryFeedFailed
+                ? [
+                  { label: 'Centers live', value: 'Unavailable' },
+                  { label: 'Assignments running', value: 'Unavailable' },
+                  { label: 'Assessment gates active', value: 'Unavailable' },
+                  { label: 'Learners ready for progression', value: 'Unavailable' },
+                ]
+                : [
+                  { label: 'Centers live', value: String(summary.centers) },
+                  { label: 'Assignments running', value: String(summary.activeAssignments) },
+                  { label: 'Assessment gates active', value: String(summary.assessmentsLive) },
+                  { label: 'Learners ready for progression', value: String(summary.learnersReadyToProgress) },
+                ]}
+            />
+          </div>
         </Card>
       </section>
 
