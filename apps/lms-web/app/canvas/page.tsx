@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { CurriculumCanvas } from '../../components/curriculum-canvas';
+import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
 import { API_BASE_SOURCE } from '../../lib/config';
 import { PageShell, Pill } from '../../lib/ui';
+import { createCanvasAssessmentQuickAction, quickUpdateAssessmentStatusAction, quickUpdateLessonStatusAction } from '../actions';
 
 function buildHardRescueCanvasData(reason: string) {
   return {
@@ -272,7 +274,8 @@ function RescueVisibilityDeck({
   );
 }
 
-export default async function CurriculumCanvasPage() {
+export default async function CurriculumCanvasPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  const query = await searchParams;
   const [
     subjectsResult,
     strandsResult,
@@ -370,6 +373,8 @@ export default async function CurriculumCanvasPage() {
         </div>
       )}
     >
+      <FeedbackBanner message={query?.message} />
+
       {failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(67,20,7,0.98) 0%, rgba(88,28,12,0.94) 100%)', border: '1px solid rgba(251,146,60,0.32)', color: '#fed7aa', display: 'grid', gap: 6, boxShadow: '0 18px 32px rgba(15,23,42,0.18)' }}>
           <div style={{ fontWeight: 800 }}>Canvas is running in degraded mode.</div>
@@ -418,7 +423,15 @@ export default async function CurriculumCanvasPage() {
         />
       ) : null}
 
-      <CurriculumCanvas data={data} failedSources={failedSources} generatedAt={canvasTree?.meta?.generatedAt ?? null} mode={canvasMode} />
+      <CurriculumCanvas
+        data={data}
+        failedSources={failedSources}
+        generatedAt={canvasTree?.meta?.generatedAt ?? null}
+        mode={canvasMode}
+        quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
+        quickUpdateAssessmentStatusAction={quickUpdateAssessmentStatusAction}
+        createCanvasAssessmentQuickAction={createCanvasAssessmentQuickAction}
+      />
     </PageShell>
   );
 }

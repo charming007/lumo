@@ -141,11 +141,17 @@ export function CurriculumCanvas({
   failedSources = [],
   generatedAt,
   mode = 'live',
+  quickUpdateLessonStatusAction,
+  quickUpdateAssessmentStatusAction,
+  createCanvasAssessmentQuickAction,
 }: {
   data: CurriculumCanvasData;
   failedSources?: string[];
   generatedAt?: string | null;
   mode?: 'live' | 'blended' | 'rescue-tree' | 'hard-rescue';
+  quickUpdateLessonStatusAction: (formData: FormData) => void;
+  quickUpdateAssessmentStatusAction: (formData: FormData) => void;
+  createCanvasAssessmentQuickAction: (formData: FormData) => void;
 }) {
   const firstModule = data.subjects[0]?.strands[0]?.modules[0] ?? null;
   const [searchTerm, setSearchTerm] = useState('');
@@ -557,12 +563,46 @@ export function CurriculumCanvas({
                     <Link href={`/content?subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                       Open module board
                     </Link>
-                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent('/canvas')}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(79,70,229,0.28)', border: '1px solid rgba(129,140,248,0.34)' }}>
+                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(79,70,229,0.28)', border: '1px solid rgba(129,140,248,0.34)' }}>
                       Add lesson in module
                     </Link>
                     <Link href={`/content?view=blocked&subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(254,243,199,0.14)', color: '#fde68a', border: '1px solid rgba(252,211,77,0.24)' }}>
                       Clear this blocker stack
                     </Link>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                    {!selected.module.assessments.length ? (
+                      <form action={createCanvasAssessmentQuickAction} style={{ display: 'contents' }}>
+                        <input type="hidden" name="subjectId" value={selected.subject.id} />
+                        <input type="hidden" name="moduleId" value={selected.module.id} />
+                        <input type="hidden" name="moduleTitle" value={selected.module.title} />
+                        <input type="hidden" name="returnPath" value={selectedModuleUrl} />
+                        <button type="submit" style={{ ...quickActionButtonStyle, background: 'rgba(237,233,254,0.18)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.26)' }}>
+                          Create draft gate
+                        </button>
+                      </form>
+                    ) : (
+                      <Link href={`/assessments?subject=${encodeURIComponent(selected.subject.id)}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(237,233,254,0.18)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.26)' }}>
+                        Tune gate coverage
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const missingLesson = selected.module.lessons.find((lesson) => !lesson.assessmentId);
+                        if (missingLesson) {
+                          setSelectedLessonId(missingLesson.id);
+                          return;
+                        }
+                        if (selected.module.assessments[0]) {
+                          setSelectedAssessmentId(selected.module.assessments[0].id);
+                        }
+                      }}
+                      style={{ ...quickActionButtonStyle, background: 'rgba(8,47,73,0.22)', color: '#a5f3fc', border: '1px solid rgba(103,232,249,0.24)' }}
+                    >
+                      {selected.module.lessons.some((lesson) => !lesson.assessmentId) ? 'Open first unlinked lesson' : 'Inspect gate lane'}
+                    </button>
                   </div>
                 </div>
 
@@ -639,6 +679,8 @@ export function CurriculumCanvas({
           lesson={selectedLesson}
           subjectId={selected.subject.id}
           moduleId={selected.module.id}
+          returnPath={selectedModuleUrl}
+          quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
           onClose={() => setSelectedLessonId(null)}
         />
       ) : null}
@@ -648,6 +690,8 @@ export function CurriculumCanvas({
           assessment={selectedAssessment}
           subjectId={selected.subject.id}
           moduleTitle={selected.module.title}
+          returnPath={selectedModuleUrl}
+          quickUpdateAssessmentStatusAction={quickUpdateAssessmentStatusAction}
           onClose={() => setSelectedAssessmentId(null)}
         />
       ) : null}
@@ -771,7 +815,7 @@ function ModalShell({ title, eyebrow, children, onClose }: { title: string; eyeb
   );
 }
 
-function LessonInspectorModal({ lesson, subjectId, moduleId, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; onClose: () => void }) {
+function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUpdateLessonStatusAction, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; onClose: () => void }) {
   const pill = statusTone(lesson.status);
   return (
     <ModalShell title={lesson.title} eyebrow="Lesson quick edit lane" onClose={onClose}>
@@ -804,17 +848,33 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, onClose }: { lesson
         </div>
       </div>
 
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Inline status ops</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {['draft', 'review', 'approved'].map((nextStatus) => (
+            <form key={nextStatus} action={quickUpdateLessonStatusAction}>
+              <input type="hidden" name="lessonId" value={lesson.id} />
+              <input type="hidden" name="status" value={nextStatus} />
+              <input type="hidden" name="returnPath" value={returnPath} />
+              <button type="submit" style={{ ...filterButtonStyle, background: lesson.status === nextStatus ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>
+                Mark {nextStatus}
+              </button>
+            </form>
+          ))}
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-        <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent('/canvas')}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open lesson editor</Link>
-        <Link href={`/content/lessons/new?duplicate=${lesson.id}&subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent('/canvas')}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Duplicate into module</Link>
-        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent('/canvas')}`} style={{ ...actionLinkStyle, background: '#4F46E5', color: '#ffffff' }}>Create sibling lesson</Link>
-        <Link href="/assessments" style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>{lesson.assessmentTitle ? 'Review linked gate' : 'Link a gate now'}</Link>
+        <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open lesson editor</Link>
+        <Link href={`/content/lessons/new?duplicate=${lesson.id}&subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Duplicate into module</Link>
+        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#4F46E5', color: '#ffffff' }}>Create sibling lesson</Link>
+        <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(lesson.assessmentTitle ?? lesson.title)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>{lesson.assessmentTitle ? 'Review linked gate' : 'Link a gate now'}</Link>
       </div>
     </ModalShell>
   );
 }
 
-function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, onClose }: { assessment: Assessment; subjectId: string; moduleTitle: string; onClose: () => void }) {
+function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPath, quickUpdateAssessmentStatusAction, onClose }: { assessment: Assessment; subjectId: string; moduleTitle: string; returnPath: string; quickUpdateAssessmentStatusAction: (formData: FormData) => void; onClose: () => void }) {
   const pill = statusTone(assessment.status);
   return (
     <ModalShell title={assessment.title} eyebrow="Assessment quick triage" onClose={onClose}>
@@ -844,8 +904,24 @@ function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, onClose 
         </div>
       </div>
 
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Inline gate ops</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {['draft', 'review', 'active'].map((nextStatus) => (
+            <form key={nextStatus} action={quickUpdateAssessmentStatusAction}>
+              <input type="hidden" name="assessmentId" value={assessment.id} />
+              <input type="hidden" name="status" value={nextStatus} />
+              <input type="hidden" name="returnPath" value={returnPath} />
+              <button type="submit" style={{ ...filterButtonStyle, background: assessment.status === nextStatus ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>
+                Mark {nextStatus}
+              </button>
+            </form>
+          ))}
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-        <Link href="/assessments" style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>
+        <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>
         <Link href={`/content?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Open related module work</Link>
         <Link href={`/content?view=blocked&subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>See blockers around this gate</Link>
       </div>

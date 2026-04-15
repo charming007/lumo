@@ -55,6 +55,10 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
   return haystack.includes(query);
 }
 
+function emptyTableRows(message: string, columns: number) {
+  return [[<span key={message} style={{ color: '#64748b', lineHeight: 1.6 }}>{message}</span>, ...Array.from({ length: columns - 1 }, () => '')]];
+}
+
 export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
   const query = await searchParams;
   const [modulesResult, lessonsResult, subjectsResult, strandsResult, assessmentsResult, assignmentsResult] = await Promise.allSettled([
@@ -255,6 +259,53 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         ))}
       </section>
 
+      <section style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Filtered board summary" eyebrow="What this exact view is showing">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ color: '#475569', lineHeight: 1.7 }}>
+              {showingBlockedView
+                ? `Blocked-only mode is showing ${filteredBlockedModules.length} module${filteredBlockedModules.length === 1 ? '' : 's'} that still need lesson coverage, assessment gates, or both.`
+                : `This board currently surfaces ${filteredModules.length} module${filteredModules.length === 1 ? '' : 's'}, ${filteredLessons.length} lesson${filteredLessons.length === 1 ? '' : 's'}, and ${filteredAssessments.length} assessment gate${filteredAssessments.length === 1 ? '' : 's'} in scope.`}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Pill label={`${filteredModules.length} modules`} tone="#EEF2FF" text="#3730A3" />
+              <Pill label={`${filteredLessons.length} lessons`} tone="#ECFDF5" text="#166534" />
+              <Pill label={`${filteredAssessments.length} assessments`} tone="#F3E8FF" text="#7E22CE" />
+              <Pill label={`${filteredBlockedModules.length} blockers`} tone={filteredBlockedModules.length ? '#FEF3C7' : '#F8FAFC'} text={filteredBlockedModules.length ? '#92400E' : '#334155'} />
+            </div>
+            <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+              Filters now keep the library honest: no more silent blank tables that make operators guess whether content vanished or the board is just scoped tightly.
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Operational handoff" eyebrow="What to do next from here">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {[
+              ['Clear blockers first', filteredBlockedModules.length ? `${filteredBlockedModules.length} blocker row${filteredBlockedModules.length === 1 ? '' : 's'} still need action before this curriculum slice is genuinely release-safe.` : 'No blocker rows in this scoped view right now.'],
+              ['Use full authoring when structure matters', 'Quick edit is fine for status or duration. If the learner flow, media cues, or evidence design matters, open Lesson Studio and do it properly.'],
+              ['Route back into delivery on purpose', 'After content is structurally clean, move into assignments or reports with the same scoped story instead of making operators reconstruct context from memory.'],
+            ].map(([title, detail]) => (
+              <div key={title} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
+                <div style={{ color: '#64748b', lineHeight: 1.6 }}>{detail}</div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href="/content/lessons/new?from=%2Fcontent" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+                Open lesson studio →
+              </Link>
+              <Link href="/assignments" style={{ color: '#166534', fontWeight: 800, textDecoration: 'none' }}>
+                Open assignments →
+              </Link>
+              <Link href="/reports" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
+                Cross-check reports →
+              </Link>
+            </div>
+          </div>
+        </Card>
+      </section>
+
       {!showingBlockedView ? (
         <>
           <ContentSubjectLanes
@@ -319,7 +370,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             <Card title="Assessment control board" eyebrow="Gatekeeping progression">
               <SimpleTable
                 columns={['Assessment', 'Module', 'Trigger', 'Pass mark', 'Status', 'Actions']}
-                rows={filteredAssessments.map((assessment) => [
+                rows={filteredAssessments.length ? filteredAssessments.map((assessment) => [
                   assessment.title,
                   assessment.moduleTitle ?? '—',
                   assessment.triggerLabel,
@@ -333,7 +384,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       <DeleteAssessmentForm assessments={[assessment]} />
                     </ModalLauncher>
                   </div>,
-                ])}
+                ]) : emptyTableRows(filtersActive ? 'No assessment gates match the current content filters.' : 'No assessment gates are available right now.', 6)}
               />
             </Card>
           </section>
@@ -342,7 +393,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             <Card title="Curriculum release tracker" eyebrow="Ops visibility">
               <SimpleTable
                 columns={['Subject', 'Strand', 'Module', 'Level', 'Lessons', 'Status', 'Actions']}
-                rows={filteredModules.map((module) => [
+                rows={filteredModules.length ? filteredModules.map((module) => [
                   module.subjectName ?? '—',
                   module.strandName,
                   module.title,
@@ -357,14 +408,14 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       <DeleteModuleForm modules={[module]} />
                     </ModalLauncher>
                   </div>,
-                ])}
+                ]) : emptyTableRows(filtersActive ? 'No modules match the current content filters.' : 'No modules are available right now.', 7)}
               />
             </Card>
 
             <Card title="Lesson inventory" eyebrow="Deployment-ready detail">
               <SimpleTable
                 columns={['Lesson', 'Subject', 'Module', 'Mode', 'Duration', 'Status', 'Actions']}
-                rows={filteredLessons.map((lesson) => [
+                rows={filteredLessons.length ? filteredLessons.map((lesson) => [
                   lesson.title,
                   lesson.subjectName ?? '—',
                   lesson.moduleTitle ?? '—',
@@ -385,7 +436,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       <DeleteLessonForm lessons={[lesson]} />
                     </ModalLauncher>
                   </div>,
-                ])}
+                ]) : emptyTableRows(filtersActive ? 'No lessons match the current content filters.' : 'No lessons are available right now.', 7)}
               />
             </Card>
           </section>

@@ -142,10 +142,33 @@ function lessonMatchesModule(lesson: Lesson, module: CurriculumModule) {
   return matchesLooseIdOrName(lesson.moduleId, module.id, lesson.moduleTitle, module.title);
 }
 
-function assessmentMatchesLesson(assessment: Assessment, lesson: CurriculumCanvasLesson, module?: CurriculumModule) {
-  return matchesLooseIdOrName(assessment.moduleId, lesson.id, assessment.moduleTitle, lesson.title)
-    || assessment.moduleId === module?.id
-    || normalize(assessment.moduleTitle) === normalize(module?.title);
+function assessmentMatchesLesson(
+  assessment: Assessment,
+  lesson: Pick<CurriculumCanvasLesson, 'id' | 'title' | 'assessmentId' | 'assessmentTitle'>,
+  module?: CurriculumModule,
+) {
+  if (lesson.assessmentId && assessment.id === lesson.assessmentId) {
+    return true;
+  }
+
+  const normalizedLessonGateTitle = normalize(lesson.assessmentTitle);
+  if (normalizedLessonGateTitle && normalize(assessment.title) === normalizedLessonGateTitle) {
+    return true;
+  }
+
+  const normalizedLessonTitle = normalize(lesson.title);
+  const normalizedAssessmentTitle = normalize(assessment.title);
+  const normalizedModuleTitle = normalize(module?.title);
+
+  if (normalizedLessonTitle && normalizedAssessmentTitle) {
+    if (normalizedAssessmentTitle === normalizedLessonTitle) return true;
+    if (normalizedAssessmentTitle.includes(normalizedLessonTitle)) return true;
+    if (normalizedLessonTitle.includes(normalizedAssessmentTitle)) return true;
+  }
+
+  return Boolean(normalizedModuleTitle)
+    && normalize(assessment.moduleTitle) === normalizedModuleTitle
+    && normalizedAssessmentTitle === normalizedLessonGateTitle;
 }
 
 function normalizeAssessmentFromNode(node: CurriculumCanvasApiNode): Assessment {
@@ -168,11 +191,26 @@ function normalizeAssessmentFromNode(node: CurriculumCanvasApiNode): Assessment 
 function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessments: Assessment[], module?: CurriculumModule): CurriculumCanvasLesson {
   const rawTitle = 'name' in lesson ? (lesson.title ?? lesson.name) : lesson.title;
   const title = safeText(rawTitle, 'Untitled lesson');
-  const linkedAssessment = moduleAssessments.find((assessment) => {
-    if ('moduleId' in lesson && lesson.moduleId && assessment.moduleId === lesson.moduleId) return true;
-    if ('moduleTitle' in lesson && lesson.moduleTitle && normalize(assessment.moduleTitle) === normalize(lesson.moduleTitle)) return true;
-    return normalize(assessment.title).includes(normalize(title)) || normalize(title).includes(normalize(assessment.title));
-  }) ?? null;
+  const explicitAssessmentTitleValue = 'lessonAssessment' in lesson
+    ? lesson.lessonAssessment?.title
+    : ('assessmentTitle' in lesson ? lesson.assessmentTitle : null);
+  const explicitAssessmentTitle = safeText(
+    typeof explicitAssessmentTitleValue === 'string' ? explicitAssessmentTitleValue : null,
+    '',
+  ) || null;
+  const explicitAssessmentIdValue = 'assessmentId' in lesson ? lesson.assessmentId : null;
+  const explicitAssessmentId = typeof explicitAssessmentIdValue === 'string' ? explicitAssessmentIdValue : null;
+
+  const linkedAssessment = moduleAssessments.find((assessment) => assessmentMatchesLesson(
+    assessment,
+    {
+      id: lesson.id,
+      title,
+      assessmentId: explicitAssessmentId,
+      assessmentTitle: explicitAssessmentTitle,
+    },
+    module,
+  )) ?? null;
 
   return {
     id: lesson.id,
@@ -180,8 +218,8 @@ function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessm
     status: lesson.status ?? 'draft',
     durationMinutes: ('durationMinutes' in lesson ? lesson.durationMinutes : 0) ?? 0,
     mode: ('mode' in lesson ? lesson.mode : 'guided') ?? 'guided',
-    assessmentTitle: linkedAssessment?.title ?? null,
-    assessmentId: linkedAssessment?.id ?? null,
+    assessmentTitle: explicitAssessmentTitle ?? linkedAssessment?.title ?? null,
+    assessmentId: explicitAssessmentId ?? linkedAssessment?.id ?? null,
     activityCount: ('activityCount' in lesson ? lesson.activityCount : undefined) ?? undefined,
     objectiveCount: ('learningObjectives' in lesson ? lesson.learningObjectives?.length : 'learningObjectives' in lesson ? lesson.learningObjectives?.length : undefined) ?? ('learningObjectives' in lesson && Array.isArray(lesson.learningObjectives) ? lesson.learningObjectives.length : undefined) ?? ('activityCount' in lesson ? undefined : undefined),
   };

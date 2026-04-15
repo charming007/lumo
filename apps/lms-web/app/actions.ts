@@ -467,6 +467,58 @@ export async function createAssessmentAction(formData: FormData) {
   }));
 }
 
+export async function quickUpdateLessonStatusAction(formData: FormData) {
+  const lessonId = String(formData.get('lessonId') || '');
+  const status = String(formData.get('status') || 'draft');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+
+  await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', { status });
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  revalidatePath(`/content/lessons/${lessonId}`);
+  redirect(appendSearchParams(returnPath, {
+    message: `Lesson moved to ${status}`,
+  }));
+}
+
+export async function quickUpdateAssessmentStatusAction(formData: FormData) {
+  const assessmentId = String(formData.get('assessmentId') || '');
+  const status = String(formData.get('status') || 'draft');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+
+  await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', { status });
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  redirect(appendSearchParams(returnPath, {
+    message: `Assessment moved to ${status}`,
+  }));
+}
+
+export async function createCanvasAssessmentQuickAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const subjectId = String(formData.get('subjectId') || '');
+  const moduleId = String(formData.get('moduleId') || '');
+  const moduleTitle = String(formData.get('moduleTitle') || 'this module').trim() || 'this module';
+
+  await apiWrite('/api/v1/assessments', 'POST', {
+    subjectId,
+    moduleId,
+    title: `${moduleTitle} progression check`,
+    kind: 'manual',
+    trigger: 'module-complete',
+    triggerLabel: 'After module completion',
+    progressionGate: 'foundation-a',
+    passingScore: 0.6,
+    status: 'draft',
+  });
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  revalidatePath('/assessments');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Draft assessment gate created from canvas',
+  }));
+}
+
 export async function updateAssessmentAction(formData: FormData) {
   const assessmentId = String(formData.get('assessmentId') || '');
   const payload = {
