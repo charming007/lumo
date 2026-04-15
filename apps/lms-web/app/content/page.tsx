@@ -194,7 +194,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) repeat(3, minmax(160px, 0.7fr))', gap: 12 }}>
+          <div style={{ ...responsiveGrid(180), gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
             <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
               Search title, module, strand, trigger, or status
               <input name="q" defaultValue={searchText} placeholder="Try English, published, story, oral…" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
