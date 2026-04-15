@@ -3291,13 +3291,62 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    SectionTitle(
-                      title: _resumeLocksLearner
-                          ? 'Resume learner'
-                          : 'Choose learner',
-                      subtitle: _resumeLocksLearner
-                          ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
-                          : 'Pick who is taking ${lesson.title}, then confirm to begin.',
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFEEF2FF), Color(0xFFFFFFFF)],
+                        ),
+                        borderRadius: BorderRadius.circular(26),
+                        border: Border.all(color: const Color(0xFFC7D2FE)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _resumeLocksLearner
+                                ? 'Resume learner'
+                                : 'Choose learner',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _resumeLocksLearner
+                                ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
+                                : 'Pick who is taking ${lesson.title}, then confirm to begin.',
+                            style: const TextStyle(
+                              color: Color(0xFF475569),
+                              height: 1.45,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              StatusPill(
+                                text: '${lesson.steps.length} steps',
+                                color: LumoTheme.primary,
+                              ),
+                              StatusPill(
+                                text: '${lesson.durationMinutes} min',
+                                color: LumoTheme.accentOrange,
+                              ),
+                              StatusPill(
+                                text: lesson.readinessFocus,
+                                color: LumoTheme.accentGreen,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
                     if (widget.resumeFrom != null)
@@ -3522,10 +3571,23 @@ class _LessonCountdownPageState extends State<LessonCountdownPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.hourglass_top_rounded,
-                      size: 56,
-                      color: LumoTheme.primary,
+                    Container(
+                      width: 124,
+                      height: 124,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFEEF2FF), Color(0xFFEDE9FE)],
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.hourglass_top_rounded,
+                        size: 56,
+                        color: LumoTheme.primary,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -4281,6 +4343,18 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       speechTranscriptionService.strategySummary(
         preferAudioOnly: _avoidConcurrentSpeechCapture,
       );
+
+  String get _lessonModeLabel {
+    if (_isAudioOnlyReviewState ||
+        _draftTranscriptNeedsVoiceCheck ||
+        _hasTranscriptSafetyBlock) {
+      return 'Review first';
+    }
+    if (_resumePromptPendingFromLifecycle || _autoPausedByTranscriptFailure) {
+      return 'Ready to resume';
+    }
+    return isAutoMode ? 'Hands-free' : 'Step by step';
+  }
 
   List<String> get _transcriptStrategyActions =>
       speechTranscriptionService.strategyActionItems(
@@ -5572,6 +5646,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final suggestions = widget.state.suggestedResponsesForCurrentStep();
     final expectedResponse =
         widget.state.personalizeExpectedResponse(step.expectedResponse);
+    final stepLabel =
+        'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}';
+    final shortExpectedResponse = expectedResponse.length > 96
+        ? '${expectedResponse.substring(0, 93)}...'
+        : expectedResponse;
     final isStackedLayout = MediaQuery.sizeOf(context).width < 1180;
 
     Widget buildLessonGuidePane() {
@@ -5673,9 +5752,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                       children: [
                         Row(
                           children: [
-                            OutlinedButton(
+                            OutlinedButton.icon(
                               onPressed: _confirmLeaveLessonSession,
-                              child: const Text('Back'),
+                              icon: const Icon(Icons.arrow_back_rounded),
+                              label: const Text('Leave lesson'),
                             ),
                             const Spacer(),
                             StatusPill(
@@ -5685,16 +5765,96 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                           ],
                         ),
                         const SizedBox(height: 20),
-                        Text(
-                          widget.lesson.title,
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(22),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                const Color(0xFFEEF2FF),
+                                const Color(0xFFFFFFFF),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: const Color(0xFFC7D2FE)),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Learner: ${learner.name} • ${learner.readinessLabel}',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  StatusPill(
+                                    text: stepLabel,
+                                    color: LumoTheme.primary,
+                                  ),
+                                  StatusPill(
+                                    text: learner.name,
+                                    color: LumoTheme.accentGreen,
+                                  ),
+                                  if (isAutoMode)
+                                    const StatusPill(
+                                      text: 'Hands-free on',
+                                      color: LumoTheme.accentOrange,
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                widget.lesson.title,
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.1,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                step.instruction,
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.45,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Learner target',
+                                      style: TextStyle(
+                                        color: Color(0xFF4F46E5),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      shortExpectedResponse,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 16),
                         LayoutBuilder(
@@ -5715,8 +5875,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 color: LumoTheme.accentGreen,
                               ),
                               MetricTile(
-                                label: 'Auto mode',
-                                value: isAutoMode ? 'On' : 'Off',
+                                label: 'Lesson mode',
+                                value: _lessonModeLabel,
                                 icon: Icons.smart_toy_rounded,
                                 color: LumoTheme.accentOrange,
                               ),
@@ -5758,119 +5918,97 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                         ),
                         const SizedBox(height: 16),
                         SoftPanel(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () {
-                                  setState(() {
-                                    _transcriptStrategyExpanded =
-                                        !_transcriptStrategyExpanded;
-                                  });
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 2,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.subtitles_rounded,
-                                        color: LumoTheme.primary,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Expanded(
-                                        child: Text(
-                                          'Transcript strategy',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        _transcriptStrategyToggleLabel,
-                                        style: const TextStyle(
-                                          color: LumoTheme.primary,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        _transcriptStrategyExpanded
-                                            ? Icons.expand_less_rounded
-                                            : Icons.expand_more_rounded,
-                                        color: LumoTheme.primary,
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              dividerColor: Colors.transparent,
+                            ),
+                            child: ExpansionTile(
+                              tilePadding: EdgeInsets.zero,
+                              childrenPadding: EdgeInsets.zero,
+                              initiallyExpanded: _transcriptStrategyExpanded,
+                              onExpansionChanged: (expanded) {
+                                setState(() {
+                                  _transcriptStrategyExpanded = expanded;
+                                });
+                              },
+                              leading: const Icon(
+                                Icons.subtitles_rounded,
+                                color: LumoTheme.primary,
                               ),
-                              const SizedBox(height: 10),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  _buildDiagnosticChip(
-                                    icon: speechRecognitionActive
-                                        ? Icons.hearing_rounded
-                                        : _avoidConcurrentSpeechCapture
-                                            ? Icons.mic_none_rounded
-                                            : Icons.warning_amber_rounded,
-                                    label: _transcriptStrategyHeadline,
-                                    healthy: speechRecognitionActive &&
-                                        !_avoidConcurrentSpeechCapture,
-                                    warn: !speechRecognitionActive ||
-                                        _avoidConcurrentSpeechCapture,
-                                  ),
-                                  _buildDiagnosticChip(
-                                    icon: Icons.mic_rounded,
-                                    label: _recordingModeLabel,
-                                    healthy: true,
-                                  ),
-                                  _buildDiagnosticChip(
-                                    icon: _isAudioOnlyReviewState ||
-                                            _draftTranscriptNeedsVoiceCheck ||
-                                            _hasTranscriptSafetyBlock
-                                        ? Icons.verified_user_rounded
-                                        : Icons.fact_check_rounded,
-                                    label: _transcriptSourceOfTruthLabel,
-                                    healthy: !_isAudioOnlyReviewState &&
-                                        !_draftTranscriptNeedsVoiceCheck &&
-                                        !_hasTranscriptSafetyBlock,
-                                    warn: _isAudioOnlyReviewState ||
-                                        _draftTranscriptNeedsVoiceCheck ||
-                                        _hasTranscriptSafetyBlock,
-                                  ),
-                                  _buildDiagnosticChip(
-                                    icon: _consecutiveTranscriptMisses >= 2
-                                        ? Icons.repeat_rounded
-                                        : isAutoMode
-                                            ? Icons.auto_mode_rounded
-                                            : Icons.pan_tool_alt_rounded,
-                                    label: _automationSafetyLabel,
-                                    healthy: isAutoMode &&
-                                        _consecutiveTranscriptMisses < 2 &&
-                                        !_isAudioOnlyReviewState &&
-                                        !_draftTranscriptNeedsVoiceCheck &&
-                                        !_hasTranscriptSafetyBlock,
-                                    warn: _consecutiveTranscriptMisses >= 2 ||
-                                        _isAudioOnlyReviewState ||
-                                        _draftTranscriptNeedsVoiceCheck ||
-                                        _hasTranscriptSafetyBlock,
-                                  ),
-                                ],
+                              title: const Text(
+                                'Transcript strategy',
+                                style: TextStyle(fontWeight: FontWeight.w800),
                               ),
-                              const SizedBox(height: 10),
-                              Text(
+                              subtitle: Text(
                                 _transcriptStrategyCollapsedLabel,
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.35,
                                 ),
                               ),
-                              if (_transcriptStrategyExpanded) ...[
-                                const SizedBox(height: 8),
+                              trailing: Text(
+                                _transcriptStrategyToggleLabel,
+                                style: const TextStyle(
+                                  color: LumoTheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              children: [
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    _buildDiagnosticChip(
+                                      icon: speechRecognitionActive
+                                          ? Icons.hearing_rounded
+                                          : _avoidConcurrentSpeechCapture
+                                              ? Icons.mic_none_rounded
+                                              : Icons.warning_amber_rounded,
+                                      label: _transcriptStrategyHeadline,
+                                      healthy: speechRecognitionActive &&
+                                          !_avoidConcurrentSpeechCapture,
+                                      warn: !speechRecognitionActive ||
+                                          _avoidConcurrentSpeechCapture,
+                                    ),
+                                    _buildDiagnosticChip(
+                                      icon: Icons.mic_rounded,
+                                      label: _recordingModeLabel,
+                                      healthy: true,
+                                    ),
+                                    _buildDiagnosticChip(
+                                      icon: _isAudioOnlyReviewState ||
+                                              _draftTranscriptNeedsVoiceCheck ||
+                                              _hasTranscriptSafetyBlock
+                                          ? Icons.verified_user_rounded
+                                          : Icons.fact_check_rounded,
+                                      label: _transcriptSourceOfTruthLabel,
+                                      healthy: !_isAudioOnlyReviewState &&
+                                          !_draftTranscriptNeedsVoiceCheck &&
+                                          !_hasTranscriptSafetyBlock,
+                                      warn: _isAudioOnlyReviewState ||
+                                          _draftTranscriptNeedsVoiceCheck ||
+                                          _hasTranscriptSafetyBlock,
+                                    ),
+                                    _buildDiagnosticChip(
+                                      icon: _consecutiveTranscriptMisses >= 2
+                                          ? Icons.repeat_rounded
+                                          : isAutoMode
+                                              ? Icons.auto_mode_rounded
+                                              : Icons.pan_tool_alt_rounded,
+                                      label: _automationSafetyLabel,
+                                      healthy: isAutoMode &&
+                                          _consecutiveTranscriptMisses < 2 &&
+                                          !_isAudioOnlyReviewState &&
+                                          !_draftTranscriptNeedsVoiceCheck &&
+                                          !_hasTranscriptSafetyBlock,
+                                      warn: _consecutiveTranscriptMisses >= 2 ||
+                                          _isAudioOnlyReviewState ||
+                                          _draftTranscriptNeedsVoiceCheck ||
+                                          _hasTranscriptSafetyBlock,
+                                    ),
+                                  ],
+                                ),
                                 Text(
                                   _automationSafetySummary,
                                   style: const TextStyle(
@@ -5921,108 +6059,119 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                       ),
                                     ),
                               ],
-                            ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
                         SoftPanel(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              dividerColor: Colors.transparent,
+                            ),
+                            child: ExpansionTile(
+                              tilePadding: EdgeInsets.zero,
+                              childrenPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.tune_rounded,
+                                color: LumoTheme.accentOrange,
+                              ),
+                              title: const Text(
                                 'Practice mode',
                                 style: TextStyle(fontWeight: FontWeight.w800),
                               ),
-                              const SizedBox(height: 10),
-                              Text(
+                              subtitle: Text(
                                 widget.state.degradedModeSummary,
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.35,
                                 ),
                               ),
-                              const SizedBox(height: 10),
-                              ...widget.state
-                                  .degradedModeActions(
-                                    speechAvailable: speechRecognitionActive,
-                                    transcriptMisses:
-                                        _consecutiveTranscriptMisses,
-                                  )
-                                  .take(3)
-                                  .map(
-                                    (action) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Padding(
-                                            padding: EdgeInsets.only(top: 2),
-                                            child: Icon(
-                                              Icons
-                                                  .check_circle_outline_rounded,
-                                              size: 16,
-                                              color: LumoTheme.accentGreen,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              action,
-                                              style: const TextStyle(
-                                                color: Color(0xFF475569),
-                                                height: 1.35,
+                              children: [
+                                const SizedBox(height: 10),
+                                ...widget.state
+                                    .degradedModeActions(
+                                      speechAvailable: speechRecognitionActive,
+                                      transcriptMisses:
+                                          _consecutiveTranscriptMisses,
+                                    )
+                                    .take(3)
+                                    .map(
+                                      (action) => Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 6),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Padding(
+                                              padding: EdgeInsets.only(top: 2),
+                                              child: Icon(
+                                                Icons
+                                                    .check_circle_outline_rounded,
+                                                size: 16,
+                                                color: LumoTheme.accentGreen,
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                action,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF475569),
+                                                  height: 1.35,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: PracticeMode.values.map((mode) {
-                                  final selected = session.practiceMode == mode;
-                                  final label = switch (mode) {
-                                    PracticeMode.standard => 'Standard',
-                                    PracticeMode.repeatAfterMe => 'Repeat',
-                                    PracticeMode.independentCheck =>
-                                      'Independent',
-                                  };
-                                  return ChoiceChip(
-                                    label: Text(label),
-                                    selected: selected,
-                                    onSelected: (_) {
-                                      widget.state.setPracticeMode(mode);
-                                      widget.onChanged();
-                                      setState(() {
-                                        microphoneStatus = widget
-                                                .state
-                                                .activeSession
-                                                ?.automationStatus ??
-                                            microphoneStatus;
-                                      });
-                                    },
-                                  );
-                                }).toList(),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                session.practiceMode ==
-                                        PracticeMode.repeatAfterMe
-                                    ? 'Best for explicit practice loops: Mallam expects a close echo and will slow-repeat when ASR or the learner misses it.'
-                                    : session.practiceMode ==
-                                            PracticeMode.independentCheck
-                                        ? 'Best for freer answers: lighter matching, less hand-holding.'
-                                        : 'Balanced guided practice with hints before stronger support.',
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  height: 1.35,
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: PracticeMode.values.map((mode) {
+                                    final selected =
+                                        session.practiceMode == mode;
+                                    final label = switch (mode) {
+                                      PracticeMode.standard => 'Standard',
+                                      PracticeMode.repeatAfterMe => 'Repeat',
+                                      PracticeMode.independentCheck =>
+                                        'Independent',
+                                    };
+                                    return ChoiceChip(
+                                      label: Text(label),
+                                      selected: selected,
+                                      onSelected: (_) {
+                                        widget.state.setPracticeMode(mode);
+                                        widget.onChanged();
+                                        setState(() {
+                                          microphoneStatus = widget
+                                                  .state
+                                                  .activeSession
+                                                  ?.automationStatus ??
+                                              microphoneStatus;
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 10),
+                                Text(
+                                  session.practiceMode ==
+                                          PracticeMode.repeatAfterMe
+                                      ? 'Best for explicit practice loops: Mallam expects a close echo and will slow-repeat when ASR or the learner misses it.'
+                                      : session.practiceMode ==
+                                              PracticeMode.independentCheck
+                                          ? 'Best for freer answers: lighter matching, less hand-holding.'
+                                          : 'Balanced guided practice with hints before stronger support.',
+                                  style: const TextStyle(
+                                    color: Color(0xFF64748B),
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
