@@ -524,6 +524,39 @@ function reconcileStorageCache(actor = {}) {
   return result;
 }
 
+function recoverStoragePrimaryFromWarmCache(actor = {}) {
+  const data = require('./data');
+
+  if (typeof data.storage?.recoverPrimaryFromWarmCache !== 'function') {
+    const error = new Error('Primary recovery from warm cache is not available');
+    error.statusCode = 501;
+    throw error;
+  }
+
+  const recovered = data.storage.recoverPrimaryFromWarmCache() || {};
+  data.reload();
+  const snapshot = exportStorageSnapshot();
+  const result = {
+    recoveredAt: new Date().toISOString(),
+    ...recovered,
+    collectionCounts: snapshot.collectionCounts,
+    status: getStorageStatus(),
+  };
+
+  recordStorageOperation('recover-primary-from-cache', result, {
+    actorName: actor.actorName,
+    actorRole: actor.actorRole,
+    summary: {
+      recovered: Boolean(result.recovered),
+      recordsAfterRecovery: summarizeCollectionCounts(snapshot.collectionCounts),
+      cacheInSync: Boolean(result.status?.cache?.inSync),
+      journalAligned: Boolean(result.status?.primaryIntegrity?.journalAligned),
+    },
+  });
+
+  return result;
+}
+
 function summarizeCollectionCounts(counts = {}) {
   return Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
 }
@@ -1132,4 +1165,5 @@ module.exports = {
   reloadStorageSnapshot,
   restoreStorageBackup,
   reconcileStorageCache,
+  recoverStoragePrimaryFromWarmCache,
 };

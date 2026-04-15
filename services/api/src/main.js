@@ -2708,6 +2708,17 @@ app.post('/api/v1/admin/storage/reconcile-cache', requireRole(['admin']), (req, 
   }
 });
 
+app.post('/api/v1/admin/storage/recover-primary-from-cache', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.status(201).json(store.recoverStoragePrimaryFromWarmCache({
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res) => {
   res.json({
     items: store.listStorageBackups(Number(req.query.limit || 20)),

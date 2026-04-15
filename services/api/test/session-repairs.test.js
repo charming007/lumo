@@ -560,3 +560,63 @@ test('admin storage reconcile-cache endpoint returns 501 when cache reconcile is
   assert.equal(response.status, 501);
   assert.equal(response.body.message, 'Storage cache reconcile is not available');
 });
+
+test('admin storage recovery control restores Postgres primary from warm cache when available', async () => {
+  const data = require('../src/data');
+  const originalStorage = data.storage;
+  const originalReload = data.reload;
+  let recovered = false;
+
+  data.storage = {
+    ...originalStorage,
+    kind: 'postgres',
+    recoverPrimaryFromWarmCache() {
+      recovered = true;
+      return {
+        recovered: true,
+        source: 'warm-cache',
+        snapshotHash: 'cache-hash-1',
+        cache: {
+          exists: true,
+          inSync: true,
+          updatedAt: '2026-04-15T12:00:00.000Z',
+          cacheHash: 'cache-hash-1',
+          snapshotHash: 'cache-hash-1',
+        },
+      };
+    },
+    getStatus() {
+      return {
+        kind: 'postgres',
+        exists: true,
+        updatedAt: '2026-04-15T12:00:00.000Z',
+        cache: { exists: true, inSync: true, updatedAt: '2026-04-15T12:00:00.000Z' },
+        journal: { total: 12, latestAt: '2026-04-15T12:00:00.000Z', latestMutationId: 12, latestMutationAction: 'write', latestMutationHash: 'cache-hash-1', latestMutationRestorable: true },
+        primaryIntegrity: { snapshotHash: 'cache-hash-1', journalAligned: true, recoverableFromWarmCache: true },
+        db: { persistent: true, driver: 'pg-jsonb-snapshot+journal' },
+      };
+    },
+  };
+  data.reload = () => {};
+
+  try {
+    const response = await request('/api/v1/admin/storage/recover-primary-from-cache', {
+      method: 'POST',
+      headers: {
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Ops Admin',
+      },
+      body: JSON.stringify({}),
+    });
+
+    assert.equal(response.status, 201);
+    assert.equal(recovered, true);
+    assert.equal(response.body.recovered, true);
+    assert.equal(response.body.source, 'warm-cache');
+    assert.equal(response.body.status.primaryIntegrity.journalAligned, true);
+
+  } finally {
+    data.storage = originalStorage;
+    data.reload = originalReload;
+  }
+});

@@ -284,10 +284,11 @@ const { Client } = require('pg');
       return;
     }
     if (${JSON.stringify(action)} === 'status') {
-      const snap = await client.query('SELECT updated_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_snapshots WHERE id = $1', ['primary']);
+      const snap = await client.query('SELECT snapshot, updated_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_snapshots WHERE id = $1', ['primary']);
       const backups = await client.query('SELECT id, label, created_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_backups ORDER BY created_at DESC LIMIT 10');
       const journal = await client.query("SELECT COUNT(*)::int AS total, MAX(created_at) AS latest_at FROM lumo_storage_mutations");
-      process.stdout.write(JSON.stringify({ snapshot: snap.rows[0] || null, backups: backups.rows || [], journal: journal.rows[0] || { total: 0, latest_at: null } }));
+      const latestMutation = await client.query('SELECT id, action, snapshot_hash, snapshot IS NOT NULL AS has_snapshot, created_at FROM lumo_storage_mutations ORDER BY created_at DESC LIMIT 1');
+      process.stdout.write(JSON.stringify({ snapshot: snap.rows[0] || null, backups: backups.rows || [], journal: journal.rows[0] || { total: 0, latest_at: null }, latestMutation: latestMutation.rows[0] || null }));
       return;
     }
     if (${JSON.stringify(action)} === 'listMutations') {
@@ -414,10 +415,42 @@ const { Client } = require('pg');
     return describeWarmCache(snapshot);
   }
 
+  function recoverPrimaryFromWarmCache() {
+    const cache = describeWarmCache(null);
+    if (!cache.exists) {
+      const error = new Error('Warm cache snapshot is not available');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const snapshot = safeReadJson(resolvedFile, {});
+    runPg('write', {
+      snapshot,
+      metadata: {
+        source: 'warm-cache-recovery',
+        cacheUpdatedAt: cache.updatedAt,
+        cacheHash: cache.cacheHash,
+      },
+    });
+
+    return {
+      recovered: true,
+      source: 'warm-cache',
+      cache: describeWarmCache(snapshot),
+      snapshotHash: hashSnapshot(snapshot),
+    };
+  }
+
   function read(seedData) {
     const row = runPg('read');
     if (!row?.snapshot) {
-      runPg('write', { snapshot: seedData });
+      const cache = describeWarmCache(null);
+      if (cache.exists) {
+        const recovered = recoverPrimaryFromWarmCache();
+        return safeReadJson(resolvedFile, seedData);
+      }
+
+      runPg('write', { snapshot: seedData, metadata: { source: 'seed-bootstrap' } });
       syncWarmCache(seedData);
       return clone(seedData);
     }
@@ -564,10 +597,14 @@ const { Client } = require('pg');
         cache: syncWarmCache(row.snapshot),
       };
     },
+    recoverPrimaryFromWarmCache,
     getStatus() {
       const status = runPg('status') || {};
-      const row = runPg('read');
-      const snapshot = row?.snapshot && typeof row.snapshot === 'object' ? row.snapshot : null;
+      const snapshot = status.snapshot?.snapshot && typeof status.snapshot.snapshot === 'object'
+        ? status.snapshot.snapshot
+        : null;
+      const snapshotHash = snapshot ? hashSnapshot(snapshot) : null;
+      const latestMutationHash = status.latestMutation?.snapshot_hash || null;
       return {
         kind: 'postgres',
         file: resolvedFile,
@@ -581,6 +618,15 @@ const { Client } = require('pg');
         journal: {
           total: Number(status.journal?.total || 0),
           latestAt: status.journal?.latest_at || null,
+          latestMutationId: status.latestMutation?.id || null,
+          latestMutationAction: status.latestMutation?.action || null,
+          latestMutationHash,
+          latestMutationRestorable: Boolean(status.latestMutation?.has_snapshot),
+        },
+        primaryIntegrity: {
+          snapshotHash,
+          journalAligned: snapshotHash ? snapshotHash === latestMutationHash : latestMutationHash === null,
+          recoverableFromWarmCache: Boolean(describeWarmCache(snapshot).exists),
         },
         note: 'Primary durability is Postgres; local JSON file is maintained as a warm snapshot cache and every snapshot mutation is journaled in Postgres.',
         db: { ...getDbModeMeta(), driver: 'pg-jsonb-snapshot+journal' },
