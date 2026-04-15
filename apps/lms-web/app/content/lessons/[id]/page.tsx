@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
-import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { ApiRequestError, fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessons, fetchSubjects } from '../../../../lib/api';
 import { Card, PageShell, Pill, responsiveGrid } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
 
@@ -46,7 +46,33 @@ export default async function LessonDetailPage({ params, searchParams }: { param
     : lessons.find((item) => item.id === id) ?? null;
 
   if (!lesson) {
-    notFound();
+    if (lessonResult.status === 'rejected' && lessonResult.reason instanceof ApiRequestError && lessonResult.reason.status === 404) {
+      notFound();
+    }
+
+    return (
+      <PageShell
+        title="Lesson detail temporarily unavailable"
+        subtitle="The lesson editor could not recover this record from the live API. This is a runtime failure until the backend proves it is a real 404."
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/' },
+          { label: 'Content', href: '/content' },
+          { label: 'Lesson unavailable' },
+        ]}
+      >
+        <div style={{ display: 'grid', gap: 16 }}>
+          {sectionAlert('Lesson detail failed to load from the API and the broader lesson library feed could not recover it either. The page now reports the outage clearly instead of dumping the operator into a misleading 404.', 'warning')}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link href={returnPath} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+              Back to previous route
+            </Link>
+            <Link href="/content" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 800, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+              Open content board
+            </Link>
+          </div>
+        </div>
+      </PageShell>
+    );
   }
 
   const detailRecoveredFromList = lessonResult.status === 'rejected';

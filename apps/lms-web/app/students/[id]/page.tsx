@@ -1,8 +1,9 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ObservationForm } from '../../../components/observation-form';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
-import { fetchMallams, fetchStudent } from '../../../lib/api';
+import { ApiRequestError, fetchMallams, fetchStudent } from '../../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
@@ -23,7 +24,12 @@ export default async function StudentDetailPage({ params, searchParams }: { para
 
   try {
     const [studentResult, mallamsResult] = await Promise.allSettled([fetchStudent(id), fetchMallams()]);
-    if (studentResult.status === 'rejected') notFound();
+    if (studentResult.status === 'rejected') {
+      if (studentResult.reason instanceof ApiRequestError && studentResult.reason.status === 404) {
+        notFound();
+      }
+      throw studentResult.reason;
+    }
 
     const student = studentResult.value;
     const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
@@ -121,6 +127,28 @@ export default async function StudentDetailPage({ params, searchParams }: { para
       </PageShell>
     );
   } catch {
-    notFound();
+    return (
+      <PageShell
+        title="Learner detail temporarily unavailable"
+        subtitle="The learner record could not be loaded from the live API. This is an outage/config problem, not a trustworthy 'record missing' result."
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/' },
+          { label: 'Learners', href: '/students' },
+          { label: 'Detail unavailable' },
+        ]}
+      >
+        <div style={{ display: 'grid', gap: 16 }}>
+          {sectionAlert('Learner detail failed to load from the API, so this route is intentionally refusing to masquerade as a 404. Check the deployment API URL or backend health, then retry from the learner roster.', 'warning')}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link href="/students" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+              Back to learners
+            </Link>
+            <Link href="/reports" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 800, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+              Cross-check reports
+            </Link>
+          </div>
+        </div>
+      </PageShell>
+    );
   }
 }

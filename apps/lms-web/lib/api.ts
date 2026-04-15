@@ -33,6 +33,18 @@ import { API_BASE } from './config';
 import type { RewardCatalog } from './rewards';
 import type { CurriculumCanvasApiTree } from './curriculum-canvas';
 
+export class ApiRequestError extends Error {
+  status: number;
+  path: string;
+
+  constructor(path: string, status: number) {
+    super(`Request failed (${status}): ${path}`);
+    this.name = 'ApiRequestError';
+    this.status = status;
+    this.path = path;
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     cache: 'no-store',
@@ -43,7 +55,7 @@ async function getJson<T>(path: string): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${path}`);
+    throw new ApiRequestError(path, response.status);
   }
 
   return response.json();

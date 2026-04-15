@@ -259,6 +259,10 @@ export default async function HomePage() {
   const partialOutageMessage = failedSources.length
     ? `Dashboard degraded gracefully: ${failedSources.join(', ')} data ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.`
     : null;
+  const liveFeedCount = 10 - failedSources.length;
+  const trustLabel = failedSources.length ? 'Partial data — operator review required' : 'Live data verified';
+  const trustTone = failedSources.length ? '#FEF3C7' : '#DCFCE7';
+  const trustText = failedSources.length ? '#92400E' : '#166534';
 
   return (
     <PageShell
@@ -284,11 +288,44 @@ export default async function HomePage() {
         </div>
       )}
     >
-      {partialOutageMessage ? (
-        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          {partialOutageMessage}
+      <div style={{ marginBottom: 16, padding: '18px 20px', borderRadius: 20, background: failedSources.length ? 'linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%)' : 'linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%)', border: `1px solid ${failedSources.length ? '#fed7aa' : '#bbf7d0'}`, boxShadow: '0 18px 40px rgba(15, 23, 42, 0.08)' }}>
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 800 }}>Dashboard trust status</div>
+              <strong style={{ fontSize: 22, color: '#0f172a' }}>{failedSources.length ? 'Do not treat this dashboard as fully authoritative yet.' : 'All dashboard feeds are live right now.'}</strong>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>
+                {partialOutageMessage ?? 'Summary, assignments, workboard, curriculum blockers, and supporting feeds all loaded. This is the version of the dashboard you can actually trust in a release review.'}
+              </div>
+            </div>
+            <Pill label={trustLabel} tone={trustTone} text={trustText} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: 12 }}>
+            <div style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(226, 232, 240, 0.9)' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#8a94a6', marginBottom: 6, fontWeight: 800 }}>Live feeds</div>
+              <strong style={{ fontSize: 22, color: '#0f172a' }}>{liveFeedCount}/10</strong>
+              <div style={{ color: '#64748b', lineHeight: 1.6 }}>Feeds currently delivering usable dashboard data.</div>
+            </div>
+            <div style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(226, 232, 240, 0.9)' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#8a94a6', marginBottom: 6, fontWeight: 800 }}>Release visibility</div>
+              <strong style={{ fontSize: 22, color: '#0f172a' }}>{releaseFeedsFailed ? 'Partial' : 'Clear'}</strong>
+              <div style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseFeedsFailed ? 'Curriculum blocker counts may be incomplete until modules, lessons, and assessments recover.' : 'Curriculum blocker lane is backed by live module, lesson, and assessment feeds.'}</div>
+            </div>
+            <div style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(226, 232, 240, 0.9)' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#8a94a6', marginBottom: 6, fontWeight: 800 }}>Immediate move</div>
+              <strong style={{ fontSize: 18, color: '#0f172a' }}>{failedSources.length ? 'Fix missing feeds or operate carefully' : highestPriorityBlocker ? 'Clear the top release blocker' : 'Keep the lane clean'}</strong>
+              <div style={{ color: '#64748b', lineHeight: 1.6 }}>{failedSources.length ? `Missing: ${failedSources.join(', ')}.` : highestPriorityBlocker ? `${highestPriorityBlocker.title} is still the highest-value blocker to clear.` : 'No active dashboard blind spots or release blockers are shouting for attention.'}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {failedSources.length ? <Link href="/reports" style={tableLinkStyle}>Cross-check reports</Link> : null}
+            <Link href="/content?view=blocked" style={tableLinkStyle}>Review blocker board</Link>
+            <a href="/LUMO_MVP_QA_UAT_GUIDE.html" target="_blank" rel="noreferrer" style={tableLinkStyle}>Run dashboard smoke check</a>
+          </div>
         </div>
-      ) : null}
+      </div>
 
       <KpiStrip items={stats} />
 
