@@ -2,14 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'app_state.dart';
 import 'audio_capture_service.dart';
+import 'browser_runtime_observer.dart';
 import 'design_shell.dart';
 import 'instructions.dart';
 import 'learner_audio_playback_service.dart';
@@ -3609,6 +3611,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   late final AudioCaptureService audioCaptureService;
   late final LearnerAudioPlaybackService learnerAudioPlaybackService;
   late final SpeechTranscriptionService speechTranscriptionService;
+  late final BrowserRuntimeObserver browserRuntimeObserver;
+  StreamSubscription<BrowserRuntimeSignal>? _browserRuntimeSubscription;
   Timer? recordingTicker;
   Timer? _speechAutoStopDebounce;
   bool isRecording = false;
@@ -3643,6 +3647,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     audioCaptureService = AudioCaptureService();
     learnerAudioPlaybackService = LearnerAudioPlaybackService();
     speechTranscriptionService = SpeechTranscriptionService();
+    browserRuntimeObserver = createBrowserRuntimeObserver();
 
     final session = widget.state.activeSession;
     if (session != null) {
@@ -3671,6 +3676,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
 
     _primeDiagnostics();
+    _browserRuntimeSubscription =
+        browserRuntimeObserver.signals.listen(_handleBrowserRuntimeSignal);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -3759,9 +3766,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     WidgetsBinding.instance.removeObserver(this);
     recordingTicker?.cancel();
     _speechAutoStopDebounce?.cancel();
+    _browserRuntimeSubscription?.cancel();
     speechTranscriptionService.cancel();
     learnerAudioPlaybackService.dispose();
     audioCaptureService.dispose();
+    browserRuntimeObserver.dispose();
     responseController.dispose();
     super.dispose();
   }
@@ -3786,7 +3795,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
   }
 
-  Future<void> _handleLifecycleInterruption(AppLifecycleState state) async {
+  Future<void> _handleLifecycleInterruption(
+    AppLifecycleState state, {
+    String? reason,
+    bool forceResumePrompt = false,
+  }) async {
     final session = widget.state.activeSession;
     final hadLiveCapture = isRecording || isSpeaking || speechRecognitionActive;
     final shouldProtectSession = hadLiveCapture ||
@@ -3798,6 +3811,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       return;
     }
 
+    final interruptionReason = reason ?? 'The app left the foreground';
     final wasAutoMode = isAutoMode;
     _resumePromptPendingFromLifecycle = true;
     _speechAutoStopDebounce?.cancel();
@@ -3825,10 +3839,74 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               false);
       microphoneStatus = wasAutoMode
           ? (transcriptReviewPending
-              ? 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. The saved answer is still attached for review before Mallam continues.'
-              : 'The app left the foreground, so Lumo stopped live mic playback/capture to protect the learner session. When the tablet or browser is active again, tap Resume hands-free loop so Mallam can safely replay the step and reopen the mic.')
-          : 'The app left the foreground, so Lumo stopped live mic playback/capture. The saved audio and draft answer are still attached for manual review.';
+              ? '$interruptionReason, so Lumo stopped live mic playback/capture to protect the learner session. The saved answer is still attached for review before Mallam continues.'
+              : '$interruptionReason, so Lumo stopped live mic playback/capture to protect the learner session. When the tablet or browser is active again, tap Resume hands-free loop so Mallam can safely replay the step and reopen the mic.')
+          : '$interruptionReason, so Lumo stopped live mic playback/capture. The saved audio and draft answer are still attached for manual review.';
+      if (forceResumePrompt) {
+        _resumePromptPendingFromLifecycle = true;
+      }
     });
+  }
+
+  Future<void> _handleBrowserRuntimeSignal(BrowserRuntimeSignal signal) async {
+    if (!mounted) return;
+    switch (signal.kind) {
+      case BrowserRuntimeSignalKind.hidden:
+        await _handleLifecycleInterruption(
+          AppLifecycleState.hidden,
+          reason: 'The browser tab moved into the background',
+          forceResumePrompt: true,
+        );
+        break;
+      case BrowserRuntimeSignalKind.visible:
+        if (!_resumePromptPendingFromLifecycle) return;
+        setState(() {
+          microphoneStatus = transcriptReviewPending
+              ? 'The browser tab is active again. Review the saved learner evidence, then resume hands-free only when the mic route is stable.'
+              : 'The browser tab is active again. Tap Resume hands-free loop so Mallam can replay the step and reopen the mic safely.';
+        });
+        break;
+      case BrowserRuntimeSignalKind.offline:
+        if (isRecording || isAutoMode || speechRecognitionActive) {
+          setState(() {
+            microphoneStatus =
+                'The browser went offline. Lumo will keep saving learner audio locally and hold transcript help until the connection settles again.';
+          });
+        }
+        break;
+      case BrowserRuntimeSignalKind.online:
+        if (isRecording || isSpeaking) return;
+        final transcriptReady = await _retryTranscriptEngine(
+          announceStatus: false,
+        );
+        if (!mounted) return;
+        setState(() {
+          microphoneStatus = transcriptReady
+              ? 'Connection recovered. Transcript help looks ready again when you want to resume hands-free.'
+              : 'Connection recovered, but transcript help is still settling. Lumo can keep running in audio-first mode.';
+        });
+        break;
+      case BrowserRuntimeSignalKind.deviceChanged:
+        if (isRecording) {
+          await stopRecording(markReadyForResume: false);
+          if (!mounted) return;
+          setState(() {
+            transcriptReviewPending = true;
+            isAutoMode = false;
+            microphoneStatus =
+                'The microphone or speaker route changed mid-take. Lumo saved what it could, paused hands-free, and is waiting for a quick review before reopening the mic.';
+          });
+          return;
+        }
+        await speechTranscriptionService.cancel();
+        if (!mounted) return;
+        setState(() {
+          _resumePromptPendingFromLifecycle = true;
+          microphoneStatus =
+              'Audio devices changed on this browser. Reopen the mic deliberately so the learner does not get trapped on the wrong headset or tablet microphone.';
+        });
+        break;
+    }
   }
 
   void _handleSpeechStatus(String status) {
@@ -6706,7 +6784,9 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
         Flexible() => child.child,
         _ => child,
       };
-      final paneHeight = viewportHeight < 700 ? 760.0 : viewportHeight * 1.4;
+      final paneHeight = viewportHeight < 700
+          ? 1400.0
+          : (viewportHeight * 2.25).clamp(1400.0, 2400.0);
       return isPane
           ? SizedBox(
               height: paneHeight,
