@@ -79,16 +79,27 @@ function describeReleaseRisk(blockerCount: number): { label: string; tone: strin
 function describeNextAction(module: {
   missingLessons: number;
   hasAssessmentGate: boolean;
+  isDraftModule: boolean;
 }) {
-  if (module.missingLessons > 0 && !module.hasAssessmentGate) {
-    return `Create ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'} and add the assessment gate.`;
+  const actions: string[] = [];
+
+  if (module.isDraftModule) {
+    actions.push('move the module out of draft');
   }
 
   if (module.missingLessons > 0) {
-    return `Create ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'} to unblock publish.`;
+    actions.push(`create ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'}`);
   }
 
-  return 'Add the missing assessment gate before publish.';
+  if (!module.hasAssessmentGate) {
+    actions.push('add the assessment gate');
+  }
+
+  if (!actions.length) {
+    return 'This lane is structurally clear.';
+  }
+
+  return `${actions[0].charAt(0).toUpperCase()}${actions[0].slice(1)}${actions.length > 1 ? `, ${actions.slice(1, -1).join(', ')}${actions.length > 2 ? ',' : ''} and ${actions.at(-1)}` : ''} before publish.`;
 }
 
 export default async function HomePage() {
@@ -160,8 +171,10 @@ export default async function HomePage() {
       const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
       const hasAssessmentGate = moduleHasAssessmentGate(module);
       const blockerCount = missingLessons + (hasAssessmentGate ? 0 : 1);
+      const isDraftModule = module.status === 'draft';
+      const totalBlockers = blockerCount + (isDraftModule ? 1 : 0);
 
-      if (!blockerCount) {
+      if (!totalBlockers) {
         return null;
       }
 
@@ -172,7 +185,8 @@ export default async function HomePage() {
         subjectName: module.subjectName ?? '—',
         missingLessons,
         hasAssessmentGate,
-        blockerCount,
+        isDraftModule,
+        blockerCount: totalBlockers,
       };
     })
     .filter((module): module is NonNullable<typeof module> => Boolean(module))
@@ -325,6 +339,7 @@ export default async function HomePage() {
                 items={[
                   { label: 'Modules publish-ready', value: String(Math.max(publishReadyModules, 0)) },
                   { label: 'Modules blocked', value: String(releaseBlockers.length) },
+                  { label: 'Draft modules blocking release', value: String(releaseBlockers.filter((module) => module.isDraftModule).length) },
                   { label: 'Missing lesson gaps', value: String(releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0)) },
                   { label: 'Missing assessment gates', value: String(releaseBlockers.filter((module) => !module.hasAssessmentGate).length) },
                 ]}
@@ -377,6 +392,9 @@ export default async function HomePage() {
                     module.subjectName,
                     <div key={`${module.id}-gaps`} style={{ display: 'grid', gap: 6 }}>
                       <span>{module.missingLessons > 0 ? `${module.missingLessons} lesson gap${module.missingLessons === 1 ? '' : 's'}` : 'Lessons complete'}</span>
+                      <span style={{ color: module.isDraftModule ? '#B45309' : '#64748b', fontSize: 13, fontWeight: module.isDraftModule ? 800 : 600 }}>
+                        {module.isDraftModule ? 'Module is still draft' : 'Module status is release-safe'}
+                      </span>
                       {module.missingLessons > 0 ? <Link href={createLessonHref} style={tableLinkStyle}>Create missing lesson</Link> : null}
                     </div>,
                     <div key={`${module.id}-next-action`} style={{ display: 'grid', gap: 6 }}>
