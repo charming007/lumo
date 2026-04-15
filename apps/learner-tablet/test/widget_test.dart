@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/main.dart';
@@ -91,6 +92,26 @@ void main() {
     expect(find.textContaining('lesson'), findsWidgets);
 
     state.dispose();
+  });
+
+  testWidgets('restores recent runtime sessions from legacy persisted key', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'lumo_learner_tablet_state_v1':
+          '{"schemaVersion":"2026-04-13-runtime-persist","learners":[{"id":"student-1","name":"Amina Bello","age":9,"cohort":"Cohort A","streakDays":0,"guardianName":"Hauwa Bello","preferredLanguage":"Hausa","readinessLabel":"Voice-first beginner","village":"Kawo","guardianPhone":"","sex":"Girl","baselineLevel":"No prior exposure","consentCaptured":true,"learnerCode":"LM-001","caregiverRelationship":"Mother","enrollmentStatus":"Active","attendanceBand":"Stable attendance","supportPlan":"Short prompts and praise after every answer.","lastLessonSummary":"No lesson captured yet.","lastAttendance":"Checked in today"}],"modules":[],"assignedLessons":[],"assignmentPacks":[],"pendingSyncEvents":[],"recentRuntimeSessions":{"student-1":[{"id":"runtime-1","sessionId":"session-1","studentId":"student-1","learnerCode":"LM-001","lessonId":"lesson-1","lessonTitle":"Warm-up","moduleId":"english","moduleTitle":"English","status":"in_progress","completionState":"inProgress","automationStatus":"Resume ready","currentStepIndex":2,"stepsTotal":4,"responsesCaptured":1,"supportActionsUsed":0,"audioCaptures":0,"facilitatorObservations":0}]}}'
+    });
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    await state.restorePersistedState();
+
+    expect(state.learners.single.name, 'Amina Bello');
+    expect(state.recentRuntimeSessionsForLearner(state.learners.single), hasLength(1));
+    expect(
+      state.recentRuntimeSessionsForLearner(state.learners.single).single
+          .automationStatus,
+      'Resume ready',
+    );
   });
 
   testWidgets('home screen stays usable on portrait tablet widths', (

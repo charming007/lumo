@@ -26,6 +26,8 @@
 ### Required environment variables
 - `NEXT_PUBLIC_API_BASE_URL=https://your-lumo-api.up.railway.app`
 
+If `NEXT_PUBLIC_API_BASE_URL` is missing, the LMS production build/start now fails fast on purpose. That is intentional: shipping a degraded admin shell with no real API wiring is a deployment mistake, not a recoverable success state.
+
 ### Build settings
 - Framework preset: Next.js
 - Root directory: `apps/lms-web`

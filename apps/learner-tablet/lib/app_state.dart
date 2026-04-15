@@ -231,11 +231,13 @@ class LumoAppState {
             }).toList() ??
             const <SyncEvent>[]);
 
+      final persistedRecentRuntimeSessions =
+          (snapshot['recentRuntimeSessionsByLearnerId'] as Map?) ??
+              (snapshot['recentRuntimeSessions'] as Map?) ??
+              const {};
       recentRuntimeSessionsByLearnerId
         ..clear()
-        ..addAll(
-            ((snapshot['recentRuntimeSessionsByLearnerId'] as Map?) ?? const {})
-                .map((key, value) {
+        ..addAll(persistedRecentRuntimeSessions.map((key, value) {
           final sessions = (value as List?)
                   ?.whereType<Map>()
                   .map((item) => BackendLessonSession.fromJson(
@@ -2579,7 +2581,7 @@ class LumoAppState {
       'registrationDraft': _encodeRegistrationDraft(registrationDraft),
       'registrationContext': _encodeRegistrationContext(registrationContext),
       'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),
-      'recentRuntimeSessions': recentRuntimeSessionsByLearnerId.map(
+      'recentRuntimeSessionsByLearnerId': recentRuntimeSessionsByLearnerId.map(
         (key, value) =>
             MapEntry(key, value.map(_encodeBackendLessonSession).toList()),
       ),
