@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { CurriculumCanvas } from '../../components/curriculum-canvas';
 import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
@@ -191,6 +192,86 @@ function buildHardRescueCanvasData(reason: string) {
   };
 }
 
+function RescueVisibilityDeck({
+  reason,
+  failedSources,
+  healthyFeeds,
+  totalFeeds,
+}: {
+  reason: string;
+  failedSources: string[];
+  healthyFeeds: number;
+  totalFeeds: number;
+}) {
+  const cards = [
+    {
+      title: 'Open content board',
+      href: '/content',
+      note: 'The live curriculum library is still the fastest way to verify subjects, modules, and lesson inventory.',
+      background: '#ffffff',
+      color: '#0f172a',
+      border: '1px solid #dbe4ee',
+    },
+    {
+      title: 'Inspect blockers',
+      href: '/content?view=blocked',
+      note: 'Go straight to modules missing ready lessons or assessment gates instead of trusting a blank surface.',
+      background: '#FEF3C7',
+      color: '#92400E',
+      border: '1px solid #F59E0B',
+    },
+    {
+      title: 'Open assessments',
+      href: '/assessments',
+      note: 'Progression gates and release readiness remain visible even when the canvas graph is degraded.',
+      background: '#EDE9FE',
+      color: '#5B21B6',
+      border: '1px solid #C4B5FD',
+    },
+  ];
+
+  return (
+    <section
+      aria-label="Canvas visibility rescue deck"
+      style={{
+        marginBottom: 18,
+        padding: 18,
+        borderRadius: 24,
+        background: 'linear-gradient(180deg, #0f172a 0%, #111827 100%)',
+        border: '1px solid rgba(99,102,241,0.22)',
+        boxShadow: '0 24px 44px rgba(15,23,42,0.18)',
+        display: 'grid',
+        gap: 16,
+      }}
+    >
+      <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#94a3b8' }}>Visibility rescue</div>
+        <div style={{ fontSize: 24, fontWeight: 900, color: '#f8fafc' }}>This page is deliberately painting rescue actions so production never reads as empty.</div>
+        <div style={{ color: '#cbd5e1', lineHeight: 1.7 }}>
+          {reason}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Pill label={`${healthyFeeds}/${totalFeeds} feeds healthy`} tone="#082f49" text="#a5f3fc" />
+          <Pill label={failedSources.length ? `Failed: ${failedSources.join(', ')}` : 'Fallback triggered by zero visible graph nodes'} tone="#431407" text="#fdba74" />
+          <Pill label="Server-rendered rescue cards active" tone="#1e1b4b" text="#c4b5fd" />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        {cards.map((card) => (
+          <div key={card.title} style={{ padding: 16, borderRadius: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.18)', display: 'grid', gap: 12, minHeight: 168 }}>
+            <div style={{ color: '#f8fafc', fontWeight: 900, fontSize: 18 }}>{card.title}</div>
+            <div style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14 }}>{card.note}</div>
+            <Link href={card.href} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 'fit-content', borderRadius: 12, padding: '11px 14px', fontWeight: 800, textDecoration: 'none', background: card.background, color: card.color, border: card.border }}>
+              Go now →
+            </Link>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function CurriculumCanvasPage() {
   const [
     subjectsResult,
@@ -310,6 +391,15 @@ export default async function CurriculumCanvasPage() {
             Live shaping and tree rescue both produced zero module cards, so the route injected an explicit operations lane with visible actions instead of rendering a blank production body.
           </div>
         </div>
+      ) : null}
+
+      {(failedSources.length > 0 || usedRescueTree || usedHardRescue || data.summary.modules === 0) ? (
+        <RescueVisibilityDeck
+          reason={hardRescueReason}
+          failedSources={failedSources}
+          healthyFeeds={healthyFeeds}
+          totalFeeds={totalFeeds}
+        />
       ) : null}
 
       <CurriculumCanvas data={data} failedSources={failedSources} />

@@ -78,7 +78,7 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
   }
 
   return (
-    <section style={{ display: 'grid', gap: 18 }}>
+    <section style={{ display: 'grid', gap: 18, minHeight: 420 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         {[
           ['Subjects on canvas', String(data.summary.subjects)],
@@ -96,7 +96,7 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
       </div>
 
       <div className="curriculum-canvas__grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(320px, 0.9fr)', gap: 18, alignItems: 'start' }}>
-        <div style={{ padding: 18, borderRadius: 28, background: 'linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.98) 100%)', border: '1px solid rgba(99,102,241,0.16)', boxShadow: '0 24px 44px rgba(2, 6, 23, 0.34)' }}>
+        <div style={{ padding: 18, borderRadius: 28, background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,1) 100%)', border: '1px solid rgba(99,102,241,0.22)', boxShadow: '0 24px 44px rgba(2, 6, 23, 0.34)', minHeight: 520 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6 }}>Curriculum graph</div>
@@ -207,7 +207,7 @@ export function CurriculumCanvas({ data, failedSources = [] }: { data: Curriculu
           </div>
         </div>
 
-        <aside style={{ padding: 18, borderRadius: 28, background: '#020617', color: 'white', border: '1px solid rgba(99,102,241,0.18)', boxShadow: '0 20px 44px rgba(2, 6, 23, 0.38)', position: 'sticky', top: 20 }}>
+        <aside style={{ padding: 18, borderRadius: 28, background: '#020617', color: 'white', border: '1px solid rgba(99,102,241,0.22)', boxShadow: '0 20px 44px rgba(2, 6, 23, 0.38)', position: 'sticky', top: 20, minHeight: 320 }}>
           {selected ? (
             <div style={{ display: 'grid', gap: 18 }}>
               <div>
