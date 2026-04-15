@@ -531,7 +531,32 @@ test('admin storage recovery endpoints expose durable recovery summary and lates
   assert.ok(recoveryResponse.body.status);
   assert.ok(recoveryResponse.body.storage);
   assert.ok(recoveryResponse.body.operations);
+  assert.ok(recoveryResponse.body.recoveryPlan);
   assert.ok(typeof recoveryResponse.body.latestBackup.path === 'string');
+
+  const planResponse = await request('/api/v1/admin/storage/recovery-plan?label=latest-restore-test&limit=5', {
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+  });
+
+  assert.equal(planResponse.status, 200);
+  assert.equal(planResponse.body.summary.recommendedSource, 'backup');
+  assert.ok(planResponse.body.candidates.some((entry) => entry.source === 'backup' && entry.path === checkpoint.backupPath));
+
+  const restoreSmartResponse = await request('/api/v1/admin/storage/restore-smart', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({ label: 'latest-restore-test', prefer: 'backup' }),
+  });
+
+  assert.equal(restoreSmartResponse.status, 201);
+  assert.equal(restoreSmartResponse.body.selectedCandidate.source, 'backup');
+  assert.ok(typeof restoreSmartResponse.body.result.restoredFrom === 'string');
 
   const restoreLatestResponse = await request('/api/v1/admin/storage/restore-latest', {
     method: 'POST',

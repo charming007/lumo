@@ -209,9 +209,17 @@ Admin-only persistence report for the current storage engine, including:
 - `GET /api/v1/admin/storage/mutations`
 - `GET /api/v1/admin/storage/mutations/:id`
 - `POST /api/v1/admin/storage/restore-mutation`
+- `GET /api/v1/admin/storage/recovery`
+- `GET /api/v1/admin/storage/recovery-plan`
+- `POST /api/v1/admin/storage/restore-smart`
+- `POST /api/v1/admin/storage/restore-latest`
 
 Behavior:
 - Postgres-backed durability now stores a restorable snapshot copy on each journaled storage mutation (`write`, `checkpoint`, `restore`, `restore-mutation`)
 - admins can inspect individual journal entries, including whether they contain a recoverable snapshot
+- `GET /api/v1/admin/storage/recovery` now returns the recovery plan alongside integrity, backup, mutation, and operations state
+- `GET /api/v1/admin/storage/recovery-plan` ranks backup, restorable mutation, and warm-cache candidates so operators can see the safest restore path before pulling the trigger
+- `POST /api/v1/admin/storage/restore-smart` applies the best available recovery candidate automatically, or can be constrained with `prefer: backup|mutation|warm-cache`
+- storage integrity now flags Postgres journal drift and the absence of any viable recovery path, not just cache drift
 - `POST /api/v1/admin/storage/restore-mutation` restores the primary snapshot to the exact state captured by a prior mutation id, then records a fresh `restore-mutation` audit/journal entry
 - file mode still exposes an empty mutation journal rather than pretending this capability exists

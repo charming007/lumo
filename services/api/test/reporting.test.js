@@ -57,7 +57,9 @@ test('buildStorageReport summarizes persistence mode, collections, integrity, an
   assert.ok(report.collections.students >= 1);
   assert.ok(Array.isArray(report.backups));
   assert.ok(report.operations);
+  assert.ok(report.recovery);
   assert.equal(typeof report.summary.storageOperationCount, 'number');
+  assert.equal(typeof report.summary.recoveryCandidateCount, 'number');
 });
 
 test('storage operations report groups recent admin persistence actions', () => {
@@ -335,6 +337,24 @@ test('storage checkpoints can be listed and deleted in file mode', () => {
 
   const after = store.listStorageBackups(20);
   assert.equal(after.some((entry) => entry.path === created.backupPath), false);
+});
+
+test('storage recovery plan ranks backup candidates and supports smart restore in file mode', () => {
+  const created = store.checkpointStorage('smart-restore-test', { actorName: 'Ops Admin', actorRole: 'admin' });
+  const plan = store.buildStorageRecoveryPlan({ label: 'smart-restore-test', limit: 5 });
+
+  assert.equal(plan.summary.recommendedSource, 'backup');
+  assert.ok(plan.candidates.some((entry) => entry.source === 'backup' && entry.path === created.backupPath));
+
+  const restored = store.restoreStorageSmart({
+    label: 'smart-restore-test',
+    prefer: 'backup',
+    actorName: 'Ops Admin',
+    actorRole: 'admin',
+  });
+
+  assert.equal(restored.selectedCandidate.source, 'backup');
+  assert.equal(restored.result.restoredFrom, created.backupPath);
 });
 
 

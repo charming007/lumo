@@ -711,6 +711,7 @@ function deleteStorageBackup(backupPath, actor = {}) {
 }
 
 function buildStorageIntegrityIssues() {
+  const data = require('./data');
   const students = listStudents();
   const studentIds = new Set(students.map((item) => item.id));
   const teacherIds = new Set(listTeachers().map((item) => item.id));
@@ -799,6 +800,32 @@ function buildStorageIntegrityIssues() {
         entity: 'storageCache',
         snapshotHash: status.cache?.snapshotHash || null,
         cacheHash: status.cache?.cacheHash || null,
+      });
+    }
+
+    if (status.primaryIntegrity?.journalAligned === false) {
+      issues.push({
+        type: 'storage-primary-journal-drift',
+        id: status.file,
+        entity: 'storagePrimary',
+        snapshotHash: status.primaryIntegrity?.snapshotHash || null,
+        journalHash: status.journal?.latestMutationHash || null,
+        latestMutationId: status.journal?.latestMutationId || null,
+      });
+    }
+
+    const restorableMutations = typeof data.storage?.listMutations === 'function'
+      ? data.storage.listMutations(50).filter((entry) => entry.hasSnapshot)
+      : [];
+    const availableBackups = typeof data.storage?.listBackups === 'function'
+      ? data.storage.listBackups(50)
+      : [];
+
+    if (!availableBackups.length && !restorableMutations.length && !status.primaryIntegrity?.recoverableFromWarmCache) {
+      issues.push({
+        type: 'storage-no-recovery-path',
+        id: status.file,
+        entity: 'storageRecovery',
       });
     }
   }
@@ -1072,6 +1099,142 @@ function restoreStorageBackup(backupPath, actor = {}) {
   return result;
 }
 
+function buildStorageRecoveryPlan({ label = null, limit = 10 } = {}) {
+  const data = require('./data');
+  const normalizedLimit = Math.max(1, Math.min(Number(limit || 10), 100));
+  const labelQuery = String(label || '').trim().toLowerCase();
+  const status = getStorageStatus();
+  const integrity = getStorageIntegrityReport();
+  const backups = listStorageBackups(Math.max(normalizedLimit, 20));
+  const mutations = typeof data.storage?.listMutations === 'function'
+    ? data.storage.listMutations(Math.max(normalizedLimit, 20))
+    : [];
+  const restorableMutations = mutations.filter((entry) => entry.hasSnapshot);
+
+  const matchesLabel = (values = []) => !labelQuery || values.some((value) => String(value || '').toLowerCase().includes(labelQuery));
+  const candidates = [];
+
+  backups
+    .filter((entry) => matchesLabel([entry.label, entry.name, entry.path]))
+    .forEach((entry, index) => {
+      candidates.push({
+        source: 'backup',
+        id: entry.path,
+        label: entry.label || entry.name || null,
+        path: entry.path,
+        createdAt: entry.modifiedAt || null,
+        restorable: true,
+        score: 100 - index,
+        reason: index === 0 ? 'latest durable checkpoint' : 'durable checkpoint',
+      });
+    });
+
+  restorableMutations.slice(0, Math.max(normalizedLimit, 20)).forEach((entry, index) => {
+    candidates.push({
+      source: 'mutation',
+      id: entry.id,
+      mutationId: entry.id,
+      action: entry.action,
+      createdAt: entry.createdAt || null,
+      restorable: true,
+      score: 90 - index,
+      reason: index === 0 ? 'latest journal snapshot' : 'journal snapshot restore point',
+    });
+  });
+
+  if (status?.primaryIntegrity?.recoverableFromWarmCache) {
+    candidates.push({
+      source: 'warm-cache',
+      id: 'warm-cache',
+      createdAt: status?.cache?.updatedAt || null,
+      restorable: true,
+      score: (status?.cache?.inSync === true ? 80 : 65),
+      reason: status?.cache?.inSync === true ? 'warm cache matches primary snapshot' : 'warm cache can repopulate primary snapshot',
+    });
+  }
+
+  const ranked = candidates
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .slice(0, normalizedLimit);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    scope: { label: label || null, limit: normalizedLimit },
+    summary: {
+      issueCount: integrity.summary.issueCount,
+      journalAligned: status?.primaryIntegrity?.journalAligned !== false,
+      backupCount: backups.length,
+      restorableMutationCount: restorableMutations.length,
+      warmCacheRecoverable: Boolean(status?.primaryIntegrity?.recoverableFromWarmCache),
+      recommendedSource: ranked[0]?.source || null,
+      recommendedReason: ranked[0]?.reason || null,
+    },
+    status,
+    integrity,
+    candidates: ranked,
+  };
+}
+
+function restoreStorageSmart({ label = null, backupPath = null, mutationId = null, prefer = 'auto', actorName = null, actorRole = null } = {}) {
+  const normalizedPrefer = String(prefer || 'auto').trim().toLowerCase();
+  const plan = buildStorageRecoveryPlan({ label, limit: 25 });
+  let candidate = null;
+
+  if (backupPath) {
+    candidate = { source: 'backup', path: backupPath, id: backupPath, reason: 'explicit backup path' };
+  } else if (Number.isInteger(Number(mutationId)) && Number(mutationId) > 0) {
+    candidate = { source: 'mutation', mutationId: Number(mutationId), id: Number(mutationId), reason: 'explicit mutation id' };
+  } else {
+    const allowed = normalizedPrefer === 'auto' ? null : new Set([normalizedPrefer]);
+    candidate = plan.candidates.find((entry) => !allowed || allowed.has(entry.source)) || null;
+  }
+
+  if (!candidate) {
+    const error = new Error(label ? `No recovery candidate found for label: ${label}` : 'No recovery candidate available');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  let result;
+  if (candidate.source === 'backup') {
+    result = restoreStorageBackup(candidate.path || candidate.id, { actorName, actorRole });
+  } else if (candidate.source === 'mutation') {
+    result = restoreStorageMutation(candidate.mutationId || candidate.id, { actorName, actorRole });
+  } else if (candidate.source === 'warm-cache') {
+    result = recoverStoragePrimaryFromWarmCache({ actorName, actorRole });
+  } else {
+    const error = new Error(`Unsupported recovery candidate source: ${candidate.source}`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const output = {
+    restoredAt: new Date().toISOString(),
+    strategy: normalizedPrefer,
+    selectedCandidate: candidate,
+    plan,
+    result,
+  };
+
+  recordStorageOperation('restore-smart', output, {
+    actorName,
+    actorRole,
+    backupPath: candidate.path || result.restoredFrom || null,
+    summary: {
+      source: candidate.source,
+      strategy: normalizedPrefer,
+      issueCount: plan.summary.issueCount,
+      journalAligned: plan.summary.journalAligned,
+    },
+    metadata: {
+      candidate,
+      planSummary: plan.summary,
+    },
+  });
+
+  return output;
+}
+
 module.exports = {
   listStudents,
   findStudentById,
@@ -1164,6 +1327,8 @@ module.exports = {
   importStorageSnapshot,
   reloadStorageSnapshot,
   restoreStorageBackup,
+  buildStorageRecoveryPlan,
+  restoreStorageSmart,
   reconcileStorageCache,
   recoverStoragePrimaryFromWarmCache,
 };

@@ -842,6 +842,9 @@ function buildStorageReport({ limit = 10 } = {}) {
   const snapshot = store.exportStorageSnapshot();
   const backups = store.listStorageBackups(normalizedLimit);
   const operations = buildStorageOperationsReport({ limit: Math.min(normalizedLimit, 50) });
+  const recoveryPlan = typeof store.buildStorageRecoveryPlan === 'function'
+    ? store.buildStorageRecoveryPlan({ limit: Math.min(normalizedLimit, 10) })
+    : null;
   const mutations = typeof require('./data').storage?.listMutations === 'function'
     ? require('./data').storage.listMutations(Math.min(normalizedLimit, 50))
     : [];
@@ -869,6 +872,8 @@ function buildStorageReport({ limit = 10 } = {}) {
       storageOperationCount: operations.summary.totalOperations,
       mutationCount: status?.journal?.total || mutations.length,
       restorableMutationCount: mutations.filter((entry) => entry.hasSnapshot).length,
+      recoveryCandidateCount: recoveryPlan?.candidates?.length || 0,
+      recommendedRecoverySource: recoveryPlan?.summary?.recommendedSource || null,
       updatedAt: status?.updatedAt || snapshot.exportedAt,
       lastOperationAt: operations.summary.lastOperationAt,
       lastMutationAt: status?.journal?.latestAt || mutations[0]?.createdAt || null,
@@ -893,6 +898,7 @@ function buildStorageReport({ limit = 10 } = {}) {
         .sort((a, b) => b.count - a.count || a.action.localeCompare(b.action)),
       recent: mutations,
     },
+    recovery: recoveryPlan,
     collections: snapshot.collectionCounts,
     backups,
     operations,

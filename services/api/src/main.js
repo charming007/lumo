@@ -2807,6 +2807,12 @@ app.get('/api/v1/admin/storage/recovery', requireRole(['admin']), (req, res) => 
   const latestMutation = typeof store.getStorageMutationDetail === 'function' && storageReport.journal?.recent?.[0]?.id
     ? store.getStorageMutationDetail(storageReport.journal.recent[0].id)
     : null;
+  const recoveryPlan = typeof store.buildStorageRecoveryPlan === 'function'
+    ? store.buildStorageRecoveryPlan({
+        label: coerceOptionalString(req.query.label),
+        limit,
+      })
+    : null;
 
   return res.json({
     generatedAt: new Date().toISOString(),
@@ -2816,7 +2822,30 @@ app.get('/api/v1/admin/storage/recovery', requireRole(['admin']), (req, res) => 
     integrity: store.getStorageIntegrityReport(),
     operations: operationsReport,
     storage: storageReport,
+    recoveryPlan,
   });
+});
+
+app.get('/api/v1/admin/storage/recovery-plan', requireRole(['admin']), (req, res) => {
+  res.json(store.buildStorageRecoveryPlan({
+    label: coerceOptionalString(req.query.label),
+    limit: Number(req.query.limit || 10),
+  }));
+});
+
+app.post('/api/v1/admin/storage/restore-smart', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.status(201).json(store.restoreStorageSmart({
+      label: coerceOptionalString(req.body?.label),
+      backupPath: coerceOptionalString(req.body?.backupPath),
+      mutationId: req.body?.mutationId,
+      prefer: coerceOptionalString(req.body?.prefer) || 'auto',
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.post('/api/v1/admin/storage/restore-latest', requireRole(['admin']), (req, res, next) => {
