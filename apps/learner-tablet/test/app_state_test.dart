@@ -342,6 +342,159 @@ void main() {
       state.dispose();
     });
 
+    test('recovers a persisted active session after lesson sync reloads', () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'currentLearnerId': beginner.id,
+          'learners': [
+            {
+              'id': beginner.id,
+              'name': beginner.name,
+              'age': beginner.age,
+              'cohort': beginner.cohort,
+              'streakDays': beginner.streakDays,
+              'guardianName': beginner.guardianName,
+              'preferredLanguage': beginner.preferredLanguage,
+              'readinessLabel': beginner.readinessLabel,
+              'village': beginner.village,
+              'guardianPhone': beginner.guardianPhone,
+              'sex': beginner.sex,
+              'baselineLevel': beginner.baselineLevel,
+              'consentCaptured': beginner.consentCaptured,
+              'learnerCode': beginner.learnerCode,
+            },
+          ],
+          'modules': const [],
+          'assignedLessons': const [],
+          'assignmentPacks': const [],
+          'pendingSyncEvents': const [],
+          'recentRuntimeSessionsByLearnerId': const {},
+          'registrationDraft': const {},
+          'registrationContext': const {},
+          'speakerMode': 'guiding',
+          'usingFallbackData': false,
+          'activeSession': {
+            'sessionId': 'session-recover',
+            'lessonId': 'lesson-recover',
+            'lessonTitle': 'Recovered English lesson',
+            'currentLearnerId': beginner.id,
+            'stepIndex': 1,
+            'completionState': 'inProgress',
+            'speakerMode': 'guiding',
+            'latestReview': 'pending',
+            'supportActionsUsed': 0,
+            'attemptsThisStep': 0,
+            'facilitatorObservations': const [],
+            'transcript': const [],
+            'startedAt': '2026-04-15T10:00:00.000Z',
+            'audioInputMode': 'Shared mic on tablet',
+            'speakerOutputMode': 'Tablet speaker',
+            'totalResponses': 2,
+            'totalAudioCaptures': 1,
+            'lastSupportType': 'Prompt replay',
+            'automationStatus': 'Mallam is waiting to continue.',
+            'practiceMode': 'standard',
+            'lastUpdatedAt': '2026-04-15T10:04:00.000Z'
+          },
+        }),
+      });
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'subjectId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Foundational English',
+                      'level': 'foundation-a',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'lesson-recover',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Recovered English lesson',
+                      'durationMinutes': 9,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Resume guidance',
+                      'scenario': 'Recovered from persisted state',
+                      'steps': const [],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Foundational English',
+                  'level': 'foundation-a',
+                  'lessons': [
+                    {
+                      'id': 'lesson-recover',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Recovered English lesson',
+                      'durationMinutes': 9,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Resume guidance',
+                      'scenario': 'Recovered from persisted state',
+                      'steps': const [],
+                    },
+                  ],
+                  'assignmentPacks': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.restorePersistedState();
+      expect(state.activeSession, isNull);
+      expect(state.hasPendingRecoveredSession, isTrue);
+      expect(state.pendingRecoveredSessionLabel, contains('Recovered English lesson'));
+
+      await state.bootstrap();
+
+      expect(state.hasPendingRecoveredSession, isFalse);
+      expect(state.activeSession, isNotNull);
+      expect(state.activeSession!.sessionId, 'session-recover');
+      expect(state.activeSession!.lesson.id, 'lesson-recover');
+      expect(state.currentLearner?.id, beginner.id);
+      state.dispose();
+    });
+
     test('preserves bootstrap lessons when one module hydration request fails',
         () async {
       final state = LumoAppState(includeSeedDemoContent: true,
