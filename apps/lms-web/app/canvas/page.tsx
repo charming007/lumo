@@ -6,10 +6,13 @@ import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '..
 import { API_BASE_SOURCE } from '../../lib/config';
 import { PageShell, Pill } from '../../lib/ui';
 import {
+  bulkUpdateCanvasModuleLessonsAction,
   createCanvasAssessmentQuickAction,
+  createCanvasModuleLessonShellsAction,
   quickUpdateAssessmentStatusAction,
   quickUpdateCanvasAssessmentAction,
   quickUpdateCanvasLessonAction,
+  quickUpdateCanvasModuleAction,
   quickUpdateLessonStatusAction,
 } from '../actions';
 
@@ -436,6 +439,9 @@ export default async function CurriculumCanvasPage({ searchParams }: { searchPar
         mode={canvasMode}
         quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
         quickUpdateCanvasLessonAction={quickUpdateCanvasLessonAction}
+        quickUpdateCanvasModuleAction={quickUpdateCanvasModuleAction}
+        bulkUpdateCanvasModuleLessonsAction={bulkUpdateCanvasModuleLessonsAction}
+        createCanvasModuleLessonShellsAction={createCanvasModuleLessonShellsAction}
         quickUpdateAssessmentStatusAction={quickUpdateAssessmentStatusAction}
         quickUpdateCanvasAssessmentAction={quickUpdateCanvasAssessmentAction}
         createCanvasAssessmentQuickAction={createCanvasAssessmentQuickAction}

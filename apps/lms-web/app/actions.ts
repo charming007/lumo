@@ -481,6 +481,86 @@ export async function quickUpdateLessonStatusAction(formData: FormData) {
   }));
 }
 
+export async function quickUpdateCanvasModuleAction(formData: FormData) {
+  const moduleId = String(formData.get('moduleId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const status = String(formData.get('status') || 'draft');
+  const level = String(formData.get('level') || '').trim();
+  const lessonCount = Math.max(Number(formData.get('lessonCount') || 0), 0);
+
+  await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'PATCH', {
+    status,
+    level,
+    lessonCount,
+  });
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Module quick edit saved',
+  }));
+}
+
+export async function bulkUpdateCanvasModuleLessonsAction(formData: FormData) {
+  const moduleId = String(formData.get('moduleId') || '');
+  const subjectId = String(formData.get('subjectId') || '');
+  const moduleTitle = String(formData.get('moduleTitle') || 'this module').trim() || 'this module';
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const targetStatus = String(formData.get('status') || 'review');
+  const lessonIds = Array.from(formData.getAll('lessonIds')).map((value) => String(value || '')).filter(Boolean);
+
+  await Promise.all(lessonIds.map((lessonId) => apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', { status: targetStatus })));
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  redirect(appendSearchParams(returnPath, {
+    message: lessonIds.length
+      ? `${lessonIds.length} ${moduleTitle} lesson${lessonIds.length === 1 ? '' : 's'} moved to ${targetStatus}`
+      : `No lessons were available to move in ${moduleTitle}`,
+  }));
+}
+
+export async function createCanvasModuleLessonShellsAction(formData: FormData) {
+  const moduleId = String(formData.get('moduleId') || '');
+  const subjectId = String(formData.get('subjectId') || '');
+  const moduleTitle = String(formData.get('moduleTitle') || 'this module').trim() || 'this module';
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const missingCount = Math.max(Number(formData.get('missingCount') || 0), 0);
+  const startIndex = Math.max(Number(formData.get('startIndex') || 0), 0);
+  const titles = Array.from(formData.getAll('titles')).map((value) => String(value || '').trim()).filter(Boolean);
+
+  if (!moduleId || !subjectId || missingCount <= 0 || titles.length === 0) {
+    redirect(appendSearchParams(returnPath, {
+      message: `No missing lesson shells were created for ${moduleTitle}`,
+    }));
+  }
+
+  const shellTitles = titles.slice(0, missingCount);
+
+  await Promise.all(shellTitles.map((title, index) => apiWrite('/api/v1/lessons', 'POST', {
+    subjectId,
+    moduleId,
+    title,
+    durationMinutes: 20,
+    mode: 'guided',
+    status: 'draft',
+    targetAgeRange: null,
+    voicePersona: null,
+    learningObjectives: [
+      `Complete module sequence slot ${startIndex + index + 1} for ${moduleTitle}`,
+    ],
+    localization: null,
+    lessonAssessment: null,
+    activitySteps: [],
+  })));
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  revalidatePath('/english');
+  redirect(appendSearchParams(returnPath, {
+    message: `${shellTitles.length} draft lesson shell${shellTitles.length === 1 ? '' : 's'} created for ${moduleTitle}`,
+  }));
+}
+
 export async function quickUpdateCanvasLessonAction(formData: FormData) {
   const lessonId = String(formData.get('lessonId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
