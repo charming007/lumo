@@ -11,6 +11,10 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function hashSnapshot(value) {
+  return require('crypto').createHash('sha1').update(JSON.stringify(value || {})).digest('hex');
+}
+
 function writeJsonFile(filePath, value) {
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
 }
@@ -385,19 +389,51 @@ const { Client } = require('pg');
     }
   }
 
+  function describeWarmCache(snapshot = null) {
+    ensureDir(resolvedFile);
+    const exists = fs.existsSync(resolvedFile);
+    const cachedSnapshot = exists ? safeReadJson(resolvedFile, {}) : null;
+    const stats = exists ? fs.statSync(resolvedFile) : null;
+    const cacheHash = exists ? hashSnapshot(cachedSnapshot) : null;
+    const snapshotHash = snapshot ? hashSnapshot(snapshot) : null;
+
+    return {
+      file: resolvedFile,
+      exists,
+      sizeBytes: stats?.size ?? 0,
+      updatedAt: stats?.mtime?.toISOString() ?? null,
+      snapshotHash,
+      cacheHash,
+      inSync: snapshotHash ? cacheHash === snapshotHash : exists,
+    };
+  }
+
+  function syncWarmCache(snapshot) {
+    ensureDir(resolvedFile);
+    writeJsonFile(resolvedFile, snapshot);
+    return describeWarmCache(snapshot);
+  }
+
   function read(seedData) {
     const row = runPg('read');
     if (!row?.snapshot) {
       runPg('write', { snapshot: seedData });
+      syncWarmCache(seedData);
       return clone(seedData);
     }
-    return typeof row.snapshot === 'object' ? row.snapshot : clone(seedData);
+
+    const snapshot = typeof row.snapshot === 'object' ? row.snapshot : clone(seedData);
+    const cache = describeWarmCache(snapshot);
+    if (!cache.exists || !cache.inSync) {
+      syncWarmCache(snapshot);
+    }
+
+    return snapshot;
   }
 
   function write(snapshot) {
     runPg('write', { snapshot });
-    ensureDir(resolvedFile);
-    writeJsonFile(resolvedFile, snapshot);
+    syncWarmCache(snapshot);
   }
 
   function checkpoint(label) {
@@ -429,6 +465,10 @@ const { Client } = require('pg');
 
   function restoreFromBackup(backupPath) {
     runPg('restore', { backupId: parseBackupId(backupPath) });
+    const row = runPg('read');
+    if (row?.snapshot && typeof row.snapshot === 'object') {
+      syncWarmCache(row.snapshot);
+    }
     return backupPath;
   }
 
@@ -476,6 +516,10 @@ const { Client } = require('pg');
     },
     restoreFromMutation(id) {
       runPg('restoreMutation', { id: Number(id) });
+      const row = runPg('read');
+      if (row?.snapshot && typeof row.snapshot === 'object') {
+        syncWarmCache(row.snapshot);
+      }
       return Number(id);
     },
     listOperations({ limit = 20, kind = null, actorName = null } = {}) {
@@ -505,8 +549,25 @@ const { Client } = require('pg');
     recordOperation(record) {
       return runPg('recordOperation', { record });
     },
+    reconcileCache() {
+      const row = runPg('read');
+      if (!row?.snapshot || typeof row.snapshot !== 'object') {
+        return {
+          reconciled: false,
+          reason: 'missing-primary-snapshot',
+          cache: describeWarmCache(null),
+        };
+      }
+
+      return {
+        reconciled: true,
+        cache: syncWarmCache(row.snapshot),
+      };
+    },
     getStatus() {
       const status = runPg('status') || {};
+      const row = runPg('read');
+      const snapshot = row?.snapshot && typeof row.snapshot === 'object' ? row.snapshot : null;
       return {
         kind: 'postgres',
         file: resolvedFile,
@@ -516,6 +577,7 @@ const { Client } = require('pg');
         backupFile: null,
         backupUpdatedAt: status.backups?.[0]?.created_at || null,
         backups: listBackups(10),
+        cache: describeWarmCache(snapshot),
         journal: {
           total: Number(status.journal?.total || 0),
           latestAt: status.journal?.latest_at || null,

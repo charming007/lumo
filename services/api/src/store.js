@@ -496,6 +496,34 @@ function getStorageStatus() {
   return typeof data.storage?.getStatus === 'function' ? data.storage.getStatus() : null;
 }
 
+function reconcileStorageCache(actor = {}) {
+  const data = require('./data');
+
+  if (typeof data.storage?.reconcileCache !== 'function') {
+    const error = new Error('Storage cache reconcile is not available');
+    error.statusCode = 501;
+    throw error;
+  }
+
+  const result = {
+    reconciledAt: new Date().toISOString(),
+    ...(data.storage.reconcileCache() || {}),
+    status: getStorageStatus(),
+  };
+
+  recordStorageOperation('reconcile-cache', result, {
+    actorName: actor.actorName,
+    actorRole: actor.actorRole,
+    summary: {
+      reconciled: Boolean(result.reconciled),
+      cacheInSync: Boolean(result.status?.cache?.inSync),
+      cacheExists: Boolean(result.status?.cache?.exists),
+    },
+  });
+
+  return result;
+}
+
 function summarizeCollectionCounts(counts = {}) {
   return Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
 }
@@ -727,6 +755,21 @@ function buildStorageIntegrityIssues() {
     if (entry.sessionId && !sessionIds.has(entry.sessionId)) issues.push({ type: 'session-repair-missing-session', id: entry.id, entity: 'sessionRepair' });
   });
 
+  const status = getStorageStatus();
+  if (status?.kind === 'postgres') {
+    if (!status.cache?.exists) {
+      issues.push({ type: 'storage-cache-missing', id: status.file, entity: 'storageCache' });
+    } else if (status.cache?.inSync === false) {
+      issues.push({
+        type: 'storage-cache-out-of-sync',
+        id: status.file,
+        entity: 'storageCache',
+        snapshotHash: status.cache?.snapshotHash || null,
+        cacheHash: status.cache?.cacheHash || null,
+      });
+    }
+  }
+
   return {
     students,
     sessions,
@@ -737,6 +780,7 @@ function buildStorageIntegrityIssues() {
 
 function getStorageIntegrityReport() {
   const { students, sessions, requests, issues } = buildStorageIntegrityIssues();
+  const status = getStorageStatus();
 
   return {
     checkedAt: new Date().toISOString(),
@@ -751,6 +795,7 @@ function getStorageIntegrityReport() {
       progressCount: listProgress().length,
       observationCount: listObservations().length,
       sessionEventCount: listSessionEventLog().length,
+      cacheInSync: status?.kind === 'postgres' ? Boolean(status.cache?.inSync) : true,
       issueCount: issues.length,
     },
     issues,
@@ -792,7 +837,19 @@ function repairStorageIntegrity({ apply = false, actorName = null, actorRole = n
     prune('progress', 'progress', (entry) => (issueIdsByEntity.progress || new Set()).has(entry.id));
     prune('observations', 'observation', (entry) => (issueIdsByEntity.observation || new Set()).has(entry.id));
 
-    if (fixes.length > 0) {
+    if ((issueIdsByEntity.storageCache || new Set()).size > 0 && typeof data.storage?.reconcileCache === 'function') {
+      const reconcile = data.storage.reconcileCache() || {};
+      fixes.push({
+        collection: 'storageCache',
+        removed: 0,
+        ids: Array.from(issueIdsByEntity.storageCache || []),
+        reconciled: Boolean(reconcile.reconciled),
+        cache: reconcile.cache || null,
+      });
+    }
+
+    const dataFixesApplied = fixes.some((entry) => entry.collection !== 'storageCache' && Number(entry.removed || 0) > 0);
+    if (dataFixesApplied) {
       data.persist();
     }
   }
@@ -1074,4 +1131,5 @@ module.exports = {
   importStorageSnapshot,
   reloadStorageSnapshot,
   restoreStorageBackup,
+  reconcileStorageCache,
 };

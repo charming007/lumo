@@ -546,3 +546,17 @@ test('admin storage recovery endpoints expose durable recovery summary and lates
   assert.ok(typeof restoreLatestResponse.body.selectedBackup.path === 'string');
   assert.ok(typeof restoreLatestResponse.body.result.restoredFrom === 'string');
 });
+
+test('admin storage reconcile-cache endpoint returns 501 when cache reconcile is unavailable in file mode', async () => {
+  const response = await request('/api/v1/admin/storage/reconcile-cache', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+    body: JSON.stringify({}),
+  });
+
+  assert.equal(response.status, 501);
+  assert.equal(response.body.message, 'Storage cache reconcile is not available');
+});

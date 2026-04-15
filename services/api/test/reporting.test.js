@@ -271,6 +271,56 @@ test('storage import preview reports projected collection changes without mutati
 });
 
 
+test('storage integrity detects postgres warm-cache drift and repair reconciles it', () => {
+  const data = require('../src/data');
+  const originalStorage = data.storage;
+  let reconciled = false;
+
+  data.storage = {
+    kind: 'postgres',
+    getStatus() {
+      return {
+        kind: 'postgres',
+        file: '/tmp/lumo-cache.json',
+        db: { mode: 'postgres', persistent: true, hasDatabaseUrl: true, driver: 'pg-jsonb-snapshot+journal' },
+        cache: {
+          exists: true,
+          inSync: reconciled,
+          snapshotHash: 'db-hash',
+          cacheHash: reconciled ? 'db-hash' : 'cache-hash',
+        },
+      };
+    },
+    reconcileCache() {
+      reconciled = true;
+      return {
+        reconciled: true,
+        cache: {
+          exists: true,
+          inSync: true,
+          snapshotHash: 'db-hash',
+          cacheHash: 'db-hash',
+        },
+      };
+    },
+  };
+
+  try {
+    const before = store.getStorageIntegrityReport();
+    assert.equal(before.summary.cacheInSync, false);
+    assert.ok(before.issues.some((issue) => issue.type === 'storage-cache-out-of-sync'));
+
+    const repaired = store.repairStorageIntegrity({ apply: true, actorName: 'Ops Admin', actorRole: 'admin' });
+    assert.equal(repaired.apply, true);
+    assert.ok(repaired.fixes.some((entry) => entry.collection === 'storageCache' && entry.reconciled === true));
+    assert.equal(repaired.report.summary.cacheInSync, true);
+    assert.equal(repaired.report.issues.some((issue) => issue.type === 'storage-cache-out-of-sync'), false);
+  } finally {
+    data.storage = originalStorage;
+  }
+});
+
+
 test('storage checkpoints can be listed and deleted in file mode', () => {
   const created = store.checkpointStorage('unit-test-backup');
   assert.ok(created.backupPath);

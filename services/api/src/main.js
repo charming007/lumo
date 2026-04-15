@@ -2686,9 +2686,20 @@ app.post('/api/v1/admin/storage/import', requireRole(['admin']), (req, res, next
   }
 });
 
-app.post('/api/v1/admin/storage/reload', requireRole(['admin']), (_req, res, next) => {
+app.post('/api/v1/admin/storage/reload', requireRole(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.reloadStorageSnapshot({
+      actorName: req.actor?.name,
+      actorRole: req.actor?.role,
+    }));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/admin/storage/reconcile-cache', requireRole(['admin']), (req, res, next) => {
+  try {
+    return res.status(201).json(store.reconcileStorageCache({
       actorName: req.actor?.name,
       actorRole: req.actor?.role,
     }));
