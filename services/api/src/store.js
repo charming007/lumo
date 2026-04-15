@@ -216,6 +216,16 @@ function listSyncEvents() {
   return repository.listSyncEvents();
 }
 
+
+function listCurriculumNodeChildren(nodeType, nodeId) {
+  return repository.listCurriculumNodeChildren(nodeType, nodeId);
+}
+
+function reorderCurriculumNodes(input) {
+  return repository.reorderCurriculumNodes(input);
+}
+
+
 function listLessonSessions() {
   return repository.listLessonSessions();
 }
@@ -1021,6 +1031,8 @@ module.exports = {
   updateAssessment,
   deleteAssessment,
   listSyncEvents,
+  listCurriculumNodeChildren,
+  reorderCurriculumNodes,
   listLessonSessions,
   findLessonSessionBySessionId,
   upsertLessonSession,

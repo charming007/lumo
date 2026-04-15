@@ -112,14 +112,18 @@ class MallamPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final speakerColor = _speakerColor(speakerMode);
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-      ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactLayout =
+            constraints.maxWidth < 420 || constraints.maxHeight < 760;
+        final imageGlowSize = compactLayout ? 220.0 : 280.0;
+        final imageSize = compactLayout ? 240.0 : 320.0;
+        final promptStyle = TextStyle(
+          fontSize: compactLayout ? 20 : 22,
+          fontWeight: FontWeight.w700,
+        );
+
+        final content = [
           Align(
             alignment: Alignment.centerLeft,
             child: Wrap(
@@ -136,13 +140,14 @@ class MallamPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          Expanded(
+          SizedBox(
+            height: compactLayout ? imageSize : null,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 Container(
-                  height: 280,
-                  width: 280,
+                  height: imageGlowSize,
+                  width: imageGlowSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
@@ -155,8 +160,11 @@ class MallamPanel extends StatelessWidget {
                 ),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(32),
-                  child: Image.asset('assets/images/mallam_tutor.jpg',
-                      height: 320, fit: BoxFit.contain),
+                  child: Image.asset(
+                    'assets/images/mallam_tutor.jpg',
+                    height: imageSize,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ],
             ),
@@ -168,14 +176,17 @@ class MallamPanel extends StatelessWidget {
             voiceHint: voiceHint,
           ),
           const SizedBox(height: 16),
-          Text(prompt,
-              textAlign: TextAlign.center,
-              style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+          Text(
+            prompt,
+            textAlign: TextAlign.center,
+            style: promptStyle,
+          ),
           const SizedBox(height: 12),
-          Text(instruction,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF6B7280))),
+          Text(
+            instruction,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF6B7280)),
+          ),
           const SizedBox(height: 16),
           FilledButton.tonalIcon(
             onPressed: onVoiceTap,
@@ -190,8 +201,33 @@ class MallamPanel extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
             ),
           ),
-        ],
-      ),
+        ];
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: compactLayout
+              ? SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: content,
+                  ),
+                )
+              : Column(
+                  children: [
+                    content[0],
+                    content[1],
+                    Expanded(
+                      child: content[2],
+                    ),
+                    ...content.sublist(3),
+                  ],
+                ),
+        );
+      },
     );
   }
 

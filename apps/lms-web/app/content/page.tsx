@@ -15,7 +15,7 @@ import { DynamicLessonCreateForm } from '../../components/content-ops-form';
 import { ContentSubjectLanes } from '../../components/content-subject-lanes';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
-import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
+import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { createLessonAction } from '../actions';
 
@@ -56,12 +56,13 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
 
 export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
   const query = await searchParams;
-  const [modulesResult, lessonsResult, subjectsResult, strandsResult, assessmentsResult] = await Promise.allSettled([
+  const [modulesResult, lessonsResult, subjectsResult, strandsResult, assessmentsResult, assignmentsResult] = await Promise.allSettled([
     fetchCurriculumModules(),
     fetchLessons(),
     fetchSubjects(),
     fetchStrands(),
     fetchAssessments(),
+    fetchAssignments(),
   ]);
 
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
@@ -69,12 +70,14 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const strands = strandsResult.status === 'fulfilled' ? strandsResult.value : [];
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const failedSources = [
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     strandsResult.status === 'rejected' ? 'strands' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    assignmentsResult.status === 'rejected' ? 'assignments' : null,
   ].filter(Boolean);
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
@@ -245,6 +248,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           { label: 'Modules', value: String(modules.length), note: 'Structured by strand, not dumped into a fake flat list.' },
           { label: 'Lessons ready', value: String(lessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length), note: 'Approved or published lessons live in the release lane.' },
           { label: 'Assessment gates', value: String(assessments.length), note: 'Every progression checkpoint stays visible and editable.' },
+          { label: 'Live assignments', value: String(assignments.length), note: 'This curriculum board now points at learner-facing delivery, not fake demo nodes.' },
         ].map((item) => (
           <Card key={item.label} title={item.value} eyebrow={item.label}><div style={{ color: '#64748b' }}>{item.note}</div></Card>
         ))}
@@ -258,6 +262,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             modules={filteredModules}
             lessons={filteredLessons}
             assessments={filteredAssessments}
+            assignments={assignments}
           />
 
           <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>

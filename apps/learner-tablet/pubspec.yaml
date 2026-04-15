@@ -13,6 +13,7 @@ dependencies:
   audioplayers: ^6.1.0
   flutter_tts: ^4.2.2
   http: ^1.2.2
+  image_picker: ^1.1.2
   path_provider: ^2.1.5
   record: ^6.1.2
   speech_to_text: ^7.3.0
@@ -29,3 +30,4 @@ flutter:
     - assets/images/lumo_logo.jpg
     - assets/images/mallam_tutor.jpg
     - assets/video/mallam_voice.mp4
+    - assets/audio/lesson_complete_chime.wav

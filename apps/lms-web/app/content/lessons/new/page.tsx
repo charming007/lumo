@@ -29,6 +29,11 @@ function sanitizeReturnPath(path?: string) {
   return path;
 }
 
+function appendMessageParam(path: string, message: string) {
+  const searchParams = new URLSearchParams({ message });
+  return `${path}${path.includes('?') ? '&' : '?'}${searchParams.toString()}`;
+}
+
 export default async function NewLessonPage({ searchParams }: { searchParams?: Promise<{ subjectId?: string; moduleId?: string; duplicate?: string; from?: string; message?: string; createdLessonId?: string; createdLessonTitle?: string }> }) {
   const query = await searchParams;
   const [subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
@@ -135,7 +140,7 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
             <Link href={`/content/lessons/${createdLessonId}?from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
               Open lesson pack
             </Link>
-            <Link href={`${returnPath}?message=${encodeURIComponent(`Lesson ${createdLessonTitle || 'created'} is ready in the library`)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+            <Link href={appendMessageParam(returnPath, `Lesson ${createdLessonTitle || 'created'} is ready in the library`)} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
               Back to library
             </Link>
             <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(scopedSubjectId || activeModule?.subjectId || '')}&moduleId=${encodeURIComponent(scopedModuleId || activeModule?.id || '')}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: 'white', color: '#334155', textDecoration: 'none', border: '1px solid #cbd5e1' }}>
