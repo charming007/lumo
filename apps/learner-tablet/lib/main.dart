@@ -3621,6 +3621,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   bool speechRecognitionActive = false;
   bool transcriptCapturedThisTake = false;
   bool transcriptReviewPending = false;
+  String? _transcriptAutoAdvanceSafetyReason;
   bool _promptedCurrentStep = false;
   bool _resumedSession = false;
   bool _resumePromptPendingFromLifecycle = false;
@@ -3701,6 +3702,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (!wasAutoMode) {
       setState(() {
         isAutoMode = true;
+        _transcriptAutoAdvanceSafetyReason = null;
+      });
+    } else {
+      setState(() {
+        _transcriptAutoAdvanceSafetyReason = null;
       });
     }
 
@@ -3733,6 +3739,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     setState(() {
       transcriptReviewPending = false;
       _latestTranscriptNeedsManualReview = false;
+      _transcriptAutoAdvanceSafetyReason = null;
       if (resumeHandsFree) {
         isAutoMode = true;
         _autoPausedByTranscriptFailure = false;
@@ -3877,6 +3884,62 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     return '$audioMessage $fallbackReason';
   }
 
+  int _meaningfulWordCount(String text) {
+    return text
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where(
+            (part) => part.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').length >= 2)
+        .length;
+  }
+
+  bool _shouldForceTranscriptVoiceCheck(
+      String transcript, String expectedResponse) {
+    final normalizedTranscript = transcript.trim();
+    final normalizedExpected = expectedResponse.trim();
+    if (normalizedTranscript.isEmpty || normalizedExpected.isEmpty) {
+      return false;
+    }
+
+    final transcriptWords = _meaningfulWordCount(normalizedTranscript);
+    final expectedWords = _meaningfulWordCount(normalizedExpected);
+    final compactTranscript =
+        normalizedTranscript.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    final compactExpected =
+        normalizedExpected.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+
+    if (expectedWords >= 4 && transcriptWords > 0 && transcriptWords <= 1) {
+      return true;
+    }
+    if (expectedWords >= 5 &&
+        transcriptWords > 0 &&
+        transcriptWords < (expectedWords / 2).ceil()) {
+      return true;
+    }
+    if (compactExpected.length >= 12 &&
+        compactTranscript.length >= 2 &&
+        compactTranscript.length <= (compactExpected.length * 0.45).floor()) {
+      return true;
+    }
+    return false;
+  }
+
+  String? _buildTranscriptSafetyReason(
+      String transcript, String expectedResponse) {
+    if (!_shouldForceTranscriptVoiceCheck(transcript, expectedResponse)) {
+      return null;
+    }
+    final expectedWords = _meaningfulWordCount(expectedResponse);
+    final transcriptWords = _meaningfulWordCount(transcript);
+    if (expectedWords >= 4 && transcriptWords <= 1) {
+      return 'The transcript finalized too short for this step, so Lumo blocked auto-advance until someone checks the saved voice.';
+    }
+    return 'This transcript looks shorter than the expected learner answer, so Lumo is holding the step for a quick voice check before continuing.';
+  }
+
+  bool get _hasTranscriptSafetyBlock =>
+      (_transcriptAutoAdvanceSafetyReason?.trim().isNotEmpty ?? false);
+
   bool get _isAudioOnlyReviewState =>
       transcriptReviewPending &&
       responseController.text.trim().isEmpty &&
@@ -3902,18 +3965,24 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   String get _reviewBannerTitle => _isAudioOnlyReviewState
       ? 'Review saved voice before advancing'
-      : _draftTranscriptNeedsVoiceCheck
-          ? 'Verify draft transcript with saved voice'
-          : 'Review transcript before advancing';
+      : _hasTranscriptSafetyBlock
+          ? 'Transcript blocked from auto-advance'
+          : _draftTranscriptNeedsVoiceCheck
+              ? 'Verify draft transcript with saved voice'
+              : 'Review transcript before advancing';
 
   String get _reviewBannerBody => _isAudioOnlyReviewState
       ? 'This take was captured in audio-first mode, so Lumo kept the learner recording but could not safely fill the response box automatically on this device.'
-      : _draftTranscriptNeedsVoiceCheck
-          ? 'Lumo saved both the learner audio and this draft transcript. Use the saved voice as the source of truth, then edit or confirm the text before Mallam continues.'
-          : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
+      : _hasTranscriptSafetyBlock
+          ? _transcriptAutoAdvanceSafetyReason!
+          : _draftTranscriptNeedsVoiceCheck
+              ? 'Lumo saved both the learner audio and this draft transcript. Use the saved voice as the source of truth, then edit or confirm the text before Mallam continues.'
+              : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
 
   String get _transcriptSourceOfTruthLabel {
-    if (_isAudioOnlyReviewState || _draftTranscriptNeedsVoiceCheck) {
+    if (_isAudioOnlyReviewState ||
+        _draftTranscriptNeedsVoiceCheck ||
+        _hasTranscriptSafetyBlock) {
       return 'Saved voice is source of truth';
     }
     if (speechRecognitionActive && !transcriptReviewPending) {
@@ -3926,7 +3995,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   String get _automationSafetyLabel {
-    if (_isAudioOnlyReviewState || _draftTranscriptNeedsVoiceCheck) {
+    if (_isAudioOnlyReviewState ||
+        _draftTranscriptNeedsVoiceCheck ||
+        _hasTranscriptSafetyBlock) {
       return 'Manual review gate active';
     }
     if (_consecutiveTranscriptMisses >= 2) {
@@ -3950,6 +4021,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   String get _automationSafetySummary {
     if (_isAudioOnlyReviewState) {
       return 'Mallam will not auto-advance from this take until someone listens to the saved audio or types a confirmed note.';
+    }
+    if (_hasTranscriptSafetyBlock) {
+      return 'Mallam is paused because the transcript looks incomplete for this step even though capture finished. Confirm it against the saved voice before resuming the loop.';
     }
     if (_draftTranscriptNeedsVoiceCheck) {
       return 'Mallam is paused because the transcript is only a draft. Confirm it against the saved voice before resuming the loop.';
@@ -4617,6 +4691,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       _latestFinalTranscript = '';
       _capturedStableFinalTranscript = false;
       _latestTranscriptNeedsManualReview = false;
+      _transcriptAutoAdvanceSafetyReason = null;
       transcriptReviewPending = false;
       if (shouldClearStaleDraft) {
         responseController.clear();
@@ -4807,10 +4882,18 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             ? _latestFinalTranscript
             : liveTranscript)
         .trim();
+    final expectedResponse = widget.state.personalizeExpectedResponse(
+      widget.lesson.steps[widget.state.activeSession?.stepIndex ?? 0]
+          .expectedResponse,
+    );
+    final transcriptSafetyReason = _buildTranscriptSafetyReason(
+      transcript,
+      expectedResponse,
+    );
     final transcriptIsStable =
         transcript.isNotEmpty && _capturedStableFinalTranscript;
-    final transcriptNeedsManualReview =
-        transcript.isNotEmpty && !transcriptIsStable;
+    final transcriptNeedsManualReview = transcript.isNotEmpty &&
+        (!transcriptIsStable || transcriptSafetyReason != null);
     final wasSpeechRecognitionActive = speechRecognitionActive;
     final result = await audioCaptureService.stop();
     if (!mounted) return;
@@ -4836,6 +4919,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
 
     _latestTranscriptNeedsManualReview = transcriptNeedsManualReview;
+    _transcriptAutoAdvanceSafetyReason = transcriptSafetyReason;
 
     if (transcript.isNotEmpty) {
       _resetTranscriptRecoveryState();
@@ -4864,9 +4948,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     setState(() {
       currentRecordingDuration = result.duration;
       final savedLabel = transcript.isNotEmpty
-          ? (transcriptNeedsManualReview
-              ? 'Learner voice saved (${formatDuration(result.duration)}). Lumo captured only a draft transcript, so it is waiting for a manual voice check before advancing.'
-              : 'Learner voice saved (${formatDuration(result.duration)}). Transcript captured and ready.')
+          ? (transcriptSafetyReason != null
+              ? 'Learner voice saved (${formatDuration(result.duration)}). Transcript capture finished, but Lumo blocked auto-advance because the text looks incomplete for this step.'
+              : transcriptNeedsManualReview
+                  ? 'Learner voice saved (${formatDuration(result.duration)}). Lumo captured only a draft transcript, so it is waiting for a manual voice check before advancing.'
+                  : 'Learner voice saved (${formatDuration(result.duration)}). Transcript captured and ready.')
           : 'Learner voice saved (${formatDuration(result.duration)}). No transcript was detected, so the app kept the audio and is ready for a manual check.';
       final recoveryLabel = transcriptNeedsManualReview
           ? ' Auto mode paused so the facilitator can verify the saved voice against the draft transcript.'
@@ -5481,14 +5567,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 ),
                                 _buildDiagnosticChip(
                                   icon: _isAudioOnlyReviewState ||
-                                          _draftTranscriptNeedsVoiceCheck
+                                          _draftTranscriptNeedsVoiceCheck ||
+                                          _hasTranscriptSafetyBlock
                                       ? Icons.verified_user_rounded
                                       : Icons.fact_check_rounded,
                                   label: _transcriptSourceOfTruthLabel,
                                   healthy: !_isAudioOnlyReviewState &&
-                                      !_draftTranscriptNeedsVoiceCheck,
+                                      !_draftTranscriptNeedsVoiceCheck &&
+                                      !_hasTranscriptSafetyBlock,
                                   warn: _isAudioOnlyReviewState ||
-                                      _draftTranscriptNeedsVoiceCheck,
+                                      _draftTranscriptNeedsVoiceCheck ||
+                                      _hasTranscriptSafetyBlock,
                                 ),
                                 _buildDiagnosticChip(
                                   icon: _consecutiveTranscriptMisses >= 2
@@ -5500,10 +5589,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                   healthy: isAutoMode &&
                                       _consecutiveTranscriptMisses < 2 &&
                                       !_isAudioOnlyReviewState &&
-                                      !_draftTranscriptNeedsVoiceCheck,
+                                      !_draftTranscriptNeedsVoiceCheck &&
+                                      !_hasTranscriptSafetyBlock,
                                   warn: _consecutiveTranscriptMisses >= 2 ||
                                       _isAudioOnlyReviewState ||
-                                      _draftTranscriptNeedsVoiceCheck,
+                                      _draftTranscriptNeedsVoiceCheck ||
+                                      _hasTranscriptSafetyBlock,
                                 ),
                                 _buildDiagnosticChip(
                                   icon: speechRecognitionActive
@@ -6020,18 +6111,25 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           _buildDiagnosticChip(
                                             icon: _isAudioOnlyReviewState
                                                 ? Icons.mic_none_rounded
-                                                : _draftTranscriptNeedsVoiceCheck
-                                                    ? Icons.hearing_rounded
-                                                    : Icons.subtitles_rounded,
+                                                : _hasTranscriptSafetyBlock
+                                                    ? Icons.gpp_maybe_rounded
+                                                    : _draftTranscriptNeedsVoiceCheck
+                                                        ? Icons.hearing_rounded
+                                                        : Icons
+                                                            .subtitles_rounded,
                                             label: _isAudioOnlyReviewState
                                                 ? 'Transcript missing • use saved voice'
-                                                : _draftTranscriptNeedsVoiceCheck
-                                                    ? 'Draft transcript • verify with audio'
-                                                    : 'Transcript ready for facilitator check',
+                                                : _hasTranscriptSafetyBlock
+                                                    ? 'Stable transcript blocked • verify with audio'
+                                                    : _draftTranscriptNeedsVoiceCheck
+                                                        ? 'Draft transcript • verify with audio'
+                                                        : 'Transcript ready for facilitator check',
                                             healthy: !_isAudioOnlyReviewState &&
-                                                !_draftTranscriptNeedsVoiceCheck,
+                                                !_draftTranscriptNeedsVoiceCheck &&
+                                                !_hasTranscriptSafetyBlock,
                                             warn: _isAudioOnlyReviewState ||
-                                                _draftTranscriptNeedsVoiceCheck,
+                                                _draftTranscriptNeedsVoiceCheck ||
+                                                _hasTranscriptSafetyBlock,
                                           ),
                                           if (_hasSavedLearnerAudio)
                                             _buildDiagnosticChip(
