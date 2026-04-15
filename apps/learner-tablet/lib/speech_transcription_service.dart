@@ -119,6 +119,62 @@ class SpeechTranscriptionService {
         cooldownDetail;
   }
 
+  String strategyHeadline({bool preferAudioOnly = false}) {
+    if (preferAudioOnly) {
+      return 'Audio-first capture';
+    }
+    if (_available) {
+      return 'Live transcript + saved audio';
+    }
+    if (isInRetryCooldown) {
+      return 'Transcript cooldown';
+    }
+    return kIsWeb ? 'Browser fallback transcription' : 'Device fallback transcription';
+  }
+
+  String strategySummary({bool preferAudioOnly = false}) {
+    if (preferAudioOnly) {
+      return 'This platform avoids running live transcript capture while the recorder owns the microphone. Lumo keeps the learner audio, then asks for a quick review before advancing.';
+    }
+    if (_available) {
+      return 'Lumo will try live speech-to-text while still saving the learner audio locally, so Mallam can keep moving and the facilitator still has evidence if the transcript is shaky.';
+    }
+    if (isInRetryCooldown) {
+      final remaining = retryCooldownRemaining?.inSeconds ?? _retryCooldown.inSeconds;
+      return 'Live transcript restarts are cooling down for about ${remaining}s after repeated failures. Keep teaching in audio-first mode, then retry when the mic settles.';
+    }
+    return availabilityLabel;
+  }
+
+  List<String> strategyActionItems({bool preferAudioOnly = false}) {
+    if (preferAudioOnly) {
+      return const [
+        'Use the saved learner voice as the source of truth on this device.',
+        'Type or confirm the answer after playback, then resume hands-free only when it is safe.',
+        'Repeat mode is the safest fallback if the learner needs another automated turn.',
+      ];
+    }
+    if (_available) {
+      return const [
+        'Live transcript can draft the response while the saved audio stays attached as backup.',
+        'If the draft looks wrong, verify it once with the saved voice before advancing.',
+        'If repeated misses start happening, switch to Repeat mode or pause for manual confirmation.',
+      ];
+    }
+    if (isInRetryCooldown) {
+      return const [
+        'Keep the lesson moving with saved learner audio and manual confirmation.',
+        'Avoid hammering transcript restart while the cooldown is active.',
+        'Resume the hands-free loop after the cooldown or once the mic becomes stable again.',
+      ];
+    }
+    return const [
+      'Capture learner audio first so no spoken evidence is lost.',
+      'Use the response box only after listening back or confirming the draft transcript.',
+      'Treat transcript help as optional until the browser or device exposes a stable speech engine.',
+    ];
+  }
+
   Future<bool> initialize({bool forceRetry = false}) async {
     final now = DateTime.now();
     final retryBlockedUntil = _retryBlockedUntil;

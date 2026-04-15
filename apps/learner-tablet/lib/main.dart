@@ -3912,6 +3912,21 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           ? 'Lumo saved both the learner audio and this draft transcript. Use the saved voice as the source of truth, then edit or confirm the text before Mallam continues.'
           : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
 
+  String get _transcriptStrategyHeadline =>
+      speechTranscriptionService.strategyHeadline(
+        preferAudioOnly: _avoidConcurrentSpeechCapture,
+      );
+
+  String get _transcriptStrategySummary =>
+      speechTranscriptionService.strategySummary(
+        preferAudioOnly: _avoidConcurrentSpeechCapture,
+      );
+
+  List<String> get _transcriptStrategyActions =>
+      speechTranscriptionService.strategyActionItems(
+        preferAudioOnly: _avoidConcurrentSpeechCapture,
+      );
+
   Future<void> _toggleSavedAudioPlayback() async {
     final audioPath =
         widget.state.activeSession?.latestLearnerAudioPath?.trim();
@@ -5367,6 +5382,98 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.subtitles_rounded,
+                                  color: LumoTheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Transcript strategy',
+                                  style: TextStyle(fontWeight: FontWeight.w800),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _buildDiagnosticChip(
+                                  icon: speechRecognitionActive
+                                      ? Icons.hearing_rounded
+                                      : _avoidConcurrentSpeechCapture
+                                          ? Icons.mic_none_rounded
+                                          : Icons.warning_amber_rounded,
+                                  label: _transcriptStrategyHeadline,
+                                  healthy: speechRecognitionActive &&
+                                      !_avoidConcurrentSpeechCapture,
+                                  warn: !speechRecognitionActive ||
+                                      _avoidConcurrentSpeechCapture,
+                                ),
+                                _buildDiagnosticChip(
+                                  icon: Icons.mic_rounded,
+                                  label: _recordingModeLabel,
+                                  healthy: true,
+                                ),
+                                _buildDiagnosticChip(
+                                  icon: _consecutiveTranscriptMisses >= 2
+                                      ? Icons.repeat_rounded
+                                      : Icons.auto_mode_rounded,
+                                  label: _consecutiveTranscriptMisses >= 2
+                                      ? 'Repeat mode safety active'
+                                      : 'Hands-free ready',
+                                  healthy: _consecutiveTranscriptMisses < 2,
+                                  warn: _consecutiveTranscriptMisses >= 2,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              _transcriptStrategySummary,
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            ..._transcriptStrategyActions.take(3).map(
+                              (action) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 2),
+                                      child: Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 16,
+                                        color: LumoTheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        action,
+                                        style: const TextStyle(
+                                          color: Color(0xFF475569),
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SoftPanel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             const Text(
                               'Practice mode',
                               style: TextStyle(fontWeight: FontWeight.w800),
@@ -5930,6 +6037,20 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                               label: const Text(
                                                 'Accept saved voice + continue',
+                                              ),
+                                            ),
+                                          if (session.latestLearnerAudioPath !=
+                                              null)
+                                            OutlinedButton.icon(
+                                              onPressed: () =>
+                                                  _acceptSavedAudioAndContinue(
+                                                resumeHandsFree: false,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.pan_tool_alt_rounded,
+                                              ),
+                                              label: const Text(
+                                                'Accept saved voice, stay manual',
                                               ),
                                             ),
                                         ],
