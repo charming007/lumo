@@ -6,6 +6,7 @@ import { InsightPanel } from '../components/insight-panel';
 import { KpiStrip } from '../components/kpi-strip';
 import { ModalLauncher } from '../components/modal-launcher';
 import { API_BASE_SOURCE } from '../lib/config';
+import { assessmentMatchesModule } from '../lib/module-assessment-match';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Student, Subject, WorkboardItem } from '../lib/types';
 
@@ -149,13 +150,16 @@ export default async function HomePage() {
   const topInsight = insights[0] ?? FALLBACK_INSIGHT;
   const atRiskLearners = students.filter((student) => student.attendanceRate < 0.85);
   const trainingMallams = mallams.filter((mallam) => mallam.status !== 'active');
-  const assessmentLinkedModuleIds = new Set(assessments.map((assessment) => assessment.moduleId).filter(Boolean));
+  const moduleHasAssessmentGate = (module: (typeof modules)[number]) => assessments.some(
+    (assessment) => assessmentMatchesModule(module, assessment),
+  );
+
   const releaseBlockers = modules
     .map((module) => {
       const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
       const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
       const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-      const hasAssessmentGate = assessmentLinkedModuleIds.has(module.id);
+      const hasAssessmentGate = moduleHasAssessmentGate(module);
       const blockerCount = missingLessons + (hasAssessmentGate ? 0 : 1);
 
       if (!blockerCount) {

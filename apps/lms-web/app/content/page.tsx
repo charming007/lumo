@@ -17,6 +17,7 @@ import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
+import { assessmentMatchesModule } from '../../lib/module-assessment-match';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -113,14 +114,14 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     return subjectMatches && statusMatches && viewMatches && queryMatches;
   });
 
-  const moduleHasAssessmentGate = (moduleId: string, moduleTitle: string) => assessments.some(
-    (assessment) => assessment.moduleId === moduleId || assessment.moduleTitle === moduleTitle,
+  const moduleHasAssessmentGate = (module: (typeof modules)[number]) => assessments.some(
+    (assessment) => assessmentMatchesModule(module, assessment),
   );
 
   const blockedModules = modules.filter((module) => {
     const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
     const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-    return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module.id, module.title);
+    return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module);
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
@@ -273,7 +274,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
                   const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                   const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-                  const hasAssessment = moduleHasAssessmentGate(module.id, module.title);
+                  const hasAssessment = moduleHasAssessmentGate(module);
                   const blocker = blockerRiskMeta(missingLessons, hasAssessment);
 
                   return [
@@ -398,7 +399,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
                 const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                 const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-                const hasAssessment = moduleHasAssessmentGate(module.id, module.title);
+                const hasAssessment = moduleHasAssessmentGate(module);
                 const blocker = blockerRiskMeta(missingLessons, hasAssessment);
 
                 return [

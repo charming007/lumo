@@ -8,7 +8,7 @@ function namesLookRelated(left?: string | null, right?: string | null) {
   const leftValue = normalize(left);
   const rightValue = normalize(right);
   if (!leftValue || !rightValue) return false;
-  return leftValue === rightValue || leftValue.includes(rightValue) || rightValue.includes(leftValue);
+  return leftValue === rightValue;
 }
 
 export function assessmentMatchesModule(module: CurriculumModule, assessment: Assessment) {
