@@ -44,7 +44,8 @@ void main() {
     );
 
     test('does not auto-select a learner during bootstrap refreshes', () async {
-      final state = LumoAppState(includeSeedDemoContent: true,
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/bootstrap') {
@@ -83,7 +84,8 @@ void main() {
 
     test('keeps live module list free of demo-only subjects during bootstrap',
         () async {
-      final state = LumoAppState(includeSeedDemoContent: true,
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/bootstrap') {
@@ -204,7 +206,8 @@ void main() {
 
     test('drops deprecated story/demo lessons even when the module id is messy',
         () async {
-      final state = LumoAppState(includeSeedDemoContent: true,
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/bootstrap') {
@@ -342,7 +345,8 @@ void main() {
       state.dispose();
     });
 
-    test('recovers a persisted active session after lesson sync reloads', () async {
+    test('recovers a persisted active session after lesson sync reloads',
+        () async {
       SharedPreferences.setMockInitialValues({
         'lumo_learner_tablet_state_v1': jsonEncode({
           'schemaVersion': '2026-04-13-runtime-persist',
@@ -483,7 +487,8 @@ void main() {
       await state.restorePersistedState();
       expect(state.activeSession, isNull);
       expect(state.hasPendingRecoveredSession, isTrue);
-      expect(state.pendingRecoveredSessionLabel, contains('Recovered English lesson'));
+      expect(state.pendingRecoveredSessionLabel,
+          contains('Recovered English lesson'));
 
       await state.bootstrap();
 
@@ -495,9 +500,35 @@ void main() {
       state.dispose();
     });
 
+    test('logs learner reward redemption history and reduces spendable points',
+        () async {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final option = state
+          .rewardRedemptionOptionsForLearner(learner)
+          .firstWhere((item) => item.unlocked);
+
+      final before = state.spendableRewardPointsForLearner(learner);
+      final record = state.redeemRewardForLearner(
+        learner: learner,
+        option: option,
+        note: 'Chose extra story time',
+      );
+
+      expect(state.rewardRedemptionHistoryForLearner(learner), hasLength(1));
+      expect(state.latestRewardRedemptionForLearner(learner)?.id, record.id);
+      expect(
+          state.spendableRewardPointsForLearner(learner), before - option.cost);
+      expect(state.pendingSyncEvents.last.type, 'learner_reward_redeemed');
+      expect(state.pendingSyncEvents.last.payload['note'],
+          'Chose extra story time');
+      state.dispose();
+    });
+
     test('preserves bootstrap lessons when one module hydration request fails',
         () async {
-      final state = LumoAppState(includeSeedDemoContent: true,
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/bootstrap') {
@@ -762,7 +793,9 @@ void main() {
       );
     });
 
-    test('does not map backend resume to the wrong lesson when only module matches', () {
+    test(
+        'does not map backend resume to the wrong lesson when only module matches',
+        () {
       final state = LumoAppState(includeSeedDemoContent: true);
       final sourceLesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'english',
@@ -886,7 +919,8 @@ void main() {
 
     test('loads recent backend runtime sessions for the selected learner',
         () async {
-      final state = LumoAppState(includeSeedDemoContent: true,
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/sessions') {
@@ -934,7 +968,8 @@ void main() {
 
     test('applies synced runtime session updates into learner history',
         () async {
-      final state = LumoAppState(includeSeedDemoContent: true,
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/sync') {
@@ -998,7 +1033,8 @@ void main() {
 
     test('auto-syncs queued lesson events when backend is live', () async {
       var syncCalls = 0;
-      final state = LumoAppState(includeSeedDemoContent: true,
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/sync') {
@@ -1037,8 +1073,10 @@ void main() {
       state.dispose();
     });
 
-    test('falls back to local registration when live learner save fails', () async {
-      final state = LumoAppState(includeSeedDemoContent: true,
+    test('falls back to local registration when live learner save fails',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/learners') {
@@ -1071,7 +1109,8 @@ void main() {
       expect(state.currentLearner?.name, 'Safiya');
       expect(state.usingFallbackData, isTrue);
       expect(state.pendingSyncEvents, hasLength(1));
-      expect(state.pendingSyncEvents.first.type, 'learner_registered_local_fallback');
+      expect(state.pendingSyncEvents.first.type,
+          'learner_registered_local_fallback');
       expect(state.backendError, contains('saved locally and queued for sync'));
       expect(state.lastSyncError, 'Backend register endpoint is down.');
       expect(state.registrationDraft.name, isEmpty);
@@ -1114,7 +1153,9 @@ void main() {
       expect(state.activeSession!.automationStatus, contains('Resume from'));
     });
 
-    test('resume flow rebinds the active learner to the backend session learner', () {
+    test(
+        'resume flow rebinds the active learner to the backend session learner',
+        () {
       final state = LumoAppState(includeSeedDemoContent: true);
       final lesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'english',
@@ -1236,7 +1277,8 @@ void main() {
       expect(state.degradedModeSummary, contains('queued locally'));
     });
 
-    test('roster freshness labels expose offline fallback and queued sync work', () {
+    test('roster freshness labels expose offline fallback and queued sync work',
+        () {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.usingFallbackData = true;
       state.lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 12));

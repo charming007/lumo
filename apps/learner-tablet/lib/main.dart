@@ -192,55 +192,82 @@ class _SplashScreenState extends State<SplashScreen> {
             colors: [Color(0xFFF9FAFF), Color(0xFFEFEFFF), Color(0xFFFDF7EE)],
           ),
         ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(40),
-                  boxShadow: [
-                    BoxShadow(
-                      color: LumoTheme.primary.withValues(alpha: 0.16),
-                      blurRadius: 30,
-                      offset: const Offset(0, 18),
-                    ),
-                  ],
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
-                  child: Image.asset(
-                    'assets/images/lumo_logo.jpg',
-                    height: 168,
-                    width: 168,
-                    fit: BoxFit.cover,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 64,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(40),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    LumoTheme.primary.withValues(alpha: 0.16),
+                                blurRadius: 30,
+                                offset: const Offset(0, 18),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(30),
+                            child: Image.asset(
+                              'assets/images/lumo_logo.jpg',
+                              height: 168,
+                              width: 168,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        const Text(
+                          'Lumo learner tablet',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Preparing AI Mallam, learners, and voice-first lessons...',
+                          style: TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        const SizedBox(
+                          width: 220,
+                          child: LinearProgressIndicator(
+                            minHeight: 8,
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(999),
+                            ),
+                            color: LumoTheme.primary,
+                            backgroundColor: Color(0xFFE9E7FF),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Lumo learner tablet',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Preparing AI Mallam, learners, and voice-first lessons...',
-                style: TextStyle(color: Color(0xFF6B7280), fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              const SizedBox(
-                width: 220,
-                child: LinearProgressIndicator(
-                  minHeight: 8,
-                  borderRadius: BorderRadius.all(Radius.circular(999)),
-                  color: LumoTheme.primary,
-                  backgroundColor: Color(0xFFE9E7FF),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -6138,27 +6165,48 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ),
                                             const SizedBox(height: 8),
                                             Row(
-                                              children: List.generate(18, (index) {
-                                                final active = learnerAudioPlaybackService.isPlaying
-                                                    ? (index % 3 != 0)
-                                                    : index.isEven;
-                                                const heights = [8.0, 16.0, 24.0, 14.0, 20.0, 10.0];
+                                              children:
+                                                  List.generate(18, (index) {
+                                                final active =
+                                                    learnerAudioPlaybackService
+                                                            .isPlaying
+                                                        ? (index % 3 != 0)
+                                                        : index.isEven;
+                                                const heights = [
+                                                  8.0,
+                                                  16.0,
+                                                  24.0,
+                                                  14.0,
+                                                  20.0,
+                                                  10.0
+                                                ];
                                                 return Container(
                                                   width: 6,
-                                                  height: active ? heights[index % heights.length] : 8,
-                                                  margin: const EdgeInsets.only(right: 4),
+                                                  height: active
+                                                      ? heights[index %
+                                                          heights.length]
+                                                      : 8,
+                                                  margin: const EdgeInsets.only(
+                                                      right: 4),
                                                   decoration: BoxDecoration(
-                                                    color: learnerAudioPlaybackService.isPlaying
-                                                        ? const Color(0xFF4F46E5)
-                                                        : const Color(0xFFCBD5E1),
-                                                    borderRadius: BorderRadius.circular(999),
+                                                    color:
+                                                        learnerAudioPlaybackService
+                                                                .isPlaying
+                                                            ? const Color(
+                                                                0xFF4F46E5)
+                                                            : const Color(
+                                                                0xFFCBD5E1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            999),
                                                   ),
                                                 );
                                               }),
                                             ),
                                             const SizedBox(height: 8),
                                             Text(
-                                              learnerAudioPlaybackService.isPlaying
+                                              learnerAudioPlaybackService
+                                                      .isPlaying
                                                   ? 'Playback is running now. Listen, then accept, type a note, or replay.'
                                                   : 'Preview the saved learner answer before advancing. This stays available even when transcript capture fails.',
                                               style: const TextStyle(
@@ -6304,8 +6352,8 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
       };
       final paneHeight = viewportHeight < 700 ? 700.0 : viewportHeight * 0.96;
       return isPane
-          ? SizedBox(
-              height: paneHeight,
+          ? ConstrainedBox(
+              constraints: BoxConstraints(minHeight: paneHeight),
               child: columnChild,
             )
           : columnChild;
@@ -8130,12 +8178,12 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: resolvedFeaturedReward!.unlocked
+                color: resolvedFeaturedReward.unlocked
                     ? const Color(0xFFEEFBF3)
                     : const Color(0xFFFFF7ED),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: resolvedFeaturedReward!.unlocked
+                  color: resolvedFeaturedReward.unlocked
                       ? const Color(0xFFA7F3D0)
                       : const Color(0xFFFCD34D),
                 ),
@@ -8149,15 +8197,15 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        '${resolvedFeaturedReward!.icon} ${resolvedFeaturedReward!.title}',
+                        '${resolvedFeaturedReward.icon} ${resolvedFeaturedReward.title}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 18,
                         ),
                       ),
                       StatusPill(
-                        text: resolvedFeaturedReward!.category,
-                        color: resolvedFeaturedReward!.unlocked
+                        text: resolvedFeaturedReward.category,
+                        color: resolvedFeaturedReward.unlocked
                             ? LumoTheme.accentGreen
                             : LumoTheme.accentOrange,
                       ),
@@ -8165,7 +8213,7 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    resolvedFeaturedReward!.description,
+                    resolvedFeaturedReward.description,
                     style: const TextStyle(
                       color: Color(0xFF334155),
                       height: 1.4,
@@ -8176,12 +8224,12 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
                     items: [
                       (
                         'Status',
-                        resolvedFeaturedReward!.unlocked
+                        resolvedFeaturedReward.unlocked
                             ? 'Ready to redeem'
-                            : '${resolvedFeaturedReward!.shortfall} pts to unlock',
+                            : '${resolvedFeaturedReward.shortfall} pts to unlock',
                       ),
-                      ('Cost', '${resolvedFeaturedReward!.cost} pts'),
-                      ('Best use', resolvedFeaturedReward!.celebrationCue),
+                      ('Cost', '${resolvedFeaturedReward.cost} pts'),
+                      ('Best use', resolvedFeaturedReward.celebrationCue),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -8211,49 +8259,51 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             ...nearlyUnlockedRewards
-              .map((reward) => state.rewardOptionStateForLearner(learner, reward))
-              .map(
-              (reward) => Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(reward.icon, style: const TextStyle(fontSize: 22)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            reward.title,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${reward.shortfall} pts away • ${reward.category}',
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
+                .map((reward) =>
+                    state.rewardOptionStateForLearner(learner, reward))
+                .map(
+                  (reward) => Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    Text(
-                      '${reward.cost} pts',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(reward.icon, style: const TextStyle(fontSize: 22)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                reward.title,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${reward.shortfall} pts away • ${reward.category}',
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${reward.cost} pts',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
           ],
           if (history.isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -8263,48 +8313,52 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             ...history.take(3).map(
-              (entry) => Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  (entry) => Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            '${entry.icon} ${entry.title}',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${entry.icon} ${entry.title}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                            Text(
+                              '-${entry.cost} pts',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 6),
                         Text(
-                          '-${entry.cost} pts',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          'Redeemed ${_formatRedeemedAt(entry.redeemedAt)} • ${entry.pointsRemaining} pts left',
+                          style: const TextStyle(
+                              color: Color(0xFF64748B), fontSize: 12),
                         ),
+                        if ((entry.note ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            entry.note!,
+                            style: const TextStyle(
+                                color: Color(0xFF334155), height: 1.35),
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Redeemed ${_formatRedeemedAt(entry.redeemedAt)} • ${entry.pointsRemaining} pts left',
-                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                    ),
-                    if ((entry.note ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        entry.note!,
-                        style: const TextStyle(color: Color(0xFF334155), height: 1.35),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-            ),
           ],
           const SizedBox(height: 4),
           Text(

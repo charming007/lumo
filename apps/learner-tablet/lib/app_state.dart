@@ -1639,8 +1639,6 @@ class LumoAppState {
 
   RewardRedemptionOption? featuredRewardForLearner(LearnerProfile learner) {
     final options = rewardRedemptionOptionsForLearner(learner);
-    final spendable = spendableRewardPointsForLearner(learner);
-    final history = rewardRedemptionHistoryForLearner(learner);
     final unlocked = options.where((item) => item.unlocked).toList();
     if (unlocked.isNotEmpty) {
       unlocked.sort((left, right) => left.cost.compareTo(right.cost));
@@ -1772,7 +1770,7 @@ class LumoAppState {
     }
     if (history.isNotEmpty) {
       final latest = history.first;
-      return '${history.length} redemption(s) logged. ${spendable} point(s) still available after ${latest.title.toLowerCase()}. ';
+      return '${history.length} redemption(s) logged. $spendable point(s) still available after ${latest.title.toLowerCase()}. ';
     }
     if (unlocked.isEmpty) {
       return '${featured.shortfall} more points unlock ${featured.title.toLowerCase()}. Keep the next reward close and concrete.';
@@ -2713,8 +2711,10 @@ class LumoAppState {
         (key, value) =>
             MapEntry(key, value.map(_encodeBackendLessonSession).toList()),
       ),
-      'rewardRedemptionHistoryByLearnerId': rewardRedemptionHistoryByLearnerId.map(
-        (key, value) => MapEntry(key, value.map(_encodeRewardRedemptionRecord).toList()),
+      'rewardRedemptionHistoryByLearnerId':
+          rewardRedemptionHistoryByLearnerId.map(
+        (key, value) =>
+            MapEntry(key, value.map(_encodeRewardRedemptionRecord).toList()),
       ),
       'currentLearnerId': currentLearner?.id,
       'selectedModuleId': selectedModule?.id,
@@ -2815,7 +2815,8 @@ class LumoAppState {
     return output;
   }
 
-  bool get hasPendingRecoveredSession => pendingRecoveredSessionSnapshot != null;
+  bool get hasPendingRecoveredSession =>
+      pendingRecoveredSessionSnapshot != null;
 
   String get pendingRecoveredSessionLabel {
     final snapshot = pendingRecoveredSessionSnapshot;
@@ -2979,7 +2980,9 @@ class LumoAppState {
             : null,
       );
 
-  Map<String, dynamic> _encodeRewardRedemptionRecord(RewardRedemptionRecord record) => {
+  Map<String, dynamic> _encodeRewardRedemptionRecord(
+          RewardRedemptionRecord record) =>
+      {
         'id': record.id,
         'learnerId': record.learnerId,
         'optionId': record.optionId,
@@ -3427,17 +3430,20 @@ class RewardRedemptionRecord {
   });
 
   factory RewardRedemptionRecord.fromJson(Map<String, dynamic> json) {
-    int? asInt(Object? raw) => raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+    int? asInt(Object? raw) =>
+        raw is int ? raw : int.tryParse(raw?.toString() ?? '');
     String? nullableString(Object? raw) {
       final value = raw?.toString();
       if (value == null || value.trim().isEmpty || value == 'null') return null;
       return value;
     }
+
     DateTime? parseDate(Object? raw) {
       final value = raw?.toString();
       if (value == null || value.trim().isEmpty) return null;
       return DateTime.tryParse(value);
     }
+
     return RewardRedemptionRecord(
       id: json['id']?.toString() ?? 'reward-record',
       learnerId: json['learnerId']?.toString() ?? '',
