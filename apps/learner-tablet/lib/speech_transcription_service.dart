@@ -182,7 +182,10 @@ class SpeechTranscriptionService {
     ];
   }
 
-  Future<bool> initialize({bool forceRetry = false}) async {
+  Future<bool> initialize({
+    bool forceRetry = false,
+    void Function(String error)? onError,
+  }) async {
     final now = DateTime.now();
     final retryBlockedUntil = _retryBlockedUntil;
     final recentRepeatedFailures = _consecutiveStartFailures >= 3 &&
@@ -210,6 +213,7 @@ class SpeechTranscriptionService {
       _available = await _engine.initialize(
         onError: (errorMsg) {
           _lastError = _normalizeError(errorMsg);
+          onError?.call(_lastError!);
           if (_shouldCooldownAfterRuntimeError(errorMsg)) {
             _available = false;
             _registerStartFailure();
@@ -237,8 +241,12 @@ class SpeechTranscriptionService {
   Future<bool> start({
     required void Function(String transcript, bool isFinal) onResult,
     void Function(String status)? onStatus,
+    void Function(String error)? onError,
   }) async {
-    final ready = await initialize(forceRetry: !_available);
+    final ready = await initialize(
+      forceRetry: !_available,
+      onError: onError,
+    );
     if (!ready) {
       onStatus?.call(_lastStatus);
       return false;
@@ -293,6 +301,7 @@ class SpeechTranscriptionService {
       } catch (error) {
         _registerStartFailure();
         _lastError = _normalizeError(error.toString());
+        onError?.call(_lastError!);
         _activeModeLabel = 'Audio fallback review';
         _available = false;
         onStatus?.call(_lastStatus);

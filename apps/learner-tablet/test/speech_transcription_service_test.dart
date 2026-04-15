@@ -19,6 +19,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
       emitTranscriptOnListen;
   int listenCalls = 0;
   bool _isListening = false;
+  void Function(String errorMsg)? _onError;
 
   @override
   bool get isListening => _isListening;
@@ -29,6 +30,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     required void Function(String status) onStatus,
     bool debugLogging = false,
   }) async {
+    _onError = onError;
     onStatus('initialized');
     if (failInitializeAttempts > 0) {
       failInitializeAttempts -= 1;
@@ -62,6 +64,10 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   @override
   Future<void> cancel() async {
     _isListening = false;
+  }
+
+  void emitRuntimeError(String errorMsg) {
+    _onError?.call(errorMsg);
   }
 }
 
@@ -119,7 +125,8 @@ void main() {
     expect(service.availabilityLabel, contains('ready'));
   });
 
-  test('runtime-style transcript errors expose cooldown guidance with remaining time',
+  test(
+      'runtime-style transcript errors expose cooldown guidance with remaining time',
       () async {
     final engine = FakeSpeechRecognitionEngine(
       failInitializeAttempts: 3,
@@ -135,5 +142,26 @@ void main() {
     expect(service.availabilityLabel, contains('Retry cooldown'));
     expect(service.availabilityLabel, contains('manual confirmation'));
     expect(service.lastError, contains('cooling down'));
+  });
+
+  test('surfaces runtime transcript errors through the live onError callback',
+      () async {
+    final engine = FakeSpeechRecognitionEngine();
+    final service = SpeechTranscriptionService(engine: engine);
+    final seenErrors = <String>[];
+
+    expect(
+      await service.start(
+        onResult: (_, __) {},
+        onError: seenErrors.add,
+      ),
+      isTrue,
+    );
+
+    engine.emitRuntimeError('microphone unavailable');
+
+    expect(seenErrors, isNotEmpty);
+    expect(seenErrors.last, contains('microphone became unavailable'));
+    expect(service.lastError, contains('microphone became unavailable'));
   });
 }

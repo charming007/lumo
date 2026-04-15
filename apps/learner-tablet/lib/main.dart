@@ -3928,6 +3928,44 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
   }
 
+  Future<void> _handleSpeechRuntimeError(String error) async {
+    if (!mounted) return;
+    final normalized = error.toLowerCase();
+    final shouldForceAudioReview = normalized.contains('microphone') ||
+        normalized.contains('blocked') ||
+        normalized.contains('aborted') ||
+        normalized.contains('permission') ||
+        normalized.contains('unavailable');
+
+    if (!isRecording) {
+      setState(() {
+        microphoneStatus = error;
+        if (shouldForceAudioReview) {
+          _resumePromptPendingFromLifecycle = true;
+        }
+      });
+      return;
+    }
+
+    if (!shouldForceAudioReview) {
+      setState(() {
+        microphoneStatus = error;
+      });
+      return;
+    }
+
+    await stopRecording(markReadyForResume: false);
+    if (!mounted) return;
+    setState(() {
+      isAutoMode = false;
+      transcriptReviewPending = true;
+      _autoPausedByTranscriptFailure = true;
+      _resumePromptPendingFromLifecycle = true;
+      microphoneStatus =
+          '$error Lumo saved the learner audio it could recover, paused hands-free, and is waiting for a deliberate review before reopening the mic.';
+    });
+  }
+
   bool get _hasRecoveredLearnerEvidence {
     final session = widget.state.activeSession;
     if (session == null) return false;
@@ -4805,6 +4843,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 });
               },
               onStatus: _handleSpeechStatus,
+              onError: (error) {
+                unawaited(_handleSpeechRuntimeError(error));
+              },
             );
 
       recordingTicker?.cancel();
