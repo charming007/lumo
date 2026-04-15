@@ -4299,7 +4299,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       ? (isAutoMode
           ? 'Save note and continue'
           : 'Save note + resume hands-free')
-      : (isAutoMode ? 'Confirm and continue' : 'Confirm + resume hands-free');
+      : 'Confirm transcript';
 
   String get _reviewSecondaryCtaLabel => _isAudioOnlyReviewState
       ? 'Stay in audio-only review'
@@ -5772,8 +5772,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       );
     }
 
-    return WillPopScope(
-      onWillPop: _confirmLeaveLessonSession,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        unawaited(_confirmLeaveLessonSession());
+      },
       child: Scaffold(
         body: SafeArea(
           child: Padding(
@@ -5795,7 +5799,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                             OutlinedButton.icon(
                               onPressed: _confirmLeaveLessonSession,
                               icon: const Icon(Icons.arrow_back_rounded),
-                              label: const Text('Leave lesson'),
+                              label: const Text('Back'),
                             ),
                             const Spacer(),
                             StatusPill(
@@ -6528,6 +6532,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                       _runCoachSupport('translate'),
                                 ),
                                 const SizedBox(height: 16),
+                                const Text(
+                                  'Learner microphone capture',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
                                 TextField(
                                   controller: responseController,
                                   onChanged: (_) => setState(() {}),
@@ -6712,7 +6724,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                   Icons.library_music_rounded,
                                                 ),
                                                 label: const Text(
-                                                  'Use saved voice and continue',
+                                                  'Accept saved voice + continue',
                                                 ),
                                               ),
                                             if (session
