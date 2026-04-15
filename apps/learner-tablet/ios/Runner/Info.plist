@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Lumo uses the tablet camera so facilitators can capture an optional learner profile photo during registration.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Lumo needs microphone access to capture learner voice responses during lessons.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

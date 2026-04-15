@@ -2188,7 +2188,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Photo capture is not available on this device yet. You can skip for now and use the default avatar. $error',
+            'Photo capture could not start. Check that camera access is allowed for Lumo on this tablet, or skip for now and use the default avatar. $error',
           ),
         ),
       );
