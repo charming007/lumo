@@ -103,6 +103,16 @@ function describeNextAction(module: {
   return `${actions[0].charAt(0).toUpperCase()}${actions[0].slice(1)}${actions.length > 1 ? `, ${actions.slice(1, -1).join(', ')}${actions.length > 2 ? ',' : ''} and ${actions.at(-1)}` : ''} before publish.`;
 }
 
+function buildExactNameHref<T extends { id: string }>(items: T[], getName: (item: T) => string | null | undefined, targetName: string, fallbackHref: string, buildHref: (item: T) => string) {
+  const normalizedTarget = targetName.trim().toLowerCase();
+  if (!normalizedTarget) return fallbackHref;
+
+  const matches = items.filter((item) => getName(item)?.trim().toLowerCase() === normalizedTarget);
+  if (matches.length !== 1) return fallbackHref;
+
+  return buildHref(matches[0]);
+}
+
 export default async function HomePage() {
   if (API_BASE_SOURCE === 'missing-production-env') {
     return (
@@ -415,17 +425,36 @@ export default async function HomePage() {
             {workboardFeedFailed ? sectionAlert('The workboard feed failed, so learner progression rows below are not current.', 'warning') : null}
             <SimpleTable
               columns={['Learner', 'Mallam', 'Cohort', 'Attendance', 'Mastery', 'Status', 'Next move']}
-              rows={workboard.length ? workboard.map((item) => [
-                <Link key={`${item.id}-student`} href="/students" style={tableLinkStyle}>
-                  {item.studentName}
-                </Link>,
-                item.mallamName ? <Link key={`${item.id}-mallam`} href="/mallams" style={tableLinkStyle}>{item.mallamName}</Link> : '—',
-                item.cohortName ?? '—',
-                `${Math.round(item.attendanceRate * 100)}%`,
-                `${Math.round(item.mastery * 100)}% in ${item.focus}`,
-                <Pill key={`${item.id}-status`} label={item.progressionStatus} tone={item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF'} text={item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3'} />,
-                item.recommendedNextModuleTitle ? <Link key={`${item.id}-next-module`} href="/progress" style={tableLinkStyle}>{item.recommendedNextModuleTitle}</Link> : '—',
-              ]) : workboardEmptyRow(workboardFeedFailed ? 'Workboard feed unavailable — retry once learner progression data is back.' : 'No learners are queued in the readiness workboard right now.')}
+              rows={workboard.length ? workboard.map((item) => {
+                const studentHref = buildExactNameHref(
+                  students,
+                  (student) => student.name,
+                  item.studentName,
+                  '/students',
+                  (student) => `/students/${student.id}`,
+                );
+                const mallamHref = item.mallamName
+                  ? buildExactNameHref(
+                    mallams,
+                    (mallam) => mallam.displayName ?? mallam.name,
+                    item.mallamName,
+                    '/mallams',
+                    (mallam) => `/mallams/${mallam.id}`,
+                  )
+                  : null;
+
+                return [
+                  <Link key={`${item.id}-student`} href={studentHref} style={tableLinkStyle}>
+                    {item.studentName}
+                  </Link>,
+                  item.mallamName ? <Link key={`${item.id}-mallam`} href={mallamHref ?? '/mallams'} style={tableLinkStyle}>{item.mallamName}</Link> : '—',
+                  item.cohortName ?? '—',
+                  `${Math.round(item.attendanceRate * 100)}%`,
+                  `${Math.round(item.mastery * 100)}% in ${item.focus}`,
+                  <Pill key={`${item.id}-status`} label={item.progressionStatus} tone={item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF'} text={item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3'} />,
+                  item.recommendedNextModuleTitle ? <Link key={`${item.id}-next-module`} href="/progress" style={tableLinkStyle}>{item.recommendedNextModuleTitle}</Link> : '—',
+                ];
+              }) : workboardEmptyRow(workboardFeedFailed ? 'Workboard feed unavailable — retry once learner progression data is back.' : 'No learners are queued in the readiness workboard right now.')}
             />
           </div>
         </Card>
