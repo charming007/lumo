@@ -55,6 +55,16 @@ function sanitizeReturnPath(path?: string, fallback = '/content') {
   return path;
 }
 
+function appendSearchParams(path: string, params: Record<string, string>) {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    searchParams.set(key, value);
+  }
+
+  return `${path}${path.includes('?') ? '&' : '?'}${searchParams.toString()}`;
+}
+
 function rethrowRedirectError(error: unknown) {
   if (isRedirectError(error)) {
     throw error;
@@ -196,7 +206,9 @@ export async function assignLearnerMallamAction(formData: FormData) {
   revalidatePath('/students');
   revalidatePath('/mallams');
   revalidatePath(returnPath);
-  redirect(`${returnPath}?message=${resolvedMallamId ? 'Mallam%20assignment%20saved' : 'Mallam%20assignment%20cleared'}`);
+  redirect(appendSearchParams(returnPath, {
+    message: resolvedMallamId ? 'Mallam assignment saved' : 'Mallam assignment cleared',
+  }));
 }
 
 export async function assignLearnerToMallamAction(formData: FormData) {
@@ -209,7 +221,9 @@ export async function assignLearnerToMallamAction(formData: FormData) {
   revalidatePath('/students');
   revalidatePath('/mallams');
   revalidatePath(returnPath);
-  redirect(`${returnPath}?message=Learner%20assignment%20saved`);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Learner assignment saved',
+  }));
 }
 
 export async function createMallamAction(formData: FormData) {
@@ -426,7 +440,9 @@ export async function updateLessonAction(formData: FormData) {
   revalidatePath('/content');
   revalidatePath('/english');
   revalidatePath(`/content/lessons/${lessonId}`);
-  redirect(`${returnPath}?message=Lesson%20authoring%20pack%20saved`);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Lesson authoring pack saved',
+  }));
 }
 
 export async function createAssessmentAction(formData: FormData) {
@@ -446,7 +462,9 @@ export async function createAssessmentAction(formData: FormData) {
   await apiWrite('/api/v1/assessments', 'POST', payload);
   revalidatePath('/');
   revalidatePath('/content');
-  redirect(`${returnPath}?message=Assessment%20created%20and%20linked%20to%20a%20release%20gate`);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Assessment created and linked to a release gate',
+  }));
 }
 
 export async function updateAssessmentAction(formData: FormData) {

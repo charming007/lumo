@@ -187,6 +187,7 @@ class LearnerProfile {
   final String enrollmentStatus;
   final String attendanceBand;
   final String supportPlan;
+  final String? profilePhotoBase64;
   final String lastLessonSummary;
   final String lastAttendance;
   final String? backendRecommendedModuleId;
@@ -211,6 +212,7 @@ class LearnerProfile {
     this.enrollmentStatus = 'Active',
     this.attendanceBand = 'Stable attendance',
     this.supportPlan = 'Short prompts and praise after every answer.',
+    this.profilePhotoBase64,
     this.lastLessonSummary = 'No lesson captured yet.',
     this.lastAttendance = 'Checked in today',
     this.backendRecommendedModuleId,
@@ -246,6 +248,7 @@ class LearnerProfile {
       enrollmentStatus: 'Active in backend',
       attendanceBand: _attendanceBand(json['attendanceRate']),
       supportPlan: _supportPlan(level),
+      profilePhotoBase64: null,
       lastLessonSummary:
           'Live backend profile loaded${podLabel == null ? '.' : ' from $podLabel.'}',
       lastAttendance: _attendanceStatus(json['attendanceRate']),
@@ -279,6 +282,7 @@ class LearnerProfile {
     String? enrollmentStatus,
     String? attendanceBand,
     String? supportPlan,
+    String? profilePhotoBase64,
     String? lastLessonSummary,
     String? lastAttendance,
     String? backendRecommendedModuleId,
@@ -304,6 +308,7 @@ class LearnerProfile {
       enrollmentStatus: enrollmentStatus ?? this.enrollmentStatus,
       attendanceBand: attendanceBand ?? this.attendanceBand,
       supportPlan: supportPlan ?? this.supportPlan,
+      profilePhotoBase64: profilePhotoBase64 ?? this.profilePhotoBase64,
       lastLessonSummary: lastLessonSummary ?? this.lastLessonSummary,
       lastAttendance: lastAttendance ?? this.lastAttendance,
       backendRecommendedModuleId:
@@ -327,6 +332,7 @@ class RegistrationDraft {
   final bool consentCaptured;
   final String caregiverRelationship;
   final String supportPlan;
+  final String? profilePhotoBase64;
   final String mallamId;
 
   const RegistrationDraft({
@@ -343,6 +349,7 @@ class RegistrationDraft {
     this.consentCaptured = false,
     this.caregiverRelationship = 'Mother',
     this.supportPlan = 'Use short prompts and repeat once when needed.',
+    this.profilePhotoBase64,
     this.mallamId = '',
   });
 
@@ -360,6 +367,7 @@ class RegistrationDraft {
     bool? consentCaptured,
     String? caregiverRelationship,
     String? supportPlan,
+    String? profilePhotoBase64,
     String? mallamId,
   }) {
     return RegistrationDraft(
@@ -377,6 +385,7 @@ class RegistrationDraft {
       caregiverRelationship:
           caregiverRelationship ?? this.caregiverRelationship,
       supportPlan: supportPlan ?? this.supportPlan,
+      profilePhotoBase64: profilePhotoBase64 ?? this.profilePhotoBase64,
       mallamId: mallamId ?? this.mallamId,
     );
   }

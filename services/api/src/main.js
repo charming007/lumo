@@ -231,6 +231,248 @@ function buildProgressionOverrideResponse(record) {
   };
 }
 
+
+const CURRICULUM_CANVAS_ALLOWED_CHILDREN = {
+  root: ['subject'],
+  subject: ['strand'],
+  strand: ['module'],
+  module: ['lesson', 'assessment'],
+};
+
+function sortByOrderThenName(items = []) {
+  return items.slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || String(a.title || a.name || a.id).localeCompare(String(b.title || b.name || b.id)));
+}
+
+function findStrandById(id) {
+  return store.listStrands().find((item) => item.id === id) || null;
+}
+
+function findModuleById(id) {
+  return store.listModules().find((item) => item.id === id) || null;
+}
+
+function findAssessmentById(id) {
+  return store.listAssessments().find((item) => item.id === id) || null;
+}
+
+function requireCurriculumNode(nodeType, nodeId) {
+  if (nodeType === 'root') {
+    return { id: 'root', nodeType: 'root', title: 'Curriculum Canvas' };
+  }
+
+  const finders = {
+    subject: (id) => store.listSubjects().find((item) => item.id === id) || null,
+    strand: findStrandById,
+    module: findModuleById,
+    lesson: store.findLessonById,
+    assessment: findAssessmentById,
+  };
+
+  const node = finders[nodeType] ? finders[nodeType](nodeId) : null;
+  if (!node) {
+    const error = new Error(`${nodeType} not found`);
+    error.statusCode = 404;
+    throw error;
+  }
+  return node;
+}
+
+function getCurriculumNodeParent(nodeType, node) {
+  if (nodeType === 'subject') return { parentType: 'root', parentId: null };
+  if (nodeType === 'strand') return { parentType: 'subject', parentId: node.subjectId };
+  if (nodeType === 'module') return { parentType: 'strand', parentId: node.strandId };
+  if (nodeType === 'lesson' || nodeType === 'assessment') return { parentType: 'module', parentId: node.moduleId };
+  return { parentType: null, parentId: null };
+}
+
+function presentCurriculumCanvasNode(nodeType, node) {
+  if (nodeType === 'subject') {
+    const strands = sortByOrderThenName(store.listStrands().filter((item) => item.subjectId === node.id));
+    const modules = store.listModules().filter((item) => strands.some((strand) => strand.id === item.strandId));
+    const lessons = store.listLessons().filter((item) => modules.some((module) => module.id === item.moduleId));
+    const assessments = store.listAssessments().filter((item) => modules.some((module) => module.id === item.moduleId));
+    return {
+      id: node.id,
+      nodeType,
+      title: node.name,
+      name: node.name,
+      icon: node.icon || null,
+      order: Number(node.order || 0),
+      parentId: null,
+      parentType: 'root',
+      stats: {
+        strandCount: strands.length,
+        moduleCount: modules.length,
+        lessonCount: lessons.length,
+        assessmentCount: assessments.length,
+      },
+    };
+  }
+
+  if (nodeType === 'strand') {
+    const subject = requireCurriculumNode('subject', node.subjectId);
+    const modules = sortByOrderThenName(store.listModules().filter((item) => item.strandId === node.id));
+    const lessons = store.listLessons().filter((item) => modules.some((module) => module.id === item.moduleId));
+    const assessments = store.listAssessments().filter((item) => modules.some((module) => module.id === item.moduleId));
+    return {
+      id: node.id,
+      nodeType,
+      title: node.name,
+      name: node.name,
+      order: Number(node.order || 0),
+      parentId: node.subjectId,
+      parentType: 'subject',
+      subjectId: subject.id,
+      subjectName: subject.name,
+      stats: {
+        moduleCount: modules.length,
+        lessonCount: lessons.length,
+        assessmentCount: assessments.length,
+      },
+    };
+  }
+
+  if (nodeType === 'module') {
+    const strand = requireCurriculumNode('strand', node.strandId);
+    const subject = requireCurriculumNode('subject', strand.subjectId);
+    const lessons = sortByOrderThenName(store.listLessons().filter((item) => item.moduleId === node.id));
+    const assessments = sortByOrderThenName(store.listAssessments().filter((item) => item.moduleId === node.id));
+    return {
+      ...presenters.presentCurriculumModule(node),
+      nodeType,
+      title: node.title,
+      parentId: node.strandId,
+      parentType: 'strand',
+      strandId: strand.id,
+      strandName: strand.name,
+      subjectId: subject.id,
+      subjectName: subject.name,
+      stats: {
+        lessonCount: lessons.length,
+        assessmentCount: assessments.length,
+      },
+    };
+  }
+
+  if (nodeType === 'lesson') {
+    const module = requireCurriculumNode('module', node.moduleId);
+    const strand = requireCurriculumNode('strand', module.strandId);
+    const subject = requireCurriculumNode('subject', node.subjectId || strand.subjectId);
+    return {
+      ...presenters.presentLesson(node),
+      nodeType,
+      parentId: node.moduleId,
+      parentType: 'module',
+      strandId: strand.id,
+      strandName: strand.name,
+      subjectId: subject.id,
+      subjectName: subject.name,
+      title: node.title,
+      order: Number(node.order || 0),
+    };
+  }
+
+  if (nodeType === 'assessment') {
+    const module = requireCurriculumNode('module', node.moduleId);
+    const strand = requireCurriculumNode('strand', module.strandId);
+    const subject = requireCurriculumNode('subject', node.subjectId || strand.subjectId);
+    return {
+      ...presenters.presentAssessment(node),
+      nodeType,
+      parentId: node.moduleId,
+      parentType: 'module',
+      strandId: strand.id,
+      strandName: strand.name,
+      subjectId: subject.id,
+      subjectName: subject.name,
+      title: node.title,
+      order: Number(node.order || 0),
+    };
+  }
+
+  return { ...node, nodeType };
+}
+
+function buildCurriculumCanvasTree() {
+  const subjects = sortByOrderThenName(store.listSubjects()).map((subject) => {
+    const strands = sortByOrderThenName(store.listStrands().filter((strand) => strand.subjectId === subject.id)).map((strand) => {
+      const modules = sortByOrderThenName(store.listModules().filter((module) => module.strandId === strand.id)).map((module) => {
+        const lessons = sortByOrderThenName(store.listLessons().filter((lesson) => lesson.moduleId === module.id)).map((lesson) => presentCurriculumCanvasNode('lesson', lesson));
+        const assessments = sortByOrderThenName(store.listAssessments().filter((assessment) => assessment.moduleId === module.id)).map((assessment) => presentCurriculumCanvasNode('assessment', assessment));
+        return {
+          ...presentCurriculumCanvasNode('module', module),
+          children: [...lessons, ...assessments].sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || String(a.title || a.name || '').localeCompare(String(b.title || b.name || ''))),
+        };
+      });
+      return { ...presentCurriculumCanvasNode('strand', strand), children: modules };
+    });
+    return { ...presentCurriculumCanvasNode('subject', subject), children: strands };
+  });
+
+  return {
+    root: { id: 'root', nodeType: 'root', title: 'Curriculum Canvas', children: subjects },
+    meta: {
+      subjectCount: subjects.length,
+      strandCount: store.listStrands().length,
+      moduleCount: store.listModules().length,
+      lessonCount: store.listLessons().length,
+      assessmentCount: store.listAssessments().length,
+      generatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+function buildCurriculumCanvasFocus(nodeType, nodeId) {
+  const node = requireCurriculumNode(nodeType, nodeId);
+  const parent = getCurriculumNodeParent(nodeType, node);
+  const children = store.listCurriculumNodeChildren(nodeType, nodeId).map((child) => presentCurriculumCanvasNode(child.nodeType || (nodeType === 'module' && child.kind ? 'assessment' : undefined) || (nodeType === 'module' && child.trigger ? 'assessment' : undefined) || (child.lessonAssessment !== undefined || child.activitySteps !== undefined ? 'lesson' : nodeType === 'subject' ? 'strand' : nodeType === 'strand' ? 'module' : 'lesson'), child));
+
+  return {
+    node: nodeType === 'root' ? { id: 'root', nodeType: 'root', title: 'Curriculum Canvas' } : presentCurriculumCanvasNode(nodeType, node),
+    parent: parent.parentType ? { nodeType: parent.parentType, nodeId: parent.parentId, node: presentCurriculumCanvasNode(parent.parentType, requireCurriculumNode(parent.parentType, parent.parentId)) } : null,
+    children,
+    allowedChildNodeTypes: CURRICULUM_CANVAS_ALLOWED_CHILDREN[nodeType] || [],
+  };
+}
+
+
+function normalizeCanvasNodePatch(nodeType, body = {}) {
+  const patch = { ...body };
+
+  if ((nodeType === 'module' || nodeType === 'lesson' || nodeType === 'assessment') && patch.name && !patch.title) {
+    patch.title = patch.name;
+  }
+
+  if ((nodeType === 'lesson' || nodeType === 'assessment') && patch.moduleId && !patch.subjectId) {
+    const targetModule = requireCurriculumNode('module', patch.moduleId);
+    const targetStrand = requireCurriculumNode('strand', targetModule.strandId);
+    patch.subjectId = targetStrand.subjectId;
+  }
+
+  return patch;
+}
+
+function inferCanvasChildPayload(parentType, parentNode, childType, body = {}) {
+  if (childType === 'strand') {
+    return { subjectId: parentNode.id, name: body.name, order: body.order };
+  }
+  if (childType === 'module') {
+    return { strandId: parentNode.id, title: body.title || body.name, level: body.level || 'beginner', status: body.status || 'draft', order: body.order };
+  }
+  if (childType === 'lesson') {
+    const strand = requireCurriculumNode('strand', parentNode.strandId);
+    return { subjectId: body.subjectId || strand.subjectId, moduleId: parentNode.id, title: body.title || body.name, durationMinutes: body.durationMinutes || 10, mode: body.mode || 'guided', status: body.status || 'draft', order: body.order, targetAgeRange: body.targetAgeRange, voicePersona: body.voicePersona, learningObjectives: body.learningObjectives, localization: body.localization, lessonAssessment: body.lessonAssessment, activitySteps: body.activitySteps || body.activities };
+  }
+  if (childType === 'assessment') {
+    const strand = requireCurriculumNode('strand', parentNode.strandId);
+    return { subjectId: body.subjectId || strand.subjectId, moduleId: parentNode.id, title: body.title || body.name, kind: body.kind || 'automatic', trigger: body.trigger || 'module-complete', triggerLabel: body.triggerLabel || 'After module completion', progressionGate: body.progressionGate || 'foundation-a', passingScore: body.passingScore !== undefined ? body.passingScore : 0.6, status: body.status || 'draft', items: body.items, order: body.order };
+  }
+  if (childType === 'subject') {
+    return { id: body.id, name: body.name, icon: body.icon, order: body.order, initialStrandName: body.initialStrandName };
+  }
+  return body;
+}
+
 function normalizeMallamAssignmentValue(value) {
   if (value === undefined) return undefined;
   if (value === null) return null;
@@ -1267,6 +1509,117 @@ app.get('/api/v1/rewards/leaderboard', (req, res) => {
     mallamId: coerceOptionalString(req.query.mallamId),
     limit: Number.isFinite(limit) ? limit : 10,
   }));
+});
+
+
+app.get('/api/v1/curriculum/canvas', (_req, res) => {
+  res.json(buildCurriculumCanvasTree());
+});
+
+app.get('/api/v1/curriculum/canvas/focus/:nodeType/:nodeId', (req, res, next) => {
+  try {
+    return res.json(buildCurriculumCanvasFocus(req.params.nodeType, req.params.nodeId));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/curriculum/canvas/children', requireRole(['admin']), (req, res, next) => {
+  try {
+    const parentType = req.body?.parentType || 'root';
+    const childType = req.body?.childType;
+    const parentNode = parentType === 'root' ? { id: 'root', nodeType: 'root' } : requireCurriculumNode(parentType, req.body?.parentId);
+
+    if (!(CURRICULUM_CANVAS_ALLOWED_CHILDREN[parentType] || []).includes(childType)) {
+      const error = new Error(`Cannot create ${childType || 'node'} under ${parentType}`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const payload = inferCanvasChildPayload(parentType, parentNode, childType, req.body || {});
+    let created;
+    if (childType === 'subject') {
+      validators.validateSubject(payload);
+      created = store.createSubject(payload);
+    } else if (childType === 'strand') {
+      validators.validateStrand(payload);
+      created = store.createStrand(payload);
+    } else if (childType === 'module') {
+      validators.validateModule(payload);
+      created = store.createModule(payload);
+    } else if (childType === 'lesson') {
+      validators.validateLesson(payload);
+      created = store.createLesson(payload);
+    } else if (childType === 'assessment') {
+      validators.validateAssessment(payload);
+      created = store.createAssessment(payload);
+    }
+
+    return res.status(201).json({
+      created: presentCurriculumCanvasNode(childType, created),
+      focus: buildCurriculumCanvasFocus(parentType, parentNode.id),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/v1/curriculum/canvas/nodes/:nodeType/:nodeId', requireRole(['admin']), (req, res, next) => {
+  try {
+    const { nodeType, nodeId } = req.params;
+    requireCurriculumNode(nodeType, nodeId);
+    const patch = normalizeCanvasNodePatch(nodeType, req.body || {});
+
+    let updated;
+    if (nodeType === 'subject') {
+      validators.validateSubject(patch, { partial: true });
+      updated = store.updateSubject(nodeId, patch);
+    } else if (nodeType === 'strand') {
+      validators.validateStrand(patch, { partial: true });
+      updated = store.updateStrand(nodeId, patch);
+    } else if (nodeType === 'module') {
+      validators.validateModule(patch, { partial: true });
+      updated = store.updateModule(nodeId, patch);
+    } else if (nodeType === 'lesson') {
+      validators.validateLesson(patch, { partial: true });
+      updated = store.updateLesson(nodeId, patch);
+    } else if (nodeType === 'assessment') {
+      validators.validateAssessment(patch, { partial: true });
+      updated = store.updateAssessment(nodeId, patch);
+    } else {
+      const error = new Error(`Unsupported curriculum node type: ${nodeType}`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return res.json({ updated: presentCurriculumCanvasNode(nodeType, updated), focus: buildCurriculumCanvasFocus(nodeType, nodeId) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/curriculum/canvas/reorder', requireRole(['admin']), (req, res, next) => {
+  try {
+    const parentType = req.body?.parentType || 'root';
+    const parentId = req.body?.parentId || null;
+    const nodeType = req.body?.nodeType;
+    const orderedIds = Array.isArray(req.body?.orderedIds) ? req.body.orderedIds.map((value) => String(value)) : [];
+
+    if (parentType !== 'root') {
+      requireCurriculumNode(parentType, parentId);
+    }
+
+    const reordered = store.reorderCurriculumNodes({ parentType, parentId, nodeType, orderedIds });
+    return res.status(201).json({
+      parentType,
+      parentId,
+      nodeType,
+      items: reordered.map((item) => presentCurriculumCanvasNode(nodeType, item)),
+      focus: parentType === 'root' ? buildCurriculumCanvasTree().root : buildCurriculumCanvasFocus(parentType, parentId),
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.get('/api/v1/subjects', (_req, res) => {

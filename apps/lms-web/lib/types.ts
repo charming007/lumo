@@ -208,6 +208,7 @@ export type CurriculumModule = {
   id: string;
   subjectId?: string | null;
   subjectName: string;
+  strandId?: string | null;
   level: string;
   title: string;
   lessonCount: number;

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { MallamRosterManager } from '../../../components/mallam-roster-manager';
-import { fetchMallam, fetchMallams, fetchStudents } from '../../../lib/api';
+import { ApiRequestError, fetchMallam, fetchMallams, fetchStudents } from '../../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 function average(values: number[]) {
@@ -39,7 +39,12 @@ export default async function MallamDetailPage({ params, searchParams }: { param
 
   try {
     const [mallamResult, studentsResult, mallamsResult] = await Promise.allSettled([fetchMallam(id), fetchStudents(), fetchMallams()]);
-    if (mallamResult.status === 'rejected') notFound();
+    if (mallamResult.status === 'rejected') {
+      if (mallamResult.reason instanceof ApiRequestError && mallamResult.reason.status === 404) {
+        notFound();
+      }
+      throw mallamResult.reason;
+    }
 
     const mallam = mallamResult.value;
     const allStudents = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
@@ -317,6 +322,28 @@ export default async function MallamDetailPage({ params, searchParams }: { param
       </PageShell>
     );
   } catch {
-    notFound();
+    return (
+      <PageShell
+        title="Mallam detail temporarily unavailable"
+        subtitle="The deployment could not load this mallam record from the live API. Treat this as an outage/config issue until proven otherwise."
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/' },
+          { label: 'Mallams', href: '/mallams' },
+          { label: 'Detail unavailable' },
+        ]}
+      >
+        <div style={{ display: 'grid', gap: 16 }}>
+          {sectionAlert('Mallam detail failed to load from the API, so this route now shows an explicit runtime failure instead of a fake 404. Check API connectivity, then retry from the mallam roster.', 'warning')}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link href="/mallams" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+              Back to mallams
+            </Link>
+            <Link href="/reports" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 800, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+              Open reports
+            </Link>
+          </div>
+        </div>
+      </PageShell>
+    );
   }
 }

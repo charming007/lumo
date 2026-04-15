@@ -9,6 +9,8 @@ import {
   DeleteModuleForm,
   DeleteStrandForm,
   DeleteSubjectForm,
+  CreateModuleForm,
+  CreateStrandForm,
   UpdateAssessmentForm,
   UpdateLessonForm,
   UpdateModuleForm,
@@ -16,8 +18,9 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
+import { assessmentMatchesModule } from '../lib/module-assessment-match';
 import { Card, Pill } from '../lib/ui';
-import type { Assessment, CurriculumModule, Lesson, Strand, Subject } from '../lib/types';
+import type { Assessment, Assignment, CurriculumModule, Lesson, Strand, Subject } from '../lib/types';
 
 const subjectPalette: Record<string, { tone: string; text: string; accent: string }> = {
   english: { tone: '#EEF2FF', text: '#3730A3', accent: '#4F46E5' },
@@ -49,12 +52,14 @@ export function ContentSubjectLanes({
   modules,
   lessons,
   assessments,
+  assignments,
 }: {
   subjects: Subject[];
   strands: Strand[];
   modules: CurriculumModule[];
   lessons: Lesson[];
   assessments: Assessment[];
+  assignments: Assignment[];
 }) {
   const subjectSummaries = useMemo(() => subjects
     .map((subject) => {
@@ -63,12 +68,13 @@ export function ContentSubjectLanes({
       const subjectModules = modules.filter((module) => module.subjectId === subject.id || module.subjectName === subject.name);
       const subjectLessons = lessons.filter((lesson) => lesson.subjectId === subject.id || lesson.subjectName === subject.name);
       const subjectAssessments = assessments.filter((assessment) => assessment.subjectId === subject.id || assessment.subjectName === subject.name);
+      const subjectAssignments = assignments.filter((assignment) => subjectLessons.some((lesson) => lesson.title === assignment.lessonTitle));
       const publishedModules = subjectModules.filter((module) => module.status === 'published').length;
       const readyLessons = subjectLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
 
-      return { subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, publishedModules, readyLessons };
+      return { subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, subjectAssignments, publishedModules, readyLessons };
     })
-    .sort((left, right) => (left.subject.order ?? 999) - (right.subject.order ?? 999) || left.subject.name.localeCompare(right.subject.name)), [subjects, strands, modules, lessons, assessments]);
+    .sort((left, right) => (left.subject.order ?? 999) - (right.subject.order ?? 999) || left.subject.name.localeCompare(right.subject.name)), [subjects, strands, modules, lessons, assessments, assignments]);
 
   const [collapsedSubjects, setCollapsedSubjects] = useState<Record<string, boolean>>({});
   const [collapsedStrands, setCollapsedStrands] = useState<Record<string, boolean>>({});
@@ -124,7 +130,7 @@ export function ContentSubjectLanes({
       </div>
 
       <div style={{ display: 'grid', gap: 16 }}>
-        {subjectSummaries.map(({ subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, publishedModules, readyLessons }) => {
+        {subjectSummaries.map(({ subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, subjectAssignments, publishedModules, readyLessons }) => {
           const collapsed = Boolean(collapsedSubjects[subject.id]);
 
           return (
@@ -175,9 +181,23 @@ export function ContentSubjectLanes({
                   <Pill label={`${subjectStrands.filter((strand) => collapsedStrands[strand.id]).length}/${subjectStrands.length} strands collapsed`} tone="#F8FAFC" text="#334155" />
                   <Pill label={`${publishedModules} published`} tone={palette.tone} text={palette.text} />
                   <Pill label={`${readyLessons} ready lessons`} tone="#F8FAFC" text="#334155" />
+                  <Pill label={`${subjectAssignments.length} learner-facing assignment${subjectAssignments.length === 1 ? '' : 's'}`} tone="#FFF7ED" text="#9A3412" />
                 </div>
 
                 <div id={`subject-panel-${subject.id}`} hidden={collapsed} style={{ display: collapsed ? 'none' : 'grid', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a real strand directly from the curriculum canvas instead of bouncing to a separate admin surface." eyebrow="Create strand" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
+                      <CreateStrandForm subjects={subjects} initialSubjectId={subject.id} initialOrder={subjectStrands.length + 1} />
+                    </ModalLauncher>
+                    <Link href={`/content/lessons/new?subjectId=${subject.id}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none' }}>
+                      Open lesson studio for {subject.name} →
+                    </Link>
+                    {subjectAssignments.length ? (
+                      <Link href={`/assignments?q=${encodeURIComponent(subject.name)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>
+                        See learner delivery impact →
+                      </Link>
+                    ) : null}
+                  </div>
                   {subjectStrands.length > 0 ? subjectStrands.map((strand) => {
                     const strandModules = subjectModules.filter((module) => module.strandName === strand.name);
                     const strandCollapsed = Boolean(collapsedStrands[strand.id]);
@@ -214,6 +234,9 @@ export function ContentSubjectLanes({
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             <Pill label={strandCollapsed ? 'Hidden' : 'Visible'} tone={strandCollapsed ? '#E2E8F0' : '#ECFDF5'} text={strandCollapsed ? '#334155' : '#166534'} />
+                            <ModalLauncher buttonLabel="＋ Module" title={`Create module in ${strand.name}`} description="Create a real module directly from this strand lane so the canvas writes back into the live curriculum spine." eyebrow="Create module" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
+                              <CreateModuleForm strands={strands} initialStrandId={strand.id} initialTitle={`${strand.name} Module`} initialOrder={strandModules.length + 1} />
+                            </ModalLauncher>
                             <ModalLauncher buttonLabel="✏️" title={`Edit strand · ${strand.name}`} description="Rename or reorder this strand without leaving the subject lane." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                               <UpdateStrandForm strand={strand} subjects={subjects} embedded />
                             </ModalLauncher>
@@ -226,7 +249,8 @@ export function ContentSubjectLanes({
                         <div id={`strand-panel-${strand.id}`} hidden={strandCollapsed} style={{ display: strandCollapsed ? 'none' : 'grid', gap: 12 }}>
                           {strandModules.length > 0 ? strandModules.map((module) => {
                             const moduleLessons = subjectLessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
-                            const moduleAssessments = subjectAssessments.filter((assessment) => assessment.moduleId === module.id || assessment.moduleTitle === module.title);
+                            const moduleAssessments = subjectAssessments.filter((assessment) => assessmentMatchesModule(module, assessment));
+                            const moduleAssignments = assignments.filter((assignment) => moduleLessons.some((lesson) => lesson.title === assignment.lessonTitle));
                             const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                             const pill = statusPill(module.status);
 
@@ -235,10 +259,21 @@ export function ContentSubjectLanes({
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                                   <div>
                                     <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{module.title}</div>
-                                    <div style={{ color: '#64748b' }}>{module.level} • {module.lessonCount} planned lessons • {readyLessonCount} ready now</div>
+                                    <div style={{ color: '#64748b' }}>{module.level} • {module.lessonCount} planned lessons • {readyLessonCount} ready now • {moduleAssignments.length} live assignment{moduleAssignments.length === 1 ? '' : 's'}</div>
                                   </div>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                     <Pill label={module.status} tone={pill.tone} text={pill.text} />
+                                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+                                      Open lesson studio →
+                                    </Link>
+                                    <ModalLauncher buttonLabel="＋ Lesson" title={`Create lesson in ${module.title}`} description="Create a lesson shell from the module card, then hand off immediately into the full lesson studio flow." eyebrow="Create lesson" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
+                                      <div style={{ display: 'grid', gap: 12 }}>
+                                        <div style={{ color: '#64748b', lineHeight: 1.6 }}>For the real payload, use the full lesson studio. This shortcut only creates the lesson record in the correct curriculum lane.</div>
+                                        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
+                                          Open full lesson studio
+                                        </Link>
+                                      </div>
+                                    </ModalLauncher>
                                     <ModalLauncher buttonLabel="✏️ Edit module" title={`Edit module · ${module.title}`} description="Update module metadata from the same content lane." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                                       <UpdateModuleForm modules={[module]} />
                                     </ModalLauncher>
@@ -257,9 +292,13 @@ export function ContentSubjectLanes({
                                           <div>
                                             <div style={{ fontWeight: 700 }}>{lesson.title}</div>
                                             <div style={{ color: '#64748b' }}>{lesson.mode} • {lesson.durationMinutes} min</div>
+                                            <div style={{ color: '#9A3412', fontSize: 12, fontWeight: 700, marginTop: 6 }}>
+                                              {assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length} live assignment{assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length === 1 ? '' : 's'} using this learner-facing lesson
+                                            </div>
                                             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
                                               <Link href={`/content/lessons/${lesson.id}?from=%2Fcontent`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open authoring editor →</Link>
-                                              <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&duplicate=${lesson.id}&from=%2Fcontent`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
+                                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&duplicate=${encodeURIComponent(lesson.id)}&from=%2Fcontent`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
+                                              <Link href={`/assignments?q=${encodeURIComponent(lesson.title)}`} style={{ color: '#C2410C', fontWeight: 700, textDecoration: 'none' }}>View delivery usage →</Link>
                                             </div>
                                           </div>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -304,7 +343,7 @@ export function ContentSubjectLanes({
                                         <div style={{ display: 'grid', gap: 10 }}>
                                           <div style={{ color: '#64748b' }}>No assessment linked yet.</div>
                                           <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Attach the missing progression gate without leaving this strand." eyebrow="Create assessment" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
-                                            <CreateAssessmentForm modules={[module]} subjects={subjects} />
+                                            <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath="/content" />
                                           </ModalLauncher>
                                         </div>
                                       )}

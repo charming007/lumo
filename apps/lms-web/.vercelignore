@@ -1,0 +1,6 @@
+.next
+.next.stale*
+.vercel
+node_modules
+tsconfig.tsbuildinfo
+.DS_Store

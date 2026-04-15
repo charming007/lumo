@@ -1,3 +1,4 @@
+import { assessmentMatchesModule } from './module-assessment-match';
 import type { Assessment, Assignment, CurriculumModule, Lesson } from './types';
 
 type ActivityTemplate = {
@@ -157,7 +158,9 @@ export function buildEnglishLessonBlueprints({
 
   return englishLessons.map((lesson) => {
     const module = englishModules.find((item) => item.id === lesson.moduleId || item.title === lesson.moduleTitle);
-    const linkedAssessment = assessments.find((assessment) => assessment.moduleId === module?.id || assessment.moduleTitle === lesson.moduleTitle) ?? null;
+    const linkedAssessment = module
+      ? assessments.find((assessment) => assessmentMatchesModule(module, assessment)) ?? null
+      : assessments.find((assessment) => assessment.moduleTitle === lesson.moduleTitle) ?? null;
     const vocabularyFocus = inferVocabulary(lesson.title);
     const release = releaseMeta(lesson.status);
     const readiness = buildReadinessChecks({

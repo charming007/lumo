@@ -259,14 +259,14 @@ export function DeleteSubjectForm({ subject, embedded = false }: { subject: Subj
   );
 }
 
-export function CreateStrandForm({ subjects }: { subjects: Subject[] }) {
+export function CreateStrandForm({ subjects, initialSubjectId, initialName, initialOrder }: { subjects: Subject[]; initialSubjectId?: string; initialName?: string; initialOrder?: number }) {
   return (
     <form action={createStrandAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Create strand</h2>
       <SectionHint>Give each subject a real planning lane before you start dumping modules into it.</SectionHint>
-      <FieldLabel>Subject<select name="subjectId" defaultValue={subjects[0]?.id} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
-      <FieldLabel>Strand name<input name="name" defaultValue="Speaking & Listening" style={inputStyle} /></FieldLabel>
-      <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="2" style={inputStyle} /></FieldLabel>
+      <FieldLabel>Subject<select name="subjectId" defaultValue={initialSubjectId ?? subjects[0]?.id} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
+      <FieldLabel>Strand name<input name="name" defaultValue={initialName ?? 'Speaking & Listening'} style={inputStyle} /></FieldLabel>
+      <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(initialOrder ?? 2)} style={inputStyle} /></FieldLabel>
       <ActionButton label="Create strand" pendingLabel="Creating strand…" style={buttonStyle} />
     </form>
   );
@@ -302,21 +302,21 @@ export function DeleteStrandForm({ strand, embedded = false }: { strand: Strand;
   );
 }
 
-export function CreateModuleForm({ strands }: { strands: Strand[] }) {
-  const defaultStrand = strands[0];
+export function CreateModuleForm({ strands, initialStrandId, initialTitle, initialLevel, initialLessonCount, initialOrder, initialStatus }: { strands: Strand[]; initialStrandId?: string; initialTitle?: string; initialLevel?: string; initialLessonCount?: number; initialOrder?: number; initialStatus?: string }) {
+  const defaultStrand = strands.find((strand) => strand.id === initialStrandId) ?? strands[0];
 
   return (
     <form action={createModuleAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Create module</h2>
       <SectionHint>Build a real content lane by selecting the exact strand first, not some hardcoded fake default.</SectionHint>
       <FieldLabel>Strand<select name="strandId" defaultValue={defaultStrand?.id} style={inputStyle}>{strands.map((strand) => <option key={strand.id} value={strand.id}>{strand.subjectName} • {strand.name}</option>)}</select></FieldLabel>
-      <FieldLabel>Title<input name="title" defaultValue="Community Helpers" style={inputStyle} /></FieldLabel>
+      <FieldLabel>Title<input name="title" defaultValue={initialTitle ?? 'Community Helpers'} style={inputStyle} /></FieldLabel>
       <div style={threeColumnGrid}>
-        <FieldLabel>Level<select name="level" defaultValue="beginner" style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
-        <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue="6" style={inputStyle} /></FieldLabel>
-        <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="3" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Level<select name="level" defaultValue={initialLevel ?? 'beginner'} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
+        <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(initialLessonCount ?? 6)} style={inputStyle} /></FieldLabel>
+        <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(initialOrder ?? 3)} style={inputStyle} /></FieldLabel>
       </div>
-      <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
+      <FieldLabel>Status<select name="status" defaultValue={initialStatus ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
       <ActionButton label="Create module" pendingLabel="Creating module…" style={buttonStyle} />
     </form>
   );

@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'app_state.dart';
 import 'audio_capture_service.dart';
@@ -134,20 +137,21 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
     _recoveryLaunchHandled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final recoveredRoute = session.completionState == LessonCompletionState.complete
-          ? MaterialPageRoute(
-              builder: (_) => LessonCompletePage(
-                state: widget.state,
-                lesson: lesson,
-              ),
-            )
-          : MaterialPageRoute(
-              builder: (_) => LessonSessionPage(
-                state: widget.state,
-                lesson: lesson,
-                onChanged: widget.onChanged,
-              ),
-            );
+      final recoveredRoute =
+          session.completionState == LessonCompletionState.complete
+              ? MaterialPageRoute(
+                  builder: (_) => LessonCompletePage(
+                    state: widget.state,
+                    lesson: lesson,
+                  ),
+                )
+              : MaterialPageRoute(
+                  builder: (_) => LessonSessionPage(
+                    state: widget.state,
+                    lesson: lesson,
+                    onChanged: widget.onChanged,
+                  ),
+                );
       Navigator.of(context).push(recoveredRoute);
     });
   }
@@ -873,6 +877,236 @@ class AllStudentsPage extends StatelessWidget {
   }
 }
 
+Uint8List? _decodeProfilePhoto(String? base64Value) {
+  if (base64Value == null || base64Value.trim().isEmpty) return null;
+  try {
+    return base64Decode(base64Value);
+  } catch (_) {
+    return null;
+  }
+}
+
+class _DefaultLearnerAvatar extends StatelessWidget {
+  const _DefaultLearnerAvatar({this.size = 120});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x140F172A),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: size * 0.16,
+              child: Container(
+                width: size * 0.44,
+                height: size * 0.3,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              top: size * 0.24,
+              child: Container(
+                width: size * 0.4,
+                height: size * 0.4,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF4C7A1),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              top: size * 0.38,
+              left: size * 0.34,
+              child: Container(
+                  width: size * 0.04,
+                  height: size * 0.04,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFF0F172A), shape: BoxShape.circle)),
+            ),
+            Positioned(
+              top: size * 0.38,
+              right: size * 0.34,
+              child: Container(
+                  width: size * 0.04,
+                  height: size * 0.04,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFF0F172A), shape: BoxShape.circle)),
+            ),
+            Positioned(
+              top: size * 0.48,
+              child: Container(
+                width: size * 0.12,
+                height: size * 0.05,
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFF7C2D12), width: 2),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: size * 0.06,
+              child: Container(
+                width: size * 0.64,
+                height: size * 0.34,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF4F46E5),
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(999)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LearnerAvatar extends StatelessWidget {
+  const _LearnerAvatar({required this.photoBase64, this.size = 120});
+
+  final String? photoBase64;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = _decodeProfilePhoto(photoBase64);
+    if (bytes == null) {
+      return _DefaultLearnerAvatar(size: size);
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x140F172A),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Image.memory(bytes,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _DefaultLearnerAvatar(size: size)),
+      ),
+    );
+  }
+}
+
+class _LearnerIdentityHero extends StatelessWidget {
+  const _LearnerIdentityHero({
+    required this.learner,
+    required this.totalPoints,
+    required this.totalXp,
+    required this.totalMinutes,
+    required this.leaderboardEntry,
+  });
+
+  final LearnerProfile learner;
+  final int totalPoints;
+  final int totalXp;
+  final int totalMinutes;
+  final LearnerLeaderboardEntry? leaderboardEntry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftPanel(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 680;
+          final avatar = _LearnerAvatar(
+            photoBase64: learner.profilePhotoBase64,
+            size: compact ? 112 : 136,
+          );
+          final textBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                learner.name,
+                style:
+                    const TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${learner.age} years • ${learner.cohort} • ${learner.preferredLanguage}',
+                style: const TextStyle(color: Color(0xFF475569), height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  StatusPill(
+                      text: learner.readinessLabel, color: LumoTheme.primary),
+                  StatusPill(
+                      text: '$totalPoints pts', color: LumoTheme.accentGreen),
+                  StatusPill(
+                      text: '${learner.streakDays} day streak',
+                      color: LumoTheme.accentOrange),
+                  if (leaderboardEntry != null)
+                    StatusPill(
+                        text: 'Rank #${leaderboardEntry!.rank}',
+                        color: const Color(0xFF0EA5E9)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                learner.profilePhotoBase64 == null
+                    ? 'Default learner avatar is active for now. Add a photo during registration whenever you want. $totalXp XP earned across about $totalMinutes learning minutes so far.'
+                    : 'Profile photo captured for this learner. $totalXp XP earned across about $totalMinutes learning minutes so far.',
+                style: const TextStyle(color: Color(0xFF64748B), height: 1.4),
+              ),
+            ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [avatar, const SizedBox(height: 16), textBlock],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              avatar,
+              const SizedBox(width: 20),
+              Expanded(child: textBlock)
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
 class LearnerProfilePage extends StatelessWidget {
   final LumoAppState state;
   final LearnerProfile learner;
@@ -909,72 +1143,27 @@ class LearnerProfilePage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: _ResponsiveWorkspaceRow(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ResponsivePane(
-                child: MallamPanel(
-                  instruction:
-                      'This learner data page now shows the child\'s rewards, leaderboard rank, streak, XP, time spent, and assigned lesson momentum.',
-                  onVoiceTap: () {
-                    state.replayVisiblePrompt(
-                      'You are viewing ${learner.name}. This page shows points, streaks, badge rewards, leaderboard rank, and the fastest way to continue learning.',
-                    );
-                  },
-                  prompt:
-                      'You are viewing ${learner.name}. This page shows points, streaks, badge rewards, leaderboard rank, and the fastest way to continue learning.',
-                  speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'AI Mallam explains this learner page',
-                ),
-              ),
-              ResponsivePane(
-                child: DetailCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final compactHeader = constraints.maxWidth < 560;
-
-                          if (compactHeader) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('Back'),
-                                ),
-                                const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 10,
-                                  runSpacing: 10,
-                                  children: [
-                                    if (leaderboardEntry != null)
-                                      StatusPill(
-                                        text:
-                                            '#${leaderboardEntry.rank} on leaderboard',
-                                        color: leaderboardEntry.rank == 1
-                                            ? LumoTheme.accentOrange
-                                            : LumoTheme.primary,
-                                      ),
-                                    StatusPill(
-                                      text: learner.enrollmentStatus,
-                                      color: LumoTheme.primary,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            );
-                          }
-
-                          return Row(
+          child: DetailCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compactHeader = constraints.maxWidth < 560;
+                    if (compactHeader) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Back'),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
                             children: [
-                              OutlinedButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('Back'),
-                              ),
-                              const Spacer(),
-                              if (leaderboardEntry != null) ...[
+                              if (leaderboardEntry != null)
                                 StatusPill(
                                   text:
                                       '#${leaderboardEntry.rank} on leaderboard',
@@ -982,663 +1171,581 @@ class LearnerProfilePage extends StatelessWidget {
                                       ? LumoTheme.accentOrange
                                       : LumoTheme.primary,
                                 ),
-                                const SizedBox(width: 10),
-                              ],
                               StatusPill(
-                                text: learner.enrollmentStatus,
+                                  text: learner.enrollmentStatus,
+                                  color: LumoTheme.primary),
+                            ],
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Back'),
+                        ),
+                        const Spacer(),
+                        if (leaderboardEntry != null) ...[
+                          StatusPill(
+                            text: '#${leaderboardEntry.rank} on leaderboard',
+                            color: leaderboardEntry.rank == 1
+                                ? LumoTheme.accentOrange
+                                : LumoTheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        StatusPill(
+                            text: learner.enrollmentStatus,
+                            color: LumoTheme.primary),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _LearnerIdentityHero(
+                          learner: learner,
+                          totalPoints: totalPoints,
+                          totalXp: totalXp,
+                          totalMinutes: totalMinutes,
+                          leaderboardEntry: leaderboardEntry,
+                        ),
+                        const SizedBox(height: 18),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final compact = constraints.maxWidth < 640;
+                            final tiles = [
+                              MetricTile(
+                                label: 'Streak',
+                                value: '${learner.streakDays} days',
+                                icon: Icons.local_fire_department_rounded,
+                                color: LumoTheme.accentOrange,
+                              ),
+                              MetricTile(
+                                label: 'Total XP',
+                                value: '$totalXp XP',
+                                icon: Icons.stars_rounded,
                                 color: LumoTheme.primary,
                               ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: SingleChildScrollView(
+                              MetricTile(
+                                label: 'Points',
+                                value: '$totalPoints pts',
+                                icon: Icons.workspace_premium_rounded,
+                                color: LumoTheme.accentGreen,
+                              ),
+                              MetricTile(
+                                label: 'Learning time',
+                                value: '$totalMinutes min',
+                                icon: Icons.schedule_rounded,
+                                color: const Color(0xFF0EA5E9),
+                              ),
+                            ];
+
+                            if (compact) {
+                              return Column(
+                                children: [
+                                  for (var i = 0; i < tiles.length; i++) ...[
+                                    SizedBox(
+                                        width: double.infinity,
+                                        child: tiles[i]),
+                                    if (i < tiles.length - 1)
+                                      const SizedBox(height: 12),
+                                  ],
+                                ],
+                              );
+                            }
+
+                            return Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: tiles
+                                  .map((tile) => SizedBox(
+                                        width: (constraints.maxWidth - 12) / 2,
+                                        child: tile,
+                                      ))
+                                  .toList(),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                        if (rewards != null) ...[
+                          SoftPanel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.emoji_events_rounded,
+                                        color: LumoTheme.accentOrange),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Rewards spotlight',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 18),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                LabelValueWrap(
+                                  items: [
+                                    (
+                                      'Level',
+                                      '${rewards.levelLabel} • Lv ${rewards.level}'
+                                    ),
+                                    ('Points', '${rewards.points} points'),
+                                    (
+                                      'Badges unlocked',
+                                      '${unlockedBadges.length} of ${rewards.badges.length}'
+                                    ),
+                                    (
+                                      'Next level',
+                                      rewards.nextLevelLabel == null
+                                          ? 'Top celebration band'
+                                          : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                LinearProgressIndicator(
+                                  value:
+                                      rewards.progressToNextLevel.clamp(0, 1),
+                                  minHeight: 10,
+                                  borderRadius: const BorderRadius.all(
+                                      Radius.circular(999)),
+                                  color: LumoTheme.accentGreen,
+                                  backgroundColor: const Color(0xFFD1FAE5),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: rewards.badges.isEmpty
+                                      ? const [
+                                          StatusPill(
+                                              text: 'No badges yet',
+                                              color: Color(0xFF94A3B8)),
+                                        ]
+                                      : rewards.badges
+                                          .take(6)
+                                          .map((badge) => StatusPill(
+                                                text: badge.earned
+                                                    ? '${badge.icon} ${badge.title}'
+                                                    : '${badge.title} ${badge.progress}/${badge.target}',
+                                                color: badge.earned
+                                                    ? LumoTheme.accentGreen
+                                                    : LumoTheme.accentOrange,
+                                              ))
+                                          .toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+                        if (rewardOptions.isNotEmpty) ...[
+                          _RewardRedemptionPlannerPanel(
+                            learner: learner,
+                            summary: state
+                                .rewardRedemptionSummaryForLearner(learner),
+                            featuredReward: featuredReward,
+                            options: rewardOptions,
+                            nearlyUnlockedRewards: nearlyUnlockedRewards,
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+                        if (leaderboard.isNotEmpty) ...[
+                          _LearnerLeaderboardPanel(
+                            leaderboard: leaderboard.take(5).toList(),
+                            currentLearnerId: learner.id,
+                            title: 'Points leaderboard',
+                            subtitle:
+                                'Use this to celebrate progress publicly and keep momentum visible.',
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+                        SoftPanel(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _LearnerRewardHero(
-                                learner: learner,
-                                rewards: rewards,
-                                totalXp: totalXp,
-                                totalPoints: totalPoints,
-                                totalMinutes: totalMinutes,
-                                leaderboardEntry: leaderboardEntry,
-                                unlockedBadgeCount: unlockedBadges.length,
-                              ),
-                              const SizedBox(height: 18),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 640;
-                                  final tiles = [
-                                    MetricTile(
-                                      label: 'Streak',
-                                      value: '${learner.streakDays} days',
-                                      icon: Icons.local_fire_department_rounded,
-                                      color: LumoTheme.accentOrange,
-                                    ),
-                                    MetricTile(
-                                      label: 'Total XP',
-                                      value: '$totalXp XP',
-                                      icon: Icons.stars_rounded,
-                                      color: LumoTheme.primary,
-                                    ),
-                                    MetricTile(
-                                      label: 'Points',
-                                      value: '$totalPoints pts',
-                                      icon: Icons.workspace_premium_rounded,
-                                      color: LumoTheme.accentGreen,
-                                    ),
-                                    MetricTile(
-                                      label: 'Learning time',
-                                      value: '$totalMinutes min',
-                                      icon: Icons.schedule_rounded,
-                                      color: const Color(0xFF0EA5E9),
-                                    ),
-                                  ];
-
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < tiles.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: tiles[i],
-                                          ),
-                                          if (i < tiles.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Wrap(
-                                    spacing: 12,
-                                    runSpacing: 12,
-                                    children: tiles
-                                        .map(
-                                          (tile) => SizedBox(
-                                            width:
-                                                (constraints.maxWidth - 12) / 2,
-                                            child: tile,
-                                          ),
-                                        )
-                                        .toList(),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 18),
-                              if (rewards != null) ...[
-                                SoftPanel(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Row(
-                                        children: [
-                                          Icon(Icons.emoji_events_rounded,
-                                              color: LumoTheme.accentOrange),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Rewards spotlight',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      LabelValueWrap(
-                                        items: [
-                                          (
-                                            'Level',
-                                            '${rewards.levelLabel} • Lv ${rewards.level}',
-                                          ),
-                                          (
-                                            'Points',
-                                            '${rewards.points} points'
-                                          ),
-                                          (
-                                            'Badges unlocked',
-                                            '${unlockedBadges.length} of ${rewards.badges.length}',
-                                          ),
-                                          (
-                                            'Next level',
-                                            rewards.nextLevelLabel == null
-                                                ? 'Top celebration band'
-                                                : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      LinearProgressIndicator(
-                                        value: rewards.progressToNextLevel
-                                            .clamp(0, 1),
-                                        minHeight: 10,
-                                        borderRadius: const BorderRadius.all(
-                                          Radius.circular(999),
-                                        ),
-                                        color: LumoTheme.accentGreen,
-                                        backgroundColor:
-                                            const Color(0xFFD1FAE5),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: rewards.badges.isEmpty
-                                            ? const [
-                                                StatusPill(
-                                                  text: 'No badges yet',
-                                                  color: Color(0xFF94A3B8),
-                                                ),
-                                              ]
-                                            : rewards.badges
-                                                .take(6)
-                                                .map(
-                                                  (badge) => StatusPill(
-                                                    text: badge.earned
-                                                        ? '${badge.icon} ${badge.title}'
-                                                        : '${badge.title} ${badge.progress}/${badge.target}',
-                                                    color: badge.earned
-                                                        ? LumoTheme.accentGreen
-                                                        : LumoTheme
-                                                            .accentOrange,
-                                                  ),
-                                                )
-                                                .toList(),
-                                      ),
-                                    ],
+                              const Text('Basic information',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 12),
+                              InfoRow(
+                                  label: 'Guardian',
+                                  value: learner.guardianName),
+                              InfoRow(
+                                  label: 'Relationship',
+                                  value: learner.caregiverRelationship),
+                              InfoRow(
+                                  label: 'Language',
+                                  value: learner.preferredLanguage),
+                              InfoRow(
+                                  label: 'Readiness',
+                                  value: learner.readinessLabel),
+                              InfoRow(
+                                  label: 'Support plan',
+                                  value: learner.supportPlan),
+                              InfoRow(
+                                  label: 'Last lesson',
+                                  value: learner.lastLessonSummary),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SoftPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Expanded(
+                                      child: Text('Backend routing',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800))),
+                                  StatusPill(
+                                    text: nextAssignmentPack == null
+                                        ? 'Fallback routing'
+                                        : 'Live assignment',
+                                    color: nextAssignmentPack == null
+                                        ? LumoTheme.accentOrange
+                                        : LumoTheme.accentGreen,
                                   ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                state.backendRoutingSummaryForLearner(learner),
+                                style: const TextStyle(
+                                    color: Color(0xFF475569), height: 1.4),
+                              ),
+                              const SizedBox(height: 12),
+                              InfoRow(
+                                  label: 'Recommended module',
+                                  value: recommendedModule.title),
+                              if (nextAssignmentPack != null) ...[
+                                InfoRow(
+                                    label: 'Assigned lesson',
+                                    value: nextAssignmentPack.lessonTitle),
+                                InfoRow(
+                                  label: 'Assessment',
+                                  value: nextAssignmentPack.assessmentTitle ??
+                                      'No assessment gate',
                                 ),
-                                const SizedBox(height: 18),
                               ],
-                              if (rewardOptions.isNotEmpty) ...[
-                                _RewardRedemptionPlannerPanel(
-                                  learner: learner,
-                                  summary:
-                                      state.rewardRedemptionSummaryForLearner(
-                                    learner,
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SoftPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Expanded(
+                                      child: Text('Recent backend runtime',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800))),
+                                  StatusPill(
+                                    text: recentSessions.isEmpty
+                                        ? 'Waiting for sync'
+                                        : '${recentSessions.length} session(s)',
+                                    color: recentSessions.isEmpty
+                                        ? LumoTheme.accentOrange
+                                        : LumoTheme.accentGreen,
                                   ),
-                                  featuredReward: featuredReward,
-                                  options: rewardOptions,
-                                  nearlyUnlockedRewards: nearlyUnlockedRewards,
-                                ),
-                                const SizedBox(height: 18),
-                              ],
-                              if (leaderboard.isNotEmpty) ...[
-                                _LearnerLeaderboardPanel(
-                                  leaderboard: leaderboard.take(5).toList(),
-                                  currentLearnerId: learner.id,
-                                  title: 'Points leaderboard',
-                                  subtitle:
-                                      'Use this to celebrate progress publicly and keep momentum visible.',
-                                ),
-                                const SizedBox(height: 18),
-                              ],
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Basic information',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    InfoRow(
-                                      label: 'Guardian',
-                                      value: learner.guardianName,
-                                    ),
-                                    InfoRow(
-                                      label: 'Relationship',
-                                      value: learner.caregiverRelationship,
-                                    ),
-                                    InfoRow(
-                                      label: 'Language',
-                                      value: learner.preferredLanguage,
-                                    ),
-                                    InfoRow(
-                                      label: 'Readiness',
-                                      value: learner.readinessLabel,
-                                    ),
-                                    InfoRow(
-                                      label: 'Support plan',
-                                      value: learner.supportPlan,
-                                    ),
-                                    InfoRow(
-                                      label: 'Last lesson',
-                                      value: learner.lastLessonSummary,
-                                    ),
-                                  ],
-                                ),
+                                ],
                               ),
-                              const SizedBox(height: 18),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Text(
-                                            'Backend routing',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        StatusPill(
-                                          text: nextAssignmentPack == null
-                                              ? 'Fallback routing'
-                                              : 'Live assignment',
-                                          color: nextAssignmentPack == null
-                                              ? LumoTheme.accentOrange
-                                              : LumoTheme.accentGreen,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      state.backendRoutingSummaryForLearner(
-                                        learner,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    InfoRow(
-                                      label: 'Recommended module',
-                                      value: recommendedModule.title,
-                                    ),
-                                    if (nextAssignmentPack != null) ...[
-                                      InfoRow(
-                                        label: 'Assigned lesson',
-                                        value: nextAssignmentPack.lessonTitle,
-                                      ),
-                                      InfoRow(
-                                        label: 'Assessment',
-                                        value: nextAssignmentPack
-                                                .assessmentTitle ??
-                                            'No assessment gate',
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                              const SizedBox(height: 10),
+                              Text(
+                                state.runtimeSessionSummaryForLearner(learner),
+                                style: const TextStyle(
+                                    color: Color(0xFF475569), height: 1.4),
                               ),
-                              const SizedBox(height: 18),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Text(
-                                            'Recent backend runtime',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        StatusPill(
-                                          text: recentSessions.isEmpty
-                                              ? 'Waiting for sync'
-                                              : '${recentSessions.length} session(s)',
-                                          color: recentSessions.isEmpty
-                                              ? LumoTheme.accentOrange
-                                              : LumoTheme.accentGreen,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      state.runtimeSessionSummaryForLearner(
-                                        learner,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    if (recentSessions.isNotEmpty) ...[
-                                      const SizedBox(height: 12),
-                                      ...recentSessions.take(3).map(
-                                            (session) => Container(
-                                              width: double.infinity,
-                                              margin: const EdgeInsets.only(
-                                                bottom: 10,
-                                              ),
-                                              padding: const EdgeInsets.all(14),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF8FAFC),
-                                                borderRadius:
-                                                    BorderRadius.circular(18),
-                                                border: Border.all(
-                                                  color:
-                                                      const Color(0xFFE2E8F0),
-                                                ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          session.lessonTitle ??
-                                                              'Live runtime session',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color: Color(
-                                                              0xFF0F172A,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      StatusPill(
-                                                        text:
-                                                            session.statusLabel,
-                                                        color: session.status ==
-                                                                'completed'
-                                                            ? LumoTheme
-                                                                .accentGreen
-                                                            : LumoTheme
-                                                                .accentOrange,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    session.automationStatus,
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF475569),
-                                                      height: 1.35,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 10),
-                                                  Wrap(
-                                                    spacing: 10,
-                                                    runSpacing: 8,
-                                                    children: [
-                                                      _MiniMetricChip(
-                                                        icon:
-                                                            Icons.route_rounded,
-                                                        label: session
-                                                            .progressLabel,
-                                                      ),
-                                                      _MiniMetricChip(
-                                                        icon: Icons
-                                                            .record_voice_over_rounded,
-                                                        label:
-                                                            '${session.responsesCaptured} responses',
-                                                      ),
-                                                      _MiniMetricChip(
-                                                        icon: Icons
-                                                            .tips_and_updates_rounded,
-                                                        label:
-                                                            '${session.supportActionsUsed} supports',
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  if (session.status ==
-                                                      'in_progress') ...[
-                                                    const SizedBox(height: 12),
-                                                    Align(
-                                                      alignment:
-                                                          Alignment.centerLeft,
-                                                      child: FilledButton
-                                                          .tonalIcon(
-                                                        onPressed: () {
-                                                          final resumeLesson = state
-                                                              .lessonForBackendSession(
-                                                            session,
-                                                          );
-                                                          if (resumeLesson ==
-                                                              null) {
-                                                            ScaffoldMessenger
-                                                                .of(
-                                                              context,
-                                                            ).showSnackBar(
-                                                              SnackBar(
-                                                                content: Text(
-                                                                  session.lessonTitle
-                                                                          ?.trim()
-                                                                          .isNotEmpty ==
-                                                                      true
-                                                                      ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
-                                                                      : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.',
-                                                                ),
-                                                              ),
-                                                            );
-                                                            return;
-                                                          }
-
-                                                          launchLessonFlow(
-                                                            context: context,
-                                                            state: state,
-                                                            onChanged: () {},
-                                                            lesson:
-                                                                resumeLesson,
-                                                            resumeFrom: session,
-                                                          );
-                                                        },
-                                                        icon: const Icon(
-                                                          Icons
-                                                              .play_circle_fill_rounded,
-                                                        ),
-                                                        label: const Text(
-                                                          'Resume from backend session',
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Expanded(
-                                          child: Text(
-                                            'Assigned lessons',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        StatusPill(
-                                          text:
-                                              '${assignedLessons.length} shown',
-                                          color: LumoTheme.accentOrange,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      state.assignedLessonSummaryForLearner(
-                                        learner,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    if (nextLesson != null)
-                                      Container(
+                              if (recentSessions.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ...recentSessions.take(3).map(
+                                      (session) => Container(
                                         width: double.infinity,
+                                        margin:
+                                            const EdgeInsets.only(bottom: 10),
                                         padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFEEF2FF),
+                                          color: const Color(0xFFF8FAFC),
                                           borderRadius:
                                               BorderRadius.circular(18),
+                                          border: Border.all(
+                                              color: const Color(0xFFE2E8F0)),
                                         ),
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            const Text(
-                                              'Continue learning',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: Color(0xFF312E81),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              '${nextLesson.title} • ${nextLesson.durationMinutes} min',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(nextLesson.readinessFocus),
-                                            const SizedBox(height: 12),
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: FilledButton.icon(
-                                                onPressed: () {
-                                                  launchLessonFlow(
-                                                    context: context,
-                                                    state: state,
-                                                    onChanged: () {},
-                                                    lesson: nextLesson,
-                                                    resumeFrom:
-                                                        resumableSession,
-                                                  );
-                                                },
-                                                icon: Icon(
-                                                  resumableSession == null
-                                                      ? Icons.play_arrow_rounded
-                                                      : Icons
-                                                          .play_circle_fill_rounded,
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    session.lessonTitle ??
+                                                        'Live runtime session',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
+                                                  ),
                                                 ),
-                                                label: Text(
-                                                  resumableSession == null
-                                                      ? 'Start assigned lesson'
-                                                      : 'Resume assigned lesson',
+                                                StatusPill(
+                                                  text: session.statusLabel,
+                                                  color: session.status ==
+                                                          'completed'
+                                                      ? LumoTheme.accentGreen
+                                                      : LumoTheme.accentOrange,
                                                 ),
-                                              ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                    if (assignedLessons.isNotEmpty) ...[
-                                      const SizedBox(height: 12),
-                                      ...assignedLessons.map(
-                                        (lesson) => Container(
-                                          width: double.infinity,
-                                          margin: const EdgeInsets.only(
-                                            bottom: 10,
-                                          ),
-                                          padding: const EdgeInsets.all(14),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
-                                            borderRadius:
-                                                BorderRadius.circular(18),
-                                            border: Border.all(
-                                              color: const Color(0xFFE2E8F0),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                lesson.title,
+                                            const SizedBox(height: 8),
+                                            Text(session.automationStatus,
                                                 style: const TextStyle(
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                '${lesson.subject} • ${lesson.durationMinutes} min',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF64748B),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                lesson.scenario,
-                                                style: const TextStyle(
-                                                  height: 1.35,
+                                                    color: Color(0xFF475569),
+                                                    height: 1.35)),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 10,
+                                              runSpacing: 8,
+                                              children: [
+                                                _MiniMetricChip(
+                                                    icon: Icons.route_rounded,
+                                                    label:
+                                                        session.progressLabel),
+                                                _MiniMetricChip(
+                                                    icon: Icons
+                                                        .record_voice_over_rounded,
+                                                    label:
+                                                        '${session.responsesCaptured} responses'),
+                                                _MiniMetricChip(
+                                                    icon: Icons
+                                                        .tips_and_updates_rounded,
+                                                    label:
+                                                        '${session.supportActionsUsed} supports'),
+                                              ],
+                                            ),
+                                            if (session.status ==
+                                                'in_progress') ...[
+                                              const SizedBox(height: 12),
+                                              Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: FilledButton.tonalIcon(
+                                                  onPressed: () {
+                                                    final resumeLesson = state
+                                                        .lessonForBackendSession(
+                                                            session);
+                                                    if (resumeLesson == null) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                            session.lessonTitle
+                                                                        ?.trim()
+                                                                        .isNotEmpty ==
+                                                                    true
+                                                                ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
+                                                                : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.',
+                                                          ),
+                                                        ),
+                                                      );
+                                                      return;
+                                                    }
+
+                                                    launchLessonFlow(
+                                                      context: context,
+                                                      state: state,
+                                                      onChanged: () {},
+                                                      lesson: resumeLesson,
+                                                      resumeFrom: session,
+                                                    );
+                                                  },
+                                                  icon: const Icon(Icons
+                                                      .play_circle_fill_rounded),
+                                                  label: const Text(
+                                                      'Resume from backend session'),
                                                 ),
                                               ),
                                             ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SoftPanel(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Expanded(
+                                      child: Text('Assigned lessons',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800))),
+                                  StatusPill(
+                                      text: '${assignedLessons.length} shown',
+                                      color: LumoTheme.accentOrange),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                state.assignedLessonSummaryForLearner(learner),
+                                style: const TextStyle(
+                                    color: Color(0xFF475569), height: 1.4),
+                              ),
+                              const SizedBox(height: 12),
+                              if (nextLesson != null)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEEF2FF),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Continue learning',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF312E81)),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${nextLesson.title} • ${nextLesson.durationMinutes} min',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(nextLesson.readinessFocus),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: FilledButton.icon(
+                                          onPressed: () {
+                                            launchLessonFlow(
+                                              context: context,
+                                              state: state,
+                                              onChanged: () {},
+                                              lesson: nextLesson,
+                                              resumeFrom: resumableSession,
+                                            );
+                                          },
+                                          icon: Icon(
+                                            resumableSession == null
+                                                ? Icons.play_arrow_rounded
+                                                : Icons
+                                                    .play_circle_fill_rounded,
+                                          ),
+                                          label: Text(
+                                            resumableSession == null
+                                                ? 'Start assigned lesson'
+                                                : 'Resume assigned lesson',
                                           ),
                                         ),
                                       ),
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              if (assignedLessons.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ...assignedLessons.map(
+                                  (lesson) => Container(
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                          color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(lesson.title,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w800)),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${lesson.subject} • ${lesson.durationMinutes} min',
+                                          style: const TextStyle(
+                                              color: Color(0xFF64748B)),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(lesson.scenario,
+                                            style:
+                                                const TextStyle(height: 1.35)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: () async {
-                            final messenger = ScaffoldMessenger.of(context);
-                            final json =
-                                const JsonEncoder.withIndent('  ').convert({
-                              'learner': {
-                                'id': learner.id,
-                                'name': learner.name,
-                                'learnerCode': learner.learnerCode,
-                                'age': learner.age,
-                                'cohort': learner.cohort,
-                                'guardianName': learner.guardianName,
-                                'preferredLanguage': learner.preferredLanguage,
-                                'readinessLabel': learner.readinessLabel,
-                                'streakDays': learner.streakDays,
-                                'points': totalPoints,
-                                'totalXp': totalXp,
-                                'attendanceBand': learner.attendanceBand,
-                                'enrollmentStatus': learner.enrollmentStatus,
-                                'lastLessonSummary': learner.lastLessonSummary,
-                              },
-                            });
-                            await ClipboardBridge.copy(json);
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Learner data copied. Hook file export next if needed.',
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.download_rounded),
-                          label: const Text('Download data'),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final json = const JsonEncoder.withIndent('  ').convert({
+                        'learner': {
+                          'id': learner.id,
+                          'name': learner.name,
+                          'learnerCode': learner.learnerCode,
+                          'age': learner.age,
+                          'cohort': learner.cohort,
+                          'guardianName': learner.guardianName,
+                          'preferredLanguage': learner.preferredLanguage,
+                          'readinessLabel': learner.readinessLabel,
+                          'streakDays': learner.streakDays,
+                          'points': totalPoints,
+                          'totalXp': totalXp,
+                          'attendanceBand': learner.attendanceBand,
+                          'enrollmentStatus': learner.enrollmentStatus,
+                          'lastLessonSummary': learner.lastLessonSummary,
+                        },
+                      });
+                      await ClipboardBridge.copy(json);
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Learner data copied. Hook file export next if needed.'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.download_rounded),
+                    label: const Text('Download data'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1720,7 +1827,8 @@ class SubjectModulesPage extends StatelessWidget {
                             ),
                             child: LayoutBuilder(
                               builder: (context, tileConstraints) {
-                                final compactTile = tileConstraints.maxWidth < 360;
+                                final compactTile =
+                                    tileConstraints.maxWidth < 360;
 
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1752,7 +1860,8 @@ class SubjectModulesPage extends StatelessWidget {
                                           ),
                                           const SizedBox(width: 12),
                                           StatusPill(
-                                            text: '${lesson.steps.length} steps',
+                                            text:
+                                                '${lesson.steps.length} steps',
                                             color: LumoTheme.accentOrange,
                                           ),
                                         ],
@@ -1787,7 +1896,8 @@ class SubjectModulesPage extends StatelessWidget {
                                           Expanded(
                                             child: InfoRow(
                                               label: 'Duration',
-                                              value: '${lesson.durationMinutes} min',
+                                              value:
+                                                  '${lesson.durationMinutes} min',
                                             ),
                                           ),
                                           const SizedBox(width: 12),
@@ -1846,13 +1956,15 @@ class SubjectModulesPage extends StatelessWidget {
                       final content = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               OutlinedButton(
                                 onPressed: () => Navigator.of(context).pop(),
                                 child: const Text('Back'),
                               ),
-                              const Spacer(),
                               StatusPill(
                                 text: module.badge,
                                 color: LumoTheme.primary,
@@ -1955,6 +2067,8 @@ class _RegisterPageState extends State<RegisterPage> {
   late String caregiverRelationship;
   late bool consentCaptured;
   late String selectedMallamId;
+  String? profilePhotoBase64;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -1986,6 +2100,7 @@ class _RegisterPageState extends State<RegisterPage> {
     caregiverRelationship = draft.caregiverRelationship;
     consentCaptured = draft.consentCaptured;
     selectedMallamId = draft.mallamId;
+    profilePhotoBase64 = draft.profilePhotoBase64;
   }
 
   @override
@@ -2016,9 +2131,43 @@ class _RegisterPageState extends State<RegisterPage> {
         consentCaptured: consentCaptured,
         caregiverRelationship: caregiverRelationship,
         supportPlan: supportPlanController.text,
+        profilePhotoBase64: profilePhotoBase64,
         mallamId: selectedMallamId,
       ),
     );
+  }
+
+  Future<void> _captureProfilePhoto() async {
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 70,
+        maxWidth: 1200,
+      );
+      if (photo == null) return;
+      final bytes = await photo.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        profilePhotoBase64 = base64Encode(bytes);
+        syncDraft();
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Photo capture is not available on this device yet. You can skip for now and use the default avatar. $error',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _removeProfilePhoto() {
+    setState(() {
+      profilePhotoBase64 = null;
+      syncDraft();
+    });
   }
 
   @override
@@ -2037,6 +2186,7 @@ class _RegisterPageState extends State<RegisterPage> {
       consentCaptured: consentCaptured,
       caregiverRelationship: caregiverRelationship,
       supportPlan: supportPlanController.text,
+      profilePhotoBase64: profilePhotoBase64,
       mallamId: selectedMallamId,
     );
     final recommendedModule = widget.state.recommendedModuleForDraft;
@@ -2067,563 +2217,589 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               ResponsivePane(
                 child: DetailCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                  child: LayoutBuilder(
+                    builder: (context, cardConstraints) {
+                      final compactCard = cardConstraints.maxWidth < 560 ||
+                          cardConstraints.maxHeight < 900;
+
+                      final formBody = Column(
                         children: [
-                          OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Cancel'),
+                          TextField(
+                            controller: nameController,
+                            onChanged: (_) => setState(syncDraft),
+                            decoration: const InputDecoration(
+                              labelText: 'Learner name',
+                            ),
                           ),
-                          const Spacer(),
-                          StatusPill(
-                            text: draft.isValid
-                                ? 'Ready to save'
-                                : 'Needs details',
-                            color: draft.isValid
-                                ? LumoTheme.accentGreen
-                                : LumoTheme.accentOrange,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      const SectionTitle(
-                        title: 'Register learner',
-                        subtitle:
-                            'Capture a fast intake, then save the learner profile.',
-                      ),
-                      const SizedBox(height: 18),
-                      _BackendStatusBanner(state: widget.state),
-                      const SizedBox(height: 18),
-                      _ProgressMeter(score: draft.completionScore),
-                      const SizedBox(height: 18),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              TextField(
-                                controller: nameController,
-                                onChanged: (_) => setState(syncDraft),
-                                decoration: const InputDecoration(
-                                  labelText: 'Learner name',
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 720;
+                              final backendCohorts =
+                                  widget.state.registrationContext.cohorts;
+                              final cohortValue =
+                                  cohortController.text.trim().isEmpty
+                                      ? null
+                                      : cohortController.text.trim();
+                              final fields = [
+                                TextField(
+                                  controller: ageController,
+                                  keyboardType: TextInputType.number,
+                                  onChanged: (_) => setState(syncDraft),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Age',
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 720;
-                                  final backendCohorts =
-                                      widget.state.registrationContext.cohorts;
-                                  final cohortValue =
-                                      cohortController.text.trim().isEmpty
-                                          ? null
-                                          : cohortController.text.trim();
-                                  final fields = [
-                                    TextField(
-                                      controller: ageController,
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (_) => setState(syncDraft),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Age',
-                                      ),
-                                    ),
-                                    backendCohorts.isEmpty
-                                        ? TextField(
-                                            controller: cohortController,
-                                            onChanged: (_) =>
-                                                setState(syncDraft),
-                                            decoration: const InputDecoration(
-                                              labelText: 'Cohort',
-                                            ),
-                                          )
-                                        : DropdownButtonFormField<String>(
-                                            initialValue: backendCohorts.any(
-                                              (cohort) =>
-                                                  cohort.name == cohortValue,
-                                            )
-                                                ? cohortValue
-                                                : null,
-                                            items: backendCohorts
-                                                .map(
-                                                  (cohort) => DropdownMenuItem(
-                                                    value: cohort.name,
-                                                    child: Text(cohort.name),
-                                                  ),
-                                                )
-                                                .toList(),
-                                            onChanged: (value) {
-                                              if (value == null) return;
-                                              setState(() {
-                                                cohortController.text = value;
-                                                syncDraft();
-                                              });
-                                            },
-                                            decoration: const InputDecoration(
-                                              labelText: 'Backend cohort',
-                                            ),
-                                          ),
-                                  ];
-
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < fields.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: fields[i],
-                                          ),
-                                          if (i < fields.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Row(
-                                    children: [
-                                      for (var i = 0;
-                                          i < fields.length;
-                                          i++) ...[
-                                        Expanded(child: fields[i]),
-                                        if (i < fields.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              Builder(
-                                builder: (context) {
-                                  final mallams =
-                                      widget.state.registrationContext.mallams;
-                                  final hasSelectedMallam = mallams.any(
-                                    (mallam) => mallam.id == selectedMallamId,
-                                  );
-
-                                  if (mallams.isEmpty) {
-                                    return const SizedBox.shrink();
-                                  }
-
-                                  return DropdownButtonFormField<String>(
-                                    initialValue: hasSelectedMallam
-                                        ? selectedMallamId
-                                        : null,
-                                    items: mallams
-                                        .map(
-                                          (mallam) => DropdownMenuItem(
-                                            value: mallam.id,
-                                            child: Text(mallam.name),
-                                          ),
+                                backendCohorts.isEmpty
+                                    ? TextField(
+                                        controller: cohortController,
+                                        onChanged: (_) => setState(syncDraft),
+                                        decoration: const InputDecoration(
+                                          labelText: 'Cohort',
+                                        ),
+                                      )
+                                    : DropdownButtonFormField<String>(
+                                        isExpanded: true,
+                                        initialValue: backendCohorts.any(
+                                          (cohort) =>
+                                              cohort.name == cohortValue,
                                         )
-                                        .toList(),
-                                    onChanged: (value) {
-                                      if (value == null) return;
-                                      setState(() {
-                                        selectedMallamId = value;
-                                        syncDraft();
-                                      });
-                                    },
-                                    decoration: const InputDecoration(
-                                      labelText: 'Assign mallam',
-                                      helperText:
-                                          'Choose the mallam responsible for this learner.',
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: guardianController,
-                                onChanged: (_) => setState(syncDraft),
-                                decoration: const InputDecoration(
-                                  labelText: 'Caregiver / facilitator name',
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 720;
-                                  final fields = [
-                                    DropdownButtonFormField<String>(
-                                      initialValue: caregiverRelationship,
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'Mother',
-                                          child: Text('Mother'),
+                                            ? cohortValue
+                                            : null,
+                                        items: backendCohorts
+                                            .map(
+                                              (cohort) => DropdownMenuItem(
+                                                value: cohort.name,
+                                                child: Text(cohort.name),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (value == null) return;
+                                          setState(() {
+                                            cohortController.text = value;
+                                            syncDraft();
+                                          });
+                                        },
+                                        decoration: const InputDecoration(
+                                          labelText: 'Backend cohort',
                                         ),
-                                        DropdownMenuItem(
-                                          value: 'Father',
-                                          child: Text('Father'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Aunt',
-                                          child: Text('Aunt'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Uncle',
-                                          child: Text('Uncle'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Guardian',
-                                          child: Text('Guardian'),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value == null) return;
-                                        setState(() {
-                                          caregiverRelationship = value;
-                                          syncDraft();
-                                        });
-                                      },
-                                      decoration: const InputDecoration(
-                                        labelText: 'Relationship',
                                       ),
-                                    ),
-                                    TextField(
-                                      controller: guardianPhoneController,
-                                      keyboardType: TextInputType.phone,
-                                      onChanged: (_) => setState(syncDraft),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Guardian phone',
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < fields.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: fields[i],
                                       ),
-                                    ),
-                                  ];
-
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < fields.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: fields[i],
-                                          ),
-                                          if (i < fields.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Row(
-                                    children: [
-                                      for (var i = 0;
-                                          i < fields.length;
-                                          i++) ...[
-                                        Expanded(child: fields[i]),
-                                        if (i < fields.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
+                                      if (i < fields.length - 1)
+                                        const SizedBox(height: 12),
                                     ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: villageController,
-                                onChanged: (_) => setState(syncDraft),
-                                decoration: const InputDecoration(
-                                  labelText: 'Village / area',
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 720;
-                                  final fields = [
-                                    DropdownButtonFormField<String>(
-                                      initialValue: sex,
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'Boy',
-                                          child: Text('Boy'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Girl',
-                                          child: Text('Girl'),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value == null) return;
-                                        setState(() {
-                                          sex = value;
-                                          syncDraft();
-                                        });
-                                      },
-                                      decoration: const InputDecoration(
-                                        labelText: 'Sex',
-                                      ),
-                                    ),
-                                    DropdownButtonFormField<String>(
-                                      initialValue: baselineLevel,
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'No prior exposure',
-                                          child: Text('No prior exposure'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Can repeat with support',
-                                          child:
-                                              Text('Can repeat with support'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Answers with short sentences',
-                                          child: Text(
-                                            'Answers with short sentences',
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (value) {
-                                        if (value == null) return;
-                                        setState(() {
-                                          baselineLevel = value;
-                                          syncDraft();
-                                        });
-                                      },
-                                      decoration: const InputDecoration(
-                                        labelText: 'Baseline',
-                                      ),
-                                    ),
-                                  ];
+                                  ],
+                                );
+                              }
 
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < fields.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: fields[i],
-                                          ),
-                                          if (i < fields.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Row(
-                                    children: [
-                                      for (var i = 0;
-                                          i < fields.length;
-                                          i++) ...[
-                                        Expanded(child: fields[i]),
-                                        if (i < fields.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: preferredLanguage,
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'Hausa',
-                                    child: Text('Hausa'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'Hausa + English',
-                                    child: Text('Hausa + English'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'English',
-                                    child: Text('English'),
-                                  ),
+                              return Row(
+                                children: [
+                                  for (var i = 0; i < fields.length; i++) ...[
+                                    Expanded(child: fields[i]),
+                                    if (i < fields.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
                                 ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Builder(
+                            builder: (context) {
+                              final mallams =
+                                  widget.state.registrationContext.mallams;
+                              final hasSelectedMallam = mallams.any(
+                                (mallam) => mallam.id == selectedMallamId,
+                              );
+
+                              if (mallams.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                initialValue:
+                                    hasSelectedMallam ? selectedMallamId : null,
+                                items: mallams
+                                    .map(
+                                      (mallam) => DropdownMenuItem(
+                                        value: mallam.id,
+                                        child: Text(mallam.name),
+                                      ),
+                                    )
+                                    .toList(),
                                 onChanged: (value) {
                                   if (value == null) return;
                                   setState(() {
-                                    preferredLanguage = value;
+                                    selectedMallamId = value;
                                     syncDraft();
                                   });
                                 },
                                 decoration: const InputDecoration(
-                                  labelText: 'Preferred language',
+                                  labelText: 'Assign mallam',
+                                  helperText:
+                                      'Choose the mallam responsible for this learner.',
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: readinessLabel,
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'Voice-first beginner',
-                                    child: Text('Voice-first beginner'),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: guardianController,
+                            onChanged: (_) => setState(syncDraft),
+                            decoration: const InputDecoration(
+                              labelText: 'Caregiver / facilitator name',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 720;
+                              final fields = [
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: caregiverRelationship,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'Mother',
+                                      child: Text('Mother'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Father',
+                                      child: Text('Father'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Aunt',
+                                      child: Text('Aunt'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Uncle',
+                                      child: Text('Uncle'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Guardian',
+                                      child: Text('Guardian'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      caregiverRelationship = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Relationship',
                                   ),
-                                  DropdownMenuItem(
-                                    value: 'Ready for guided practice',
-                                    child: Text('Ready for guided practice'),
+                                ),
+                                TextField(
+                                  controller: guardianPhoneController,
+                                  keyboardType: TextInputType.phone,
+                                  onChanged: (_) => setState(syncDraft),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Guardian phone',
                                   ),
-                                  DropdownMenuItem(
-                                    value: 'Confident responder',
-                                    child: Text('Confident responder'),
-                                  ),
+                                ),
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < fields.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: fields[i],
+                                      ),
+                                      if (i < fields.length - 1)
+                                        const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  for (var i = 0; i < fields.length; i++) ...[
+                                    Expanded(child: fields[i]),
+                                    if (i < fields.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
                                 ],
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() {
-                                    readinessLabel = value;
-                                    syncDraft();
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  labelText: 'Readiness level',
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: villageController,
+                            onChanged: (_) => setState(syncDraft),
+                            decoration: const InputDecoration(
+                              labelText: 'Village / area',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 720;
+                              final fields = [
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: sex,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'Boy',
+                                      child: Text('Boy'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Girl',
+                                      child: Text('Girl'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      sex = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Sex',
+                                  ),
                                 ),
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: baselineLevel,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'No prior exposure',
+                                      child: Text('No prior exposure'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Can repeat with support',
+                                      child: Text('Can repeat with support'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Answers with short sentences',
+                                      child: Text(
+                                        'Answers with short sentences',
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      baselineLevel = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Baseline',
+                                  ),
+                                ),
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < fields.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: fields[i],
+                                      ),
+                                      if (i < fields.length - 1)
+                                        const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  for (var i = 0; i < fields.length; i++) ...[
+                                    Expanded(child: fields[i]),
+                                    if (i < fields.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: preferredLanguage,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Hausa',
+                                child: Text('Hausa'),
                               ),
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: supportPlanController,
-                                maxLines: 3,
-                                onChanged: (_) => setState(syncDraft),
-                                decoration: const InputDecoration(
-                                  labelText: 'Support plan for first lessons',
-                                  hintText:
-                                      'Use short prompts, pause for think time, and praise every clear answer.',
-                                ),
+                              DropdownMenuItem(
+                                value: 'Hausa + English',
+                                child: Text('Hausa + English'),
                               ),
-                              const SizedBox(height: 18),
-                              CheckboxListTile(
-                                contentPadding: EdgeInsets.zero,
-                                value: consentCaptured,
-                                onChanged: (value) {
-                                  setState(() {
-                                    consentCaptured = value ?? false;
-                                    syncDraft();
-                                  });
-                                },
-                                title: const Text(
-                                  'Consent captured for learner profile and voice session',
-                                ),
-                                subtitle: const Text(
-                                  'Required before save and backend sync.',
-                                ),
-                                controlAffinity:
-                                    ListTileControlAffinity.leading,
+                              DropdownMenuItem(
+                                value: 'English',
+                                child: Text('English'),
                               ),
-                              const SizedBox(height: 8),
-                              _RegistrationReadinessStrip(draft: draft),
-                              const SizedBox(height: 18),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final compact = constraints.maxWidth < 760;
-                                  final panels = [
-                                    SoftPanel(
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() {
+                                preferredLanguage = value;
+                                syncDraft();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Preferred language',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: readinessLabel,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Voice-first beginner',
+                                child: Text('Voice-first beginner'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Ready for guided practice',
+                                child: Text('Ready for guided practice'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Confident responder',
+                                child: Text('Confident responder'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() {
+                                readinessLabel = value;
+                                syncDraft();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Readiness level',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: supportPlanController,
+                            maxLines: 3,
+                            onChanged: (_) => setState(syncDraft),
+                            decoration: const InputDecoration(
+                              labelText: 'Support plan for first lessons',
+                              hintText:
+                                  'Use short prompts, pause for think time, and praise every clear answer.',
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            value: consentCaptured,
+                            onChanged: (value) {
+                              setState(() {
+                                consentCaptured = value ?? false;
+                                syncDraft();
+                              });
+                            },
+                            title: const Text(
+                              'Consent captured for learner profile and voice session',
+                            ),
+                            subtitle: const Text(
+                              'Required before save and backend sync.',
+                            ),
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                          const SizedBox(height: 8),
+                          _RegistrationReadinessStrip(draft: draft),
+                          const SizedBox(height: 18),
+                          SoftPanel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Photo capture (optional)',
+                                  style: TextStyle(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Take a learner photo now or skip it. If you skip, Lumo uses the default kid avatar on a white background.',
+                                  style: TextStyle(
+                                      color: Color(0xFF475569), height: 1.4),
+                                ),
+                                const SizedBox(height: 14),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    _LearnerAvatar(
+                                        photoBase64: profilePhotoBase64,
+                                        size: 88),
+                                    const SizedBox(width: 14),
+                                    Expanded(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            'Placement snapshot',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
+                                          Text(
+                                            profilePhotoBase64 == null
+                                                ? 'No photo captured yet'
+                                                : 'Photo captured and ready for this learner',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700),
                                           ),
-                                          const SizedBox(height: 10),
-                                          InfoRow(
-                                            label: 'Learner code',
-                                            value: draft.learnerCode,
-                                          ),
-                                          InfoRow(
-                                            label: 'Language',
-                                            value: preferredLanguage,
-                                          ),
-                                          InfoRow(
-                                            label: 'Readiness',
-                                            value: readinessLabel,
-                                          ),
-                                          InfoRow(
-                                            label: 'Recommended start',
-                                            value: recommendedModule.title,
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            profilePhotoBase64 == null
+                                                ? 'This step is optional.'
+                                                : 'You can retake it or remove it before saving.',
+                                            style: const TextStyle(
+                                                color: Color(0xFF64748B)),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    SoftPanel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Backend readiness',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          InfoRow(
-                                            label: 'Missing before save',
-                                            value: draft.missingFields.isEmpty
-                                                ? 'Nothing blocking this intake'
-                                                : draft.missingFields
-                                                    .join(', '),
-                                          ),
-                                          InfoRow(
-                                            label: 'Backend target',
-                                            value: widget.state
-                                                .registrationTargetSummary,
-                                          ),
-                                          if (registrationTarget != null)
-                                            InfoRow(
-                                              label: 'Assigned pod',
-                                              value: registrationTarget
-                                                  .cohort.podId,
-                                            ),
-                                          if (registrationTarget != null)
-                                            InfoRow(
-                                              label: 'Assigned mallam',
-                                              value: registrationTarget
-                                                  .mallam.name,
-                                            ),
-                                        ],
-                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    FilledButton.tonalIcon(
+                                      onPressed: _captureProfilePhoto,
+                                      icon: const Icon(
+                                          Icons.photo_camera_rounded),
+                                      label: Text(profilePhotoBase64 == null
+                                          ? 'Take photo'
+                                          : 'Retake photo'),
                                     ),
-                                  ];
-
-                                  if (compact) {
-                                    return Column(
-                                      children: [
-                                        for (var i = 0;
-                                            i < panels.length;
-                                            i++) ...[
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: panels[i],
-                                          ),
-                                          if (i < panels.length - 1)
-                                            const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }
-
-                                  return Row(
+                                    if (profilePhotoBase64 != null)
+                                      OutlinedButton.icon(
+                                        onPressed: _removeProfilePhoto,
+                                        icon: const Icon(
+                                            Icons.delete_outline_rounded),
+                                        label: const Text('Use default avatar'),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 760;
+                              final panels = [
+                                SoftPanel(
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      for (var i = 0;
-                                          i < panels.length;
-                                          i++) ...[
-                                        Expanded(child: panels[i]),
-                                        if (i < panels.length - 1)
-                                          const SizedBox(width: 12),
-                                      ],
+                                      const Text(
+                                        'Placement snapshot',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      InfoRow(
+                                        label: 'Learner code',
+                                        value: draft.learnerCode,
+                                      ),
+                                      InfoRow(
+                                        label: 'Language',
+                                        value: preferredLanguage,
+                                      ),
+                                      InfoRow(
+                                        label: 'Readiness',
+                                        value: readinessLabel,
+                                      ),
+                                      InfoRow(
+                                        label: 'Recommended start',
+                                        value: recommendedModule.title,
+                                      ),
                                     ],
-                                  );
-                                },
-                              ),
-                            ],
+                                  ),
+                                ),
+                                SoftPanel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Backend readiness',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      InfoRow(
+                                        label: 'Missing before save',
+                                        value: draft.missingFields.isEmpty
+                                            ? 'Nothing blocking this intake'
+                                            : draft.missingFields.join(', '),
+                                      ),
+                                      InfoRow(
+                                        label: 'Backend target',
+                                        value: widget
+                                            .state.registrationTargetSummary,
+                                      ),
+                                      if (registrationTarget != null)
+                                        InfoRow(
+                                          label: 'Assigned pod',
+                                          value:
+                                              registrationTarget.cohort.podId,
+                                        ),
+                                      if (registrationTarget != null)
+                                        InfoRow(
+                                          label: 'Assigned mallam',
+                                          value: registrationTarget.mallam.name,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < panels.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: panels[i],
+                                      ),
+                                      if (i < panels.length - 1)
+                                        const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  for (var i = 0; i < panels.length; i++) ...[
+                                    Expanded(child: panels[i]),
+                                    if (i < panels.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
+                                ],
+                              );
+                            },
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      SizedBox(
+                        ],
+                      );
+
+                      final saveButton = SizedBox(
                         width: double.infinity,
                         child: FilledButton(
                           onPressed: draft.isValid &&
@@ -2650,8 +2826,93 @@ class _RegisterPageState extends State<RegisterPage> {
                               ? 'Saving learner...'
                               : 'Save learner'),
                         ),
-                      ),
-                    ],
+                      );
+
+                      if (compactCard) {
+                        return SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  StatusPill(
+                                    text: draft.isValid
+                                        ? 'Ready to save'
+                                        : 'Needs details',
+                                    color: draft.isValid
+                                        ? LumoTheme.accentGreen
+                                        : LumoTheme.accentOrange,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              const SectionTitle(
+                                title: 'Register learner',
+                                subtitle:
+                                    'Capture a fast intake, then save the learner profile.',
+                              ),
+                              const SizedBox(height: 18),
+                              _BackendStatusBanner(state: widget.state),
+                              const SizedBox(height: 18),
+                              _ProgressMeter(score: draft.completionScore),
+                              const SizedBox(height: 18),
+                              formBody,
+                              const SizedBox(height: 18),
+                              saveButton,
+                            ],
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Cancel'),
+                              ),
+                              const Spacer(),
+                              StatusPill(
+                                text: draft.isValid
+                                    ? 'Ready to save'
+                                    : 'Needs details',
+                                color: draft.isValid
+                                    ? LumoTheme.accentGreen
+                                    : LumoTheme.accentOrange,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          const SectionTitle(
+                            title: 'Register learner',
+                            subtitle:
+                                'Capture a fast intake, then save the learner profile.',
+                          ),
+                          const SizedBox(height: 18),
+                          _BackendStatusBanner(state: widget.state),
+                          const SizedBox(height: 18),
+                          _ProgressMeter(score: draft.completionScore),
+                          const SizedBox(height: 18),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: formBody,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          saveButton,
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -2831,7 +3092,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final state = widget.state;
     final lesson = widget.lesson;
     final resumeLearner = _resumeLearner;
-    final resumeMissingLearner = widget.resumeFrom != null && resumeLearner == null;
+    final resumeMissingLearner =
+        widget.resumeFrom != null && resumeLearner == null;
 
     return Scaffold(
       body: SafeArea(
@@ -2842,8 +3104,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
               constraints: const BoxConstraints(maxWidth: 1320),
               child: LayoutBuilder(
                 builder: (context, viewportConstraints) {
-                  final useCompactLayout =
-                      viewportConstraints.maxWidth < 760 ||
+                  final useCompactLayout = viewportConstraints.maxWidth < 760 ||
                       viewportConstraints.maxHeight < 900;
 
                   Widget buildLearnerGrid({required bool shrinkWrap}) {
@@ -2930,7 +3191,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           physics: shrinkWrap
                               ? const NeverScrollableScrollPhysics()
                               : null,
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: crossAxisCount,
                             mainAxisSpacing: 12,
                             crossAxisSpacing: 12,
@@ -2979,13 +3241,15 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                   }
 
                   final contentChildren = <Widget>[
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         OutlinedButton(
                           onPressed: () => Navigator.of(context).pop(),
                           child: const Text('Back'),
                         ),
-                        const Spacer(),
                         StatusPill(
                           text: lesson.subject,
                           color: LumoTheme.primary,
@@ -2994,7 +3258,9 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     ),
                     const SizedBox(height: 20),
                     SectionTitle(
-                      title: _resumeLocksLearner ? 'Resume learner' : 'Choose learner',
+                      title: _resumeLocksLearner
+                          ? 'Resume learner'
+                          : 'Choose learner',
                       subtitle: _resumeLocksLearner
                           ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
                           : 'Pick who is taking ${lesson.title}, then confirm to begin.',
@@ -3595,14 +3861,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
 
   Future<void> _toggleSavedAudioPlayback() async {
-    final audioPath = widget.state.activeSession?.latestLearnerAudioPath?.trim();
+    final audioPath =
+        widget.state.activeSession?.latestLearnerAudioPath?.trim();
     if (audioPath == null || audioPath.isEmpty) return;
 
     try {
       final isSameSource =
           learnerAudioPlaybackService.currentSourcePath == audioPath;
-      final wasPlaying =
-          learnerAudioPlaybackService.isPlaying && isSameSource;
+      final wasPlaying = learnerAudioPlaybackService.isPlaying && isSameSource;
       await learnerAudioPlaybackService.play(audioPath);
       if (!mounted) return;
       setState(() {
@@ -3652,6 +3918,43 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
     await speechTranscriptionService.cancel();
     await widget.state.stopVoiceReplay();
+  }
+
+  String? _buildAffirmationLine(LessonSessionState? session) {
+    if (session == null) return null;
+    final remainingSteps =
+        session.lesson.steps.length - (session.stepIndex + 1);
+    if (remainingSteps <= 0) {
+      return 'You did it.';
+    }
+    if (remainingSteps == 1) {
+      return 'One more to go.';
+    }
+
+    const affirmations = [
+      'Good job.',
+      'Nice one.',
+      'Well done.',
+      'You got it.',
+      'That is right.',
+    ];
+    final seed = session.totalResponses + session.stepIndex;
+    return affirmations[seed % affirmations.length];
+  }
+
+  Future<void> _speakAffirmation(String text) async {
+    await _prepareForMallamSpeech();
+    if (!mounted) return;
+    setState(() {
+      isSpeaking = true;
+      microphoneStatus = 'Mallam is praising the learner.';
+    });
+    await widget.state.replayVisiblePrompt(text, mode: SpeakerMode.affirming);
+    if (!mounted) return;
+    setState(() {
+      isSpeaking = false;
+      microphoneStatus = 'Mallam is preparing the next step.';
+    });
   }
 
   Future<void> _speakAndMaybeAutoRecord(
@@ -3740,6 +4043,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   Future<void> _afterCorrectResponse() async {
+    final previousSession = widget.state.activeSession;
+    final celebrationLine = _buildAffirmationLine(previousSession);
+    if (celebrationLine != null) {
+      await _speakAffirmation(celebrationLine);
+      if (!mounted) return;
+    }
+
     final finished = widget.state.advanceLessonStep();
     widget.onChanged();
     if (finished) {
@@ -3751,6 +4061,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           builder: (_) => LessonCompletePage(
             state: widget.state,
             lesson: widget.lesson,
+            revealWithCountdown: true,
           ),
         ),
       );
@@ -3810,7 +4121,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
   }
 
-  Widget _buildChoicePreview(LessonActivityChoice choice, String fallbackEmoji) {
+  Widget _buildChoicePreview(
+      LessonActivityChoice choice, String fallbackEmoji) {
     final mediaKind = choice.mediaKind?.trim().toLowerCase();
     final mediaValue = choice.mediaValue?.trim();
 
@@ -5443,12 +5755,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           if (session.latestLearnerAudioPath !=
                                               null)
                                             FilledButton.tonalIcon(
-                                              onPressed: _toggleSavedAudioPlayback,
+                                              onPressed:
+                                                  _toggleSavedAudioPlayback,
                                               icon: Icon(
                                                 learnerAudioPlaybackService
                                                         .isPlaying
                                                     ? Icons.pause_circle_rounded
-                                                    : Icons.play_circle_fill_rounded,
+                                                    : Icons
+                                                        .play_circle_fill_rounded,
                                               ),
                                               label: Text(
                                                 learnerAudioPlaybackService
@@ -5766,8 +6080,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                   icon: Icon(
                                                     learnerAudioPlaybackService
                                                             .isPlaying
-                                                        ? Icons.pause_circle_rounded
-                                                        : Icons.play_circle_fill_rounded,
+                                                        ? Icons
+                                                            .pause_circle_rounded
+                                                        : Icons
+                                                            .play_circle_fill_rounded,
                                                   ),
                                                   label: Text(
                                                     learnerAudioPlaybackService
@@ -5939,26 +6255,107 @@ int _adaptiveGridCount(
   return rawCount.clamp(1, maxCount);
 }
 
-class LessonCompletePage extends StatelessWidget {
+class LessonCompletePage extends StatefulWidget {
   final LumoAppState state;
   final LessonCardModel lesson;
+  final bool revealWithCountdown;
 
   const LessonCompletePage({
     super.key,
     required this.state,
     required this.lesson,
+    this.revealWithCountdown = false,
   });
 
   @override
+  State<LessonCompletePage> createState() => _LessonCompletePageState();
+}
+
+class _LessonCompletePageState extends State<LessonCompletePage>
+    with SingleTickerProviderStateMixin {
+  static const int _revealSeconds = 3;
+
+  late final AnimationController _confettiController;
+  late final AudioPlayer _celebrationPlayer;
+  Timer? _revealTimer;
+  int _secondsRemaining = _revealSeconds;
+  bool _resultsVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    );
+    _celebrationPlayer = AudioPlayer();
+    if (widget.revealWithCountdown) {
+      _startRevealCountdown();
+    } else {
+      _secondsRemaining = 0;
+      _resultsVisible = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _confettiController.forward(from: 0);
+        unawaited(_playCelebrationSound());
+      });
+    }
+  }
+
+  void _startRevealCountdown() {
+    _revealTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) return;
+      if (_secondsRemaining <= 1) {
+        timer.cancel();
+        await _revealResults();
+        return;
+      }
+      setState(() {
+        _secondsRemaining -= 1;
+      });
+    });
+  }
+
+  Future<void> _revealResults() async {
+    if (_resultsVisible) return;
+    setState(() {
+      _secondsRemaining = 0;
+      _resultsVisible = true;
+    });
+    _confettiController.forward(from: 0);
+    await _playCelebrationSound();
+  }
+
+  Future<void> _playCelebrationSound() async {
+    try {
+      await _celebrationPlayer.play(
+        AssetSource('audio/lesson_complete_chime.wav'),
+        mode: PlayerMode.lowLatency,
+      );
+    } catch (_) {
+      await SystemSound.play(SystemSoundType.alert);
+    }
+  }
+
+  @override
+  void dispose() {
+    _revealTimer?.cancel();
+    _confettiController.dispose();
+    unawaited(_celebrationPlayer.dispose());
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final learner = state.currentLearner!;
-    final session = state.activeSession!;
-    final nextLesson = state.nextLessonAfterCompletion(
+    final learner = widget.state.currentLearner!;
+    final session = widget.state.activeSession!;
+    final lesson = widget.lesson;
+    final nextLesson = widget.state.nextLessonAfterCompletion(
       learner,
       completedLessonId: lesson.id,
     );
-    final recommendedModule = state.recommendedModuleForLearner(learner);
-    final routeSummary = state.nextLessonRouteSummaryForLearner(
+    final recommendedModule = widget.state.recommendedModuleForLearner(learner);
+    final routeSummary = widget.state.nextLessonRouteSummaryForLearner(
       learner,
       completedLessonId: lesson.id,
     );
@@ -5968,263 +6365,452 @@ class LessonCompletePage extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: DetailCard(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Color(0xFFDCFCE7),
-                      child: Icon(
-                        Icons.check_rounded,
-                        color: Colors.green,
-                        size: 46,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      state.rewardCelebrationHeadlineForLearner(learner),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'You completed ${lesson.title}. ${state.rewardCelebrationDetailForLearner(learner)}',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact = constraints.maxWidth < 720;
-                        final tiles = [
-                          MetricTile(
-                            label: 'Responses captured',
-                            value: '${session.totalResponses}',
-                            icon: Icons.hearing_rounded,
-                            color: LumoTheme.primary,
-                          ),
-                          MetricTile(
-                            label: 'Support actions',
-                            value: '${session.supportActionsUsed}',
-                            icon: Icons.volunteer_activism_rounded,
-                            color: LumoTheme.accentOrange,
-                          ),
-                          MetricTile(
-                            label: 'Queued sync',
-                            value: '${state.pendingSyncEvents.length}',
-                            icon: Icons.cloud_upload_rounded,
-                            color: LumoTheme.accentGreen,
-                          ),
-                        ];
-
-                        if (compact) {
-                          return Column(
-                            children: [
-                              for (var i = 0; i < tiles.length; i++) ...[
-                                SizedBox(
-                                    width: double.infinity, child: tiles[i]),
-                                if (i < tiles.length - 1)
-                                  const SizedBox(height: 12),
-                              ],
-                            ],
-                          );
-                        }
-
-                        return Row(
-                          children: [
-                            for (var i = 0; i < tiles.length; i++) ...[
-                              Expanded(child: tiles[i]),
-                              if (i < tiles.length - 1)
-                                const SizedBox(width: 12),
-                            ],
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    if (rewards != null) ...[
-                      SoftPanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.auto_awesome_rounded,
-                                    color: LumoTheme.accentOrange),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Reward boost',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: [
-                                Chip(
-                                  avatar:
-                                      const Icon(Icons.stars_rounded, size: 18),
-                                  label: Text('${rewards.points} pts'),
-                                ),
-                                Chip(
-                                  avatar: const Icon(Icons.trending_up_rounded,
-                                      size: 18),
-                                  label: Text(
-                                      '${rewards.levelLabel} • Level ${rewards.level}'),
-                                ),
-                                Chip(
-                                  avatar: const Icon(
-                                      Icons.workspace_premium_rounded,
-                                      size: 18),
-                                  label: Text(
-                                    unlockedBadges.isEmpty
-                                        ? 'First badge loading'
-                                        : '${unlockedBadges.length} badge(s) unlocked',
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            LinearProgressIndicator(
-                              value: rewards.progressToNextLevel,
-                              minHeight: 10,
-                              borderRadius:
-                                  const BorderRadius.all(Radius.circular(999)),
-                              backgroundColor: const Color(0xFFE2E8F0),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                LumoTheme.accentOrange,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              rewards.nextLevelLabel == null
-                                  ? 'Top celebration band reached. Keep the streak alive.'
-                                  : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
-                            ),
-                            if (unlockedBadges.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: unlockedBadges
-                                    .take(3)
-                                    .map(
-                                      (badge) => Chip(
-                                        avatar: const Icon(
-                                          Icons.emoji_events_rounded,
-                                          size: 18,
-                                          color: LumoTheme.accentOrange,
-                                        ),
-                                        label: Text(badge.title),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                    SoftPanel(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.route_rounded,
-                                  color: LumoTheme.primary),
-                              SizedBox(width: 8),
-                              Text(
-                                'Next lesson routing',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(routeSummary),
-                          const SizedBox(height: 12),
-                          LabelValueWrap(
-                            items: [
-                              (
-                                'Backend route',
-                                state.backendRoutingSummaryForLearner(learner),
-                              ),
-                              ('Recommended module', recommendedModule.title),
-                              (
-                                'Next lesson',
-                                nextLesson?.title ?? 'Open module to choose',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _ResponsiveButtonRow(
-                      primary: FilledButton(
-                        onPressed: () {
-                          state.selectLearner(learner);
-                          state.selectModule(recommendedModule);
-                          if (nextLesson != null) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => LessonLaunchSetupPage(
-                                  state: state,
-                                  onChanged: () {},
-                                  lesson: nextLesson,
-                                  module: recommendedModule,
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => SubjectModulesPage(
-                                state: state,
-                                onChanged: () {},
-                                module: recommendedModule,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Text(nextLesson == null
-                            ? 'Open recommended module'
-                            : 'Start next routed lesson'),
-                      ),
-                      secondary: OutlinedButton(
-                        onPressed: () {
-                          Navigator.of(context)
-                              .popUntil((route) => route.isFirst);
-                        },
-                        child: const Text('Back home'),
-                      ),
-                    ),
-                  ],
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: _resultsVisible ? 1 : 0,
+                  duration: const Duration(milliseconds: 500),
+                  child: _CelebrationConfettiOverlay(
+                    controller: _confettiController,
+                  ),
                 ),
               ),
             ),
-          ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 450),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: _resultsVisible
+                  ? SingleChildScrollView(
+                      key: const ValueKey('lesson-complete-results'),
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: DetailCard(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor: Color(0xFFDCFCE7),
+                                  child: Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.green,
+                                    size: 46,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  widget.state
+                                      .rewardCelebrationHeadlineForLearner(
+                                          learner),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'You completed ${lesson.title}. ${widget.state.rewardCelebrationDetailForLearner(learner)}',
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final compact = constraints.maxWidth < 720;
+                                    final tiles = [
+                                      MetricTile(
+                                        label: 'Responses captured',
+                                        value: '${session.totalResponses}',
+                                        icon: Icons.hearing_rounded,
+                                        color: LumoTheme.primary,
+                                      ),
+                                      MetricTile(
+                                        label: 'Support actions',
+                                        value: '${session.supportActionsUsed}',
+                                        icon: Icons.volunteer_activism_rounded,
+                                        color: LumoTheme.accentOrange,
+                                      ),
+                                      MetricTile(
+                                        label: 'Queued sync',
+                                        value:
+                                            '${widget.state.pendingSyncEvents.length}',
+                                        icon: Icons.cloud_upload_rounded,
+                                        color: LumoTheme.accentGreen,
+                                      ),
+                                    ];
+
+                                    if (compact) {
+                                      return Column(
+                                        children: [
+                                          for (var i = 0;
+                                              i < tiles.length;
+                                              i++) ...[
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: tiles[i],
+                                            ),
+                                            if (i < tiles.length - 1)
+                                              const SizedBox(height: 12),
+                                          ],
+                                        ],
+                                      );
+                                    }
+
+                                    return Row(
+                                      children: [
+                                        for (var i = 0;
+                                            i < tiles.length;
+                                            i++) ...[
+                                          Expanded(child: tiles[i]),
+                                          if (i < tiles.length - 1)
+                                            const SizedBox(width: 12),
+                                        ],
+                                      ],
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 20),
+                                if (rewards != null) ...[
+                                  SoftPanel(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(Icons.auto_awesome_rounded,
+                                                color: LumoTheme.accentOrange),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Reward boost',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Wrap(
+                                          spacing: 12,
+                                          runSpacing: 12,
+                                          children: [
+                                            Chip(
+                                              avatar: const Icon(
+                                                  Icons.stars_rounded,
+                                                  size: 18),
+                                              label:
+                                                  Text('${rewards.points} pts'),
+                                            ),
+                                            Chip(
+                                              avatar: const Icon(
+                                                  Icons.trending_up_rounded,
+                                                  size: 18),
+                                              label: Text(
+                                                  '${rewards.levelLabel} • Level ${rewards.level}'),
+                                            ),
+                                            Chip(
+                                              avatar: const Icon(
+                                                  Icons
+                                                      .workspace_premium_rounded,
+                                                  size: 18),
+                                              label: Text(
+                                                unlockedBadges.isEmpty
+                                                    ? 'First badge loading'
+                                                    : '${unlockedBadges.length} badge(s) unlocked',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        LinearProgressIndicator(
+                                          value: rewards.progressToNextLevel,
+                                          minHeight: 10,
+                                          borderRadius: const BorderRadius.all(
+                                            Radius.circular(999),
+                                          ),
+                                          backgroundColor:
+                                              const Color(0xFFE2E8F0),
+                                          valueColor:
+                                              const AlwaysStoppedAnimation<
+                                                  Color>(
+                                            LumoTheme.accentOrange,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          rewards.nextLevelLabel == null
+                                              ? 'Top celebration band reached. Keep the streak alive.'
+                                              : '${rewards.xpForNextLevel} XP to ${rewards.nextLevelLabel}',
+                                        ),
+                                        if (unlockedBadges.isNotEmpty) ...[
+                                          const SizedBox(height: 12),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: unlockedBadges
+                                                .take(3)
+                                                .map(
+                                                  (badge) => Chip(
+                                                    avatar: const Icon(
+                                                      Icons
+                                                          .emoji_events_rounded,
+                                                      size: 18,
+                                                      color: LumoTheme
+                                                          .accentOrange,
+                                                    ),
+                                                    label: Text(badge.title),
+                                                  ),
+                                                )
+                                                .toList(),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                ],
+                                SoftPanel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.route_rounded,
+                                              color: LumoTheme.primary),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Next lesson routing',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(routeSummary),
+                                      const SizedBox(height: 12),
+                                      LabelValueWrap(
+                                        items: [
+                                          (
+                                            'Backend route',
+                                            widget.state
+                                                .backendRoutingSummaryForLearner(
+                                                    learner),
+                                          ),
+                                          (
+                                            'Recommended module',
+                                            recommendedModule.title,
+                                          ),
+                                          (
+                                            'Next lesson',
+                                            nextLesson?.title ??
+                                                'Open module to choose',
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                _ResponsiveButtonRow(
+                                  primary: FilledButton(
+                                    onPressed: () {
+                                      widget.state.selectLearner(learner);
+                                      widget.state
+                                          .selectModule(recommendedModule);
+                                      if (nextLesson != null) {
+                                        Navigator.of(context).pushReplacement(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                LessonLaunchSetupPage(
+                                              state: widget.state,
+                                              onChanged: () {},
+                                              lesson: nextLesson,
+                                              module: recommendedModule,
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(
+                                          builder: (_) => SubjectModulesPage(
+                                            state: widget.state,
+                                            onChanged: () {},
+                                            module: recommendedModule,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(nextLesson == null
+                                        ? 'Open recommended module'
+                                        : 'Start next routed lesson'),
+                                  ),
+                                  secondary: OutlinedButton(
+                                    onPressed: () {
+                                      Navigator.of(context)
+                                          .popUntil((route) => route.isFirst);
+                                    },
+                                    child: const Text('Back home'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      key: const ValueKey('lesson-complete-countdown'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 620),
+                          child: DetailCard(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 108,
+                                  height: 108,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEEF2FF),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '$_secondsRemaining',
+                                    style: const TextStyle(
+                                      fontSize: 44,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF312E81),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 22),
+                                Text(
+                                  'Nice work, ${learner.name.split(' ').first}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Mallam is getting your celebration ready. Full results will appear in a moment.',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Color(0xFF64748B),
+                                    height: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 22),
+                                const Text(
+                                  'Results unlock in about 3 seconds',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 22),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    onPressed: _revealResults,
+                                    icon: const Icon(Icons.celebration_rounded),
+                                    label: const Text('Show results now'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
     );
+  }
+}
+
+class _CelebrationConfettiOverlay extends StatelessWidget {
+  final Animation<double> controller;
+
+  const _CelebrationConfettiOverlay({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          return CustomPaint(
+            painter: _CelebrationConfettiPainter(progress: controller.value),
+            child: const SizedBox.expand(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CelebrationConfettiPainter extends CustomPainter {
+  final double progress;
+
+  const _CelebrationConfettiPainter({required this.progress});
+
+  static const _colors = [
+    Color(0xFF4338CA),
+    Color(0xFFF97316),
+    Color(0xFF22C55E),
+    Color(0xFFEAB308),
+    Color(0xFFEC4899),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    for (var index = 0; index < 42; index++) {
+      final color = _colors[index % _colors.length];
+      final lane = (index * 0.173) % 1;
+      final swaySeed = (index % 7) + 1;
+      final drop = ((progress + (index * 0.037)) % 1.0);
+      final x = lane * size.width +
+          math.sin((progress * math.pi * 2) + index) * (10 + swaySeed * 2);
+      final y = -24 + drop * (size.height + 80);
+      final width = 8 + (index % 4) * 2.0;
+      final height = 12 + (index % 5) * 2.0;
+
+      canvas.save();
+      canvas.translate(x.clamp(-24, size.width + 24), y);
+      canvas.rotate((progress * math.pi * 4) + (index * 0.31));
+      paint.color = color.withValues(alpha: 0.9);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: width,
+            height: height,
+          ),
+          const Radius.circular(3),
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CelebrationConfettiPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
 
@@ -6421,9 +7007,8 @@ class _RosterFreshnessBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFallback = state.usingFallbackData;
     final color = isFallback ? LumoTheme.accentOrange : LumoTheme.accentGreen;
-    final icon = isFallback
-        ? Icons.warning_amber_rounded
-        : Icons.update_rounded;
+    final icon =
+        isFallback ? Icons.warning_amber_rounded : Icons.update_rounded;
 
     return Container(
       width: double.infinity,
@@ -7292,171 +7877,6 @@ LearnerLeaderboardEntry? learnerLeaderboardEntryFor(
     if (entry.learner.id == learnerId) return entry;
   }
   return null;
-}
-
-class _LearnerRewardHero extends StatelessWidget {
-  final LearnerProfile learner;
-  final RewardSnapshot? rewards;
-  final int totalXp;
-  final int totalPoints;
-  final int totalMinutes;
-  final LearnerLeaderboardEntry? leaderboardEntry;
-  final int unlockedBadgeCount;
-
-  const _LearnerRewardHero({
-    required this.learner,
-    required this.rewards,
-    required this.totalXp,
-    required this.totalPoints,
-    required this.totalMinutes,
-    required this.leaderboardEntry,
-    required this.unlockedBadgeCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final headline = leaderboardEntry?.rank == 1
-        ? 'Top of the board'
-        : leaderboardEntry == null
-            ? 'Learning momentum'
-            : 'Chasing the top spot';
-    final subline = leaderboardEntry?.rank == 1
-        ? '${learner.name} is leading with $totalPoints points. Keep the streak alive.'
-        : leaderboardEntry == null
-            ? '${learner.name} has $totalPoints points, $totalXp XP, and ${learner.streakDays} streak days.'
-            : '${leaderboardEntry!.pointsGapFromLeader} more points to catch the leader.';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF312E81), Color(0xFF6D28D9), Color(0xFF2563EB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF312E81).withValues(alpha: 0.18),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  headline,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              if (rewards != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '${rewards!.levelLabel} • Level ${rewards!.level}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            learner.name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subline,
-            style: const TextStyle(
-              color: Color(0xFFE0E7FF),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _RewardHeroChip(
-                  icon: Icons.workspace_premium_rounded,
-                  label: '$totalPoints pts'),
-              _RewardHeroChip(icon: Icons.stars_rounded, label: '$totalXp XP'),
-              _RewardHeroChip(
-                  icon: Icons.local_fire_department_rounded,
-                  label: '${learner.streakDays} day streak'),
-              _RewardHeroChip(
-                  icon: Icons.schedule_rounded, label: '$totalMinutes mins'),
-              _RewardHeroChip(
-                  icon: Icons.emoji_events_rounded,
-                  label: '$unlockedBadgeCount badge(s)'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RewardHeroChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _RewardHeroChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _RewardRedemptionPlannerPanel extends StatelessWidget {

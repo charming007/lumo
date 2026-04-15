@@ -15,8 +15,9 @@ import { DynamicLessonCreateForm } from '../../components/content-ops-form';
 import { ContentSubjectLanes } from '../../components/content-subject-lanes';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
-import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
+import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
+import { assessmentMatchesModule } from '../../lib/module-assessment-match';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -56,12 +57,13 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
 
 export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
   const query = await searchParams;
-  const [modulesResult, lessonsResult, subjectsResult, strandsResult, assessmentsResult] = await Promise.allSettled([
+  const [modulesResult, lessonsResult, subjectsResult, strandsResult, assessmentsResult, assignmentsResult] = await Promise.allSettled([
     fetchCurriculumModules(),
     fetchLessons(),
     fetchSubjects(),
     fetchStrands(),
     fetchAssessments(),
+    fetchAssignments(),
   ]);
 
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
@@ -69,12 +71,14 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const strands = strandsResult.status === 'fulfilled' ? strandsResult.value : [];
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const failedSources = [
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     strandsResult.status === 'rejected' ? 'strands' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    assignmentsResult.status === 'rejected' ? 'assignments' : null,
   ].filter(Boolean);
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
@@ -110,14 +114,14 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     return subjectMatches && statusMatches && viewMatches && queryMatches;
   });
 
-  const moduleHasAssessmentGate = (moduleId: string, moduleTitle: string) => assessments.some(
-    (assessment) => assessment.moduleId === moduleId || assessment.moduleTitle === moduleTitle,
+  const moduleHasAssessmentGate = (module: (typeof modules)[number]) => assessments.some(
+    (assessment) => assessmentMatchesModule(module, assessment),
   );
 
   const blockedModules = modules.filter((module) => {
     const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
     const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-    return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module.id, module.title);
+    return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module);
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
@@ -190,7 +194,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) repeat(3, minmax(160px, 0.7fr))', gap: 12 }}>
+          <div style={{ ...responsiveGrid(180), gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
             <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
               Search title, module, strand, trigger, or status
               <input name="q" defaultValue={searchText} placeholder="Try English, published, story, oral…" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
@@ -245,6 +249,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           { label: 'Modules', value: String(modules.length), note: 'Structured by strand, not dumped into a fake flat list.' },
           { label: 'Lessons ready', value: String(lessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length), note: 'Approved or published lessons live in the release lane.' },
           { label: 'Assessment gates', value: String(assessments.length), note: 'Every progression checkpoint stays visible and editable.' },
+          { label: 'Live assignments', value: String(assignments.length), note: 'This curriculum board now points at learner-facing delivery, not fake demo nodes.' },
         ].map((item) => (
           <Card key={item.label} title={item.value} eyebrow={item.label}><div style={{ color: '#64748b' }}>{item.note}</div></Card>
         ))}
@@ -258,9 +263,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             modules={filteredModules}
             lessons={filteredLessons}
             assessments={filteredAssessments}
+            assignments={assignments}
           />
 
-          <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+          <section style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
             <Card title="Release blockers" eyebrow="What still stops publish">
               <SimpleTable
                 columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
@@ -268,7 +274,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
                   const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                   const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-                  const hasAssessment = moduleHasAssessmentGate(module.id, module.title);
+                  const hasAssessment = moduleHasAssessmentGate(module);
                   const blocker = blockerRiskMeta(missingLessons, hasAssessment);
 
                   return [
@@ -292,7 +298,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       </span>
                     </div>,
                     <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
-                      <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                      <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
                         Add lesson pack
                       </Link>
                       {!hasAssessment ? (
@@ -393,7 +399,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
                 const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                 const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-                const hasAssessment = moduleHasAssessmentGate(module.id, module.title);
+                const hasAssessment = moduleHasAssessmentGate(module);
                 const blocker = blockerRiskMeta(missingLessons, hasAssessment);
 
                 return [
@@ -417,7 +423,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     </span>
                   </div>,
                   <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
-                    <Link href={`/content/lessons/new?subjectId=${module.subjectId ?? ''}&moduleId=${module.id}&from=%2Fcontent%3Fview%3Dblocked&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent%3Fview%3Dblocked&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
                       Add lesson pack
                     </Link>
                     {!hasAssessment ? (

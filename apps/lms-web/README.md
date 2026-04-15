@@ -44,4 +44,4 @@ If the API is down, key pages now stay usable in degraded mode and call out whic
 
 Deploy to Vercel with root directory set to `apps/lms-web`.
 
-`NEXT_PUBLIC_API_BASE_URL` is mandatory in production. The app now refuses to silently fall back to a baked-in production backend URL, so a missing env var will surface as an explicit degraded/deployment-blocker state in the LMS instead of quietly pointing at the wrong API.
+`NEXT_PUBLIC_API_BASE_URL` is mandatory for a fully live production deployment. If it is missing, the app now still builds and boots so operators can see the warning banner and degraded shell, but all API-backed screens intentionally stay in degraded mode until the env var is set.
