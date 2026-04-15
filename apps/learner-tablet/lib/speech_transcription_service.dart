@@ -81,15 +81,18 @@ class SpeechTranscriptionService {
   int _consecutiveStartFailures = 0;
   DateTime? _lastStartFailureAt;
   DateTime? _retryBlockedUntil;
+  String _activeModeLabel = 'Audio fallback review';
 
   static const Duration _retryCooldown = Duration(seconds: 20);
 
   bool get isAvailable => _available;
   String? get lastError => _lastError;
   String get lastStatus => _lastStatus;
+  String get activeModeLabel => _activeModeLabel;
   bool get isListening => _engine.isListening;
   bool get isInRetryCooldown =>
-      _retryBlockedUntil != null && DateTime.now().isBefore(_retryBlockedUntil!);
+      _retryBlockedUntil != null &&
+      DateTime.now().isBefore(_retryBlockedUntil!);
   Duration? get retryCooldownRemaining {
     final retryBlockedUntil = _retryBlockedUntil;
     if (retryBlockedUntil == null) return null;
@@ -105,7 +108,8 @@ class SpeechTranscriptionService {
       return 'Speech recognition is ready for live transcript capture.';
     }
     final remainingCooldown = retryCooldownRemaining;
-    final cooldownDetail = remainingCooldown != null && remainingCooldown > Duration.zero
+    final cooldownDetail = remainingCooldown != null &&
+            remainingCooldown > Duration.zero
         ? ' Retry cooldown: ${remainingCooldown.inSeconds}s remaining before the next transcript restart.'
         : '';
     final failureDetail = _consecutiveStartFailures >= 2
@@ -129,7 +133,9 @@ class SpeechTranscriptionService {
     if (isInRetryCooldown) {
       return 'Transcript cooldown';
     }
-    return kIsWeb ? 'Browser fallback transcription' : 'Device fallback transcription';
+    return kIsWeb
+        ? 'Browser fallback transcription'
+        : 'Device fallback transcription';
   }
 
   String strategySummary({bool preferAudioOnly = false}) {
@@ -140,7 +146,8 @@ class SpeechTranscriptionService {
       return 'Lumo will try live speech-to-text while still saving the learner audio locally, so Mallam can keep moving and the facilitator still has evidence if the transcript is shaky.';
     }
     if (isInRetryCooldown) {
-      final remaining = retryCooldownRemaining?.inSeconds ?? _retryCooldown.inSeconds;
+      final remaining =
+          retryCooldownRemaining?.inSeconds ?? _retryCooldown.inSeconds;
       return 'Live transcript restarts are cooling down for about ${remaining}s after repeated failures. Keep teaching in audio-first mode, then retry when the mic settles.';
     }
     return availabilityLabel;
@@ -186,14 +193,17 @@ class SpeechTranscriptionService {
             recentRepeatedFailures)) {
       _available = false;
       _lastStatus = 'retry-blocked';
-      final seconds = retryCooldownRemaining?.inSeconds ?? _retryCooldown.inSeconds;
+      final seconds =
+          retryCooldownRemaining?.inSeconds ?? _retryCooldown.inSeconds;
       _lastError =
           'Speech recognition is cooling down after repeated start failures. Keep saving audio locally for about ${seconds}s, then try again.';
+      _activeModeLabel = 'Audio fallback review';
       return false;
     }
 
     if (_initialized && !forceRetry) return _available;
 
+    _activeModeLabel = 'Preparing transcript engine';
     _lastError = null;
     _lastStatus = 'initializing';
     try {
@@ -264,6 +274,8 @@ class SpeechTranscriptionService {
         ),
       );
       _available = true;
+      _activeModeLabel =
+          !kIsWeb ? 'On-device dictation active' : 'Browser dictation active';
     } catch (_) {
       try {
         await startListening(
@@ -275,9 +287,13 @@ class SpeechTranscriptionService {
           ),
         );
         _available = true;
+        _activeModeLabel = kIsWeb
+            ? 'Browser confirmation fallback'
+            : 'Cloud confirmation fallback';
       } catch (error) {
         _registerStartFailure();
         _lastError = _normalizeError(error.toString());
+        _activeModeLabel = 'Audio fallback review';
         _available = false;
         onStatus?.call(_lastStatus);
         return false;
@@ -327,7 +343,9 @@ class SpeechTranscriptionService {
     if (lower.contains('permission')) {
       return 'Speech recognition permission was denied. Audio capture can still run, but transcript help is unavailable until mic permissions are allowed.';
     }
-    if (lower.contains('network') || lower.contains('timeout')) {
+    if (lower.contains('network') ||
+        lower.contains('timeout') ||
+        lower.contains('offline')) {
       return 'Speech recognition needs a steadier connection right now. Lumo will keep saving audio locally so the lesson can continue.';
     }
     if (lower.contains('notallowed') || lower.contains('service-not-allowed')) {
@@ -336,12 +354,19 @@ class SpeechTranscriptionService {
     if (lower.contains('aborted')) {
       return 'The browser or OS stopped listening early. Reopen the mic once, then switch to repeat mode if it keeps happening.';
     }
-    if (lower.contains('no-speech') || lower.contains('speech timeout')) {
+    if (lower.contains('no-speech') ||
+        lower.contains('speech timeout') ||
+        lower.contains('no match')) {
       return 'No clear speech was detected on this take. Lumo will keep the saved audio and can reopen the mic for another try.';
     }
     if (lower.contains('audio-capture') ||
         lower.contains('microphone unavailable')) {
       return 'The microphone became unavailable mid-session. Reconnect the mic if needed; Lumo will keep using saved audio until live transcript help recovers.';
+    }
+    if (lower.contains('language-not-supported') ||
+        lower.contains('locale') ||
+        lower.contains('language')) {
+      return 'This speech engine does not fully support the current lesson language on this device yet. Keep the saved learner audio, then confirm the answer manually.';
     }
     if (lower.contains('notavailable') || lower.contains('not available')) {
       return kIsWeb

@@ -3912,6 +3912,67 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           ? 'Lumo saved both the learner audio and this draft transcript. Use the saved voice as the source of truth, then edit or confirm the text before Mallam continues.'
           : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
 
+  String get _transcriptSourceOfTruthLabel {
+    if (_isAudioOnlyReviewState || _draftTranscriptNeedsVoiceCheck) {
+      return 'Saved voice is source of truth';
+    }
+    if (speechRecognitionActive && !transcriptReviewPending) {
+      return 'Transcript can drive next step';
+    }
+    if (_hasSavedLearnerAudio) {
+      return 'Saved voice backup attached';
+    }
+    return 'Transcript assist only';
+  }
+
+  String get _automationSafetyLabel {
+    if (_isAudioOnlyReviewState || _draftTranscriptNeedsVoiceCheck) {
+      return 'Manual review gate active';
+    }
+    if (_consecutiveTranscriptMisses >= 2) {
+      return 'Repeat-mode safety active';
+    }
+    if (isAutoMode && speechRecognitionActive) {
+      return 'Safe auto-advance armed';
+    }
+    if (isAutoMode) {
+      return 'Audio-first auto flow';
+    }
+    return 'Manual step control';
+  }
+
+  String get _transcriptModeLabel => speechRecognitionActive
+      ? speechTranscriptionService.activeModeLabel
+      : _avoidConcurrentSpeechCapture
+          ? 'Recorder owns microphone'
+          : speechTranscriptionService.activeModeLabel;
+
+  String get _automationSafetySummary {
+    if (_isAudioOnlyReviewState) {
+      return 'Mallam will not auto-advance from this take until someone listens to the saved audio or types a confirmed note.';
+    }
+    if (_draftTranscriptNeedsVoiceCheck) {
+      return 'Mallam is paused because the transcript is only a draft. Confirm it against the saved voice before resuming the loop.';
+    }
+    if (_consecutiveTranscriptMisses >= 2) {
+      return 'Lumo already slowed the loop down after repeated misses so the learner is not trapped in a bad STT retry spiral.';
+    }
+    if (isAutoMode && speechRecognitionActive) {
+      return 'Auto-advance is allowed only after a stable transcript final arrives or the facilitator confirms the response.';
+    }
+    return 'Hands-free support is available, but the facilitator stays in control of the next step.';
+  }
+
+  String get _reviewPrimaryCtaLabel => _isAudioOnlyReviewState
+      ? (isAutoMode
+          ? 'Save note and continue'
+          : 'Save note + resume hands-free')
+      : (isAutoMode ? 'Confirm and continue' : 'Confirm + resume hands-free');
+
+  String get _reviewSecondaryCtaLabel => _isAudioOnlyReviewState
+      ? 'Stay in audio-only review'
+      : 'Use audio only for this take';
+
   String get _transcriptStrategyHeadline =>
       speechTranscriptionService.strategyHeadline(
         preferAudioOnly: _avoidConcurrentSpeechCapture,
@@ -4579,6 +4640,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 if (cleaned.isEmpty) return;
                 setState(() {
                   liveTranscript = cleaned;
+                  _latestTranscriptNeedsManualReview = !isFinal;
                   if (isFinal) {
                     _latestFinalTranscript = cleaned;
                     _capturedStableFinalTranscript = true;
@@ -5418,14 +5480,38 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                   healthy: true,
                                 ),
                                 _buildDiagnosticChip(
+                                  icon: _isAudioOnlyReviewState ||
+                                          _draftTranscriptNeedsVoiceCheck
+                                      ? Icons.verified_user_rounded
+                                      : Icons.fact_check_rounded,
+                                  label: _transcriptSourceOfTruthLabel,
+                                  healthy: !_isAudioOnlyReviewState &&
+                                      !_draftTranscriptNeedsVoiceCheck,
+                                  warn: _isAudioOnlyReviewState ||
+                                      _draftTranscriptNeedsVoiceCheck,
+                                ),
+                                _buildDiagnosticChip(
                                   icon: _consecutiveTranscriptMisses >= 2
                                       ? Icons.repeat_rounded
-                                      : Icons.auto_mode_rounded,
-                                  label: _consecutiveTranscriptMisses >= 2
-                                      ? 'Repeat mode safety active'
-                                      : 'Hands-free ready',
-                                  healthy: _consecutiveTranscriptMisses < 2,
-                                  warn: _consecutiveTranscriptMisses >= 2,
+                                      : isAutoMode
+                                          ? Icons.auto_mode_rounded
+                                          : Icons.pan_tool_alt_rounded,
+                                  label: _automationSafetyLabel,
+                                  healthy: isAutoMode &&
+                                      _consecutiveTranscriptMisses < 2 &&
+                                      !_isAudioOnlyReviewState &&
+                                      !_draftTranscriptNeedsVoiceCheck,
+                                  warn: _consecutiveTranscriptMisses >= 2 ||
+                                      _isAudioOnlyReviewState ||
+                                      _draftTranscriptNeedsVoiceCheck,
+                                ),
+                                _buildDiagnosticChip(
+                                  icon: speechRecognitionActive
+                                      ? Icons.settings_voice_rounded
+                                      : Icons.hearing_disabled_rounded,
+                                  label: _transcriptModeLabel,
+                                  healthy: speechRecognitionActive,
+                                  warn: !speechRecognitionActive,
                                 ),
                               ],
                             ),
@@ -5437,35 +5523,45 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 height: 1.35,
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            ..._transcriptStrategyActions.take(3).map(
-                              (action) => Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 2),
-                                      child: Icon(
-                                        Icons.arrow_forward_rounded,
-                                        size: 16,
-                                        color: LumoTheme.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        action,
-                                        style: const TextStyle(
-                                          color: Color(0xFF475569),
-                                          height: 1.35,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _automationSafetySummary,
+                              style: const TextStyle(
+                                color: Color(0xFF64748B),
+                                height: 1.35,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                            const SizedBox(height: 10),
+                            ..._transcriptStrategyActions.take(3).map(
+                                  (action) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 2),
+                                          child: Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 16,
+                                            color: LumoTheme.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            action,
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                           ],
                         ),
                       ),
@@ -5978,35 +6074,31 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             icon: const Icon(
                                               Icons.auto_mode_rounded,
                                             ),
-                                            label: Text(
-                                              _isAudioOnlyReviewState
-                                                  ? (isAutoMode
-                                                      ? 'Save note and continue'
-                                                      : 'Save note + resume hands-free')
-                                                  : (isAutoMode
-                                                      ? 'Confirm and continue'
-                                                      : 'Confirm + resume hands-free'),
-                                            ),
+                                            label: Text(_reviewPrimaryCtaLabel),
                                           ),
                                           OutlinedButton.icon(
                                             onPressed: () {
                                               setState(() {
                                                 transcriptReviewPending = false;
+                                                isAutoMode = false;
+                                                _autoPausedByTranscriptFailure =
+                                                    true;
                                                 if (responseController.text
                                                     .trim()
                                                     .isEmpty) {
                                                   microphoneStatus =
-                                                      'Transcript review skipped. Keep teaching from the saved audio and type the answer only when you are ready.';
+                                                      'Transcript review skipped. Lumo is staying in audio-first manual mode so nobody auto-advances without checking the saved voice.';
                                                 } else {
                                                   microphoneStatus =
-                                                      'Transcript review skipped. The draft answer stays editable while the saved audio remains attached.';
+                                                      'Transcript review skipped. The draft answer stays editable, the saved audio remains attached, and hands-free auto-advance is paused for this take.';
                                                 }
                                               });
                                             },
                                             icon: const Icon(
                                               Icons.graphic_eq_rounded,
                                             ),
-                                            label: const Text('Use audio only'),
+                                            label:
+                                                Text(_reviewSecondaryCtaLabel),
                                           ),
                                           if (session.latestLearnerAudioPath !=
                                               null)
