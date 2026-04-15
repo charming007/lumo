@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { RewardRequestQueuePanel } from '../../components/reward-request-queue-panel';
 import { RewardsAdminForm } from '../../components/rewards-admin-form';
+import { ExportShareCard } from '../../components/export-share-card';
 import { fetchCohorts, fetchMallams, fetchPods, fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard, fetchRewardsReport, fetchStudents, fetchWorkboard } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { RewardCatalog } from '../../lib/rewards';
@@ -95,6 +96,31 @@ function asRecord(value: unknown) {
   return value && typeof value === 'object' ? value as Record<string, unknown> : null;
 }
 
+function buildScopeLabel({ cohortName, podLabel, mallamName }: { cohortName?: string; podLabel?: string; mallamName?: string }) {
+  const parts = [cohortName, podLabel, mallamName].filter(Boolean);
+  return parts.length ? parts.join(' • ') : 'All cohorts • all pods • all mallams';
+}
+
+function buildFilterChips({ searchText, cohortName, podLabel, mallamName, statusLabel }: { searchText?: string; cohortName?: string | null; podLabel?: string | null; mallamName?: string | null; statusLabel?: string | null }) {
+  return [
+    searchText ? `Search: ${searchText}` : null,
+    cohortName ? `Cohort: ${cohortName}` : null,
+    podLabel ? `Pod: ${podLabel}` : null,
+    mallamName ? `Mallam: ${mallamName}` : null,
+    statusLabel ? `Status: ${statusLabel}` : null,
+  ].filter(Boolean) as string[];
+}
+
+function csvEscape(value: string | number) {
+  const text = String(value ?? '');
+  if (!/[",\n]/.test(text)) return text;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function toCsv(rows: Array<Array<string | number>>) {
+  return rows.map((row) => row.map(csvEscape).join(',')).join('\n');
+}
+
 export default async function RewardsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; status?: string | string[] }> }) {
   const query = await searchParams;
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
@@ -174,6 +200,15 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
   });
   const filteredLearnerIds = new Set(filteredStudents.map((student) => student.id));
   const filteredDemand = rewardsReport.rewardDemand.filter((item) => !searchText || matchesQuery([item.rewardTitle], searchText));
+  const filteredQueue = rewardQueue.items.filter((item) => {
+    const student = students.find((entry) => entry.id === item.studentId || entry.name === item.learnerName);
+    const cohortMatches = !cohortFilter || student?.cohortId === cohortFilter;
+    const podMatches = !podFilter || student?.podId === podFilter;
+    const mallamMatches = !mallamFilter || student?.mallamId === mallamFilter;
+    const statusMatches = !statusFilter || item.status === statusFilter;
+    const queryMatches = matchesQuery([item.learnerName, item.rewardTitle, student?.cohortName, student?.podLabel, student?.mallamName], searchText);
+    return cohortMatches && podMatches && mallamMatches && statusMatches && queryMatches;
+  });
   const filteredAdjustments = rewardsReport.recentAdjustments.filter((entry) => {
     const record = asRecord(entry);
     if (!record) return false;
@@ -193,6 +228,108 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
   const totalXp = filteredLeaderboard.reduce((sum, item) => sum + item.totalXp, 0);
   const totalBadges = filteredLeaderboard.reduce((sum, item) => sum + item.badgesUnlocked, 0);
   const readyLearners = filteredWorkboard.filter((item) => item.progressionStatus === 'ready').length;
+  const watchLearners = filteredWorkboard.filter((item) => item.progressionStatus === 'watch').length;
+  const onTrackLearners = filteredWorkboard.filter((item) => item.progressionStatus === 'on-track').length;
+  const selectedCohort = cohorts.find((cohort) => cohort.id === cohortFilter) ?? null;
+  const selectedPod = pods.find((pod) => pod.id === podFilter) ?? null;
+  const selectedMallam = mallams.find((mallam) => mallam.id === mallamFilter) ?? null;
+  const statusLabelMap: Record<string, string> = {
+    'on-track': 'On track',
+    watch: 'Watch',
+    ready: 'Ready',
+    pending: 'Pending reward request',
+    approved: 'Approved reward request',
+    fulfilled: 'Fulfilled reward request',
+    expired: 'Expired reward request',
+  };
+  const selectedStatusLabel = statusFilter ? (statusLabelMap[statusFilter] ?? statusFilter) : null;
+  const scopeLabel = buildScopeLabel({ cohortName: selectedCohort?.name, podLabel: selectedPod?.label, mallamName: selectedMallam?.displayName });
+  const activeFilterChips = buildFilterChips({
+    searchText: searchText || undefined,
+    cohortName: selectedCohort?.name,
+    podLabel: selectedPod?.label,
+    mallamName: selectedMallam?.displayName,
+    statusLabel: selectedStatusLabel,
+  });
+  const trustState = failedSources.length
+    ? 'Degraded data — operator review required'
+    : filtersActive
+      ? 'Scoped reward snapshot'
+      : 'Live reward operations view';
+  const trustDetail = failedSources.length
+    ? `Reward decisions are partially blind because ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Share the caveat with the snapshot instead of pretending this board is complete.`
+    : filtersActive
+      ? `This board is intentionally scoped to ${scopeLabel}. That makes it shareable for a real decision, not just a noisy full-system screenshot.`
+      : 'All visible reward, queue, roster, and progression feeds loaded. This is safe to use as the full operating picture.';
+  const rewardDateStamp = new Date().toISOString().slice(0, 10);
+  const rewardNarrative = [
+    `Rewards scope: ${scopeLabel}.`,
+    `${filteredLeaderboard.length} leaderboard learner${filteredLeaderboard.length === 1 ? '' : 's'} are visible with ${totalXp} total XP and ${totalBadges} unlocked badge${totalBadges === 1 ? '' : 's'}.`,
+    `${readyLearners} learner${readyLearners === 1 ? '' : 's'} are progression-ready, ${watchLearners} remain on watch, and ${onTrackLearners} are on track.`,
+    `${filteredQueue.length} reward request${filteredQueue.length === 1 ? '' : 's'} are in scope, with ${rewardQueue.summary.urgentCount} urgent and ${rewardQueue.summary.attentionCount} needing attention overall.`,
+    failedSources.length ? `Trust warning: ${trustDetail}` : 'Trust status: reward, progression, and roster data all loaded for this view.',
+  ].join('\n');
+  const rewardShareText = [
+    `Lumo rewards snapshot · ${scopeLabel}`,
+    `${filteredLeaderboard.length} learners visible · ${readyLearners} ready · ${watchLearners} watch.`,
+    `${filteredQueue.length} reward requests in scope with ${rewardQueue.summary.urgentCount} urgent and ${rewardQueue.summary.expired} expired.`,
+    failedSources.length ? `Caution: ${trustDetail}` : 'All core reward feeds loaded for this snapshot.',
+    filteredQueue[0] ? `Top queue item: ${filteredQueue[0].rewardTitle} for ${filteredQueue[0].learnerName ?? filteredQueue[0].studentId} (${filteredQueue[0].status}).` : 'No queue item is dominating the board right now.',
+  ].join('\n');
+  const rewardCsv = toCsv([
+    ['Scope', 'Learners', 'Total XP', 'Badges', 'Ready', 'Watch', 'On track', 'Queue items', 'Urgent', 'Expired'],
+    [scopeLabel, filteredLeaderboard.length, totalXp, totalBadges, readyLearners, watchLearners, onTrackLearners, filteredQueue.length, rewardQueue.summary.urgentCount, rewardQueue.summary.expired],
+    [],
+    ['Learner', 'Level', 'XP', 'Badges', 'Next move', 'Progression'],
+    ...filteredLeaderboard.map((item) => {
+      const workboardEntry = filteredWorkboard.find((entry) => entry.studentName === item.learnerName);
+      return [
+        item.learnerName ?? item.learnerId,
+        `${item.level} · ${item.levelLabel}`,
+        item.totalXp,
+        item.badgesUnlocked,
+        workboardEntry?.recommendedNextModuleTitle ?? item.nextLevelLabel ?? 'Keep building',
+        workboardEntry?.progressionStatus ?? 'on-track',
+      ];
+    }),
+    [],
+    ['Requested at', 'Learner', 'Reward', 'Status', 'XP cost', 'Age days'],
+    ...filteredQueue.map((item) => [
+      formatDate(item.createdAt),
+      item.learnerName ?? item.studentId,
+      item.rewardTitle,
+      item.status,
+      item.xpCost,
+      item.ageDays != null ? item.ageDays.toFixed(1) : '—',
+    ]),
+  ]);
+  const rewardJson = JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    trustState,
+    trustDetail,
+    scope: {
+      label: scopeLabel,
+      searchText: searchText || null,
+      cohortId: cohortFilter || null,
+      podId: podFilter || null,
+      mallamId: mallamFilter || null,
+      status: statusFilter || null,
+    },
+    summary: {
+      leaderboardLearners: filteredLeaderboard.length,
+      totalXp,
+      totalBadges,
+      readyLearners,
+      watchLearners,
+      onTrackLearners,
+      queueItems: filteredQueue.length,
+      urgentQueueItems: rewardQueue.summary.urgentCount,
+      expiredQueueItems: rewardQueue.summary.expired,
+    },
+    leaderboard: filteredLeaderboard,
+    queue: filteredQueue,
+    adjustments: filteredAdjustments,
+  }, null, 2);
 
   return (
     <PageShell
@@ -255,9 +392,65 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
         </Card>
       </section>
 
+      <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Reward trust center" eyebrow="Operational truth before you share it">
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ padding: '18px 20px', borderRadius: 18, background: failedSources.length ? '#fff7ed' : filtersActive ? '#EEF2FF' : '#ECFDF5', border: `1px solid ${failedSources.length ? '#fed7aa' : filtersActive ? '#c7d2fe' : '#bbf7d0'}` }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800, marginBottom: 8 }}>Trust status</div>
+              <strong style={{ display: 'block', fontSize: 22, color: '#0f172a', marginBottom: 6 }}>{trustState}</strong>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>{trustDetail}</div>
+            </div>
+            <div style={{ ...responsiveGrid(180), gap: 12 }}>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
+                <div style={{ color: '#64748b', marginBottom: 6 }}>Scope</div>
+                <strong>{scopeLabel}</strong>
+              </div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
+                <div style={{ color: '#64748b', marginBottom: 6 }}>Queue pressure</div>
+                <strong>{filteredQueue.length} in scope · {rewardQueue.summary.urgentCount} urgent</strong>
+              </div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
+                <div style={{ color: '#64748b', marginBottom: 6 }}>Progression reality</div>
+                <strong>{readyLearners} ready · {watchLearners} watch</strong>
+              </div>
+            </div>
+            {activeFilterChips.length ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {activeFilterChips.map((chip) => (
+                  <Pill key={chip} label={chip} tone="#F8FAFC" text="#334155" />
+                ))}
+              </div>
+            ) : null}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href="/reports" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+                Cross-check in reports →
+              </Link>
+              <Link href="/settings" style={{ color: '#166534', fontWeight: 800, textDecoration: 'none' }}>
+                Open ops control center →
+              </Link>
+            </div>
+          </div>
+        </Card>
+
+        <ExportShareCard
+          title="Export and share"
+          eyebrow="Rewards handoff pack"
+          summary="Copy the scoped reward summary, share it from mobile, or download lightweight artifacts for ops, finance, or partner updates without rebuilding the same snapshot by hand."
+          shareTitle={`Lumo rewards · ${scopeLabel}`}
+          shareText={rewardShareText}
+          artifacts={[
+            { label: 'Download summary (.txt)', filename: `lumo-rewards-${rewardDateStamp}.txt`, mimeType: 'text/plain', content: rewardNarrative, tone: '#EEF2FF', text: '#3730A3' },
+            { label: 'Download queue + leaderboard (.csv)', filename: `lumo-rewards-${rewardDateStamp}.csv`, mimeType: 'text/csv', content: rewardCsv, tone: '#ECFDF5', text: '#166534' },
+            { label: 'Download JSON snapshot', filename: `lumo-rewards-${rewardDateStamp}.json`, mimeType: 'application/json', content: rewardJson, tone: '#FFF7ED', text: '#9A3412' },
+          ]}
+        />
+      </section>
+
       {filtersActive ? (
-        <div style={{ marginBottom: 16, color: '#475569', fontWeight: 700 }}>
-          Showing {filteredLeaderboard.length} leaderboard learner{filteredLeaderboard.length === 1 ? '' : 's'} and {rewardQueue.items.length} reward queue item{rewardQueue.items.length === 1 ? '' : 's'} in the current scope.
+        <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+          <div style={{ marginBottom: 0, color: '#475569', fontWeight: 700 }}>
+            Showing {filteredLeaderboard.length} leaderboard learner{filteredLeaderboard.length === 1 ? '' : 's'} and {filteredQueue.length} reward queue item{filteredQueue.length === 1 ? '' : 's'} in the current scope.
+          </div>
         </div>
       ) : null}
 
@@ -446,7 +639,7 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
 
         <Card title="Queue watchlist" eyebrow="What needs a human now">
           <div style={{ display: 'grid', gap: 12 }}>
-            {rewardQueue.items.length ? rewardQueue.items.slice(0, 6).map((item) => {
+            {filteredQueue.length ? filteredQueue.slice(0, 6).map((item) => {
               const tone = rewardStatusTone(item.status);
               return (
                 <div key={item.id} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
