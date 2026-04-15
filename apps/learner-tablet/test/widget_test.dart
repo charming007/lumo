@@ -6,6 +6,8 @@ import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/main.dart';
 import 'package:lumo_learner_tablet/models.dart';
 
+void _noop() {}
+
 void main() {
   Future<void> pumpAppAtSize(WidgetTester tester, Size size) async {
     tester.view.physicalSize = size;
@@ -22,6 +24,26 @@ void main() {
 
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Student List'), findsOneWidget);
+  });
+
+  testWidgets('splash screen stays usable on short tablet heights', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 360);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const MaterialApp(
+      home: SplashScreen(onFinish: _noop),
+    ));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(find.text('Lumo learner tablet'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
   });
 
   testWidgets('auto-reopens a recovered in-progress lesson after splash', (
@@ -106,9 +128,12 @@ void main() {
     await state.restorePersistedState();
 
     expect(state.learners.single.name, 'Amina Bello');
-    expect(state.recentRuntimeSessionsForLearner(state.learners.single), hasLength(1));
+    expect(state.recentRuntimeSessionsForLearner(state.learners.single),
+        hasLength(1));
     expect(
-      state.recentRuntimeSessionsForLearner(state.learners.single).single
+      state
+          .recentRuntimeSessionsForLearner(state.learners.single)
+          .single
           .automationStatus,
       'Resume ready',
     );
@@ -348,6 +373,39 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Choose learner'), findsOneWidget);
     expect(find.text('Select learner to continue'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsWidgets);
+
+    state.dispose();
+  });
+
+  testWidgets('lesson session stays usable on narrow tablet widths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(540, 960);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Learner microphone capture'), findsOneWidget);
+    expect(find.text(lesson.subject), findsWidgets);
     expect(find.byType(SingleChildScrollView), findsWidgets);
 
     state.dispose();

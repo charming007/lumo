@@ -5181,6 +5181,86 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final suggestions = widget.state.suggestedResponsesForCurrentStep();
     final expectedResponse =
         widget.state.personalizeExpectedResponse(step.expectedResponse);
+    final isStackedLayout = MediaQuery.sizeOf(context).width < 1180;
+
+    Widget buildLessonGuidePane() {
+      if (isStackedLayout) {
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              SizedBox(
+                height: 360,
+                child: MallamPanel(
+                  instruction: lessonInstruction,
+                  onVoiceTap: () async {
+                    _promptedCurrentStep = false;
+                    await _speakCurrentStepIfNeeded(force: true);
+                    widget.onChanged();
+                    setState(() {});
+                  },
+                  prompt: widget.state.personalizePrompt(step.coachPrompt),
+                  speakerMode: session.speakerMode,
+                  statusLabel: _speakerModeLabel(session.speakerMode),
+                  secondaryStatus:
+                      'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
+                  voiceButtonLabel: 'Replay Mallam',
+                  speakerOutputMode: session.speakerOutputMode,
+                  voiceHint: isSpeaking
+                      ? 'Mallam is active on the left while the learner task stays visible on the right.'
+                      : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
+                ),
+              ),
+              const SizedBox(height: 16),
+              _LessonStageStrip(
+                session: session,
+                lesson: widget.lesson,
+              ),
+              const SizedBox(height: 16),
+              _LessonTranscriptPanel(
+                session: session,
+                learnerName: learner.name,
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Column(
+        children: [
+          Expanded(
+            child: MallamPanel(
+              instruction: lessonInstruction,
+              onVoiceTap: () async {
+                _promptedCurrentStep = false;
+                await _speakCurrentStepIfNeeded(force: true);
+                widget.onChanged();
+                setState(() {});
+              },
+              prompt: widget.state.personalizePrompt(step.coachPrompt),
+              speakerMode: session.speakerMode,
+              statusLabel: _speakerModeLabel(session.speakerMode),
+              secondaryStatus:
+                  'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
+              voiceButtonLabel: 'Replay Mallam',
+              speakerOutputMode: session.speakerOutputMode,
+              voiceHint: isSpeaking
+                  ? 'Mallam is active on the left while the learner task stays visible on the right.'
+                  : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
+            ),
+          ),
+          const SizedBox(height: 16),
+          _LessonStageStrip(
+            session: session,
+            lesson: widget.lesson,
+          ),
+          const SizedBox(height: 16),
+          _LessonTranscriptPanel(
+            session: session,
+            learnerName: learner.name,
+          ),
+        ],
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -5190,42 +5270,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: MallamPanel(
-                        instruction: lessonInstruction,
-                        onVoiceTap: () async {
-                          _promptedCurrentStep = false;
-                          await _speakCurrentStepIfNeeded(force: true);
-                          widget.onChanged();
-                          setState(() {});
-                        },
-                        prompt:
-                            widget.state.personalizePrompt(step.coachPrompt),
-                        speakerMode: session.speakerMode,
-                        statusLabel: _speakerModeLabel(session.speakerMode),
-                        secondaryStatus:
-                            'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
-                        voiceButtonLabel: 'Replay Mallam',
-                        speakerOutputMode: session.speakerOutputMode,
-                        voiceHint: isSpeaking
-                            ? 'Mallam is active on the left while the learner task stays visible on the right.'
-                            : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _LessonStageStrip(
-                      session: session,
-                      lesson: widget.lesson,
-                    ),
-                    const SizedBox(height: 16),
-                    _LessonTranscriptPanel(
-                      session: session,
-                      learnerName: learner.name,
-                    ),
-                  ],
-                ),
+                child: buildLessonGuidePane(),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -6350,10 +6395,10 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
         Flexible() => child.child,
         _ => child,
       };
-      final paneHeight = viewportHeight < 700 ? 700.0 : viewportHeight * 0.96;
+      final paneHeight = viewportHeight < 700 ? 760.0 : viewportHeight * 1.4;
       return isPane
-          ? ConstrainedBox(
-              constraints: BoxConstraints(minHeight: paneHeight),
+          ? SizedBox(
+              height: paneHeight,
               child: columnChild,
             )
           : columnChild;
