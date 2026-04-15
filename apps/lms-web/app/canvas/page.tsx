@@ -309,15 +309,24 @@ export default async function CurriculumCanvasPage() {
     rescueData = buildCurriculumCanvasDataFromTree(canvasTree);
   }
 
+  const splitFeedFailures = [
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    strandsResult.status === 'rejected' ? 'strands' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    canvasBuildFailed ? 'canvas-render' : null,
+  ].filter((value): value is string => Boolean(value));
+
+  const liveGraphAvailable = liveData.summary.modules > 0;
+  const rescueTreeAvailable = rescueData.summary.modules > 0;
+  const treeOnlyNeededForRecovery = !liveGraphAvailable || splitFeedFailures.length > 0;
+  const treeFailureShouldSurface = canvasTreeResult.status === 'rejected' && treeOnlyNeededForRecovery;
+
   const failedSources = [
-     subjectsResult.status === 'rejected' ? 'subjects' : null,
-     strandsResult.status === 'rejected' ? 'strands' : null,
-     modulesResult.status === 'rejected' ? 'modules' : null,
-     lessonsResult.status === 'rejected' ? 'lessons' : null,
-     assessmentsResult.status === 'rejected' ? 'assessments' : null,
-     canvasTreeResult.status === 'rejected' ? 'canvas-tree' : null,
-     canvasBuildFailed ? 'canvas-render' : null,
-   ].filter((value): value is string => Boolean(value));
+    ...splitFeedFailures,
+    treeFailureShouldSurface ? 'canvas-tree' : null,
+  ].filter((value): value is string => Boolean(value));
 
   const hardRescueReason = API_BASE_SOURCE === 'missing-production-env'
     ? 'NEXT_PUBLIC_API_BASE_URL is missing in production, so the canvas is rendering an explicit rescue lane instead of pretending the empty route is acceptable.'
@@ -326,16 +335,16 @@ export default async function CurriculumCanvasPage() {
       : 'The curriculum graph shaped into zero visible modules, so the route is rendering an explicit rescue lane instead of an empty shell.';
 
   const hardRescueData = buildHardRescueCanvasData(hardRescueReason);
-  const data = liveData.summary.modules > 0
+  const data = liveGraphAvailable
     ? liveData
-    : rescueData.summary.modules > 0
+    : rescueTreeAvailable
       ? rescueData
       : hardRescueData;
-  const usedRescueTree = liveData.summary.modules === 0 && rescueData.summary.modules > 0;
-  const usedHardRescue = liveData.summary.modules === 0 && rescueData.summary.modules === 0;
-  const blendedFromTree = liveData.summary.modules > 0 && canvasTree && (liveData.summary.lessons > lessons.length || liveData.summary.assessments > assessments.length);
+  const usedRescueTree = !liveGraphAvailable && rescueTreeAvailable;
+  const usedHardRescue = !liveGraphAvailable && !rescueTreeAvailable;
+  const blendedFromTree = liveGraphAvailable && canvasTree && (liveData.summary.lessons > lessons.length || liveData.summary.assessments > assessments.length);
 
-  const totalFeeds = 6;
+  const totalFeeds = treeOnlyNeededForRecovery ? 6 : 5;
   const healthyFeeds = totalFeeds - failedSources.length;
 
   return (
