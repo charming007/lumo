@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchStudents, fetchSubjects, fetchWorkboard } from '../lib/api';
-import { CreateAssessmentForm } from '../components/admin-forms';
+import { CreateAssessmentForm, UpdateModuleForm } from '../components/admin-forms';
 import { InsightPanel } from '../components/insight-panel';
 import { KpiStrip } from '../components/kpi-strip';
 import { ModalLauncher } from '../components/modal-launcher';
@@ -454,6 +454,33 @@ export default async function HomePage() {
                 const blockerBoardHref = `/content?view=blocked${highestPriorityBlocker.subjectId ? `&subject=${highestPriorityBlocker.subjectId}` : ''}&q=${encodeURIComponent(highestPriorityBlocker.title)}`;
                 const createLessonHref = `/content/lessons/new?subjectId=${highestPriorityBlocker.subjectId}&moduleId=${highestPriorityBlocker.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
                 const risk = describeReleaseRisk(highestPriorityBlocker.blockerCount);
+                const moduleDraftStatusButton = highestPriorityBlocker.isDraftModule ? (
+                  <ModalLauncher
+                    buttonLabel="Move module out of draft"
+                    title={`Update module status · ${highestPriorityBlocker.title}`}
+                    description="Clear the draft-only release blocker without bouncing out of the dashboard."
+                    eyebrow="Update module"
+                    triggerStyle={{
+                      border: 0,
+                      padding: 0,
+                      background: 'transparent',
+                      color: '#3730A3',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <UpdateModuleForm modules={[{
+                      id: highestPriorityBlocker.id,
+                      title: highestPriorityBlocker.title,
+                      subjectId: highestPriorityBlocker.subjectId,
+                      subjectName: highestPriorityBlocker.subjectName,
+                      strandName: '',
+                      level: '',
+                      lessonCount: Math.max(highestPriorityBlocker.missingLessons, 1),
+                      status: 'draft',
+                    } satisfies CurriculumModule]} />
+                  </ModalLauncher>
+                ) : null;
 
                 return (
                   <div style={{ padding: 16, borderRadius: 18, background: '#FEFCE8', border: '1px solid #FDE68A', display: 'grid', gap: 12 }}>
@@ -467,6 +494,7 @@ export default async function HomePage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <Link href={blockerBoardHref} style={tableLinkStyle}>Open blocker board</Link>
                       {highestPriorityBlocker.missingLessons > 0 ? <Link href={createLessonHref} style={tableLinkStyle}>Create next missing lesson</Link> : null}
+                      {moduleDraftStatusButton}
                     </div>
                   </div>
                 );
@@ -479,6 +507,34 @@ export default async function HomePage() {
                   const scopedSubjects = module.subjectId ? subjects.filter((subject) => subject.id === module.subjectId) : subjects;
                   const assessmentSubjects = scopedSubjects.length ? scopedSubjects : subjects;
                   const risk = describeReleaseRisk(module.blockerCount);
+                  const moduleDraftStatusButton = module.isDraftModule ? (
+                    <ModalLauncher
+                      buttonLabel="Move module out of draft"
+                      title={`Update module status · ${module.title}`}
+                      description="Clear the draft-only release blocker directly from the dashboard row."
+                      eyebrow="Update module"
+                      triggerStyle={{
+                        border: 0,
+                        padding: 0,
+                        background: 'transparent',
+                        color: '#3730A3',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <UpdateModuleForm modules={[{
+                        id: module.id,
+                        title: module.title,
+                        subjectId: module.subjectId,
+                        subjectName: module.subjectName,
+                        strandName: '',
+                        level: '',
+                        lessonCount: Math.max(module.missingLessons, 1),
+                        status: 'draft',
+                      } satisfies CurriculumModule]} />
+                    </ModalLauncher>
+                  ) : null;
+
 
                   return [
                     <div key={`${module.id}-module`} style={{ display: 'grid', gap: 6 }}>
@@ -499,6 +555,7 @@ export default async function HomePage() {
                       <span>{describeNextAction(module)}</span>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <Link href={blockerBoardHref} style={tableLinkStyle}>Open blockers board</Link>
+                        {moduleDraftStatusButton}
                         {!module.hasAssessmentGate ? (
                           subjectsResult.status === 'fulfilled' && assessmentSubjects.length ? (
                             <ModalLauncher
