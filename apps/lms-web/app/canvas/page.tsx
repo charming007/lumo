@@ -27,8 +27,19 @@ export default async function CurriculumCanvasPage() {
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
   const canvasTree = canvasTreeResult.status === 'fulfilled' ? canvasTreeResult.value : null;
 
-  const liveData = buildCurriculumCanvasData({ subjects, strands, modules, lessons, assessments, tree: canvasTree });
-  const rescueData = buildCurriculumCanvasDataFromTree(canvasTree);
+  let liveData: ReturnType<typeof buildCurriculumCanvasData>;
+  let rescueData: ReturnType<typeof buildCurriculumCanvasDataFromTree>;
+  let canvasBuildFailed = false;
+
+  try {
+    liveData = buildCurriculumCanvasData({ subjects, strands, modules, lessons, assessments, tree: canvasTree });
+    rescueData = buildCurriculumCanvasDataFromTree(canvasTree);
+  } catch {
+    canvasBuildFailed = true;
+    liveData = buildCurriculumCanvasData({ subjects: [], strands: [], modules: [], lessons: [], assessments: [], tree: null });
+    rescueData = buildCurriculumCanvasDataFromTree(canvasTree);
+  }
+
   const data = liveData.summary.modules > 0 ? liveData : rescueData;
   const usedRescueTree = liveData.summary.modules === 0 && rescueData.summary.modules > 0;
   const blendedFromTree = liveData.summary.modules > 0 && canvasTree && (liveData.summary.lessons > lessons.length || liveData.summary.assessments > assessments.length);
@@ -40,6 +51,7 @@ export default async function CurriculumCanvasPage() {
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
     canvasTreeResult.status === 'rejected' ? 'canvas-tree' : null,
+    canvasBuildFailed ? 'canvas-render' : null,
   ].filter((value): value is string => Boolean(value));
 
   const totalFeeds = 6;

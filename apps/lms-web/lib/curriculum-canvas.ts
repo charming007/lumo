@@ -114,12 +114,16 @@ function sortByOrder<T extends { order?: number | null; name?: string | null; ti
   return [...items].sort((left, right) => {
     const orderDelta = (left.order ?? 999) - (right.order ?? 999);
     if (orderDelta !== 0) return orderDelta;
-    return (left.name ?? left.title ?? '').localeCompare(right.name ?? right.title ?? '');
+    return safeText(left.name ?? left.title).localeCompare(safeText(right.name ?? right.title));
   });
 }
 
+function safeText(value?: string | null, fallback = '') {
+  return value?.trim() || fallback;
+}
+
 function normalize(value?: string | null) {
-  return value?.trim().toLowerCase() ?? '';
+  return safeText(value).toLowerCase();
 }
 
 function matchesLooseIdOrName(leftId?: string | null, rightId?: string | null, leftName?: string | null, rightName?: string | null) {
@@ -149,7 +153,7 @@ function normalizeAssessmentFromNode(node: CurriculumCanvasApiNode): Assessment 
     id: node.id,
     subjectId: node.subjectId ?? null,
     moduleId: node.moduleId ?? null,
-    title: node.title ?? node.name ?? 'Untitled assessment',
+    title: safeText(node.title ?? node.name, 'Untitled assessment'),
     kind: node.kind ?? 'automatic',
     trigger: node.trigger ?? 'module-complete',
     triggerLabel: node.triggerLabel ?? 'After module completion',
@@ -163,7 +167,7 @@ function normalizeAssessmentFromNode(node: CurriculumCanvasApiNode): Assessment 
 
 function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessments: Assessment[], module?: CurriculumModule): CurriculumCanvasLesson {
   const rawTitle = 'name' in lesson ? (lesson.title ?? lesson.name) : lesson.title;
-  const title = rawTitle ?? 'Untitled lesson';
+  const title = safeText(rawTitle, 'Untitled lesson');
   const linkedAssessment = moduleAssessments.find((assessment) => {
     if ('moduleId' in lesson && lesson.moduleId && assessment.moduleId === lesson.moduleId) return true;
     if ('moduleTitle' in lesson && lesson.moduleTitle && normalize(assessment.moduleTitle) === normalize(lesson.moduleTitle)) return true;
@@ -299,13 +303,13 @@ function buildModuleNode({
 
   const liveAssessments = assessments
     .filter((assessment) => assessmentMatchesModule(module, assessment))
-    .sort((left, right) => left.title.localeCompare(right.title));
+    .sort((left, right) => safeText(left.title, 'Untitled assessment').localeCompare(safeText(right.title, 'Untitled assessment')));
 
   const moduleAssessments = liveAssessments.length ? liveAssessments : rescueAssessments;
 
   const liveLessons = lessons
     .filter((lesson) => lessonMatchesModule(lesson, module) && lessonSubjectMatches(lesson, subject, module))
-    .sort((left, right) => left.title.localeCompare(right.title));
+    .sort((left, right) => safeText(left.title, 'Untitled lesson').localeCompare(safeText(right.title, 'Untitled lesson')));
 
   const lessonNodes = liveLessons.length
     ? liveLessons.map((lesson) => buildLessonNode(lesson, moduleAssessments, module))
@@ -321,9 +325,9 @@ function buildModuleNode({
 
   return {
     id: module.id,
-    title: module.title,
-    status: module.status,
-    level: module.level,
+    title: safeText(module.title, 'Untitled module'),
+    status: safeText(module.status, 'draft'),
+    level: safeText(module.level, 'unassigned'),
     lessonCount: expectedLessonCount,
     readyLessons: moduleSummary.readyLessons,
     gapCount: moduleSummary.gapCount,
@@ -366,7 +370,7 @@ export function buildCurriculumCanvasData({
             const strandMatches = matchesLooseIdOrName(module.strandId, strand.id, module.strandName, strand.name);
             return subjectMatches && strandMatches;
           })
-          .sort((left, right) => left.title.localeCompare(right.title));
+          .sort((left, right) => safeText(left.title, 'Untitled module').localeCompare(safeText(right.title, 'Untitled module')));
 
         const moduleNodes = strandModules.map((module) => buildModuleNode({
           module,
@@ -389,7 +393,7 @@ export function buildCurriculumCanvasData({
           if (!subjectMatches) return false;
           return !strandNodes.some((strand) => strand.modules.some((strandModule) => strandModule.id === module.id));
         })
-        .sort((left, right) => left.title.localeCompare(right.title));
+        .sort((left, right) => safeText(left.title, 'Untitled module').localeCompare(safeText(right.title, 'Untitled module')));
 
       if (fallbackModules.length) {
         const fallbackStrands = new Map<string, CurriculumCanvasModule[]>();
