@@ -5,7 +5,6 @@ import { CreateAssessmentForm } from '../components/admin-forms';
 import { InsightPanel } from '../components/insight-panel';
 import { KpiStrip } from '../components/kpi-strip';
 import { ModalLauncher } from '../components/modal-launcher';
-import { API_BASE_SOURCE } from '../lib/config';
 import { assessmentMatchesModule } from '../lib/module-assessment-match';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Student, Subject, WorkboardItem } from '../lib/types';
@@ -210,17 +209,7 @@ export default async function HomePage() {
         </div>
       )}
     >
-      {API_BASE_SOURCE === 'missing-production-env' ? (
-        <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 16, background: '#7c2d12', border: '1px solid #ea580c', color: '#ffedd5', display: 'grid', gap: 8 }}>
-          <strong style={{ color: 'white' }}>Deployment blocker: NEXT_PUBLIC_API_BASE_URL is missing in production.</strong>
-          <span style={{ lineHeight: 1.6 }}>
-            The dashboard is intentionally refusing to guess a backend URL. Set the Vercel env var to the Railway API base before calling this deploy ready.
-          </span>
-          <span style={{ lineHeight: 1.6, color: '#fed7aa' }}>
-            Expected value format: <code style={{ color: 'white', fontWeight: 800 }}>https://your-lumo-api.up.railway.app</code>
-          </span>
-        </div>
-      ) : partialOutageMessage ? (
+      {partialOutageMessage ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           {partialOutageMessage}
         </div>
