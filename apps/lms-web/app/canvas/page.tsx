@@ -343,6 +343,13 @@ export default async function CurriculumCanvasPage() {
   const usedRescueTree = !liveGraphAvailable && rescueTreeAvailable;
   const usedHardRescue = !liveGraphAvailable && !rescueTreeAvailable;
   const blendedFromTree = liveGraphAvailable && canvasTree && (liveData.summary.lessons > lessons.length || liveData.summary.assessments > assessments.length);
+  const canvasMode = usedHardRescue
+    ? 'hard-rescue'
+    : usedRescueTree
+      ? 'rescue-tree'
+      : blendedFromTree
+        ? 'blended'
+        : 'live';
 
   const totalFeeds = treeOnlyNeededForRecovery ? 6 : 5;
   const healthyFeeds = totalFeeds - failedSources.length;
@@ -411,7 +418,7 @@ export default async function CurriculumCanvasPage() {
         />
       ) : null}
 
-      <CurriculumCanvas data={data} failedSources={failedSources} />
+      <CurriculumCanvas data={data} failedSources={failedSources} generatedAt={canvasTree?.meta?.generatedAt ?? null} mode={canvasMode} />
     </PageShell>
   );
 }
