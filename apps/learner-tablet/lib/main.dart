@@ -3635,6 +3635,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   String _recordingModeLabel = 'Standard recorder';
   int _consecutiveTranscriptMisses = 0;
   bool _autoPausedByTranscriptFailure = false;
+  bool _transcriptStrategyExpanded = false;
   AudioPermissionState _micPermissionState = AudioPermissionState.unknown;
 
   static const Duration _kMinimumUsefulRecording = Duration(milliseconds: 900);
@@ -3674,6 +3675,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   ? 'Resumed ${widget.lesson.title} at step ${session.stepIndex + 1}. ${session.automationStatus}'
                   : session.automationStatus;
     }
+    _transcriptStrategyExpanded = _shouldExpandTranscriptStrategyByDefault;
 
     _primeDiagnostics();
     _browserRuntimeSubscription =
@@ -4240,6 +4242,35 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   String get _reviewSecondaryCtaLabel => _isAudioOnlyReviewState
       ? 'Stay in audio-only review'
       : 'Use audio only for this take';
+
+  bool get _shouldExpandTranscriptStrategyByDefault =>
+      transcriptReviewPending ||
+      _isAudioOnlyReviewState ||
+      _draftTranscriptNeedsVoiceCheck ||
+      _hasTranscriptSafetyBlock ||
+      _consecutiveTranscriptMisses >= 2;
+
+  String get _transcriptStrategyCollapsedLabel {
+    if (_hasTranscriptSafetyBlock) {
+      return 'Needs voice check before auto-advance';
+    }
+    if (_draftTranscriptNeedsVoiceCheck) {
+      return 'Draft transcript waiting for review';
+    }
+    if (_isAudioOnlyReviewState) {
+      return 'Audio-first review is active';
+    }
+    if (!speechRecognitionActive) {
+      return 'Transcript assist is unavailable on this device';
+    }
+    if (_avoidConcurrentSpeechCapture) {
+      return 'Recorder owns the mic right now';
+    }
+    return _transcriptStrategySummary;
+  }
+
+  String get _transcriptStrategyToggleLabel =>
+      _transcriptStrategyExpanded ? 'Hide guidance' : 'Show guidance';
 
   String get _transcriptStrategyHeadline =>
       speechTranscriptionService.strategyHeadline(
@@ -5730,19 +5761,50 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.subtitles_rounded,
-                                    color: LumoTheme.primary,
+                              InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {
+                                  setState(() {
+                                    _transcriptStrategyExpanded =
+                                        !_transcriptStrategyExpanded;
+                                  });
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 2,
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Transcript strategy',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w800),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.subtitles_rounded,
+                                        color: LumoTheme.primary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'Transcript strategy',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        _transcriptStrategyToggleLabel,
+                                        style: const TextStyle(
+                                          color: LumoTheme.primary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        _transcriptStrategyExpanded
+                                            ? Icons.expand_less_rounded
+                                            : Icons.expand_more_rounded,
+                                        color: LumoTheme.primary,
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                               const SizedBox(height: 10),
                               Wrap(
@@ -5797,63 +5859,68 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         _draftTranscriptNeedsVoiceCheck ||
                                         _hasTranscriptSafetyBlock,
                                   ),
-                                  _buildDiagnosticChip(
-                                    icon: speechRecognitionActive
-                                        ? Icons.settings_voice_rounded
-                                        : Icons.hearing_disabled_rounded,
-                                    label: _transcriptModeLabel,
-                                    healthy: speechRecognitionActive,
-                                    warn: !speechRecognitionActive,
-                                  ),
                                 ],
                               ),
                               const SizedBox(height: 10),
                               Text(
-                                _transcriptStrategySummary,
+                                _transcriptStrategyCollapsedLabel,
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.35,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _automationSafetySummary,
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  height: 1.35,
-                                  fontWeight: FontWeight.w600,
+                              if (_transcriptStrategyExpanded) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  _automationSafetySummary,
+                                  style: const TextStyle(
+                                    color: Color(0xFF64748B),
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              ..._transcriptStrategyActions.take(3).map(
-                                    (action) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Padding(
-                                            padding: EdgeInsets.only(top: 2),
-                                            child: Icon(
-                                              Icons.arrow_forward_rounded,
-                                              size: 16,
-                                              color: LumoTheme.primary,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              action,
-                                              style: const TextStyle(
-                                                color: Color(0xFF475569),
-                                                height: 1.35,
+                                const SizedBox(height: 10),
+                                _buildDiagnosticChip(
+                                  icon: speechRecognitionActive
+                                      ? Icons.settings_voice_rounded
+                                      : Icons.hearing_disabled_rounded,
+                                  label: _transcriptModeLabel,
+                                  healthy: speechRecognitionActive,
+                                  warn: !speechRecognitionActive,
+                                ),
+                                const SizedBox(height: 10),
+                                ..._transcriptStrategyActions.take(3).map(
+                                      (action) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 6,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Padding(
+                                              padding: EdgeInsets.only(top: 2),
+                                              child: Icon(
+                                                Icons.arrow_forward_rounded,
+                                                size: 16,
+                                                color: LumoTheme.primary,
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                action,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF475569),
+                                                  height: 1.35,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
+                              ],
                             ],
                           ),
                         ),
