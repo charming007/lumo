@@ -497,6 +497,8 @@ export default async function HomePage() {
               {highestPriorityBlocker ? (() => {
                 const blockerBoardHref = `/content?view=blocked${highestPriorityBlocker.subjectId ? `&subject=${encodeURIComponent(highestPriorityBlocker.subjectId)}` : ''}&q=${encodeURIComponent(highestPriorityBlocker.title)}`;
                 const createLessonHref = `/content/lessons/new?subjectId=${encodeURIComponent(highestPriorityBlocker.subjectId ?? '')}&moduleId=${encodeURIComponent(highestPriorityBlocker.id)}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+                const scopedSubjects = highestPriorityBlocker.subjectId ? subjects.filter((subject) => subject.id === highestPriorityBlocker.subjectId) : subjects;
+                const assessmentSubjects = scopedSubjects.length ? scopedSubjects : subjects;
                 const risk = describeReleaseRisk(highestPriorityBlocker.blockerCount);
                 const moduleDraftStatusButton = highestPriorityBlocker.isDraftModule ? (
                   <ModalLauncher
@@ -528,6 +530,41 @@ export default async function HomePage() {
                     />
                   </ModalLauncher>
                 ) : null;
+                const moduleAssessmentGateButton = !highestPriorityBlocker.hasAssessmentGate
+                  ? (subjectsResult.status === 'fulfilled' && assessmentSubjects.length ? (
+                    <ModalLauncher
+                      buttonLabel="Add assessment gate"
+                      title={`Create assessment gate · ${highestPriorityBlocker.title}`}
+                      description="Create the missing progression gate directly from the top dashboard blocker instead of bouncing back to the content board."
+                      eyebrow="Create assessment"
+                      triggerStyle={{
+                        border: 0,
+                        padding: 0,
+                        background: 'transparent',
+                        color: '#3730A3',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <CreateAssessmentForm
+                        modules={[{
+                          id: highestPriorityBlocker.id,
+                          title: highestPriorityBlocker.title,
+                          subjectId: highestPriorityBlocker.subjectId,
+                          subjectName: highestPriorityBlocker.subjectName,
+                          strandName: '',
+                          level: '',
+                          lessonCount: Math.max(highestPriorityBlocker.missingLessons, 0),
+                          status: 'draft',
+                        } satisfies CurriculumModule]}
+                        subjects={assessmentSubjects}
+                        returnPath="/"
+                      />
+                    </ModalLauncher>
+                  ) : (
+                    <Link href={blockerBoardHref} style={tableLinkStyle}>Add assessment gate</Link>
+                  ))
+                  : null;
 
                 return (
                   <div style={{ padding: 16, borderRadius: 18, background: '#FEFCE8', border: '1px solid #FDE68A', display: 'grid', gap: 12 }}>
@@ -541,6 +578,7 @@ export default async function HomePage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <Link href={blockerBoardHref} style={tableLinkStyle}>Open blocker board</Link>
                       {highestPriorityBlocker.missingLessons > 0 ? <Link href={createLessonHref} style={tableLinkStyle}>Create next missing lesson</Link> : null}
+                      {moduleAssessmentGateButton}
                       {moduleDraftStatusButton}
                     </div>
                   </div>
