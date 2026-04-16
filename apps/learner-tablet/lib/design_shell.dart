@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'location_data.dart';
@@ -119,12 +121,19 @@ class MallamPanel extends StatelessWidget {
       builder: (context, constraints) {
         final compactLayout =
             constraints.maxWidth < 560 || constraints.maxHeight < 760;
-        final centeredPortraitSize =
-            centerPortraitLayout ? (compactLayout ? 260.0 : 320.0) : null;
+        final centeredPortraitSize = centerPortraitLayout
+            ? math.min(
+                compactLayout ? 360.0 : 460.0,
+                math.max(
+                  compactLayout ? 280.0 : 360.0,
+                  constraints.maxHeight * (compactLayout ? 0.42 : 0.52),
+                ),
+              )
+            : null;
         final imageFrameSize =
             centeredPortraitSize ?? (compactLayout ? 188.0 : 220.0);
         final imageSize = centerPortraitLayout
-            ? imageFrameSize - (compactLayout ? 28.0 : 32.0)
+            ? imageFrameSize
             : (compactLayout ? 160.0 : 188.0);
         final promptStyle = TextStyle(
           fontSize: compactLayout ? 18 : 22,
@@ -153,31 +162,42 @@ class MallamPanel extends StatelessWidget {
           ),
         );
 
-        final portrait = Container(
-          height: imageFrameSize,
-          width: imageFrameSize,
-          padding: EdgeInsets.all(centerPortraitLayout ? 10 : 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(centerPortraitLayout ? 40 : 32),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(centerPortraitLayout ? 32 : 24),
-            child: Image.asset(
-              'assets/images/mallam_tutor.jpg',
-              height: imageSize,
-              width: imageSize,
-              fit: BoxFit.contain,
-            ),
-          ),
-        );
+        final portrait = centerPortraitLayout
+            ? SizedBox(
+                height: imageFrameSize,
+                width: imageFrameSize,
+                child: Image.asset(
+                  'assets/images/mallam_tutor.jpg',
+                  height: imageSize,
+                  width: imageSize,
+                  fit: BoxFit.contain,
+                ),
+              )
+            : Container(
+                height: imageFrameSize,
+                width: imageFrameSize,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.asset(
+                    'assets/images/mallam_tutor.jpg',
+                    height: imageSize,
+                    width: imageSize,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              );
 
         final primaryPromptCard = Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(
-            horizontal: centerPortraitLayout ? 8 : 20,
-            vertical: centerPortraitLayout ? 4 : 20,
+            horizontal: centerPortraitLayout ? 0 : 20,
+            vertical: centerPortraitLayout ? 0 : 20,
           ),
           decoration: BoxDecoration(
             color: centerPortraitLayout
@@ -282,22 +302,49 @@ class MallamPanel extends StatelessWidget {
           ),
         );
 
-        final stackedContent = <Widget>[
-          header,
-          const SizedBox(height: 16),
-          Center(child: portrait),
-          const SizedBox(height: 18),
-          primaryPromptCard,
-          const SizedBox(height: 14),
-          if (centerPortraitLayout)
-            Center(child: voiceAction)
-          else
-            SizedBox(width: double.infinity, child: voiceAction),
-          if (!centerPortraitLayout) ...[
-            const SizedBox(height: 10),
-            guidancePanel,
-          ],
-        ];
+        final stackedContent = centerPortraitLayout
+            ? <Widget>[
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: math.max(
+                      compactLayout ? 520.0 : 640.0,
+                      constraints.maxHeight - 48,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          header,
+                          SizedBox(height: compactLayout ? 20 : 28),
+                          Center(child: portrait),
+                        ],
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          primaryPromptCard,
+                          const SizedBox(height: 18),
+                          Center(child: voiceAction),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ]
+            : <Widget>[
+                header,
+                const SizedBox(height: 16),
+                Center(child: portrait),
+                const SizedBox(height: 18),
+                primaryPromptCard,
+                const SizedBox(height: 14),
+                SizedBox(width: double.infinity, child: voiceAction),
+                const SizedBox(height: 10),
+                guidancePanel,
+              ];
 
         final content = compactLayout || centerPortraitLayout
             ? stackedContent
