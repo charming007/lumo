@@ -347,295 +347,294 @@ class HomePage extends StatelessWidget {
               const SizedBox(height: 20),
               Expanded(
                 child: _ResponsiveWorkspaceRow(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     ResponsivePane(
-                      flex: 4,
-                      child: MallamPanel(
-                        instruction: homeInstruction,
-                        onVoiceTap: () {
-                          state.replayVisiblePrompt(
-                            'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
-                          );
-                        },
-                        prompt:
-                            'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
-                        speakerMode: SpeakerMode.guiding,
-                        statusLabel: 'AI Mallam is ready',
-                      ),
+                      flex: 5,
+                      child: _HomeMallamStage(state: state),
                     ),
                     ResponsivePane(
-                      flex: 6,
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            DetailCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Home',
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w800,
+                      flex: 5,
+                      child: Container(
+                        height: double.infinity,
+                        padding: const EdgeInsets.only(left: 8),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              DetailCard(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Home',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'AI Mallam will guide the learner by voice. Pick what you want to do next.',
-                                    style: TextStyle(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.62),
-                                      height: 1.4,
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Pick the next learner action while Mallam stays anchored on the left.',
+                                      style: TextStyle(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.62),
+                                        height: 1.4,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      final compact =
-                                          constraints.maxWidth < 720;
-                                      final cards = [
-                                        _PrimaryActionCard(
-                                          title: 'Register',
-                                          subtitle:
-                                              'Open learner registration flow',
-                                          icon: Icons.person_add_alt_1_rounded,
-                                          color: LumoTheme.primary,
-                                          onTap: () {
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => RegisterPage(
-                                                  state: state,
-                                                  onChanged: onChanged,
+                                    const SizedBox(height: 20),
+                                    LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final compact =
+                                            constraints.maxWidth < 720;
+                                        final cards = [
+                                          _PrimaryActionCard(
+                                            title: 'Register',
+                                            subtitle:
+                                                'Open learner registration flow',
+                                            icon:
+                                                Icons.person_add_alt_1_rounded,
+                                            color: LumoTheme.primary,
+                                            onTap: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => RegisterPage(
+                                                    state: state,
+                                                    onChanged: onChanged,
+                                                  ),
                                                 ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                        _PrimaryActionCard(
-                                          title: 'Student List',
-                                          subtitle:
-                                              'See all registered learners',
-                                          icon: Icons.groups_rounded,
-                                          color: LumoTheme.accentGreen,
-                                          onTap: () {
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => AllStudentsPage(
-                                                  state: state,
-                                                  onChanged: onChanged,
+                                              );
+                                            },
+                                          ),
+                                          _PrimaryActionCard(
+                                            title: 'Student List',
+                                            subtitle:
+                                                'See all registered learners',
+                                            icon: Icons.groups_rounded,
+                                            color: LumoTheme.accentGreen,
+                                            onTap: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      AllStudentsPage(
+                                                    state: state,
+                                                    onChanged: onChanged,
+                                                  ),
                                                 ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ];
+                                              );
+                                            },
+                                          ),
+                                        ];
 
-                                      if (compact) {
-                                        return Column(
+                                        if (compact) {
+                                          return Column(
+                                            children: [
+                                              for (var i = 0;
+                                                  i < cards.length;
+                                                  i++) ...[
+                                                SizedBox(
+                                                  width: double.infinity,
+                                                  child: cards[i],
+                                                ),
+                                                if (i < cards.length - 1)
+                                                  const SizedBox(height: 12),
+                                              ],
+                                            ],
+                                          );
+                                        }
+
+                                        return Row(
                                           children: [
                                             for (var i = 0;
                                                 i < cards.length;
                                                 i++) ...[
-                                              SizedBox(
-                                                width: double.infinity,
-                                                child: cards[i],
-                                              ),
+                                              Expanded(child: cards[i]),
                                               if (i < cards.length - 1)
-                                                const SizedBox(height: 12),
+                                                const SizedBox(width: 12),
                                             ],
                                           ],
                                         );
-                                      }
-
-                                      return Row(
-                                        children: [
-                                          for (var i = 0;
-                                              i < cards.length;
-                                              i++) ...[
-                                            Expanded(child: cards[i]),
-                                            if (i < cards.length - 1)
-                                              const SizedBox(width: 12),
-                                          ],
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: MetricTile(
-                                          label: 'Learners',
-                                          value: '$learnerCount',
-                                          icon: Icons.people_alt_rounded,
-                                          color: LumoTheme.primary,
+                                      },
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: MetricTile(
+                                            label: 'Learners',
+                                            value: '$learnerCount',
+                                            icon: Icons.people_alt_rounded,
+                                            color: LumoTheme.primary,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: MetricTile(
-                                          label: 'Subjects',
-                                          value: '${state.modules.length}',
-                                          icon: Icons.menu_book_rounded,
-                                          color: LumoTheme.accentOrange,
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: MetricTile(
+                                            label: 'Subjects',
+                                            value: '${state.modules.length}',
+                                            icon: Icons.menu_book_rounded,
+                                            color: LumoTheme.accentOrange,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (learnerCount == 0) ...[
+                                      const SizedBox(height: 18),
+                                      SoftPanel(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'No learners are loaded yet',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            const Text(
+                                              'This tablet is ready, but there is nobody to teach yet. Register the first learner before opening subject lessons so the session flow does not dead-end at learner selection.',
+                                              style: TextStyle(
+                                                color: Color(0xFF475569),
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 14),
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: FilledButton.icon(
+                                                onPressed: () {
+                                                  Navigator.of(context).push(
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          RegisterPage(
+                                                        state: state,
+                                                        onChanged: onChanged,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                icon: const Icon(
+                                                  Icons
+                                                      .person_add_alt_1_rounded,
+                                                ),
+                                                label: const Text(
+                                                  'Register first learner',
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
-                                  ),
-                                  if (learnerCount == 0) ...[
-                                    const SizedBox(height: 18),
-                                    SoftPanel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'No learners are loaded yet',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            'This tablet is ready, but there is nobody to teach yet. Register the first learner before opening subject lessons so the session flow does not dead-end at learner selection.',
-                                            style: TextStyle(
-                                              color: Color(0xFF475569),
-                                              height: 1.4,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 14),
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: FilledButton.icon(
-                                              onPressed: () {
-                                                Navigator.of(context).push(
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        RegisterPage(
-                                                      state: state,
-                                                      onChanged: onChanged,
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              icon: const Icon(
-                                                Icons.person_add_alt_1_rounded,
-                                              ),
-                                              label: const Text(
-                                                'Register first learner',
+                                    if (homeLearner != null) ...[
+                                      const SizedBox(height: 18),
+                                      _CurrentLearnerBanner(
+                                        title: currentLearner == null
+                                            ? 'Ready now: ${homeLearner.name}'
+                                            : 'Current learner: ${homeLearner.name}',
+                                        learner: homeLearner,
+                                        nextLesson: nextAssignedLesson,
+                                        backendSummary: state
+                                            .backendRoutingSummaryForLearner(
+                                          homeLearner,
+                                        ),
+                                        onOpenProfile: () {
+                                          state.selectLearner(homeLearner);
+                                          onChanged();
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  LearnerProfilePage(
+                                                state: state,
+                                                learner: homeLearner,
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                          );
+                                        },
+                                        onContinue: nextAssignedLesson == null
+                                            ? null
+                                            : () => launchLessonFlow(
+                                                  context: context,
+                                                  state: state,
+                                                  onChanged: onChanged,
+                                                  lesson: nextAssignedLesson,
+                                                ),
                                       ),
-                                    ),
+                                    ],
                                   ],
-                                  if (homeLearner != null) ...[
-                                    const SizedBox(height: 18),
-                                    _CurrentLearnerBanner(
-                                      title: currentLearner == null
-                                          ? 'Ready now: ${homeLearner.name}'
-                                          : 'Current learner: ${homeLearner.name}',
-                                      learner: homeLearner,
-                                      nextLesson: nextAssignedLesson,
-                                      backendSummary:
-                                          state.backendRoutingSummaryForLearner(
-                                        homeLearner,
-                                      ),
-                                      onOpenProfile: () {
-                                        state.selectLearner(homeLearner);
-                                        onChanged();
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => LearnerProfilePage(
-                                              state: state,
-                                              learner: homeLearner,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      onContinue: nextAssignedLesson == null
-                                          ? null
-                                          : () => launchLessonFlow(
-                                                context: context,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _BackendStatusBanner(
+                                state: state,
+                                onRefresh: () async {
+                                  await state.bootstrap();
+                                  onChanged();
+                                },
+                                onSyncQueue: () async {
+                                  await state.syncPendingEvents();
+                                  onChanged();
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              const SectionTitle(
+                                title: 'Subjects',
+                                subtitle:
+                                    'Tap a subject to open its learning modules.',
+                              ),
+                              const SizedBox(height: 12),
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final crossAxisCount = _adaptiveGridCount(
+                                    constraints.maxWidth,
+                                    minTileWidth: 260,
+                                    maxCount: 3,
+                                  );
+
+                                  return GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: state.modules.length,
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      mainAxisSpacing: 12,
+                                      crossAxisSpacing: 12,
+                                      childAspectRatio: 1.08,
+                                    ),
+                                    itemBuilder: (context, index) {
+                                      final module = state.modules[index];
+                                      return _SubjectCard(
+                                        module: module,
+                                        lessonCount:
+                                            state.assignedLessonCountForModule(
+                                          module: module,
+                                          learner: state.currentLearner,
+                                        ),
+                                        onTap: () {
+                                          state.selectModule(module);
+                                          onChanged();
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  SubjectModulesPage(
                                                 state: state,
                                                 onChanged: onChanged,
-                                                lesson: nextAssignedLesson,
+                                                module: module,
                                               ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _BackendStatusBanner(
-                              state: state,
-                              onRefresh: () async {
-                                await state.bootstrap();
-                                onChanged();
-                              },
-                              onSyncQueue: () async {
-                                await state.syncPendingEvents();
-                                onChanged();
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            const SectionTitle(
-                              title: 'Subjects',
-                              subtitle:
-                                  'Tap a subject to open its learning modules.',
-                            ),
-                            const SizedBox(height: 12),
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                final crossAxisCount = _adaptiveGridCount(
-                                  constraints.maxWidth,
-                                  minTileWidth: 260,
-                                  maxCount: 3,
-                                );
-
-                                return GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: state.modules.length,
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    mainAxisSpacing: 12,
-                                    crossAxisSpacing: 12,
-                                    childAspectRatio: 1.08,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final module = state.modules[index];
-                                    return _SubjectCard(
-                                      module: module,
-                                      lessonCount:
-                                          state.assignedLessonCountForModule(
-                                        module: module,
-                                        learner: state.currentLearner,
-                                      ),
-                                      onTap: () {
-                                        state.selectModule(module);
-                                        onChanged();
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => SubjectModulesPage(
-                                              state: state,
-                                              onChanged: onChanged,
-                                              module: module,
                                             ),
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -645,6 +644,93 @@ class HomePage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HomeMallamStage extends StatelessWidget {
+  final LumoAppState state;
+
+  const _HomeMallamStage({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE7F0FF), Color(0xFFF8FBFF)],
+        ),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: LumoTheme.primary.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI Mallam',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                    color: LumoTheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Guide the session from here',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Mallam owns the left side of the screen so the voice guide stays visible at all times while the facilitator works on the right.',
+                  style: TextStyle(
+                    color: Colors.black.withValues(alpha: 0.62),
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Expanded(
+            child: SizedBox.expand(
+              child: MallamPanel(
+                instruction: homeInstruction,
+                onVoiceTap: () {
+                  state.replayVisiblePrompt(
+                    'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
+                  );
+                },
+                prompt:
+                    'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
+                speakerMode: SpeakerMode.guiding,
+                statusLabel: 'AI Mallam is ready',
+                secondaryStatus: 'Home guide',
+                voiceButtonLabel: 'Replay Mallam',
+                voiceHint:
+                    'Keep Mallam visible and dominant on this screen so the facilitator never loses the voice guide while choosing the next action.',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -5791,1308 +5877,942 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 const SizedBox(width: 20),
                 Expanded(
                   child: DetailCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                    child: LayoutBuilder(
+                      builder: (context, detailConstraints) {
+                        final detailContent = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            OutlinedButton.icon(
-                              onPressed: _confirmLeaveLessonSession,
-                              icon: const Icon(Icons.arrow_back_rounded),
-                              label: const Text('Back'),
-                            ),
-                            const Spacer(),
-                            StatusPill(
-                              text: widget.lesson.subject,
-                              color: LumoTheme.primary,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(22),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                const Color(0xFFEEF2FF),
-                                const Color(0xFFFFFFFF),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: const Color(0xFFC7D2FE)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  StatusPill(
-                                    text: stepLabel,
-                                    color: LumoTheme.primary,
-                                  ),
-                                  StatusPill(
-                                    text: learner.name,
-                                    color: LumoTheme.accentGreen,
-                                  ),
-                                  if (isAutoMode)
-                                    const StatusPill(
-                                      text: 'Hands-free on',
-                                      color: LumoTheme.accentOrange,
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                widget.lesson.title,
-                                style: const TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w900,
-                                  height: 1.1,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                step.instruction,
-                                style: const TextStyle(
-                                  color: Color(0xFF475569),
-                                  height: 1.45,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(
-                                    color: const Color(0xFFE2E8F0),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Learner target',
-                                      style: TextStyle(
-                                        color: Color(0xFF4F46E5),
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      shortExpectedResponse,
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final compact = constraints.maxWidth < 640;
-                            final tiles = [
-                              MetricTile(
-                                label: 'Progress',
-                                value:
-                                    '${session.stepIndex + 1}/${widget.lesson.steps.length}',
-                                icon: Icons.alt_route_rounded,
-                                color: LumoTheme.primary,
-                              ),
-                              MetricTile(
-                                label: 'Responses',
-                                value: '${session.totalResponses}',
-                                icon: Icons.chat_bubble_outline_rounded,
-                                color: LumoTheme.accentGreen,
-                              ),
-                              MetricTile(
-                                label: 'Lesson mode',
-                                value: _lessonModeLabel,
-                                icon: Icons.smart_toy_rounded,
-                                color: LumoTheme.accentOrange,
-                              ),
-                            ];
-
-                            if (compact) {
-                              return Column(
-                                children: [
-                                  for (var i = 0; i < tiles.length; i++) ...[
-                                    SizedBox(
-                                        width: double.infinity,
-                                        child: tiles[i]),
-                                    if (i < tiles.length - 1)
-                                      const SizedBox(height: 12),
-                                  ],
-                                ],
-                              );
-                            }
-
-                            return Row(
+                            Row(
                               children: [
-                                for (var i = 0; i < tiles.length; i++) ...[
-                                  Expanded(child: tiles[i]),
-                                  if (i < tiles.length - 1)
-                                    const SizedBox(width: 12),
-                                ],
+                                OutlinedButton.icon(
+                                  onPressed: _confirmLeaveLessonSession,
+                                  icon: const Icon(Icons.arrow_back_rounded),
+                                  label: const Text('Back'),
+                                ),
+                                const Spacer(),
+                                StatusPill(
+                                  text: widget.lesson.subject,
+                                  color: LumoTheme.primary,
+                                ),
                               ],
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        LinearProgressIndicator(
-                          value: session.progress,
-                          minHeight: 10,
-                          borderRadius:
-                              const BorderRadius.all(Radius.circular(999)),
-                          color: LumoTheme.primary,
-                          backgroundColor: const Color(0xFFE9E7FF),
-                        ),
-                        const SizedBox(height: 16),
-                        SoftPanel(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                            ),
+                            const SizedBox(height: 20),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(22),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    const Color(0xFFEEF2FF),
+                                    const Color(0xFFFFFFFF),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(28),
+                                border:
+                                    Border.all(color: const Color(0xFFC7D2FE)),
+                              ),
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEEF2FF),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: const Icon(
-                                      Icons.assistant_rounded,
-                                      color: LumoTheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _sessionStatusHeadline,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          _sessionStatusBody,
-                                          style: const TextStyle(
-                                            color: Color(0xFF475569),
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  _buildDiagnosticChip(
-                                    icon: _isAudioOnlyReviewState ||
-                                            _draftTranscriptNeedsVoiceCheck ||
-                                            _hasTranscriptSafetyBlock
-                                        ? Icons.verified_user_rounded
-                                        : Icons.hearing_rounded,
-                                    label: _transcriptSourceOfTruthLabel,
-                                    healthy: !_isAudioOnlyReviewState &&
-                                        !_draftTranscriptNeedsVoiceCheck &&
-                                        !_hasTranscriptSafetyBlock,
-                                    warn: _isAudioOnlyReviewState ||
-                                        _draftTranscriptNeedsVoiceCheck ||
-                                        _hasTranscriptSafetyBlock,
-                                  ),
-                                  _buildDiagnosticChip(
-                                    icon: isAutoMode
-                                        ? Icons.auto_mode_rounded
-                                        : Icons.pan_tool_alt_rounded,
-                                    label: _automationSafetyLabel,
-                                    healthy: isAutoMode &&
-                                        !_isAudioOnlyReviewState &&
-                                        !_draftTranscriptNeedsVoiceCheck &&
-                                        !_hasTranscriptSafetyBlock &&
-                                        _consecutiveTranscriptMisses < 2,
-                                    warn: !isAutoMode ||
-                                        _isAudioOnlyReviewState ||
-                                        _draftTranscriptNeedsVoiceCheck ||
-                                        _hasTranscriptSafetyBlock ||
-                                        _consecutiveTranscriptMisses >= 2,
-                                  ),
-                                  _buildDiagnosticChip(
-                                    icon: Icons.mic_rounded,
-                                    label: _recordingModeLabel,
-                                    healthy: true,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () {
-                                  setState(() {
-                                    _transcriptStrategyExpanded =
-                                        !_transcriptStrategyExpanded;
-                                  });
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 2,
-                                  ),
-                                  child: Row(
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
                                     children: [
-                                      const Expanded(
-                                        child: Text(
-                                          'Listening help and recovery details',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF334155),
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        _transcriptStrategyExpanded
-                                            ? 'Hide details'
-                                            : 'Show details',
-                                        style: const TextStyle(
-                                          color: LumoTheme.primary,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        _transcriptStrategyExpanded
-                                            ? Icons.expand_less_rounded
-                                            : Icons.expand_more_rounded,
+                                      StatusPill(
+                                        text: stepLabel,
                                         color: LumoTheme.primary,
                                       ),
+                                      StatusPill(
+                                        text: learner.name,
+                                        color: LumoTheme.accentGreen,
+                                      ),
+                                      if (isAutoMode)
+                                        const StatusPill(
+                                          text: 'Hands-free on',
+                                          color: LumoTheme.accentOrange,
+                                        ),
                                     ],
                                   ),
-                                ),
-                              ),
-                              if (_transcriptStrategyExpanded) ...[
-                                const SizedBox(height: 10),
-                                Text(
-                                  _transcriptStrategySummary,
-                                  style: const TextStyle(
-                                    color: Color(0xFF475569),
-                                    height: 1.35,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _automationSafetySummary,
-                                  style: const TextStyle(
-                                    color: Color(0xFF64748B),
-                                    height: 1.35,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    _buildDiagnosticChip(
-                                      icon: speechRecognitionActive
-                                          ? Icons.settings_voice_rounded
-                                          : Icons.hearing_disabled_rounded,
-                                      label: _transcriptModeLabel,
-                                      healthy: speechRecognitionActive,
-                                      warn: !speechRecognitionActive,
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    widget.lesson.title,
+                                    style: const TextStyle(
+                                      fontSize: 30,
+                                      fontWeight: FontWeight.w900,
+                                      height: 1.1,
                                     ),
-                                    _buildDiagnosticChip(
-                                      icon: speechRecognitionActive
-                                          ? Icons.hearing_rounded
-                                          : _avoidConcurrentSpeechCapture
-                                              ? Icons.mic_none_rounded
-                                              : Icons.warning_amber_rounded,
-                                      label: _transcriptStrategyHeadline,
-                                      healthy: speechRecognitionActive &&
-                                          !_avoidConcurrentSpeechCapture,
-                                      warn: !speechRecognitionActive ||
-                                          _avoidConcurrentSpeechCapture,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                ..._transcriptStrategyActions.take(3).map(
-                                      (action) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 6,
-                                        ),
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Padding(
-                                              padding: EdgeInsets.only(top: 2),
-                                              child: Icon(
-                                                Icons.arrow_forward_rounded,
-                                                size: 16,
-                                                color: LumoTheme.primary,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                action,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF475569),
-                                                  height: 1.35,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SoftPanel(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Lesson pace',
-                                style: TextStyle(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                session.practiceMode ==
-                                        PracticeMode.repeatAfterMe
-                                    ? 'Repeat mode keeps things slower and more echo-based for this learner.'
-                                    : session.practiceMode ==
-                                            PracticeMode.independentCheck
-                                        ? 'Independent mode gives the learner more space to answer in their own words.'
-                                        : 'Standard mode balances prompting, checking, and support.',
-                                style: const TextStyle(
-                                  color: Color(0xFF475569),
-                                  height: 1.35,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: PracticeMode.values.map((mode) {
-                                  final selected = session.practiceMode == mode;
-                                  final label = switch (mode) {
-                                    PracticeMode.standard => 'Balanced',
-                                    PracticeMode.repeatAfterMe => 'Repeat more',
-                                    PracticeMode.independentCheck =>
-                                      'More independent',
-                                  };
-                                  return ChoiceChip(
-                                    label: Text(label),
-                                    selected: selected,
-                                    onSelected: (_) {
-                                      widget.state.setPracticeMode(mode);
-                                      widget.onChanged();
-                                      setState(() {
-                                        microphoneStatus = widget
-                                                .state
-                                                .activeSession
-                                                ?.automationStatus ??
-                                            microphoneStatus;
-                                      });
-                                    },
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            child: Column(
-                              children: [
-                                SoftPanel(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              step.title,
-                                              style: const TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-                                          _SpeakerStateBadge(
-                                            mode: session.speakerMode,
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(step.instruction),
-                                      const SizedBox(height: 12),
-                                      LabelValueWrap(
-                                        items: [
-                                          (
-                                            'Expected response',
-                                            expectedResponse
-                                          ),
-                                          (
-                                            'Facilitator tip',
-                                            step.facilitatorTip
-                                          ),
-                                          (
-                                            'Real-world check',
-                                            step.realWorldCheck
-                                          ),
-                                        ],
-                                      ),
-                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                if (step.activity != null) ...[
-                                  _buildActivityPanel(step),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    step.instruction,
+                                    style: const TextStyle(
+                                      color: Color(0xFF475569),
+                                      height: 1.45,
+                                      fontSize: 15,
+                                    ),
+                                  ),
                                   const SizedBox(height: 16),
-                                ],
-                                SoftPanel(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Step control',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                        ),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(22),
+                                      border: Border.all(
+                                        color: const Color(0xFFE2E8F0),
                                       ),
-                                      const SizedBox(height: 10),
-                                      SwitchListTile(
-                                        contentPadding: EdgeInsets.zero,
-                                        value: isAutoMode,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            isAutoMode = value;
-                                            if (value) {
-                                              _autoPausedByTranscriptFailure =
-                                                  false;
-                                            }
-                                            transcriptReviewPending = !value &&
-                                                transcriptReviewPending;
-                                          });
-                                        },
-                                        title: const Text(
-                                            'Let Mallam keep the flow moving'),
-                                        subtitle: Text(isAutoMode
-                                            ? 'Mallam speaks the step, checks the captured answer, advances on correct responses, and repeats when the answer needs help.'
-                                            : 'Facilitator confirms each response manually.'),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        isSpeaking
-                                            ? 'Mallam is speaking now.'
-                                            : (widget.state.activeSession
-                                                    ?.automationStatus ??
-                                                microphoneStatus ??
-                                                'Tap AI Mallam to replay the current instruction.'),
-                                        style: const TextStyle(
-                                          color: Color(0xFF475569),
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                      if (_resumePromptPendingFromLifecycle ||
-                                          widget.state
-                                              .shouldOfferHandsFreeResume(
-                                            speechAvailable:
-                                                speechRecognitionActive,
-                                            transcriptMisses:
-                                                _consecutiveTranscriptMisses,
-                                            autoPaused:
-                                                _autoPausedByTranscriptFailure,
-                                            hasDraftResponse: responseController
-                                                .text
-                                                .trim()
-                                                .isNotEmpty,
-                                          )) ...[
-                                        const SizedBox(height: 12),
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFFFFBEB),
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                            border: Border.all(
-                                              color: const Color(0xFFFCD34D),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                'Hands-free recovery',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Color(0xFF78350F),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                widget.state
-                                                    .handsFreeRecoverySummary(
-                                                  speechAvailable:
-                                                      speechRecognitionActive,
-                                                  transcriptMisses:
-                                                      _consecutiveTranscriptMisses,
-                                                  autoPaused:
-                                                      _autoPausedByTranscriptFailure,
-                                                  hasDraftResponse:
-                                                      responseController.text
-                                                          .trim()
-                                                          .isNotEmpty,
-                                                ),
-                                                style: const TextStyle(
-                                                  color: Color(0xFF92400E),
-                                                  height: 1.4,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 10),
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
-                                                children: [
-                                                  FilledButton.tonalIcon(
-                                                    onPressed: isRecording ||
-                                                            isSpeaking
-                                                        ? null
-                                                        : _resumeHandsFreeLoop,
-                                                    icon: const Icon(
-                                                      Icons.smart_toy_rounded,
-                                                    ),
-                                                    label: const Text(
-                                                      'Resume hands-free loop',
-                                                    ),
-                                                  ),
-                                                  if (_autoPausedByTranscriptFailure)
-                                                    OutlinedButton.icon(
-                                                      onPressed: () {
-                                                        setState(() {
-                                                          _resetTranscriptRecoveryState(
-                                                            clearReviewPending:
-                                                                false,
-                                                          );
-                                                          microphoneStatus =
-                                                              'Hands-free pause acknowledged. Keep coaching manually until you want to resume.';
-                                                        });
-                                                      },
-                                                      icon: const Icon(
-                                                        Icons
-                                                            .pause_circle_rounded,
-                                                      ),
-                                                      label: const Text(
-                                                        'Stay manual for now',
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                if (_resumedSession ||
-                                    session.latestLearnerAudioPath != null ||
-                                    session.latestLearnerResponse != null) ...[
-                                  SoftPanel(
+                                    ),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         const Text(
-                                          'Resume continuity',
+                                          'Learner target',
                                           style: TextStyle(
+                                            color: Color(0xFF4F46E5),
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          session.latestLearnerResponse !=
-                                                      null &&
-                                                  session.latestLearnerResponse!
-                                                      .trim()
-                                                      .isNotEmpty
-                                              ? 'Last captured learner answer: ${session.latestLearnerResponse}'
-                                              : 'This lesson can continue from the saved step even when transcript help drops out.',
+                                          shortExpectedResponse,
                                           style: const TextStyle(
-                                            color: Color(0xFF475569),
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: [
-                                            if (session.latestLearnerResponse !=
-                                                    null &&
-                                                session.latestLearnerResponse!
-                                                    .trim()
-                                                    .isNotEmpty)
-                                              FilledButton.tonalIcon(
-                                                onPressed: () =>
-                                                    _setResponseAndMaybeSubmit(
-                                                  session
-                                                      .latestLearnerResponse!,
-                                                ),
-                                                icon: const Icon(
-                                                  Icons.restore_rounded,
-                                                ),
-                                                label: const Text(
-                                                  'Reuse last answer',
-                                                ),
-                                              ),
-                                            if (session
-                                                    .latestLearnerAudioPath !=
-                                                null)
-                                              OutlinedButton.icon(
-                                                onPressed: () {
-                                                  setState(() {
-                                                    microphoneStatus =
-                                                        'Saved learner audio is still attached. You can record again, type the answer, or keep going manually.';
-                                                  });
-                                                },
-                                                icon: const Icon(
-                                                  Icons.library_music_rounded,
-                                                ),
-                                                label: const Text(
-                                                  'Keep saved audio',
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
-                                if (_showDeviceDiagnosticsPanel)
-                                  _buildDeviceDiagnosticsPanel(),
-                                const SizedBox(height: 16),
-                                _CoachActionsRow(
-                                  onReplay: () async {
-                                    _promptedCurrentStep = false;
-                                    await widget.state.repeatCurrentStep();
-                                    if (!mounted) return;
-                                    setState(() {
-                                      microphoneStatus =
-                                          'Mallam replayed the current step and can reopen the mic.';
-                                    });
-                                    if (isAutoMode) {
-                                      await _startRecordingIfPossible(
-                                        fallbackMessage:
-                                            'Mallam replayed the current step. The mic is reopening for the learner.',
-                                      );
-                                    }
-                                    widget.onChanged();
-                                  },
-                                  onHint: () => _runCoachSupport('hint'),
-                                  onModel: () => _runCoachSupport('model'),
-                                  onSlow: () => _runCoachSupport('slow'),
-                                  onWait: () => _runCoachSupport('wait'),
-                                  onTranslate: () =>
-                                      _runCoachSupport('translate'),
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Learner microphone capture',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                TextField(
-                                  controller: responseController,
-                                  onChanged: (_) => setState(() {}),
-                                  decoration: InputDecoration(
-                                    labelText: 'Learner response',
-                                    hintText: _learnerResponseHintText,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: suggestions
-                                      .map(
-                                        (suggestion) => ActionChip(
-                                          label: Text(suggestion),
-                                          onPressed: () =>
-                                              _handleSubmittedResponse(
-                                                  suggestion),
-                                        ),
-                                      )
-                                      .toList(),
-                                ),
-                                const SizedBox(height: 12),
-                                if (transcriptReviewPending) ...[
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFFFBEB),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: const Color(0xFFFCD34D),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _reviewBannerTitle,
-                                          style: const TextStyle(
+                                            fontSize: 20,
                                             fontWeight: FontWeight.w800,
-                                            color: Color(0xFF78350F),
+                                            height: 1.3,
                                           ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          _reviewBannerBody,
-                                          style: const TextStyle(
-                                            color: Color(0xFF92400E),
-                                            height: 1.35,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: [
-                                            _buildDiagnosticChip(
-                                              icon: _isAudioOnlyReviewState
-                                                  ? Icons.mic_none_rounded
-                                                  : _hasTranscriptSafetyBlock
-                                                      ? Icons.gpp_maybe_rounded
-                                                      : _draftTranscriptNeedsVoiceCheck
-                                                          ? Icons
-                                                              .hearing_rounded
-                                                          : Icons
-                                                              .subtitles_rounded,
-                                              label: _isAudioOnlyReviewState
-                                                  ? 'Transcript missing • use saved voice'
-                                                  : _hasTranscriptSafetyBlock
-                                                      ? 'Stable transcript blocked • verify with audio'
-                                                      : _draftTranscriptNeedsVoiceCheck
-                                                          ? 'Draft transcript • verify with audio'
-                                                          : 'Transcript ready for facilitator check',
-                                              healthy: !_isAudioOnlyReviewState &&
-                                                  !_draftTranscriptNeedsVoiceCheck &&
-                                                  !_hasTranscriptSafetyBlock,
-                                              warn: _isAudioOnlyReviewState ||
-                                                  _draftTranscriptNeedsVoiceCheck ||
-                                                  _hasTranscriptSafetyBlock,
-                                            ),
-                                            if (_hasSavedLearnerAudio)
-                                              _buildDiagnosticChip(
-                                                icon:
-                                                    Icons.library_music_rounded,
-                                                label:
-                                                    'Saved learner voice attached',
-                                                healthy: true,
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: [
-                                            FilledButton.tonalIcon(
-                                              onPressed: responseController.text
-                                                      .trim()
-                                                      .isEmpty
-                                                  ? null
-                                                  : () =>
-                                                      _handleSubmittedResponse(
-                                                        responseController.text,
-                                                      ),
-                                              icon: const Icon(
-                                                Icons.check_circle_rounded,
-                                              ),
-                                              label: Text(
-                                                _isAudioOnlyReviewState
-                                                    ? 'Confirm typed note'
-                                                    : 'Save reviewed text',
-                                              ),
-                                            ),
-                                            FilledButton.icon(
-                                              onPressed: responseController.text
-                                                      .trim()
-                                                      .isEmpty
-                                                  ? null
-                                                  : _confirmTranscriptAndAdvance,
-                                              icon: const Icon(
-                                                Icons.auto_mode_rounded,
-                                              ),
-                                              label:
-                                                  Text(_reviewPrimaryCtaLabel),
-                                            ),
-                                            OutlinedButton.icon(
-                                              onPressed: () {
-                                                setState(() {
-                                                  transcriptReviewPending =
-                                                      false;
-                                                  isAutoMode = false;
-                                                  _autoPausedByTranscriptFailure =
-                                                      true;
-                                                  if (responseController.text
-                                                      .trim()
-                                                      .isEmpty) {
-                                                    microphoneStatus =
-                                                        'Transcript review skipped. Lumo is staying in audio-first manual mode so nobody auto-advances without checking the saved voice.';
-                                                  } else {
-                                                    microphoneStatus =
-                                                        'Transcript review skipped. The draft answer stays editable, the saved audio remains attached, and hands-free auto-advance is paused for this take.';
-                                                  }
-                                                });
-                                              },
-                                              icon: const Icon(
-                                                Icons.graphic_eq_rounded,
-                                              ),
-                                              label: Text(
-                                                  _reviewSecondaryCtaLabel),
-                                            ),
-                                            if (session
-                                                    .latestLearnerAudioPath !=
-                                                null)
-                                              FilledButton.tonalIcon(
-                                                onPressed:
-                                                    _toggleSavedAudioPlayback,
-                                                icon: Icon(
-                                                  learnerAudioPlaybackService
-                                                          .isPlaying
-                                                      ? Icons
-                                                          .pause_circle_rounded
-                                                      : Icons
-                                                          .play_circle_fill_rounded,
-                                                ),
-                                                label: Text(
-                                                  learnerAudioPlaybackService
-                                                          .isPlaying
-                                                      ? 'Pause saved voice'
-                                                      : 'Play saved voice',
-                                                ),
-                                              ),
-                                            if (session
-                                                    .latestLearnerAudioPath !=
-                                                null)
-                                              FilledButton.icon(
-                                                onPressed:
-                                                    _acceptSavedAudioAndContinue,
-                                                icon: const Icon(
-                                                  Icons.library_music_rounded,
-                                                ),
-                                                label: const Text(
-                                                  'Accept saved voice + continue',
-                                                ),
-                                              ),
-                                            if (session
-                                                    .latestLearnerAudioPath !=
-                                                null)
-                                              OutlinedButton.icon(
-                                                onPressed: () =>
-                                                    _acceptSavedAudioAndContinue(
-                                                  resumeHandsFree: false,
-                                                ),
-                                                icon: const Icon(
-                                                  Icons.pan_tool_alt_rounded,
-                                                ),
-                                                label: const Text(
-                                                  'Use saved voice, stay manual',
-                                                ),
-                                              ),
-                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
                                 ],
-                                Row(
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final compact = constraints.maxWidth < 640;
+                                final tiles = [
+                                  MetricTile(
+                                    label: 'Progress',
+                                    value:
+                                        '${session.stepIndex + 1}/${widget.lesson.steps.length}',
+                                    icon: Icons.alt_route_rounded,
+                                    color: LumoTheme.primary,
+                                  ),
+                                  MetricTile(
+                                    label: 'Responses',
+                                    value: '${session.totalResponses}',
+                                    icon: Icons.chat_bubble_outline_rounded,
+                                    color: LumoTheme.accentGreen,
+                                  ),
+                                  MetricTile(
+                                    label: 'Lesson mode',
+                                    value: _lessonModeLabel,
+                                    icon: Icons.smart_toy_rounded,
+                                    color: LumoTheme.accentOrange,
+                                  ),
+                                ];
+
+                                if (compact) {
+                                  return Column(
+                                    children: [
+                                      for (var i = 0;
+                                          i < tiles.length;
+                                          i++) ...[
+                                        SizedBox(
+                                            width: double.infinity,
+                                            child: tiles[i]),
+                                        if (i < tiles.length - 1)
+                                          const SizedBox(height: 12),
+                                      ],
+                                    ],
+                                  );
+                                }
+
+                                return Row(
                                   children: [
-                                    Expanded(
-                                      child: FilledButton.tonal(
-                                        onPressed: () =>
-                                            _handleSubmittedResponse(
-                                          responseController.text,
-                                        ),
-                                        child: const Text('Save typed note'),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: FilledButton(
-                                        onPressed: session.hasLearnerInput &&
-                                                !transcriptReviewPending
-                                            ? () async {
-                                                await _afterCorrectResponse();
-                                              }
-                                            : null,
-                                        child: Text(
-                                          session.isLastStep
-                                              ? 'Finish lesson'
-                                              : 'Next step',
-                                        ),
-                                      ),
-                                    ),
+                                    for (var i = 0; i < tiles.length; i++) ...[
+                                      Expanded(child: tiles[i]),
+                                      if (i < tiles.length - 1)
+                                        const SizedBox(width: 12),
+                                    ],
                                   ],
-                                ),
-                                const SizedBox(height: 16),
-                                SoftPanel(
-                                  child: Column(
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            LinearProgressIndicator(
+                              value: session.progress,
+                              minHeight: 10,
+                              borderRadius:
+                                  const BorderRadius.all(Radius.circular(999)),
+                              color: LumoTheme.primary,
+                              backgroundColor: const Color(0xFFE9E7FF),
+                            ),
+                            const SizedBox(height: 16),
+                            SoftPanel(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        'Listening area',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEEF2FF),
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                        ),
+                                        child: const Icon(
+                                          Icons.assistant_rounded,
+                                          color: LumoTheme.primary,
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        microphoneStatus ??
-                                            'Press Start listening after Mallam speaks. Lumo saves learner audio and adds transcript help when the device allows it.',
-                                        style: const TextStyle(
-                                          color: Color(0xFF475569),
-                                          height: 1.4,
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _sessionStatusHeadline,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              _sessionStatusBody,
+                                              style: const TextStyle(
+                                                color: Color(0xFF475569),
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(height: 12),
-                                      Wrap(
-                                        spacing: 12,
-                                        runSpacing: 12,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      _buildDiagnosticChip(
+                                        icon: _isAudioOnlyReviewState ||
+                                                _draftTranscriptNeedsVoiceCheck ||
+                                                _hasTranscriptSafetyBlock
+                                            ? Icons.verified_user_rounded
+                                            : Icons.hearing_rounded,
+                                        label: _transcriptSourceOfTruthLabel,
+                                        healthy: !_isAudioOnlyReviewState &&
+                                            !_draftTranscriptNeedsVoiceCheck &&
+                                            !_hasTranscriptSafetyBlock,
+                                        warn: _isAudioOnlyReviewState ||
+                                            _draftTranscriptNeedsVoiceCheck ||
+                                            _hasTranscriptSafetyBlock,
+                                      ),
+                                      _buildDiagnosticChip(
+                                        icon: isAutoMode
+                                            ? Icons.auto_mode_rounded
+                                            : Icons.pan_tool_alt_rounded,
+                                        label: _automationSafetyLabel,
+                                        healthy: isAutoMode &&
+                                            !_isAudioOnlyReviewState &&
+                                            !_draftTranscriptNeedsVoiceCheck &&
+                                            !_hasTranscriptSafetyBlock &&
+                                            _consecutiveTranscriptMisses < 2,
+                                        warn: !isAutoMode ||
+                                            _isAudioOnlyReviewState ||
+                                            _draftTranscriptNeedsVoiceCheck ||
+                                            _hasTranscriptSafetyBlock ||
+                                            _consecutiveTranscriptMisses >= 2,
+                                      ),
+                                      _buildDiagnosticChip(
+                                        icon: Icons.mic_rounded,
+                                        label: _recordingModeLabel,
+                                        healthy: true,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: () {
+                                      setState(() {
+                                        _transcriptStrategyExpanded =
+                                            !_transcriptStrategyExpanded;
+                                      });
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 2,
+                                      ),
+                                      child: Row(
                                         children: [
-                                          FilledButton.icon(
-                                            onPressed: isRecording ||
-                                                    !_micPermissionGranted
-                                                ? null
-                                                : startRecording,
-                                            icon: const Icon(Icons.mic_rounded),
-                                            label:
-                                                const Text('Start listening'),
-                                          ),
-                                          FilledButton.tonalIcon(
-                                            onPressed: isRecording
-                                                ? stopRecording
-                                                : null,
-                                            icon: const Icon(
-                                              Icons.stop_circle_outlined,
-                                            ),
-                                            label: const Text('Stop listening'),
-                                          ),
-                                          OutlinedButton.icon(
-                                            onPressed: isRecording
-                                                ? null
-                                                : () async {
-                                                    await _primeDiagnostics();
-                                                    await _retryTranscriptEngine();
-                                                  },
-                                            icon: const Icon(
-                                              Icons.refresh_rounded,
-                                            ),
-                                            label: const Text(
-                                                'Refresh listening help'),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 10,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: isRecording
-                                                  ? const Color(0xFFFFF1F2)
-                                                  : const Color(0xFFF8FAFC),
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                              border: Border.all(
-                                                color: isRecording
-                                                    ? const Color(0xFFFDA4AF)
-                                                    : const Color(0xFFE2E8F0),
-                                              ),
-                                            ),
+                                          const Expanded(
                                             child: Text(
-                                              isRecording
-                                                  ? 'Recording ${formatDuration(currentRecordingDuration)}'
-                                                  : 'Ready for the learner',
+                                              'Listening help and recovery details',
                                               style: TextStyle(
-                                                color: isRecording
-                                                    ? const Color(0xFFBE123C)
-                                                    : const Color(0xFF475569),
                                                 fontWeight: FontWeight.w700,
+                                                color: Color(0xFF334155),
                                               ),
                                             ),
+                                          ),
+                                          Text(
+                                            _transcriptStrategyExpanded
+                                                ? 'Hide details'
+                                                : 'Show details',
+                                            style: const TextStyle(
+                                              color: LumoTheme.primary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            _transcriptStrategyExpanded
+                                                ? Icons.expand_less_rounded
+                                                : Icons.expand_more_rounded,
+                                            color: LumoTheme.primary,
                                           ),
                                         ],
                                       ),
-                                      if (!speechRecognitionActive &&
-                                          !isRecording) ...[
-                                        const SizedBox(height: 12),
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFFFFBEB),
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                            border: Border.all(
-                                              color: const Color(0xFFFCD34D),
+                                    ),
+                                  ),
+                                  if (_transcriptStrategyExpanded) ...[
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      _transcriptStrategySummary,
+                                      style: const TextStyle(
+                                        color: Color(0xFF475569),
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _automationSafetySummary,
+                                      style: const TextStyle(
+                                        color: Color(0xFF64748B),
+                                        height: 1.35,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _buildDiagnosticChip(
+                                          icon: speechRecognitionActive
+                                              ? Icons.settings_voice_rounded
+                                              : Icons.hearing_disabled_rounded,
+                                          label: _transcriptModeLabel,
+                                          healthy: speechRecognitionActive,
+                                          warn: !speechRecognitionActive,
+                                        ),
+                                        _buildDiagnosticChip(
+                                          icon: speechRecognitionActive
+                                              ? Icons.hearing_rounded
+                                              : _avoidConcurrentSpeechCapture
+                                                  ? Icons.mic_none_rounded
+                                                  : Icons.warning_amber_rounded,
+                                          label: _transcriptStrategyHeadline,
+                                          healthy: speechRecognitionActive &&
+                                              !_avoidConcurrentSpeechCapture,
+                                          warn: !speechRecognitionActive ||
+                                              _avoidConcurrentSpeechCapture,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ..._transcriptStrategyActions.take(3).map(
+                                          (action) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 6,
+                                            ),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Padding(
+                                                  padding:
+                                                      EdgeInsets.only(top: 2),
+                                                  child: Icon(
+                                                    Icons.arrow_forward_rounded,
+                                                    size: 16,
+                                                    color: LumoTheme.primary,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    action,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF475569),
+                                                      height: 1.35,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                        ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SoftPanel(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Lesson pace',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    session.practiceMode ==
+                                            PracticeMode.repeatAfterMe
+                                        ? 'Repeat mode keeps things slower and more echo-based for this learner.'
+                                        : session.practiceMode ==
+                                                PracticeMode.independentCheck
+                                            ? 'Independent mode gives the learner more space to answer in their own words.'
+                                            : 'Standard mode balances prompting, checking, and support.',
+                                    style: const TextStyle(
+                                      color: Color(0xFF475569),
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: PracticeMode.values.map((mode) {
+                                      final selected =
+                                          session.practiceMode == mode;
+                                      final label = switch (mode) {
+                                        PracticeMode.standard => 'Balanced',
+                                        PracticeMode.repeatAfterMe =>
+                                          'Repeat more',
+                                        PracticeMode.independentCheck =>
+                                          'More independent',
+                                      };
+                                      return ChoiceChip(
+                                        label: Text(label),
+                                        selected: selected,
+                                        onSelected: (_) {
+                                          widget.state.setPracticeMode(mode);
+                                          widget.onChanged();
+                                          setState(() {
+                                            microphoneStatus = widget
+                                                    .state
+                                                    .activeSession
+                                                    ?.automationStatus ??
+                                                microphoneStatus;
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Flexible(
+                              fit: isStackedLayout
+                                  ? FlexFit.loose
+                                  : FlexFit.tight,
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    SoftPanel(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
                                             children: [
-                                              const Text(
-                                                'If listening help drops',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Color(0xFF78350F),
+                                              Expanded(
+                                                child: Text(
+                                                  step.title,
+                                                  style: const TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
                                                 ),
                                               ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                _consecutiveTranscriptMisses >=
-                                                        2
-                                                    ? 'Transcript help missed $_consecutiveTranscriptMisses takes in a row. Stay in audio-first mode, use Repeat or Model answer, and sync later if the network is flaky. ${speechTranscriptionService.availabilityLabel}'
-                                                    : speechTranscriptionService
-                                                        .availabilityLabel,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF92400E),
-                                                  height: 1.4,
+                                              _SpeakerStateBadge(
+                                                mode: session.speakerMode,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(step.instruction),
+                                          const SizedBox(height: 12),
+                                          LabelValueWrap(
+                                            items: [
+                                              (
+                                                'Expected response',
+                                                expectedResponse
+                                              ),
+                                              (
+                                                'Facilitator tip',
+                                                step.facilitatorTip
+                                              ),
+                                              (
+                                                'Real-world check',
+                                                step.realWorldCheck
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (step.activity != null) ...[
+                                      _buildActivityPanel(step),
+                                      const SizedBox(height: 16),
+                                    ],
+                                    SoftPanel(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Step control',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          SwitchListTile(
+                                            contentPadding: EdgeInsets.zero,
+                                            value: isAutoMode,
+                                            onChanged: (value) {
+                                              setState(() {
+                                                isAutoMode = value;
+                                                if (value) {
+                                                  _autoPausedByTranscriptFailure =
+                                                      false;
+                                                }
+                                                transcriptReviewPending =
+                                                    !value &&
+                                                        transcriptReviewPending;
+                                              });
+                                            },
+                                            title: const Text(
+                                                'Let Mallam keep the flow moving'),
+                                            subtitle: Text(isAutoMode
+                                                ? 'Mallam speaks the step, checks the captured answer, advances on correct responses, and repeats when the answer needs help.'
+                                                : 'Facilitator confirms each response manually.'),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            isSpeaking
+                                                ? 'Mallam is speaking now.'
+                                                : (widget.state.activeSession
+                                                        ?.automationStatus ??
+                                                    microphoneStatus ??
+                                                    'Tap AI Mallam to replay the current instruction.'),
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                          if (_resumePromptPendingFromLifecycle ||
+                                              widget.state
+                                                  .shouldOfferHandsFreeResume(
+                                                speechAvailable:
+                                                    speechRecognitionActive,
+                                                transcriptMisses:
+                                                    _consecutiveTranscriptMisses,
+                                                autoPaused:
+                                                    _autoPausedByTranscriptFailure,
+                                                hasDraftResponse:
+                                                    responseController.text
+                                                        .trim()
+                                                        .isNotEmpty,
+                                              )) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFFFFBEB),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                  color:
+                                                      const Color(0xFFFCD34D),
                                                 ),
                                               ),
-                                              const SizedBox(height: 10),
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  FilledButton.tonalIcon(
-                                                    onPressed: responseController
-                                                            .text
-                                                            .trim()
-                                                            .isEmpty
-                                                        ? null
-                                                        : () =>
-                                                            _handleSubmittedResponse(
-                                                              responseController
-                                                                  .text,
-                                                            ),
-                                                    icon: const Icon(
-                                                      Icons
-                                                          .check_circle_rounded,
-                                                    ),
-                                                    label: const Text(
-                                                      'Submit typed answer',
+                                                  const Text(
+                                                    'Hands-free recovery',
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: Color(0xFF78350F),
                                                     ),
                                                   ),
-                                                  FilledButton.tonalIcon(
-                                                    onPressed: isRecording ||
-                                                            isSpeaking
-                                                        ? null
-                                                        : _resumeHandsFreeLoop,
-                                                    icon: const Icon(
-                                                      Icons.smart_toy_rounded,
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    widget.state
+                                                        .handsFreeRecoverySummary(
+                                                      speechAvailable:
+                                                          speechRecognitionActive,
+                                                      transcriptMisses:
+                                                          _consecutiveTranscriptMisses,
+                                                      autoPaused:
+                                                          _autoPausedByTranscriptFailure,
+                                                      hasDraftResponse:
+                                                          responseController
+                                                              .text
+                                                              .trim()
+                                                              .isNotEmpty,
                                                     ),
-                                                    label: const Text(
-                                                      'Resume hands-free loop',
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF92400E),
+                                                      height: 1.4,
                                                     ),
                                                   ),
-                                                  OutlinedButton.icon(
-                                                    onPressed: () =>
-                                                        _runCoachSupport(
-                                                            'model'),
-                                                    icon: const Icon(
-                                                      Icons
-                                                          .record_voice_over_rounded,
-                                                    ),
-                                                    label: const Text(
-                                                      'Play model answer',
-                                                    ),
+                                                  const SizedBox(height: 10),
+                                                  Wrap(
+                                                    spacing: 8,
+                                                    runSpacing: 8,
+                                                    children: [
+                                                      FilledButton.tonalIcon(
+                                                        onPressed: isRecording ||
+                                                                isSpeaking
+                                                            ? null
+                                                            : _resumeHandsFreeLoop,
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .smart_toy_rounded,
+                                                        ),
+                                                        label: const Text(
+                                                          'Resume hands-free loop',
+                                                        ),
+                                                      ),
+                                                      if (_autoPausedByTranscriptFailure)
+                                                        OutlinedButton.icon(
+                                                          onPressed: () {
+                                                            setState(() {
+                                                              _resetTranscriptRecoveryState(
+                                                                clearReviewPending:
+                                                                    false,
+                                                              );
+                                                              microphoneStatus =
+                                                                  'Hands-free pause acknowledged. Keep coaching manually until you want to resume.';
+                                                            });
+                                                          },
+                                                          icon: const Icon(
+                                                            Icons
+                                                                .pause_circle_rounded,
+                                                          ),
+                                                          label: const Text(
+                                                            'Stay manual for now',
+                                                          ),
+                                                        ),
+                                                    ],
                                                   ),
                                                 ],
                                               ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                      if (liveTranscript.isNotEmpty ||
-                                          speechRecognitionActive) ...[
-                                        const SizedBox(height: 12),
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEEF2FF),
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                            border: Border.all(
-                                              color: const Color(0xFFC7D2FE),
                                             ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                speechRecognitionActive
-                                                    ? 'Live transcript'
-                                                    : 'Captured transcript',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Color(0xFF312E81),
-                                                ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (_resumedSession ||
+                                        session.latestLearnerAudioPath !=
+                                            null ||
+                                        session.latestLearnerResponse !=
+                                            null) ...[
+                                      SoftPanel(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Resume continuity',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
                                               ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                liveTranscript.isEmpty
-                                                    ? 'Listening for learner speech...'
-                                                    : liveTranscript,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF4338CA),
-                                                  height: 1.4,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                      if (session.latestLearnerAudioPath !=
-                                          null) ...[
-                                        const SizedBox(height: 12),
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                            border: Border.all(
-                                              color: const Color(0xFFE2E8F0),
                                             ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              InfoRow(
-                                                label: 'Latest learner audio',
-                                                value: formatDuration(
-                                                  session.latestLearnerAudioDuration ??
-                                                      Duration.zero,
-                                                ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              session.latestLearnerResponse !=
+                                                          null &&
+                                                      session
+                                                          .latestLearnerResponse!
+                                                          .trim()
+                                                          .isNotEmpty
+                                                  ? 'Last captured learner answer: ${session.latestLearnerResponse}'
+                                                  : 'This lesson can continue from the saved step even when transcript help drops out.',
+                                              style: const TextStyle(
+                                                color: Color(0xFF475569),
+                                                height: 1.4,
                                               ),
-                                              const SizedBox(height: 8),
-                                              Row(
-                                                children:
-                                                    List.generate(18, (index) {
-                                                  final active =
-                                                      learnerAudioPlaybackService
-                                                              .isPlaying
-                                                          ? (index % 3 != 0)
-                                                          : index.isEven;
-                                                  const heights = [
-                                                    8.0,
-                                                    16.0,
-                                                    24.0,
-                                                    14.0,
-                                                    20.0,
-                                                    10.0
-                                                  ];
-                                                  return Container(
-                                                    width: 6,
-                                                    height: active
-                                                        ? heights[index %
-                                                            heights.length]
-                                                        : 8,
-                                                    margin:
-                                                        const EdgeInsets.only(
-                                                            right: 4),
-                                                    decoration: BoxDecoration(
-                                                      color:
-                                                          learnerAudioPlaybackService
-                                                                  .isPlaying
-                                                              ? const Color(
-                                                                  0xFF4F46E5)
-                                                              : const Color(
-                                                                  0xFFCBD5E1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              999),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                if (session.latestLearnerResponse !=
+                                                        null &&
+                                                    session
+                                                        .latestLearnerResponse!
+                                                        .trim()
+                                                        .isNotEmpty)
+                                                  FilledButton.tonalIcon(
+                                                    onPressed: () =>
+                                                        _setResponseAndMaybeSubmit(
+                                                      session
+                                                          .latestLearnerResponse!,
                                                     ),
-                                                  );
-                                                }),
+                                                    icon: const Icon(
+                                                      Icons.restore_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Reuse last answer',
+                                                    ),
+                                                  ),
+                                                if (session
+                                                        .latestLearnerAudioPath !=
+                                                    null)
+                                                  OutlinedButton.icon(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        microphoneStatus =
+                                                            'Saved learner audio is still attached. You can record again, type the answer, or keep going manually.';
+                                                      });
+                                                    },
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .library_music_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Keep saved audio',
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                    ],
+                                    if (_showDeviceDiagnosticsPanel)
+                                      _buildDeviceDiagnosticsPanel(),
+                                    const SizedBox(height: 16),
+                                    _CoachActionsRow(
+                                      onReplay: () async {
+                                        _promptedCurrentStep = false;
+                                        await widget.state.repeatCurrentStep();
+                                        if (!mounted) return;
+                                        setState(() {
+                                          microphoneStatus =
+                                              'Mallam replayed the current step and can reopen the mic.';
+                                        });
+                                        if (isAutoMode) {
+                                          await _startRecordingIfPossible(
+                                            fallbackMessage:
+                                                'Mallam replayed the current step. The mic is reopening for the learner.',
+                                          );
+                                        }
+                                        widget.onChanged();
+                                      },
+                                      onHint: () => _runCoachSupport('hint'),
+                                      onModel: () => _runCoachSupport('model'),
+                                      onSlow: () => _runCoachSupport('slow'),
+                                      onWait: () => _runCoachSupport('wait'),
+                                      onTranslate: () =>
+                                          _runCoachSupport('translate'),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'Learner microphone capture',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: responseController,
+                                      onChanged: (_) => setState(() {}),
+                                      decoration: InputDecoration(
+                                        labelText: 'Learner response',
+                                        hintText: _learnerResponseHintText,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: suggestions
+                                          .map(
+                                            (suggestion) => ActionChip(
+                                              label: Text(suggestion),
+                                              onPressed: () =>
+                                                  _handleSubmittedResponse(
+                                                      suggestion),
+                                            ),
+                                          )
+                                          .toList(),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (transcriptReviewPending) ...[
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFFBEB),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: const Color(0xFFFCD34D),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _reviewBannerTitle,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFF78350F),
                                               ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                learnerAudioPlaybackService
-                                                        .isPlaying
-                                                    ? 'Playback is running now. Listen, then accept, type a note, or replay.'
-                                                    : 'Preview the saved learner answer before advancing. This stays available even when transcript capture fails.',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF475569),
-                                                  height: 1.35,
-                                                ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              _reviewBannerBody,
+                                              style: const TextStyle(
+                                                color: Color(0xFF92400E),
+                                                height: 1.35,
                                               ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                compactPath(
-                                                  session
-                                                      .latestLearnerAudioPath!,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                _buildDiagnosticChip(
+                                                  icon: _isAudioOnlyReviewState
+                                                      ? Icons.mic_none_rounded
+                                                      : _hasTranscriptSafetyBlock
+                                                          ? Icons
+                                                              .gpp_maybe_rounded
+                                                          : _draftTranscriptNeedsVoiceCheck
+                                                              ? Icons
+                                                                  .hearing_rounded
+                                                              : Icons
+                                                                  .subtitles_rounded,
+                                                  label: _isAudioOnlyReviewState
+                                                      ? 'Transcript missing • use saved voice'
+                                                      : _hasTranscriptSafetyBlock
+                                                          ? 'Stable transcript blocked • verify with audio'
+                                                          : _draftTranscriptNeedsVoiceCheck
+                                                              ? 'Draft transcript • verify with audio'
+                                                              : 'Transcript ready for facilitator check',
+                                                  healthy: !_isAudioOnlyReviewState &&
+                                                      !_draftTranscriptNeedsVoiceCheck &&
+                                                      !_hasTranscriptSafetyBlock,
+                                                  warn: _isAudioOnlyReviewState ||
+                                                      _draftTranscriptNeedsVoiceCheck ||
+                                                      _hasTranscriptSafetyBlock,
                                                 ),
-                                                style: const TextStyle(
-                                                  color: Color(0xFF64748B),
-                                                  fontSize: 12,
+                                                if (_hasSavedLearnerAudio)
+                                                  _buildDiagnosticChip(
+                                                    icon: Icons
+                                                        .library_music_rounded,
+                                                    label:
+                                                        'Saved learner voice attached',
+                                                    healthy: true,
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                FilledButton.tonalIcon(
+                                                  onPressed: responseController
+                                                          .text
+                                                          .trim()
+                                                          .isEmpty
+                                                      ? null
+                                                      : () =>
+                                                          _handleSubmittedResponse(
+                                                            responseController
+                                                                .text,
+                                                          ),
+                                                  icon: const Icon(
+                                                    Icons.check_circle_rounded,
+                                                  ),
+                                                  label: Text(
+                                                    _isAudioOnlyReviewState
+                                                        ? 'Confirm typed note'
+                                                        : 'Save reviewed text',
+                                                  ),
                                                 ),
-                                              ),
-                                              const SizedBox(height: 10),
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
-                                                children: [
+                                                FilledButton.icon(
+                                                  onPressed: responseController
+                                                          .text
+                                                          .trim()
+                                                          .isEmpty
+                                                      ? null
+                                                      : _confirmTranscriptAndAdvance,
+                                                  icon: const Icon(
+                                                    Icons.auto_mode_rounded,
+                                                  ),
+                                                  label: Text(
+                                                      _reviewPrimaryCtaLabel),
+                                                ),
+                                                OutlinedButton.icon(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      transcriptReviewPending =
+                                                          false;
+                                                      isAutoMode = false;
+                                                      _autoPausedByTranscriptFailure =
+                                                          true;
+                                                      if (responseController
+                                                          .text
+                                                          .trim()
+                                                          .isEmpty) {
+                                                        microphoneStatus =
+                                                            'Transcript review skipped. Lumo is staying in audio-first manual mode so nobody auto-advances without checking the saved voice.';
+                                                      } else {
+                                                        microphoneStatus =
+                                                            'Transcript review skipped. The draft answer stays editable, the saved audio remains attached, and hands-free auto-advance is paused for this take.';
+                                                      }
+                                                    });
+                                                  },
+                                                  icon: const Icon(
+                                                    Icons.graphic_eq_rounded,
+                                                  ),
+                                                  label: Text(
+                                                      _reviewSecondaryCtaLabel),
+                                                ),
+                                                if (session
+                                                        .latestLearnerAudioPath !=
+                                                    null)
                                                   FilledButton.tonalIcon(
                                                     onPressed:
                                                         _toggleSavedAudioPlayback,
@@ -7111,36 +6831,457 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                           : 'Play saved voice',
                                                     ),
                                                   ),
-                                                  if (learnerAudioPlaybackService
-                                                      .isPlaying)
-                                                    OutlinedButton.icon(
-                                                      onPressed:
-                                                          _stopSavedAudioPlayback,
-                                                      icon: const Icon(
-                                                        Icons
-                                                            .stop_circle_rounded,
-                                                      ),
-                                                      label: const Text(
-                                                        'Stop playback',
-                                                      ),
+                                                if (session
+                                                        .latestLearnerAudioPath !=
+                                                    null)
+                                                  FilledButton.icon(
+                                                    onPressed:
+                                                        _acceptSavedAudioAndContinue,
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .library_music_rounded,
                                                     ),
-                                                ],
-                                              ),
-                                            ],
+                                                    label: const Text(
+                                                      'Accept saved voice + continue',
+                                                    ),
+                                                  ),
+                                                if (session
+                                                        .latestLearnerAudioPath !=
+                                                    null)
+                                                  OutlinedButton.icon(
+                                                    onPressed: () =>
+                                                        _acceptSavedAudioAndContinue(
+                                                      resumeHandsFree: false,
+                                                    ),
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .pan_tool_alt_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Use saved voice, stay manual',
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: FilledButton.tonal(
+                                            onPressed: () =>
+                                                _handleSubmittedResponse(
+                                              responseController.text,
+                                            ),
+                                            child:
+                                                const Text('Save typed note'),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: FilledButton(
+                                            onPressed:
+                                                session.hasLearnerInput &&
+                                                        !transcriptReviewPending
+                                                    ? () async {
+                                                        await _afterCorrectResponse();
+                                                      }
+                                                    : null,
+                                            child: Text(
+                                              session.isLastStep
+                                                  ? 'Finish lesson'
+                                                  : 'Next step',
+                                            ),
                                           ),
                                         ),
                                       ],
-                                    ],
-                                  ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SoftPanel(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Listening area',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            microphoneStatus ??
+                                                'Press Start listening after Mallam speaks. Lumo saves learner audio and adds transcript help when the device allows it.',
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Wrap(
+                                            spacing: 12,
+                                            runSpacing: 12,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
+                                            children: [
+                                              FilledButton.icon(
+                                                onPressed: isRecording ||
+                                                        !_micPermissionGranted
+                                                    ? null
+                                                    : startRecording,
+                                                icon: const Icon(
+                                                    Icons.mic_rounded),
+                                                label: const Text(
+                                                    'Start listening'),
+                                              ),
+                                              FilledButton.tonalIcon(
+                                                onPressed: isRecording
+                                                    ? stopRecording
+                                                    : null,
+                                                icon: const Icon(
+                                                  Icons.stop_circle_outlined,
+                                                ),
+                                                label: const Text(
+                                                    'Stop listening'),
+                                              ),
+                                              OutlinedButton.icon(
+                                                onPressed: isRecording
+                                                    ? null
+                                                    : () async {
+                                                        await _primeDiagnostics();
+                                                        await _retryTranscriptEngine();
+                                                      },
+                                                icon: const Icon(
+                                                  Icons.refresh_rounded,
+                                                ),
+                                                label: const Text(
+                                                    'Refresh listening help'),
+                                              ),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 10,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: isRecording
+                                                      ? const Color(0xFFFFF1F2)
+                                                      : const Color(0xFFF8FAFC),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          999),
+                                                  border: Border.all(
+                                                    color: isRecording
+                                                        ? const Color(
+                                                            0xFFFDA4AF)
+                                                        : const Color(
+                                                            0xFFE2E8F0),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  isRecording
+                                                      ? 'Recording ${formatDuration(currentRecordingDuration)}'
+                                                      : 'Ready for the learner',
+                                                  style: TextStyle(
+                                                    color: isRecording
+                                                        ? const Color(
+                                                            0xFFBE123C)
+                                                        : const Color(
+                                                            0xFF475569),
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (!speechRecognitionActive &&
+                                              !isRecording) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFFFFBEB),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                  color:
+                                                      const Color(0xFFFCD34D),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'If listening help drops',
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: Color(0xFF78350F),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    _consecutiveTranscriptMisses >=
+                                                            2
+                                                        ? 'Transcript help missed $_consecutiveTranscriptMisses takes in a row. Stay in audio-first mode, use Repeat or Model answer, and sync later if the network is flaky. ${speechTranscriptionService.availabilityLabel}'
+                                                        : speechTranscriptionService
+                                                            .availabilityLabel,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF92400E),
+                                                      height: 1.4,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Wrap(
+                                                    spacing: 8,
+                                                    runSpacing: 8,
+                                                    children: [
+                                                      FilledButton.tonalIcon(
+                                                        onPressed:
+                                                            responseController
+                                                                    .text
+                                                                    .trim()
+                                                                    .isEmpty
+                                                                ? null
+                                                                : () =>
+                                                                    _handleSubmittedResponse(
+                                                                      responseController
+                                                                          .text,
+                                                                    ),
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .check_circle_rounded,
+                                                        ),
+                                                        label: const Text(
+                                                          'Submit typed answer',
+                                                        ),
+                                                      ),
+                                                      FilledButton.tonalIcon(
+                                                        onPressed: isRecording ||
+                                                                isSpeaking
+                                                            ? null
+                                                            : _resumeHandsFreeLoop,
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .smart_toy_rounded,
+                                                        ),
+                                                        label: const Text(
+                                                          'Resume hands-free loop',
+                                                        ),
+                                                      ),
+                                                      OutlinedButton.icon(
+                                                        onPressed: () =>
+                                                            _runCoachSupport(
+                                                                'model'),
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .record_voice_over_rounded,
+                                                        ),
+                                                        label: const Text(
+                                                          'Play model answer',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                          if (liveTranscript.isNotEmpty ||
+                                              speechRecognitionActive) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFEEF2FF),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                  color:
+                                                      const Color(0xFFC7D2FE),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    speechRecognitionActive
+                                                        ? 'Live transcript'
+                                                        : 'Captured transcript',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: Color(0xFF312E81),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    liveTranscript.isEmpty
+                                                        ? 'Listening for learner speech...'
+                                                        : liveTranscript,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF4338CA),
+                                                      height: 1.4,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                          if (session.latestLearnerAudioPath !=
+                                              null) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF8FAFC),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                  color:
+                                                      const Color(0xFFE2E8F0),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  InfoRow(
+                                                    label:
+                                                        'Latest learner audio',
+                                                    value: formatDuration(
+                                                      session.latestLearnerAudioDuration ??
+                                                          Duration.zero,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Row(
+                                                    children: List.generate(18,
+                                                        (index) {
+                                                      final active =
+                                                          learnerAudioPlaybackService
+                                                                  .isPlaying
+                                                              ? (index % 3 != 0)
+                                                              : index.isEven;
+                                                      const heights = [
+                                                        8.0,
+                                                        16.0,
+                                                        24.0,
+                                                        14.0,
+                                                        20.0,
+                                                        10.0
+                                                      ];
+                                                      return Container(
+                                                        width: 6,
+                                                        height: active
+                                                            ? heights[index %
+                                                                heights.length]
+                                                            : 8,
+                                                        margin: const EdgeInsets
+                                                            .only(right: 4),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: learnerAudioPlaybackService
+                                                                  .isPlaying
+                                                              ? const Color(
+                                                                  0xFF4F46E5)
+                                                              : const Color(
+                                                                  0xFFCBD5E1),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(
+                                                                      999),
+                                                        ),
+                                                      );
+                                                    }),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    learnerAudioPlaybackService
+                                                            .isPlaying
+                                                        ? 'Playback is running now. Listen, then accept, type a note, or replay.'
+                                                        : 'Preview the saved learner answer before advancing. This stays available even when transcript capture fails.',
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF475569),
+                                                      height: 1.35,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    compactPath(
+                                                      session
+                                                          .latestLearnerAudioPath!,
+                                                    ),
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF64748B),
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Wrap(
+                                                    spacing: 8,
+                                                    runSpacing: 8,
+                                                    children: [
+                                                      FilledButton.tonalIcon(
+                                                        onPressed:
+                                                            _toggleSavedAudioPlayback,
+                                                        icon: Icon(
+                                                          learnerAudioPlaybackService
+                                                                  .isPlaying
+                                                              ? Icons
+                                                                  .pause_circle_rounded
+                                                              : Icons
+                                                                  .play_circle_fill_rounded,
+                                                        ),
+                                                        label: Text(
+                                                          learnerAudioPlaybackService
+                                                                  .isPlaying
+                                                              ? 'Pause saved voice'
+                                                              : 'Play saved voice',
+                                                        ),
+                                                      ),
+                                                      if (learnerAudioPlaybackService
+                                                          .isPlaying)
+                                                        OutlinedButton.icon(
+                                                          onPressed:
+                                                              _stopSavedAudioPlayback,
+                                                          icon: const Icon(
+                                                            Icons
+                                                                .stop_circle_rounded,
+                                                          ),
+                                                          label: const Text(
+                                                            'Stop playback',
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _ResponseReviewBanner(
+                                        review: session.latestReview),
+                                  ],
                                 ),
-                                const SizedBox(height: 16),
-                                _ResponseReviewBanner(
-                                    review: session.latestReview),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+
+                        return detailContent;
+                      },
                     ),
                   ),
                 ),
