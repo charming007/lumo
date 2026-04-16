@@ -119,12 +119,13 @@ class MallamPanel extends StatelessWidget {
       builder: (context, constraints) {
         final compactLayout =
             constraints.maxWidth < 420 || constraints.maxHeight < 760;
-        final imageGlowSize = compactLayout ? 164.0 : 208.0;
-        final imageSize = compactLayout ? 172.0 : 212.0;
+        final imageFrameSize = compactLayout ? 188.0 : 220.0;
+        final imageSize = compactLayout ? 160.0 : 188.0;
         final promptStyle = TextStyle(
-          fontSize: compactLayout ? 20 : 24,
-          fontWeight: FontWeight.w800,
-          height: 1.2,
+          fontSize: compactLayout ? 18 : 22,
+          fontWeight: FontWeight.w700,
+          height: 1.35,
+          color: const Color(0xFF0F172A),
         );
 
         final header = Align(
@@ -147,62 +148,39 @@ class MallamPanel extends StatelessWidget {
           ),
         );
 
-        final portrait = Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              height: imageGlowSize,
-              width: imageGlowSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    speakerColor.withValues(alpha: 0.16),
-                    speakerColor.withValues(alpha: 0.03),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
+        final portrait = Container(
+          height: imageFrameSize,
+          width: imageFrameSize,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Image.asset(
+              'assets/images/mallam_tutor.jpg',
+              height: imageSize,
+              fit: BoxFit.contain,
             ),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: speakerColor.withValues(alpha: 0.12),
-                    blurRadius: 28,
-                    offset: const Offset(0, 16),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.asset(
-                  'assets/images/mallam_tutor.jpg',
-                  height: imageSize,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ],
+          ),
         );
 
         final primaryPromptCard = Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.symmetric(
+            horizontal: centerPortraitLayout ? 8 : 20,
+            vertical: centerPortraitLayout ? 4 : 20,
+          ),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                speakerColor.withValues(alpha: 0.14),
-                const Color(0xFFFFFFFF),
-              ],
-            ),
+            color: centerPortraitLayout
+                ? Colors.transparent
+                : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: speakerColor.withValues(alpha: 0.18)),
+            border: centerPortraitLayout
+                ? null
+                : Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: Column(
             crossAxisAlignment: centerPortraitLayout
@@ -210,81 +188,90 @@ class MallamPanel extends StatelessWidget {
                 : CrossAxisAlignment.start,
             children: [
               Text(
-                'Mallam says',
-                textAlign:
-                    centerPortraitLayout ? TextAlign.center : TextAlign.left,
-                style: TextStyle(
-                  color: speakerColor,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
                 prompt,
                 textAlign: centerPortraitLayout || compactLayout
                     ? TextAlign.center
                     : TextAlign.left,
                 style: promptStyle,
               ),
+              if (voiceHint != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  voiceHint!,
+                  textAlign: centerPortraitLayout || compactLayout
+                      ? TextAlign.center
+                      : TextAlign.left,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+              ],
             ],
           ),
         );
 
         final voiceAction = FilledButton.tonalIcon(
           onPressed: onVoiceTap,
-          icon: Icon(_speakerIcon(speakerMode), color: speakerColor),
+          icon: Icon(_speakerIcon(speakerMode), color: speakerColor, size: 20),
           label: Text(
             voiceButtonLabel,
-            style: TextStyle(color: speakerColor, fontWeight: FontWeight.w800),
+            style: TextStyle(color: speakerColor, fontWeight: FontWeight.w700),
           ),
           style: FilledButton.styleFrom(
-            backgroundColor: speakerColor.withValues(alpha: 0.12),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+            backgroundColor: const Color(0xFFF1F5F9),
+            foregroundColor: speakerColor,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
           ),
         );
 
-        final guidancePanel = Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: EdgeInsets.zero,
-            initiallyExpanded: compactLayout,
-            leading: Icon(Icons.info_outline_rounded, color: speakerColor),
-            title: const Text(
-              'Facilitator guidance',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            subtitle: Text(
-              voiceHint ?? instruction,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Color(0xFF64748B), height: 1.35),
-            ),
+        final guidancePanel = Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
-              _SpeakerSignalCard(
-                speakerMode: speakerMode,
-                speakerOutputMode: speakerOutputMode,
-                voiceHint: voiceHint,
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE7ECF3)),
-                ),
-                child: Text(
-                  instruction,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    height: 1.45,
+              Row(
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      color: speakerColor, size: 18),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Facilitator guidance',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                instruction,
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  height: 1.45,
                 ),
               ),
+              if (!centerPortraitLayout) ...[
+                const SizedBox(height: 12),
+                _SpeakerSignalCard(
+                  speakerMode: speakerMode,
+                  speakerOutputMode: speakerOutputMode,
+                  voiceHint: voiceHint,
+                ),
+              ],
             ],
           ),
         );
@@ -308,8 +295,10 @@ class MallamPanel extends StatelessWidget {
             Center(child: voiceAction)
           else
             SizedBox(width: double.infinity, child: voiceAction),
-          const SizedBox(height: 10),
-          guidancePanel,
+          if (!centerPortraitLayout) ...[
+            const SizedBox(height: 10),
+            guidancePanel,
+          ],
         ];
 
         final content = compactLayout || centerPortraitLayout
@@ -342,11 +331,12 @@ class MallamPanel extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x120F172A),
-                blurRadius: 24,
-                offset: Offset(0, 14),
+                color: Color(0x0A0F172A),
+                blurRadius: 20,
+                offset: Offset(0, 10),
               ),
             ],
           ),
