@@ -520,16 +520,19 @@ export default async function HomePage() {
                       cursor: 'pointer',
                     }}
                   >
-                    <UpdateModuleForm modules={[{
-                      id: highestPriorityBlocker.id,
-                      title: highestPriorityBlocker.title,
-                      subjectId: highestPriorityBlocker.subjectId,
-                      subjectName: highestPriorityBlocker.subjectName,
-                      strandName: '',
-                      level: '',
-                      lessonCount: Math.max(highestPriorityBlocker.missingLessons, 1),
-                      status: 'draft',
-                    } satisfies CurriculumModule]} />
+                    <UpdateModuleForm
+                      modules={[{
+                        id: highestPriorityBlocker.id,
+                        title: highestPriorityBlocker.title,
+                        subjectId: highestPriorityBlocker.subjectId,
+                        subjectName: highestPriorityBlocker.subjectName,
+                        strandName: '',
+                        level: '',
+                        lessonCount: Math.max(highestPriorityBlocker.missingLessons, 1),
+                        status: 'draft',
+                      } satisfies CurriculumModule]}
+                      returnPath="/"
+                    />
                   </ModalLauncher>
                 ) : null;
 
@@ -573,16 +576,19 @@ export default async function HomePage() {
                         cursor: 'pointer',
                       }}
                     >
-                      <UpdateModuleForm modules={[{
-                        id: module.id,
-                        title: module.title,
-                        subjectId: module.subjectId,
-                        subjectName: module.subjectName,
-                        strandName: '',
-                        level: '',
-                        lessonCount: Math.max(module.missingLessons, 1),
-                        status: 'draft',
-                      } satisfies CurriculumModule]} />
+                      <UpdateModuleForm
+                        modules={[{
+                          id: module.id,
+                          title: module.title,
+                          subjectId: module.subjectId,
+                          subjectName: module.subjectName,
+                          strandName: '',
+                          level: '',
+                          lessonCount: Math.max(module.missingLessons, 1),
+                          status: 'draft',
+                        } satisfies CurriculumModule]}
+                        returnPath="/"
+                      />
                     </ModalLauncher>
                   ) : null;
 

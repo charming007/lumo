@@ -363,6 +363,7 @@ export async function createModuleAction(formData: FormData) {
 
 export async function updateModuleAction(formData: FormData) {
   const moduleId = String(formData.get('moduleId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     status: String(formData.get('status') || ''),
     lessonCount: Number(formData.get('lessonCount') || 0),
@@ -370,8 +371,12 @@ export async function updateModuleAction(formData: FormData) {
   };
 
   await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'PATCH', payload);
+  revalidatePath('/');
   revalidatePath('/content');
-  redirect('/content?message=Module%20changes%20saved');
+  revalidatePath('/canvas');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Module changes saved',
+  }));
 }
 
 export async function createLessonAction(formData: FormData) {

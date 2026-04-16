@@ -322,11 +322,12 @@ export function CreateModuleForm({ strands, initialStrandId, initialTitle, initi
   );
 }
 
-export function UpdateModuleForm({ modules }: { modules: CurriculumModule[] }) {
+export function UpdateModuleForm({ modules, returnPath }: { modules: CurriculumModule[]; returnPath?: string }) {
   const module = modules[0];
 
   return (
     <form action={updateModuleAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Update module</h2>
       <SectionHint>Pick the exact module to edit. No more “first row wins” nonsense.</SectionHint>
       <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
