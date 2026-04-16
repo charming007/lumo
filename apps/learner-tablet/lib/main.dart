@@ -7201,6 +7201,9 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
 
   List<Widget> _layoutChildrenForColumn(double viewportHeight) {
     final stackedSource = children.reversed.toList(growable: false);
+    final resolvedViewportHeight =
+        viewportHeight.isFinite && viewportHeight > 0 ? viewportHeight : 900.0;
+    final paneHeight = resolvedViewportHeight.clamp(820.0, 1180.0).toDouble();
 
     return List.generate(stackedSource.length, (index) {
       final child = stackedSource[index];
@@ -7216,9 +7219,6 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
         Flexible() => child.child,
         _ => child,
       };
-      final paneHeight = viewportHeight < 700
-          ? 1400.0
-          : (viewportHeight * 2.25).clamp(1400.0, 2400.0);
       return isPane
           ? SizedBox(
               height: paneHeight,
@@ -7230,7 +7230,7 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const breakpoint = 1180.0;
+    const breakpoint = 960.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
