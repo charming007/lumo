@@ -167,7 +167,7 @@ export function Sidebar({
           <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise readiness, content release, mallam support, and pod reliability.</div>
         </div>
       </aside>
-      <style jsx>{`
+      <style>{`
         .sidebar {
           position: sticky;
           top: 0;

@@ -881,7 +881,7 @@ export function CurriculumCanvas({
         />
       ) : null}
 
-      <style jsx>{`
+      <style>{`
         @media (max-width: 1180px) {
           .curriculum-canvas__filters {
             grid-template-columns: minmax(0, 1fr);
