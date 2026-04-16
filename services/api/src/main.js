@@ -6,6 +6,7 @@ const validators = require('./validators');
 const reporting = require('./reporting');
 const rewards = require('./rewards');
 const seed = require('./seed');
+const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole } = require('./auth');
 
 const app = express();
@@ -62,6 +63,66 @@ function applyCors(req, res) {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Expose-Headers', 'x-lumo-sync-accepted, x-lumo-sync-ignored');
   res.header('Access-Control-Max-Age', '86400');
+}
+
+function isProductionLike() {
+  return ['production', 'staging'].includes(String(process.env.NODE_ENV || '').toLowerCase());
+}
+
+function buildConfigAudit() {
+  const mode = getDbMode();
+  const dbMeta = getDbModeMeta();
+  const allowedOrigins = buildAllowedOrigins();
+  const allowAnyOrigin = (process.env.LUMO_CORS_ALLOW_ANY_ORIGIN || '').toLowerCase() === 'true';
+  const apiBaseUrl = String(process.env.API_BASE_URL || process.env.LUMO_PUBLIC_API_URL || '').trim() || null;
+  const warnings = [];
+  const errors = [];
+
+  if (mode === 'postgres' && !dbMeta.hasDatabaseUrl) {
+    errors.push('LUMO_DB_MODE=postgres but DATABASE_URL is not set.');
+  }
+
+  if (isProductionLike() && allowAnyOrigin) {
+    errors.push('LUMO_CORS_ALLOW_ANY_ORIGIN=true is unsafe in production-like environments.');
+  }
+
+  if (isProductionLike() && (!allowedOrigins.length || allowedOrigins.every((origin) => isLoopbackOrigin(origin)))) {
+    warnings.push('CORS still only allows loopback origins. Add real admin frontend origins before production traffic.');
+  }
+
+  if (isProductionLike() && !apiBaseUrl) {
+    warnings.push('API_BASE_URL/LUMO_PUBLIC_API_URL is not set, so operator docs and health surfaces cannot point at a canonical external API URL.');
+  }
+
+  if (mode === 'file' && isProductionLike()) {
+    warnings.push('File-backed storage is running in a production-like environment. Use Postgres for durable multi-instance recovery.');
+  }
+
+  return {
+    checkedAt: new Date().toISOString(),
+    environment: {
+      nodeEnv: process.env.NODE_ENV || 'development',
+      productionLike: isProductionLike(),
+    },
+    storage: dbMeta,
+    apiBaseUrl,
+    cors: {
+      allowAnyOrigin,
+      allowedOrigins,
+      loopbackOnly: allowedOrigins.length > 0 && allowedOrigins.every((origin) => isLoopbackOrigin(origin)),
+    },
+    runtime: {
+      watchMode: process.execArgv.includes('--watch'),
+      pid: process.pid,
+    },
+    summary: {
+      ready: errors.length === 0,
+      errorCount: errors.length,
+      warningCount: warnings.length,
+    },
+    errors,
+    warnings,
+  };
 }
 
 app.use((req, res, next) => {
@@ -795,7 +856,28 @@ function syncLearnerAppEvents(events = [], options = {}) {
 }
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'lumo-api' });
+  const configAudit = buildConfigAudit();
+  const storageStatus = store.getStorageStatus();
+
+  res.json({
+    status: configAudit.summary.ready ? 'ok' : 'degraded',
+    service: 'lumo-api',
+    storage: {
+      mode: storageStatus?.db?.mode || getDbMode(),
+      driver: storageStatus?.db?.driver || getDbModeMeta().driver,
+      persistent: storageStatus?.db?.persistent ?? true,
+    },
+    config: {
+      ready: configAudit.summary.ready,
+      warningCount: configAudit.summary.warningCount,
+      errorCount: configAudit.summary.errorCount,
+    },
+  });
+});
+
+app.get('/readyz', (_req, res) => {
+  const configAudit = buildConfigAudit();
+  return res.status(configAudit.summary.ready ? 200 : 503).json(configAudit);
 });
 
 app.get('/api/v1/meta', (req, res) => {
@@ -804,7 +886,12 @@ app.get('/api/v1/meta', (req, res) => {
     mode: 'demo-seeded',
     seedSummary: seed.getSeedSummary(),
     store: store.getStoreMeta(),
+    configAudit: buildConfigAudit(),
   });
+});
+
+app.get('/api/v1/admin/config/audit', requireRole(['admin']), (_req, res) => {
+  res.json(buildConfigAudit());
 });
 
 app.get('/api/v1/learner-app/bootstrap', (_req, res) => {
@@ -2904,7 +2991,16 @@ app.use((error, _req, res, _next) => {
 
 function startServer(port = process.env.PORT || 4000) {
   return app.listen(port, () => {
+    const audit = buildConfigAudit();
     console.log(`Lumo API listening on port ${port}`);
+
+    if (audit.warnings.length) {
+      console.warn(`[lumo-api] config warnings: ${audit.warnings.join(' | ')}`);
+    }
+
+    if (audit.errors.length) {
+      console.warn(`[lumo-api] config errors: ${audit.errors.join(' | ')}`);
+    }
   });
 }
 

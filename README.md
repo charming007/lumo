@@ -36,6 +36,7 @@ Scaffold + planning phase.
 - `docs/LMS_DASHBOARD_GUIDE.html` — print/export-friendly visual handbook for download or PDF export
 - `docs/LMS_FALLBACK_FAILURE_CATALOG.md` — detailed catalog of learner-app/LMS fallback, degraded, and failure modes
 - `docs/LMS_FALLBACK_FAILURE_CATALOG.html` — printable/shareable fallback and failure-mode handbook
+- `docs/OPERATOR_RUNBOOK.md` — production/backend operator runbook for health, recovery, import safety, and storage integrity
 - `docs/lms-admin-video-tutorials/README.md` — recording-ready LMS admin video training pack
 - `docs/LMS_ADMIN_VIDEO_TUTORIAL_PACK.html` — printable/shareable companion index for the tutorial series
 

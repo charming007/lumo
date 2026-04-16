@@ -42,6 +42,32 @@ test.after(async () => {
   }
 });
 
+test('health, readiness, and config audit surfaces expose production posture', async () => {
+  const healthResponse = await request('/health');
+  assert.equal(healthResponse.status, 200);
+  assert.equal(typeof healthResponse.body.config.ready, 'boolean');
+  assert.equal(typeof healthResponse.body.storage.mode, 'string');
+
+  const readyResponse = await request('/readyz');
+  assert.equal([200, 503].includes(readyResponse.status), true);
+  assert.equal(typeof readyResponse.body.summary.ready, 'boolean');
+  assert.ok(Array.isArray(readyResponse.body.warnings));
+  assert.ok(Array.isArray(readyResponse.body.errors));
+
+  const auditResponse = await request('/api/v1/admin/config/audit', {
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+  });
+
+  assert.equal(auditResponse.status, 200);
+  assert.equal(typeof auditResponse.body.storage.mode, 'string');
+  assert.equal(typeof auditResponse.body.cors.allowAnyOrigin, 'boolean');
+  assert.equal(typeof auditResponse.body.summary.warningCount, 'number');
+  assert.equal(typeof auditResponse.body.summary.errorCount, 'number');
+});
+
 test('session repair detail report includes learner context and revert preview', () => {
   const student = store.listStudents()[0];
   const module = store.listModules()[0];
