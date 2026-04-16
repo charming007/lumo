@@ -1,5 +1,9 @@
 import type { Assessment, CurriculumModule } from './types';
 
+export function isLiveAssessmentGate(assessment: Assessment) {
+  return normalize(assessment.status) === 'active';
+}
+
 function normalize(value?: string | null) {
   return value?.trim().toLowerCase() ?? '';
 }

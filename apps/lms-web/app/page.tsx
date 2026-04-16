@@ -6,7 +6,7 @@ import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 import { InsightPanel } from '../components/insight-panel';
 import { KpiStrip } from '../components/kpi-strip';
 import { ModalLauncher } from '../components/modal-launcher';
-import { assessmentMatchesModule } from '../lib/module-assessment-match';
+import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { API_BASE_SOURCE } from '../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Student, Subject, WorkboardItem } from '../lib/types';
@@ -227,7 +227,7 @@ export default async function HomePage() {
   const atRiskLearners = students.filter((student) => student.attendanceRate < 0.85);
   const trainingMallams = mallams.filter((mallam) => mallam.status !== 'active');
   const moduleHasAssessmentGate = (module: (typeof modules)[number]) => assessments.some(
-    (assessment) => assessmentMatchesModule(module, assessment),
+    (assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment),
   );
 
   const releaseBlockers = modules

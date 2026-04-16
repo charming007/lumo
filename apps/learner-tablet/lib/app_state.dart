@@ -18,6 +18,7 @@ const bool kEnableSeedDemoContent =
 const bool kReleaseBuild = bool.fromEnvironment('dart.vm.product');
 const String _kPersistenceStorageKey = 'lumo_learner_tablet_state_v1';
 const String _kPersistenceSchemaVersion = '2026-04-13-runtime-persist';
+const Duration _kTrustedOfflineSnapshotMaxAge = Duration(hours: 24);
 
 class LumoAppState {
   LumoAppState({
@@ -68,6 +69,10 @@ class LumoAppState {
   DateTime? lastSyncedAt;
   DateTime? backendGeneratedAt;
   DateTime? lastSyncAttemptAt;
+  DateTime? snapshotSavedAt;
+  String? snapshotSourceBaseUrl;
+  String? snapshotContractVersion;
+  bool snapshotTrustedFromLiveBootstrap = false;
   String? backendContractVersion;
   int backendAssignmentCount = 0;
   int lastSyncAcceptedCount = 0;
@@ -104,8 +109,38 @@ class LumoAppState {
   bool get hasLiveBackendConnection =>
       !usingFallbackData && lastSyncedAt != null && backendError == null;
 
-  bool get hasUsableOfflineSnapshot =>
+  bool get hasOfflineSnapshotPayload =>
       learners.isNotEmpty && modules.isNotEmpty && assignedLessons.isNotEmpty;
+
+  String? get offlineSnapshotTrustProblem {
+    if (!hasOfflineSnapshotPayload) {
+      return 'This device has no locally cached learner roster, module pack, and assignment set yet.';
+    }
+    if (!snapshotTrustedFromLiveBootstrap || lastSyncedAt == null) {
+      return 'Cached learner data exists, but it was never confirmed by a successful live bootstrap on this device.';
+    }
+    if (snapshotSourceBaseUrl == null ||
+        snapshotSourceBaseUrl != backendBaseUrl) {
+      return 'Cached learner data came from a different backend target, so this roster cannot be trusted for the current deployment.';
+    }
+    if (snapshotSavedAt == null) {
+      return 'Cached learner data is missing its saved timestamp, so freshness cannot be proven.';
+    }
+
+    final age = DateTime.now().difference(snapshotSavedAt!).abs();
+    if (age > _kTrustedOfflineSnapshotMaxAge) {
+      return 'Cached learner data is ${_formatDuration(age)} old, which is beyond the 24-hour trust window for release use.';
+    }
+    if (snapshotContractVersion != null &&
+        backendContractVersion != null &&
+        snapshotContractVersion != backendContractVersion) {
+      return 'Cached learner data was saved against $snapshotContractVersion, but this app is expecting $backendContractVersion.';
+    }
+    return null;
+  }
+
+  bool get hasUsableOfflineSnapshot =>
+      hasOfflineSnapshotPayload && offlineSnapshotTrustProblem == null;
 
   bool get shouldBlockProductionDeployment =>
       kReleaseBuild &&
@@ -284,6 +319,12 @@ class LumoAppState {
       lastSyncedAt = _parseDate(snapshot['lastSyncedAt']);
       backendGeneratedAt = _parseDate(snapshot['backendGeneratedAt']);
       lastSyncAttemptAt = _parseDate(snapshot['lastSyncAttemptAt']);
+      snapshotSavedAt = _parseDate(snapshot['savedAt']);
+      snapshotSourceBaseUrl = _readNullableString(snapshot['sourceBaseUrl']);
+      snapshotContractVersion =
+          _readNullableString(snapshot['snapshotContractVersion']);
+      snapshotTrustedFromLiveBootstrap =
+          snapshot['snapshotTrustedFromLiveBootstrap'] == true;
       backendContractVersion =
           _readNullableString(snapshot['backendContractVersion']);
       backendAssignmentCount = _asInt(snapshot['backendAssignmentCount']) ?? 0;
@@ -316,7 +357,7 @@ class LumoAppState {
               : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
       deploymentBlockerReason =
-          hasUsableOfflineSnapshot ? null : deploymentBlockerReason;
+          hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
       restoredFromPersistence = true;
       persistenceError = null;
     } catch (error) {
@@ -380,6 +421,10 @@ class LumoAppState {
       usingFallbackData = false;
       deploymentBlockerReason = null;
       lastSyncedAt = DateTime.now();
+      snapshotSavedAt = lastSyncedAt;
+      snapshotSourceBaseUrl = backendBaseUrl;
+      snapshotContractVersion = data.contractVersion;
+      snapshotTrustedFromLiveBootstrap = true;
       backendGeneratedAt = data.generatedAt == null
           ? null
           : DateTime.tryParse(data.generatedAt!);
@@ -416,7 +461,12 @@ class LumoAppState {
       final needsProductionBlocker = kReleaseBuild &&
           !_includeSeedDemoContent &&
           !hasUsableOfflineSnapshot;
-      deploymentBlockerReason = needsProductionBlocker ? backendError : null;
+      deploymentBlockerReason = needsProductionBlocker
+          ? [
+              backendError,
+              offlineSnapshotTrustProblem,
+            ].whereType<String>().join(' ')
+          : null;
       if (!needsProductionBlocker) {
         _restoreGuaranteedOfflineFallbackIfNeeded();
       }
@@ -2382,6 +2432,9 @@ class LumoAppState {
       final result = await _apiClient.syncEvents(snapshot);
       pendingSyncEvents.removeRange(0, snapshot.length);
       lastSyncedAt = result.syncedAt ?? DateTime.now();
+      snapshotSavedAt = lastSyncedAt;
+      snapshotSourceBaseUrl = backendBaseUrl;
+      snapshotTrustedFromLiveBootstrap = true;
       lastSyncAcceptedCount = result.accepted;
       lastSyncIgnoredCount = result.ignored;
       lastSyncDuplicateCount = _asInt(result.raw['duplicates']) ?? 0;
@@ -2390,6 +2443,7 @@ class LumoAppState {
       lastSyncWarnings = _buildSyncWarnings(result.raw);
       backendContractVersion =
           result.raw['contractVersion']?.toString() ?? backendContractVersion;
+      snapshotContractVersion = backendContractVersion;
       lastSyncError = null;
       backendError = null;
       _applySyncedRuntimeSessions(result.raw);
@@ -2423,6 +2477,10 @@ class LumoAppState {
   }
 
   String get rosterFreshnessLabel {
+    final trustProblem = offlineSnapshotTrustProblem;
+    if (usingFallbackData && trustProblem != null) {
+      return 'Offline roster blocked from trust';
+    }
     if (lastSyncedAt == null) {
       return usingFallbackData
           ? 'Roster running from offline seed fallback'
@@ -2437,6 +2495,10 @@ class LumoAppState {
   }
 
   String get rosterFreshnessDetail {
+    final trustProblem = offlineSnapshotTrustProblem;
+    if (usingFallbackData && trustProblem != null) {
+      return '$trustProblem Reconnect to $backendBaseUrl and refresh the learner bootstrap before trusting this tablet for live delivery.';
+    }
     if (lastSyncedAt == null) {
       return usingFallbackData
           ? 'This tablet is teaching from cached learners and lessons until the backend comes back.'
@@ -2979,6 +3041,9 @@ class LumoAppState {
       'lastSyncedAt': lastSyncedAt?.toIso8601String(),
       'backendGeneratedAt': backendGeneratedAt?.toIso8601String(),
       'lastSyncAttemptAt': lastSyncAttemptAt?.toIso8601String(),
+      'sourceBaseUrl': snapshotSourceBaseUrl,
+      'snapshotContractVersion': snapshotContractVersion,
+      'snapshotTrustedFromLiveBootstrap': snapshotTrustedFromLiveBootstrap,
       'backendContractVersion': backendContractVersion,
       'backendAssignmentCount': backendAssignmentCount,
       'lastSyncAcceptedCount': lastSyncAcceptedCount,
@@ -3625,6 +3690,20 @@ class LumoAppState {
     final hour = value.hour.toString().padLeft(2, '0');
     final minute = value.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  String _formatDuration(Duration value) {
+    if (value.inMinutes < 60) return '${value.inMinutes}m';
+    if (value.inHours < 24) {
+      final hours = value.inHours;
+      final minutes = value.inMinutes % 60;
+      if (minutes == 0) return '${hours}h';
+      return '${hours}h ${minutes}m';
+    }
+    final days = value.inDays;
+    final hours = value.inHours % 24;
+    if (hours == 0) return '${days}d';
+    return '${days}d ${hours}h';
   }
 
   String _formatRelativeTime(DateTime value) {
