@@ -54,7 +54,7 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse }: To
         <div style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Admin</div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .topbar__sidebar-toggle {
           display: inline-flex;
           align-items: center;

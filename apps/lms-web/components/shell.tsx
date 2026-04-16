@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
         {children}
       </main>
-      <style jsx>{`
+      <style>{`
         .app-shell {
           display: grid;
           grid-template-columns: minmax(220px, 278px) minmax(0, 1fr);
