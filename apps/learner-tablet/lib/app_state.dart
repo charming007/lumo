@@ -1410,6 +1410,26 @@ class LumoAppState {
     _attemptSyncSoon();
   }
 
+  void clearCurrentStepLearnerEvidence({String? automationStatus}) {
+    final session = activeSession;
+    if (session == null) return;
+
+    final hasDraftResponse =
+        session.latestLearnerResponse?.trim().isNotEmpty ?? false;
+    final hasSavedAudio =
+        session.latestLearnerAudioPath?.trim().isNotEmpty ?? false;
+    if (!hasDraftResponse && !hasSavedAudio) return;
+
+    activeSession = session.copyWith(
+      latestReview: ResponseReview.pending,
+      automationStatus: automationStatus ??
+          'Previous learner evidence was cleared for a fresh take.',
+      clearLatestLearnerResponse: true,
+      clearLatestLearnerAudio: true,
+    );
+    persistStateSoon();
+  }
+
   void setAudioInputMode(String mode) {
     final session = activeSession;
     if (session == null) return;

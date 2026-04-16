@@ -5265,6 +5265,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       await widget.state.stopVoiceReplay();
       await speechTranscriptionService.cancel();
       _speechAutoStopDebounce?.cancel();
+      final hadRecoveredEvidence = _hasRecoveredLearnerEvidence;
+      if (hadRecoveredEvidence) {
+        widget.state.clearCurrentStepLearnerEvidence(
+          automationStatus:
+              'Fresh learner take started. Earlier saved audio and draft text were cleared so this step does not stay stuck on stale evidence.',
+        );
+      }
       transcriptCapturedThisTake = false;
       liveTranscript = '';
       _latestFinalTranscript = '';
@@ -5272,7 +5279,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       _latestTranscriptNeedsManualReview = false;
       _transcriptAutoAdvanceSafetyReason = null;
       transcriptReviewPending = false;
-      if (shouldClearStaleDraft) {
+      _resumePromptPendingFromLifecycle = false;
+      if (shouldClearStaleDraft || hadRecoveredEvidence) {
         responseController.clear();
       }
 
@@ -7118,12 +7126,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                               fontWeight:
                                                                   FontWeight
                                                                       .w800,
-                                                              color:
-                                                                  _transcriptReadyToArm
-                                                                      ? const Color(
-                                                                          0xFF312E81)
-                                                                      : const Color(
-                                                                          0xFF0F172A),
+                                                              color: _transcriptReadyToArm
+                                                                  ? const Color(
+                                                                      0xFF312E81)
+                                                                  : const Color(
+                                                                      0xFF0F172A),
                                                             ),
                                                           ),
                                                           const SizedBox(
@@ -7158,7 +7165,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                           : 'Next take will save audio first',
                                                       healthy:
                                                           _transcriptReadyToArm,
-                                                      warn: !_transcriptReadyToArm,
+                                                      warn:
+                                                          !_transcriptReadyToArm,
                                                     ),
                                                     _buildDiagnosticChip(
                                                       icon: Icons

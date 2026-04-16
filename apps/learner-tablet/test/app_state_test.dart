@@ -82,6 +82,38 @@ void main() {
       state.dispose();
     });
 
+    test('clears stale learner evidence before a fresh take on the same step',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.first;
+      state.selectLearner(learner);
+      state.selectModule(state.modules.first);
+      state.startLesson(lesson);
+      state.attachLearnerAudioCapture(
+        path: '/tmp/old-take.m4a',
+        duration: const Duration(seconds: 4),
+      );
+      state.submitLearnerResponse('old transcript');
+
+      expect(state.activeSession?.latestLearnerResponse, 'old transcript');
+      expect(state.activeSession?.latestLearnerAudioPath, '/tmp/old-take.m4a');
+
+      state.clearCurrentStepLearnerEvidence(
+        automationStatus: 'Fresh learner take started.',
+      );
+
+      expect(state.activeSession?.latestLearnerResponse, isNull);
+      expect(state.activeSession?.latestLearnerAudioPath, isNull);
+      expect(state.activeSession?.latestLearnerAudioDuration, isNull);
+      expect(state.activeSession?.latestReview, ResponseReview.pending);
+      expect(
+        state.activeSession?.automationStatus,
+        'Fresh learner take started.',
+      );
+      state.dispose();
+    });
+
     test('keeps live module list free of demo-only subjects during bootstrap',
         () async {
       final state = LumoAppState(
