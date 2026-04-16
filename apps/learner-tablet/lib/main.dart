@@ -649,10 +649,18 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _HomeMallamStage extends StatelessWidget {
-  final LumoAppState state;
+class _MallamStageShell extends StatelessWidget {
+  final String eyebrow;
+  final String title;
+  final String description;
+  final Widget child;
 
-  const _HomeMallamStage({required this.state});
+  const _MallamStageShell({
+    required this.eyebrow,
+    required this.title,
+    required this.description,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -681,7 +689,7 @@ class _HomeMallamStage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'AI Mallam',
+                  eyebrow,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -690,9 +698,9 @@ class _HomeMallamStage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Guide the session from here',
-                  style: TextStyle(
+                Text(
+                  title,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     height: 1.1,
@@ -700,7 +708,7 @@ class _HomeMallamStage extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Mallam owns the left side of the screen so the voice guide stays visible at all times while the facilitator works on the right.',
+                  description,
                   style: TextStyle(
                     color: Colors.black.withValues(alpha: 0.62),
                     height: 1.45,
@@ -710,27 +718,40 @@ class _HomeMallamStage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          Expanded(
-            child: SizedBox.expand(
-              child: MallamPanel(
-                instruction: homeInstruction,
-                onVoiceTap: () {
-                  state.replayVisiblePrompt(
-                    'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
-                  );
-                },
-                prompt:
-                    'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
-                speakerMode: SpeakerMode.guiding,
-                statusLabel: 'AI Mallam is ready',
-                secondaryStatus: 'Home guide',
-                voiceButtonLabel: 'Replay Mallam',
-                voiceHint:
-                    'Keep Mallam visible and dominant on this screen so the facilitator never loses the voice guide while choosing the next action.',
-              ),
-            ),
-          ),
+          Expanded(child: SizedBox.expand(child: child)),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeMallamStage extends StatelessWidget {
+  final LumoAppState state;
+
+  const _HomeMallamStage({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return _MallamStageShell(
+      eyebrow: 'AI Mallam',
+      title: 'Guide the session from here',
+      description:
+          'Mallam owns the left side of the screen so the voice guide stays visible at all times while the facilitator works on the right.',
+      child: MallamPanel(
+        instruction: homeInstruction,
+        onVoiceTap: () {
+          state.replayVisiblePrompt(
+            'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
+          );
+        },
+        prompt:
+            'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
+        speakerMode: SpeakerMode.guiding,
+        statusLabel: 'AI Mallam is ready',
+        secondaryStatus: 'Home guide',
+        voiceButtonLabel: 'Replay Mallam',
+        voiceHint:
+            'Keep Mallam visible and dominant on this screen so the facilitator never loses the voice guide while choosing the next action.',
       ),
     );
   }
@@ -1899,24 +1920,36 @@ class SubjectModulesPage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: _ResponsiveWorkspaceRow(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: MallamPanel(
-                  instruction: modulesInstruction,
-                  onVoiceTap: () {
-                    state.replayVisiblePrompt(
-                      'You opened ${module.title}. Tap a module lesson to choose a learner and begin.',
-                    );
-                  },
-                  prompt:
-                      'You opened ${module.title}. Tap a module lesson to choose a learner and begin.',
-                  speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'AI Mallam introduces the subject',
+              ResponsivePane(
+                flex: 5,
+                child: _MallamStageShell(
+                  eyebrow: 'AI Mallam',
+                  title: 'Guide the subject from here',
+                  description:
+                      'Mallam stays full-height on the left while the facilitator works through module lessons on the right.',
+                  child: MallamPanel(
+                    instruction: modulesInstruction,
+                    onVoiceTap: () {
+                      state.replayVisiblePrompt(
+                        'You opened ${module.title}. Tap a module lesson to choose a learner and begin.',
+                      );
+                    },
+                    prompt:
+                        'You opened ${module.title}. Tap a module lesson to choose a learner and begin.',
+                    speakerMode: SpeakerMode.guiding,
+                    statusLabel: 'AI Mallam introduces the subject',
+                    secondaryStatus: 'Module guide',
+                    voiceButtonLabel: 'Replay Mallam',
+                    voiceHint:
+                        'Keep Mallam visible and dominant on this screen so the facilitator can choose the next lesson without losing the voice guide.',
+                  ),
                 ),
               ),
               const SizedBox(width: 20),
-              Expanded(
+              ResponsivePane(
+                flex: 5,
                 child: DetailCard(
                   child: LayoutBuilder(
                     builder: (context, detailConstraints) {
