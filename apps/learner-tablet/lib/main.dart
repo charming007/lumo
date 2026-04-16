@@ -164,6 +164,10 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.state.isBootstrapping && !widget.state.hasUsableOfflineSnapshot) {
+      return LearnerBootstrapLoadingPage(state: widget.state);
+    }
+
     if (widget.state.shouldBlockProductionDeployment) {
       return LearnerDeploymentBlockerPage(
         state: widget.state,
@@ -175,6 +179,96 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
     }
 
     return HomePage(state: widget.state, onChanged: widget.onChanged);
+  }
+}
+
+class LearnerBootstrapLoadingPage extends StatelessWidget {
+  const LearnerBootstrapLoadingPage({
+    super.key,
+    required this.state,
+  });
+
+  final LumoAppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 860),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LumoTopBar(onLogoTap: () {}),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFEEF2FF), Color(0xFFFFFFFF)],
+                      ),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(color: const Color(0xFFC7D2FE)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x140F172A),
+                          blurRadius: 24,
+                          offset: Offset(0, 14),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Loading the live learner roster before the tablet opens.',
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            height: 1.1,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Lumo is waiting for the production bootstrap so facilitators do not land on an empty home screen or fake learner list while the tablet is still syncing.',
+                          style: TextStyle(
+                            color: Color(0xFF475569),
+                            fontSize: 16,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const LinearProgressIndicator(
+                          minHeight: 10,
+                          borderRadius: BorderRadius.all(Radius.circular(999)),
+                          color: LumoTheme.primary,
+                          backgroundColor: Color(0xFFE0E7FF),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          state.backendStatusDetail,
+                          style: const TextStyle(
+                            color: Color(0xFF334155),
+                            height: 1.45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,12 +8,22 @@ import 'package:lumo_learner_tablet/api_client.dart';
 import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/main.dart';
 import 'package:lumo_learner_tablet/models.dart';
+import 'package:lumo_learner_tablet/seed_data.dart';
 
 class _FailingApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap() async {
     throw Exception('backend offline');
   }
+}
+
+class _DelayedApiClient extends LumoApiClient {
+  _DelayedApiClient(this._completer);
+
+  final Completer<LumoBootstrap> _completer;
+
+  @override
+  Future<LumoBootstrap> fetchBootstrap() => _completer.future;
 }
 
 void _noop() {}
@@ -32,6 +44,76 @@ void main() {
 
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Student List'), findsOneWidget);
+  });
+
+  testWidgets('holds on bootstrap loading state instead of showing an empty home screen', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final completer = Completer<LumoBootstrap>();
+    final state = LumoAppState(
+      apiClient: _DelayedApiClient(completer),
+      includeSeedDemoContent: false,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: LumoApp(stateOverride: state, includeSeedDemoContent: false),
+    ));
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+
+    expect(
+      find.text('Loading the live learner roster before the tablet opens.'),
+      findsOneWidget,
+    );
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Student List'), findsNothing);
+
+    completer.complete(
+      LumoBootstrap(
+        learners: const [
+          LearnerProfile(
+            id: 'learner-live-1',
+            name: 'Amina Bello',
+            age: 9,
+            cohort: 'Cohort A',
+            streakDays: 2,
+            guardianName: 'Hauwa Bello',
+            preferredLanguage: 'Hausa',
+            readinessLabel: 'Voice-first beginner',
+            village: 'Kawo',
+            guardianPhone: '08000000000',
+            sex: 'Girl',
+            baselineLevel: 'No prior exposure',
+            consentCaptured: true,
+            learnerCode: 'LM-101',
+            caregiverRelationship: 'Mother',
+            enrollmentStatus: 'Active',
+            attendanceBand: 'Stable attendance',
+            supportPlan: 'Short prompts and praise.',
+            lastLessonSummary: 'No lesson captured yet.',
+            lastAttendance: 'Checked in today',
+          ),
+        ],
+        modules: learningModules,
+        lessons: assignedLessonsSeed,
+      ),
+    );
+
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Student List'), findsOneWidget);
+
+    state.dispose();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets('splash screen stays usable on short tablet heights', (
