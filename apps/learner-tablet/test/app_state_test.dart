@@ -1222,6 +1222,62 @@ void main() {
       );
     });
 
+    test(
+        'keeps multiple learner lessons visible inside a module when assignments map them there',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.selectLearner(beginner);
+
+      final baseEnglishLesson =
+          state.assignedLessons.firstWhere((lesson) => lesson.moduleId == 'english');
+      final shadowEnglishLesson = LessonCardModel(
+        id: 'english-shadow-live',
+        moduleId: 'english-shadow-lane',
+        title: 'English partner practice',
+        subject: baseEnglishLesson.subject,
+        durationMinutes: 11,
+        status: 'assigned',
+        mascotName: baseEnglishLesson.mascotName,
+        readinessFocus: 'Conversation turns',
+        scenario: 'Learner practices a second live English activity.',
+        steps: baseEnglishLesson.steps,
+      );
+      state.assignedLessons.add(shadowEnglishLesson);
+
+      state.assignmentPacks
+        ..clear()
+        ..addAll([
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-1',
+            lessonId: baseEnglishLesson.id,
+            moduleId: 'english-home-lane',
+            curriculumModuleId: 'english',
+            lessonTitle: baseEnglishLesson.title,
+            cohortName: beginner.cohort,
+            mallamName: 'Mallam Idris',
+            eligibleLearnerIds: [beginner.id],
+          ),
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-2',
+            lessonId: shadowEnglishLesson.id,
+            moduleId: 'english-home-lane',
+            curriculumModuleId: 'english',
+            lessonTitle: shadowEnglishLesson.title,
+            cohortName: beginner.cohort,
+            mallamName: 'Mallam Idris',
+            eligibleLearnerIds: [beginner.id],
+          ),
+        ]);
+
+      final visibleLessons =
+          state.lessonsForLearnerAndModule(beginner, 'english');
+
+      expect(
+        visibleLessons.map((lesson) => lesson.title),
+        containsAll([baseEnglishLesson.title, shadowEnglishLesson.title]),
+      );
+    });
+
     test('uses backend recommended module when available', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       final learner = beginner.copyWith(backendRecommendedModuleId: 'math');

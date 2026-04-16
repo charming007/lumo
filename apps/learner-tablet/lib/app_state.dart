@@ -523,7 +523,14 @@ class LumoAppState {
       try {
         final bundle = await _apiClient.fetchModuleBundle(module.id);
         hydratedModules.add(bundle.module);
-        lessonsByModule[bundle.module.id] = _sanitizeLessons(bundle.lessons);
+        final hydratedLessons = _sanitizeLessons(bundle.lessons);
+        final preservedBaselineLessons = List<LessonCardModel>.from(
+          lessonsByModule[bundle.module.id] ?? lessonsByModule[module.id] ?? const <LessonCardModel>[],
+        );
+        lessonsByModule[bundle.module.id] = _mergeHydratedLessons(
+          hydratedLessons: hydratedLessons,
+          baselineLessons: preservedBaselineLessons,
+        );
       } catch (_) {
         hydratedModules.add(module);
       }
@@ -550,6 +557,29 @@ class LumoAppState {
           title.isNotEmpty &&
           !_isDeprecatedDemoModule(moduleId: id, title: title);
     }).toList();
+  }
+
+  List<LessonCardModel> _mergeHydratedLessons({
+    required List<LessonCardModel> hydratedLessons,
+    required List<LessonCardModel> baselineLessons,
+  }) {
+    if (hydratedLessons.isEmpty) {
+      return baselineLessons;
+    }
+
+    if (hydratedLessons.length >= baselineLessons.length) {
+      return hydratedLessons;
+    }
+
+    final hydratedIds = hydratedLessons.map((lesson) => lesson.id.trim()).toSet();
+    final preservedBaseline = baselineLessons
+        .where((lesson) => !hydratedIds.contains(lesson.id.trim()))
+        .toList();
+
+    return [
+      ...preservedBaseline.reversed,
+      ...hydratedLessons,
+    ];
   }
 
   List<LessonCardModel> _sanitizeLessons(List<LessonCardModel> source) {
@@ -818,11 +848,35 @@ class LumoAppState {
     String moduleId,
   ) {
     final liveModuleIds = modules.map((item) => item.id).toSet();
+    final moduleLessonIds = <String>{};
+    final moduleLessonTitles = <String>{};
+
+    if (learner != null) {
+      for (final pack in assignmentPacks.where(
+        (pack) => pack.eligibleLearnerIds.contains(learner.id),
+      )) {
+        final packModuleIds = {
+          pack.curriculumModuleId?.trim(),
+          pack.moduleId.trim(),
+        }.whereType<String>().where((value) => value.isNotEmpty);
+        if (!packModuleIds.contains(moduleId)) continue;
+        moduleLessonIds.add(pack.lessonId.trim());
+        final normalizedTitle = pack.lessonTitle.trim().toLowerCase();
+        if (normalizedTitle.isNotEmpty) {
+          moduleLessonTitles.add(normalizedTitle);
+        }
+      }
+    }
+
     final matches = lessonsForLearner(learner)
         .where(
           (lesson) =>
-              lesson.moduleId == moduleId &&
-              liveModuleIds.contains(lesson.moduleId),
+              liveModuleIds.contains(moduleId) &&
+              (lesson.moduleId == moduleId ||
+                  moduleLessonIds.contains(lesson.id.trim()) ||
+                  moduleLessonTitles.contains(
+                    lesson.title.trim().toLowerCase(),
+                  )),
         )
         .toList();
     return matches;
@@ -3490,14 +3544,8 @@ class LumoAppState {
         'badge': module.badge,
       };
 
-  LearningModule _decodeModule(Map<String, dynamic> raw) => LearningModule(
-        id: raw['id']?.toString() ?? 'module',
-        title: raw['title']?.toString() ?? 'Learning module',
-        description: raw['description']?.toString() ?? '',
-        voicePrompt: raw['voicePrompt']?.toString() ?? '',
-        readinessGoal: raw['readinessGoal']?.toString() ?? '',
-        badge: raw['badge']?.toString() ?? '',
-      );
+  LearningModule _decodeModule(Map<String, dynamic> raw) =>
+      LearningModule.fromBackend(raw);
 
   Map<String, dynamic> _encodeLesson(LessonCardModel lesson) => {
         'id': lesson.id,
