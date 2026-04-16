@@ -1014,6 +1014,12 @@ class LumoAppState {
     LessonCardModel lesson, {
     BackendLessonSession? resumeFrom,
   }) {
+    if (lesson.steps.isEmpty) {
+      throw StateError(
+        'Cannot open lesson ${lesson.id} because it has no activity steps.',
+      );
+    }
+
     if (resumeFrom != null) {
       if (currentLearner?.id != resumeFrom.studentId) {
         final resumeLearnerIndex = learners.indexWhere(

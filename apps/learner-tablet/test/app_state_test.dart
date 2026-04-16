@@ -1261,6 +1261,39 @@ void main() {
       expect(state.activeSession!.automationStatus, contains('Resume from'));
     });
 
+    test('startLesson rejects malformed lessons with no activity steps', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(state.modules.first);
+
+      final malformedLesson = LessonCardModel(
+        id: 'lesson-empty-steps',
+        moduleId: 'english',
+        title: 'Broken lesson',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Guided voice practice',
+        scenario: 'Malformed lesson payload.',
+        steps: const [],
+      );
+
+      expect(
+        () => state.startLesson(malformedLesson),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('has no activity steps'),
+          ),
+        ),
+      );
+      expect(state.activeSession, isNull);
+      state.dispose();
+    });
+
     test('restored active sessions clamp stale step indexes safely', () async {
       SharedPreferences.setMockInitialValues({
         'lumo_learner_tablet_state_v1': jsonEncode({

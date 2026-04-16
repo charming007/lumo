@@ -46,7 +46,9 @@ void main() {
     expect(find.text('Student List'), findsOneWidget);
   });
 
-  testWidgets('holds on bootstrap loading state instead of showing an empty home screen', (
+  testWidgets(
+      'holds on bootstrap loading state instead of showing an empty home screen',
+      (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -305,7 +307,9 @@ void main() {
     expect(find.textContaining('leaderboard'), findsWidgets);
   });
 
-  testWidgets('learner profile reads fresh XP from app state instead of a stale route snapshot', (
+  testWidgets(
+      'learner profile reads fresh XP from app state instead of a stale route snapshot',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 1200);
@@ -743,10 +747,12 @@ void main() {
     expect(find.text('Review saved voice before advancing'), findsOneWidget);
     expect(find.text('Transcript missing • use saved voice'), findsOneWidget);
     expect(find.text('Saved learner voice attached'), findsOneWidget);
-    expect(find.text('Recovery plan: use the saved learner voice'), findsOneWidget);
+    expect(find.text('Recovery plan: use the saved learner voice'),
+        findsOneWidget);
     expect(find.textContaining('No transcript came through on this take'),
         findsOneWidget);
     expect(find.text('Play saved voice'), findsWidgets);
+    expect(find.text('Replay Mallam prompt'), findsWidgets);
     expect(find.text('Accept saved voice + continue'), findsOneWidget);
 
     state.dispose();
@@ -825,9 +831,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(
-      find.textContaining('ready for the next take')
-          .evaluate()
-          .isNotEmpty ||
+      find.textContaining('ready for the next take').evaluate().isNotEmpty ||
           find.text('Audio-first fallback is ready').evaluate().isNotEmpty,
       isTrue,
     );

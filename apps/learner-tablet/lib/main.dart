@@ -164,7 +164,8 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.state.isBootstrapping && !widget.state.hasUsableOfflineSnapshot) {
+    if (widget.state.isBootstrapping &&
+        !widget.state.hasUsableOfflineSnapshot) {
       return LearnerBootstrapLoadingPage(state: widget.state);
     }
 
@@ -4208,6 +4209,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   int _consecutiveTranscriptMisses = 0;
   bool _autoPausedByTranscriptFailure = false;
   bool _transcriptStrategyExpanded = false;
+  String? _savedAudioPlaybackError;
   AudioPermissionState _micPermissionState = AudioPermissionState.unknown;
 
   static const Duration _kMinimumUsefulRecording = Duration(milliseconds: 900);
@@ -5022,6 +5024,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       await learnerAudioPlaybackService.play(audioPath);
       if (!mounted) return;
       setState(() {
+        _savedAudioPlaybackError = null;
         microphoneStatus = wasPlaying
             ? 'Saved learner audio paused. You can type the answer or resume playback anytime.'
             : 'Playing the saved learner audio now so you can review the response before advancing.';
@@ -5029,8 +5032,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        _savedAudioPlaybackError = error.toString();
         microphoneStatus =
-            'Could not play the saved learner audio on this device yet: $error';
+            'Saved learner audio could not play on this device. Retry playback, replay Mallam\'s prompt, or keep the step in manual review.';
       });
     }
   }
@@ -5039,8 +5043,19 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     await learnerAudioPlaybackService.stop();
     if (!mounted) return;
     setState(() {
+      _savedAudioPlaybackError = null;
       microphoneStatus =
           'Saved learner audio stopped. Review the answer, then continue when ready.';
+    });
+  }
+
+  Future<void> _replayMallamPrompt() async {
+    await _speakCurrentStepIfNeeded(force: true);
+    if (!mounted) return;
+    setState(() {
+      _savedAudioPlaybackError = null;
+      microphoneStatus =
+          'Mallam replayed the step so the learner can hear it again before the next review.';
     });
   }
 
@@ -7383,6 +7398,20 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                         .latestLearnerAudioPath !=
                                                     null)
                                                   OutlinedButton.icon(
+                                                    onPressed:
+                                                        _replayMallamPrompt,
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .record_voice_over_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Replay Mallam prompt',
+                                                    ),
+                                                  ),
+                                                if (session
+                                                        .latestLearnerAudioPath !=
+                                                    null)
+                                                  OutlinedButton.icon(
                                                     onPressed: () =>
                                                         _acceptSavedAudioAndContinue(
                                                       resumeHandsFree: false,
@@ -7934,6 +7963,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                               : 'Play saved voice',
                                                         ),
                                                       ),
+                                                      OutlinedButton.icon(
+                                                        onPressed:
+                                                            _replayMallamPrompt,
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .record_voice_over_rounded,
+                                                        ),
+                                                        label: const Text(
+                                                          'Replay Mallam prompt',
+                                                        ),
+                                                      ),
                                                       if (learnerAudioPlaybackService
                                                           .isPlaying)
                                                         OutlinedButton.icon(
@@ -7949,6 +7989,55 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                         ),
                                                     ],
                                                   ),
+                                                  if (_savedAudioPlaybackError !=
+                                                      null) ...[
+                                                    const SizedBox(height: 10),
+                                                    Container(
+                                                      width: double.infinity,
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              12),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                            0xFFFFF7ED),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(16),
+                                                        border: Border.all(
+                                                          color: const Color(
+                                                              0xFFFED7AA),
+                                                        ),
+                                                      ),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          const Text(
+                                                            'Playback needs a manual fallback on this device',
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                              color: Color(
+                                                                  0xFF9A3412),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 6),
+                                                          Text(
+                                                            'Lumo could not open the saved learner audio just yet. Retry playback, replay Mallam\'s prompt, or keep this step in manual review so the learner is not blocked.',
+                                                            style:
+                                                                const TextStyle(
+                                                              color: Color(
+                                                                  0xFF9A3412),
+                                                              height: 1.35,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ],
                                               ),
                                             ),
