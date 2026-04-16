@@ -374,6 +374,9 @@ export function CurriculumCanvas({
   const selectedModuleLessonShellTitles = selected
     ? selectedModuleMissingOrders.map((order) => `${selected.module.title} Lesson ${order}`)
     : [];
+  const selectedModuleUnlinkedLessons = selected ? selected.module.lessons.filter((lesson) => !lesson.assessmentId) : [];
+  const selectedModuleNotReadyLessons = selected ? selected.module.lessons.filter((lesson) => !['approved', 'published', 'active'].includes(normalize(lesson.status))) : [];
+  const selectedModuleGateCount = selected?.module.assessments.length ?? 0;
 
   useEffect(() => {
     if (selectedLessonId && !selectedLesson) {
@@ -688,6 +691,94 @@ export function CurriculumCanvas({
                   <div style={{ color: selected.module.gapCount ? '#fde68a' : '#bbf7d0', lineHeight: 1.7 }}>{selected.module.blockerSummary}</div>
                 </div>
 
+                <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, background: 'rgba(67,20,7,0.14)', border: '1px solid rgba(251,146,60,0.18)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ color: '#fdba74', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Release punch list</div>
+                      <div style={{ color: '#f8fafc', lineHeight: 1.6, marginTop: 6 }}>This is the closeout queue for the selected module. Fix these first instead of wandering around the graph.</div>
+                    </div>
+                    <Pill label={selected.module.gapCount ? `${selected.module.gapCount} gaps still open` : 'No blockers left'} tone={selected.module.gapCount ? '#431407' : '#052e16'} text={selected.module.gapCount ? '#fdba74' : '#86efac'} />
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {[
+                      {
+                        id: 'missing-slots',
+                        label: 'Empty sequence slots',
+                        count: selectedModuleMissingSlots,
+                        note: selectedModuleMissingSlots
+                          ? `${selectedModuleMissingOrders.join(', ')} still need lesson shells or real authored lessons.`
+                          : 'Every expected lesson slot is represented on the canvas.',
+                        action: selectedModuleMissingSlots ? 'Create shells below' : 'Sequence mapped',
+                      },
+                      {
+                        id: 'not-ready',
+                        label: 'Lessons not release-ready',
+                        count: selectedModuleNotReadyLessons.length,
+                        note: selectedModuleNotReadyLessons.length
+                          ? `${selectedModuleNotReadyLessons[0]?.title ?? 'A lesson'} is the first lesson still sitting in draft/review.`
+                          : 'All mapped lessons are already approved/published.',
+                        action: selectedModuleNotReadyLessons.length ? 'Open first lesson' : 'Ready',
+                      },
+                      {
+                        id: 'gate-coverage',
+                        label: 'Lessons missing gate links',
+                        count: selectedModuleUnlinkedLessons.length,
+                        note: selectedModuleUnlinkedLessons.length
+                          ? `${selectedModuleUnlinkedLessons[0]?.title ?? 'A lesson'} still has no visible gate connection.`
+                          : 'Every mapped lesson points at a visible gate.',
+                        action: selectedModuleUnlinkedLessons.length ? 'Inspect first unlinked lesson' : 'Gate coverage clean',
+                      },
+                      {
+                        id: 'module-gates',
+                        label: 'Module gate count',
+                        count: selectedModuleGateCount,
+                        note: selectedModuleGateCount
+                          ? `${selectedModuleGateCount} progression gate${selectedModuleGateCount === 1 ? '' : 's'} already attached to this module.`
+                          : 'No gate exists yet, so the module still fails release readiness.',
+                        action: selectedModuleGateCount ? 'Inspect gates below' : 'Create draft gate',
+                      },
+                    ].map((item) => (
+                      <div key={item.id} style={{ padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.36)', border: '1px solid rgba(148,163,184,0.12)', display: 'grid', gap: 5 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                          <div style={{ color: '#f8fafc', fontWeight: 800 }}>{item.label}</div>
+                          <Pill label={String(item.count)} tone={item.count ? '#431407' : '#052e16'} text={item.count ? '#fdba74' : '#86efac'} />
+                        </div>
+                        <div style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14 }}>{item.note}</div>
+                        <div style={{ color: item.count ? '#fdba74' : '#94a3b8', fontSize: 12, fontWeight: 700, letterSpacing: 0.3 }}>{item.action}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {selectedModuleNotReadyLessons[0] ? (
+                      <button type="button" onClick={() => setSelectedLessonId(selectedModuleNotReadyLessons[0].id)} style={{ ...filterButtonStyle, background: 'rgba(79,70,229,0.18)', color: '#e0e7ff' }}>
+                        Open first not-ready lesson
+                      </button>
+                    ) : null}
+                    {selectedModuleUnlinkedLessons[0] ? (
+                      <button type="button" onClick={() => setSelectedLessonId(selectedModuleUnlinkedLessons[0].id)} style={{ ...filterButtonStyle, background: 'rgba(245,158,11,0.14)', color: '#fde68a' }}>
+                        Open first unlinked lesson
+                      </button>
+                    ) : null}
+                    {!selectedModuleGateCount ? (
+                      <form action={createCanvasAssessmentQuickAction}>
+                        <input type="hidden" name="subjectId" value={selected.subject.id} />
+                        <input type="hidden" name="moduleId" value={selected.module.id} />
+                        <input type="hidden" name="moduleTitle" value={selected.module.title} />
+                        <input type="hidden" name="returnPath" value={selectedModuleUrl} />
+                        <button type="submit" style={{ ...filterButtonStyle, background: 'rgba(237,233,254,0.18)', color: '#ddd6fe' }}>
+                          Create draft gate now
+                        </button>
+                      </form>
+                    ) : selected.module.assessments[0] ? (
+                      <button type="button" onClick={() => setSelectedAssessmentId(selected.module.assessments[0].id)} style={{ ...filterButtonStyle, background: 'rgba(237,233,254,0.18)', color: '#ddd6fe' }}>
+                        Inspect first gate
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
                 <form action={quickUpdateCanvasModuleAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
                   <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Module quick edit</div>
                   <input type="hidden" name="moduleId" value={selected.module.id} />
@@ -862,6 +953,7 @@ export function CurriculumCanvas({
           lesson={selectedLesson}
           subjectId={selected.subject.id}
           moduleId={selected.module.id}
+          moduleAssessments={selected.module.assessments}
           returnPath={panelUrl(selectedModuleUrl, 'lesson', selectedLesson.id)}
           quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
           quickUpdateCanvasLessonAction={quickUpdateCanvasLessonAction}
@@ -1024,7 +1116,7 @@ function ModalShell({ title, eyebrow, children, onClose }: { title: string; eyeb
   );
 }
 
-function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUpdateLessonStatusAction, quickUpdateCanvasLessonAction, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; quickUpdateCanvasLessonAction: (formData: FormData) => void; onClose: () => void }) {
+function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, returnPath, quickUpdateLessonStatusAction, quickUpdateCanvasLessonAction, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; moduleAssessments: Assessment[]; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; quickUpdateCanvasLessonAction: (formData: FormData) => void; onClose: () => void }) {
   const pill = statusTone(lesson.status);
   return (
     <ModalShell title={lesson.title} eyebrow="Lesson quick edit lane" onClose={onClose}>
@@ -1056,6 +1148,39 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUp
             ? `This lesson already maps to ${lesson.assessmentTitle}. If the content is wrong, edit the lesson body rather than creating another orphaned gate.`
             : 'This lesson is still floating without a linked assessment gate. That is the kind of tiny operational mess that turns into release chaos later.'}
         </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, background: 'rgba(8,47,73,0.18)', border: '1px solid rgba(103,232,249,0.18)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ color: '#a5f3fc', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Gate options in this module</div>
+            <div style={{ color: '#e2e8f0', lineHeight: 1.6, marginTop: 6 }}>The canvas now shows the actual gates already attached to this module, so authors can sanity-check linkage before they bounce into the full assessments board.</div>
+          </div>
+          <Pill label={moduleAssessments.length ? `${moduleAssessments.length} visible gate${moduleAssessments.length === 1 ? '' : 's'}` : 'No gate exists yet'} tone="#082f49" text="#a5f3fc" />
+        </div>
+        {moduleAssessments.length ? (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {moduleAssessments.map((assessment) => (
+              <div key={assessment.id} style={{ padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.36)', border: '1px solid rgba(148,163,184,0.12)', display: 'grid', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                  <div style={{ color: '#f8fafc', fontWeight: 800 }}>{assessment.title}</div>
+                  <Pill label={assessment.status} tone={statusTone(assessment.status).tone} text={statusTone(assessment.status).text} />
+                </div>
+                <div style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14 }}>{assessmentLabel(assessment)}</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(assessment.title)}`} style={{ color: '#a5f3fc', fontWeight: 800, textDecoration: 'none' }}>
+                    Open gate search →
+                  </Link>
+                  {lesson.assessmentId === assessment.id || lesson.assessmentTitle === assessment.title ? (
+                    <span style={{ color: '#86efac', fontWeight: 800, fontSize: 13 }}>Currently the visible linked gate</span>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ color: '#cbd5e1', lineHeight: 1.7 }}>There is nothing to link this lesson to yet. Create the draft gate from the module rail first, then come back and finish the lesson properly.</div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gap: 10 }}>

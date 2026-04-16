@@ -201,6 +201,20 @@ function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessm
   ) || null;
   const explicitAssessmentIdValue = 'assessmentId' in lesson ? lesson.assessmentId : null;
   const explicitAssessmentId = typeof explicitAssessmentIdValue === 'string' ? explicitAssessmentIdValue : null;
+  const rawObjectives = 'learningObjectives' in lesson ? lesson.learningObjectives : undefined;
+  const rawActivityCount = 'activityCount' in lesson ? lesson.activityCount : undefined;
+  const rawActivitySteps = 'activitySteps' in lesson ? lesson.activitySteps : undefined;
+  const rawActivities = 'activities' in lesson ? lesson.activities : undefined;
+  const objectiveCount = Array.isArray(rawObjectives)
+    ? rawObjectives.length
+    : undefined;
+  const activityCount = typeof rawActivityCount === 'number'
+    ? rawActivityCount
+    : Array.isArray(rawActivitySteps)
+      ? rawActivitySteps.length
+      : Array.isArray(rawActivities)
+        ? rawActivities.length
+        : undefined;
 
   const linkedAssessment = moduleAssessments.find((assessment) => assessmentMatchesLesson(
     assessment,
@@ -222,8 +236,8 @@ function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessm
     mode: ('mode' in lesson ? lesson.mode : 'guided') ?? 'guided',
     assessmentTitle: explicitAssessmentTitle ?? linkedAssessment?.title ?? null,
     assessmentId: explicitAssessmentId ?? linkedAssessment?.id ?? null,
-    activityCount: ('activityCount' in lesson ? lesson.activityCount : undefined) ?? undefined,
-    objectiveCount: ('learningObjectives' in lesson ? lesson.learningObjectives?.length : 'learningObjectives' in lesson ? lesson.learningObjectives?.length : undefined) ?? ('learningObjectives' in lesson && Array.isArray(lesson.learningObjectives) ? lesson.learningObjectives.length : undefined) ?? ('activityCount' in lesson ? undefined : undefined),
+    activityCount,
+    objectiveCount,
   };
 }
 
