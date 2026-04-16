@@ -1243,6 +1243,96 @@ void main() {
       expect(state.activeSession!.automationStatus, contains('Resume from'));
     });
 
+    test('restored active sessions clamp stale step indexes safely', () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'learners': [
+            {
+              'id': beginner.id,
+              'name': beginner.name,
+              'age': beginner.age,
+              'cohort': beginner.cohort,
+              'streakDays': beginner.streakDays,
+              'guardianName': beginner.guardianName,
+              'preferredLanguage': beginner.preferredLanguage,
+              'readinessLabel': beginner.readinessLabel,
+              'village': beginner.village,
+              'guardianPhone': beginner.guardianPhone,
+              'sex': beginner.sex,
+              'baselineLevel': beginner.baselineLevel,
+              'consentCaptured': beginner.consentCaptured,
+              'learnerCode': beginner.learnerCode,
+              'caregiverRelationship': beginner.caregiverRelationship,
+              'enrollmentStatus': beginner.enrollmentStatus,
+              'attendanceBand': beginner.attendanceBand,
+              'supportPlan': beginner.supportPlan,
+              'lastLessonSummary': beginner.lastLessonSummary,
+              'lastAttendance': beginner.lastAttendance,
+            },
+          ],
+          'modules': const [],
+          'assignedLessons': [
+            {
+              'id': 'lesson-recover',
+              'moduleId': 'english',
+              'title': 'Recovered English lesson',
+              'subject': 'English',
+              'durationMinutes': 12,
+              'status': 'Ready now',
+              'mascotName': 'Mallam',
+              'readinessFocus': 'Resume guidance',
+              'scenario': 'Restore safely after a lesson update',
+              'steps': [
+                {
+                  'id': 'step-1',
+                  'title': 'Warm-up',
+                  'instruction': 'Say hello',
+                  'coachPrompt': 'Say hello to Mallam.',
+                  'expectedResponse': 'Hello',
+                  'speakerMode': 'guiding',
+                  'type': 'prompt',
+                },
+              ],
+            },
+          ],
+          'pendingSyncEvents': const [],
+          'activeSession': {
+            'sessionId': 'session-restored',
+            'lessonId': 'lesson-recover',
+            'lessonTitle': 'Recovered English lesson',
+            'currentLearnerId': beginner.id,
+            'stepIndex': 99,
+            'completionState': 'inProgress',
+            'speakerMode': 'waiting',
+            'transcript': const [],
+            'startedAt': '2026-04-16T10:00:00.000Z',
+            'lastUpdatedAt': '2026-04-16T10:05:00.000Z',
+          },
+        }),
+      });
+
+      final state = LumoAppState(includeSeedDemoContent: false);
+      await state.restorePersistedState();
+
+      expect(state.currentLearner?.id, beginner.id);
+      expect(state.activeSession, isNotNull);
+      expect(state.activeSession!.stepIndex,
+          state.activeSession!.lesson.steps.length - 1);
+      expect(
+        state.activeSession!.speakerMode,
+        state.activeSession!.lesson.steps[state.activeSession!.stepIndex]
+            .speakerMode,
+      );
+      expect(state.activeSession!.transcript, isNotEmpty);
+      expect(
+        state.activeSession!.transcript.first.text,
+        contains(state.activeSession!.lesson.steps[state.activeSession!.stepIndex]
+            .coachPrompt),
+      );
+      state.dispose();
+    });
+
     test(
         'resume flow rebinds the active learner to the backend session learner',
         () {

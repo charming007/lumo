@@ -48,8 +48,8 @@ class AudioCaptureService {
   }
 
   Future<AudioStartResult> startSafely({String? fileStem}) async {
-    final hasMicPermission = await _recorder.hasPermission();
-    if (!hasMicPermission) {
+    final permissionState = await inspectPermissionState();
+    if (permissionState == AudioPermissionState.denied) {
       throw const AudioCaptureException(
         'Microphone permission was denied. Allow mic access to capture learner voice.',
       );

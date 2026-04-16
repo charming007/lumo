@@ -15,6 +15,7 @@ typedef VoiceReplayStop = Future<void> Function();
 
 const bool kEnableSeedDemoContent =
     bool.fromEnvironment('LUMO_ENABLE_SEED_DEMO_CONTENT');
+const bool kReleaseBuild = bool.fromEnvironment('dart.vm.product');
 const String _kPersistenceStorageKey = 'lumo_learner_tablet_state_v1';
 const String _kPersistenceSchemaVersion = '2026-04-13-runtime-persist';
 
@@ -61,6 +62,7 @@ class LumoAppState {
   bool isSyncingEvents = false;
   bool usingFallbackData = true;
   bool restoredFromPersistence = false;
+  String? deploymentBlockerReason;
   String? persistenceError;
   String? backendError;
   DateTime? lastSyncedAt;
@@ -101,6 +103,15 @@ class LumoAppState {
 
   bool get hasLiveBackendConnection =>
       !usingFallbackData && lastSyncedAt != null && backendError == null;
+
+  bool get hasUsableOfflineSnapshot =>
+      learners.isNotEmpty && modules.isNotEmpty && assignedLessons.isNotEmpty;
+
+  bool get shouldBlockProductionDeployment =>
+      kReleaseBuild &&
+      deploymentBlockerReason != null &&
+      !hasUsableOfflineSnapshot &&
+      usingFallbackData;
 
   String get pendingSyncSummary {
     final latest = latestSyncEvent;
@@ -289,12 +300,15 @@ class LumoAppState {
       learnerRuntimeError =
           _readNullableString(snapshot['learnerRuntimeError']);
 
-      final learnerId = _readNullableString(snapshot['currentLearnerId']);
+      final activeSessionRaw = snapshot['activeSession'];
+      final learnerId = _readNullableString(snapshot['currentLearnerId']) ??
+          (activeSessionRaw is Map
+              ? _readNullableString(activeSessionRaw['currentLearnerId'])
+              : null);
       currentLearner =
           learners.where((item) => item.id == learnerId).firstOrNull;
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
-      final activeSessionRaw = snapshot['activeSession'];
       activeSession = _decodeActiveSession(activeSessionRaw);
       pendingRecoveredSessionSnapshot =
           activeSession == null && activeSessionRaw is Map
@@ -2904,6 +2918,9 @@ class LumoAppState {
         );
     if (lesson == null) return null;
 
+    final boundedStepIndex = lesson.steps.isEmpty
+        ? 0
+        : max(0, min(lesson.steps.length - 1, _asInt(raw['stepIndex']) ?? 0));
     final transcript = (raw['transcript'] as List?)
             ?.whereType<Map>()
             .map(
@@ -2917,18 +2934,35 @@ class LumoAppState {
                 timestamp: _parseDate(item['timestamp']) ?? DateTime.now(),
               ),
             )
+            .where((turn) => turn.text.trim().isNotEmpty)
             .toList() ??
-        const <SessionTurn>[];
+        <SessionTurn>[];
+    final openingPrompt = lesson.steps.isEmpty
+        ? null
+        : personalizePrompt(lesson.steps[boundedStepIndex].coachPrompt);
+    if (transcript.isEmpty &&
+        openingPrompt != null &&
+        openingPrompt.isNotEmpty) {
+      transcript.add(
+        SessionTurn(
+          speaker: 'Mallam',
+          text: openingPrompt,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
 
     return LessonSessionState(
       sessionId: raw['sessionId']?.toString() ?? 'session-restored',
       lesson: lesson,
-      stepIndex: _asInt(raw['stepIndex']) ?? 0,
+      stepIndex: boundedStepIndex,
       completionState: LessonCompletionState.values.firstWhere(
         (value) => value.name == raw['completionState']?.toString(),
         orElse: () => LessonCompletionState.inProgress,
       ),
-      speakerMode: _decodeSpeakerMode(raw['speakerMode']),
+      speakerMode: lesson.steps.isEmpty
+          ? _decodeSpeakerMode(raw['speakerMode'])
+          : lesson.steps[boundedStepIndex].speakerMode,
       latestLearnerResponse: _readNullableString(raw['latestLearnerResponse']),
       latestReview: ResponseReview.values.firstWhere(
         (value) => value.name == raw['latestReview']?.toString(),
