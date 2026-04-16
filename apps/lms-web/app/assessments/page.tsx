@@ -1,4 +1,6 @@
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { fetchAssessments, fetchWorkboard } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
@@ -14,6 +16,46 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
 }
 
 export default async function AssessmentsPage() {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Assessments"
+        subtitle="Production wiring is incomplete, so progression gates are blocked instead of faking readiness confidence."
+        blockerHeadline="Deployment blocker: assessments API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so assessment gates and learner readiness cannot be trusted. Fix the env var, redeploy, then confirm real progression data is loading.
+          </>
+        )}
+        whyBlocked={[
+          'Assessments determine readiness and module progression. A disconnected page that looks calm is worse than a loud blocker.',
+          'Without live backend wiring, gate status, assessment inventory, and readiness counts can all mislead operators during deployment review.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Assessment inventory',
+            expected: 'Live assessment records load with subject, module, trigger, and gate details',
+            failure: 'Empty table or stale rows that hide missing progression checks',
+          },
+          {
+            surface: 'Readiness count',
+            expected: 'Learner readiness number reflects the live workboard feed',
+            failure: 'Zero or frozen readiness count with no backing API traffic',
+          },
+          {
+            surface: 'Dashboard handoff',
+            expected: 'Dashboard and assessments agree on progression-gate visibility after redeploy',
+            failure: 'One page shows healthy progression while the other is still blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content blockers', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
+
   const [assessmentsResult, workboardResult] = await Promise.allSettled([fetchAssessments(), fetchWorkboard()]);
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
   const workboard = workboardResult.status === 'fulfilled' ? workboardResult.value : [];

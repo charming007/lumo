@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import { CreateAssignmentForm } from '../../components/create-assignment-form';
 import { ReassignAssignmentForm } from '../../components/reassign-assignment-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { fetchAssignments, fetchAssessments, fetchCohorts, fetchLessons, fetchMallams, fetchPods } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyAssignmentRows(message: string): ReactNode[][] {
@@ -44,6 +46,47 @@ function startOfDay(date: Date) {
 
 export default async function AssignmentsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; status?: string | string[]; cohort?: string | string[]; mallam?: string | string[]; pod?: string | string[] }> }) {
   const query = await searchParams;
+
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Assignments"
+        subtitle="Production wiring is incomplete, so assignment operations are blocked instead of pretending delivery control still works."
+        blockerHeadline="Deployment blocker: assignments API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the assignments board cannot be trusted for scheduling, reassignment, or due-date triage. Fix the env var, redeploy, then verify live delivery data.
+          </>
+        )}
+        whyBlocked={[
+          'Assignments is an operational control surface. Showing empty rows here would imply no delivery risk when the app is actually disconnected.',
+          'Create and reassign flows depend on live cohorts, lessons, mallams, assessments, and pods. Missing production wiring makes those actions unsafe theatre.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Assignment board',
+            expected: 'Live lesson, cohort, pod, mallam, and due-date rows load from the backend',
+            failure: 'Blank or tiny board that looks clean only because the API never connected',
+          },
+          {
+            surface: 'Create assignment',
+            expected: 'Reference data loads and the form submits against the live backend',
+            failure: 'Dropdowns are empty, stale, or the form posts into the void',
+          },
+          {
+            surface: 'Reassign flow',
+            expected: 'Existing assignments and mallam options are available for reassignment',
+            failure: 'No assignments visible or operator actions silently fail',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content library', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Mallam ops', href: '/mallams', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
   const [assignmentsResult, cohortsResult, lessonsResult, mallamsResult, assessmentsResult, podsResult] = await Promise.allSettled([
     fetchAssignments(),
     fetchCohorts(),

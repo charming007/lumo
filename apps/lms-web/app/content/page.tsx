@@ -15,7 +15,9 @@ import { DynamicLessonCreateForm } from '../../components/content-ops-form';
 import { ContentSubjectLanes } from '../../components/content-subject-lanes';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { assessmentMatchesModule } from '../../lib/module-assessment-match';
 import { createLessonAction } from '../actions';
@@ -60,6 +62,47 @@ function emptyTableRows(message: string, columns: number) {
 }
 
 export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Content library"
+        subtitle="Production wiring is incomplete, so the publishing board is refusing to fake a healthy release pipeline."
+        blockerHeadline="Deployment blocker: content API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so module blockers, lesson readiness, and assessment-gate coverage would all degrade into misleading fallback states. Fix the env var, redeploy, then verify the real content workflow.
+          </>
+        )}
+        whyBlocked={[
+          'This route drives module release readiness, lesson authoring handoffs, and assessment coverage. Pretending that missing data means “all clear” would be operationally stupid.',
+          'Until the API base exists, the content board can render a shell, but it cannot truthfully tell operators what is blocked, publishable, or missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Content board',
+            expected: 'Real modules, lessons, and assessment counts load from the live backend',
+            failure: 'Blank tables, zero blockers, or only fallback copy',
+          },
+          {
+            surface: 'Blocked view',
+            expected: 'Missing lessons and missing gates show exact blocker counts',
+            failure: 'Everything looks publishable with no API traffic',
+          },
+          {
+            surface: 'Lesson authoring',
+            expected: 'Subject/module pickers populate with live curriculum data',
+            failure: 'Create flows open without real curriculum context',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Curriculum canvas', href: '/canvas', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Reports blocker', href: '/reports', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [modulesResult, lessonsResult, subjectsResult, strandsResult, assessmentsResult, assignmentsResult] = await Promise.allSettled([
     fetchCurriculumModules(),

@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import type { DashboardInsight, NgoSummary, OperationsReport, ReportsOverview } from '../../lib/types';
 import { fetchAssignments, fetchCohorts, fetchDashboardInsights, fetchMallams, fetchNgoSummary, fetchOperationsReport, fetchPods, fetchProgress, fetchReportsOverview, fetchStudents } from '../../lib/api';
 import { CopyableTextCard } from '../../components/copyable-text-card';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { ExportShareCard } from '../../components/export-share-card';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const EMPTY_REPORT: ReportsOverview = {
@@ -159,6 +161,47 @@ function toCsv(rows: Array<Array<string | number>>) {
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Reports"
+        subtitle="Production wiring is incomplete, so executive reporting is refusing to cosplay as trustworthy."
+        blockerHeadline="Deployment blocker: reports API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so NGO summaries, operator hotlists, and exportable rollups would collapse into dishonest fallback output. Fix the env var, redeploy, then verify the reporting surfaces against live backend data.
+          </>
+        )}
+        whyBlocked={[
+          'Reports are where operators and partners decide what is healthy, urgent, or behind. A polished fallback shell with fake-zero metrics is worse than an explicit blocker.',
+          'Until the API base exists, this route cannot truthfully summarize attendance, mastery, rewards ops, or intervention priorities.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Executive overview',
+            expected: 'Live totals, attendance, mastery, and readiness metrics load',
+            failure: 'Zeroed cards with no backing API data',
+          },
+          {
+            surface: 'Operations report',
+            expected: 'Hotlists and intervention queues reflect real backend state',
+            failure: 'Fallback-only narrative with empty intervention lanes',
+          },
+          {
+            surface: 'Exports and share cards',
+            expected: 'Generated summaries match live counts and current filters',
+            failure: 'Copy/export tools package placeholder data',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Content blocker', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Curriculum canvas', href: '/canvas', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const params = await searchParams;
   const searchText = normalizeFilterValue(params?.q).trim().toLowerCase();
   const cohortFilter = normalizeFilterValue(params?.cohort).trim();

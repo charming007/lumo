@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { AttendanceCaptureForm } from '../../components/attendance-form';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAttendance, fetchStudents } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 function emptyAttendanceRows(message: string): ReactNode[][] {
@@ -9,6 +11,47 @@ function emptyAttendanceRows(message: string): ReactNode[][] {
 }
 
 export default async function AttendancePage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Attendance"
+        subtitle="Production wiring is incomplete, so facilitator attendance ops are refusing to fake a calm day with clean zeros."
+        blockerHeadline="Deployment blocker: attendance API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so attendance totals, learner check-in capture, and absence follow-up would collapse into dishonest zero-state output. Fix the env var, redeploy, then verify live attendance traffic.
+          </>
+        )}
+        whyBlocked={[
+          'Attendance is an operational truth surface. Showing 0 present, 0 late, and 0 absent because the backend is missing is nonsense, not a graceful fallback.',
+          'Until the API base exists, facilitators cannot safely capture new attendance or trust the existing board history.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Attendance totals',
+            expected: 'Present, late, and absent counts load from the live backend',
+            failure: 'All counters read zero with no real API traffic',
+          },
+          {
+            surface: 'Attendance board',
+            expected: 'Recent learner check-ins render with real dates and statuses',
+            failure: 'Blank history table or generic unavailable copy',
+          },
+          {
+            surface: 'Capture form',
+            expected: 'Learner roster loads and new attendance can be submitted safely',
+            failure: 'Form opens without a live learner roster behind it',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Learner roster', href: '/students', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [attendanceResult, studentsResult] = await Promise.allSettled([fetchAttendance(), fetchStudents()]);
   const attendance = attendanceResult.status === 'fulfilled' ? attendanceResult.value : [];

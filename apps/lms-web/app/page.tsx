@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchStudents, fetchSubjects, fetchWorkboard } from '../lib/api';
 import { CreateAssessmentForm, UpdateModuleForm } from '../components/admin-forms';
+import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 import { InsightPanel } from '../components/insight-panel';
 import { KpiStrip } from '../components/kpi-strip';
 import { ModalLauncher } from '../components/modal-launcher';
@@ -116,61 +117,43 @@ function buildExactNameHref<T extends { id: string }>(items: T[], getName: (item
 export default async function HomePage() {
   if (API_BASE_SOURCE === 'missing-production-env') {
     return (
-      <PageShell
+      <DeploymentBlockerCard
         title="Dashboard"
         subtitle="Production wiring is incomplete, so the dashboard is refusing to cosplay as healthy."
-        aside={(
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <a href="/LMS_DATA_MAP.html" target="_blank" rel="noreferrer" style={{ ...quickActionStyle, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
-              LMS data map
-            </a>
-            <a href="/LUMO_MVP_QA_UAT_GUIDE.html" target="_blank" rel="noreferrer" style={{ ...quickActionStyle, background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' }}>
-              UAT guide
-            </a>
-          </div>
+        blockerHeadline="Deployment blocker: dashboard API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so showing KPI zeros, fake-empty workboards, and bogus release confidence would be dishonest. Fix the env var, redeploy, then validate the dashboard with live data.
+          </>
         )}
-      >
-        <section style={{ display: 'grid', gap: 20 }}>
-          <div style={{ padding: '22px 24px', borderRadius: 24, background: 'linear-gradient(135deg, #7c2d12 0%, #9a3412 100%)', border: '1px solid #ea580c', color: '#ffedd5', boxShadow: '0 24px 60px rgba(124, 45, 18, 0.24)' }}>
-            <div style={{ display: 'grid', gap: 10 }}>
-              <strong style={{ fontSize: 24, color: 'white' }}>Deployment blocker: dashboard API base URL is missing.</strong>
-              <div style={{ lineHeight: 1.7 }}>
-                This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so showing KPI zeros and fake “empty” workboards would be dishonest. Fix the env var, redeploy, then validate the dashboard with live data.
-              </div>
-            </div>
-          </div>
-
-          <section style={{ ...responsiveGrid(280) }}>
-            <Card title="What to fix" eyebrow="Required env">
-              <MetricList
-                items={[
-                  { label: 'Env var', value: 'NEXT_PUBLIC_API_BASE_URL' },
-                  { label: 'Expected format', value: 'https://your-lumo-api.up.railway.app' },
-                  { label: 'Deployment action', value: 'Set env in Vercel and redeploy' },
-                ]}
-              />
-            </Card>
-
-            <Card title="Why this page is blocked" eyebrow="No fake green lights">
-              <div style={{ display: 'grid', gap: 12, color: '#475569', lineHeight: 1.7 }}>
-                <div>The LMS banner already calls this out globally, but the dashboard is the worst place to quietly fake healthy-looking numbers.</div>
-                <div>Until the API base exists, dashboard summary cards, assignments, learner workboard, and release blockers are all operationally untrustworthy.</div>
-              </div>
-            </Card>
-          </section>
-
-          <Card title="Verification after redeploy" eyebrow="Do these three checks">
-            <SimpleTable
-              columns={['Surface', 'Expected result', 'Failure smell']}
-              rows={[
-                ['Dashboard', 'Live KPI totals and workboard rows load', 'Zeros/empty cards with blocker still visible'],
-                ['Content blockers', 'Real blocker counts reflect modules, lessons, and assessment gates', 'All-clear state with no API traffic'],
-                ['Reports', 'Operational and rewards views load from live backend', 'Pages degrade into fallback-only shell'],
-              ]}
-            />
-          </Card>
-        </section>
-      </PageShell>
+        whyBlocked={[
+          'The dashboard is where operators decide whether the pilot is healthy. Quiet fallback zeros here would be worse than an obvious failure state.',
+          'Until the API base exists, summary cards, assignments, learner workboard, and release blockers are all operationally untrustworthy.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Dashboard',
+            expected: 'Live KPI totals and workboard rows load from the backend',
+            failure: 'Zeros or empty cards with no backing API traffic',
+          },
+          {
+            surface: 'Content blockers',
+            expected: 'Real blocker counts reflect modules, lessons, and assessment gates',
+            failure: 'Everything looks publishable with no real data',
+          },
+          {
+            surface: 'Reports',
+            expected: 'Operational and rewards views load from the live backend',
+            failure: 'Pages degrade into fallback-only shell output',
+          },
+        ]}
+        docs={[
+          { label: 'LMS data map', href: '/LMS_DATA_MAP.html', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'UAT guide', href: '/LUMO_MVP_QA_UAT_GUIDE.html', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Content blocker', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
     );
   }
 
