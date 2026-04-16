@@ -1093,6 +1093,10 @@ function exportStorageSnapshot() {
   };
 }
 
+function getCollectionIdentityField(collection) {
+  return collection === 'lessonSessions' ? 'sessionId' : 'id';
+}
+
 function buildImportAnalysis({ currentSnapshot = {}, incomingSnapshot = {}, merge = false } = {}) {
   const knownCollections = Array.from(new Set([
     ...Object.keys(currentSnapshot || {}),
@@ -1115,6 +1119,7 @@ function buildImportAnalysis({ currentSnapshot = {}, incomingSnapshot = {}, merg
     const incoming = Array.isArray(incomingSnapshot[key]) ? incomingSnapshot[key] : [];
     const next = Array.isArray(nextSnapshot[key]) ? nextSnapshot[key] : [];
     const current = Array.isArray(currentSnapshot[key]) ? currentSnapshot[key] : [];
+    const identityField = getCollectionIdentityField(key);
 
     if (incomingSnapshot[key] !== undefined && !Array.isArray(incomingSnapshot[key])) {
       pushIssue('critical', 'invalid-collection-shape', `${key} must be an array when provided`, { collection: key });
@@ -1128,12 +1133,12 @@ function buildImportAnalysis({ currentSnapshot = {}, incomingSnapshot = {}, merg
         return;
       }
 
-      if (!Object.prototype.hasOwnProperty.call(entry, 'id') || entry.id === undefined || entry.id === null || entry.id === '') {
-        pushIssue('critical', 'missing-record-id', `${key} contains a record without an id`, { collection: key, index });
+      if (!Object.prototype.hasOwnProperty.call(entry, identityField) || entry[identityField] === undefined || entry[identityField] === null || entry[identityField] === '') {
+        pushIssue('critical', 'missing-record-id', `${key} contains a record without a ${identityField}`, { collection: key, index, identityField });
         return;
       }
 
-      const recordId = String(entry.id);
+      const recordId = String(entry[identityField]);
       if (!nextIdMap.has(recordId)) {
         nextIdMap.set(recordId, []);
       }
@@ -1143,21 +1148,23 @@ function buildImportAnalysis({ currentSnapshot = {}, incomingSnapshot = {}, merg
     Array.from(nextIdMap.entries())
       .filter(([, indexes]) => indexes.length > 1)
       .forEach(([recordId, indexes]) => {
-        pushIssue(merge ? 'critical' : 'warning', 'duplicate-record-id', `${key} contains duplicate id ${recordId}`, {
+        pushIssue(merge ? 'critical' : 'warning', 'duplicate-record-id', `${key} contains duplicate ${identityField} ${recordId}`, {
           collection: key,
           id: recordId,
+          identityField,
           occurrences: indexes.length,
         });
       });
 
     if (merge) {
-      const currentIds = new Set(current.map((entry) => String(entry?.id || '')).filter(Boolean));
+      const currentIds = new Set(current.map((entry) => String(entry?.[identityField] || '')).filter(Boolean));
       incoming.forEach((entry, index) => {
-        const recordId = String(entry?.id || '');
+        const recordId = String(entry?.[identityField] || '');
         if (recordId && currentIds.has(recordId)) {
-          pushIssue('critical', 'merge-id-collision', `${key} would collide with existing id ${recordId}`, {
+          pushIssue('critical', 'merge-id-collision', `${key} would collide with existing ${identityField} ${recordId}`, {
             collection: key,
             id: recordId,
+            identityField,
             index,
           });
         }

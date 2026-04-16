@@ -274,6 +274,40 @@ test('storage import preview reports projected collection changes without mutati
   assert.deepEqual(after.collectionCounts, before.collectionCounts);
 });
 
+test('storage import preview accepts exported lesson sessions that use sessionId identity', () => {
+  const session = store.upsertLessonSession({
+    sessionId: 'session-import-preview-1',
+    studentId: 'student-1',
+    learnerCode: 'LUMO-001',
+    lessonId: 'lesson-1',
+    moduleId: 'module-1',
+    status: 'in_progress',
+    completionState: 'inProgress',
+    automationStatus: 'guided',
+    currentStepIndex: 2,
+    stepsTotal: 5,
+    responsesCaptured: 1,
+    supportActionsUsed: 0,
+    audioCaptures: 0,
+    facilitatorObservations: 0,
+    latestReview: 'onTrack',
+    startedAt: '2026-01-01T10:00:00.000Z',
+    lastActivityAt: '2026-01-01T10:05:00.000Z',
+  });
+
+  const preview = store.previewStorageImport({
+    merge: true,
+    snapshot: {
+      lessonSessions: [{ ...session, sessionId: 'session-import-preview-2' }],
+    },
+  });
+
+  assert.equal(preview.analysis.summary.safeToImport, true);
+  assert.equal(preview.analysis.summary.trust, 'clean');
+  assert.equal(preview.analysis.issues.some((issue) => issue.collection === 'lessonSessions' && issue.code === 'missing-record-id'), false);
+  assert.equal(preview.analysis.issues.some((issue) => issue.collection === 'lessonSessions' && issue.code === 'merge-id-collision'), false);
+});
+
 test('storage import preview surfaces critical collisions and import blocks unless forced', () => {
   const baseline = store.exportStorageSnapshot();
   const conflictingSnapshot = {

@@ -221,6 +221,7 @@ Import preview now returns an `analysis` block with trust signals before any dat
 - `summary.trust` (`clean` | `review` | `blocked`)
 - `criticalCount` / `warningCount`
 - concrete collision / dangling-reference issues
+- collection-aware identity checks (`lessonSessions.sessionId`, everything else by `id`) so exported runtime-session snapshots round-trip cleanly during recovery/import preview
 
 `POST /api/v1/admin/storage/import` now blocks on critical integrity issues by default.
 Use `force: true` only after reviewing the preview output and deciding to accept the risk.
