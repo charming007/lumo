@@ -1484,6 +1484,68 @@ void main() {
     state.dispose();
   });
 
+
+  testWidgets('subject modules page shows all learner-facing lessons for the selected module', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final module = state.modules.firstWhere((item) => item.id == 'english');
+    final seedLesson = state.assignedLessons.firstWhere(
+      (item) => item.moduleId == module.id,
+    );
+    state.selectLearner(learner);
+    state.assignedLessons.add(
+      LessonCardModel(
+        id: 'english-extension-lesson',
+        moduleId: 'english-reading',
+        title: 'English extension',
+        subject: module.title,
+        durationMinutes: seedLesson.durationMinutes,
+        status: seedLesson.status,
+        mascotName: seedLesson.mascotName,
+        readinessFocus: 'Keep building ${module.title}',
+        scenario: 'Alternate backend module key for the same subject.',
+        steps: seedLesson.steps,
+      ),
+    );
+
+    expect(
+      state.lessonsForLearnerAndModule(learner, module.id)
+          .map((lesson) => lesson.id),
+      containsAll([seedLesson.id, 'english-extension-lesson']),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: module,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(seedLesson.title), findsOneWidget);
+    expect(find.textContaining('Current learner: ${learner.name}'), findsOneWidget);
+
+    await tester.dragUntilVisible(
+      find.text('English extension'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('English extension'), findsOneWidget);
+
+    state.dispose();
+  });
+
   testWidgets('lesson launch setup stays usable on narrow tablet widths', (
     tester,
   ) async {

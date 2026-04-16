@@ -1878,6 +1878,44 @@ void main() {
         visibleLessons.map((lesson) => lesson.title),
         containsAll([baseEnglishLesson.title, shadowEnglishLesson.title]),
       );
+      state.dispose();
+    });
+
+    test(
+        'keeps all learner-facing lessons visible for a module despite lesson id variants',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final module = state.modules.firstWhere((item) => item.id == 'english');
+      final seedLesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+      );
+
+      state.assignedLessons.add(
+        LessonCardModel(
+          id: 'english-extension-lesson',
+          moduleId: 'english-reading',
+          title: 'English extension',
+          subject: module.title,
+          durationMinutes: seedLesson.durationMinutes,
+          status: seedLesson.status,
+          mascotName: seedLesson.mascotName,
+          readinessFocus: 'Keep building ${module.title}',
+          scenario: 'Alternate backend module key for the same subject.',
+          steps: seedLesson.steps,
+        ),
+      );
+
+      final lessons = state.lessonsForLearnerAndModule(beginner, module.id);
+
+      expect(
+        lessons.map((lesson) => lesson.id),
+        containsAll(['english-extension-lesson', seedLesson.id]),
+      );
+      expect(
+        lessons.where((lesson) => lesson.subject == module.title),
+        hasLength(2),
+      );
+      state.dispose();
     });
 
     test('uses backend recommended module when available', () {
