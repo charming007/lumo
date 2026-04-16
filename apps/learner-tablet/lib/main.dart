@@ -670,13 +670,9 @@ class _MallamStageShell extends StatelessWidget {
       height: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE7F0FF), Color(0xFFF8FBFF)],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: LumoTheme.primary.withValues(alpha: 0.12)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
