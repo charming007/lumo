@@ -1968,27 +1968,33 @@ class LumoAppState {
     final session = activeSession;
     if (learner == null || session == null) return;
 
+    final completedSession = session.copyWith(
+      completionState: LessonCompletionState.complete,
+      automationStatus:
+          'Lesson completed. Rewards and learner progress have been saved on this tablet.',
+      lastUpdatedAt: DateTime.now(),
+    );
+    activeSession = completedSession;
+
     final updatedLearner = learner.copyWith(
       streakDays: learner.streakDays + 1,
       enrollmentStatus: 'Active in lessons',
       lastLessonSummary:
           '${lesson.title}: ${session.totalResponses} responses captured, ${session.supportActionsUsed} support actions, ${session.facilitatorObservations.isEmpty ? 'no facilitator flags' : session.facilitatorObservations.join(', ')}.',
       lastAttendance: 'Completed ${lesson.subject} today',
-      rewards: _buildUpdatedRewardSnapshot(learner, session),
+      rewards: _buildUpdatedRewardSnapshot(learner, completedSession),
     );
 
-    final learnerIndex = learners.indexWhere((item) => item.id == learner.id);
-    if (learnerIndex != -1) {
-      learners[learnerIndex] = updatedLearner;
-    }
-    currentLearner = updatedLearner;
+    _replaceLearner(updatedLearner);
+    _projectCompletedRuntimeSession(updatedLearner, completedSession);
 
     pendingSyncEvents.add(
       SyncEvent(
         id: 'sync-${pendingSyncEvents.length + 1}',
         type: 'lesson_completed',
-        payload:
-            session.syncPayloadPreview(learnerCode: updatedLearner.learnerCode),
+        payload: completedSession.syncPayloadPreview(
+          learnerCode: updatedLearner.learnerCode,
+        ),
       ),
     );
 
@@ -1996,6 +2002,146 @@ class LumoAppState {
     await syncPendingEvents();
     await refreshLearnerRewards(updatedLearner);
     await refreshLearnerRuntimeSessions(updatedLearner);
+  }
+
+  void _replaceLearner(LearnerProfile learner) {
+    final learnerIndex = learners.indexWhere((item) => item.id == learner.id);
+    if (learnerIndex != -1) {
+      learners[learnerIndex] = learner;
+    }
+    if (currentLearner?.id == learner.id) {
+      currentLearner = learner;
+    }
+  }
+
+  void _projectCompletedRuntimeSession(
+    LearnerProfile learner,
+    LessonSessionState session,
+  ) {
+    final existing = recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
+    final projected = BackendLessonSession(
+      id: session.sessionId,
+      sessionId: session.sessionId,
+      studentId: learner.id,
+      learnerCode: learner.learnerCode,
+      lessonId: session.lesson.id,
+      lessonTitle: session.lesson.title,
+      moduleId: session.lesson.moduleId,
+      moduleTitle: session.lesson.subject,
+      status: 'completed',
+      completionState: 'completed',
+      automationStatus: 'Lesson completed on this tablet.',
+      currentStepIndex: session.lesson.steps.length,
+      stepsTotal: session.lesson.steps.length,
+      responsesCaptured: session.totalResponses,
+      supportActionsUsed: session.supportActionsUsed,
+      audioCaptures: session.totalAudioCaptures,
+      facilitatorObservations: session.facilitatorObservations.length,
+      latestReview: session.latestReview.name,
+      startedAt: session.startedAt,
+      lastActivityAt: session.lastUpdatedAt,
+      completedAt: session.lastUpdatedAt,
+    );
+    recentRuntimeSessionsByLearnerId[learner.id] =
+        _mergeRuntimeSessions(existing, [projected]);
+  }
+
+  RewardSnapshot _mergeRewardSnapshot(
+    RewardSnapshot? local,
+    RewardSnapshot incoming,
+  ) {
+    if (local == null) return incoming;
+    final canTrustBackendSnapshot = lastSyncAttemptAt != null &&
+        lastSyncError == null &&
+        pendingSyncEvents.isEmpty;
+    if (canTrustBackendSnapshot || incoming.totalXp >= local.totalXp) {
+      return incoming;
+    }
+
+    return RewardSnapshot(
+      learnerId:
+          incoming.learnerId.isNotEmpty ? incoming.learnerId : local.learnerId,
+      totalXp: local.totalXp,
+      points: max(local.points, incoming.points),
+      level: max(local.level, incoming.level),
+      levelLabel: local.level >= incoming.level
+          ? local.levelLabel
+          : incoming.levelLabel,
+      nextLevel: local.nextLevel ?? incoming.nextLevel,
+      nextLevelLabel: local.nextLevelLabel ?? incoming.nextLevelLabel,
+      xpIntoLevel: local.xpIntoLevel,
+      xpForNextLevel: local.xpForNextLevel,
+      progressToNextLevel:
+          max(local.progressToNextLevel, incoming.progressToNextLevel),
+      badgesUnlocked: max(local.badgesUnlocked, incoming.badgesUnlocked),
+      badges: local.badges.isNotEmpty ? local.badges : incoming.badges,
+    );
+  }
+
+  List<BackendLessonSession> _mergeRuntimeSessions(
+    List<BackendLessonSession> existing,
+    List<BackendLessonSession> incoming,
+  ) {
+    final merged = <String, BackendLessonSession>{};
+    for (final session in [...existing, ...incoming]) {
+      final key =
+          session.sessionId.trim().isEmpty ? session.id : session.sessionId;
+      final prior = merged[key];
+      merged[key] =
+          prior == null ? session : _preferRuntimeSession(prior, session);
+    }
+
+    final sessions = merged.values.toList(growable: false)
+      ..sort((left, right) {
+        final rightTime =
+            right.lastActivityAt ?? right.completedAt ?? right.startedAt;
+        final leftTime =
+            left.lastActivityAt ?? left.completedAt ?? left.startedAt;
+        if (leftTime == null && rightTime == null) return 0;
+        if (leftTime == null) return 1;
+        if (rightTime == null) return -1;
+        return rightTime.compareTo(leftTime);
+      });
+    return sessions;
+  }
+
+  BackendLessonSession _preferRuntimeSession(
+    BackendLessonSession current,
+    BackendLessonSession candidate,
+  ) {
+    final currentCompleted = current.status == 'completed';
+    final candidateCompleted = candidate.status == 'completed';
+    if (currentCompleted != candidateCompleted) {
+      return currentCompleted ? current : candidate;
+    }
+
+    final currentTime =
+        current.lastActivityAt ?? current.completedAt ?? current.startedAt;
+    final candidateTime = candidate.lastActivityAt ??
+        candidate.completedAt ??
+        candidate.startedAt;
+    if (currentTime != null &&
+        candidateTime != null &&
+        candidateTime.isAfter(currentTime)) {
+      return candidate;
+    }
+    if (currentTime != null &&
+        candidateTime != null &&
+        currentTime.isAfter(candidateTime)) {
+      return current;
+    }
+
+    if (candidate.currentStepIndex > current.currentStepIndex) {
+      return candidate;
+    }
+    if (current.currentStepIndex > candidate.currentStepIndex) {
+      return current;
+    }
+
+    if (candidate.responsesCaptured >= current.responsesCaptured) {
+      return candidate;
+    }
+    return current;
   }
 
   RewardSnapshot _buildUpdatedRewardSnapshot(
@@ -2369,12 +2515,11 @@ class LumoAppState {
       final learnerIndex = learners.indexWhere((item) => item.id == learner.id);
       if (learnerIndex == -1) return;
 
-      final refreshedLearner =
-          learners[learnerIndex].copyWith(rewards: snapshot);
-      learners[learnerIndex] = refreshedLearner;
-      if (currentLearner?.id == learner.id) {
-        currentLearner = refreshedLearner;
-      }
+      final existingLearner = learners[learnerIndex];
+      final refreshedLearner = existingLearner.copyWith(
+        rewards: _mergeRewardSnapshot(existingLearner.rewards, snapshot),
+      );
+      _replaceLearner(refreshedLearner);
       persistStateSoon();
     } catch (_) {
       // Keep the optimistic local reward state if the backend reward projection
@@ -2393,7 +2538,9 @@ class LumoAppState {
         learnerCode: learner.learnerCode,
         limit: limit,
       );
-      recentRuntimeSessionsByLearnerId[learner.id] = sessions;
+      final existing = recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
+      recentRuntimeSessionsByLearnerId[learner.id] =
+          _mergeRuntimeSessions(existing, sessions);
       learnerRuntimeError = null;
       persistStateSoon();
     } catch (error) {
@@ -2578,18 +2725,9 @@ class LumoAppState {
       final learnerId = learners[learnerIndex].id;
       final existing = List<BackendLessonSession>.from(
         recentRuntimeSessionsByLearnerId[learnerId] ?? const [],
-      )..removeWhere((entry) => entry.sessionId == session.sessionId);
-      recentRuntimeSessionsByLearnerId[learnerId] = [session, ...existing]
-        ..sort((left, right) {
-          final rightTime =
-              right.lastActivityAt ?? right.completedAt ?? right.startedAt;
-          final leftTime =
-              left.lastActivityAt ?? left.completedAt ?? left.startedAt;
-          if (leftTime == null && rightTime == null) return 0;
-          if (leftTime == null) return 1;
-          if (rightTime == null) return -1;
-          return rightTime.compareTo(leftTime);
-        });
+      );
+      recentRuntimeSessionsByLearnerId[learnerId] =
+          _mergeRuntimeSessions(existing, [session]);
     }
   }
 
@@ -2661,10 +2799,7 @@ class LumoAppState {
                 existingLearner.lastLessonSummary,
       );
 
-      learners[learnerIndex] = updatedLearner;
-      if (currentLearner?.id == learnerId) {
-        currentLearner = updatedLearner;
-      }
+      _replaceLearner(updatedLearner);
       persistStateSoon();
     }
   }

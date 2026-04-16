@@ -1526,6 +1526,177 @@ void main() {
       state.dispose();
     });
 
+    test('keeps optimistic lesson completion XP when reward fetch lags behind',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/rewards') {
+              return http.Response(
+                jsonEncode({
+                  'learnerId': beginner.id,
+                  'totalXp': 120,
+                  'points': 120,
+                  'level': 2,
+                  'levelLabel': 'Rising Voice',
+                  'nextLevel': 3,
+                  'nextLevelLabel': 'Bright Reader',
+                  'xpIntoLevel': 40,
+                  'xpForNextLevel': 40,
+                  'progressToNextLevel': 0.5,
+                  'badgesUnlocked': 0,
+                  'badges': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      )..usingFallbackData = false;
+      state.currentLearner = beginner.copyWith(
+        rewards: const RewardSnapshot(
+          learnerId: 'learner-1',
+          totalXp: 160,
+          points: 160,
+          level: 3,
+          levelLabel: 'Bright Reader',
+          nextLevel: 4,
+          nextLevelLabel: 'Story Scout',
+          xpIntoLevel: 0,
+          xpForNextLevel: 80,
+          progressToNextLevel: 0,
+          badgesUnlocked: 1,
+          badges: [
+            RewardBadge(
+              id: 'voice-starter',
+              title: 'Voice Starter',
+              description: 'First lesson completed with Mallam.',
+              icon: 'record_voice_over',
+              category: 'lesson',
+              earned: true,
+              progress: 1,
+              target: 1,
+            ),
+          ],
+        ),
+      );
+      state.learners[0] = state.currentLearner!;
+
+      await state.refreshLearnerRewards(state.currentLearner!);
+
+      final rewards = state.currentLearner!.rewards!;
+      expect(rewards.totalXp, 160);
+      expect(rewards.levelLabel, 'Bright Reader');
+      expect(
+        rewards.badges
+            .any((badge) => badge.id == 'voice-starter' && badge.earned),
+        isTrue,
+      );
+      state.dispose();
+    });
+
+    test('lesson completion projects a completed runtime session locally',
+        () async {
+      LumoAppState? state;
+      state = LumoAppState(
+        includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/sync') {
+              return http.Response(
+                jsonEncode({
+                  'accepted': 1,
+                  'ignored': 0,
+                  'syncedAt': '2026-04-12T10:00:00.000Z',
+                  'results': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path == '/api/v1/learner-app/rewards') {
+              return http.Response(
+                jsonEncode({
+                  'learnerId': beginner.id,
+                  'totalXp': 180,
+                  'points': 180,
+                  'level': 3,
+                  'levelLabel': 'Bright Reader',
+                  'nextLevel': 4,
+                  'nextLevelLabel': 'Story Scout',
+                  'xpIntoLevel': 20,
+                  'xpForNextLevel': 60,
+                  'progressToNextLevel': 0.25,
+                  'badgesUnlocked': 1,
+                  'badges': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path == '/api/v1/learner-app/sessions') {
+              return http.Response(
+                jsonEncode({
+                  'sessions': [
+                    {
+                      'id': state?.activeSession?.sessionId ??
+                          'runtime-session-stale',
+                      'sessionId':
+                          state?.activeSession?.sessionId ?? 'session-stale',
+                      'studentId': beginner.id,
+                      'learnerCode': beginner.learnerCode,
+                      'lessonId':
+                          state?.activeSession?.lesson.id ?? 'lesson-stale',
+                      'lessonTitle':
+                          state?.activeSession?.lesson.title ?? 'Older session',
+                      'moduleId':
+                          state?.activeSession?.lesson.moduleId ?? 'english',
+                      'moduleTitle':
+                          state?.activeSession?.lesson.subject ?? 'English',
+                      'status': 'in_progress',
+                      'completionState': 'inProgress',
+                      'automationStatus': 'Waiting for input.',
+                      'currentStepIndex': 1,
+                      'stepsTotal': 4,
+                      'responsesCaptured': 0,
+                      'supportActionsUsed': 0,
+                      'audioCaptures': 0,
+                      'facilitatorObservations': 0,
+                      'lastActivityAt': '2026-04-12T09:00:00.000Z',
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      )
+        ..usingFallbackData = false
+        ..currentLearner = beginner;
+
+      final lesson = state!.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+      state.startLesson(lesson);
+      state.submitLearnerResponse('I am ready');
+      await state.completeLesson(lesson);
+
+      final sessions = state.recentRuntimeSessionsForLearner(beginner);
+      expect(sessions, isNotEmpty);
+      expect(sessions.first.sessionId, state.activeSession!.sessionId);
+      expect(sessions.first.status, 'completed');
+      expect(state.resumableRuntimeSessionForLearner(beginner), isNull);
+      state.dispose();
+    });
+
     test('degraded mode summary reflects queued offline work', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.usingFallbackData = true;
