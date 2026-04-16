@@ -810,9 +810,7 @@ class LessonCardModel {
           json['readinessFocus']?.toString() ?? 'Guided voice practice',
       scenario:
           json['scenario']?.toString() ?? 'Guided $subject session for $title.',
-      steps: activitySteps.isEmpty
-          ? _defaultLessonSteps(title: title, subject: subject)
-          : activitySteps,
+      steps: activitySteps,
     );
   }
 }
@@ -1272,7 +1270,9 @@ String _moduleGoal(String level, String subjectId) {
 
 List<LessonStep> _readBackendActivitySteps(Map<String, dynamic> json) {
   final rawSteps =
-      (json['activitySteps'] as List?) ?? (json['activities'] as List?);
+      (json['activitySteps'] as List?) ??
+          (json['activities'] as List?) ??
+          (json['steps'] as List?);
   if (rawSteps == null) return const [];
 
   final items = rawSteps
@@ -1422,53 +1422,3 @@ String _emojiForChoice(LessonActivityChoice choice) {
   return choice.isCorrect ? '✅' : '🔹';
 }
 
-List<LessonStep> _defaultLessonSteps({
-  required String title,
-  required String subject,
-}) {
-  return [
-    LessonStep(
-      id: 'intro',
-      type: LessonStepType.intro,
-      title: 'Open the lesson',
-      instruction:
-          'Mallam welcomes the learner and frames the activity in one short sentence.',
-      expectedResponse: 'I am ready.',
-      acceptableResponses: ['Ready', 'Yes, I am ready'],
-      coachPrompt: 'We are starting $title. Say: I am ready.',
-      facilitatorTip:
-          'Use a calm voice and make sure the learner is settled before the next prompt.',
-      realWorldCheck: 'The learner shows they are ready to continue.',
-      speakerMode: SpeakerMode.guiding,
-    ),
-    LessonStep(
-      id: 'practice',
-      type: LessonStepType.practice,
-      title: 'Try the core response',
-      instruction:
-          'The learner gives one short spoken answer connected to the lesson topic.',
-      expectedResponse: 'I can answer about $subject.',
-      acceptableResponses: ['I can answer', 'I know $subject'],
-      coachPrompt: 'Listen carefully, then say: I can answer about $subject.',
-      facilitatorTip: 'If needed, model once and ask for a slower second try.',
-      realWorldCheck:
-          'The learner can give one clear spoken response without guessing wildly.',
-      speakerMode: SpeakerMode.listening,
-    ),
-    LessonStep(
-      id: 'close',
-      type: LessonStepType.celebration,
-      title: 'Close with confidence',
-      instruction:
-          'Mallam celebrates the attempt and checks confidence before ending.',
-      expectedResponse: 'I did it.',
-      acceptableResponses: ['I did it', 'I can do it'],
-      coachPrompt: 'Well done. Say: I did it.',
-      facilitatorTip:
-          'Praise effort first, then move on while the learner still feels successful.',
-      realWorldCheck:
-          'The learner finishes the voice loop on a confident note.',
-      speakerMode: SpeakerMode.affirming,
-    ),
-  ];
-}

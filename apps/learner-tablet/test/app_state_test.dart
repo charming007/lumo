@@ -254,6 +254,147 @@ void main() {
       state.dispose();
     });
 
+    test('drops backend lessons that have no activity steps', () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': 'student-1',
+                      'name': 'Amina',
+                      'age': 8,
+                      'cohort': 'Morning Cohort',
+                      'guardianName': 'Zainab',
+                      'preferredLanguage': 'Hausa',
+                      'readinessLabel': 'Voice-first beginner',
+                      'village': 'Kano',
+                      'guardianPhone': '0800000000',
+                      'sex': 'Girl',
+                      'baselineLevel': 'foundation-a',
+                      'consentCaptured': true,
+                      'learnerCode': 'AMI-MC08',
+                      'caregiverRelationship': 'Mother',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'subjectId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Foundational English',
+                      'level': 'foundation-a',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'english-empty',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Broken lesson',
+                      'durationMinutes': 8,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greeting',
+                      'scenario': 'This lesson is unusable.',
+                      'activitySteps': const [],
+                    },
+                    {
+                      'id': 'english-live',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Live lesson',
+                      'durationMinutes': 8,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greeting',
+                      'scenario': 'This lesson should remain.',
+                      'activitySteps': [
+                        {
+                          'id': 'step-1',
+                          'type': 'intro',
+                          'title': 'Say hello',
+                          'instruction': 'Welcome the learner.',
+                          'expectedResponse': 'Hello',
+                          'coachPrompt': 'Say hello.',
+                          'facilitatorTip': 'Keep it short.',
+                          'speakerMode': 'guiding',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Foundational English',
+                  'level': 'foundation-a',
+                  'lessons': [
+                    {
+                      'id': 'english-empty',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Broken lesson',
+                      'durationMinutes': 8,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greeting',
+                      'scenario': 'This lesson is unusable.',
+                      'activitySteps': const [],
+                    },
+                    {
+                      'id': 'english-live',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Live lesson',
+                      'durationMinutes': 8,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greeting',
+                      'scenario': 'This lesson should remain.',
+                      'activitySteps': [
+                        {
+                          'id': 'step-1',
+                          'type': 'intro',
+                          'title': 'Say hello',
+                          'instruction': 'Welcome the learner.',
+                          'expectedResponse': 'Hello',
+                          'coachPrompt': 'Say hello.',
+                          'facilitatorTip': 'Keep it short.',
+                          'speakerMode': 'guiding',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(state.assignedLessons.map((lesson) => lesson.id),
+          equals(['english-live']));
+      expect(() => state.startLesson(state.assignedLessons.first), returnsNormally);
+      state.dispose();
+    });
+
     test('drops deprecated story/demo lessons even when the module id is messy',
         () async {
       final state = LumoAppState(
@@ -491,7 +632,17 @@ void main() {
                       'mascotName': 'Mallam',
                       'readinessFocus': 'Resume guidance',
                       'scenario': 'Recovered from persisted state',
-                      'steps': const [],
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Resume guidance',
+                          'instruction': 'Say hello again',
+                          'coachPrompt': 'Say hello again.',
+                          'expectedResponse': 'Hello',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
                     },
                   ],
                 }),
@@ -518,7 +669,17 @@ void main() {
                       'mascotName': 'Mallam',
                       'readinessFocus': 'Resume guidance',
                       'scenario': 'Recovered from persisted state',
-                      'steps': const [],
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Resume guidance',
+                          'instruction': 'Say hello again',
+                          'coachPrompt': 'Say hello again.',
+                          'expectedResponse': 'Hello',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
                     },
                   ],
                   'assignmentPacks': const [],
@@ -668,7 +829,17 @@ void main() {
                       'mascotName': 'Mallam',
                       'readinessFocus': 'Greetings',
                       'scenario': 'Warm greeting practice',
-                      'steps': const [],
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Say hello',
+                          'instruction': 'Say hello.',
+                          'coachPrompt': 'Say hello.',
+                          'expectedResponse': 'Hello',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
                     },
                     {
                       'id': 'math-bootstrap-1',
@@ -680,7 +851,17 @@ void main() {
                       'mascotName': 'Mallam',
                       'readinessFocus': 'Counting',
                       'scenario': 'Counting objects aloud',
-                      'steps': const [],
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Count to 5',
+                          'instruction': 'Count to five.',
+                          'coachPrompt': 'Count to five.',
+                          'expectedResponse': '1 2 3 4 5',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
                     },
                   ],
                 }),
@@ -707,7 +888,17 @@ void main() {
                       'mascotName': 'Mallam',
                       'readinessFocus': 'Speaking',
                       'scenario': 'Learner says their name',
-                      'steps': const [],
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Introduce yourself',
+                          'instruction': 'Say your name.',
+                          'coachPrompt': 'Say your name.',
+                          'expectedResponse': 'My name is Amina',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
                     },
                   ],
                   'assignmentPacks': const [],

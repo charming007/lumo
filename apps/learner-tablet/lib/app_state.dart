@@ -555,12 +555,13 @@ class LumoAppState {
   List<LessonCardModel> _sanitizeLessons(List<LessonCardModel> source) {
     return source
         .where(
-          (lesson) => !_isDeprecatedDemoModule(
-            moduleId: lesson.moduleId,
-            title: lesson.title,
-            subject: lesson.subject,
-            readinessFocus: lesson.readinessFocus,
-          ),
+          (lesson) => lesson.steps.isNotEmpty &&
+              !_isDeprecatedDemoModule(
+                moduleId: lesson.moduleId,
+                title: lesson.title,
+                subject: lesson.subject,
+                readinessFocus: lesson.readinessFocus,
+              ),
         )
         .toList();
   }
