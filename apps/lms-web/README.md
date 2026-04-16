@@ -44,4 +44,6 @@ If the API is down, key pages now stay usable in degraded mode and call out whic
 
 Deploy to Vercel with root directory set to `apps/lms-web`.
 
-`NEXT_PUBLIC_API_BASE_URL` is mandatory for a fully live production deployment. If it is missing, the app now still builds and boots so operators can see the warning banner and degraded shell, but all API-backed screens intentionally stay in degraded mode until the env var is set.
+`NEXT_PUBLIC_API_BASE_URL` is mandatory for a production deployment.
+
+Production builds now fail fast if it is missing, because a dashboard/admin shell that boots without its live API is not a valid release. Set the env var in Vercel (or your build environment) before deploying.

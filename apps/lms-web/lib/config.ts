@@ -15,14 +15,10 @@ const configuredApiBase = resolveConfiguredApiBaseUrl();
 const isProduction = process.env.NODE_ENV === 'production';
 const isMissingProductionApiBase = isProduction && !configuredApiBase;
 
-if (isMissingProductionApiBase) {
-  throw new Error(
-    'NEXT_PUBLIC_API_BASE_URL is required for production builds and runtime. Set it before deploying the LMS dashboard.',
-  );
-}
-
 export const API_BASE = configuredApiBase ?? LOCAL_API_BASE;
 
 export const API_BASE_SOURCE: ApiBaseSource = configuredApiBase
   ? 'env'
-  : 'local-fallback';
+  : isMissingProductionApiBase
+    ? 'missing-production-env'
+    : 'local-fallback';
