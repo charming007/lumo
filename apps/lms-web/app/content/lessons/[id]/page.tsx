@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { ApiRequestError, fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { API_BASE_SOURCE } from '../../../../lib/config';
 import { Card, PageShell, Pill, responsiveGrid } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
 
@@ -28,6 +30,48 @@ export default async function LessonDetailPage({ params, searchParams }: { param
   const { id } = await params;
   const query = await searchParams;
   const returnPath = query?.from || '/content';
+
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson detail"
+        subtitle="Production wiring is incomplete, so lesson editing is blocked instead of pretending the authoring payload is live."
+        blockerHeadline="Deployment blocker: lesson editor API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so lesson detail, module context, assessment wiring, duplicate flows, and editor saves cannot be trusted. Fix the env var, redeploy, then verify the live lesson payload before editing this pack.
+          </>
+        )}
+        whyBlocked={[
+          'This route can mutate a live lesson payload. Recovering from snapshots or partial feeds in production would encourage edits against untrusted context.',
+          'Lesson, subject, module, assessment, and sibling-pack dependencies all need the real production API to keep the editor honest.',
+          'Blocking here prevents authors from mistaking a graceful fallback for a real release-safe authoring surface.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson payload',
+            expected: 'The editor loads the live lesson record with current objectives, activities, and assessment wiring',
+            failure: 'The page falls back to stale list data or a partial payload while production is disconnected',
+          },
+          {
+            surface: 'Module context',
+            expected: 'Sibling lessons and progression gates match the real module lane',
+            failure: 'Authors edit in a module context reconstructed from fallback data',
+          },
+          {
+            surface: 'Editor saves',
+            expected: 'Updates write to the live backend and return to the correct library route',
+            failure: 'The UI looks editable even though the deployment cannot reach the API',
+          },
+        ]}
+        docs={[
+          { label: 'Lesson Studio blocker', href: '/content/lessons/new', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content blocker', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'English Studio blocker', href: '/english', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const [lessonResult, subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
     fetchLesson(id),

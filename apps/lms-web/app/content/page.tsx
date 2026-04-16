@@ -40,8 +40,10 @@ function iconButtonStyle(background: string, color: string) {
   return { ...actionButtonStyle, background, color };
 }
 
-function blockerRiskMeta(missingLessons: number, hasAssessment: boolean) {
+function blockerRiskMeta(missingLessons: number, hasAssessment: boolean, isDraftModule: boolean) {
   if (missingLessons > 0 && !hasAssessment) return { label: 'Hard block', tone: '#FEE2E2', text: '#991B1B' };
+  if (isDraftModule && (missingLessons > 0 || !hasAssessment)) return { label: 'Draft + release gap', tone: '#FEE2E2', text: '#991B1B' };
+  if (isDraftModule) return { label: 'Draft blocker', tone: '#FEF3C7', text: '#92400E' };
   if (missingLessons > 0) return { label: 'Content gap', tone: '#FEF3C7', text: '#92400E' };
   return { label: 'Gate missing', tone: '#E0E7FF', text: '#3730A3' };
 }
@@ -168,7 +170,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const blockedModules = modules.filter((module) => {
     const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
     const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-    return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module);
+    return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module) || module.status === 'draft';
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
@@ -369,7 +371,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                   const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                   const hasAssessment = moduleHasAssessmentGate(module);
-                  const blocker = blockerRiskMeta(missingLessons, hasAssessment);
+                  const isDraftModule = module.status === 'draft';
+                  const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
 
                   return [
                     <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
@@ -380,15 +383,24 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
                       <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
                       <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
+                      <span style={{ color: isDraftModule ? '#B45309' : '#64748b', fontWeight: isDraftModule ? 800 : 600 }}>
+                        {isDraftModule ? 'Module is still draft.' : 'Module status is release-safe.'}
+                      </span>
                     </div>,
                     <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 8 }}>
                       <Pill label={blocker.label} tone={blocker.tone} text={blocker.text} />
                       <span style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
                         {missingLessons > 0 && !hasAssessment
                           ? 'Module cannot ship: content is incomplete and progression has no gate.'
-                          : missingLessons > 0
-                            ? 'Assessment exists, but learner-facing lesson coverage is still short.'
-                            : 'Lessons are ready, but progression still has no gate.'}
+                          : isDraftModule && missingLessons > 0
+                            ? 'Lessons are partly ready, but the module is still draft and cannot ship yet.'
+                            : isDraftModule && !hasAssessment
+                              ? 'This module is still draft and also missing its progression gate.'
+                              : isDraftModule
+                                ? 'Content is structurally ready, but the draft module status still blocks release.'
+                                : missingLessons > 0
+                                  ? 'Assessment exists, but learner-facing lesson coverage is still short.'
+                                  : 'Lessons are ready, but progression still has no gate.'}
                       </span>
                     </div>,
                     <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
@@ -494,7 +506,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                 const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                 const hasAssessment = moduleHasAssessmentGate(module);
-                const blocker = blockerRiskMeta(missingLessons, hasAssessment);
+                const isDraftModule = module.status === 'draft';
+                const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
 
                 return [
                   <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
@@ -505,15 +518,24 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
                     <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
                     <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
+                    <span style={{ color: isDraftModule ? '#B45309' : '#64748b', fontWeight: isDraftModule ? 800 : 600 }}>
+                      {isDraftModule ? 'Module is still draft.' : 'Module status is release-safe.'}
+                    </span>
                   </div>,
                   <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 8 }}>
                     <Pill label={blocker.label} tone={blocker.tone} text={blocker.text} />
                     <span style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
                       {missingLessons > 0 && !hasAssessment
                         ? 'Module cannot ship: content is incomplete and progression has no gate.'
-                        : missingLessons > 0
-                          ? 'Assessment exists, but learner-facing lesson coverage is still short.'
-                          : 'Lessons are ready, but progression still has no gate.'}
+                        : isDraftModule && missingLessons > 0
+                          ? 'Lessons are partly ready, but the module is still draft and cannot ship yet.'
+                          : isDraftModule && !hasAssessment
+                            ? 'This module is still draft and also missing its progression gate.'
+                            : isDraftModule
+                              ? 'Content is structurally ready, but the draft module status still blocks release.'
+                              : missingLessons > 0
+                                ? 'Assessment exists, but learner-facing lesson coverage is still short.'
+                                : 'Lessons are ready, but progression still has no gate.'}
                     </span>
                   </div>,
                   <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>

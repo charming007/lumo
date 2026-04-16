@@ -11,6 +11,14 @@ const routeGuides = [
     pillText: '#3730A3',
   },
   {
+    title: 'Curriculum Canvas',
+    href: '/canvas',
+    guideHref: '/guide#curriculum-canvas',
+    detail: 'Use this for shareable curriculum graph triage, inline module fixes, lesson slot cleanup, and gate coverage review.',
+    pillTone: '#F3E8FF',
+    pillText: '#7E22CE',
+  },
+  {
     title: 'Content Library',
     href: '/content',
     guideHref: '/guide#content-library',
@@ -57,6 +65,7 @@ const sectionLinks = [
   ['positioning-brief', 'Lumo positioning brief'],
   ['navigation', 'Route map and entry points'],
   ['dashboard', 'Dashboard'],
+  ['curriculum-canvas', 'Curriculum Canvas'],
   ['content-library', 'Content Library'],
   ['english-studio', 'English Studio'],
   ['reports', 'Reports and NGO readouts'],
@@ -73,7 +82,8 @@ const sectionLinks = [
 ] as const;
 
 const workflow = [
-  'Start in Content Library to confirm the subject, strand, and module are real.',
+  'Start in Curriculum Canvas when you need the fastest release triage, shareable module context, or inline slot/gate cleanup.',
+  'Use Content Library to confirm the subject, strand, and module are real in the canonical board.',
   'Attach the assessment gate before pretending a module is release-safe.',
   'Use English Studio for English blueprinting and readiness checks.',
   'Use Lesson Studio for the full authoring pack and final structure edits.',
@@ -139,7 +149,7 @@ export default function GuidePage() {
               The Lumo LMS is not just a stats wall. It is the admin control surface for curriculum structure, lesson authoring, readiness checks, progression, mallam oversight, pod delivery, and external reporting.
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {['Dashboard', 'Learners', 'Mallams', 'Content Library', 'English Studio', 'Assessments', 'Pods', 'Reports', 'Settings'].map((item) => (
+              {['Dashboard', 'Curriculum Canvas', 'Learners', 'Mallams', 'Content Library', 'English Studio', 'Assessments', 'Pods', 'Reports', 'Settings'].map((item) => (
                 <Pill key={item} label={item} tone="#F8FAFC" text="#334155" />
               ))}
             </div>
@@ -197,6 +207,8 @@ export default function GuidePage() {
           <pre style={{ margin: 0, padding: 18, borderRadius: 18, background: '#0f172a', color: '#e2e8f0', overflow: 'auto', lineHeight: 1.7 }}>
 {`Dashboard
    ↓ surfaces urgency and operational health
+Curriculum Canvas
+   ↓ turns curriculum structure into a shareable release-triage graph
 Learners / Mallams / Pods
    ↓ show who is learning, teaching, and delivering
 Content Library
@@ -215,7 +227,9 @@ Lesson Studio
       <section id="system-flow" style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
         <Card title="How Content Library, English Studio, assignments, learner progress, rewards, and reporting fit together" eyebrow="End-to-end system flow">
           <pre style={{ margin: 0, padding: 18, borderRadius: 18, background: '#0f172a', color: '#e2e8f0', overflow: 'auto', lineHeight: 1.7 }}>
-{`Content Library
+{`Curriculum Canvas
+   ↓ turns the curriculum spine into a shareable graph with inline release triage
+Content Library
    ↓ defines the official curriculum spine
    Subject → Strand → Module → Lesson → Assessment gate
 English Studio
@@ -268,6 +282,13 @@ Dashboard / learner views / workboards
             </div>
           </Card>
         </div>
+        <div id="curriculum-canvas">
+          <Card title="Curriculum Canvas" eyebrow="Visual release triage">
+            <div style={{ color: '#64748b', lineHeight: 1.7 }}>
+              Curriculum Canvas is the fastest way to inspect the curriculum graph as a real operating surface instead of a decorative map. Use it when you need shareable module deep links, blocker-first triage, missing lesson slot cleanup, batch lesson moves, inline gate edits, or a rescue path that stays honest when one of the curriculum feeds misbehaves.
+            </div>
+          </Card>
+        </div>
         <div id="content-library">
           <Card title="Content Library" eyebrow="Canonical structure">
             <div style={{ color: '#64748b', lineHeight: 1.7 }}>
@@ -285,6 +306,14 @@ Dashboard / learner views / workboards
       </section>
 
       <section id="reports" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Canvas operating pattern" eyebrow="When to use the graph instead of the tables">
+          <div style={{ display: 'grid', gap: 10, color: '#475569', lineHeight: 1.7 }}>
+            <div><strong>Use Canvas first</strong> when a module is blocked and you need the exact node, slot sequence, gate coverage, and shareable context in one place.</div>
+            <div><strong>Use Content Library next</strong> when you need the canonical table view across subjects, lessons, and assessments after the graph tells you where the problem lives.</div>
+            <div><strong>Use Lesson Studio from Canvas</strong> when a missing slot or weak lesson needs full authoring, not just a metadata patch.</div>
+            <div><strong>Use the rescue state on purpose</strong> — if a feed is degraded, Canvas should still surface operator actions instead of faking a healthy empty board.</div>
+          </div>
+        </Card>
         <Card title="Reports" eyebrow="Program + NGO readout">
           <div style={{ color: '#64748b', lineHeight: 1.7 }}>
             Reports is no longer just a metric dump. It now includes pod risk ranking, mallam contribution, NGO / donor narrative cards, and a compliance board that answers the first questions grant reviewers and ministry stakeholders will ask.

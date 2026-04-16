@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { MallamRosterManager } from '../../../components/mallam-roster-manager';
 import { ApiRequestError, fetchMallam, fetchMallams, fetchStudents } from '../../../lib/api';
+import { API_BASE_SOURCE } from '../../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 function average(values: number[]) {
@@ -35,6 +37,49 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
 
 export default async function MallamDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
+
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Mallam detail"
+        subtitle="Production wiring is incomplete, so mallam-level coaching, roster review, and deployment decisions are blocked instead of pretending one operator profile is safely loaded."
+        blockerHeadline="Deployment blocker: mallam detail API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so mallam roster pressure, learner risk spread, assignment timelines, and reassignment controls cannot be trusted. Fix the env var, redeploy, then verify a real mallam record before making coverage decisions.
+          </>
+        )}
+        whyBlocked={[
+          'Mallam detail is used for real deployment calls: who is overloaded, who needs coaching, and which learners are carrying risk under that operator.',
+          'Without the production API base, roster counts, attendance spread, assignment pressure, and cross-route actions can all degrade into fiction while still looking polished.',
+          'Blocking this route is safer than letting deployment reviewers infer operator capacity from a disconnected profile shell.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mallam profile header',
+            expected: 'A real mallam name, center, role, pod coverage, and summary metrics load from production',
+            failure: 'Placeholder-safe profile shell appears without live roster depth',
+          },
+          {
+            surface: 'Roster + assignment pressure',
+            expected: 'Learner risk spread, assignment timeline, and attendance pressure match live backend data',
+            failure: 'Cards look clean but roster counts, assignments, or risk bands are empty or suspiciously flat',
+          },
+          {
+            surface: 'Roster operations',
+            expected: 'Learner reassignment and report drilldowns work only after the live learner and mallam feeds load',
+            failure: 'Operators can act on a mallam profile while the deployment is disconnected from the API',
+          },
+        ]}
+        docs={[
+          { label: 'Mallam roster blocker', href: '/mallams', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Learner blocker', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Dashboard blocker', href: '/', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
 
   try {

@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ObservationForm } from '../../../components/observation-form';
+import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
 import { ApiRequestError, fetchMallams, fetchStudent } from '../../../lib/api';
+import { API_BASE_SOURCE } from '../../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
@@ -20,6 +22,49 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
 
 export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
+
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Learner detail"
+        subtitle="Production wiring is incomplete, so learner-level intervention, reassignment, and observation workflows are blocked instead of pretending a specific child record is safely loaded."
+        blockerHeadline="Deployment blocker: learner detail API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so learner profile detail, progress history, assignment timelines, observation capture, and mallam reassignment cannot be trusted. Fix the env var, redeploy, then verify a real learner record before making intervention decisions.
+          </>
+        )}
+        whyBlocked={[
+          'Learner detail is where operators decide what to do next for an actual child. A disconnected page here is not a harmless empty state; it can produce bad support decisions.',
+          'Without the production API base, attendance history, mastery, assignment load, and observation context can all vanish while the UI still looks ready to act.',
+          'Blocking this route keeps deployment review honest until a live learner record can be verified end-to-end.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner profile header',
+            expected: 'A real learner name, cohort, mallam, pod, and stage load from production',
+            failure: 'Generic shell or empty profile cards that could be mistaken for a valid record',
+          },
+          {
+            surface: 'Intervention + progress detail',
+            expected: 'Attendance, mastery, assignments, and recommended actions all reflect live backend data',
+            failure: 'Clean-looking cards appear with missing timelines, empty actions, or suspiciously blank assignment history',
+          },
+          {
+            surface: 'Operator actions',
+            expected: 'Observation capture and mallam reassignment only run once the live mallam directory and learner detail are loaded',
+            failure: 'Controls appear even though the deployment is disconnected from the API',
+          },
+        ]}
+        docs={[
+          { label: 'Learner roster blocker', href: '/students', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Dashboard blocker', href: '/', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
 
   try {

@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
 import { Card, PageShell, Pill, responsiveGrid } from '../../../../lib/ui';
+import { API_BASE_SOURCE } from '../../../../lib/config';
 import { createLessonAction } from '../../../actions';
 
 function statusTone(status: string) {
@@ -35,6 +37,48 @@ function appendMessageParam(path: string, message: string) {
 }
 
 export default async function NewLessonPage({ searchParams }: { searchParams?: Promise<{ subjectId?: string; moduleId?: string; duplicate?: string; from?: string; message?: string; createdLessonId?: string; createdLessonTitle?: string }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Studio"
+        subtitle="Production wiring is incomplete, so lesson authoring is blocked instead of pretending curriculum creation is live."
+        blockerHeadline="Deployment blocker: lesson authoring API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so lesson templates, module context, duplicate flows, and create actions would degrade into fake-ready authoring. Fix the env var, redeploy, then verify the live curriculum feeds before creating lesson packs.
+          </>
+        )}
+        whyBlocked={[
+          'Lesson Studio is a write surface. If production wiring is missing, authors can waste time in a polished shell that cannot prove module context or save against the live backend.',
+          'Subjects, modules, sibling lessons, and assessment gates all need the production API to keep new lesson packs attached to the real curriculum spine.',
+          'Blocking here is safer than letting a missing API base masquerade as a valid authoring lane.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson create form',
+            expected: 'Subjects, modules, and duplicate packs load from the live curriculum API before authors can create anything',
+            failure: 'Studio opens with dead context or disabled save paths while production is miswired',
+          },
+          {
+            surface: 'Assessment context',
+            expected: 'Module-linked gates and sibling lesson packs match the live curriculum lane',
+            failure: 'Authors build into a module that only exists in fallback or stale data',
+          },
+          {
+            surface: 'Post-create handoff',
+            expected: 'New lesson opens in the live library and editor after save',
+            failure: 'Operators think a lesson was created when the backend was never connected',
+          },
+        ]}
+        docs={[
+          { label: 'Content blocker', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'English Studio blocker', href: '/english', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Canvas rescue', href: '/canvas', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
     fetchSubjects(),

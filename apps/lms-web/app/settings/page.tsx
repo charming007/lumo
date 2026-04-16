@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { checkpointStorageAction, deleteStorageBackupAction, repairStorageIntegrityAction, restoreStorageBackupAction } from '../actions';
-import { FeedbackBanner } from '../../components/feedback-banner';
 import { ActionButton } from '../../components/action-button';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { ExportShareCard } from '../../components/export-share-card';
+import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { MetaResponse, OperationsReport, RewardSnapshot, RewardsReport, StorageBackupList, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
 
@@ -113,6 +115,49 @@ function asText(value: unknown) {
 
 export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
+
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Settings"
+        subtitle="Operational controls for persistence, rewards, progression, and storage integrity only matter when the production LMS is wired to a real API."
+        blockerHeadline="Settings is blocked until NEXT_PUBLIC_API_BASE_URL is configured."
+        blockerDetail={(
+          <>
+            This page currently renders a very convincing ops cockpit even when its storage, rewards, workboard, and integrity feeds are dead. That is worse than a crash: it can imply production trust, backup visibility, and repair readiness when the app is actually disconnected.
+          </>
+        )}
+        whyBlocked={[
+          'Without NEXT_PUBLIC_API_BASE_URL in production, settings would silently fall back to empty reports, null storage status, and placeholder trust messaging.',
+          'Operators could read a polished “trust center” and assume persistence, backups, or integrity checks are healthy when no live backend was reached.',
+          'Blocking here keeps deployment reviewers from mistaking dead feeds for a safe admin posture.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Settings trust center',
+            expected: 'Shows real storage mode, persistence, integrity issue counts, and backup visibility from the live API.',
+            failure: 'Nice-looking trust summary appears with zeroed metrics or vague degraded copy after env setup is supposedly complete.',
+          },
+          {
+            surface: 'Storage control center',
+            expected: 'Updated timestamps, database URL state, and checkpoint inventory resolve from production.',
+            failure: 'Unknown storage mode, missing timestamps, or empty backup inventory despite a live environment.',
+          },
+          {
+            surface: 'Rewards + operations panels',
+            expected: 'Leaderboard, rewards report, and operations report all show live counts instead of empty fallback tables.',
+            failure: 'Page renders cleanly but most panels still say unavailable / no data while other admin surfaces are live.',
+          },
+        ]}
+        docs={[
+          { label: 'Verify dashboard', href: '/', background: '#fff7ed', color: '#9a3412' },
+          { label: 'Verify reports', href: '/reports', background: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74' },
+          { label: 'Open guide', href: '/guide#guardrails', background: '#0f172a', color: 'white' },
+        ]}
+      />
+    );
+  }
+
   const [metaResult, leaderboardResult, workboardResult, rewardsReportResult, storageStatusResult, integrityResult, backupsResult, operationsResult] = await Promise.allSettled([
     fetchMeta(),
     fetchRewardsLeaderboard(8),

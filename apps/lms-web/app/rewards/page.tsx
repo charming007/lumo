@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { RewardRequestQueuePanel } from '../../components/reward-request-queue-panel';
 import { RewardsAdminForm } from '../../components/rewards-admin-form';
 import { ExportShareCard } from '../../components/export-share-card';
 import { fetchCohorts, fetchMallams, fetchPods, fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard, fetchRewardsReport, fetchStudents, fetchWorkboard } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { RewardCatalog } from '../../lib/rewards';
 import type { RewardRequestQueue, RewardSnapshot, RewardsReport, Student, WorkboardItem } from '../../lib/types';
@@ -122,6 +124,48 @@ function toCsv(rows: Array<Array<string | number>>) {
 }
 
 export default async function RewardsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; status?: string | string[] }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Rewards & Progression"
+        subtitle="Production wiring is incomplete, so reward operations and progression cues are blocked instead of pretending the incentive system is trustworthy."
+        blockerHeadline="Deployment blocker: rewards API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so leaderboard ranks, reward queue pressure, manual XP interventions, and progression-linked reward decisions would all degrade into convincing nonsense. Fix the env var, redeploy, then verify live reward and progression data before touching learner incentives.
+          </>
+        )}
+        whyBlocked={[
+          'This route is not a passive dashboard. It can drive manual reward adjustments, queue decisions, and progression-adjacent operator actions, so fake-empty states here are operationally dangerous.',
+          'Without the production API base, the leaderboard, reward queue, analytics, learner roster scope, and progression workboard cannot be trusted together on this page.',
+          'Blocking here prevents reviewers from mistaking a polished rewards cockpit for a live incentive system when the backend is actually disconnected.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Reward queue',
+            expected: 'Pending, approved, urgent, expired, and fulfilled requests load with real learner and timestamp data',
+            failure: 'Queue looks calm or empty even though the backend is not connected',
+          },
+          {
+            surface: 'Leaderboard + progression',
+            expected: 'XP totals, badges, readiness states, and next moves align with live learner data',
+            failure: 'Learners appear on-track or unranked because fallback values replaced real progression state',
+          },
+          {
+            surface: 'Manual reward controls',
+            expected: 'Adjustment forms only appear once live learner scope, catalog rules, and reward operations are loaded',
+            failure: 'Operators can open reward actions while roster or catalog data is missing',
+          },
+        ]}
+        docs={[
+          { label: 'Reports blocker', href: '/reports', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Settings blocker', href: '/settings', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Dashboard blocker', href: '/', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();

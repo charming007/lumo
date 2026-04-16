@@ -1,4 +1,6 @@
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { fetchPods } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
@@ -14,6 +16,48 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
 }
 
 export default async function PodsPage() {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Pods"
+        subtitle="Production wiring is incomplete, so pod deployment coverage is blocked instead of pretending center health and learner capacity are live."
+        blockerHeadline="Deployment blocker: pod operations API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so pod connectivity, utilization, mallam coverage, and center deployment health would degrade into convincingly wrong cards and tables. Fix the env var, redeploy, then verify live pod operations before treating capacity or connectivity as real.
+          </>
+        )}
+        whyBlocked={[
+          'Pods are operational coverage, not decorative metadata. Capacity, connectivity, and mallam assignment decisions all depend on live backend state.',
+          'Without the production API base, this page could imply open capacity or healthy connectivity while the backend is actually unreachable.',
+          'Blocking here prevents deployment reviewers from approving a fake-green infrastructure view.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Pod cards',
+            expected: 'Live pods load with center, region, connectivity, utilization, and mallam coverage data',
+            failure: 'Cards render but capacity and connectivity are placeholder-safe fiction',
+          },
+          {
+            surface: 'Utilization table',
+            expected: 'Learner counts and status rows match the live operations feed',
+            failure: 'Empty or calm-looking utilization rows appear because the API never connected',
+          },
+          {
+            surface: 'Cross-check with mallams',
+            expected: 'Pod coverage matches live mallam assignments on the mallam roster',
+            failure: 'Pods and mallams disagree because one or both surfaces are running on dead data',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Mallam blocker', href: '/mallams', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const podsResult = await fetchPods().then((value) => ({ ok: true as const, value })).catch(() => ({ ok: false as const, value: [] }));
   const pods = podsResult.value;
 
