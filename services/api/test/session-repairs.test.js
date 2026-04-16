@@ -64,8 +64,57 @@ test('health, readiness, and config audit surfaces expose production posture', a
   assert.equal(auditResponse.status, 200);
   assert.equal(typeof auditResponse.body.storage.mode, 'string');
   assert.equal(typeof auditResponse.body.cors.allowAnyOrigin, 'boolean');
+  assert.equal(typeof auditResponse.body.auth.roles.admin, 'boolean');
   assert.equal(typeof auditResponse.body.summary.warningCount, 'number');
   assert.equal(typeof auditResponse.body.summary.errorCount, 'number');
+});
+
+test('protected routes fail closed in production-like mode without admin api key and accept configured bearer auth', async () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalAdminKey = process.env.LUMO_ADMIN_API_KEY;
+
+  process.env.NODE_ENV = 'production';
+  delete process.env.LUMO_ADMIN_API_KEY;
+
+  const readyBlocked = await request('/readyz');
+  assert.equal(readyBlocked.status, 503);
+  assert.ok(readyBlocked.body.errors.some((entry) => entry.includes('LUMO_ADMIN_API_KEY')));
+
+  const missingKeyResponse = await request('/api/v1/admin/config/audit', {
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Ops Admin',
+    },
+  });
+
+  assert.equal(missingKeyResponse.status, 503);
+  assert.equal(missingKeyResponse.body.message.includes('LUMO_ADMIN_API_KEY'), true);
+
+  process.env.LUMO_ADMIN_API_KEY = 'prod-admin-secret';
+
+  const invalidKeyResponse = await request('/api/v1/admin/config/audit', {
+    headers: {
+      authorization: 'Bearer wrong-secret',
+    },
+  });
+
+  assert.equal(invalidKeyResponse.status, 401);
+
+  const validKeyResponse = await request('/api/v1/admin/config/audit', {
+    headers: {
+      authorization: 'Bearer prod-admin-secret',
+    },
+  });
+
+  assert.equal(validKeyResponse.status, 200);
+  assert.equal(validKeyResponse.body.auth.roles.admin, true);
+
+  process.env.NODE_ENV = originalNodeEnv;
+  if (originalAdminKey === undefined) {
+    delete process.env.LUMO_ADMIN_API_KEY;
+  } else {
+    process.env.LUMO_ADMIN_API_KEY = originalAdminKey;
+  }
 });
 
 test('session repair detail report includes learner context and revert preview', () => {

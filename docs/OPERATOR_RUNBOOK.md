@@ -19,6 +19,9 @@ If the LMS looks healthy but learner evidence, sync state, or storage trust feel
 - `DATABASE_URL=postgresql://...` when using Postgres
 - `LUMO_CORS_ORIGINS=https://your-lms-domain.example`
 - `LUMO_CORS_ALLOW_ANY_ORIGIN=false`
+- `LUMO_ADMIN_API_KEY=...` for protected admin/teacher/facilitator routes
+- optional: `LUMO_TEACHER_API_KEY=...`
+- optional: `LUMO_FACILITATOR_API_KEY=...`
 - optional: `API_BASE_URL=https://your-api-domain.example`
 - optional warm-cache override: `LUMO_DATA_FILE=/data/lumo/store.json`
 
@@ -28,6 +31,7 @@ Do **not** treat the deployment as healthy if any of these are true:
 - config audit reports `errorCount > 0`
 - `LUMO_DB_MODE=file` in a production-like environment
 - `LUMO_CORS_ALLOW_ANY_ORIGIN=true` outside local development
+- `LUMO_ADMIN_API_KEY` is missing in production/staging
 - storage integrity report shows unresolved critical issues
 - admins are importing snapshots blindly without previewing trust signals first
 

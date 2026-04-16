@@ -15,6 +15,24 @@ Before live production rollout, replace with a plain Node start command or a com
 - `DATABASE_URL`
 - `LUMO_DB_MODE` (`file` by default, `postgres` for JSONB snapshot durability on Postgres via the bundled `pg` client)
 - `LUMO_DATA_FILE` (override JSON snapshot location)
+- `LUMO_ADMIN_API_KEY` (required in production/staging for protected admin/teacher/facilitator endpoints)
+- `LUMO_TEACHER_API_KEY` (optional dedicated teacher key)
+- `LUMO_FACILITATOR_API_KEY` (optional dedicated facilitator key)
+
+## Protected route auth
+
+Local demo mode still supports header-based role simulation when no API keys are configured.
+That is intentionally **not production-safe**.
+
+For production/staging:
+- set `LUMO_ADMIN_API_KEY`
+- send it as either `x-lumo-api-key: ...` or `Authorization: Bearer ...`
+- optionally set dedicated teacher/facilitator keys if you want non-admin operators to call protected routes directly
+
+Behavior:
+- if any `LUMO_*_API_KEY` is configured, protected routes require a valid API key
+- if `NODE_ENV=production` or `staging` and `LUMO_ADMIN_API_KEY` is missing, protected routes fail closed and `/readyz` reports the deployment as not ready
+- admin keys can access teacher/facilitator protected routes; lower-privilege keys cannot access admin routes
 
 ## Learner app integration slice
 

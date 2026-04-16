@@ -7,7 +7,7 @@ const reporting = require('./reporting');
 const rewards = require('./rewards');
 const seed = require('./seed');
 const { getDbMode, getDbModeMeta } = require('./db-mode');
-const { getActor, requireRole } = require('./auth');
+const { getActor, requireRole, getAuthAudit } = require('./auth');
 
 const app = express();
 
@@ -75,6 +75,7 @@ function buildConfigAudit() {
   const allowedOrigins = buildAllowedOrigins();
   const allowAnyOrigin = (process.env.LUMO_CORS_ALLOW_ANY_ORIGIN || '').toLowerCase() === 'true';
   const apiBaseUrl = String(process.env.API_BASE_URL || process.env.LUMO_PUBLIC_API_URL || '').trim() || null;
+  const authAudit = getAuthAudit();
   const warnings = [];
   const errors = [];
 
@@ -98,6 +99,14 @@ function buildConfigAudit() {
     warnings.push('File-backed storage is running in a production-like environment. Use Postgres for durable multi-instance recovery.');
   }
 
+  if (authAudit.productionLike && !authAudit.roles.admin) {
+    errors.push('Protected endpoints are not production-safe without LUMO_ADMIN_API_KEY. Configure API-key auth before exposing admin/teacher/facilitator routes.');
+  }
+
+  if (!authAudit.productionLike && !authAudit.hasAnyConfiguredKey) {
+    warnings.push('Protected endpoints still allow header-based demo auth because no LUMO_*_API_KEY values are configured. Safe for local demos only.');
+  }
+
   return {
     checkedAt: new Date().toISOString(),
     environment: {
@@ -111,6 +120,7 @@ function buildConfigAudit() {
       allowedOrigins,
       loopbackOnly: allowedOrigins.length > 0 && allowedOrigins.every((origin) => isLoopbackOrigin(origin)),
     },
+    auth: authAudit,
     runtime: {
       watchMode: process.execArgv.includes('--watch'),
       pid: process.pid,
