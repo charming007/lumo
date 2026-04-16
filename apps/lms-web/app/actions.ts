@@ -385,6 +385,7 @@ export async function createLessonAction(formData: FormData) {
     subjectId: String(formData.get('subjectId') || ''),
     moduleId: String(formData.get('moduleId') || ''),
     title: String(formData.get('title') || ''),
+    order: Number(formData.get('order') || 0) || undefined,
     durationMinutes: Number(formData.get('durationMinutes') || 0),
     mode: String(formData.get('mode') || 'guided'),
     status: String(formData.get('status') || 'draft'),
@@ -430,6 +431,7 @@ export async function updateLessonAction(formData: FormData) {
     subjectId: String(formData.get('subjectId') || '') || undefined,
     moduleId: String(formData.get('moduleId') || '') || undefined,
     title: String(formData.get('title') || '') || undefined,
+    order: Number(formData.get('order') || 0) || undefined,
     status: String(formData.get('status') || ''),
     mode: String(formData.get('mode') || ''),
     durationMinutes: Number(formData.get('durationMinutes') || 0),
@@ -532,6 +534,7 @@ export async function createCanvasModuleLessonShellsAction(formData: FormData) {
   const missingCount = Math.max(Number(formData.get('missingCount') || 0), 0);
   const startIndex = Math.max(Number(formData.get('startIndex') || 0), 0);
   const titles = Array.from(formData.getAll('titles')).map((value) => String(value || '').trim()).filter(Boolean);
+  const orders = Array.from(formData.getAll('orders')).map((value) => Number(value || 0)).filter((value) => value > 0);
 
   if (!moduleId || !subjectId || missingCount <= 0 || titles.length === 0) {
     redirect(appendSearchParams(returnPath, {
@@ -545,6 +548,7 @@ export async function createCanvasModuleLessonShellsAction(formData: FormData) {
     subjectId,
     moduleId,
     title,
+    order: orders[index] ?? (startIndex + index + 1),
     durationMinutes: 20,
     mode: 'guided',
     status: 'draft',
@@ -572,12 +576,14 @@ export async function quickUpdateCanvasLessonAction(formData: FormData) {
   const title = String(formData.get('title') || '').trim();
   const status = String(formData.get('status') || 'draft');
   const mode = String(formData.get('mode') || 'guided');
+  const order = Number(formData.get('order') || 0) || undefined;
   const durationMinutes = Number(formData.get('durationMinutes') || 0);
 
   await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', {
     title,
     status,
     mode,
+    order,
     durationMinutes,
   });
   revalidatePath('/canvas');

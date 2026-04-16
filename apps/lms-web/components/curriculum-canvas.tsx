@@ -113,10 +113,37 @@ function copyText(value: string, onDone?: () => void) {
   }).catch(() => false);
 }
 
+function buildLessonSlots(module: CurriculumCanvasModule) {
+  const lessonsByOrder = new Map<number, CurriculumCanvasLesson>();
+  const overflowLessons: CurriculumCanvasLesson[] = [];
+
+  module.lessons.forEach((lesson) => {
+    const order = typeof lesson.order === 'number' && lesson.order > 0 ? lesson.order : null;
+    if (order && order <= module.lessonCount && !lessonsByOrder.has(order)) {
+      lessonsByOrder.set(order, lesson);
+      return;
+    }
+    overflowLessons.push(lesson);
+  });
+
+  return Array.from({ length: module.lessonCount }, (_, index) => {
+    const order = index + 1;
+    return {
+      order,
+      lesson: lessonsByOrder.get(order) ?? null,
+      occupiedByDifferentOrder: lessonsByOrder.has(order) ? false : overflowLessons.some((lesson) => lesson.order === order),
+    };
+  });
+}
+
+function missingLessonOrders(module: CurriculumCanvasModule) {
+  return buildLessonSlots(module).filter((slot) => !slot.lesson).map((slot) => slot.order);
+}
+
 function laneCards(module: CurriculumCanvasModule) {
   const lessonsWithoutGate = module.lessons.filter((lesson) => !lesson.assessmentId).length;
   const lessonsNeedingReadiness = Math.max(module.lessonCount - module.readyLessons, 0);
-  const missingLessonSlots = Math.max(module.lessonCount - module.lessons.length, 0);
+  const missingLessonSlots = missingLessonOrders(module).length;
 
   return [
     {
@@ -341,9 +368,11 @@ export function CurriculumCanvas({
   const selectedLesson = selected?.module.lessons.find((lesson) => lesson.id === selectedLessonId) ?? null;
   const selectedAssessment = selected?.module.assessments.find((assessment) => assessment.id === selectedAssessmentId) ?? null;
   const selectedModuleUrl = selected ? moduleUrl(selected.subject.id, selected.module.id, searchTerm, readinessFilter) : '/canvas';
-  const selectedModuleMissingSlots = selected ? Math.max(selected.module.lessonCount - selected.module.lessons.length, 0) : 0;
+  const selectedModuleSlots = selected ? buildLessonSlots(selected.module) : [];
+  const selectedModuleMissingOrders = selected ? missingLessonOrders(selected.module) : [];
+  const selectedModuleMissingSlots = selectedModuleMissingOrders.length;
   const selectedModuleLessonShellTitles = selected
-    ? Array.from({ length: selectedModuleMissingSlots }, (_, index) => `${selected.module.title} Lesson ${selected.module.lessons.length + index + 1}`)
+    ? selectedModuleMissingOrders.map((order) => `${selected.module.title} Lesson ${order}`)
     : [];
 
   useEffect(() => {
@@ -696,16 +725,28 @@ export function CurriculumCanvas({
                   </div>
 
                   <div style={{ display: 'grid', gap: 8 }}>
-                    {Array.from({ length: selected.module.lessonCount }, (_, index) => {
-                      const lesson = selected.module.lessons[index] ?? null;
+                    {selectedModuleSlots.map((slot) => {
+                      const lesson = slot.lesson;
                       return (
-                        <div key={`${selected.module.id}-slot-${index + 1}`} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 10, alignItems: 'center', padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.42)', border: '1px solid rgba(148,163,184,0.12)' }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 999, display: 'grid', placeItems: 'center', fontWeight: 900, background: lesson ? 'rgba(79,70,229,0.24)' : 'rgba(148,163,184,0.12)', color: lesson ? '#ddd6fe' : '#cbd5e1' }}>{index + 1}</div>
+                        <div key={`${selected.module.id}-slot-${slot.order}`} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 10, alignItems: 'center', padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.42)', border: '1px solid rgba(148,163,184,0.12)' }}>
+                          <div style={{ width: 34, height: 34, borderRadius: 999, display: 'grid', placeItems: 'center', fontWeight: 900, background: lesson ? 'rgba(79,70,229,0.24)' : 'rgba(148,163,184,0.12)', color: lesson ? '#ddd6fe' : '#cbd5e1' }}>{slot.order}</div>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ color: '#f8fafc', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lesson?.title ?? `Open lesson slot ${index + 1}`}</div>
-                            <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.5 }}>{lesson ? lessonSummary(lesson) : 'No lesson mapped yet — create a shell or open the full authoring flow.'}</div>
+                            <div style={{ color: '#f8fafc', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lesson?.title ?? `Open lesson slot ${slot.order}`}</div>
+                            <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.5 }}>{lesson ? `Sequence ${lesson.order ?? 'unassigned'} · ${lessonSummary(lesson)}` : 'No lesson mapped yet — create a shell or open the full authoring flow.'}</div>
+                            {!lesson ? <div style={{ color: '#fdba74', fontSize: 12, marginTop: 4 }}>Expected sequence slot is empty.</div> : null}
                           </div>
-                          {lesson ? <Pill label={lesson.status} tone={statusTone(lesson.status).tone} text={statusTone(lesson.status).text} /> : <Pill label="missing" tone="#431407" text="#fdba74" />}
+                          <div style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
+                            {lesson ? <Pill label={lesson.status} tone={statusTone(lesson.status).tone} text={statusTone(lesson.status).text} /> : <Pill label="missing" tone="#431407" text="#fdba74" />}
+                            {lesson ? (
+                              <button type="button" onClick={() => setSelectedLessonId(lesson.id)} style={{ ...filterButtonStyle, padding: '7px 10px', fontSize: 12, background: 'rgba(79,70,229,0.18)', color: '#e0e7ff' }}>
+                                Inspect slot
+                              </button>
+                            ) : (
+                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...actionLinkStyle, padding: '7px 10px', fontSize: 12, background: '#EDE9FE', color: '#5B21B6' }}>
+                                Fill slot
+                              </Link>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -738,6 +779,7 @@ export function CurriculumCanvas({
                       <input type="hidden" name="missingCount" value={selectedModuleMissingSlots} />
                       <input type="hidden" name="startIndex" value={selected.module.lessons.length} />
                       {selectedModuleLessonShellTitles.map((title) => <input key={title} type="hidden" name="titles" value={title} />)}
+                      {selectedModuleMissingOrders.map((order) => <input key={`${selected.module.id}-missing-order-${order}`} type="hidden" name="orders" value={order} />)}
                       <div style={{ color: selectedModuleMissingSlots ? '#e2e8f0' : '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>
                         {selectedModuleMissingSlots
                           ? `${selectedModuleMissingSlots} expected slot${selectedModuleMissingSlots === 1 ? '' : 's'} are still empty. This creates draft shells in one hit so authors stop hand-building obvious placeholders.`
@@ -995,6 +1037,7 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUp
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
         {[
+          ['Sequence slot', lesson.order ? String(lesson.order) : 'Unassigned'],
           ['Objectives', String(lesson.objectiveCount ?? 0)],
           ['Activities', String(lesson.activityCount ?? 0)],
           ['Module link', lesson.assessmentTitle ? 'Connected' : 'Needs triage'],
@@ -1057,6 +1100,10 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, returnPath, quickUp
               <option value="practice">Practice</option>
               <option value="ops">Ops</option>
             </select>
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Sequence slot</span>
+            <input name="order" type="number" min="1" max="60" defaultValue={lesson.order ?? ''} placeholder="Set slot" style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
           </label>
           <label style={{ display: 'grid', gap: 6 }}>
             <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Duration (min)</span>
