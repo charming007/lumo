@@ -4107,6 +4107,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   bool _resumedSession = false;
   bool _resumePromptPendingFromLifecycle = false;
   String _latestFinalTranscript = '';
+  String _lastPersistedResponseDraft = '';
   bool _capturedStableFinalTranscript = false;
   bool _latestTranscriptNeedsManualReview = false;
   String _recordingModeLabel = 'Standard recorder';
@@ -4121,7 +4122,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    responseController = TextEditingController();
+    responseController = TextEditingController()
+      ..addListener(_persistActiveResponseDraft);
     audioCaptureService = AudioCaptureService();
     learnerAudioPlaybackService = LearnerAudioPlaybackService();
     speechTranscriptionService = SpeechTranscriptionService();
@@ -4130,6 +4132,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final session = widget.state.activeSession;
     if (session != null) {
       responseController.text = session.latestLearnerResponse ?? '';
+      _lastPersistedResponseDraft = responseController.text;
       _latestFinalTranscript = session.latestLearnerResponse ?? '';
       _resumedSession = session.totalResponses > 0 || session.stepIndex > 0;
       final hasDraftResponse =
@@ -4163,6 +4166,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       if (_hasRecoveredLearnerEvidence) return;
       _speakCurrentStepIfNeeded(force: true);
     });
+  }
+
+  void _persistActiveResponseDraft() {
+    final draft = responseController.text;
+    if (draft == _lastPersistedResponseDraft) return;
+    _lastPersistedResponseDraft = draft;
+    widget.state.updateCurrentStepLearnerDraft(draft);
   }
 
   Future<void> _primeDiagnostics() async {
