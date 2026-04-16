@@ -21,6 +21,9 @@ import 'theme.dart';
 import 'voice_replay_service.dart';
 import 'widgets.dart';
 
+final RouteObserver<ModalRoute<void>> lumoRouteObserver =
+    RouteObserver<ModalRoute<void>>();
+
 void main() {
   runApp(const LumoApp());
 }
@@ -86,6 +89,7 @@ class _LumoAppState extends State<LumoApp> {
       title: 'Lumo',
       debugShowCheckedModeBanner: false,
       theme: LumoTheme.light,
+      navigatorObservers: [lumoRouteObserver],
       home: showSplash
           ? SplashScreen(onFinish: handleSplashFinished)
           : SessionRecoveryGate(
@@ -1456,7 +1460,7 @@ class _LearnerIdentityHero extends StatelessWidget {
   }
 }
 
-class LearnerProfilePage extends StatelessWidget {
+class LearnerProfilePage extends StatefulWidget {
   final LumoAppState state;
   final LearnerProfile learner;
 
@@ -1466,18 +1470,47 @@ class LearnerProfilePage extends StatelessWidget {
     required this.learner,
   });
 
+  @override
+  State<LearnerProfilePage> createState() => _LearnerProfilePageState();
+}
+
+class _LearnerProfilePageState extends State<LearnerProfilePage>
+    with RouteAware {
   LearnerProfile _resolveLearner() {
-    for (final entry in state.learners) {
-      if (entry.id == learner.id) return entry;
+    for (final entry in widget.state.learners) {
+      if (entry.id == widget.learner.id) return entry;
     }
-    if (state.currentLearner?.id == learner.id) {
-      return state.currentLearner!;
+    if (widget.state.currentLearner?.id == widget.learner.id) {
+      return widget.state.currentLearner!;
     }
-    return learner;
+    return widget.learner;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute<dynamic>) {
+      lumoRouteObserver.unsubscribe(this);
+      lumoRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    lumoRouteObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final learner = _resolveLearner();
     final rewards = learner.rewards;
     final totalXp = learner.totalXp;
