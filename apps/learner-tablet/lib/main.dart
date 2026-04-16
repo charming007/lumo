@@ -5817,32 +5817,37 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final isStackedLayout = MediaQuery.sizeOf(context).width < 960;
 
     Widget buildLessonGuidePane() {
+      final lessonStage = _MallamStageShell(
+        eyebrow: 'AI Mallam',
+        title: 'Guide the lesson from here',
+        description:
+            'Keep Mallam visible, centered, and focused on the current step while the learner works through the lesson.',
+        child: MallamPanel(
+          instruction: lessonInstruction,
+          onVoiceTap: () async {
+            _promptedCurrentStep = false;
+            await _speakCurrentStepIfNeeded(force: true);
+            widget.onChanged();
+            setState(() {});
+          },
+          prompt: widget.state.personalizePrompt(step.coachPrompt),
+          speakerMode: session.speakerMode,
+          statusLabel: _speakerModeLabel(session.speakerMode),
+          secondaryStatus:
+              'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
+          voiceButtonLabel: 'Replay Mallam',
+          speakerOutputMode: session.speakerOutputMode,
+          voiceHint: isSpeaking
+              ? 'Mallam is active here while the learner task stays visible beside it.'
+              : 'Keep the learner looking at the lesson workspace while Mallam guides from this stage.',
+        ),
+      );
+
       if (isStackedLayout) {
         return SingleChildScrollView(
           child: Column(
             children: [
-              SizedBox(
-                height: 360,
-                child: MallamPanel(
-                  instruction: lessonInstruction,
-                  onVoiceTap: () async {
-                    _promptedCurrentStep = false;
-                    await _speakCurrentStepIfNeeded(force: true);
-                    widget.onChanged();
-                    setState(() {});
-                  },
-                  prompt: widget.state.personalizePrompt(step.coachPrompt),
-                  speakerMode: session.speakerMode,
-                  statusLabel: _speakerModeLabel(session.speakerMode),
-                  secondaryStatus:
-                      'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
-                  voiceButtonLabel: 'Replay Mallam',
-                  speakerOutputMode: session.speakerOutputMode,
-                  voiceHint: isSpeaking
-                      ? 'Mallam is active on the left while the learner task stays visible on the right.'
-                      : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
-                ),
-              ),
+              SizedBox(height: 520, child: lessonStage),
               const SizedBox(height: 16),
               _LessonStageStrip(
                 session: session,
@@ -5860,27 +5865,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
       return Column(
         children: [
-          Expanded(
-            child: MallamPanel(
-              instruction: lessonInstruction,
-              onVoiceTap: () async {
-                _promptedCurrentStep = false;
-                await _speakCurrentStepIfNeeded(force: true);
-                widget.onChanged();
-                setState(() {});
-              },
-              prompt: widget.state.personalizePrompt(step.coachPrompt),
-              speakerMode: session.speakerMode,
-              statusLabel: _speakerModeLabel(session.speakerMode),
-              secondaryStatus:
-                  'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}',
-              voiceButtonLabel: 'Replay Mallam',
-              speakerOutputMode: session.speakerOutputMode,
-              voiceHint: isSpeaking
-                  ? 'Mallam is active on the left while the learner task stays visible on the right.'
-                  : 'Keep the learner looking right at the lesson workspace while Mallam guides from this side.',
-            ),
-          ),
+          Expanded(child: lessonStage),
           const SizedBox(height: 16),
           _LessonStageStrip(
             session: session,
@@ -5916,6 +5901,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   child: DetailCard(
                     child: LayoutBuilder(
                       builder: (context, detailConstraints) {
+                        final compactSessionHeader =
+                            isStackedLayout || detailConstraints.maxWidth < 560;
                         final detailContent = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -5933,10 +5920,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 12),
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(22),
+                              padding: const EdgeInsets.all(18),
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
@@ -5975,7 +5962,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             LayoutBuilder(
                               builder: (context, constraints) {
                                 final compact = constraints.maxWidth < 640;
@@ -6028,293 +6015,301 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 );
                               },
                             ),
-                            const SizedBox(height: 16),
-                            LinearProgressIndicator(
-                              value: session.progress,
-                              minHeight: 10,
-                              borderRadius:
-                                  const BorderRadius.all(Radius.circular(999)),
-                              color: LumoTheme.primary,
-                              backgroundColor: const Color(0xFFE9E7FF),
-                            ),
-                            const SizedBox(height: 16),
-                            SoftPanel(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFEEF2FF),
-                                          borderRadius:
-                                              BorderRadius.circular(14),
+                            if (!compactSessionHeader) ...[
+                              const SizedBox(height: 16),
+                              LinearProgressIndicator(
+                                value: session.progress,
+                                minHeight: 10,
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(999),
+                                ),
+                                color: LumoTheme.primary,
+                                backgroundColor: const Color(0xFFE9E7FF),
+                              ),
+                              const SizedBox(height: 16),
+                              SoftPanel(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEEF2FF),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                          child: const Icon(
+                                            Icons.assistant_rounded,
+                                            color: LumoTheme.primary,
+                                          ),
                                         ),
-                                        child: const Icon(
-                                          Icons.assistant_rounded,
-                                          color: LumoTheme.primary,
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                _sessionStatusHeadline,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                _sessionStatusBody,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF475569),
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _buildDiagnosticChip(
+                                          icon: _isAudioOnlyReviewState ||
+                                                  _draftTranscriptNeedsVoiceCheck ||
+                                                  _hasTranscriptSafetyBlock
+                                              ? Icons.verified_user_rounded
+                                              : Icons.hearing_rounded,
+                                          label: _transcriptSourceOfTruthLabel,
+                                          healthy: !_isAudioOnlyReviewState &&
+                                              !_draftTranscriptNeedsVoiceCheck &&
+                                              !_hasTranscriptSafetyBlock,
+                                          warn: _isAudioOnlyReviewState ||
+                                              _draftTranscriptNeedsVoiceCheck ||
+                                              _hasTranscriptSafetyBlock,
+                                        ),
+                                        _buildDiagnosticChip(
+                                          icon: isAutoMode
+                                              ? Icons.auto_mode_rounded
+                                              : Icons.pan_tool_alt_rounded,
+                                          label: _automationSafetyLabel,
+                                          healthy: isAutoMode &&
+                                              !_isAudioOnlyReviewState &&
+                                              !_draftTranscriptNeedsVoiceCheck &&
+                                              !_hasTranscriptSafetyBlock &&
+                                              _consecutiveTranscriptMisses < 2,
+                                          warn: !isAutoMode ||
+                                              _isAudioOnlyReviewState ||
+                                              _draftTranscriptNeedsVoiceCheck ||
+                                              _hasTranscriptSafetyBlock ||
+                                              _consecutiveTranscriptMisses >= 2,
+                                        ),
+                                        _buildDiagnosticChip(
+                                          icon: Icons.mic_rounded,
+                                          label: _recordingModeLabel,
+                                          healthy: true,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(16),
+                                      onTap: () {
+                                        setState(() {
+                                          _transcriptStrategyExpanded =
+                                              !_transcriptStrategyExpanded;
+                                        });
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 2,
+                                        ),
+                                        child: Row(
                                           children: [
-                                            Text(
-                                              _sessionStatusHeadline,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 18,
+                                            const Expanded(
+                                              child: Text(
+                                                'Listening help and recovery details',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF334155),
+                                                ),
                                               ),
                                             ),
-                                            const SizedBox(height: 6),
                                             Text(
-                                              _sessionStatusBody,
+                                              _transcriptStrategyExpanded
+                                                  ? 'Hide details'
+                                                  : 'Show details',
                                               style: const TextStyle(
-                                                color: Color(0xFF475569),
-                                                height: 1.4,
+                                                color: LumoTheme.primary,
+                                                fontWeight: FontWeight.w700,
                                               ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              _transcriptStrategyExpanded
+                                                  ? Icons.expand_less_rounded
+                                                  : Icons.expand_more_rounded,
+                                              color: LumoTheme.primary,
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      _buildDiagnosticChip(
-                                        icon: _isAudioOnlyReviewState ||
-                                                _draftTranscriptNeedsVoiceCheck ||
-                                                _hasTranscriptSafetyBlock
-                                            ? Icons.verified_user_rounded
-                                            : Icons.hearing_rounded,
-                                        label: _transcriptSourceOfTruthLabel,
-                                        healthy: !_isAudioOnlyReviewState &&
-                                            !_draftTranscriptNeedsVoiceCheck &&
-                                            !_hasTranscriptSafetyBlock,
-                                        warn: _isAudioOnlyReviewState ||
-                                            _draftTranscriptNeedsVoiceCheck ||
-                                            _hasTranscriptSafetyBlock,
+                                    ),
+                                    if (_transcriptStrategyExpanded) ...[
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        _transcriptStrategySummary,
+                                        style: const TextStyle(
+                                          color: Color(0xFF475569),
+                                          height: 1.35,
+                                        ),
                                       ),
-                                      _buildDiagnosticChip(
-                                        icon: isAutoMode
-                                            ? Icons.auto_mode_rounded
-                                            : Icons.pan_tool_alt_rounded,
-                                        label: _automationSafetyLabel,
-                                        healthy: isAutoMode &&
-                                            !_isAudioOnlyReviewState &&
-                                            !_draftTranscriptNeedsVoiceCheck &&
-                                            !_hasTranscriptSafetyBlock &&
-                                            _consecutiveTranscriptMisses < 2,
-                                        warn: !isAutoMode ||
-                                            _isAudioOnlyReviewState ||
-                                            _draftTranscriptNeedsVoiceCheck ||
-                                            _hasTranscriptSafetyBlock ||
-                                            _consecutiveTranscriptMisses >= 2,
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        _automationSafetySummary,
+                                        style: const TextStyle(
+                                          color: Color(0xFF64748B),
+                                          height: 1.35,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                      _buildDiagnosticChip(
-                                        icon: Icons.mic_rounded,
-                                        label: _recordingModeLabel,
-                                        healthy: true,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  InkWell(
-                                    borderRadius: BorderRadius.circular(16),
-                                    onTap: () {
-                                      setState(() {
-                                        _transcriptStrategyExpanded =
-                                            !_transcriptStrategyExpanded;
-                                      });
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 2,
-                                      ),
-                                      child: Row(
+                                      const SizedBox(height: 10),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
                                         children: [
-                                          const Expanded(
-                                            child: Text(
-                                              'Listening help and recovery details',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                color: Color(0xFF334155),
-                                              ),
-                                            ),
+                                          _buildDiagnosticChip(
+                                            icon: speechRecognitionActive
+                                                ? Icons.settings_voice_rounded
+                                                : Icons
+                                                    .hearing_disabled_rounded,
+                                            label: _transcriptModeLabel,
+                                            healthy: speechRecognitionActive,
+                                            warn: !speechRecognitionActive,
                                           ),
-                                          Text(
-                                            _transcriptStrategyExpanded
-                                                ? 'Hide details'
-                                                : 'Show details',
-                                            style: const TextStyle(
-                                              color: LumoTheme.primary,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Icon(
-                                            _transcriptStrategyExpanded
-                                                ? Icons.expand_less_rounded
-                                                : Icons.expand_more_rounded,
-                                            color: LumoTheme.primary,
+                                          _buildDiagnosticChip(
+                                            icon: speechRecognitionActive
+                                                ? Icons.hearing_rounded
+                                                : _avoidConcurrentSpeechCapture
+                                                    ? Icons.mic_none_rounded
+                                                    : Icons
+                                                        .warning_amber_rounded,
+                                            label: _transcriptStrategyHeadline,
+                                            healthy: speechRecognitionActive &&
+                                                !_avoidConcurrentSpeechCapture,
+                                            warn: !speechRecognitionActive ||
+                                                _avoidConcurrentSpeechCapture,
                                           ),
                                         ],
                                       ),
-                                    ),
-                                  ),
-                                  if (_transcriptStrategyExpanded) ...[
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      _transcriptStrategySummary,
-                                      style: const TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.35,
+                                      const SizedBox(height: 10),
+                                      ..._transcriptStrategyActions.take(3).map(
+                                            (action) => Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 6,
+                                              ),
+                                              child: Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Padding(
+                                                    padding:
+                                                        EdgeInsets.only(top: 2),
+                                                    child: Icon(
+                                                      Icons
+                                                          .arrow_forward_rounded,
+                                                      size: 16,
+                                                      color: LumoTheme.primary,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      action,
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF475569),
+                                                        height: 1.35,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (!isStackedLayout) ...[
+                              const SizedBox(height: 16),
+                              SoftPanel(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Lesson pace',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      _automationSafetySummary,
+                                      session.practiceMode ==
+                                              PracticeMode.repeatAfterMe
+                                          ? 'Repeat mode keeps things slower and more echo-based for this learner.'
+                                          : session.practiceMode ==
+                                                  PracticeMode.independentCheck
+                                              ? 'Independent mode gives the learner more space to answer in their own words.'
+                                              : 'Standard mode balances prompting, checking, and support.',
                                       style: const TextStyle(
-                                        color: Color(0xFF64748B),
+                                        color: Color(0xFF475569),
                                         height: 1.35,
-                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                     const SizedBox(height: 10),
                                     Wrap(
                                       spacing: 8,
                                       runSpacing: 8,
-                                      children: [
-                                        _buildDiagnosticChip(
-                                          icon: speechRecognitionActive
-                                              ? Icons.settings_voice_rounded
-                                              : Icons.hearing_disabled_rounded,
-                                          label: _transcriptModeLabel,
-                                          healthy: speechRecognitionActive,
-                                          warn: !speechRecognitionActive,
-                                        ),
-                                        _buildDiagnosticChip(
-                                          icon: speechRecognitionActive
-                                              ? Icons.hearing_rounded
-                                              : _avoidConcurrentSpeechCapture
-                                                  ? Icons.mic_none_rounded
-                                                  : Icons.warning_amber_rounded,
-                                          label: _transcriptStrategyHeadline,
-                                          healthy: speechRecognitionActive &&
-                                              !_avoidConcurrentSpeechCapture,
-                                          warn: !speechRecognitionActive ||
-                                              _avoidConcurrentSpeechCapture,
-                                        ),
-                                      ],
+                                      children: PracticeMode.values.map((mode) {
+                                        final selected =
+                                            session.practiceMode == mode;
+                                        final label = switch (mode) {
+                                          PracticeMode.standard => 'Balanced',
+                                          PracticeMode.repeatAfterMe =>
+                                            'Repeat more',
+                                          PracticeMode.independentCheck =>
+                                            'More independent',
+                                        };
+                                        return ChoiceChip(
+                                          label: Text(label),
+                                          selected: selected,
+                                          onSelected: (_) {
+                                            widget.state.setPracticeMode(mode);
+                                            widget.onChanged();
+                                            setState(() {
+                                              microphoneStatus = widget
+                                                      .state
+                                                      .activeSession
+                                                      ?.automationStatus ??
+                                                  microphoneStatus;
+                                            });
+                                          },
+                                        );
+                                      }).toList(),
                                     ),
-                                    const SizedBox(height: 10),
-                                    ..._transcriptStrategyActions.take(3).map(
-                                          (action) => Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 6,
-                                            ),
-                                            child: Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                const Padding(
-                                                  padding:
-                                                      EdgeInsets.only(top: 2),
-                                                  child: Icon(
-                                                    Icons.arrow_forward_rounded,
-                                                    size: 16,
-                                                    color: LumoTheme.primary,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Expanded(
-                                                  child: Text(
-                                                    action,
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF475569),
-                                                      height: 1.35,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            SoftPanel(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Lesson pace',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w800),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    session.practiceMode ==
-                                            PracticeMode.repeatAfterMe
-                                        ? 'Repeat mode keeps things slower and more echo-based for this learner.'
-                                        : session.practiceMode ==
-                                                PracticeMode.independentCheck
-                                            ? 'Independent mode gives the learner more space to answer in their own words.'
-                                            : 'Standard mode balances prompting, checking, and support.',
-                                    style: const TextStyle(
-                                      color: Color(0xFF475569),
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: PracticeMode.values.map((mode) {
-                                      final selected =
-                                          session.practiceMode == mode;
-                                      final label = switch (mode) {
-                                        PracticeMode.standard => 'Balanced',
-                                        PracticeMode.repeatAfterMe =>
-                                          'Repeat more',
-                                        PracticeMode.independentCheck =>
-                                          'More independent',
-                                      };
-                                      return ChoiceChip(
-                                        label: Text(label),
-                                        selected: selected,
-                                        onSelected: (_) {
-                                          widget.state.setPracticeMode(mode);
-                                          widget.onChanged();
-                                          setState(() {
-                                            microphoneStatus = widget
-                                                    .state
-                                                    .activeSession
-                                                    ?.automationStatus ??
-                                                microphoneStatus;
-                                          });
-                                        },
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            ],
                             const SizedBox(height: 16),
                             Flexible(
-                              fit: isStackedLayout
-                                  ? FlexFit.loose
-                                  : FlexFit.tight,
+                              fit: FlexFit.tight,
                               child: SingleChildScrollView(
                                 child: Column(
                                   children: [

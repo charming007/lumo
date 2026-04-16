@@ -131,8 +131,9 @@ class MallamPanel extends StatelessWidget {
           alignment:
               centerPortraitLayout ? Alignment.center : Alignment.centerLeft,
           child: Wrap(
-            alignment:
-                centerPortraitLayout ? WrapAlignment.center : WrapAlignment.start,
+            alignment: centerPortraitLayout
+                ? WrapAlignment.center
+                : WrapAlignment.start,
             spacing: 8,
             runSpacing: 8,
             children: [
@@ -204,12 +205,14 @@ class MallamPanel extends StatelessWidget {
             border: Border.all(color: speakerColor.withValues(alpha: 0.18)),
           ),
           child: Column(
-            crossAxisAlignment:
-                centerPortraitLayout ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            crossAxisAlignment: centerPortraitLayout
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
             children: [
               Text(
                 'Mallam says',
-                textAlign: centerPortraitLayout ? TextAlign.center : TextAlign.left,
+                textAlign:
+                    centerPortraitLayout ? TextAlign.center : TextAlign.left,
                 style: TextStyle(
                   color: speakerColor,
                   fontWeight: FontWeight.w800,
@@ -219,10 +222,9 @@ class MallamPanel extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 prompt,
-                textAlign:
-                    centerPortraitLayout || compactLayout
-                        ? TextAlign.center
-                        : TextAlign.left,
+                textAlign: centerPortraitLayout || compactLayout
+                    ? TextAlign.center
+                    : TextAlign.left,
                 style: promptStyle,
               ),
             ],
