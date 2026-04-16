@@ -232,12 +232,26 @@ function buildLearnerAssessments() {
     .map(presenters.presentAssessment);
 }
 
+function buildLearnerModules({ includeAssigned = false } = {}) {
+  const assignedModuleIds = includeAssigned
+    ? new Set(
+        store
+          .listAssignments()
+          .filter((assignment) => ['active', 'scheduled'].includes(assignment.status))
+          .map((assignment) => store.findLessonById(assignment.lessonId)?.moduleId)
+          .filter(Boolean),
+      )
+    : new Set();
+
+  return store
+    .listModules()
+    .filter((module) => module.status === 'published' || assignedModuleIds.has(module.id))
+    .map(presenters.presentLearnerModule);
+}
+
 function buildLearnerAppBootstrap() {
   const learners = store.listStudents().map(presenters.presentLearnerProfile);
-  const modules = store
-    .listModules()
-    .filter((module) => module.status === 'published')
-    .map(presenters.presentLearnerModule);
+  const modules = buildLearnerModules({ includeAssigned: true });
   const lessons = buildLearnerLessons();
   const assignments = buildLearnerAssignmentIndex();
   const assessments = buildLearnerAssessments();
@@ -1014,12 +1028,7 @@ app.post('/api/v1/learner-app/sync-batches', (req, res, next) => {
 });
 
 app.get('/api/v1/learner-app/modules', (_req, res) => {
-  res.json(
-    store
-      .listModules()
-      .filter((module) => module.status === 'published')
-      .map(presenters.presentLearnerModule),
-  );
+  res.json(buildLearnerModules({ includeAssigned: true }));
 });
 
 app.get('/api/v1/learner-app/assignments', (_req, res) => {

@@ -718,23 +718,35 @@ class LearningModule {
   });
 
   factory LearningModule.fromBackend(Map<String, dynamic> json) {
-    final subjectId =
-        json['subjectId']?.toString() ?? json['id']?.toString() ?? 'module';
-    final subjectName = json['subjectName']?.toString();
-    final title = json['title']?.toString() ?? 'Learning module';
+    final moduleId = json['id']?.toString() ?? 'module';
+    final subjectId = json['subjectId']?.toString() ?? moduleId;
+    final subjectName = json['subjectName']?.toString()?.trim();
+    final title = json['title']?.toString().trim();
     final level = json['level']?.toString() ?? 'beginner';
-    final moduleTitle =
-        subjectName?.trim().isNotEmpty == true ? subjectName!.trim() : title;
+    final badge = json['badge']?.toString().trim();
+
+    final moduleTitle = title != null && title.isNotEmpty
+        ? title
+        : subjectName != null && subjectName.isNotEmpty
+            ? subjectName
+            : 'Learning module';
+    final description = json['description']?.toString().trim();
+    final voicePrompt = json['voicePrompt']?.toString().trim();
+    final readinessGoal = json['readinessGoal']?.toString().trim();
 
     return LearningModule(
-      id: subjectId,
+      id: moduleId,
       title: moduleTitle,
-      description:
-          'Live ${title.toLowerCase()} path for ${moduleTitle.toLowerCase()} learners.',
-      voicePrompt:
-          'We are opening $moduleTitle. Follow Mallam one step at a time.',
-      readinessGoal: _moduleGoal(level, subjectId),
-      badge: 'Live backend',
+      description: description != null && description.isNotEmpty
+          ? description
+          : 'Live ${moduleTitle.toLowerCase()} path for ${subjectName?.toLowerCase() ?? 'learning'} learners.',
+      voicePrompt: voicePrompt != null && voicePrompt.isNotEmpty
+          ? voicePrompt
+          : 'We are opening $moduleTitle. Follow Mallam one step at a time.',
+      readinessGoal: readinessGoal != null && readinessGoal.isNotEmpty
+          ? readinessGoal
+          : _moduleGoal(level, subjectId),
+      badge: badge != null && badge.isNotEmpty ? badge : 'Live backend',
     );
   }
 }
@@ -1269,10 +1281,9 @@ String _moduleGoal(String level, String subjectId) {
 }
 
 List<LessonStep> _readBackendActivitySteps(Map<String, dynamic> json) {
-  final rawSteps =
-      (json['activitySteps'] as List?) ??
-          (json['activities'] as List?) ??
-          (json['steps'] as List?);
+  final rawSteps = (json['activitySteps'] as List?) ??
+      (json['activities'] as List?) ??
+      (json['steps'] as List?);
   if (rawSteps == null) return const [];
 
   final items = rawSteps
@@ -1421,4 +1432,3 @@ String _emojiForChoice(LessonActivityChoice choice) {
   if (choice.mediaKind == 'audio') return '🔊';
   return choice.isCorrect ? '✅' : '🔹';
 }
-
