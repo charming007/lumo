@@ -118,9 +118,14 @@ class MallamPanel extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactLayout =
-            constraints.maxWidth < 420 || constraints.maxHeight < 760;
-        final imageFrameSize = compactLayout ? 188.0 : 220.0;
-        final imageSize = compactLayout ? 160.0 : 188.0;
+            constraints.maxWidth < 560 || constraints.maxHeight < 760;
+        final centeredPortraitSize =
+            centerPortraitLayout ? (compactLayout ? 260.0 : 320.0) : null;
+        final imageFrameSize =
+            centeredPortraitSize ?? (compactLayout ? 188.0 : 220.0);
+        final imageSize = centerPortraitLayout
+            ? imageFrameSize - (compactLayout ? 28.0 : 32.0)
+            : (compactLayout ? 160.0 : 188.0);
         final promptStyle = TextStyle(
           fontSize: compactLayout ? 18 : 22,
           fontWeight: FontWeight.w700,
@@ -151,17 +156,18 @@ class MallamPanel extends StatelessWidget {
         final portrait = Container(
           height: imageFrameSize,
           width: imageFrameSize,
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(centerPortraitLayout ? 10 : 14),
           decoration: BoxDecoration(
             color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(32),
+            borderRadius: BorderRadius.circular(centerPortraitLayout ? 40 : 32),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(centerPortraitLayout ? 32 : 24),
             child: Image.asset(
               'assets/images/mallam_tutor.jpg',
               height: imageSize,
+              width: imageSize,
               fit: BoxFit.contain,
             ),
           ),
@@ -281,15 +287,7 @@ class MallamPanel extends StatelessWidget {
           const SizedBox(height: 16),
           Center(child: portrait),
           const SizedBox(height: 18),
-          if (centerPortraitLayout)
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: primaryPromptCard,
-              ),
-            )
-          else
-            primaryPromptCard,
+          primaryPromptCard,
           const SizedBox(height: 14),
           if (centerPortraitLayout)
             Center(child: voiceAction)
