@@ -124,6 +124,44 @@ test('learner bootstrap keeps distinct curriculum modules instead of collapsing 
   assert.deepEqual(assignmentModuleIds, ['module-1', 'module-5']);
 });
 
+test('learner module bundle keeps the same projected lessons visible in bootstrap', async () => {
+  const lessonA = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Greeting circle',
+    durationMinutes: 12,
+    status: 'published',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Say hello.' }],
+  });
+  const lessonB = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Ask a friend\'s name',
+    durationMinutes: 10,
+    status: 'published',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Ask their name.' }],
+  });
+
+  const bootstrap = await request('/api/v1/learner-app/bootstrap');
+  assert.equal(bootstrap.status, 200);
+
+  const bundle = await request('/api/v1/learner-app/modules/module-1');
+  assert.equal(bundle.status, 200);
+
+  const bootstrapLessonIds = bootstrap.body.lessons
+    .filter((lesson) => lesson.id === lessonA.id || lesson.id === lessonB.id)
+    .map((lesson) => lesson.id)
+    .sort();
+  const bundleLessonIds = bundle.body.lessons
+    .filter((lesson) => lesson.id === lessonA.id || lesson.id === lessonB.id)
+    .map((lesson) => lesson.id)
+    .sort();
+
+  assert.deepEqual(bundleLessonIds, bootstrapLessonIds);
+});
+
 test('learner bootstrap includes active assigned modules even when release status is not published', async () => {
   repository.updateModule('module-4', { status: 'review' });
   const reviewLesson = repository.createLesson({

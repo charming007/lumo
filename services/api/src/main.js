@@ -1071,13 +1071,11 @@ app.get('/api/v1/learner-app/modules/:id', (req, res) => {
   }
 
   const module = presenters.presentLearnerModule(sourceModule);
-  const lessons = store
-    .listLessons()
-    .filter(
-      (lesson) =>
-        lesson.moduleId === sourceModule.id && ['approved', 'published'].includes(lesson.status),
-    )
-    .map(presenters.presentLearnerLesson);
+  const lessons = buildLearnerLessons().filter(
+    (lesson) =>
+      lesson.curriculumModuleId === sourceModule.id ||
+      lesson.moduleId === module.id,
+  );
   const assignmentPacks = buildLearnerAssignmentIndex().filter(
     (assignment) =>
       assignment.lessonPack?.curriculumModuleId === sourceModule.id ||
