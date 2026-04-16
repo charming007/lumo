@@ -391,7 +391,8 @@ void main() {
 
       expect(state.assignedLessons.map((lesson) => lesson.id),
           equals(['english-live']));
-      expect(() => state.startLesson(state.assignedLessons.first), returnsNormally);
+      expect(() => state.startLesson(state.assignedLessons.first),
+          returnsNormally);
       state.dispose();
     });
 
@@ -939,6 +940,132 @@ void main() {
       state.dispose();
     });
 
+    test(
+        'keeps bootstrap lessons when successful module hydration returns only a partial subset',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': const [],
+                  'modules': [
+                    {
+                      'subjectId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Foundational English',
+                      'level': 'foundation-a',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'english-bootstrap-1',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Say hello',
+                      'durationMinutes': 8,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greetings',
+                      'scenario': 'Warm greeting practice',
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Say hello',
+                          'instruction': 'Say hello.',
+                          'coachPrompt': 'Say hello.',
+                          'expectedResponse': 'Hello',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
+                    },
+                    {
+                      'id': 'english-bootstrap-2',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Ask a name',
+                      'durationMinutes': 9,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greetings',
+                      'scenario': 'Learner asks for a name',
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Ask a name',
+                          'instruction': 'Ask their name.',
+                          'coachPrompt': 'Ask their name.',
+                          'expectedResponse': 'What is your name?',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Foundational English',
+                  'level': 'foundation-a',
+                  'lessons': [
+                    {
+                      'id': 'english-bootstrap-1',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Say hello',
+                      'durationMinutes': 8,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greetings',
+                      'scenario': 'Warm greeting practice',
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Say hello',
+                          'instruction': 'Say hello.',
+                          'coachPrompt': 'Say hello.',
+                          'expectedResponse': 'Hello',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
+                    },
+                  ],
+                  'assignmentPacks': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(
+        state.assignedLessons
+            .where((lesson) => lesson.moduleId == 'english')
+            .map((lesson) => lesson.id),
+        equals(['english-bootstrap-2', 'english-bootstrap-1']),
+      );
+      state.dispose();
+    });
+
     test('builds a fallback module when lesson metadata arrives before modules',
         () {
       final state = LumoAppState(includeSeedDemoContent: true);
@@ -1046,6 +1173,53 @@ void main() {
       expect(lessons.first.id, lifeSkillsLesson.id);
       expect(state.backendRoutingSummaryForLearner(beginner),
           contains('Mallam Idris'));
+    });
+
+    test(
+        'keeps assignment-backed lessons visible when lesson payload is missing',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+
+      state.assignmentPacks.addAll([
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-1',
+          lessonId: 'missing-english',
+          moduleId: 'english',
+          curriculumModuleId: 'english',
+          lessonTitle: 'English warm-up live',
+          cohortName: beginner.cohort,
+          mallamName: 'Mallam Idris',
+          dueDate: '2026-04-20T10:00:00.000Z',
+          eligibleLearnerIds: [beginner.id],
+        ),
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-2',
+          lessonId: 'missing-math',
+          moduleId: 'math',
+          curriculumModuleId: 'math',
+          lessonTitle: 'Math drill live',
+          cohortName: beginner.cohort,
+          mallamName: 'Mallam Idris',
+          dueDate: '2026-04-21T10:00:00.000Z',
+          eligibleLearnerIds: [beginner.id],
+        ),
+      ]);
+
+      final lessons = state.backendAssignedLessonsForLearner(beginner);
+
+      expect(lessons, hasLength(2));
+      expect(
+        lessons.map((lesson) => lesson.id),
+        containsAll([
+          'assignment-placeholder:assignment-1',
+          'assignment-placeholder:assignment-2',
+        ]),
+      );
+      expect(lessons.every((lesson) => lesson.steps.isNotEmpty), isTrue);
+      expect(
+        lessons.every((lesson) => lesson.scenario.contains('has not synced')),
+        isTrue,
+      );
     });
 
     test('uses backend recommended module when available', () {

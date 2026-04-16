@@ -555,7 +555,8 @@ class LumoAppState {
   List<LessonCardModel> _sanitizeLessons(List<LessonCardModel> source) {
     return source
         .where(
-          (lesson) => lesson.steps.isNotEmpty &&
+          (lesson) =>
+              lesson.steps.isNotEmpty &&
               !_isDeprecatedDemoModule(
                 moduleId: lesson.moduleId,
                 title: lesson.title,
@@ -701,13 +702,89 @@ class LumoAppState {
     final seen = <String>{};
 
     for (final pack in eligibleAssignments) {
-      final lesson = lessonsById[pack.lessonId];
-      if (lesson == null || seen.contains(lesson.id)) continue;
-      ordered.add(lesson);
-      seen.add(lesson.id);
+      final lesson =
+          lessonsById[pack.lessonId] ?? _findLessonForAssignmentPack(pack);
+      final resolvedLesson = lesson ?? _buildAssignmentPlaceholderLesson(pack);
+      if (seen.contains(resolvedLesson.id)) continue;
+      ordered.add(resolvedLesson);
+      seen.add(resolvedLesson.id);
     }
 
     return ordered;
+  }
+
+  LessonCardModel? _findLessonForAssignmentPack(LearnerAssignmentPack pack) {
+    final normalizedLessonTitle = pack.lessonTitle.trim().toLowerCase();
+    final preferredModuleIds = {
+      pack.curriculumModuleId?.trim(),
+      pack.moduleId.trim(),
+    }.whereType<String>().where((value) => value.isNotEmpty).toSet();
+
+    for (final lesson in assignedLessons) {
+      if (lesson.id == pack.lessonId) return lesson;
+    }
+
+    for (final lesson in assignedLessons) {
+      final lessonTitle = lesson.title.trim().toLowerCase();
+      if (normalizedLessonTitle.isEmpty ||
+          lessonTitle != normalizedLessonTitle) {
+        continue;
+      }
+      if (preferredModuleIds.isEmpty ||
+          preferredModuleIds.contains(lesson.moduleId.trim())) {
+        return lesson;
+      }
+    }
+
+    return null;
+  }
+
+  LessonCardModel _buildAssignmentPlaceholderLesson(
+    LearnerAssignmentPack pack,
+  ) {
+    final moduleId = (pack.curriculumModuleId?.trim().isNotEmpty ?? false)
+        ? pack.curriculumModuleId!.trim()
+        : pack.moduleId.trim().isNotEmpty
+            ? pack.moduleId.trim()
+            : 'pending-module';
+    final dueLabel = pack.dueDate == null || pack.dueDate!.trim().isEmpty
+        ? 'No due date yet.'
+        : 'Due ${pack.dueDate!.split('T').first}.';
+    final facilitatorLabel = pack.mallamName?.trim().isNotEmpty == true
+        ? pack.mallamName!.trim()
+        : 'Mallam pending';
+
+    return LessonCardModel(
+      id: 'assignment-placeholder:${pack.assignmentId}',
+      moduleId: moduleId,
+      title: pack.lessonTitle,
+      subject: 'Live assignment',
+      durationMinutes: 10,
+      status: 'assigned',
+      mascotName: 'Mallam',
+      readinessFocus:
+          'Assignment payload reached the tablet before lesson content.',
+      scenario:
+          '$facilitatorLabel assigned this lesson from the backend, but the full lesson body has not synced to this tablet yet. $dueLabel Refresh the learner app bootstrap or publish the linked lesson so facilitators can open the real runtime safely.',
+      steps: const [
+        LessonStep(
+          id: 'assignment-placeholder-step',
+          type: LessonStepType.intro,
+          title: 'Lesson sync pending',
+          instruction:
+              'This live assignment is visible, but the real lesson payload has not synced to the tablet yet.',
+          expectedResponse:
+              'Refresh the tablet sync before starting this lesson.',
+          coachPrompt:
+              'Keep the assignment visible so the facilitator knows routing is correct, then refresh sync to load the full lesson.',
+          facilitatorTip:
+              'Do not start runtime on a placeholder lesson. Refresh assignments or publish the linked lesson payload first.',
+          realWorldCheck:
+              'The learner should only start once the full lesson steps appear on this device.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
   }
 
   LearnerAssignmentPack? nextAssignmentPackForLearner(LearnerProfile? learner) {
