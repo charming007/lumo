@@ -5807,9 +5807,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         widget.state.personalizeExpectedResponse(step.expectedResponse);
     final stepLabel =
         'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}';
-    final shortExpectedResponse = expectedResponse.length > 96
-        ? '${expectedResponse.substring(0, 93)}...'
-        : expectedResponse;
     final isStackedLayout = MediaQuery.sizeOf(context).width < 960;
 
     Widget buildLessonGuidePane() {
@@ -5967,58 +5964,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           color: LumoTheme.accentOrange,
                                         ),
                                     ],
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    widget.lesson.title,
-                                    style: const TextStyle(
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.w900,
-                                      height: 1.1,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    step.instruction,
-                                    style: const TextStyle(
-                                      color: Color(0xFF475569),
-                                      height: 1.45,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(22),
-                                      border: Border.all(
-                                        color: const Color(0xFFE2E8F0),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Learner target',
-                                          style: TextStyle(
-                                            color: Color(0xFF4F46E5),
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          shortExpectedResponse,
-                                          style: const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w800,
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
                                   ),
                                 ],
                               ),
