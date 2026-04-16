@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ProgressCaptureForm, ProgressUpdateForm } from '../../components/progress-form';
 import { fetchCohorts, fetchCurriculumModules, fetchMallams, fetchPods, fetchProgress, fetchStudents, fetchSubjects } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyProgressRows(message: string): ReactNode[][] {
@@ -20,6 +22,47 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
 }
 
 export default async function ProgressPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; subject?: string | string[]; status?: string | string[] }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Progress"
+        subtitle="Production wiring is incomplete, so progression controls are refusing to fake confidence."
+        blockerHeadline="Deployment blocker: progress API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so mastery rows, progression readiness, and override workflows would degrade into misleading empty-state output. Fix the env var, redeploy, then verify live progression data before making learner decisions.
+          </>
+        )}
+        whyBlocked={[
+          'This route is not just a read-only dashboard. It drives progression capture and override decisions, so quiet fallback rows here would invite bad admin actions.',
+          'Without the production API base, learner, subject, module, cohort, pod, and mallam dependencies are all operationally untrustworthy on this page.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mastery board',
+            expected: 'Live learner progression rows load with real mastery and readiness states',
+            failure: 'Empty board or generic unavailable copy with no real API data',
+          },
+          {
+            surface: 'Progress capture',
+            expected: 'Learner, subject, and module selectors load from the backend before writes are allowed',
+            failure: 'Forms appear usable while dependency feeds are missing',
+          },
+          {
+            surface: 'Progress updates',
+            expected: 'Override and next-module decisions reflect current live records',
+            failure: 'Operators are making decisions against stale or empty fallback data',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [progressResult, studentsResult, subjectsResult, modulesResult, cohortsResult, podsResult, mallamsResult] = await Promise.allSettled([
     fetchProgress(),

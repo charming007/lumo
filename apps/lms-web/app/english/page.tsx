@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { EnglishStudioAuthoringForm } from '../../components/english-studio-authoring-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../lib/api';
 import { buildEnglishLessonBlueprints, buildEnglishOpsSummary } from '../../lib/english-curriculum';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { assessmentMatchesModule } from '../../lib/module-assessment-match';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 import { createLessonAction } from '../actions';
@@ -40,6 +42,48 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
 }
 
 export default async function EnglishCurriculumPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="English Curriculum Studio"
+        subtitle="Production wiring is incomplete, so English authoring and release triage are blocked instead of pretending the curriculum lane is live."
+        blockerHeadline="Deployment blocker: English curriculum API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so blueprint readiness, quick authoring, lesson duplication, and module gate checks would all degrade into untrustworthy curriculum planning. Fix the env var, redeploy, then verify the live English lane before editing or publishing.
+          </>
+        )}
+        whyBlocked={[
+          'English Studio is a release-planning surface, not a decorative reporting page. Authors use it to decide what is safe to ship into pods.',
+          'Without the production API base, modules, lessons, assignments, subjects, and assessment gates can all drift into partial or fake-ready state.',
+          'Blocking this route prevents a polished curriculum board from green-lighting lessons that were never loaded from the live backend.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Readiness board',
+            expected: 'English lesson scores and blockers reflect the live curriculum and assessment feeds',
+            failure: 'Lessons appear pod-ready because fallback or missing feeds hid real blockers',
+          },
+          {
+            surface: 'Quick authoring',
+            expected: 'English subject and module lanes load before authors can create new lesson packs',
+            failure: 'The quick authoring shell appears while the backend is not connected',
+          },
+          {
+            surface: 'Release queue',
+            expected: 'Queued, review, and pod-ready lessons match the live LMS content lane',
+            failure: 'Operators plan deployments from stale or empty English data',
+          },
+        ]}
+        docs={[
+          { label: 'Content blocker', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Lesson Studio blocker', href: '/content/lessons/new', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Canvas rescue', href: '/canvas', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [modulesResult, lessonsResult, assessmentsResult, assignmentsResult, subjectsResult] = await Promise.allSettled([
     fetchCurriculumModules(),

@@ -1,7 +1,9 @@
 import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const actionButtonStyle = {
@@ -35,6 +37,48 @@ function average(values: number[]) {
 }
 
 export default async function MallamsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; center?: string | string[]; pod?: string | string[]; status?: string | string[]; certification?: string | string[] }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Mallams"
+        subtitle="Production wiring is incomplete, so mallam deployment coverage is blocked instead of pretending live operator load and roster controls are trustworthy."
+        blockerHeadline="Deployment blocker: mallam roster API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so mallam coverage, learner load, intervention pressure, and add/edit/delete roster controls would degrade into polished fiction. Fix the env var, redeploy, then verify live mallam assignments before touching operator coverage.
+          </>
+        )}
+        whyBlocked={[
+          'This page drives real deployment decisions: assigning mallams, reviewing learner load, and deciding who needs intervention first.',
+          'Without the production API base, training status, center coverage, pod mapping, and learner-risk counts can all look calm while the backend is actually disconnected.',
+          'Blocking here is safer than letting a glossy roster imply operator capacity that does not exist.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mallam roster',
+            expected: 'Live mallams load with center, pod, certification, and status data from production',
+            failure: 'Roster looks empty or deceptively healthy while the backend is unreachable',
+          },
+          {
+            surface: 'Intervention queue',
+            expected: 'Pressure scores and at-risk learner counts reflect the live learner roster',
+            failure: 'No intervention cards appear because the learner feed silently vanished',
+          },
+          {
+            surface: 'Roster controls',
+            expected: 'Add, edit, and delete actions only appear once live centers, pods, and mallam records are loaded',
+            failure: 'Operators can open mallam actions while deployment dependencies are missing',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Learner blocker', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [mallamsResult, studentsResult, centersResult, podsResult] = await Promise.allSettled([
     fetchMallams(),

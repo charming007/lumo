@@ -1,7 +1,9 @@
 import { CreateStudentForm, DeleteStudentForm, UpdateStudentForm } from '../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCohorts, fetchMallams, fetchPods, fetchStudents, fetchWorkboard } from '../../lib/api';
+import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function tone(status: string) {
@@ -19,6 +21,48 @@ const actionButtonStyle = {
 };
 
 export default async function StudentsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  if (API_BASE_SOURCE === 'missing-production-env') {
+    return (
+      <DeploymentBlockerCard
+        title="Learners"
+        subtitle="Production wiring is incomplete, so the learner roster is blocked instead of pretending ownership, attendance, and progression data are trustworthy."
+        blockerHeadline="Deployment blocker: learner roster API base URL is missing."
+        blockerDetail={(
+          <>
+            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so learner roster counts, attendance risk flags, progression readiness, and add/edit/delete learner actions would all degrade into polished nonsense. Fix the env var, redeploy, then verify live learner data before touching roster operations.
+          </>
+        )}
+        whyBlocked={[
+          'This page is not a passive readout. It drives learner creation, reassignment, deletion, and progression follow-up, so a disconnected “empty roster” state is operationally dangerous.',
+          'Without the production API base, mallam ownership, pod placement, attendance watchlists, and readiness signals can all look calm while the backend is actually dead.',
+          'Blocking here stops reviewers from mistaking a glossy roster shell for a live admin surface.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner roster',
+            expected: 'Live learners load with cohort, mallam, pod, attendance, and stage data from production',
+            failure: 'Empty roster or placeholder counts that imply no learners exist',
+          },
+          {
+            surface: 'Roster operations',
+            expected: 'Add, edit, and delete actions only appear once cohorts, pods, mallams, and learner records are live',
+            failure: 'Operators can open roster actions while dependency feeds are missing',
+          },
+          {
+            surface: 'Support queue',
+            expected: 'Progression readiness and watchlist rows match the live workboard feed',
+            failure: 'Ready/watch counts look clean while the workboard is actually disconnected',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Attendance blocker', href: '/attendance', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [studentsResult, workboardResult, cohortsResult, podsResult, mallamsResult] = await Promise.allSettled([
     fetchStudents(),

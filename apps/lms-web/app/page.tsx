@@ -259,8 +259,23 @@ export default async function HomePage() {
     .sort((left, right) => right.blockerCount - left.blockerCount || right.missingLessons - left.missingLessons || left.title.localeCompare(right.title));
 
   const releaseFeedsFailed = modulesResult.status === 'rejected' || lessonsResult.status === 'rejected' || assessmentsResult.status === 'rejected';
-  const publishReadyModules = modules.length - releaseBlockers.length;
-  const highestPriorityBlocker = releaseBlockers[0] ?? null;
+  const publishReadyModules = releaseFeedsFailed ? null : Math.max(modules.length - releaseBlockers.length, 0);
+  const highestPriorityBlocker = releaseFeedsFailed ? null : releaseBlockers[0] ?? null;
+  const releaseMetrics = releaseFeedsFailed
+    ? [
+      { label: 'Modules publish-ready', value: 'Unavailable' },
+      { label: 'Modules blocked', value: 'Unavailable' },
+      { label: 'Draft modules blocking release', value: 'Unavailable' },
+      { label: 'Missing lesson gaps', value: 'Unavailable' },
+      { label: 'Missing assessment gates', value: 'Unavailable' },
+    ]
+    : [
+      { label: 'Modules publish-ready', value: String(publishReadyModules ?? 0) },
+      { label: 'Modules blocked', value: String(releaseBlockers.length) },
+      { label: 'Draft modules blocking release', value: String(releaseBlockers.filter((module) => module.isDraftModule).length) },
+      { label: 'Missing lesson gaps', value: String(releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0)) },
+      { label: 'Missing assessment gates', value: String(releaseBlockers.filter((module) => !module.hasAssessmentGate).length) },
+    ];
   const partialOutageMessage = failedSources.length
     ? `Dashboard degraded gracefully: ${failedSources.join(', ')} data ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.`
     : null;
@@ -277,6 +292,9 @@ export default async function HomePage() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Link href="/students" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>
             Open learners
+          </Link>
+          <Link href="/canvas" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>
+            Open curriculum canvas
           </Link>
           <Link href="/assignments" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Manage assignments
@@ -467,15 +485,7 @@ export default async function HomePage() {
         <div style={{ display: 'grid', gap: 16 }}>
           <Card title="Content release blockers" eyebrow="Deployment readiness">
             <div style={{ display: 'grid', gap: 12 }}>
-              <MetricList
-                items={[
-                  { label: 'Modules publish-ready', value: String(Math.max(publishReadyModules, 0)) },
-                  { label: 'Modules blocked', value: String(releaseBlockers.length) },
-                  { label: 'Draft modules blocking release', value: String(releaseBlockers.filter((module) => module.isDraftModule).length) },
-                  { label: 'Missing lesson gaps', value: String(releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0)) },
-                  { label: 'Missing assessment gates', value: String(releaseBlockers.filter((module) => !module.hasAssessmentGate).length) },
-                ]}
-              />
+              <MetricList items={releaseMetrics} />
               {releaseFeedsFailed ? sectionAlert('Release readiness is partially blind because one or more curriculum feeds failed. The dashboard stays up, but do not trust blocker counts until modules, lessons, and assessments all load.', 'warning') : null}
               {!releaseBlockers.length ? sectionAlert(releaseFeedsFailed ? 'No blocker rows can be trusted until the missing curriculum feeds recover.' : 'No content blockers right now. The LMS finally has permission to stop being dramatic about release readiness.') : null}
             </div>
