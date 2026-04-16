@@ -4,6 +4,7 @@ import type { Assessment, CurriculumModule, Lesson, Strand, Subject } from './ty
 export type CurriculumCanvasLesson = {
   id: string;
   title: string;
+  order?: number | null;
   status: string;
   durationMinutes: number;
   mode: string;
@@ -215,6 +216,7 @@ function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessm
   return {
     id: lesson.id,
     title,
+    order: ('order' in lesson ? lesson.order : undefined) ?? undefined,
     status: lesson.status ?? 'draft',
     durationMinutes: ('durationMinutes' in lesson ? lesson.durationMinutes : 0) ?? 0,
     mode: ('mode' in lesson ? lesson.mode : 'guided') ?? 'guided',
@@ -349,9 +351,11 @@ function buildModuleNode({
     .filter((lesson) => lessonMatchesModule(lesson, module) && lessonSubjectMatches(lesson, subject, module))
     .sort((left, right) => safeText(left.title, 'Untitled lesson').localeCompare(safeText(right.title, 'Untitled lesson')));
 
-  const lessonNodes = liveLessons.length
-    ? liveLessons.map((lesson) => buildLessonNode(lesson, moduleAssessments, module))
-    : rescueLessons.map((lessonNode) => buildLessonNode(lessonNode, moduleAssessments, module));
+  const lessonNodes = sortByOrder(
+    liveLessons.length
+      ? liveLessons.map((lesson) => buildLessonNode(lesson, moduleAssessments, module))
+      : rescueLessons.map((lessonNode) => buildLessonNode(lessonNode, moduleAssessments, module)),
+  );
 
   const expectedLessonCount = Math.max(module.lessonCount, rescueModule?.module.lessonCount ?? 0, lessonNodes.length);
   const moduleSummary = summarizeModule(expectedLessonCount, lessonNodes, moduleAssessments);

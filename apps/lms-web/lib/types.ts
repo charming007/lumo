@@ -254,6 +254,7 @@ export type LessonAssessmentItem = {
 export type Lesson = {
   id: string;
   title: string;
+  order?: number | null;
   subjectId?: string | null;
   moduleId?: string | null;
   subjectName?: string | null;
