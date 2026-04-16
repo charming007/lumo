@@ -3356,36 +3356,7 @@ class LumoAppState {
       final snapshot = <String, dynamic>{
         'schemaVersion': _kPersistenceSchemaVersion,
         'savedAt': DateTime.now().toIso8601String(),
-        'currentLearnerId': currentLearner?.id,
-        'selectedModuleId': selectedModule?.id,
-        'speakerMode': speakerMode.name,
-        'usingFallbackData': usingFallbackData,
-        'backendError': backendError,
-        'lastSyncedAt': lastSyncedAt?.toIso8601String(),
-        'backendGeneratedAt': backendGeneratedAt?.toIso8601String(),
-        'lastSyncAttemptAt': lastSyncAttemptAt?.toIso8601String(),
-        'backendContractVersion': backendContractVersion,
-        'backendAssignmentCount': backendAssignmentCount,
-        'lastSyncAcceptedCount': lastSyncAcceptedCount,
-        'lastSyncIgnoredCount': lastSyncIgnoredCount,
-        'lastSyncError': lastSyncError,
-        'learnerRuntimeError': learnerRuntimeError,
-        'registrationDraft': _encodeRegistrationDraft(registrationDraft),
-        'registrationContext': _encodeRegistrationContext(registrationContext),
-        'learners': learners.map(_encodeLearner).toList(),
-        'modules': modules.map(_encodeModule).toList(),
-        'assignedLessons': assignedLessons.map(_encodeLesson).toList(),
-        'assignmentPacks': assignmentPacks.map(_encodeAssignmentPack).toList(),
-        'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),
-        'recentRuntimeSessionsByLearnerId':
-            recentRuntimeSessionsByLearnerId.map(
-          (key, value) => MapEntry(
-            key,
-            value.map(_encodeBackendLessonSession).toList(),
-          ),
-        ),
-        'activeSession':
-            activeSession == null ? null : _encodeLessonSession(activeSession!),
+        ..._buildPersistenceSnapshot(),
       };
       await prefs.setString(_kPersistenceStorageKey, jsonEncode(snapshot));
       persistenceError = null;

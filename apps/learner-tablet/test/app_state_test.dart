@@ -557,6 +557,64 @@ void main() {
       state.dispose();
     });
 
+    test('persists reward redemption history across tablet restarts', () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final option = state
+          .rewardRedemptionOptionsForLearner(learner)
+          .firstWhere((item) => item.unlocked);
+
+      final record = state.redeemRewardForLearner(
+        learner: learner,
+        option: option,
+        note: 'Sticker earned after strong speaking turn',
+      );
+      state.dispose();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final restored = LumoAppState(includeSeedDemoContent: true);
+      await restored.restorePersistedState();
+
+      final restoredLearner = restored.learners.firstWhere(
+        (item) => item.id == learner.id,
+      );
+      final history =
+          restored.rewardRedemptionHistoryForLearner(restoredLearner);
+      expect(history, hasLength(1));
+      expect(history.first.id, record.id);
+      expect(history.first.note, 'Sticker earned after strong speaking turn');
+      restored.dispose();
+    });
+
+    test('persists sync receipt counters and warnings across tablet restarts',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.lastSyncDuplicateCount = 2;
+      state.lastSyncResultCount = 5;
+      state.lastSyncWarnings = const [
+        'lesson_completed was ignored (already_applied).',
+      ];
+      state.lastSyncAcceptedCount = 3;
+      state.lastSyncIgnoredCount = 1;
+      state.lastSyncAttemptAt = DateTime.parse('2026-04-16T09:15:00.000Z');
+      state.dispose();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final restored = LumoAppState(includeSeedDemoContent: true);
+      await restored.restorePersistedState();
+
+      expect(restored.lastSyncDuplicateCount, 2);
+      expect(restored.lastSyncResultCount, 5);
+      expect(restored.lastSyncWarnings,
+          ['lesson_completed was ignored (already_applied).']);
+      expect(restored.syncReceiptLabel, '5 receipt row(s) • 2 duplicate');
+      restored.dispose();
+    });
+
     test('preserves bootstrap lessons when one module hydration request fails',
         () async {
       final state = LumoAppState(
