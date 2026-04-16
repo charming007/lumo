@@ -2798,37 +2798,61 @@ class _RegisterPageState extends State<RegisterPage> {
                                       color: Color(0xFF475569), height: 1.4),
                                 ),
                                 const SizedBox(height: 14),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    _LearnerAvatar(
-                                        photoBase64: profilePhotoBase64,
-                                        size: 88),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final compactPhotoRow =
+                                        constraints.maxWidth < 420;
+                                    final avatar = _LearnerAvatar(
+                                      photoBase64: profilePhotoBase64,
+                                      size: 88,
+                                    );
+                                    final photoSummary = Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          profilePhotoBase64 == null
+                                              ? 'No photo captured yet'
+                                              : 'Photo captured and ready for this learner',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          profilePhotoBase64 == null
+                                              ? 'This step is optional.'
+                                              : 'You can retake it or remove it before saving.',
+                                          style: const TextStyle(
+                                            color: Color(0xFF64748B),
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+
+                                    if (compactPhotoRow) {
+                                      return Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            profilePhotoBase64 == null
-                                                ? 'No photo captured yet'
-                                                : 'Photo captured and ready for this learner',
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w700),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            profilePhotoBase64 == null
-                                                ? 'This step is optional.'
-                                                : 'You can retake it or remove it before saving.',
-                                            style: const TextStyle(
-                                                color: Color(0xFF64748B)),
-                                          ),
+                                          avatar,
+                                          const SizedBox(height: 14),
+                                          photoSummary,
                                         ],
-                                      ),
-                                    ),
-                                  ],
+                                      );
+                                    }
+
+                                    return Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        avatar,
+                                        const SizedBox(width: 14),
+                                        Expanded(child: photoSummary),
+                                      ],
+                                    );
+                                  },
                                 ),
                                 const SizedBox(height: 12),
                                 Wrap(
@@ -4244,7 +4268,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   bool get _avoidConcurrentSpeechCapture {
-    if (kIsWeb) return false;
+    if (kIsWeb) return true;
     return switch (defaultTargetPlatform) {
       TargetPlatform.macOS || TargetPlatform.iOS => true,
       _ => false,
@@ -5954,6 +5978,31 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Text(
+                                    widget.lesson.title,
+                                    maxLines: compactSessionHeader ? 2 : 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: compactSessionHeader ? 22 : 26,
+                                      fontWeight: FontWeight.w900,
+                                      color: const Color(0xFF1E1B4B),
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _resumedSession
+                                        ? 'Recovered lesson session ready to continue.'
+                                        : 'Live lesson session is open and ready for the next prompt.',
+                                    maxLines: compactSessionHeader ? 3 : 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF475569),
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 8,
