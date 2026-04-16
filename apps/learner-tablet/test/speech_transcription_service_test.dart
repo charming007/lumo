@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lumo_learner_tablet/speech_transcription_service.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import 'package:lumo_learner_tablet/web_speech_runtime_probe.dart';
+
 class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   FakeSpeechRecognitionEngine({
     this.initializeResult = true,
@@ -163,5 +165,39 @@ void main() {
     expect(seenErrors, isNotEmpty);
     expect(seenErrors.last, contains('microphone became unavailable'));
     expect(service.lastError, contains('microphone became unavailable'));
+  });
+
+  test('explains when the browser does not expose speech recognition', () async {
+    final engine = FakeSpeechRecognitionEngine();
+    final service = SpeechTranscriptionService(
+      engine: engine,
+      inspectWebRuntime: () => const WebSpeechRuntimeSupport(
+        isSpeechRecognitionExposed: false,
+        isSecureContext: true,
+        isOnline: true,
+        userAgent: 'Firefox',
+      ),
+    );
+
+    expect(await service.initialize(forceRetry: true), isFalse);
+    expect(service.lastStatus, 'web-runtime-blocked');
+    expect(service.lastError, contains('does not expose live speech recognition'));
+  });
+
+  test('explains when browser transcript is blocked by insecure context', () async {
+    final engine = FakeSpeechRecognitionEngine();
+    final service = SpeechTranscriptionService(
+      engine: engine,
+      inspectWebRuntime: () => const WebSpeechRuntimeSupport(
+        isSpeechRecognitionExposed: true,
+        isSecureContext: false,
+        isOnline: true,
+        userAgent: 'Chrome',
+      ),
+    );
+
+    expect(await service.initialize(forceRetry: true), isFalse);
+    expect(service.lastStatus, 'web-runtime-blocked');
+    expect(service.lastError, contains('secure HTTPS context'));
   });
 }

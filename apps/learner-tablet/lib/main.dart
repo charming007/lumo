@@ -4252,6 +4252,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   String get _concurrentSpeechCaptureFallbackReason {
+    if (kIsWeb) {
+      return 'Live transcript is paused during browser recording because web speech recognition and the recorder fight over the same microphone session. Lumo will keep the learner recording and let the facilitator confirm the answer manually.';
+    }
     return 'Live transcript is paused on this device while local audio capture is running to avoid the mic handoff crash. Lumo will keep the learner recording and let the facilitator confirm the answer manually.';
   }
 
@@ -5178,8 +5181,19 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 if (!mounted) return;
                 final cleaned = transcript.trim();
                 if (cleaned.isEmpty) return;
+                final existingDraft = responseController.text.trim();
+                final canMirrorIntoResponseBox = existingDraft.isEmpty ||
+                    existingDraft == liveTranscript.trim() ||
+                    existingDraft == _latestFinalTranscript.trim();
                 setState(() {
                   liveTranscript = cleaned;
+                  if (canMirrorIntoResponseBox) {
+                    responseController.value = TextEditingValue(
+                      text: cleaned,
+                      selection:
+                          TextSelection.collapsed(offset: cleaned.length),
+                    );
+                  }
                   _latestTranscriptNeedsManualReview = !isFinal;
                   if (isFinal) {
                     _latestFinalTranscript = cleaned;
@@ -6631,11 +6645,38 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                       ),
                                     ),
                                     const SizedBox(height: 8),
+                                    if (isRecording &&
+                                        liveTranscript.trim().isEmpty &&
+                                        !speechRecognitionActive)
+                                      Container(
+                                        width: double.infinity,
+                                        margin:
+                                            const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFFBEB),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: const Color(0xFFFCD34D),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Live transcript is unavailable on this take, so Lumo is saving the learner voice instead. Finish the recording, then play the saved audio or type a short note before advancing.',
+                                          style: TextStyle(
+                                            color: Color(0xFF92400E),
+                                            height: 1.35,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
                                     TextField(
                                       controller: responseController,
                                       onChanged: (_) => setState(() {}),
                                       decoration: InputDecoration(
-                                        labelText: 'Learner response',
+                                        labelText: speechRecognitionActive
+                                            ? 'Learner response / live transcript'
+                                            : 'Learner response',
                                         hintText: _learnerResponseHintText,
                                       ),
                                     ),

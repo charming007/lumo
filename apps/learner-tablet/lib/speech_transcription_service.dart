@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import 'web_speech_runtime_probe.dart';
+
 abstract class SpeechRecognitionEngine {
   bool get isListening;
 
@@ -70,10 +72,14 @@ class SpeechToTextEngine implements SpeechRecognitionEngine {
 }
 
 class SpeechTranscriptionService {
-  SpeechTranscriptionService({SpeechRecognitionEngine? engine})
-      : _engine = engine ?? SpeechToTextEngine();
+  SpeechTranscriptionService({
+    SpeechRecognitionEngine? engine,
+    WebSpeechRuntimeSupport? Function()? inspectWebRuntime,
+  })  : _engine = engine ?? SpeechToTextEngine(),
+        _inspectWebRuntime = inspectWebRuntime ?? inspectWebSpeechRuntime;
 
   final SpeechRecognitionEngine _engine;
+  final WebSpeechRuntimeSupport? Function() _inspectWebRuntime;
   bool _initialized = false;
   bool _available = false;
   String? _lastError;
@@ -209,6 +215,17 @@ class SpeechTranscriptionService {
     _activeModeLabel = 'Preparing transcript engine';
     _lastError = null;
     _lastStatus = 'initializing';
+
+    final webRuntime = _inspectWebRuntime();
+    if (webRuntime != null && !webRuntime.looksSupported) {
+      _available = false;
+      _initialized = true;
+      _lastStatus = 'web-runtime-blocked';
+      _activeModeLabel = 'Browser audio fallback';
+      _lastError = _describeWebRuntimeBlock(webRuntime);
+      return false;
+    }
+
     try {
       _available = await _engine.initialize(
         onError: (errorMsg) {
@@ -267,36 +284,57 @@ class SpeechTranscriptionService {
           onResult(text, isFinal);
         },
         options: options,
-        pauseFor: const Duration(seconds: 4),
-        listenFor: const Duration(minutes: 2),
+        pauseFor: kIsWeb
+            ? const Duration(seconds: 2)
+            : const Duration(seconds: 4),
+        listenFor: kIsWeb
+            ? const Duration(seconds: 45)
+            : const Duration(seconds: 75),
+      );
+    }
+
+    late final SpeechListenOptions primaryOptions;
+    late final SpeechListenOptions secondaryOptions;
+    if (kIsWeb) {
+      primaryOptions = SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: false,
+        listenMode: ListenMode.confirmation,
+        onDevice: false,
+      );
+      secondaryOptions = SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: false,
+        listenMode: ListenMode.dictation,
+        onDevice: false,
+      );
+    } else {
+      primaryOptions = SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: false,
+        listenMode: ListenMode.dictation,
+        onDevice: true,
+      );
+      secondaryOptions = SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: false,
+        listenMode: ListenMode.confirmation,
+        onDevice: false,
       );
     }
 
     try {
-      await startListening(
-        SpeechListenOptions(
-          partialResults: true,
-          cancelOnError: false,
-          listenMode: ListenMode.dictation,
-          onDevice: !kIsWeb,
-        ),
-      );
+      await startListening(primaryOptions);
       _available = true;
-      _activeModeLabel =
-          !kIsWeb ? 'On-device dictation active' : 'Browser dictation active';
+      _activeModeLabel = kIsWeb
+          ? 'Browser short-phrase transcript active'
+          : 'On-device dictation active';
     } catch (_) {
       try {
-        await startListening(
-          SpeechListenOptions(
-            partialResults: true,
-            cancelOnError: false,
-            listenMode: ListenMode.confirmation,
-            onDevice: false,
-          ),
-        );
+        await startListening(secondaryOptions);
         _available = true;
         _activeModeLabel = kIsWeb
-            ? 'Browser confirmation fallback'
+            ? 'Browser dictation fallback'
             : 'Cloud confirmation fallback';
       } catch (error) {
         _registerStartFailure();
@@ -345,6 +383,25 @@ class SpeechTranscriptionService {
         lower.contains('service-not-allowed') ||
         lower.contains('notallowed') ||
         lower.contains('aborted');
+  }
+
+  String _describeWebRuntimeBlock(WebSpeechRuntimeSupport runtime) {
+    if (!runtime.isSpeechRecognitionExposed) {
+      final userAgent = runtime.userAgent?.toLowerCase() ?? '';
+      final browserHint = userAgent.contains('chrome') ||
+              userAgent.contains('edg/') ||
+              userAgent.contains('edga/')
+          ? 'Even though this looks Chromium-based, the browser is not exposing the Web Speech API to Flutter right now.'
+          : 'Safari and Firefox commonly omit the Web Speech API for Flutter web dictation.';
+      return 'This browser does not expose live speech recognition to Lumo, so live transcript cannot start here. $browserHint Keep saving learner audio and confirm answers manually, or switch to Chrome/Edge over HTTPS for hands-free transcript help.';
+    }
+    if (!runtime.isSecureContext) {
+      return 'Live browser transcription is blocked because this lesson is not running in a secure HTTPS context. The mic recorder can still save learner audio, but transcript help will stay off until the app is opened over HTTPS or localhost.';
+    }
+    if (!runtime.isOnline) {
+      return 'The browser is offline, so live transcript help will stay paused until the connection returns. Lumo can still save learner audio locally in the meantime.';
+    }
+    return 'Browser speech recognition is unavailable here, so Lumo will save learner audio and let the facilitator confirm answers manually.';
   }
 
   String _normalizeError(String raw) {
