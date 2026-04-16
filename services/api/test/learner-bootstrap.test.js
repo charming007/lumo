@@ -169,7 +169,7 @@ test('learner bootstrap includes active assigned modules even when release statu
     moduleId: 'module-4',
     title: 'Daily conversation check-in',
     durationMinutes: 11,
-    status: 'published',
+    status: 'review',
     mode: 'guided',
     activitySteps: [{ type: 'listen_repeat', prompt: 'How are you today?' }],
   });
@@ -200,10 +200,72 @@ test('learner bootstrap includes active assigned modules even when release statu
   const reviewModule = response.body.modules.find((module) => module.id === 'module-4');
   assert.ok(reviewModule, JSON.stringify(response.body.modules));
   assert.equal(reviewModule.status, 'review');
+  assert.equal(reviewModule.lessonCount >= 1, true, JSON.stringify(reviewModule));
+
+  const projectedLesson = response.body.lessons.find((lesson) => lesson.id === reviewLesson.id);
+  assert.ok(projectedLesson, JSON.stringify(response.body.lessons));
+  assert.equal(projectedLesson.moduleId, 'module-4');
+  assert.equal(projectedLesson.status, 'review');
 
   const reviewAssignment = response.body.assignments.find(
     (assignment) => assignment.lessonPack?.lessonId === reviewLesson.id,
   );
   assert.ok(reviewAssignment, JSON.stringify(response.body.assignments));
   assert.equal(reviewAssignment.lessonPack?.moduleKey, 'module-4');
+});
+
+test('learner module bundle includes active assigned lessons even when lesson release status is not published', async () => {
+  repository.updateModule('module-5', { status: 'review' });
+  const assignedLessonA = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-5',
+    title: 'Sound hunt one',
+    durationMinutes: 9,
+    status: 'draft',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Say s.' }],
+  });
+  const assignedLessonB = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-5',
+    title: 'Sound hunt two',
+    durationMinutes: 9,
+    status: 'review',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Say t.' }],
+  });
+
+  repository.createAssignment({
+    cohortId: 'cohort-1',
+    lessonId: assignedLessonA.id,
+    assignedBy: 'teacher-1',
+    dueDate: '2026-04-23',
+    status: 'active',
+  });
+  repository.createAssignment({
+    cohortId: 'cohort-1',
+    lessonId: assignedLessonB.id,
+    assignedBy: 'teacher-1',
+    dueDate: '2026-04-24',
+    status: 'active',
+  });
+
+  const bootstrap = await request('/api/v1/learner-app/bootstrap');
+  assert.equal(bootstrap.status, 200);
+
+  const bundle = await request('/api/v1/learner-app/modules/module-5');
+  assert.equal(bundle.status, 200);
+
+  const bootstrapLessonIds = bootstrap.body.lessons
+    .filter((lesson) => lesson.id === assignedLessonA.id || lesson.id === assignedLessonB.id)
+    .map((lesson) => lesson.id)
+    .sort();
+  const bundleLessonIds = bundle.body.lessons
+    .filter((lesson) => lesson.id === assignedLessonA.id || lesson.id === assignedLessonB.id)
+    .map((lesson) => lesson.id)
+    .sort();
+
+  assert.deepEqual(bootstrapLessonIds, [assignedLessonA.id, assignedLessonB.id].sort());
+  assert.deepEqual(bundleLessonIds, bootstrapLessonIds);
+  assert.equal(bundle.body.lessonCount >= 2, true, JSON.stringify(bundle.body));
 });

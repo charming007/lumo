@@ -209,9 +209,20 @@ function presentCurriculumModule(module) {
 
 function presentLearnerModule(module) {
   const curriculum = presentCurriculumModule(module);
-  const approvedLessons = repository
+  const assignedLessonIds = new Set(
+    repository
+      .listAssignments()
+      .filter((assignment) => ['active', 'scheduled'].includes(assignment.status))
+      .map((assignment) => assignment.lessonId)
+      .filter(Boolean),
+  );
+  const visibleLessons = repository
     .listLessons()
-    .filter((lesson) => lesson.moduleId === module.id && ['approved', 'published'].includes(lesson.status));
+    .filter(
+      (lesson) =>
+        lesson.moduleId === module.id &&
+        (['approved', 'published'].includes(lesson.status) || assignedLessonIds.has(lesson.id)),
+    );
 
   return {
     id: curriculum.id,
@@ -220,12 +231,12 @@ function presentLearnerModule(module) {
     description: `${curriculum.title} • ${curriculum.subjectName ?? 'Learning'} • ${curriculum.level} learners.`,
     voicePrompt: `Open ${curriculum.title} and guide the learner one spoken step at a time.`,
     readinessGoal: `Ready for ${curriculum.title.toLowerCase()} practice`,
-    badge: `${approvedLessons.length} lesson${approvedLessons.length === 1 ? '' : 's'}`,
+    badge: `${visibleLessons.length} lesson${visibleLessons.length === 1 ? '' : 's'}`,
     subjectId: curriculum.subjectId,
     subjectName: curriculum.subjectName,
     level: curriculum.level,
     status: curriculum.status,
-    lessonCount: approvedLessons.length,
+    lessonCount: visibleLessons.length,
     moduleAssessment: buildModuleAssessment(module),
   };
 }

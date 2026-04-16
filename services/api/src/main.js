@@ -218,10 +218,20 @@ function buildLearnerAssignmentIndex() {
     .map(presenters.presentLearnerAssignmentPack);
 }
 
-function buildLearnerLessons() {
+function buildLearnerLessons({ includeAssigned = false } = {}) {
+  const assignedLessonIds = includeAssigned
+    ? new Set(
+        store
+          .listAssignments()
+          .filter((assignment) => ['active', 'scheduled'].includes(assignment.status))
+          .map((assignment) => assignment.lessonId)
+          .filter(Boolean),
+      )
+    : new Set();
+
   return store
     .listLessons()
-    .filter((lesson) => ['approved', 'published'].includes(lesson.status))
+    .filter((lesson) => ['approved', 'published'].includes(lesson.status) || assignedLessonIds.has(lesson.id))
     .map(presenters.presentLearnerLesson);
 }
 
@@ -252,7 +262,7 @@ function buildLearnerModules({ includeAssigned = false } = {}) {
 function buildLearnerAppBootstrap() {
   const learners = store.listStudents().map(presenters.presentLearnerProfile);
   const modules = buildLearnerModules({ includeAssigned: true });
-  const lessons = buildLearnerLessons();
+  const lessons = buildLearnerLessons({ includeAssigned: true });
   const assignments = buildLearnerAssignmentIndex();
   const assessments = buildLearnerAssessments();
   const lastSync = store.listSyncEvents().slice(-1)[0] || null;
@@ -1071,7 +1081,7 @@ app.get('/api/v1/learner-app/modules/:id', (req, res) => {
   }
 
   const module = presenters.presentLearnerModule(sourceModule);
-  const lessons = buildLearnerLessons().filter(
+  const lessons = buildLearnerLessons({ includeAssigned: true }).filter(
     (lesson) =>
       lesson.curriculumModuleId === sourceModule.id ||
       lesson.moduleId === module.id,
