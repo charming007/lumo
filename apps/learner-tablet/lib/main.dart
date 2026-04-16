@@ -5691,7 +5691,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final shortExpectedResponse = expectedResponse.length > 96
         ? '${expectedResponse.substring(0, 93)}...'
         : expectedResponse;
-    final isStackedLayout = MediaQuery.sizeOf(context).width < 1180;
+    final isStackedLayout = MediaQuery.sizeOf(context).width < 960;
 
     Widget buildLessonGuidePane() {
       if (isStackedLayout) {
@@ -5783,7 +5783,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: _ResponsiveWorkspaceRow(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   child: buildLessonGuidePane(),
