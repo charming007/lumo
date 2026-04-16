@@ -2353,25 +2353,39 @@ class _RegisterPageState extends State<RegisterPage> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: _ResponsiveWorkspaceRow(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ResponsivePane(
-                child: MallamPanel(
-                  instruction: registrationInstruction,
-                  onVoiceTap: () {
-                    syncDraft();
-                    widget.state.replayVisiblePrompt(
-                      'You are on the registration page. Fill in the learner details, capture consent, then save the learner profile.',
-                    );
-                    setState(() {});
-                  },
-                  prompt:
-                      'You are on the registration page. Fill in the learner details, capture consent, then save the learner profile.',
-                  speakerMode: SpeakerMode.guiding,
-                  statusLabel: 'AI Mallam is guiding registration',
+                flex: 5,
+                child: _MallamStageShell(
+                  eyebrow: 'AI Mallam',
+                  title: 'Guide registration from here',
+                  description:
+                      'Mallam stays full-height on the left while the facilitator completes the learner intake on the right.',
+                  child: MallamPanel(
+                    instruction: registrationInstruction,
+                    onVoiceTap: () {
+                      syncDraft();
+                      widget.state.replayVisiblePrompt(
+                        'You are on the registration page. Fill in the learner details, capture consent, then save the learner profile.',
+                      );
+                      setState(() {});
+                    },
+                    prompt:
+                        'You are on the registration page. Fill in the learner details, capture consent, then save the learner profile.',
+                    speakerMode: SpeakerMode.guiding,
+                    statusLabel: 'AI Mallam is guiding registration',
+                    secondaryStatus: 'Registration guide',
+                    voiceButtonLabel: 'Replay Mallam',
+                    voiceHint:
+                        'Keep Mallam visible and dominant on this screen so the facilitator can finish intake without losing the voice guide.',
+                    centerPortraitLayout: true,
+                  ),
                 ),
               ),
+              const SizedBox(width: 20),
               ResponsivePane(
+                flex: 5,
                 child: DetailCard(
                   child: LayoutBuilder(
                     builder: (context, cardConstraints) {
