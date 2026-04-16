@@ -651,19 +651,21 @@ class HomePage extends StatelessWidget {
 
 class _MallamStageShell extends StatelessWidget {
   final String eyebrow;
-  final String title;
-  final String description;
+  final String? title;
+  final String? description;
   final Widget child;
 
   const _MallamStageShell({
     required this.eyebrow,
-    required this.title,
-    required this.description,
+    this.title,
+    this.description,
     required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
+    final showHeader = title != null || description != null;
+
     return Container(
       height: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -679,45 +681,51 @@ class _MallamStageShell extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(22),
+          if (showHeader) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.82),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    eyebrow,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                      color: LumoTheme.primary,
+                    ),
+                  ),
+                  if (title != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      title!,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                  if (description != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      description!,
+                      style: TextStyle(
+                        color: Colors.black.withValues(alpha: 0.62),
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  eyebrow,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
-                    color: LumoTheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: Colors.black.withValues(alpha: 0.62),
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 18),
+          ],
           Expanded(child: SizedBox.expand(child: child)),
         ],
       ),
@@ -734,9 +742,6 @@ class _HomeMallamStage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _MallamStageShell(
       eyebrow: 'AI Mallam',
-      title: 'Guide the session from here',
-      description:
-          'Mallam owns the left side of the screen so the voice guide stays visible at all times while the facilitator works on the right.',
       child: MallamPanel(
         instruction: homeInstruction,
         onVoiceTap: () {
@@ -8073,7 +8078,7 @@ class _LessonStageStrip extends StatelessWidget {
   }
 }
 
-class _LessonTranscriptPanel extends StatelessWidget {
+class _LessonTranscriptPanel extends StatefulWidget {
   final LessonSessionState session;
   final String learnerName;
 
@@ -8083,57 +8088,88 @@ class _LessonTranscriptPanel extends StatelessWidget {
   });
 
   @override
+  State<_LessonTranscriptPanel> createState() => _LessonTranscriptPanelState();
+}
+
+class _LessonTranscriptPanelState extends State<_LessonTranscriptPanel> {
+  bool _isExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final turns =
-        session.transcript.reversed.take(4).toList().reversed.toList();
+        widget.session.transcript.reversed.take(4).toList().reversed.toList();
+
     return SoftPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Live exchange',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              StatusPill(
-                text: '${session.transcript.length} turns',
-                color: LumoTheme.primary,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...turns.map((turn) {
-            final isMallam = turn.speaker == 'Mallam';
-            final speaker = isMallam ? 'Mallam' : learnerName;
-            final color = isMallam ? LumoTheme.primary : LumoTheme.accentGreen;
-            return Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
                 children: [
-                  Text(
-                    speaker,
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        AnimatedRotation(
+                          duration: const Duration(milliseconds: 180),
+                          turns: _isExpanded ? 0.5 : 0,
+                          child: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.black.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Live exchange',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(turn.text),
+                  StatusPill(
+                    text: '${widget.session.transcript.length} turns',
+                    color: LumoTheme.primary,
+                  ),
                 ],
               ),
-            );
-          }),
+            ),
+          ),
+          if (_isExpanded) ...[
+            const SizedBox(height: 12),
+            ...turns.map((turn) {
+              final isMallam = turn.speaker == 'Mallam';
+              final speaker = isMallam ? 'Mallam' : widget.learnerName;
+              final color =
+                  isMallam ? LumoTheme.primary : LumoTheme.accentGreen;
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      speaker,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(turn.text),
+                  ],
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );
