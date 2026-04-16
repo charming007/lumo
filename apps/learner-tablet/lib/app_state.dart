@@ -2478,16 +2478,19 @@ class LumoAppState {
 
   String get rosterFreshnessLabel {
     final trustProblem = offlineSnapshotTrustProblem;
-    if (usingFallbackData && trustProblem != null) {
-      return 'Offline roster blocked from trust';
-    }
     if (lastSyncedAt == null) {
+      if (usingFallbackData && trustProblem != null) {
+        return 'Offline roster blocked from trust';
+      }
       return usingFallbackData
           ? 'Roster running from offline seed fallback'
           : 'Roster not synced yet';
     }
 
     final freshness = _formatRelativeTime(lastSyncedAt!);
+    if (usingFallbackData && trustProblem != null) {
+      return 'Roster last synced $freshness • offline fallback active • trust blocked';
+    }
     if (usingFallbackData) {
       return 'Roster last synced $freshness • offline fallback active';
     }
@@ -2496,16 +2499,19 @@ class LumoAppState {
 
   String get rosterFreshnessDetail {
     final trustProblem = offlineSnapshotTrustProblem;
-    if (usingFallbackData && trustProblem != null) {
-      return '$trustProblem Reconnect to $backendBaseUrl and refresh the learner bootstrap before trusting this tablet for live delivery.';
-    }
     if (lastSyncedAt == null) {
+      if (usingFallbackData && trustProblem != null) {
+        return '$trustProblem Reconnect to $backendBaseUrl and refresh the learner bootstrap before trusting this tablet for live delivery.';
+      }
       return usingFallbackData
           ? 'This tablet is teaching from cached learners and lessons until the backend comes back.'
           : 'This tablet has not completed its first backend roster refresh yet.';
     }
 
     final syncAge = _formatRelativeTime(lastSyncedAt!);
+    if (usingFallbackData && trustProblem != null) {
+      return 'Learners and lessons were last confirmed $syncAge, but this roster is still blocked from trust. $trustProblem Reconnect to $backendBaseUrl and refresh before trusting this tablet for live delivery.';
+    }
     if (usingFallbackData) {
       return 'Learners and lessons were last confirmed $syncAge. Keep teaching, but refresh before trusting any newly assigned content.';
     }
