@@ -110,6 +110,57 @@ void main() {
     });
   });
 
+  group('LumoApiClient learner rewards', () {
+    test('loads the authoritative learner reward snapshot', () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/rewards');
+          expect(request.url.queryParameters['learnerId'], 'learner-1');
+          expect(request.url.queryParameters['learnerCode'], 'AMI-AL07');
+          return http.Response(
+            jsonEncode({
+              'learnerId': 'learner-1',
+              'totalXp': 44,
+              'points': 44,
+              'level': 2,
+              'levelLabel': 'Explorer',
+              'nextLevel': 3,
+              'nextLevelLabel': 'Bright Reader',
+              'xpIntoLevel': 4,
+              'xpForNextLevel': 36,
+              'progressToNextLevel': 0.1,
+              'badgesUnlocked': 1,
+              'badges': const [
+                {
+                  'id': 'first-lesson',
+                  'title': 'First Light',
+                  'description': 'Completed a first lesson.',
+                  'icon': 'emoji_events',
+                  'category': 'milestone',
+                  'earned': true,
+                  'progress': 1,
+                  'target': 1,
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+      );
+
+      final snapshot = await client.fetchLearnerRewards(
+        learnerId: 'learner-1',
+        learnerCode: 'AMI-AL07',
+      );
+
+      expect(snapshot.totalXp, 44);
+      expect(snapshot.levelLabel, 'Explorer');
+      expect(snapshot.badgesUnlocked, 1);
+    });
+  });
+
   group('LumoApiClient bootstrap parsing', () {
     test('preserves backend default registration target', () async {
       final client = LumoApiClient(

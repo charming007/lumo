@@ -1327,8 +1327,8 @@ void main() {
       expect(state.activeSession!.transcript, isNotEmpty);
       expect(
         state.activeSession!.transcript.first.text,
-        contains(state.activeSession!.lesson.steps[state.activeSession!.stepIndex]
-            .coachPrompt),
+        contains(state.activeSession!.lesson
+            .steps[state.activeSession!.stepIndex].coachPrompt),
       );
       state.dispose();
     });
@@ -1408,6 +1408,86 @@ void main() {
             .any((badge) => badge.id == 'voice-starter' && badge.earned),
         isTrue,
       );
+      state.dispose();
+    });
+
+    test(
+        'reconciles learner profile rewards with backend projection after sync',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/sync') {
+              return http.Response(
+                jsonEncode({
+                  'accepted': 1,
+                  'ignored': 0,
+                  'results': [
+                    {
+                      'type': 'lesson_completed',
+                      'status': 'accepted',
+                      'progress': {
+                        'studentId': beginner.id,
+                        'progressionStatus': 'on-track',
+                        'recommendedNextModuleId': 'english',
+                        'lessonsCompleted': 1,
+                      },
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path == '/api/v1/learner-app/rewards') {
+              return http.Response(
+                jsonEncode({
+                  'learnerId': beginner.id,
+                  'totalXp': 44,
+                  'points': 44,
+                  'level': 2,
+                  'levelLabel': 'Explorer',
+                  'nextLevel': 3,
+                  'nextLevelLabel': 'Bright Reader',
+                  'xpIntoLevel': 4,
+                  'xpForNextLevel': 36,
+                  'progressToNextLevel': 0.1,
+                  'badgesUnlocked': 1,
+                  'badges': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path == '/api/v1/learner-app/sessions') {
+              return http.Response(
+                jsonEncode({'sessions': const []}),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      state.usingFallbackData = false;
+      state.learners
+        ..clear()
+        ..add(beginner);
+      state.currentLearner = beginner;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      state.startLesson(lesson);
+      state.submitLearnerResponse('I am ready');
+      await state.completeLesson(lesson);
+
+      expect(state.currentLearner!.rewards, isNotNull);
+      expect(state.currentLearner!.rewards!.totalXp, 44);
+      expect(state.currentLearner!.rewards!.levelLabel, 'Explorer');
       state.dispose();
     });
 

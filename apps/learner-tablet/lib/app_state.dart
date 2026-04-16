@@ -315,6 +315,8 @@ class LumoAppState {
               ? Map<String, dynamic>.from(activeSessionRaw)
               : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
+      deploymentBlockerReason =
+          hasUsableOfflineSnapshot ? null : deploymentBlockerReason;
       restoredFromPersistence = true;
       persistenceError = null;
     } catch (error) {
@@ -376,6 +378,7 @@ class LumoAppState {
         ..clear()
         ..addAll(data.assignmentPacks);
       usingFallbackData = false;
+      deploymentBlockerReason = null;
       lastSyncedAt = DateTime.now();
       backendGeneratedAt = data.generatedAt == null
           ? null
@@ -410,7 +413,13 @@ class LumoAppState {
     } catch (error) {
       usingFallbackData = true;
       backendError = error.toString().replaceFirst('Exception: ', '');
-      _restoreGuaranteedOfflineFallbackIfNeeded();
+      final needsProductionBlocker = kReleaseBuild &&
+          !_includeSeedDemoContent &&
+          !hasUsableOfflineSnapshot;
+      deploymentBlockerReason = needsProductionBlocker ? backendError : null;
+      if (!needsProductionBlocker) {
+        _restoreGuaranteedOfflineFallbackIfNeeded();
+      }
     } finally {
       isBootstrapping = false;
       persistStateSoon();
@@ -1985,6 +1994,7 @@ class LumoAppState {
 
     persistStateSoon();
     await syncPendingEvents();
+    await refreshLearnerRewards(updatedLearner);
     await refreshLearnerRuntimeSessions(updatedLearner);
   }
 
@@ -2345,6 +2355,31 @@ class LumoAppState {
     final lessonLabel = latest.lessonTitle ?? 'Live lesson session';
     final resumeLabel = resumable == null ? '' : 'Resume ready • ';
     return '$resumeLabel${latest.statusLabel} • $lessonLabel • ${latest.progressLabel} • updated $activityLabel';
+  }
+
+  Future<void> refreshLearnerRewards(LearnerProfile learner) async {
+    if (usingFallbackData) return;
+    if (learner.id.trim().isEmpty && learner.learnerCode.trim().isEmpty) return;
+
+    try {
+      final snapshot = await _apiClient.fetchLearnerRewards(
+        learnerId: learner.id,
+        learnerCode: learner.learnerCode,
+      );
+      final learnerIndex = learners.indexWhere((item) => item.id == learner.id);
+      if (learnerIndex == -1) return;
+
+      final refreshedLearner =
+          learners[learnerIndex].copyWith(rewards: snapshot);
+      learners[learnerIndex] = refreshedLearner;
+      if (currentLearner?.id == learner.id) {
+        currentLearner = refreshedLearner;
+      }
+      persistStateSoon();
+    } catch (_) {
+      // Keep the optimistic local reward state if the backend reward projection
+      // is temporarily unavailable.
+    }
   }
 
   Future<void> refreshLearnerRuntimeSessions(

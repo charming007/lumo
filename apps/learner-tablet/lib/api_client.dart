@@ -218,6 +218,29 @@ class LumoApiClient {
     );
   }
 
+  Future<RewardSnapshot> fetchLearnerRewards({
+    String? learnerId,
+    String? learnerCode,
+  }) async {
+    final query = <String, String>{};
+    if (learnerId != null && learnerId.trim().isNotEmpty) {
+      query['learnerId'] = learnerId.trim();
+    }
+    if (learnerCode != null && learnerCode.trim().isNotEmpty) {
+      query['learnerCode'] = learnerCode.trim();
+    }
+
+    final uri = Uri.parse('$baseUrl/api/v1/learner-app/rewards')
+        .replace(queryParameters: query.isEmpty ? null : query);
+    final response = await _send(
+      () => _client.get(uri, headers: _jsonHeaders),
+      action: 'load learner rewards',
+    );
+
+    _ensureOk(response, 'load learner rewards');
+    return RewardSnapshot.fromJson(_decodeObject(response.body));
+  }
+
   List<Map<String, dynamic>> _asList(Object? value) {
     if (value is! List) return const <Map<String, dynamic>>[];
     return value.map((item) => Map<String, dynamic>.from(item as Map)).toList();
