@@ -22,7 +22,7 @@ function bannerTone(apiSource: ApiBaseSource) {
 
 function describeApiSource(apiSource: ApiBaseSource) {
   if (apiSource === 'missing-production-env') {
-    return 'Production deploy is missing NEXT_PUBLIC_API_BASE_URL. The LMS will stay up in degraded mode, but live data is intentionally blocked until the env var is set.';
+    return 'Production deploy is missing NEXT_PUBLIC_API_BASE_URL. That build should fail immediately instead of pretending the LMS can run safely without live API wiring.';
   }
 
   if (apiSource === 'local-fallback') {
