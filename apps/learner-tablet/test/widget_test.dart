@@ -605,6 +605,9 @@ void main() {
     expect(find.text('Review saved voice before advancing'), findsOneWidget);
     expect(find.text('Transcript missing • use saved voice'), findsOneWidget);
     expect(find.text('Saved learner voice attached'), findsOneWidget);
+    expect(find.text('Recovery plan: use the saved learner voice'), findsOneWidget);
+    expect(find.textContaining('No transcript came through on this take'),
+        findsOneWidget);
     expect(find.text('Play saved voice'), findsWidgets);
     expect(find.text('Accept saved voice + continue'), findsOneWidget);
 
@@ -646,11 +649,60 @@ void main() {
     expect(
         find.text('Verify draft transcript with saved voice'), findsOneWidget);
     expect(find.text('Draft transcript • verify with audio'), findsOneWidget);
+    expect(find.text('Recovery plan: confirm the draft with saved voice'),
+        findsOneWidget);
     expect(
       find.textContaining('Use the saved voice as the source of truth'),
       findsOneWidget,
     );
     expect(find.text('Confirm transcript'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets('lesson session shows a preflight listening readiness card', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.textContaining('ready for the next take')
+          .evaluate()
+          .isNotEmpty ||
+          find.text('Audio-first fallback is ready').evaluate().isNotEmpty,
+      isTrue,
+    );
+    expect(
+      find.text('Transcript will join the next take').evaluate().isNotEmpty ||
+          find.text('Next take will save audio first').evaluate().isNotEmpty,
+      isTrue,
+    );
+    expect(
+      find.text('Start listening + transcript').evaluate().isNotEmpty ||
+          find.text('Start listening (audio first)').evaluate().isNotEmpty,
+      isTrue,
+    );
 
     state.dispose();
   });

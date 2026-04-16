@@ -4429,6 +4429,93 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           ? 'Recorder owns microphone'
           : speechTranscriptionService.activeModeLabel;
 
+  bool get _transcriptReadyToArm =>
+      !_avoidConcurrentSpeechCapture && speechTranscriptionService.isAvailable;
+
+  String get _listeningReadinessHeadline {
+    if (isRecording && speechRecognitionActive) {
+      return 'Live transcript is listening now';
+    }
+    if (isRecording) {
+      return 'Audio-only capture is running now';
+    }
+    if (_resumePromptPendingFromLifecycle || _autoPausedByTranscriptFailure) {
+      return 'Recovery mode is holding the step safely';
+    }
+    if (_transcriptReadyToArm) {
+      return 'Live transcript is ready for the next take';
+    }
+    if (_consecutiveTranscriptMisses >= 2) {
+      return 'Transcript help is unstable right now';
+    }
+    return 'Audio-first fallback is ready';
+  }
+
+  String get _listeningReadinessBody {
+    if (isRecording && speechRecognitionActive) {
+      return 'Speak normally. Lumo is saving learner audio and drafting text at the same time.';
+    }
+    if (isRecording) {
+      return 'Lumo is saving the learner voice now. Finish the take, then review the saved audio before advancing.';
+    }
+    if (_resumePromptPendingFromLifecycle || _autoPausedByTranscriptFailure) {
+      return 'Nothing is lost. Review the saved learner evidence, then resume hands-free only when the mic route is stable again.';
+    }
+    if (_transcriptReadyToArm) {
+      return 'Press start and Lumo will capture learner audio plus live transcript help on the same take.';
+    }
+    if (_consecutiveTranscriptMisses >= 2) {
+      return 'Keep teaching in audio-first mode for now. The saved voice note is the source of truth until transcript help settles.';
+    }
+    return speechTranscriptionService.strategySummary(
+      preferAudioOnly: _avoidConcurrentSpeechCapture,
+    );
+  }
+
+  String get _listeningStartButtonLabel {
+    if (isRecording) {
+      return 'Listening now';
+    }
+    return _transcriptReadyToArm
+        ? 'Start listening + transcript'
+        : 'Start listening (audio first)';
+  }
+
+  String get _recoveryPlanHeadline {
+    if (_hasTranscriptSafetyBlock) {
+      return 'Recovery plan: verify this transcript against audio';
+    }
+    if (_draftTranscriptNeedsVoiceCheck) {
+      return 'Recovery plan: confirm the draft with saved voice';
+    }
+    if (_isAudioOnlyReviewState) {
+      return 'Recovery plan: use the saved learner voice';
+    }
+    if (_resumePromptPendingFromLifecycle || _autoPausedByTranscriptFailure) {
+      return 'Recovery plan: resume deliberately';
+    }
+    if (_consecutiveTranscriptMisses >= 2) {
+      return 'Recovery plan: slow the loop down';
+    }
+    return 'Recovery plan';
+  }
+
+  String get _recoveryPlanBody {
+    if (_hasTranscriptSafetyBlock || _draftTranscriptNeedsVoiceCheck) {
+      return 'Play the saved voice once, fix the text if needed, then confirm before Mallam continues.';
+    }
+    if (_isAudioOnlyReviewState) {
+      return 'No transcript came through on this take. Use the saved voice note or type a short note, then continue.';
+    }
+    if (_resumePromptPendingFromLifecycle || _autoPausedByTranscriptFailure) {
+      return 'Resume hands-free only after you are happy with the mic route. Manual mode is safer until then.';
+    }
+    if (_consecutiveTranscriptMisses >= 2) {
+      return 'Repeat mode and saved audio are now the safest path. Avoid forcing transcript retries on every take.';
+    }
+    return _automationSafetySummary;
+  }
+
   String get _automationSafetySummary {
     if (_isAudioOnlyReviewState) {
       return 'Mallam will not auto-advance from this take until someone listens to the saved audio or types a confirmed note.';
@@ -6982,6 +7069,114 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ),
                                           ),
                                           const SizedBox(height: 8),
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: _transcriptReadyToArm
+                                                  ? const Color(0xFFEEF2FF)
+                                                  : const Color(0xFFF8FAFC),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                              border: Border.all(
+                                                color: _transcriptReadyToArm
+                                                    ? const Color(0xFFC7D2FE)
+                                                    : const Color(0xFFE2E8F0),
+                                              ),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Icon(
+                                                      _transcriptReadyToArm
+                                                          ? Icons
+                                                              .subtitles_rounded
+                                                          : Icons
+                                                              .hearing_rounded,
+                                                      color:
+                                                          _transcriptReadyToArm
+                                                              ? const Color(
+                                                                  0xFF312E81)
+                                                              : const Color(
+                                                                  0xFF334155),
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            _listeningReadinessHeadline,
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                              color:
+                                                                  _transcriptReadyToArm
+                                                                      ? const Color(
+                                                                          0xFF312E81)
+                                                                      : const Color(
+                                                                          0xFF0F172A),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 6),
+                                                          Text(
+                                                            _listeningReadinessBody,
+                                                            style:
+                                                                const TextStyle(
+                                                              color: Color(
+                                                                  0xFF475569),
+                                                              height: 1.35,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 10),
+                                                Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 8,
+                                                  children: [
+                                                    _buildDiagnosticChip(
+                                                      icon: _transcriptReadyToArm
+                                                          ? Icons
+                                                              .check_circle_rounded
+                                                          : Icons
+                                                              .mic_none_rounded,
+                                                      label: _transcriptReadyToArm
+                                                          ? 'Transcript will join the next take'
+                                                          : 'Next take will save audio first',
+                                                      healthy:
+                                                          _transcriptReadyToArm,
+                                                      warn: !_transcriptReadyToArm,
+                                                    ),
+                                                    _buildDiagnosticChip(
+                                                      icon: Icons
+                                                          .settings_voice_rounded,
+                                                      label:
+                                                          _transcriptModeLabel,
+                                                      healthy:
+                                                          speechRecognitionActive ||
+                                                              _transcriptReadyToArm,
+                                                      warn: !speechRecognitionActive &&
+                                                          !_transcriptReadyToArm,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
                                           Text(
                                             microphoneStatus ??
                                                 'Press Start listening after Mallam speaks. Lumo saves learner audio and adds transcript help when the device allows it.',
@@ -7004,8 +7199,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                     : startRecording,
                                                 icon: const Icon(
                                                     Icons.mic_rounded),
-                                                label: const Text(
-                                                    'Start listening'),
+                                                label: Text(
+                                                  _listeningStartButtonLabel,
+                                                ),
                                               ),
                                               FilledButton.tonalIcon(
                                                 onPressed: isRecording
@@ -7067,6 +7263,49 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                             ],
                                           ),
+                                          if ((_resumePromptPendingFromLifecycle ||
+                                                  _autoPausedByTranscriptFailure ||
+                                                  transcriptReviewPending ||
+                                                  _consecutiveTranscriptMisses >=
+                                                      2) &&
+                                              !isRecording) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFFFFBEB),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                  color:
+                                                      const Color(0xFFFCD34D),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    _recoveryPlanHeadline,
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: Color(0xFF78350F),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    _recoveryPlanBody,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF92400E),
+                                                      height: 1.4,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                           if (!speechRecognitionActive &&
                                               !isRecording) ...[
                                             const SizedBox(height: 12),
