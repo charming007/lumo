@@ -1433,6 +1433,27 @@ class LumoAppState {
     _attemptSyncSoon();
   }
 
+  void updateCurrentStepLearnerDraft(
+    String response, {
+    String? automationStatus,
+  }) {
+    final session = activeSession;
+    if (session == null) return;
+
+    final trimmed = response.trim();
+    final existingDraft = session.latestLearnerResponse ?? '';
+    if (trimmed.isEmpty && existingDraft.trim().isEmpty) return;
+    if (trimmed == existingDraft.trim()) return;
+
+    activeSession = session.copyWith(
+      latestLearnerResponse: trimmed.isEmpty ? null : response,
+      latestReview: ResponseReview.pending,
+      automationStatus: automationStatus ?? session.automationStatus,
+      clearLatestLearnerResponse: trimmed.isEmpty,
+    );
+    persistStateSoon();
+  }
+
   void clearCurrentStepLearnerEvidence({String? automationStatus}) {
     final session = activeSession;
     if (session == null) return;

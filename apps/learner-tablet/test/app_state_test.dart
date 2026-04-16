@@ -114,6 +114,24 @@ void main() {
       state.dispose();
     });
 
+    test('persists in-progress learner draft answers before submission', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.first;
+      state.selectLearner(learner);
+      state.selectModule(state.modules.first);
+      state.startLesson(lesson);
+
+      state.updateCurrentStepLearnerDraft('I am rea');
+      expect(state.activeSession?.latestLearnerResponse, 'I am rea');
+      expect(state.activeSession?.latestReview, ResponseReview.pending);
+
+      state.updateCurrentStepLearnerDraft('');
+      expect(state.activeSession?.latestLearnerResponse, isNull);
+      expect(state.activeSession?.latestReview, ResponseReview.pending);
+      state.dispose();
+    });
+
     test('keeps live module list free of demo-only subjects during bootstrap',
         () async {
       final state = LumoAppState(
@@ -1601,7 +1619,7 @@ void main() {
 
     test('lesson completion projects a completed runtime session locally',
         () async {
-      LumoAppState? state;
+      late final LumoAppState state;
       state = LumoAppState(
         includeSeedDemoContent: true,
         apiClient: LumoApiClient(
@@ -1643,20 +1661,20 @@ void main() {
                 jsonEncode({
                   'sessions': [
                     {
-                      'id': state?.activeSession?.sessionId ??
+                      'id': state.activeSession?.sessionId ??
                           'runtime-session-stale',
                       'sessionId':
-                          state?.activeSession?.sessionId ?? 'session-stale',
+                          state.activeSession?.sessionId ?? 'session-stale',
                       'studentId': beginner.id,
                       'learnerCode': beginner.learnerCode,
                       'lessonId':
-                          state?.activeSession?.lesson.id ?? 'lesson-stale',
+                          state.activeSession?.lesson.id ?? 'lesson-stale',
                       'lessonTitle':
-                          state?.activeSession?.lesson.title ?? 'Older session',
+                          state.activeSession?.lesson.title ?? 'Older session',
                       'moduleId':
-                          state?.activeSession?.lesson.moduleId ?? 'english',
+                          state.activeSession?.lesson.moduleId ?? 'english',
                       'moduleTitle':
-                          state?.activeSession?.lesson.subject ?? 'English',
+                          state.activeSession?.lesson.subject ?? 'English',
                       'status': 'in_progress',
                       'completionState': 'inProgress',
                       'automationStatus': 'Waiting for input.',
@@ -1682,7 +1700,7 @@ void main() {
         ..usingFallbackData = false
         ..currentLearner = beginner;
 
-      final lesson = state!.assignedLessons.firstWhere(
+      final lesson = state.assignedLessons.firstWhere(
         (item) => item.moduleId == 'english',
       );
       state.startLesson(lesson);
@@ -1690,8 +1708,10 @@ void main() {
       await state.completeLesson(lesson);
 
       final sessions = state.recentRuntimeSessionsForLearner(beginner);
+      final activeSession = state.activeSession;
       expect(sessions, isNotEmpty);
-      expect(sessions.first.sessionId, state.activeSession!.sessionId);
+      expect(activeSession, isNotNull);
+      expect(sessions.first.sessionId, activeSession?.sessionId);
       expect(sessions.first.status, 'completed');
       expect(state.resumableRuntimeSessionForLearner(beginner), isNull);
       state.dispose();
