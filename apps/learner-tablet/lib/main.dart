@@ -757,6 +757,7 @@ class _HomeMallamStage extends StatelessWidget {
         voiceButtonLabel: 'Replay Mallam',
         voiceHint:
             'Keep Mallam visible and dominant on this screen so the facilitator never loses the voice guide while choosing the next action.',
+        centerPortraitLayout: true,
       ),
     );
   }
@@ -1949,6 +1950,7 @@ class SubjectModulesPage extends StatelessWidget {
                     voiceButtonLabel: 'Replay Mallam',
                     voiceHint:
                         'Keep Mallam visible and dominant on this screen so the facilitator can choose the next lesson without losing the voice guide.',
+                    centerPortraitLayout: true,
                   ),
                 ),
               ),

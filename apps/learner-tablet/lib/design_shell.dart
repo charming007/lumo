@@ -96,6 +96,7 @@ class MallamPanel extends StatelessWidget {
   final String voiceButtonLabel;
   final String? speakerOutputMode;
   final String? voiceHint;
+  final bool centerPortraitLayout;
 
   const MallamPanel({
     super.key,
@@ -108,6 +109,7 @@ class MallamPanel extends StatelessWidget {
     this.voiceButtonLabel = 'Replay voice',
     this.speakerOutputMode,
     this.voiceHint,
+    this.centerPortraitLayout = false,
   });
 
   @override
@@ -126,8 +128,11 @@ class MallamPanel extends StatelessWidget {
         );
 
         final header = Align(
-          alignment: Alignment.centerLeft,
+          alignment:
+              centerPortraitLayout ? Alignment.center : Alignment.centerLeft,
           child: Wrap(
+            alignment:
+                centerPortraitLayout ? WrapAlignment.center : WrapAlignment.start,
             spacing: 8,
             runSpacing: 8,
             children: [
@@ -199,10 +204,12 @@ class MallamPanel extends StatelessWidget {
             border: Border.all(color: speakerColor.withValues(alpha: 0.18)),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                centerPortraitLayout ? CrossAxisAlignment.center : CrossAxisAlignment.start,
             children: [
               Text(
                 'Mallam says',
+                textAlign: centerPortraitLayout ? TextAlign.center : TextAlign.left,
                 style: TextStyle(
                   color: speakerColor,
                   fontWeight: FontWeight.w800,
@@ -212,7 +219,10 @@ class MallamPanel extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 prompt,
-                textAlign: compactLayout ? TextAlign.center : TextAlign.left,
+                textAlign:
+                    centerPortraitLayout || compactLayout
+                        ? TextAlign.center
+                        : TextAlign.left,
                 style: promptStyle,
               ),
             ],
@@ -277,18 +287,31 @@ class MallamPanel extends StatelessWidget {
           ),
         );
 
-        final content = compactLayout
-            ? <Widget>[
-                header,
-                const SizedBox(height: 16),
-                Center(child: portrait),
-                const SizedBox(height: 18),
-                primaryPromptCard,
-                const SizedBox(height: 14),
-                SizedBox(width: double.infinity, child: voiceAction),
-                const SizedBox(height: 10),
-                guidancePanel,
-              ]
+        final stackedContent = <Widget>[
+          header,
+          const SizedBox(height: 16),
+          Center(child: portrait),
+          const SizedBox(height: 18),
+          if (centerPortraitLayout)
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: primaryPromptCard,
+              ),
+            )
+          else
+            primaryPromptCard,
+          const SizedBox(height: 14),
+          if (centerPortraitLayout)
+            Center(child: voiceAction)
+          else
+            SizedBox(width: double.infinity, child: voiceAction),
+          const SizedBox(height: 10),
+          guidancePanel,
+        ];
+
+        final content = compactLayout || centerPortraitLayout
+            ? stackedContent
             : <Widget>[
                 header,
                 const SizedBox(height: 18),
