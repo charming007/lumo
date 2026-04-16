@@ -160,7 +160,218 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.state.shouldBlockProductionDeployment) {
+      return LearnerDeploymentBlockerPage(
+        state: widget.state,
+        onRetry: () async {
+          await widget.state.bootstrap();
+          widget.onChanged();
+        },
+      );
+    }
+
     return HomePage(state: widget.state, onChanged: widget.onChanged);
+  }
+}
+
+class LearnerDeploymentBlockerPage extends StatelessWidget {
+  const LearnerDeploymentBlockerPage({
+    super.key,
+    required this.state,
+    required this.onRetry,
+  });
+
+  final LumoAppState state;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final blockerReason = state.deploymentBlockerReason ??
+        state.backendError ??
+        'Learner bootstrap could not reach the production backend.';
+
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LumoTopBar(onLogoTap: () {}),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF7C2D12), Color(0xFF9A3412)],
+                      ),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(color: const Color(0xFFEA580C)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x3329231A),
+                          blurRadius: 30,
+                          offset: Offset(0, 18),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Deployment blocker: learner app is offline and refusing to fake a live roster.',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            height: 1.15,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            height: 1.5,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: Text(
+                            blockerReason,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  DetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'What to fix before deployment',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        const _DeploymentCheckRow(
+                          title: 'Backend bootstrap',
+                          expected:
+                              'GET /api/v1/learner-app/bootstrap returns production learners, modules, lessons, assignments, and registration targets.',
+                          failure:
+                              'Tablet opens to an offline blocker because the live roster cannot be trusted yet.',
+                        ),
+                        const _DeploymentCheckRow(
+                          title: 'Release config',
+                          expected:
+                              'LUMO_API_BASE_URL points at the production API for this release build.',
+                          failure:
+                              'App targets the wrong host, times out, or never reaches the learner backend.',
+                        ),
+                        const _DeploymentCheckRow(
+                          title: 'Trusted offline state',
+                          expected:
+                              'If the tablet must work offline, preload a real synced snapshot first instead of shipping demo seed content.',
+                          failure:
+                              'Operators see fake learners or empty live flows on a production tablet.',
+                        ),
+                        const SizedBox(height: 18),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            FilledButton.icon(
+                              onPressed: () async {
+                                await onRetry();
+                              },
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Retry production bootstrap'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: null,
+                              icon: const Icon(Icons.cloud_off_rounded),
+                              label: const Text('Live data required'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeploymentCheckRow extends StatelessWidget {
+  const _DeploymentCheckRow({
+    required this.title,
+    required this.expected,
+    required this.failure,
+  });
+
+  final String title;
+  final String expected;
+  final String failure;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            expected,
+            style: const TextStyle(color: Color(0xFF0F172A), height: 1.4),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            failure,
+            style: const TextStyle(color: Color(0xFF9A3412), height: 1.4),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1255,8 +1466,19 @@ class LearnerProfilePage extends StatelessWidget {
     required this.learner,
   });
 
+  LearnerProfile _resolveLearner() {
+    for (final entry in state.learners) {
+      if (entry.id == learner.id) return entry;
+    }
+    if (state.currentLearner?.id == learner.id) {
+      return state.currentLearner!;
+    }
+    return learner;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final learner = _resolveLearner();
     final rewards = learner.rewards;
     final totalXp = learner.totalXp;
     final totalMinutes = learner.estimatedTotalMinutes;

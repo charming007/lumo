@@ -223,6 +223,62 @@ void main() {
     expect(find.textContaining('leaderboard'), findsWidgets);
   });
 
+  testWidgets('learner profile reads fresh XP from app state instead of a stale route snapshot', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final staleLearner = state.learners.first.copyWith(
+      rewards: const RewardSnapshot(
+        learnerId: 'learner-1',
+        totalXp: 120,
+        points: 120,
+        level: 2,
+        levelLabel: 'Rising Voice',
+        nextLevel: 3,
+        nextLevelLabel: 'Bright Reader',
+        xpIntoLevel: 40,
+        xpForNextLevel: 40,
+        progressToNextLevel: 0.5,
+        badgesUnlocked: 0,
+      ),
+    );
+    state.learners[0] = staleLearner.copyWith(
+      rewards: const RewardSnapshot(
+        learnerId: 'learner-1',
+        totalXp: 160,
+        points: 160,
+        level: 3,
+        levelLabel: 'Bright Reader',
+        nextLevel: 4,
+        nextLevelLabel: 'Story Scout',
+        xpIntoLevel: 0,
+        xpForNextLevel: 80,
+        progressToNextLevel: 0,
+        badgesUnlocked: 1,
+      ),
+    );
+    state.currentLearner = state.learners.first;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LearnerProfilePage(
+          state: state,
+          learner: staleLearner,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('160 XP'), findsWidgets);
+    expect(find.textContaining('Bright Reader'), findsWidgets);
+
+    state.dispose();
+  });
+
   testWidgets('student list marks locally registered learners as sync pending',
       (
     tester,
