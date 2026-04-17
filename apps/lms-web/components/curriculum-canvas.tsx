@@ -91,6 +91,39 @@ function moduleUrl(subjectId: string, moduleId: string, searchTerm: string, read
   return `/canvas?${params.toString()}`;
 }
 
+type CanvasUrlState = {
+  searchTerm: string;
+  subjectFilter: string;
+  readinessFilter: string;
+  selectedModuleId: string;
+  selectedLessonId: string | null;
+  selectedAssessmentId: string | null;
+};
+
+function readCanvasUrlState(firstModuleId?: string | null): CanvasUrlState {
+  if (typeof window === 'undefined') {
+    return {
+      searchTerm: '',
+      subjectFilter: 'all',
+      readinessFilter: 'all',
+      selectedModuleId: firstModuleId ?? '',
+      selectedLessonId: null,
+      selectedAssessmentId: null,
+    };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const panel = params.get('panel');
+  return {
+    searchTerm: params.get('q') ?? '',
+    subjectFilter: params.get('subject') ?? 'all',
+    readinessFilter: params.get('readiness') ?? 'all',
+    selectedModuleId: params.get('module') ?? firstModuleId ?? '',
+    selectedLessonId: panel === 'lesson' ? params.get('lesson') : null,
+    selectedAssessmentId: panel === 'assessment' ? params.get('assessment') : null,
+  };
+}
+
 function panelUrl(baseUrl: string, panel: 'lesson' | 'assessment', entityId: string) {
   const [path, existingQuery] = baseUrl.split('?');
   const params = new URLSearchParams(existingQuery ?? '');
@@ -214,15 +247,20 @@ export function CurriculumCanvas({
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const panel = params.get('panel');
-    setSearchTerm(params.get('q') ?? '');
-    setSubjectFilter(params.get('subject') ?? 'all');
-    setReadinessFilter(params.get('readiness') ?? 'all');
-    setSelectedModuleId(params.get('module') ?? firstModule?.id ?? '');
-    setSelectedLessonId(panel === 'lesson' ? params.get('lesson') : null);
-    setSelectedAssessmentId(panel === 'assessment' ? params.get('assessment') : null);
+    const syncFromUrl = () => {
+      const nextState = readCanvasUrlState(firstModule?.id);
+      setSearchTerm(nextState.searchTerm);
+      setSubjectFilter(nextState.subjectFilter);
+      setReadinessFilter(nextState.readinessFilter);
+      setSelectedModuleId(nextState.selectedModuleId);
+      setSelectedLessonId(nextState.selectedLessonId);
+      setSelectedAssessmentId(nextState.selectedAssessmentId);
+    };
+
+    syncFromUrl();
+    if (typeof window === 'undefined') return undefined;
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
   }, [firstModule?.id]);
 
   useEffect(() => {
@@ -365,6 +403,24 @@ export function CurriculumCanvas({
     }
   }, [readinessFilter, searchTerm, selectedAssessmentId, selectedLessonId, selectedModuleId, subjectFilter]);
 
+  const activeFilterPills = [
+    searchTerm ? { id: 'q', label: `Search: ${searchTerm}`, clear: () => setSearchTerm('') } : null,
+    subjectFilter !== 'all'
+      ? {
+          id: 'subject',
+          label: `Subject: ${data.subjects.find((subject) => subject.id === subjectFilter)?.name ?? subjectFilter}`,
+          clear: () => setSubjectFilter('all'),
+        }
+      : null,
+    readinessFilter !== 'all'
+      ? {
+          id: 'readiness',
+          label: readinessFilter === 'blocked' ? 'Blocked modules only' : 'Release-ready only',
+          clear: () => setReadinessFilter('all'),
+        }
+      : null,
+  ].filter((value): value is { id: string; label: string; clear: () => void } => Boolean(value));
+
   const selectedLesson = selected?.module.lessons.find((lesson) => lesson.id === selectedLessonId) ?? null;
   const selectedAssessment = selected?.module.assessments.find((assessment) => assessment.id === selectedAssessmentId) ?? null;
   const selectedModuleUrl = selected ? moduleUrl(selected.subject.id, selected.module.id, searchTerm, readinessFilter) : '/canvas';
@@ -445,6 +501,31 @@ export function CurriculumCanvas({
           >
             Reset filters
           </button>
+        </div>
+
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Filter audit</div>
+            <div style={{ color: '#cbd5e1', fontSize: 13 }}>
+              Showing {visibleModuleCount} module{visibleModuleCount === 1 ? '' : 's'} across {filteredSummary.subjects} subject{filteredSummary.subjects === 1 ? '' : 's'}.
+            </div>
+          </div>
+          {activeFilterPills.length ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {activeFilterPills.map((pill) => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={pill.clear}
+                  style={{ ...filterButtonStyle, background: 'rgba(79,70,229,0.16)', color: '#e0e7ff', border: '1px solid rgba(129,140,248,0.34)' }}
+                >
+                  {pill.label} ×
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: '#64748b', fontSize: 13 }}>No extra filters active. You’re looking at the full canvas.</div>
+          )}
         </div>
 
         {priorityModules.length ? (
