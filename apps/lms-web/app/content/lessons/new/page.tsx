@@ -5,6 +5,7 @@ import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchSubjects }
 import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
 import { Card, PageShell, Pill, responsiveGrid } from '../../../../lib/ui';
 import { API_BASE_SOURCE } from '../../../../lib/config';
+import { filterLessonsForModule } from '../../../../lib/module-lesson-match';
 import { createLessonAction } from '../../../actions';
 
 function statusTone(status: string) {
@@ -121,7 +122,7 @@ export default async function NewLessonPage({ searchParams }: { searchParams?: P
     ? assessments.filter((assessment) => assessment.moduleId === activeModule.id || assessment.moduleTitle === activeModule.title)
     : [];
   const siblingLessons = activeModule
-    ? lessons.filter((lesson) => lesson.moduleId === activeModule.id || lesson.moduleTitle === activeModule.title)
+    ? filterLessonsForModule(lessons, activeModule)
     : [];
   const returnPath = sanitizeReturnPath(query?.from);
   const queryParamsWereAdjusted = Boolean(

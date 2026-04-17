@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { findModuleForLesson } from '../lib/module-lesson-match';
 import type { CurriculumModule, Lesson, Subject } from '../lib/types';
 
 const cardStyle = {
@@ -219,7 +220,7 @@ export function LessonEditorForm({
   returnPath?: string;
 }) {
   const [subjectId, setSubjectId] = useState(lesson.subjectId ?? (lesson.subjectName ? subjects.find((item) => item.name === lesson.subjectName)?.id ?? subjects[0]?.id ?? '' : subjects[0]?.id ?? ''));
-  const [moduleId, setModuleId] = useState(lesson.moduleId ?? modules.find((item) => item.title === lesson.moduleTitle)?.id ?? modules[0]?.id ?? '');
+  const [moduleId, setModuleId] = useState(lesson.moduleId ?? findModuleForLesson(modules, lesson)?.id ?? modules[0]?.id ?? '');
   const [title, setTitle] = useState(lesson.title);
   const [durationMinutes, setDurationMinutes] = useState(String(lesson.durationMinutes));
   const [mode, setMode] = useState(lesson.mode);

@@ -5,6 +5,7 @@ import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { ApiRequestError, fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessons, fetchSubjects } from '../../../../lib/api';
 import { API_BASE_SOURCE } from '../../../../lib/config';
+import { filterLessonsForModule, findModuleForLesson } from '../../../../lib/module-lesson-match';
 import { Card, PageShell, Pill, responsiveGrid } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
 
@@ -162,12 +163,14 @@ export default async function LessonDetailPage({ params, searchParams }: { param
     ? [fallbackModule, ...baseModules]
     : baseModules;
 
-  const activeModule = modules.find((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle) ?? null;
+  const activeModule = findModuleForLesson(modules, lesson);
   const activeModuleSubjectName = activeModule
     ? ('subjectName' in activeModule ? activeModule.subjectName : undefined) ?? lesson.subjectName ?? fallbackSubject?.name ?? 'Current lesson subject'
     : null;
   const relatedAssessments = assessments.filter((assessment) => assessment.moduleId === activeModule?.id || assessment.moduleTitle === activeModule?.title);
-  const siblingLessons = lessons.filter((item) => item.id !== lesson.id && (item.moduleId === activeModule?.id || item.moduleTitle === activeModule?.title));
+  const siblingLessons = activeModule
+    ? filterLessonsForModule(lessons, activeModule).filter((item) => item.id !== lesson.id)
+    : [];
   const readinessChecks: Array<[string, boolean]> = [
     ['Clear title', lesson.title.trim().length >= 8],
     ['Enough duration', Number(lesson.durationMinutes) >= 8],

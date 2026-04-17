@@ -1,4 +1,5 @@
 import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match';
+import { lessonMatchesModule } from './module-lesson-match';
 import type { Assessment, CurriculumModule, Lesson, Strand, Subject } from './types';
 
 export type CurriculumCanvasLesson = {
@@ -137,10 +138,6 @@ function matchesLooseIdOrName(leftId?: string | null, rightId?: string | null, l
 function lessonSubjectMatches(lesson: Lesson, subject: Subject, module?: CurriculumModule) {
   return matchesLooseIdOrName(lesson.subjectId, subject.id, lesson.subjectName, subject.name)
     || matchesLooseIdOrName(module?.subjectId, subject.id, module?.subjectName, subject.name);
-}
-
-function lessonMatchesModule(lesson: Lesson, module: CurriculumModule) {
-  return matchesLooseIdOrName(lesson.moduleId, module.id, lesson.moduleTitle, module.title);
 }
 
 function assessmentMatchesLesson(

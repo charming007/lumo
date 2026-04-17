@@ -1,4 +1,5 @@
 import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match';
+import { filterLessonsForModule, findModuleForLesson, lessonMatchesModule } from './module-lesson-match';
 import type { Assessment, Assignment, CurriculumModule, Lesson } from './types';
 
 type ActivityTemplate = {
@@ -153,11 +154,11 @@ export function buildEnglishLessonBlueprints({
 }): EnglishLessonBlueprint[] {
   const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
   const englishLessons = lessons.filter(
-    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle),
+    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => lessonMatchesModule(lesson, module)),
   );
 
   return englishLessons.map((lesson) => {
-    const module = englishModules.find((item) => item.id === lesson.moduleId || item.title === lesson.moduleTitle);
+    const module = findModuleForLesson(englishModules, lesson);
     const linkedAssessment = module
       ? assessments.find((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment)) ?? null
       : assessments.find((assessment) => assessment.moduleTitle === lesson.moduleTitle && isLiveAssessmentGate(assessment)) ?? null;
@@ -209,7 +210,7 @@ export function buildEnglishOpsSummary({
 }) {
   const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
   const englishLessons = lessons.filter(
-    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle),
+    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => lessonMatchesModule(lesson, module)),
   );
   const englishAssignments = assignments.filter((assignment) =>
     englishLessons.some((lesson) => lesson.title === assignment.lessonTitle) || assignment.lessonTitle.toLowerCase().includes('english'),
@@ -223,7 +224,7 @@ export function buildEnglishOpsSummary({
     publishedLessons: englishLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length,
     liveAssignments: englishAssignments.length,
     modulesMissingLessons: englishModules.filter((module) => {
-      const count = englishLessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title).length;
+      const count = filterLessonsForModule(englishLessons, module).length;
       return count < module.lessonCount;
     }).length,
     lessonsInReview: englishLessons.filter((lesson) => lesson.status === 'review').length,

@@ -20,6 +20,7 @@ import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLesson
 import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
+import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -146,7 +147,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
   const filteredLessons = lessons.filter((lesson) => {
     const lessonSubjectId = lesson.subjectId ?? subjects.find((subject) => subject.name === lesson.subjectName)?.id;
-    const moduleForLesson = modules.find((module) => module.id === lesson.moduleId || module.title === lesson.moduleTitle);
+    const moduleForLesson = findModuleForLesson(modules, lesson);
     const subjectMatches = !subjectFilter || lessonSubjectId === subjectFilter || lesson.subjectName === subjectFilterName || moduleForLesson?.subjectId === subjectFilter;
     const statusMatches = !statusFilter || lesson.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'lessons';
@@ -168,7 +169,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   );
 
   const blockedModules = modules.filter((module) => {
-    const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+    const moduleLessons = filterLessonsForModule(lessons, module);
     const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
     return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module) || module.status === 'draft';
   });
@@ -367,7 +368,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               <SimpleTable
                 columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
                 rows={filteredBlockedModules.length ? filteredBlockedModules.map((module) => {
-                  const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+                  const moduleLessons = filterLessonsForModule(lessons, module);
                   const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                   const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                   const hasAssessment = moduleHasAssessmentGate(module);
@@ -502,7 +503,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             <SimpleTable
               columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
               rows={filteredBlockedModules.length ? filteredBlockedModules.map((module) => {
-                const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+                const moduleLessons = filterLessonsForModule(lessons, module);
                 const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                 const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                 const hasAssessment = moduleHasAssessmentGate(module);

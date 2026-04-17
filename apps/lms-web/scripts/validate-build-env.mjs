@@ -1,4 +1,5 @@
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+const lifecycleEvent = process.env.npm_lifecycle_event;
 const isHostedDeployment =
   process.env.VERCEL === '1' ||
   Boolean(process.env.VERCEL_ENV) ||
@@ -8,7 +9,8 @@ const isProductionDeployment =
   process.env.NODE_ENV === 'production' ||
   process.env.VERCEL_ENV === 'production' ||
   process.env.CONTEXT === 'production';
-const shouldBlockBuild = isHostedDeployment || isProductionDeployment;
+const isBuildCommand = lifecycleEvent === 'build';
+const shouldBlockBuild = isHostedDeployment || isProductionDeployment || isBuildCommand;
 
 if (!configuredApiBase) {
   const lines = [
