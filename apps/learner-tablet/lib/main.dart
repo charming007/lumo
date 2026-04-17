@@ -832,12 +832,14 @@ class _MallamStageShell extends StatelessWidget {
   final String? title;
   final String? description;
   final Widget child;
+  final bool frameless;
 
   const _MallamStageShell({
     required this.eyebrow,
     this.title,
     this.description,
     required this.child,
+    this.frameless = false,
   });
 
   @override
@@ -846,12 +848,14 @@ class _MallamStageShell extends StatelessWidget {
 
     return Container(
       height: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
+      padding: frameless ? EdgeInsets.zero : const EdgeInsets.all(18),
+      decoration: frameless
+          ? const BoxDecoration(color: Colors.transparent)
+          : BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2216,23 +2220,24 @@ class SubjectModulesPage extends StatelessWidget {
                 flex: 5,
                 child: _MallamStageShell(
                   eyebrow: 'AI Mallam',
+                  frameless: true,
                   child: MallamPanel(
                     instruction: modulesInstruction,
                     onVoiceTap: () {
                       state.replayVisiblePrompt(
-                        'You opened ${module.title}. Start with the big next lesson card, then follow the path one step at a time.',
+                        'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
                       );
                     },
                     prompt:
-                        'You opened ${module.title}. Start with the big next lesson card, then follow the path one step at a time.',
+                        'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
                     speakerMode: SpeakerMode.guiding,
                     statusLabel: 'AI Mallam leads the journey',
                     secondaryStatus: 'Lesson path guide',
                     voiceButtonLabel: 'Replay Mallam',
-                    voiceHint:
-                        'Keep Mallam visible and dominant so the child and facilitator always have a clear guide while choosing the next lesson.',
                     centerPortraitLayout: true,
                     minimalStageLayout: true,
+                    framelessStage: true,
+                    framelessPortrait: true,
                   ),
                 ),
               ),
@@ -2243,9 +2248,6 @@ class SubjectModulesPage extends StatelessWidget {
                   child: LayoutBuilder(
                     builder: (context, detailConstraints) {
                       final compact = detailConstraints.maxWidth < 380;
-                      final journeyDirection = detailConstraints.maxWidth < 700
-                          ? Axis.vertical
-                          : Axis.horizontal;
 
                       Widget buildHeader() {
                         return Wrap(
@@ -2519,12 +2521,18 @@ class SubjectModulesPage extends StatelessWidget {
                           );
                         }
 
-                        return SingleChildScrollView(
-                          scrollDirection: journeyDirection,
-                          child: Flex(
-                            direction: journeyDirection,
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFF),
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          child: Wrap(
+                            spacing: compact ? 18 : 22,
+                            runSpacing: compact ? 22 : 26,
                             children: [
-                              for (var i = 0; i < lessons.length; i++) ...[
+                              for (var i = 0; i < lessons.length; i++)
                                 _LessonJourneyStepCard(
                                   lesson: lessons[i],
                                   index: i,
@@ -2534,11 +2542,6 @@ class SubjectModulesPage extends StatelessWidget {
                                       ? null
                                       : () => openLesson(lessons[i]),
                                 ),
-                                if (i < lessons.length - 1)
-                                  _LessonJourneyConnector(
-                                    direction: journeyDirection,
-                                  ),
-                              ],
                             ],
                           ),
                         );
@@ -2548,19 +2551,12 @@ class SubjectModulesPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           buildHeader(),
-                          const SizedBox(height: 20),
-                          buildJourneyHeader(),
-                          const SizedBox(height: 16),
-                          _BackendStatusBanner(state: state),
-                          const SizedBox(height: 16),
                           if (selectedLearner != null) ...[
+                            const SizedBox(height: 18),
                             _CurrentLearnerBanner(
                               title: 'Current learner: ${selectedLearner.name}',
                               learner: selectedLearner,
                               nextLesson: nextAssignedLesson,
-                              backendSummary:
-                                  state.backendRoutingSummaryForLearner(
-                                      selectedLearner),
                               onOpenProfile: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
@@ -2572,26 +2568,8 @@ class SubjectModulesPage extends StatelessWidget {
                                 );
                               },
                             ),
-                            const SizedBox(height: 16),
                           ],
-                          buildHighlightedLesson(),
-                          const SizedBox(height: 18),
-                          const Text(
-                            'Lesson path',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Start with the highlighted step, then follow the path from left to right.',
-                            style: TextStyle(
-                              color: Color(0xFF64748B),
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           buildJourneyPath(),
                         ],
                       );
@@ -2628,131 +2606,125 @@ class _LessonJourneyStepCard extends StatelessWidget {
     this.onTap,
   });
 
+  static const List<IconData> _icons = [
+    Icons.menu_book_rounded,
+    Icons.calculate_rounded,
+    Icons.record_voice_over_rounded,
+    Icons.auto_stories_rounded,
+    Icons.extension_rounded,
+    Icons.lightbulb_rounded,
+  ];
+
   @override
   Widget build(BuildContext context) {
     final isHighlighted = highlightedLessonId == lesson.id;
     final isNext = nextLessonId == lesson.id;
     final syncPending = lesson.isAssignmentPlaceholder;
-    final borderColor = syncPending
-        ? const Color(0xFFFCD34D)
-        : isHighlighted
-            ? const Color(0xFFC7D2FE)
-            : const Color(0xFFE2E8F0);
+    final palette = _paletteFor(index,
+        syncPending: syncPending, emphasized: isHighlighted || isNext);
+    final labelColor =
+        syncPending ? const Color(0xFF92400E) : const Color(0xFF0F172A);
 
-    return Container(
-      width: 240,
-      margin: const EdgeInsets.only(bottom: 4),
+    return SizedBox(
+      width: 170,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(26),
           onTap: onTap,
-          child: Ink(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: syncPending
-                  ? const Color(0xFFFFFBEB)
-                  : isHighlighted
-                      ? const Color(0xFFEEF2FF)
-                      : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: borderColor),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: syncPending
-                            ? const Color(0xFFF59E0B)
-                            : isHighlighted
-                                ? LumoTheme.primary
-                                : const Color(0xFFCBD5E1),
-                        shape: BoxShape.circle,
+                Container(
+                  width: 108,
+                  height: 108,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: palette,
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      width: 4,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: palette.first.withValues(alpha: 0.28),
+                        blurRadius: 18,
+                        offset: const Offset(0, 12),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Icon(
+                          _icons[index % _icons.length],
+                          size: 38,
                           color: Colors.white,
-                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        syncPending
-                            ? 'Waiting'
-                            : isNext
-                                ? 'Next'
-                                : isHighlighted
-                                    ? 'Ready now'
-                                    : 'Later',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: syncPending
-                              ? const Color(0xFFB45309)
-                              : const Color(0xFF334155),
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 Text(
                   lesson.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    height: 1.15,
+                    height: 1.2,
+                    color: labelColor,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  lesson.readinessFocus,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    StatusPill(
-                      text: '${lesson.steps.length} steps',
-                      color: syncPending
-                          ? LumoTheme.accentOrange
-                          : LumoTheme.primary,
-                    ),
-                    StatusPill(
-                      text: '${lesson.durationMinutes} min',
-                      color: syncPending
-                          ? LumoTheme.accentOrange
-                          : LumoTheme.accentGreen,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 Text(
                   syncPending
-                      ? 'Lesson content not available yet'
-                      : 'Tap to choose learner',
+                      ? 'Waiting for sync'
+                      : isNext
+                          ? 'Tap to start'
+                          : isHighlighted
+                              ? 'Ready now'
+                              : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
                     color: syncPending
-                        ? LumoTheme.accentOrange
-                        : LumoTheme.primary,
-                    fontWeight: FontWeight.w800,
+                        ? const Color(0xFFB45309)
+                        : isNext || isHighlighted
+                            ? palette.first
+                            : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -2761,6 +2733,29 @@ class _LessonJourneyStepCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<Color> _paletteFor(int index,
+      {required bool syncPending, required bool emphasized}) {
+    if (syncPending) {
+      return const [Color(0xFFF59E0B), Color(0xFFFCD34D)];
+    }
+
+    const palettes = [
+      [Color(0xFF6D5EF8), Color(0xFF8B7FFF)],
+      [Color(0xFFFF8A5B), Color(0xFFFFB067)],
+      [Color(0xFF10B981), Color(0xFF34D399)],
+      [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
+      [Color(0xFFEF5DA8), Color(0xFFF472B6)],
+      [Color(0xFFF97316), Color(0xFFFBBF24)],
+    ];
+
+    final colors = palettes[index % palettes.length];
+    if (!emphasized) return colors;
+    return [
+      Color.lerp(colors[0], Colors.white, 0.08)!,
+      Color.lerp(colors[1], Colors.white, 0.02)!,
+    ];
   }
 }
 
@@ -6658,6 +6653,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     Widget buildLessonGuidePane() {
       final lessonStage = _MallamStageShell(
         eyebrow: 'AI Mallam',
+        frameless: true,
         child: MallamPanel(
           instruction: lessonInstruction,
           onVoiceTap: () async {
@@ -6675,6 +6671,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           voiceHint: null,
           centerPortraitLayout: true,
           minimalStageLayout: true,
+          framelessStage: true,
+          framelessPortrait: true,
         ),
       );
 
@@ -8390,14 +8388,12 @@ class _CurrentLearnerBanner extends StatelessWidget {
   final String title;
   final LearnerProfile learner;
   final LessonCardModel? nextLesson;
-  final String backendSummary;
   final VoidCallback onOpenProfile;
 
   const _CurrentLearnerBanner({
     required this.title,
     required this.learner,
     required this.nextLesson,
-    required this.backendSummary,
     required this.onOpenProfile,
   });
 
@@ -8434,11 +8430,6 @@ class _CurrentLearnerBanner extends StatelessWidget {
                     : LumoTheme.accentGreen,
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            backendSummary,
-            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
           ),
           if (nextLesson != null) ...[
             const SizedBox(height: 10),

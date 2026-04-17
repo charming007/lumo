@@ -100,6 +100,8 @@ class MallamPanel extends StatefulWidget {
   final String? voiceHint;
   final bool centerPortraitLayout;
   final bool minimalStageLayout;
+  final bool framelessStage;
+  final bool framelessPortrait;
 
   const MallamPanel({
     super.key,
@@ -114,6 +116,8 @@ class MallamPanel extends StatefulWidget {
     this.voiceHint,
     this.centerPortraitLayout = false,
     this.minimalStageLayout = false,
+    this.framelessStage = false,
+    this.framelessPortrait = false,
   });
 
   @override
@@ -202,45 +206,50 @@ class _MallamPanelState extends State<MallamPanel>
         final portrait = Container(
           height: imageFrameSize,
           width: imageFrameSize,
-          padding: EdgeInsets.all(widget.centerPortraitLayout ? 0 : 14),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFE0E7FF), Color(0xFFF8FAFC)],
-            ),
-            borderRadius: BorderRadius.circular(
-              widget.centerPortraitLayout ? 40 : 32,
-            ),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14243361),
-                blurRadius: 28,
-                offset: Offset(0, 18),
-              ),
-            ],
-          ),
+          padding: widget.framelessPortrait
+              ? EdgeInsets.zero
+              : EdgeInsets.all(widget.centerPortraitLayout ? 0 : 14),
+          decoration: widget.framelessPortrait
+              ? const BoxDecoration(color: Colors.transparent)
+              : BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFE0E7FF), Color(0xFFF8FAFC)],
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    widget.centerPortraitLayout ? 40 : 32,
+                  ),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x14243361),
+                      blurRadius: 28,
+                      offset: Offset(0, 18),
+                    ),
+                  ],
+                ),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      widget.centerPortraitLayout ? 40 : 28,
-                    ),
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.15, -0.35),
-                      radius: 0.95,
-                      colors: [
-                        speakerColor.withValues(alpha: 0.18),
-                        Colors.white.withValues(alpha: 0),
-                      ],
+              if (!widget.framelessPortrait)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        widget.centerPortraitLayout ? 40 : 28,
+                      ),
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.15, -0.35),
+                        radius: 0.95,
+                        colors: [
+                          speakerColor.withValues(alpha: 0.18),
+                          Colors.white.withValues(alpha: 0),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
               ScaleTransition(
                 scale: Tween(begin: 0.985, end: 1.015).animate(
                   CurvedAnimation(
@@ -250,7 +259,9 @@ class _MallamPanelState extends State<MallamPanel>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(
-                    widget.centerPortraitLayout ? 36 : 24,
+                    widget.framelessPortrait
+                        ? 0
+                        : (widget.centerPortraitLayout ? 36 : 24),
                   ),
                   child: Image.asset(
                     'assets/images/mallam_tutor.jpg',
@@ -480,19 +491,23 @@ class _MallamPanelState extends State<MallamPanel>
               ];
 
         return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0A0F172A),
-                blurRadius: 20,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(24),
+          decoration: widget.framelessStage
+              ? const BoxDecoration(color: Colors.transparent)
+              : BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0A0F172A),
+                      blurRadius: 20,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+          padding: widget.framelessStage
+              ? EdgeInsets.zero
+              : const EdgeInsets.all(24),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

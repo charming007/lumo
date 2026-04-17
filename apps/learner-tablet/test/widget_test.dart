@@ -224,6 +224,9 @@ void main() {
       find.textContaining('You opened ${module.title}.'),
       findsNothing,
     );
+    expect(find.text('Lesson journey'), findsNothing);
+    expect(find.text('Lesson path'), findsNothing);
+    expect(find.text('Next step'), findsNothing);
 
     state.dispose();
   });
