@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element, unused_field, unused_local_variable
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -6685,8 +6687,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                             ),
                                           ),
-                                          ],
-                                        ),
+                                        ],
                                       ),
                                     ),
                                     const SizedBox(height: 16),
