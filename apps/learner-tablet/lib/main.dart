@@ -5415,7 +5415,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     transcriptReviewPending = false;
     _promptedCurrentStep = false;
     setState(() {
-      microphoneStatus = 'That answer worked. Moving to the next step.';
+      microphoneStatus = LearnerDialogue.movingToNext();
     });
     await _speakCurrentStepIfNeeded(force: true);
   }
@@ -5434,7 +5434,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     await _speakAndMaybeAutoRecord(
       text,
       mode: mode,
-      autoReadyMessage: 'Mallam replayed the activity prompt.',
+      autoReadyMessage: LearnerDialogue.replayedPrompt(),
     );
   }
 

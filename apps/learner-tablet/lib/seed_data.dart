@@ -126,7 +126,7 @@ const assignedLessonsSeed = [
           'A for ant',
           'a',
         ],
-        coachPrompt: 'Look. This is A. Say A with me. A is for ant.',
+        coachPrompt: 'Hello. This is A. Say A with me. A is for ant.',
         facilitatorTip:
             'Tap the letter card once, then let the learner repeat before adding the word.',
         realWorldCheck:
@@ -134,7 +134,7 @@ const assignedLessonsSeed = [
         speakerMode: SpeakerMode.guiding,
         activity: LessonActivity(
           type: LessonActivityType.letterIntro,
-          prompt: 'Listen, then say the letter.',
+          prompt: 'Listen first, then say the letter.',
           focusText: 'A',
           supportText: 'A is for ant',
           targetResponse: 'A',
@@ -156,7 +156,7 @@ const assignedLessonsSeed = [
         speakerMode: SpeakerMode.listening,
         activity: LessonActivity(
           type: LessonActivityType.imageChoice,
-          prompt: 'Tap the right picture.',
+          prompt: 'Tap the picture that matches.',
           focusText: 'ant',
           supportText: 'Listen: ant',
           choices: ['ant', 'ball', 'sun'],
@@ -172,7 +172,7 @@ const assignedLessonsSeed = [
             'The learner says a short spoken sentence using the new word with a clear voice.',
         expectedResponse: 'A is for ant.',
         acceptableResponses: ['A for ant', 'It is ant', 'A is ant'],
-        coachPrompt: 'Now say the full answer with me: A is for ant.',
+        coachPrompt: 'Your turn. Say it with me: A is for ant.',
         facilitatorTip:
             'Accept a close spoken match if the learner says the target words in order.',
         realWorldCheck:
@@ -180,7 +180,7 @@ const assignedLessonsSeed = [
         speakerMode: SpeakerMode.affirming,
         activity: LessonActivity(
           type: LessonActivityType.speakAnswer,
-          prompt: 'Say it after Mallam.',
+          prompt: 'Say it after Mallam, nice and clear.',
           focusText: 'A is for ant.',
           supportText: 'Use your clear English voice.',
           targetResponse: 'A is for ant.',
@@ -209,7 +209,7 @@ const assignedLessonsSeed = [
         expectedResponse: '1, 2, 3, 4, 5',
         acceptableResponses: ['1 2 3 4 5', 'one two three four five'],
         coachPrompt:
-            'Let’s count the oranges together: one, two, three, four, five.',
+            'Let’s count together: one, two, three, four, five.',
         facilitatorTip:
             'Tap five fingers on the table if the learner needs visual rhythm.',
         realWorldCheck:
@@ -239,7 +239,7 @@ const assignedLessonsSeed = [
             'The learner says a complete confidence sentence about counting.',
         expectedResponse: 'I can count to ten.',
         acceptableResponses: ['I can count to 10', 'I can count'],
-        coachPrompt: 'Now say it proudly: I can count to ten.',
+        coachPrompt: 'Beautiful. Say it proudly: I can count to ten.',
         facilitatorTip:
             'Use a thumbs-up first so the learner shifts from guessing into celebration.',
         realWorldCheck:
@@ -272,7 +272,7 @@ const assignedLessonsSeed = [
           'Before eating and after toilet',
         ],
         coachPrompt:
-            'We wash our hands before eating and after using the toilet. Say it with me.',
+            'We wash before eating and after toilet. Say it with me.',
         facilitatorTip:
             'Gesture toward food or the washing area to connect the words to a real routine.',
         realWorldCheck:
@@ -290,7 +290,7 @@ const assignedLessonsSeed = [
           'Water soap rub rinse dry',
           'Soap, rub, rinse, dry'
         ],
-        coachPrompt: 'Say the steps with me: water, soap, rub, rinse, dry.',
+        coachPrompt: 'Say it with me: water, soap, rub, rinse, dry.',
         facilitatorTip:
             'Mime each action once instead of interrupting with too many words.',
         realWorldCheck:
@@ -305,7 +305,7 @@ const assignedLessonsSeed = [
             'The learner finishes with a simple personal commitment sentence.',
         expectedResponse: 'I will wash my hands every day.',
         acceptableResponses: ['I will wash my hands', 'I will wash every day'],
-        coachPrompt: 'Now say: I will wash my hands every day.',
+        coachPrompt: 'Now tell me: I will wash my hands every day.',
         facilitatorTip:
             'Pause after “I will” so the learner owns the final promise.',
         realWorldCheck:
