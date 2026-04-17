@@ -810,13 +810,13 @@ class HomePage extends StatelessWidget {
                               flex: compact ? 3 : 4,
                               child: Padding(
                                 padding: EdgeInsets.only(
-                                  top: compact ? 52 : 32,
+                                  top: compact ? 18 : 10,
                                   right: compact ? 0 : 8,
                                 ),
                                 child: _HomeMallamStage(state: state),
                               ),
                             ),
-                            SizedBox(height: compact ? 8 : 10),
+                            SizedBox(height: compact ? 4 : 6),
                             buildSubjectSection(),
                           ],
                         ),
@@ -929,25 +929,21 @@ class _HomeMallamStage extends StatelessWidget {
       builder: (context, constraints) {
         final compact =
             constraints.maxWidth < 900 || constraints.maxHeight < 420;
-        final portraitSize = compact ? 220.0 : 300.0;
+        final portraitSize = compact ? 208.0 : 280.0;
 
         return Container(
           decoration: const BoxDecoration(
             color: Colors.transparent,
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: Center(
-                  child: Image.asset(
-                    'assets/images/mallam_tutor_cutout.png',
-                    height: portraitSize,
-                    fit: BoxFit.contain,
-                  ),
-                ),
+              const Spacer(flex: 1),
+              Image.asset(
+                'assets/images/mallam_tutor_cutout.png',
+                height: portraitSize,
+                fit: BoxFit.contain,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: compact ? 8 : 10),
               FilledButton.tonalIcon(
                 onPressed: () {
                   state.replayVisiblePrompt(
@@ -971,6 +967,7 @@ class _HomeMallamStage extends StatelessWidget {
                   ),
                 ),
               ),
+              Spacer(flex: compact ? 2 : 3),
             ],
           ),
         );
