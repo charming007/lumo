@@ -3643,6 +3643,7 @@ class LumoAppState {
         'consentCaptured': draft.consentCaptured,
         'caregiverRelationship': draft.caregiverRelationship,
         'supportPlan': draft.supportPlan,
+        'profilePhotoBase64': draft.profilePhotoBase64,
         'mallamId': draft.mallamId,
       };
 
@@ -3665,6 +3666,7 @@ class LumoAppState {
           raw['caregiverRelationship']?.toString() ?? 'Mother',
       supportPlan: raw['supportPlan']?.toString() ??
           'Use short prompts and repeat once when needed.',
+      profilePhotoBase64: _readNullableString(raw['profilePhotoBase64']),
       mallamId: raw['mallamId']?.toString() ?? '',
     );
   }

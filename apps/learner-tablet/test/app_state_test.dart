@@ -768,6 +768,38 @@ void main() {
       restored.dispose();
     });
 
+    test('persists registration draft photos across tablet restarts',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.updateDraft(
+        const RegistrationDraft(
+          name: 'Safiya',
+          age: '8',
+          cohort: 'Alpha',
+          guardianName: 'Maryam',
+          village: 'Pod 3',
+          guardianPhone: '0801234567',
+          consentCaptured: true,
+          profilePhotoBase64: 'base64-photo-payload',
+        ),
+      );
+
+      state.dispose();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final restored = LumoAppState(includeSeedDemoContent: true);
+      await restored.restorePersistedState();
+
+      expect(restored.registrationDraft.name, 'Safiya');
+      expect(
+        restored.registrationDraft.profilePhotoBase64,
+        'base64-photo-payload',
+      );
+      restored.dispose();
+    });
+
     test('persists sync receipt counters and warnings across tablet restarts',
         () async {
       SharedPreferences.setMockInitialValues({});
