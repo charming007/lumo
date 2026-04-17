@@ -765,7 +765,10 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Lesson journey'), findsOneWidget);
     expect(find.text('Start next lesson'), findsOneWidget);
-    expect(find.text('Tap to choose learner'), findsWidgets);
+    expect(
+      find.textContaining('Tap the first big card'),
+      findsOneWidget,
+    );
 
     final mallamGuideTopLeft = tester.getTopLeft(find.text('Replay Mallam'));
     final lessonChooserTopLeft =
