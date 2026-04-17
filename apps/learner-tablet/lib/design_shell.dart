@@ -88,7 +88,7 @@ class LumoTopBar extends StatelessWidget {
   }
 }
 
-class MallamPanel extends StatelessWidget {
+class MallamPanel extends StatefulWidget {
   final String instruction;
   final VoidCallback onVoiceTap;
   final String prompt;
@@ -115,13 +115,37 @@ class MallamPanel extends StatelessWidget {
   });
 
   @override
+  State<MallamPanel> createState() => _MallamPanelState();
+}
+
+class _MallamPanelState extends State<MallamPanel>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _stagePulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _stagePulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _stagePulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final speakerColor = _speakerColor(speakerMode);
+    final speakerColor = _speakerColor(widget.speakerMode);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactLayout =
             constraints.maxWidth < 560 || constraints.maxHeight < 760;
-        final centeredPortraitSize = centerPortraitLayout
+        final centeredPortraitSize = widget.centerPortraitLayout
             ? math.min(
                 compactLayout ? 360.0 : 460.0,
                 math.max(
@@ -132,7 +156,7 @@ class MallamPanel extends StatelessWidget {
             : null;
         final imageFrameSize =
             centeredPortraitSize ?? (compactLayout ? 188.0 : 220.0);
-        final imageSize = centerPortraitLayout
+        final imageSize = widget.centerPortraitLayout
             ? imageFrameSize
             : (compactLayout ? 160.0 : 188.0);
         final promptStyle = TextStyle(
@@ -143,47 +167,79 @@ class MallamPanel extends StatelessWidget {
         );
 
         final header = Align(
-          alignment:
-              centerPortraitLayout ? Alignment.center : Alignment.centerLeft,
+          alignment: widget.centerPortraitLayout
+              ? Alignment.center
+              : Alignment.centerLeft,
           child: Wrap(
-            alignment: centerPortraitLayout
+            alignment: widget.centerPortraitLayout
                 ? WrapAlignment.center
                 : WrapAlignment.start,
             spacing: 8,
             runSpacing: 8,
             children: [
-              _ModeChip(label: statusLabel, color: speakerColor),
-              if (secondaryStatus != null)
+              _ModeChip(label: widget.statusLabel, color: speakerColor),
+              if (widget.secondaryStatus != null)
                 _ModeChip(
-                  label: secondaryStatus!,
+                  label: widget.secondaryStatus!,
                   color: const Color(0xFF0F172A),
                 ),
             ],
           ),
         );
 
-        final portrait = centerPortraitLayout
-            ? SizedBox(
-                height: imageFrameSize,
-                width: imageFrameSize,
-                child: Image.asset(
-                  'assets/images/mallam_tutor.jpg',
-                  height: imageSize,
-                  width: imageSize,
-                  fit: BoxFit.contain,
+        final portrait = Container(
+          height: imageFrameSize,
+          width: imageFrameSize,
+          padding: EdgeInsets.all(widget.centerPortraitLayout ? 0 : 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFE0E7FF), Color(0xFFF8FAFC)],
+            ),
+            borderRadius: BorderRadius.circular(
+              widget.centerPortraitLayout ? 40 : 32,
+            ),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14243361),
+                blurRadius: 28,
+                offset: Offset(0, 18),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      widget.centerPortraitLayout ? 40 : 28,
+                    ),
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.15, -0.35),
+                      radius: 0.95,
+                      colors: [
+                        speakerColor.withValues(alpha: 0.18),
+                        Colors.white.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
                 ),
-              )
-            : Container(
-                height: imageFrameSize,
-                width: imageFrameSize,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              ScaleTransition(
+                scale: Tween(begin: 0.985, end: 1.015).animate(
+                  CurvedAnimation(
+                    parent: _stagePulseController,
+                    curve: Curves.easeInOut,
+                  ),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(
+                    widget.centerPortraitLayout ? 36 : 24,
+                  ),
                   child: Image.asset(
                     'assets/images/mallam_tutor.jpg',
                     height: imageSize,
@@ -191,40 +247,43 @@ class MallamPanel extends StatelessWidget {
                     fit: BoxFit.contain,
                   ),
                 ),
-              );
+              ),
+            ],
+          ),
+        );
 
         final primaryPromptCard = Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(
-            horizontal: centerPortraitLayout ? 0 : 20,
-            vertical: centerPortraitLayout ? 0 : 20,
+            horizontal: widget.centerPortraitLayout ? 0 : 20,
+            vertical: widget.centerPortraitLayout ? 0 : 20,
           ),
           decoration: BoxDecoration(
-            color: centerPortraitLayout
+            color: widget.centerPortraitLayout
                 ? Colors.transparent
                 : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(24),
-            border: centerPortraitLayout
+            border: widget.centerPortraitLayout
                 ? null
                 : Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: Column(
-            crossAxisAlignment: centerPortraitLayout
+            crossAxisAlignment: widget.centerPortraitLayout
                 ? CrossAxisAlignment.center
                 : CrossAxisAlignment.start,
             children: [
               Text(
-                prompt,
-                textAlign: centerPortraitLayout || compactLayout
+                widget.prompt,
+                textAlign: widget.centerPortraitLayout || compactLayout
                     ? TextAlign.center
                     : TextAlign.left,
                 style: promptStyle,
               ),
-              if (voiceHint != null) ...[
+              if (widget.voiceHint != null) ...[
                 const SizedBox(height: 10),
                 Text(
-                  voiceHint!,
-                  textAlign: centerPortraitLayout || compactLayout
+                  widget.voiceHint!,
+                  textAlign: widget.centerPortraitLayout || compactLayout
                       ? TextAlign.center
                       : TextAlign.left,
                   style: const TextStyle(
@@ -239,10 +298,11 @@ class MallamPanel extends StatelessWidget {
         );
 
         final voiceAction = FilledButton.tonalIcon(
-          onPressed: onVoiceTap,
-          icon: Icon(_speakerIcon(speakerMode), color: speakerColor, size: 20),
+          onPressed: widget.onVoiceTap,
+          icon: Icon(_speakerIcon(widget.speakerMode),
+              color: speakerColor, size: 20),
           label: Text(
-            voiceButtonLabel,
+            widget.voiceButtonLabel,
             style: TextStyle(color: speakerColor, fontWeight: FontWeight.w700),
           ),
           style: FilledButton.styleFrom(
@@ -284,25 +344,25 @@ class MallamPanel extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                instruction,
+                widget.instruction,
                 style: const TextStyle(
                   color: Color(0xFF475569),
                   height: 1.45,
                 ),
               ),
-              if (!centerPortraitLayout) ...[
+              if (!widget.centerPortraitLayout) ...[
                 const SizedBox(height: 12),
                 _SpeakerSignalCard(
-                  speakerMode: speakerMode,
-                  speakerOutputMode: speakerOutputMode,
-                  voiceHint: voiceHint,
+                  speakerMode: widget.speakerMode,
+                  speakerOutputMode: widget.speakerOutputMode,
+                  voiceHint: widget.voiceHint,
                 ),
               ],
             ],
           ),
         );
 
-        final stackedContent = centerPortraitLayout
+        final content = widget.centerPortraitLayout
             ? <Widget>[
                 ConstrainedBox(
                   constraints: BoxConstraints(
@@ -336,40 +396,14 @@ class MallamPanel extends StatelessWidget {
               ]
             : <Widget>[
                 header,
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 Center(child: portrait),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 primaryPromptCard,
                 const SizedBox(height: 14),
                 SizedBox(width: double.infinity, child: voiceAction),
                 const SizedBox(height: 10),
                 guidancePanel,
-              ];
-
-        final content = compactLayout || centerPortraitLayout
-            ? stackedContent
-            : <Widget>[
-                header,
-                const SizedBox(height: 18),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(width: 220, child: Center(child: portrait)),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          primaryPromptCard,
-                          const SizedBox(height: 14),
-                          SizedBox(width: double.infinity, child: voiceAction),
-                          const SizedBox(height: 10),
-                          guidancePanel,
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
               ];
 
         return Container(
@@ -489,7 +523,9 @@ class _SpeakerSignalCard extends StatelessWidget {
             children: [
               if (speakerOutputMode != null)
                 _ModeChip(
-                    label: speakerOutputMode!, color: const Color(0xFF334155)),
+                  label: speakerOutputMode!,
+                  color: const Color(0xFF334155),
+                ),
               _ModeChip(
                 label: speakerMode.name.toUpperCase(),
                 color: color,
