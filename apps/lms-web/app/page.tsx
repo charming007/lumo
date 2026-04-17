@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { fetchMallams, fetchSubjects } from '../lib/api';
+import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
+import { fetchAssignments, fetchDashboardInsights, fetchDashboardSummary, fetchMallams, fetchWorkboard } from '../lib/api';
 import { API_BASE_SOURCE } from '../lib/config';
-import { Card, PageShell, Pill, responsiveGrid } from '../lib/ui';
-import type { Mallam, Subject } from '../lib/types';
+import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
+import type { Assignment, DashboardInsight, DashboardSummary, Mallam, WorkboardItem } from '../lib/types';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -14,158 +15,259 @@ const quickActionStyle = {
   justifyContent: 'center',
 } as const;
 
-const cardLinkStyle = {
-  color: '#3730A3',
-  fontWeight: 800,
-  textDecoration: 'none',
-} as const;
+const emptySummary: DashboardSummary = {
+  activeLearners: 0,
+  lessonsCompleted: 0,
+  centers: 0,
+  syncSuccessRate: 0,
+  mallams: 0,
+  activePods: 0,
+  activeAssignments: 0,
+  assessmentsLive: 0,
+  learnersReadyToProgress: 0,
+};
 
-function sectionAlert(message: string) {
+function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
+  const styles = tone === 'warning'
+    ? { background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412' }
+    : { background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b' };
+
   return (
-    <div style={{ padding: '14px 16px', borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', lineHeight: 1.6 }}>
+    <div style={{ padding: '14px 16px', borderRadius: 16, lineHeight: 1.6, ...styles }}>
       {message}
     </div>
   );
 }
 
-function pickLeadMallam(mallams: Mallam[]) {
-  return mallams.find((mallam) => mallam.status === 'active') ?? mallams[0] ?? null;
+function statusTone(status: string) {
+  if (status === 'ready') return { tone: '#DCFCE7', text: '#166534' };
+  if (status === 'watch') return { tone: '#FEF3C7', text: '#92400E' };
+  return { tone: '#E0E7FF', text: '#3730A3' };
 }
 
-function subjectHref(subject: Subject) {
-  return `/content?subject=${encodeURIComponent(subject.id)}`;
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
 }
 
 export default async function HomePage() {
   if (API_BASE_SOURCE === 'missing-production-env') {
     return (
-      <PageShell
-        title="Mallam"
-        subtitle="The learner home stays quiet when live data is unavailable."
-        aside={(
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <Link href="/students" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>
-              Open learners
-            </Link>
-            <Link href="/mallams" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
-              Open facilitators
-            </Link>
-          </div>
+      <DeploymentBlockerCard
+        title="Dashboard"
+        subtitle="The admin landing page is intentionally blocked until the production LMS is wired to the real API."
+        blockerHeadline="Deployment blocker: dashboard API base URL is missing."
+        blockerDetail={(
+          <>
+            This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the main admin landing page cannot safely show live learner counts, workboard priority, mallam coverage, or assignment activity. Blocking the dashboard is better than shipping a polished lie.
+          </>
         )}
-      >
-        <Card title="Home" eyebrow="Offline state">
-          {sectionAlert('Live subjects and facilitator details are not available yet. Add NEXT_PUBLIC_API_BASE_URL, redeploy, and reload the learner home.')}
-        </Card>
-      </PageShell>
+        whyBlocked={[
+          'The root route is the first thing deployment reviewers and operators see. If it implies the dashboard is healthy while the API is disconnected, every downstream sign-off becomes suspect.',
+          'Dashboard counts drive escalation: who is ready, who is slipping, and whether mallam + pod coverage actually exists right now.',
+          'A quiet empty-state admin landing is worse than a loud blocker because it invites bad operational decisions.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Dashboard summary',
+            expected: 'Active learners, assignments, pods, assessments, and ready-to-progress counts reflect live API data',
+            failure: 'Zeroed or placeholder cards that look valid even when the backend is unreachable',
+          },
+          {
+            surface: 'Priority queue',
+            expected: 'Ready/watch learners load from the live workboard with real next-module recommendations',
+            failure: 'No intervention rows even though student/progress pages show active learners',
+          },
+          {
+            surface: 'Mallam activity',
+            expected: 'Facilitator coverage and active assignment signals line up with live mallam + assignment feeds',
+            failure: 'Dashboard looks calm while actual teaching operations are missing or stale',
+          },
+        ]}
+        docs={[
+          { label: 'Learners blocker', href: '/students', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Settings blocker', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
     );
   }
 
-  const [mallamsResult, subjectsResult] = await Promise.allSettled([
+  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult] = await Promise.allSettled([
+    fetchDashboardSummary(),
+    fetchDashboardInsights(),
+    fetchWorkboard(),
     fetchMallams(),
-    fetchSubjects(),
+    fetchAssignments(),
   ]);
 
+  const summary: DashboardSummary = summaryResult.status === 'fulfilled' ? summaryResult.value : emptySummary;
+  const insights: DashboardInsight[] = insightsResult.status === 'fulfilled' ? insightsResult.value : [];
+  const workboard: WorkboardItem[] = workboardResult.status === 'fulfilled' ? workboardResult.value : [];
   const mallams: Mallam[] = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
-  const subjects: Subject[] = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
-  const leadMallam = pickLeadMallam(mallams);
-  const sortedSubjects = [...subjects].sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name));
-  const feedIssues = [
-    mallamsResult.status === 'rejected' ? 'facilitators' : null,
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
-  ].filter((value): value is string => Boolean(value));
+  const assignments: Assignment[] = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
+
+  const failedSources = [
+    { label: 'dashboard summary', result: summaryResult },
+    { label: 'insights', result: insightsResult },
+    { label: 'workboard', result: workboardResult },
+    { label: 'mallams', result: mallamsResult },
+    { label: 'assignments', result: assignmentsResult },
+  ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
+
+  const readyLearners = workboard.filter((item) => item.progressionStatus === 'ready');
+  const watchLearners = workboard.filter((item) => item.progressionStatus === 'watch');
+  const activeMallams = mallams.filter((mallam) => mallam.status === 'active');
+  const dueSoonAssignments = assignments
+    .filter((assignment) => assignment.status !== 'completed')
+    .slice()
+    .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
+    .slice(0, 5);
 
   return (
     <PageShell
-      title="Mallam"
-      subtitle="A calm learner start page with only the essentials."
+      title="Dashboard"
+      subtitle="The live admin landing page for learner risk, progression readiness, mallam coverage, and assignment flow."
       aside={(
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Link href="/students" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>
             Open learners
           </Link>
-          <Link href="/mallams" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
-            Open facilitators
+          <Link href="/content" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+            Open content
           </Link>
-          <Link href="/assignments" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>
-            Review assignments
+          <Link href="/reports" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>
+            Open reports
           </Link>
         </div>
       )}
     >
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16 }}>
+          {sectionAlert(`Dashboard is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.`, 'warning')}
+        </div>
+      ) : null}
+
       <section style={{ marginBottom: 20 }}>
         <div style={{ padding: '18px 20px', borderRadius: 20, background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ display: 'grid', gap: 6 }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 800 }}>Home</div>
-              <strong style={{ fontSize: 22, color: '#0f172a' }}>{leadMallam ? leadMallam.displayName || leadMallam.name : 'Mallam'}</strong>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 800 }}>Command center</div>
+              <strong style={{ fontSize: 22, color: '#0f172a' }}>Deployment health at a glance</strong>
               <div style={{ color: '#64748b', lineHeight: 1.6 }}>
-                {feedIssues.length
-                  ? `Showing a reduced home view while ${feedIssues.join(' and ')} data reloads.`
-                  : 'Pick a subject and continue quietly.'}
+                {failedSources.length
+                  ? 'Some dashboard feeds are degraded, so use the route links below to verify detail before acting.'
+                  : 'Use this page to spot who needs intervention, who is ready to progress, and whether facilitators are actually covered.'}
               </div>
             </div>
-            <Pill label={feedIssues.length ? 'Limited data' : 'Ready'} tone={feedIssues.length ? '#FEF3C7' : '#DCFCE7'} text={feedIssues.length ? '#92400E' : '#166534'} />
+            <Pill
+              label={failedSources.length ? 'Degraded feed' : 'Live feed'}
+              tone={failedSources.length ? '#FEF3C7' : '#DCFCE7'}
+              text={failedSources.length ? '#92400E' : '#166534'}
+            />
           </div>
         </div>
       </section>
 
-      <section style={{ ...responsiveGrid(300), marginBottom: 20 }}>
-        <Card title="Facilitator" eyebrow="Today">
-          {leadMallam ? (
-            <div style={{ display: 'grid', gap: 10 }}>
-              <div>
-                <strong style={{ color: '#0f172a' }}>{leadMallam.displayName || leadMallam.name}</strong>
-              </div>
-              <div style={{ color: '#64748b', lineHeight: 1.6 }}>
-                {leadMallam.centerName ?? leadMallam.region} · {leadMallam.learnerCount} learner{leadMallam.learnerCount === 1 ? '' : 's'}
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Pill label={leadMallam.status} tone="#EEF2FF" text="#3730A3" />
-                <Pill label={leadMallam.certificationLevel} tone="#ECFDF5" text="#166534" />
-              </div>
-              <Link href="/mallams" style={cardLinkStyle}>View facilitator details</Link>
+      <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
+        {[
+          { label: 'Active learners', value: String(summary.activeLearners), note: 'Learners currently visible to the admin surface' },
+          { label: 'Ready to progress', value: String(summary.learnersReadyToProgress), note: 'Pulled from the live progression workboard' },
+          { label: 'Active assignments', value: String(summary.activeAssignments), note: 'Delivery workload still in flight' },
+          { label: 'Sync success', value: formatPercent(summary.syncSuccessRate), note: 'Dashboard transport confidence, not vibes' },
+          { label: 'Active pods', value: String(summary.activePods), note: 'Pods currently represented in the live feed' },
+          { label: 'Assessments live', value: String(summary.assessmentsLive), note: 'Assessment gates available to operators now' },
+        ].map((item) => (
+          <Card key={item.label} title={item.value} eyebrow={item.label}>
+            <div style={{ color: '#64748b', lineHeight: 1.6 }}>{item.note}</div>
+          </Card>
+        ))}
+      </section>
+
+      <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+        <Card title="Priority queue" eyebrow="Immediate intervention">
+          {workboard.length ? (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {[...watchLearners, ...readyLearners].slice(0, 6).map((item) => {
+                const tone = statusTone(item.progressionStatus);
+                return (
+                  <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: 18, padding: '14px 16px', display: 'grid', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      <div>
+                        <strong style={{ color: '#0f172a' }}>{item.studentName}</strong>
+                        <div style={{ color: '#64748b', marginTop: 4 }}>{item.cohortName ?? 'No cohort'} · {item.mallamName ?? 'No mallam'} · {item.podLabel ?? 'No pod'}</div>
+                      </div>
+                      <Pill label={item.progressionStatus} tone={tone.tone} text={tone.text} />
+                    </div>
+                    <div style={{ color: '#475569', lineHeight: 1.6 }}>{item.focus}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Pill label={`Attendance ${Math.round(item.attendanceRate * 100)}%`} tone="#F8FAFC" text="#334155" />
+                      <Pill label={`Mastery ${Math.round(item.mastery * 100)}%`} tone="#EEF2FF" text="#3730A3" />
+                      <Pill label={`Level ${item.levelLabel}`} tone="#ECFDF5" text="#166534" />
+                    </div>
+                    <div style={{ color: '#3730A3', fontWeight: 700 }}>
+                      Next module: {item.recommendedNextModuleTitle ?? 'No recommendation yet'}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            sectionAlert('Facilitator details will appear here once the live feed responds.')
+            sectionAlert('The progression workboard is unavailable right now, so this dashboard cannot safely pretend there is no intervention queue.')
           )}
         </Card>
 
-        <Card title="Subjects" eyebrow="Choose one">
-          {sortedSubjects.length ? (
+        <Card title="Operational readout" eyebrow="Coverage + flow">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Mallam coverage</div>
+              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{activeMallams.length}</div>
+              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>{mallams.length ? `${activeMallams.length} of ${mallams.length} facilitators are active in the live roster.` : 'Mallam feed is unavailable right now.'}</div>
+            </div>
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Assignment pressure</div>
+              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{dueSoonAssignments.length}</div>
+              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>{dueSoonAssignments.length ? 'Incomplete assignments sorted by nearest due date so operators can triage delivery first.' : 'No incomplete assignments are visible from the live feed.'}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href="/progress" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open progress</Link>
+              <Link href="/assignments" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open assignments</Link>
+              <Link href="/mallams" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Open mallams</Link>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <section style={{ ...responsiveGrid(340), marginBottom: 20 }}>
+        <Card title="Executive signals" eyebrow="Narrative from the dashboard feed">
+          {insights.length ? (
             <div style={{ display: 'grid', gap: 12 }}>
-              {sortedSubjects.map((subject) => (
-                <Link
-                  key={subject.id}
-                  href={subjectHref(subject)}
-                  style={{
-                    textDecoration: 'none',
-                    color: '#0f172a',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 18,
-                    padding: '16px 18px',
-                    background: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 14, background: '#EEF2FF', color: '#3730A3', display: 'grid', placeItems: 'center', fontSize: 20 }}>
-                      {subject.icon ?? '📘'}
-                    </div>
-                    <div style={{ display: 'grid', gap: 4 }}>
-                      <strong>{subject.name}</strong>
-                      <span style={{ color: '#64748b', fontSize: 14 }}>Open subject</span>
-                    </div>
+              {insights.map((item, index) => (
+                <div key={`${item.headline}-${index}`} style={{ border: '1px solid #e2e8f0', borderRadius: 18, padding: '14px 16px', display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <strong style={{ color: '#0f172a' }}>{item.headline}</strong>
+                    <Pill label={item.priority} tone="#F5F3FF" text="#6D28D9" />
                   </div>
-                  <span style={{ color: '#3730A3', fontWeight: 800 }}>Open</span>
-                </Link>
+                  <div style={{ color: '#475569', lineHeight: 1.6 }}>{item.detail}</div>
+                  <div style={{ color: '#3730A3', fontWeight: 800 }}>{item.metric}</div>
+                </div>
               ))}
             </div>
           ) : (
-            sectionAlert('Subjects will appear here once the live feed responds.')
+            sectionAlert('Dashboard insights did not load, so use reports and progress before making any “looks fine to me” call.', 'warning')
           )}
+        </Card>
+
+        <Card title="Assignments due soon" eyebrow="Next delivery pressure">
+          <SimpleTable
+            columns={['Lesson', 'Cohort', 'Owner', 'Due', 'Status']}
+            rows={dueSoonAssignments.length ? dueSoonAssignments.map((item) => [
+              item.lessonTitle,
+              item.cohortName,
+              item.teacherName,
+              item.dueDate,
+              item.status,
+            ]) : [[<span key="no-assignments" style={{ color: '#64748b' }}>No incomplete assignments are visible right now.</span>, '', '', '', '']]}
+          />
         </Card>
       </section>
     </PageShell>
