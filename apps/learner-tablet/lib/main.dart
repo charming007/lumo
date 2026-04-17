@@ -8518,103 +8518,110 @@ class _SubjectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _modulePalette(module.id);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(26),
-        onTap: onTap,
-        child: Ink(
-          padding: EdgeInsets.all(compact ? 16 : 18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: palette,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dense = compact || constraints.maxHeight < 170;
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-            boxShadow: [
-              BoxShadow(
-                color: palette.first.withValues(alpha: 0.14),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
+            onTap: onTap,
+            child: Ink(
+              padding: EdgeInsets.all(dense ? 12 : 18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: palette,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                boxShadow: [
+                  BoxShadow(
+                    color: palette.first.withValues(alpha: 0.14),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      module.badge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: compact ? 11 : 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.2,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          module.badge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: dense ? 10 : 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: dense ? 10 : 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    module.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: dense ? 18 : 22,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1.0,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(height: dense ? 3 : 6),
                   Text(
-                    '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
+                    module.description,
+                    maxLines: dense ? 1 : 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: compact ? 11 : 12,
-                      fontWeight: FontWeight.w700,
+                      color: Colors.white.withValues(alpha: 0.96),
+                      height: 1.2,
+                      fontSize: dense ? 11 : 13,
                     ),
+                  ),
+                  SizedBox(height: dense ? 6 : 12),
+                  Row(
+                    children: [
+                      Text(
+                        'Open',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: dense ? 13 : 14,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: dense ? 16 : 18,
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const Spacer(),
-              Text(
-                module.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: compact ? 19 : 22,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  height: 1.05,
-                ),
-              ),
-              SizedBox(height: compact ? 4 : 6),
-              Text(
-                module.description,
-                maxLines: compact ? 2 : 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.96),
-                  height: 1.25,
-                  fontSize: compact ? 12 : 13,
-                ),
-              ),
-              SizedBox(height: compact ? 10 : 12),
-              const Row(
-                children: [
-                  Text(
-                    'Open',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  SizedBox(width: 6),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
