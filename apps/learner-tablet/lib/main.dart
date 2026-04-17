@@ -741,7 +741,7 @@ class HomePage extends StatelessWidget {
 
                     Widget buildSubjectSection() {
                       return Expanded(
-                        flex: shortHeight ? 9 : (compact ? 6 : 5),
+                        flex: shortHeight ? 9 : (compact ? 7 : 6),
                         child: Padding(
                           padding: EdgeInsets.only(
                             top: shortHeight ? 2 : (compact ? 8 : 10),
@@ -756,9 +756,7 @@ class HomePage extends StatelessWidget {
                               final crossAxisCount = _adaptiveGridCount(
                                 subjectConstraints.maxWidth,
                                 minTileWidth: minTileWidth,
-                                maxCount: shortHeight
-                                    ? (compact ? 2 : 3)
-                                    : (compact ? 2 : 3),
+                                maxCount: shortHeight ? (compact ? 2 : 3) : 2,
                               );
 
                               final aspectRatio = shortHeight
@@ -768,14 +766,14 @@ class HomePage extends StatelessWidget {
                                           ? 1.6
                                           : 1.72)
                                   : (subjectConstraints.maxWidth < 700
-                                      ? 1.42
+                                      ? 1.34
                                       : subjectConstraints.maxWidth < 1100
-                                          ? 1.56
-                                          : 1.66);
+                                          ? 1.42
+                                          : 1.48);
 
                               final preferredTileWidth = shortHeight
                                   ? (compact ? 214.0 : 292.0)
-                                  : (compact ? 228.0 : 280.0);
+                                  : (compact ? 248.0 : 360.0);
                               final centeredGridWidth = math.min(
                                 subjectConstraints.maxWidth,
                                 (crossAxisCount * preferredTileWidth) +
@@ -841,7 +839,7 @@ class HomePage extends StatelessWidget {
                         Align(
                           alignment: Alignment.topCenter,
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1080),
+                            constraints: const BoxConstraints(maxWidth: 980),
                             child: Column(
                               mainAxisAlignment: shortHeight
                                   ? MainAxisAlignment.start
@@ -855,13 +853,13 @@ class HomePage extends StatelessWidget {
                                       right: compact ? 0 : 8,
                                     ),
                                     child: SizedBox(
-                                      height: compact ? 196 : 236,
+                                      height: compact ? 204 : 252,
                                       child: _HomeMallamStage(state: state),
                                     ),
                                   )
                                 else
                                   Expanded(
-                                    flex: compact ? 3 : 4,
+                                    flex: compact ? 4 : 5,
                                     child: Padding(
                                       padding: EdgeInsets.only(
                                         top: 0,
@@ -990,11 +988,11 @@ class _HomeMallamStage extends StatelessWidget {
         final shortHeight = constraints.maxHeight < 280;
         final portraitSize = math.min(
           shortHeight
-              ? 164.0
+              ? 176.0
               : compact
-                  ? 220.0
-                  : 296.0,
-          math.max(120.0, constraints.maxHeight - (compact ? 24.0 : 30.0)),
+                  ? 238.0
+                  : 332.0,
+          math.max(132.0, constraints.maxHeight - (compact ? 18.0 : 20.0)),
         );
 
         return Container(
