@@ -249,6 +249,10 @@ export default async function HomePage() {
         title: module.title,
         subjectId: module.subjectId ?? '',
         subjectName: module.subjectName ?? '—',
+        strandName: module.strandName,
+        level: module.level,
+        lessonCount: module.lessonCount,
+        status: module.status,
         missingLessons,
         hasAssessmentGate,
         isDraftModule,
@@ -531,10 +535,10 @@ export default async function HomePage() {
                         title: highestPriorityBlocker.title,
                         subjectId: highestPriorityBlocker.subjectId,
                         subjectName: highestPriorityBlocker.subjectName,
-                        strandName: '',
-                        level: '',
-                        lessonCount: Math.max(highestPriorityBlocker.missingLessons, 1),
-                        status: 'draft',
+                        strandName: highestPriorityBlocker.strandName,
+                        level: highestPriorityBlocker.level,
+                        lessonCount: highestPriorityBlocker.lessonCount,
+                        status: highestPriorityBlocker.status,
                       } satisfies CurriculumModule]}
                       returnPath="/"
                     />
@@ -562,10 +566,10 @@ export default async function HomePage() {
                           title: highestPriorityBlocker.title,
                           subjectId: highestPriorityBlocker.subjectId,
                           subjectName: highestPriorityBlocker.subjectName,
-                          strandName: '',
-                          level: '',
-                          lessonCount: Math.max(highestPriorityBlocker.missingLessons, 0),
-                          status: 'draft',
+                          strandName: highestPriorityBlocker.strandName,
+                          level: highestPriorityBlocker.level,
+                          lessonCount: highestPriorityBlocker.lessonCount,
+                          status: highestPriorityBlocker.status,
                         } satisfies CurriculumModule]}
                         subjects={assessmentSubjects}
                         returnPath="/"
@@ -623,10 +627,10 @@ export default async function HomePage() {
                           title: module.title,
                           subjectId: module.subjectId,
                           subjectName: module.subjectName,
-                          strandName: '',
-                          level: '',
-                          lessonCount: Math.max(module.missingLessons, 1),
-                          status: 'draft',
+                          strandName: module.strandName,
+                          level: module.level,
+                          lessonCount: module.lessonCount,
+                          status: module.status,
                         } satisfies CurriculumModule]}
                         returnPath="/"
                       />
@@ -676,10 +680,10 @@ export default async function HomePage() {
                                   title: module.title,
                                   subjectId: module.subjectId,
                                   subjectName: module.subjectName,
-                                  strandName: '',
-                                  level: '',
-                                  lessonCount: Math.max(module.missingLessons, 0),
-                                  status: 'draft',
+                                  strandName: module.strandName,
+                                  level: module.level,
+                                  lessonCount: module.lessonCount,
+                                  status: module.status,
                                 } satisfies CurriculumModule]}
                                 subjects={assessmentSubjects}
                                 returnPath="/"
