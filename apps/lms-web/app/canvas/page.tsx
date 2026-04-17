@@ -10,6 +10,7 @@ import {
   createCanvasAssessmentQuickAction,
   createCanvasModuleLessonShellsAction,
   quickUpdateAssessmentStatusAction,
+  quickLinkCanvasLessonAssessmentAction,
   quickUpdateCanvasAssessmentAction,
   quickUpdateCanvasLessonAction,
   quickUpdateCanvasModuleAction,
@@ -439,6 +440,7 @@ export default async function CurriculumCanvasPage({ searchParams }: { searchPar
         mode={canvasMode}
         quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
         quickUpdateCanvasLessonAction={quickUpdateCanvasLessonAction}
+        quickLinkCanvasLessonAssessmentAction={quickLinkCanvasLessonAssessmentAction}
         quickUpdateCanvasModuleAction={quickUpdateCanvasModuleAction}
         bulkUpdateCanvasModuleLessonsAction={bulkUpdateCanvasModuleLessonsAction}
         createCanvasModuleLessonShellsAction={createCanvasModuleLessonShellsAction}

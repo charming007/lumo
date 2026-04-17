@@ -6,19 +6,48 @@ import { redirect } from 'next/navigation';
 
 import { API_BASE } from '../lib/config';
 
-async function apiWrite<T = void>(path: string, method: string, payload?: Record<string, unknown>, role = 'admin') {
+function buildApiHeaders(role = 'admin', includeJson = false) {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
     'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
   };
 
-  if (payload) {
+  if (includeJson) {
     headers['Content-Type'] = 'application/json';
   }
 
+  return headers;
+}
+
+async function apiRead<T>(path: string, role = 'admin') {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'GET',
+    headers: buildApiHeaders(role),
+  });
+
+  if (!response.ok) {
+    let detail = `Failed request: ${path}`;
+    try {
+      const data = await response.json();
+      if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string') {
+        detail = data.message;
+      }
+    } catch {
+      try {
+        const text = await response.text();
+        if (text.trim()) detail = text.trim();
+      } catch {}
+    }
+    throw new Error(detail);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function apiWrite<T = void>(path: string, method: string, payload?: Record<string, unknown>, role = 'admin') {
   const response = await fetch(`${API_BASE}${path}`, {
     method,
-    headers,
+    headers: buildApiHeaders(role, Boolean(payload)),
     body: payload ? JSON.stringify(payload) : undefined,
   });
 
@@ -591,6 +620,39 @@ export async function quickUpdateCanvasLessonAction(formData: FormData) {
   revalidatePath(`/content/lessons/${lessonId}`);
   redirect(appendSearchParams(returnPath, {
     message: 'Lesson quick edit saved',
+  }));
+}
+
+export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) {
+  const lessonId = String(formData.get('lessonId') || '');
+  const assessmentId = String(formData.get('assessmentId') || '').trim();
+  const assessmentTitle = String(formData.get('assessmentTitle') || '').trim();
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+
+  const lesson = await apiRead<{
+    lessonAssessment?: { [key: string]: unknown; title?: string | null; items?: Array<Record<string, unknown>> } | null;
+  }>(`/api/v1/lessons/${lessonId}`);
+
+  const nextLessonAssessment = lesson.lessonAssessment && typeof lesson.lessonAssessment === 'object'
+    ? { ...lesson.lessonAssessment }
+    : {};
+
+  if (assessmentId && assessmentTitle) {
+    nextLessonAssessment.title = assessmentTitle;
+  } else {
+    delete nextLessonAssessment.title;
+  }
+
+  await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', {
+    lessonAssessment: nextLessonAssessment,
+  });
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  revalidatePath('/english');
+  revalidatePath(`/content/lessons/${lessonId}`);
+  redirect(appendSearchParams(returnPath, {
+    message: assessmentId && assessmentTitle ? 'Lesson gate link saved from canvas' : 'Lesson gate link cleared from canvas',
   }));
 }
 

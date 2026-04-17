@@ -217,6 +217,7 @@ export function CurriculumCanvas({
   mode = 'live',
   quickUpdateLessonStatusAction,
   quickUpdateCanvasLessonAction,
+  quickLinkCanvasLessonAssessmentAction,
   quickUpdateCanvasModuleAction,
   bulkUpdateCanvasModuleLessonsAction,
   createCanvasModuleLessonShellsAction,
@@ -230,6 +231,7 @@ export function CurriculumCanvas({
   mode?: 'live' | 'blended' | 'rescue-tree' | 'hard-rescue';
   quickUpdateLessonStatusAction: (formData: FormData) => void;
   quickUpdateCanvasLessonAction: (formData: FormData) => void;
+  quickLinkCanvasLessonAssessmentAction: (formData: FormData) => void;
   quickUpdateCanvasModuleAction: (formData: FormData) => void;
   bulkUpdateCanvasModuleLessonsAction: (formData: FormData) => void;
   createCanvasModuleLessonShellsAction: (formData: FormData) => void;
@@ -1038,6 +1040,7 @@ export function CurriculumCanvas({
           returnPath={panelUrl(selectedModuleUrl, 'lesson', selectedLesson.id)}
           quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
           quickUpdateCanvasLessonAction={quickUpdateCanvasLessonAction}
+          quickLinkCanvasLessonAssessmentAction={quickLinkCanvasLessonAssessmentAction}
           onClose={() => setSelectedLessonId(null)}
         />
       ) : null}
@@ -1197,7 +1200,7 @@ function ModalShell({ title, eyebrow, children, onClose }: { title: string; eyeb
   );
 }
 
-function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, returnPath, quickUpdateLessonStatusAction, quickUpdateCanvasLessonAction, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; moduleAssessments: Assessment[]; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; quickUpdateCanvasLessonAction: (formData: FormData) => void; onClose: () => void }) {
+function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, returnPath, quickUpdateLessonStatusAction, quickUpdateCanvasLessonAction, quickLinkCanvasLessonAssessmentAction, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; moduleAssessments: Assessment[]; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; quickUpdateCanvasLessonAction: (formData: FormData) => void; quickLinkCanvasLessonAssessmentAction: (formData: FormData) => void; onClose: () => void }) {
   const pill = statusTone(lesson.status);
   return (
     <ModalShell title={lesson.title} eyebrow="Lesson quick edit lane" onClose={onClose}>
@@ -1235,33 +1238,57 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <div style={{ color: '#a5f3fc', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Gate options in this module</div>
-            <div style={{ color: '#e2e8f0', lineHeight: 1.6, marginTop: 6 }}>The canvas now shows the actual gates already attached to this module, so authors can sanity-check linkage before they bounce into the full assessments board.</div>
+            <div style={{ color: '#e2e8f0', lineHeight: 1.6, marginTop: 6 }}>The canvas now shows the actual gates already attached to this module, and this panel can link or clear the lesson gate without forcing a detour into the full lesson editor.</div>
           </div>
           <Pill label={moduleAssessments.length ? `${moduleAssessments.length} visible gate${moduleAssessments.length === 1 ? '' : 's'}` : 'No gate exists yet'} tone="#082f49" text="#a5f3fc" />
         </div>
         {moduleAssessments.length ? (
           <div style={{ display: 'grid', gap: 8 }}>
-            {moduleAssessments.map((assessment) => (
-              <div key={assessment.id} style={{ padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.36)', border: '1px solid rgba(148,163,184,0.12)', display: 'grid', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                  <div style={{ color: '#f8fafc', fontWeight: 800 }}>{assessment.title}</div>
-                  <Pill label={assessment.status} tone={statusTone(assessment.status).tone} text={statusTone(assessment.status).text} />
+            {moduleAssessments.map((assessment) => {
+              const linked = lesson.assessmentId === assessment.id || lesson.assessmentTitle === assessment.title;
+              return (
+                <div key={assessment.id} style={{ padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.36)', border: linked ? '1px solid rgba(134,239,172,0.32)' : '1px solid rgba(148,163,184,0.12)', display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                    <div style={{ color: '#f8fafc', fontWeight: 800 }}>{assessment.title}</div>
+                    <Pill label={assessment.status} tone={statusTone(assessment.status).tone} text={statusTone(assessment.status).text} />
+                  </div>
+                  <div style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14 }}>{assessmentLabel(assessment)}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(assessment.title)}`} style={{ color: '#a5f3fc', fontWeight: 800, textDecoration: 'none' }}>
+                      Open gate search →
+                    </Link>
+                    <form action={quickLinkCanvasLessonAssessmentAction}>
+                      <input type="hidden" name="lessonId" value={lesson.id} />
+                      <input type="hidden" name="assessmentId" value={assessment.id} />
+                      <input type="hidden" name="assessmentTitle" value={assessment.title} />
+                      <input type="hidden" name="returnPath" value={returnPath} />
+                      <button type="submit" style={{ ...filterButtonStyle, background: linked ? 'rgba(22,101,52,0.28)' : 'rgba(79,70,229,0.18)', color: '#f8fafc', border: linked ? '1px solid rgba(134,239,172,0.34)' : '1px solid rgba(129,140,248,0.34)' }}>
+                        {linked ? 'Linked here' : 'Link this gate'}
+                      </button>
+                    </form>
+                    {linked ? (
+                      <span style={{ color: '#86efac', fontWeight: 800, fontSize: 13 }}>Currently the visible linked gate</span>
+                    ) : null}
+                  </div>
                 </div>
-                <div style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14 }}>{assessmentLabel(assessment)}</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(assessment.title)}`} style={{ color: '#a5f3fc', fontWeight: 800, textDecoration: 'none' }}>
-                    Open gate search →
-                  </Link>
-                  {lesson.assessmentId === assessment.id || lesson.assessmentTitle === assessment.title ? (
-                    <span style={{ color: '#86efac', fontWeight: 800, fontSize: 13 }}>Currently the visible linked gate</span>
-                  ) : null}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div style={{ color: '#cbd5e1', lineHeight: 1.7 }}>There is nothing to link this lesson to yet. Create the draft gate from the module rail first, then come back and finish the lesson properly.</div>
         )}
+
+        {lesson.assessmentTitle ? (
+          <form action={quickLinkCanvasLessonAssessmentAction} style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <input type="hidden" name="lessonId" value={lesson.id} />
+            <input type="hidden" name="assessmentId" value="" />
+            <input type="hidden" name="assessmentTitle" value="" />
+            <input type="hidden" name="returnPath" value={returnPath} />
+            <button type="submit" style={{ ...filterButtonStyle, background: 'rgba(127,29,29,0.18)', color: '#fecaca', border: '1px solid rgba(248,113,113,0.28)' }}>
+              Clear visible gate link
+            </button>
+          </form>
+        ) : null}
       </div>
 
       <div style={{ display: 'grid', gap: 10 }}>
