@@ -816,12 +816,12 @@ class HomePage extends StatelessWidget {
                                           onChanged();
                                           Navigator.of(context).push(
                                             MaterialPageRoute(
-                                              builder:
-                                                  (_) => SubjectModulesPage(
-                                                    state: state,
-                                                    onChanged: onChanged,
-                                                    module: module,
-                                                  ),
+                                              builder: (_) =>
+                                                  SubjectModulesPage(
+                                                state: state,
+                                                onChanged: onChanged,
+                                                module: module,
+                                              ),
                                             ),
                                           );
                                         },
@@ -2277,89 +2277,193 @@ class SubjectModulesPage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: _ResponsiveWorkspaceRow(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ResponsivePane(
-                flex: 5,
-                child: _MallamStageShell(
-                  eyebrow: 'AI Mallam',
-                  frameless: true,
-                  child: MallamPanel(
-                    instruction: modulesInstruction,
-                    onVoiceTap: () {
-                      state.replayVisiblePrompt(
-                        'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
-                      );
-                    },
-                    prompt:
-                        'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
-                    speakerMode: SpeakerMode.guiding,
-                    statusLabel: 'AI Mallam leads the journey',
-                    secondaryStatus: 'Lesson path guide',
-                    voiceButtonLabel: 'Replay Mallam',
-                    centerPortraitLayout: true,
-                    minimalStageLayout: true,
-                    framelessStage: true,
-                    framelessPortrait: true,
-                  ),
-                ),
+              _LearnerBackAffordance(
+                label: 'Back to subjects',
+                onPressed: () => Navigator.of(context).pop(),
               ),
-              const SizedBox(width: 20),
-              ResponsivePane(
-                flex: 5,
-                child: DetailCard(
-                  child: LayoutBuilder(
-                    builder: (context, detailConstraints) {
-                      final compact = detailConstraints.maxWidth < 380;
+              const SizedBox(height: 16),
+              Expanded(
+                child: _ResponsiveWorkspaceRow(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ResponsivePane(
+                      flex: 5,
+                      child: _MallamStageShell(
+                        eyebrow: 'AI Mallam',
+                        frameless: true,
+                        child: MallamPanel(
+                          instruction: modulesInstruction,
+                          onVoiceTap: () {
+                            state.replayVisiblePrompt(
+                              'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
+                            );
+                          },
+                          prompt:
+                              'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
+                          speakerMode: SpeakerMode.guiding,
+                          statusLabel: 'AI Mallam leads the journey',
+                          secondaryStatus: 'Lesson path guide',
+                          voiceButtonLabel: 'Replay Mallam',
+                          centerPortraitLayout: true,
+                          minimalStageLayout: true,
+                          framelessStage: true,
+                          framelessPortrait: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    ResponsivePane(
+                      flex: 5,
+                      child: DetailCard(
+                        child: LayoutBuilder(
+                          builder: (context, detailConstraints) {
+                            final compact = detailConstraints.maxWidth < 380;
 
-                      Widget buildJourneyPath() {
-                        if (lessons.isEmpty) {
-                          return const SoftPanel(
-                            child: Text(
-                              'No lessons are mapped to this subject yet.',
-                            ),
-                          );
-                        }
+                            Widget buildJourneyPath() {
+                              if (lessons.isEmpty) {
+                                return const SoftPanel(
+                                  child: Text(
+                                    'No lessons are mapped to this subject yet.',
+                                  ),
+                                );
+                              }
 
-                        return Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFF),
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                          child: Wrap(
-                            spacing: compact ? 18 : 22,
-                            runSpacing: compact ? 22 : 26,
-                            children: [
-                              for (var i = 0; i < lessons.length; i++)
-                                _LessonJourneyStepCard(
-                                  lesson: lessons[i],
-                                  index: i,
-                                  highlightedLessonId: highlightedLesson?.id,
-                                  nextLessonId: nextAssignedLesson?.id,
-                                  onTap: lessons[i].isAssignmentPlaceholder
-                                      ? null
-                                      : () => openLesson(lessons[i]),
+                              final showJourneyHeader =
+                                  detailConstraints.maxHeight < 1100;
+                              final journeyHint = selectedLearner == null
+                                  ? 'Tap the first big card to start the next lesson, then keep moving along the path.'
+                                  : 'Tap the first big card to start ${selectedLearner.name}\'s next lesson, then keep moving along the path.';
+
+                              return Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFF),
+                                  borderRadius: BorderRadius.circular(28),
                                 ),
-                            ],
-                          ),
-                        );
-                      }
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (showJourneyHeader) ...[
+                                      const Text(
+                                        'Lesson journey',
+                                        style: TextStyle(
+                                          fontSize: 30,
+                                          fontWeight: FontWeight.w900,
+                                          height: 1.05,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        journeyHint,
+                                        style: const TextStyle(
+                                          color: Color(0xFF475569),
+                                          height: 1.45,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    Wrap(
+                                      spacing: compact ? 18 : 22,
+                                      runSpacing: compact ? 22 : 26,
+                                      children: [
+                                        for (var i = 0; i < lessons.length; i++)
+                                          _LessonJourneyStepCard(
+                                            lesson: lessons[i],
+                                            index: i,
+                                            highlightedLessonId:
+                                                highlightedLesson?.id,
+                                            nextLessonId:
+                                                nextAssignedLesson?.id,
+                                            onTap: lessons[i]
+                                                    .isAssignmentPlaceholder
+                                                ? null
+                                                : () => openLesson(lessons[i]),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
 
-                      final content = buildJourneyPath();
+                            final content = buildJourneyPath();
 
-                      if (detailConstraints.maxHeight < 940) {
-                        return SingleChildScrollView(child: content);
-                      }
+                            if (detailConstraints.maxHeight < 940) {
+                              return SingleChildScrollView(child: content);
+                            }
 
-                      return content;
-                    },
-                  ),
+                            return content;
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LearnerBackAffordance extends StatelessWidget {
+  const _LearnerBackAffordance({
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x120F172A),
+                  blurRadius: 18,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 18,
+                  color: Color(0xFF0F172A),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2485,7 +2589,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
                   syncPending
                       ? 'Waiting for sync'
                       : isNext
-                          ? 'Tap to start'
+                          ? 'Start next lesson'
                           : isHighlighted
                               ? 'Ready now'
                               : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
