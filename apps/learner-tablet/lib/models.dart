@@ -725,8 +725,9 @@ class LearningModule {
         : subjectId != null && subjectId.isNotEmpty
             ? subjectId
             : 'module';
-    final resolvedSubjectId =
-        subjectId != null && subjectId.isNotEmpty ? subjectId : resolvedModuleId;
+    final resolvedSubjectId = subjectId != null && subjectId.isNotEmpty
+        ? subjectId
+        : resolvedModuleId;
     final subjectName = json['subjectName']?.toString().trim();
     final title = json['title']?.toString().trim();
     final level = json['level']?.toString() ?? 'beginner';
@@ -810,6 +811,8 @@ class LessonCardModel {
     required this.scenario,
     required this.steps,
   });
+
+  bool get isAssignmentPlaceholder => id.startsWith('assignment-placeholder:');
 
   factory LessonCardModel.fromBackend(Map<String, dynamic> json) {
     final moduleId = json['moduleId']?.toString() ?? 'english';

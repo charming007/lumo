@@ -614,6 +614,17 @@ void launchLessonFlow({
   LearningModule? module,
   BackendLessonSession? resumeFrom,
 }) {
+  if (lesson.isAssignmentPlaceholder) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Lesson content is still syncing. Refresh the tablet sync before starting this assignment.',
+        ),
+      ),
+    );
+    return;
+  }
+
   final targetModule = resolveLessonModule(
     state: state,
     lesson: lesson,
@@ -656,18 +667,18 @@ class HomePage extends StatelessWidget {
               LumoTopBar(onLogoTap: () {}),
               const SizedBox(height: 20),
               Expanded(
-                child: _ResponsiveWorkspaceRow(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ResponsivePane(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stacked = constraints.maxWidth < 960;
+                    final stagePane = ResponsivePane(
                       flex: 5,
                       child: _HomeMallamStage(state: state),
-                    ),
-                    ResponsivePane(
+                    );
+                    final detailPane = ResponsivePane(
                       flex: 5,
                       child: Container(
                         height: double.infinity,
-                        padding: const EdgeInsets.only(left: 8),
+                        padding: EdgeInsets.only(left: stacked ? 0 : 8),
                         child: SingleChildScrollView(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -947,8 +958,15 @@ class HomePage extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    );
+
+                    return _ResponsiveWorkspaceRow(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: stacked
+                          ? [detailPane, stagePane]
+                          : [stagePane, detailPane],
+                    );
+                  },
                 ),
               ),
             ],
@@ -2322,118 +2340,142 @@ class SubjectModulesPage extends StatelessWidget {
                           detailConstraints.maxHeight < 940;
 
                       Widget lessonTile(LessonCardModel lesson) {
-                        return GestureDetector(
-                          onTap: () {
-                            state.selectModule(module);
-                            onChanged();
-                            launchLessonFlow(
-                              context: context,
-                              state: state,
-                              onChanged: onChanged,
-                              lesson: lesson,
-                              module: module,
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(22),
-                              border: Border.all(
-                                color: const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            child: LayoutBuilder(
-                              builder: (context, tileConstraints) {
-                                final compactTile =
-                                    tileConstraints.maxWidth < 360;
+                        final syncPending = lesson.isAssignmentPlaceholder;
 
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (compactTile) ...[
+                        return GestureDetector(
+                          onTap: syncPending
+                              ? null
+                              : () {
+                                  state.selectModule(module);
+                                  onChanged();
+                                  launchLessonFlow(
+                                    context: context,
+                                    state: state,
+                                    onChanged: onChanged,
+                                    lesson: lesson,
+                                    module: module,
+                                  );
+                                },
+                          child: Opacity(
+                            opacity: syncPending ? 0.78 : 1,
+                            child: Container(
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: syncPending
+                                      ? const Color(0xFFF59E0B)
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: LayoutBuilder(
+                                builder: (context, tileConstraints) {
+                                  final compactTile =
+                                      tileConstraints.maxWidth < 360;
+                                  final ctaLabel = syncPending
+                                      ? 'Lesson content not available yet'
+                                      : 'Tap to choose learner';
+                                  final ctaColor = syncPending
+                                      ? LumoTheme.accentOrange
+                                      : LumoTheme.primary;
+
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (compactTile) ...[
+                                        Text(
+                                          lesson.title,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        StatusPill(
+                                          text: syncPending
+                                              ? 'Sync pending'
+                                              : '${lesson.steps.length} steps',
+                                          color: syncPending
+                                              ? LumoTheme.accentOrange
+                                              : LumoTheme.accentOrange,
+                                        ),
+                                      ] else
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                lesson.title,
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            StatusPill(
+                                              text: syncPending
+                                                  ? 'Sync pending'
+                                                  : '${lesson.steps.length} steps',
+                                              color: syncPending
+                                                  ? LumoTheme.accentOrange
+                                                  : LumoTheme.accentOrange,
+                                            ),
+                                          ],
+                                        ),
+                                      const SizedBox(height: 8),
+                                      Text(lesson.readinessFocus),
+                                      const SizedBox(height: 10),
                                       Text(
-                                        lesson.title,
+                                        lesson.scenario,
                                         style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF64748B),
+                                          height: 1.35,
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      StatusPill(
-                                        text: '${lesson.steps.length} steps',
-                                        color: LumoTheme.accentOrange,
-                                      ),
-                                    ] else
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              lesson.title,
-                                              style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          StatusPill(
-                                            text:
-                                                '${lesson.steps.length} steps',
-                                            color: LumoTheme.accentOrange,
-                                          ),
-                                        ],
-                                      ),
-                                    const SizedBox(height: 8),
-                                    Text(lesson.readinessFocus),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      lesson.scenario,
-                                      style: const TextStyle(
-                                        color: Color(0xFF64748B),
-                                        height: 1.35,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    if (compactTile) ...[
-                                      InfoRow(
-                                        label: 'Duration',
-                                        value: '${lesson.durationMinutes} min',
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Tap to choose learner',
-                                        style: TextStyle(
-                                          color: LumoTheme.primary,
-                                          fontWeight: FontWeight.w800,
+                                      const SizedBox(height: 12),
+                                      if (compactTile) ...[
+                                        InfoRow(
+                                          label: 'Duration',
+                                          value:
+                                              '${lesson.durationMinutes} min',
                                         ),
-                                      ),
-                                    ] else
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: InfoRow(
-                                              label: 'Duration',
-                                              value:
-                                                  '${lesson.durationMinutes} min',
-                                            ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          ctaLabel,
+                                          style: TextStyle(
+                                            color: ctaColor,
+                                            fontWeight: FontWeight.w800,
                                           ),
-                                          const SizedBox(width: 12),
-                                          const Flexible(
-                                            child: Text(
-                                              'Tap to choose learner',
-                                              textAlign: TextAlign.end,
-                                              style: TextStyle(
-                                                color: LumoTheme.primary,
-                                                fontWeight: FontWeight.w800,
+                                        ),
+                                      ] else
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: InfoRow(
+                                                label: 'Duration',
+                                                value:
+                                                    '${lesson.durationMinutes} min',
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                );
-                              },
+                                            const SizedBox(width: 12),
+                                            Flexible(
+                                              child: Text(
+                                                ctaLabel,
+                                                textAlign: TextAlign.end,
+                                                style: TextStyle(
+                                                  color: ctaColor,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         );
@@ -3650,6 +3692,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final resumeLearner = _resumeLearner;
     final resumeMissingLearner =
         widget.resumeFrom != null && resumeLearner == null;
+    final syncPendingLesson = lesson.isAssignmentPlaceholder;
 
     return Scaffold(
       body: SafeArea(
@@ -3840,9 +3883,11 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            _resumeLocksLearner
-                                ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
-                                : 'Pick who is taking ${lesson.title}, then confirm to begin.',
+                            syncPendingLesson
+                                ? '${lesson.title} is still waiting for the real lesson payload to sync to this tablet. Keep the assignment visible, but do not start runtime until the full lesson content lands.'
+                                : _resumeLocksLearner
+                                    ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
+                                    : 'Pick who is taking ${lesson.title}, then confirm to begin.',
                             style: const TextStyle(
                               color: Color(0xFF475569),
                               height: 1.45,
@@ -3871,6 +3916,25 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    if (syncPendingLesson)
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: const Color(0xFFFED7AA),
+                          ),
+                        ),
+                        child: const Text(
+                          'Lesson content not available yet. Refresh the tablet sync or publish the linked lesson payload before a learner starts this assignment.',
+                          style: TextStyle(
+                            color: Color(0xFF9A3412),
+                            fontWeight: FontWeight.w700,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
                     if (widget.resumeFrom != null)
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -3942,7 +4006,9 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                   ];
 
                   final ctaButton = FilledButton.icon(
-                    onPressed: state.learners.isEmpty || resumeMissingLearner
+                    onPressed: syncPendingLesson ||
+                            state.learners.isEmpty ||
+                            resumeMissingLearner
                         ? null
                         : selectedLearner == null
                             ? null
@@ -3969,15 +4035,17 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           : Icons.play_arrow_rounded,
                     ),
                     label: Text(
-                      state.learners.isEmpty
-                          ? 'Register learner to continue'
-                          : resumeMissingLearner
-                              ? 'Sync learner to resume'
-                              : selectedLearner == null
-                                  ? 'Select learner to continue'
-                                  : _resumeLocksLearner
-                                      ? 'Resume with ${selectedLearner!.name}'
-                                      : 'Start with ${selectedLearner!.name}',
+                      syncPendingLesson
+                          ? 'Refresh sync before starting'
+                          : state.learners.isEmpty
+                              ? 'Register learner to continue'
+                              : resumeMissingLearner
+                                  ? 'Sync learner to resume'
+                                  : selectedLearner == null
+                                      ? 'Select learner to continue'
+                                      : _resumeLocksLearner
+                                          ? 'Resume with ${selectedLearner!.name}'
+                                          : 'Start with ${selectedLearner!.name}',
                     ),
                   );
 
@@ -8105,13 +8173,12 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
   }
 
   List<Widget> _layoutChildrenForColumn(double viewportHeight) {
-    final stackedSource = children.reversed.toList(growable: false);
     final resolvedViewportHeight =
         viewportHeight.isFinite && viewportHeight > 0 ? viewportHeight : 900.0;
     final paneHeight = resolvedViewportHeight.clamp(820.0, 1180.0).toDouble();
 
-    return List.generate(stackedSource.length, (index) {
-      final child = stackedSource[index];
+    return List.generate(children.length, (index) {
+      final child = children[index];
       final isPane = switch (child) {
         ResponsivePane() => true,
         Expanded() => true,

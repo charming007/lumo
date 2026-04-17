@@ -541,7 +541,9 @@ class LumoAppState {
         hydratedModules.add(bundle.module);
         final hydratedLessons = _sanitizeLessons(bundle.lessons);
         final preservedBaselineLessons = List<LessonCardModel>.from(
-          lessonsByModule[bundle.module.id] ?? lessonsByModule[module.id] ?? const <LessonCardModel>[],
+          lessonsByModule[bundle.module.id] ??
+              lessonsByModule[module.id] ??
+              const <LessonCardModel>[],
         );
         lessonsByModule[bundle.module.id] = _mergeHydratedLessons(
           hydratedLessons: hydratedLessons,
@@ -587,7 +589,8 @@ class LumoAppState {
       return hydratedLessons;
     }
 
-    final hydratedIds = hydratedLessons.map((lesson) => lesson.id.trim()).toSet();
+    final hydratedIds =
+        hydratedLessons.map((lesson) => lesson.id.trim()).toSet();
     final preservedBaseline = baselineLessons
         .where((lesson) => !hydratedIds.contains(lesson.id.trim()))
         .toList();
@@ -1162,6 +1165,12 @@ class LumoAppState {
     LessonCardModel lesson, {
     BackendLessonSession? resumeFrom,
   }) {
+    if (lesson.isAssignmentPlaceholder) {
+      throw StateError(
+        'Cannot open lesson ${lesson.id} because the real lesson payload has not synced to this tablet yet.',
+      );
+    }
+
     if (lesson.steps.isEmpty) {
       throw StateError(
         'Cannot open lesson ${lesson.id} because it has no activity steps.',
@@ -3340,23 +3349,19 @@ class LumoAppState {
       if (exactMatch != null) return exactMatch;
     }
 
-    final normalizedTitle = _readNullableString(raw['lessonTitle'])
-            ?.trim()
-            .toLowerCase() ??
-        '';
+    final normalizedTitle =
+        _readNullableString(raw['lessonTitle'])?.trim().toLowerCase() ?? '';
     final normalizedModuleId =
         _readNullableString(raw['moduleId'])?.trim().toLowerCase() ?? '';
-    final persistedStepCount = (raw['transcript'] as List?)
-            ?.whereType<Map>()
-            .length ??
-        0;
+    final persistedStepCount =
+        (raw['transcript'] as List?)?.whereType<Map>().length ?? 0;
 
     if (normalizedTitle.isNotEmpty) {
       final titleMatches = assigned.where((lesson) {
         final lessonTitle = lesson.title.trim().toLowerCase();
         final lessonModuleId = lesson.moduleId.trim().toLowerCase();
-        final moduleMatches = normalizedModuleId.isEmpty ||
-            lessonModuleId == normalizedModuleId;
+        final moduleMatches =
+            normalizedModuleId.isEmpty || lessonModuleId == normalizedModuleId;
         return lessonTitle == normalizedTitle && moduleMatches;
       }).toList(growable: false);
       if (titleMatches.length == 1) return titleMatches.first;
@@ -3370,7 +3375,8 @@ class LumoAppState {
 
     if (normalizedModuleId.isNotEmpty) {
       final moduleMatches = assigned
-          .where((lesson) => lesson.moduleId.trim().toLowerCase() == normalizedModuleId)
+          .where((lesson) =>
+              lesson.moduleId.trim().toLowerCase() == normalizedModuleId)
           .toList(growable: false);
       if (moduleMatches.length == 1) return moduleMatches.first;
     }
@@ -3380,7 +3386,8 @@ class LumoAppState {
 
   LessonSessionState? _decodeActiveSession(Object? raw) {
     if (raw is! Map) return null;
-    final lesson = _resolvePersistedSessionLesson(Map<String, dynamic>.from(raw));
+    final lesson =
+        _resolvePersistedSessionLesson(Map<String, dynamic>.from(raw));
     if (lesson == null) return null;
 
     final boundedStepIndex = lesson.steps.isEmpty

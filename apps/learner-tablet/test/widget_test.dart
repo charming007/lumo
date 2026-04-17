@@ -600,6 +600,17 @@ void main() {
     expect(find.text(state.modules.first.title), findsWidgets);
     expect(find.text('Tap to choose learner'), findsWidgets);
 
+    final mallamGuideTopLeft =
+        tester.getTopLeft(find.text('Guide the subject from here'));
+    final lessonChooserTopLeft =
+        tester.getTopLeft(find.text('Tap to choose learner').first);
+    expect(
+      mallamGuideTopLeft.dy,
+      lessThan(lessonChooserTopLeft.dy),
+      reason:
+          'On stacked portrait layouts, the Mallam guidance pane should stay above the lesson chooser instead of being reversed below it.',
+    );
+
     state.dispose();
   });
 
@@ -634,6 +645,61 @@ void main() {
     state.dispose();
   });
 
+  testWidgets('sync-pending placeholder lessons stay blocked in launch setup', (
+    tester,
+  ) async {
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final module = state.modules.first;
+    final lesson = LessonCardModel(
+      id: 'assignment-placeholder:assignment-42',
+      moduleId: module.id,
+      title: 'Sync pending lesson',
+      subject: 'Live assignment',
+      durationMinutes: 10,
+      status: 'assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Assignment payload reached the tablet first.',
+      scenario: 'Real lesson payload has not synced yet.',
+      steps: const [
+        LessonStep(
+          id: 'assignment-placeholder-step',
+          type: LessonStepType.intro,
+          title: 'Lesson sync pending',
+          instruction: 'Refresh sync before starting this assignment.',
+          expectedResponse: 'Refresh sync first.',
+          coachPrompt: 'Do not start runtime on a placeholder lesson.',
+          facilitatorTip: 'Refresh assignments first.',
+          realWorldCheck: 'Only start once the real lesson appears.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonLaunchSetupPage(
+          state: state,
+          onChanged: () {},
+          lesson: lesson,
+          module: module,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Lesson content not available yet'), findsWidgets);
+    expect(find.text('Refresh sync before starting'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Refresh sync before starting'))
+          .onPressed,
+      isNull,
+    );
+
+    state.dispose();
+  });
+
   testWidgets('lesson session stays usable on narrow tablet widths', (
     tester,
   ) async {
@@ -663,6 +729,17 @@ void main() {
     expect(find.text('Learner microphone capture'), findsOneWidget);
     expect(find.text(lesson.subject), findsWidgets);
     expect(find.byType(SingleChildScrollView), findsWidgets);
+
+    final mallamGuideTopLeft =
+        tester.getTopLeft(find.text('Guide the lesson from here'));
+    final microphoneCaptureTopLeft =
+        tester.getTopLeft(find.text('Learner microphone capture'));
+    expect(
+      mallamGuideTopLeft.dy,
+      lessThan(microphoneCaptureTopLeft.dy),
+      reason:
+          'The live Mallam guide must remain above facilitator controls on stacked lesson-session layouts.',
+    );
 
     state.dispose();
   });

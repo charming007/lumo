@@ -816,7 +816,8 @@ void main() {
                       'status': 'assigned',
                       'mascotName': 'Mallam',
                       'readinessFocus': 'Resume guidance',
-                      'scenario': 'Recovered from persisted state after lesson id churn',
+                      'scenario':
+                          'Recovered from persisted state after lesson id churn',
                       'steps': [
                         {
                           'id': 'step-1',
@@ -853,7 +854,8 @@ void main() {
                       'status': 'assigned',
                       'mascotName': 'Mallam',
                       'readinessFocus': 'Resume guidance',
-                      'scenario': 'Recovered from persisted state after lesson id churn',
+                      'scenario':
+                          'Recovered from persisted state after lesson id churn',
                       'steps': [
                         {
                           'id': 'step-1',
@@ -951,8 +953,7 @@ void main() {
       restored.dispose();
     });
 
-    test('persists registration draft photos across tablet restarts',
-        () async {
+    test('persists registration draft photos across tablet restarts', () async {
       SharedPreferences.setMockInitialValues({});
       final state = LumoAppState(includeSeedDemoContent: true);
       state.updateDraft(
@@ -1443,8 +1444,8 @@ void main() {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.selectLearner(beginner);
 
-      final baseEnglishLesson =
-          state.assignedLessons.firstWhere((lesson) => lesson.moduleId == 'english');
+      final baseEnglishLesson = state.assignedLessons
+          .firstWhere((lesson) => lesson.moduleId == 'english');
       final shadowEnglishLesson = LessonCardModel(
         id: 'english-shadow-live',
         moduleId: 'english-shadow-lane',
@@ -1923,6 +1924,51 @@ void main() {
             (error) => error.message,
             'message',
             contains('has no activity steps'),
+          ),
+        ),
+      );
+      expect(state.activeSession, isNull);
+      state.dispose();
+    });
+
+    test('startLesson rejects sync-pending assignment placeholder lessons', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(state.modules.first);
+
+      final placeholderLesson = LessonCardModel(
+        id: 'assignment-placeholder:assignment-42',
+        moduleId: 'english',
+        title: 'Sync pending lesson',
+        subject: 'Live assignment',
+        durationMinutes: 10,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Assignment payload reached the tablet first.',
+        scenario: 'Real lesson payload has not synced yet.',
+        steps: const [
+          LessonStep(
+            id: 'assignment-placeholder-step',
+            type: LessonStepType.intro,
+            title: 'Lesson sync pending',
+            instruction: 'Refresh sync before starting this assignment.',
+            expectedResponse: 'Refresh sync first.',
+            coachPrompt: 'Do not start runtime on a placeholder lesson.',
+            facilitatorTip: 'Refresh assignments first.',
+            realWorldCheck: 'Only start once the real lesson appears.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      expect(
+        () => state.startLesson(placeholderLesson),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('has not synced to this tablet yet'),
           ),
         ),
       );
