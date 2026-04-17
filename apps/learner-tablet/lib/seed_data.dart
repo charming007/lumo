@@ -126,7 +126,7 @@ const assignedLessonsSeed = [
           'A for ant',
           'a',
         ],
-        coachPrompt: 'This is letter A. Say it after me: A. A is for ant.',
+        coachPrompt: 'Look. This is A. Say A with me. A is for ant.',
         facilitatorTip:
             'Tap the letter card once, then let the learner repeat before adding the word.',
         realWorldCheck:
@@ -134,7 +134,7 @@ const assignedLessonsSeed = [
         speakerMode: SpeakerMode.guiding,
         activity: LessonActivity(
           type: LessonActivityType.letterIntro,
-          prompt: 'Listen and repeat the focus letter.',
+          prompt: 'Listen, then say the letter.',
           focusText: 'A',
           supportText: 'A is for ant',
           targetResponse: 'A',
@@ -156,7 +156,7 @@ const assignedLessonsSeed = [
         speakerMode: SpeakerMode.listening,
         activity: LessonActivity(
           type: LessonActivityType.imageChoice,
-          prompt: 'Tap the picture that matches the word.',
+          prompt: 'Tap the right picture.',
           focusText: 'ant',
           supportText: 'Listen: ant',
           choices: ['ant', 'ball', 'sun'],
@@ -172,7 +172,7 @@ const assignedLessonsSeed = [
             'The learner says a short spoken sentence using the new word with a clear voice.',
         expectedResponse: 'A is for ant.',
         acceptableResponses: ['A for ant', 'It is ant', 'A is ant'],
-        coachPrompt: 'Now say the full answer: A is for ant.',
+        coachPrompt: 'Now say the full answer with me: A is for ant.',
         facilitatorTip:
             'Accept a close spoken match if the learner says the target words in order.',
         realWorldCheck:
@@ -180,7 +180,7 @@ const assignedLessonsSeed = [
         speakerMode: SpeakerMode.affirming,
         activity: LessonActivity(
           type: LessonActivityType.speakAnswer,
-          prompt: 'Press record or speak after Mallam.',
+          prompt: 'Say it after Mallam.',
           focusText: 'A is for ant.',
           supportText: 'Use your clear English voice.',
           targetResponse: 'A is for ant.',
@@ -208,7 +208,8 @@ const assignedLessonsSeed = [
             'Mallam counts the first five oranges and invites the learner to join.',
         expectedResponse: '1, 2, 3, 4, 5',
         acceptableResponses: ['1 2 3 4 5', 'one two three four five'],
-        coachPrompt: 'Let us count the oranges together from one to five.',
+        coachPrompt:
+            'Let’s count the oranges together: one, two, three, four, five.',
         facilitatorTip:
             'Tap five fingers on the table if the learner needs visual rhythm.',
         realWorldCheck:
@@ -238,7 +239,7 @@ const assignedLessonsSeed = [
             'The learner says a complete confidence sentence about counting.',
         expectedResponse: 'I can count to ten.',
         acceptableResponses: ['I can count to 10', 'I can count'],
-        coachPrompt: 'Well done. Tell me with confidence: I can count to ten.',
+        coachPrompt: 'Now say it proudly: I can count to ten.',
         facilitatorTip:
             'Use a thumbs-up first so the learner shifts from guessing into celebration.',
         realWorldCheck:

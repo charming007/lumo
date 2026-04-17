@@ -578,7 +578,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         ),
                         const SizedBox(height: 10),
                         const Text(
-                          'Preparing AI Mallam, learners, and voice-first lessons...',
+                          'Getting Mallam, learners, and voice-first lessons ready...',
                           style: TextStyle(
                             color: Color(0xFF6B7280),
                             fontSize: 16,
@@ -2329,7 +2329,7 @@ class SubjectModulesPage extends StatelessWidget {
                           prompt:
                               'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
                           speakerMode: SpeakerMode.guiding,
-                          statusLabel: 'AI Mallam leads the journey',
+                          statusLabel: 'Mallam leads the lesson',
                           secondaryStatus: 'Lesson path guide',
                           voiceButtonLabel: 'Hear Mallam again',
                           centerPortraitLayout: true,
@@ -2880,7 +2880,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ResponsivePane(
                 flex: 5,
                 child: _MallamStageShell(
-                  eyebrow: 'AI Mallam',
+                  eyebrow: 'Mallam',
                   title: 'Guide registration from here',
                   description:
                       'Mallam stays full-height on the left while the facilitator completes the learner intake on the right.',
@@ -2897,7 +2897,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     prompt:
                         'You are on the registration page. Fill in the learner details, capture consent, then save the learner profile.',
                     speakerMode: SpeakerMode.guiding,
-                    statusLabel: 'AI Mallam is guiding registration',
+                    statusLabel: 'Mallam is guiding registration',
                     secondaryStatus: 'Registration guide',
                     voiceButtonLabel: 'Hear Mallam again',
                     voiceHint:
@@ -5268,9 +5268,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     _promptedCurrentStep = true;
     final prompt =
         widget.state.personalizePrompt(session.currentStep.coachPrompt);
-    final readyMessage = _resumedSession
-        ? 'We are back on this step. The learner can answer now.'
-        : 'Mallam finished. Let the learner answer now.';
+    final readyMessage = LearnerDialogue.promptReady(resumed: _resumedSession);
     await _speakAndMaybeAutoRecord(
       prompt,
       mode: SpeakerMode.guiding,
@@ -5291,22 +5289,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (session == null) return null;
     final remainingSteps =
         session.lesson.steps.length - (session.stepIndex + 1);
-    if (remainingSteps <= 0) {
-      return 'You did it.';
-    }
-    if (remainingSteps == 1) {
-      return 'Nice work. One more.';
-    }
-
-    const affirmations = [
-      'Good job.',
-      'Nice work.',
-      'Yes, that’s it.',
-      'You got it.',
-      'Perfect.',
-    ];
     final seed = session.totalResponses + session.stepIndex;
-    return affirmations[seed % affirmations.length];
+    return LearnerDialogue.continuation(
+      remainingSteps: remainingSteps,
+      seed: seed,
+    );
   }
 
   Future<void> _speakAffirmation(String text) async {
@@ -5388,15 +5375,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         : supportType == 'wait'
             ? SpeakerMode.waiting
             : SpeakerMode.guiding;
-    final status = switch (supportType) {
-      'hint' => "A small hint is in. Let the learner try again.",
-      'model' => 'The full answer played. Let the learner say it now.',
-      'slow' => 'Mallam slowed it down. The learner can answer now.',
-      'translate' =>
-        'Extra language support played. The learner can answer now.',
-      'wait' => 'Think time is done. Listen for the learner answer.',
-      _ => 'Support played. The learner can answer now.',
-    };
+    final status = LearnerDialogue.supportStatus(supportType);
 
     await _speakAndMaybeAutoRecord(
       supportPrompt,
@@ -6555,7 +6534,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
     Widget buildLessonGuidePane() {
       final lessonStage = _MallamStageShell(
-        eyebrow: 'AI Mallam',
+        eyebrow: 'Mallam',
         frameless: true,
         child: MallamPanel(
           instruction: lessonInstruction,

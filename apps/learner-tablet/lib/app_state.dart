@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'dialogue.dart';
 import 'models.dart';
 import 'seed_data.dart';
 
@@ -1297,16 +1298,14 @@ class LumoAppState {
             ? 'Learner answered independently'
             : 'Learner answered on track';
     final automationStatus = review == ResponseReview.onTrack
-        ? (practiceMode == PracticeMode.repeatAfterMe
-            ? 'Mallam heard a clear repeat and is ready to continue.'
-            : practiceMode == PracticeMode.independentCheck
-                ? 'Mallam accepted an independent answer and is ready to continue.'
-                : 'Mallam accepted the answer and is ready to continue.')
-        : practiceMode == PracticeMode.repeatAfterMe
-            ? 'Mallam will replay the target answer and ask the learner to repeat it again.'
-            : nextAttempts >= 2
-                ? 'Mallam is modeling the correct answer and keeping the learner on this step.'
-                : 'Mallam is replaying the prompt with a hint so the learner can try again.';
+        ? LearnerDialogue.successStatus(
+            independent: practiceMode == PracticeMode.independentCheck,
+            repeated: practiceMode == PracticeMode.repeatAfterMe,
+          )
+        : LearnerDialogue.retryStatus(
+            attemptNumber: nextAttempts,
+            repeatAfterMe: practiceMode == PracticeMode.repeatAfterMe,
+          );
 
     activeSession = session.copyWith(
       latestLearnerResponse: trimmed,
@@ -1431,18 +1430,16 @@ class LumoAppState {
     required String supportType,
     required LessonStep step,
   }) {
-    final learnerName = currentLearner?.name ?? 'the learner';
+    final learnerName = currentLearner?.name ?? 'my friend';
     final expected = personalizeExpectedResponse(step.expectedResponse);
     final prompt = personalizePrompt(step.coachPrompt);
 
-    switch (supportType) {
-      case 'hint':
-        return 'Try again, $learnerName. Listen carefully: $prompt Hint: the answer should sound like $expected';
-      case 'model':
-        return 'Let us say it together, $learnerName. $expected';
-      default:
-        return prompt;
-    }
+    return LearnerDialogue.supportPrompt(
+      supportType: supportType,
+      learnerName: learnerName,
+      prompt: prompt,
+      expected: expected,
+    );
   }
 
   String _normalizeForComparison(String text) {
@@ -1485,20 +1482,32 @@ class LumoAppState {
         label = 'Model answer played';
         break;
       case 'slow':
-        text =
-            'Slow repeat for $learnerName: ${personalizePrompt(step.coachPrompt)}';
+        text = LearnerDialogue.supportPrompt(
+          supportType: 'slow',
+          learnerName: learnerName,
+          prompt: personalizePrompt(step.coachPrompt),
+          expected: personalizeExpectedResponse(step.expectedResponse),
+        );
         nextMode = SpeakerMode.guiding;
         label = 'Slow repeat';
         break;
       case 'wait':
-        text =
-            'Mallam gives $learnerName a quiet pause before the next attempt.';
+        text = LearnerDialogue.supportPrompt(
+          supportType: 'wait',
+          learnerName: learnerName,
+          prompt: personalizePrompt(step.coachPrompt),
+          expected: personalizeExpectedResponse(step.expectedResponse),
+        );
         nextMode = SpeakerMode.waiting;
         label = 'Think time';
         break;
       case 'translate':
-        text =
-            'Support note: restate the prompt in the learner’s stronger language, then return to the target answer.';
+        text = LearnerDialogue.supportPrompt(
+          supportType: 'translate',
+          learnerName: learnerName,
+          prompt: personalizePrompt(step.coachPrompt),
+          expected: personalizeExpectedResponse(step.expectedResponse),
+        );
         nextMode = SpeakerMode.guiding;
         label = 'Translation support';
         break;
@@ -1513,7 +1522,7 @@ class LumoAppState {
       speakerMode: nextMode,
       supportActionsUsed: session.supportActionsUsed + 1,
       lastSupportType: label,
-      automationStatus: 'Mallam action: $label.',
+      automationStatus: LearnerDialogue.supportStatus(supportType),
       transcript: [
         ...session.transcript,
         SessionTurn(speaker: 'Mallam', text: text, timestamp: DateTime.now()),
