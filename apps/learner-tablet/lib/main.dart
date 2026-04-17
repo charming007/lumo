@@ -726,7 +726,7 @@ class HomePage extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Next step',
+                                        'Facilitator actions',
                                         style: TextStyle(
                                           fontSize: 24,
                                           fontWeight: FontWeight.w800,
@@ -759,7 +759,7 @@ class HomePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
                             _PrimaryActionCard(
-                              title: 'Learners',
+                              title: 'Learner List',
                               subtitle: 'Open the full learner roster',
                               icon: Icons.groups_rounded,
                               color: LumoTheme.accentGreen,
@@ -2337,151 +2337,194 @@ class SubjectModulesPage extends StatelessWidget {
                     builder: (context, detailConstraints) {
                       final useScrollableLayout =
                           detailConstraints.maxHeight < 940;
+                      final moduleNextLesson = selectedLearner == null
+                          ? lessons.cast<LessonCardModel?>().firstWhere(
+                              (lesson) => !lesson!.isAssignmentPlaceholder,
+                              orElse: () => lessons.isEmpty ? null : lessons.first,
+                            )
+                          : lessons.cast<LessonCardModel?>().firstWhere(
+                              (lesson) => lesson!.id == state.nextAssignedLessonForLearner(selectedLearner)?.id,
+                              orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
+                                (lesson) => !lesson!.isAssignmentPlaceholder,
+                                orElse: () => lessons.isEmpty ? null : lessons.first,
+                              ),
+                            );
+                      final journeyLessons = [
+                        if (moduleNextLesson != null) moduleNextLesson,
+                        ...lessons.where((lesson) => lesson.id != moduleNextLesson?.id),
+                      ];
 
-                      Widget lessonTile(LessonCardModel lesson) {
+                      void openLesson(LessonCardModel lesson) {
+                        if (lesson.isAssignmentPlaceholder) return;
+                        state.selectModule(module);
+                        onChanged();
+                        launchLessonFlow(
+                          context: context,
+                          state: state,
+                          onChanged: onChanged,
+                          lesson: lesson,
+                          module: module,
+                          resumeFrom: resumableSession?.lessonId == lesson.id
+                              ? resumableSession
+                              : null,
+                        );
+                      }
+
+                      Widget lessonJourneyTile(LessonCardModel lesson, int index) {
                         final syncPending = lesson.isAssignmentPlaceholder;
+                        final isStart = moduleNextLesson?.id == lesson.id;
+                        final stepLabel = syncPending
+                            ? 'Wait'
+                            : isStart
+                                ? 'Start here'
+                                : index == 1
+                                    ? 'Then'
+                                    : 'Later';
+                        final accent = syncPending
+                            ? const Color(0xFFF59E0B)
+                            : isStart
+                                ? LumoTheme.primary
+                                : const Color(0xFF94A3B8);
+                        final background = syncPending
+                            ? const Color(0xFFFFFBEB)
+                            : isStart
+                                ? const Color(0xFFEEF2FF)
+                                : const Color(0xFFF8FAFC);
+                        final border = syncPending
+                            ? const Color(0xFFFCD34D)
+                            : isStart
+                                ? const Color(0xFFC7D2FE)
+                                : const Color(0xFFE2E8F0);
+                        final actionLabel = syncPending
+                            ? 'Lesson content not ready yet'
+                            : resumableSession?.lessonId == lesson.id
+                                ? 'Resume lesson'
+                                : isStart
+                                    ? 'Start lesson'
+                                    : 'Open lesson';
 
                         return GestureDetector(
-                          onTap: syncPending
-                              ? null
-                              : () {
-                                  state.selectModule(module);
-                                  onChanged();
-                                  launchLessonFlow(
-                                    context: context,
-                                    state: state,
-                                    onChanged: onChanged,
-                                    lesson: lesson,
-                                    module: module,
-                                  );
-                                },
+                          onTap: syncPending ? null : () => openLesson(lesson),
                           child: Opacity(
-                            opacity: syncPending ? 0.78 : 1,
+                            opacity: syncPending ? 0.8 : 1,
                             child: Container(
                               padding: const EdgeInsets.all(18),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(22),
-                                border: Border.all(
-                                  color: syncPending
-                                      ? const Color(0xFFF59E0B)
-                                      : const Color(0xFFE2E8F0),
-                                ),
+                                color: background,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: border, width: isStart ? 2 : 1),
+                                boxShadow: isStart
+                                    ? const [
+                                        BoxShadow(
+                                          color: Color(0x140F172A),
+                                          blurRadius: 18,
+                                          offset: Offset(0, 10),
+                                        ),
+                                      ]
+                                    : null,
                               ),
-                              child: LayoutBuilder(
-                                builder: (context, tileConstraints) {
-                                  final compactTile =
-                                      tileConstraints.maxWidth < 360;
-                                  final ctaLabel = syncPending
-                                      ? 'Lesson content not available yet'
-                                      : 'Tap to choose learner';
-                                  final ctaColor = syncPending
-                                      ? LumoTheme.accentOrange
-                                      : LumoTheme.primary;
-
-                                  return Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (compactTile) ...[
-                                        Text(
-                                          lesson.title,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        StatusPill(
-                                          text: syncPending
-                                              ? 'Sync pending'
-                                              : '${lesson.steps.length} steps',
-                                          color: syncPending
-                                              ? LumoTheme.accentOrange
-                                              : LumoTheme.accentOrange,
-                                        ),
-                                      ] else
-                                        Row(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: accent,
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      syncPending ? '…' : '${index + 1}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
                                           children: [
-                                            Expanded(
-                                              child: Text(
-                                                lesson.title,
-                                                style: const TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
+                                            Text(
+                                              stepLabel,
+                                              style: TextStyle(
+                                                color: accent,
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 13,
                                               ),
                                             ),
-                                            const SizedBox(width: 12),
                                             StatusPill(
                                               text: syncPending
                                                   ? 'Sync pending'
-                                                  : '${lesson.steps.length} steps',
-                                              color: syncPending
-                                                  ? LumoTheme.accentOrange
-                                                  : LumoTheme.accentOrange,
+                                                  : '${lesson.durationMinutes} min',
+                                              color: accent,
                                             ),
+                                            if (!syncPending)
+                                              StatusPill(
+                                                text: '${lesson.steps.length} steps',
+                                                color: const Color(0xFF0EA5E9),
+                                              ),
                                           ],
                                         ),
-                                      const SizedBox(height: 8),
-                                      Text(lesson.readinessFocus),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        lesson.scenario,
-                                        style: const TextStyle(
-                                          color: Color(0xFF64748B),
-                                          height: 1.35,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      if (compactTile) ...[
-                                        InfoRow(
-                                          label: 'Duration',
-                                          value:
-                                              '${lesson.durationMinutes} min',
-                                        ),
-                                        const SizedBox(height: 8),
+                                        const SizedBox(height: 10),
                                         Text(
-                                          ctaLabel,
-                                          style: TextStyle(
-                                            color: ctaColor,
+                                          lesson.title,
+                                          style: const TextStyle(
+                                            fontSize: 21,
                                             fontWeight: FontWeight.w800,
+                                            color: Color(0xFF0F172A),
                                           ),
                                         ),
-                                      ] else
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: InfoRow(
-                                                label: 'Duration',
-                                                value:
-                                                    '${lesson.durationMinutes} min',
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Flexible(
-                                              child: Text(
-                                                ctaLabel,
-                                                textAlign: TextAlign.end,
-                                                style: TextStyle(
-                                                  color: ctaColor,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          lesson.readinessFocus,
+                                          style: const TextStyle(
+                                            color: Color(0xFF334155),
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.3,
+                                          ),
                                         ),
-                                    ],
-                                  );
-                                },
+                                        if (isStart && !syncPending) ...[
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            selectedLearner == null
+                                                ? 'Pick this first to begin the guided lesson path.'
+                                                : 'This is the clearest next lesson for ${selectedLearner.name}.',
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          actionLabel,
+                                          style: TextStyle(
+                                            color: accent,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         );
                       }
 
-                      Widget lessonList() {
-                        if (lessons.isEmpty) {
+                      Widget lessonJourney() {
+                        if (journeyLessons.isEmpty) {
                           return const SoftPanel(
                             child: Text(
                               'No lessons are mapped to this subject yet.',
@@ -2489,25 +2532,39 @@ class SubjectModulesPage extends StatelessWidget {
                           );
                         }
 
+                        final journeyCards = <Widget>[];
+                        for (var i = 0; i < journeyLessons.length; i++) {
+                          if (i > 0) {
+                            journeyCards.add(
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 22),
+                                    child: Container(
+                                      width: 8,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFC7D2FE),
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          journeyCards.add(lessonJourneyTile(journeyLessons[i], i));
+                        }
+
                         if (useScrollableLayout) {
-                          return Column(
-                            children: [
-                              for (var i = 0; i < lessons.length; i++) ...[
-                                lessonTile(lessons[i]),
-                                if (i < lessons.length - 1)
-                                  const SizedBox(height: 12),
-                              ],
-                            ],
-                          );
+                          return Column(children: journeyCards);
                         }
 
                         return Expanded(
-                          child: ListView.separated(
-                            itemCount: lessons.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) =>
-                                lessonTile(lessons[index]),
+                          child: ListView(
+                            children: journeyCards,
                           ),
                         );
                       }

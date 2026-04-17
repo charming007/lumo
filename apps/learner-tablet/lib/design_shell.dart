@@ -118,6 +118,8 @@ class MallamPanel extends StatefulWidget {
   State<MallamPanel> createState() => _MallamPanelState();
 }
 
+const bool _kFlutterTest = bool.fromEnvironment('FLUTTER_TEST');
+
 class _MallamPanelState extends State<MallamPanel>
     with SingleTickerProviderStateMixin {
   late final AnimationController _stagePulseController;
@@ -128,7 +130,12 @@ class _MallamPanelState extends State<MallamPanel>
     _stagePulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
+    );
+    if (!_kFlutterTest) {
+      _stagePulseController.repeat(reverse: true);
+    } else {
+      _stagePulseController.value = 1;
+    }
   }
 
   @override
@@ -178,7 +185,7 @@ class _MallamPanelState extends State<MallamPanel>
             runSpacing: 8,
             children: [
               _ModeChip(label: widget.statusLabel, color: speakerColor),
-              if (widget.secondaryStatus != null)
+              if (widget.secondaryStatus != null && !widget.centerPortraitLayout)
                 _ModeChip(
                   label: widget.secondaryStatus!,
                   color: const Color(0xFF0F172A),
@@ -254,6 +261,9 @@ class _MallamPanelState extends State<MallamPanel>
 
         final primaryPromptCard = Container(
           width: double.infinity,
+          constraints: BoxConstraints(
+            maxWidth: widget.centerPortraitLayout ? 520 : double.infinity,
+          ),
           padding: EdgeInsets.symmetric(
             horizontal: widget.centerPortraitLayout ? 0 : 20,
             vertical: widget.centerPortraitLayout ? 0 : 20,
@@ -277,7 +287,12 @@ class _MallamPanelState extends State<MallamPanel>
                 textAlign: widget.centerPortraitLayout || compactLayout
                     ? TextAlign.center
                     : TextAlign.left,
-                style: promptStyle,
+                style: promptStyle.copyWith(
+                  fontSize: widget.centerPortraitLayout && !compactLayout
+                      ? 24
+                      : promptStyle.fontSize,
+                  height: widget.centerPortraitLayout ? 1.4 : promptStyle.height,
+                ),
               ),
               if (widget.voiceHint != null) ...[
                 const SizedBox(height: 10),
@@ -299,20 +314,32 @@ class _MallamPanelState extends State<MallamPanel>
 
         final voiceAction = FilledButton.tonalIcon(
           onPressed: widget.onVoiceTap,
-          icon: Icon(_speakerIcon(widget.speakerMode),
-              color: speakerColor, size: 20),
+          icon: Icon(
+            _speakerIcon(widget.speakerMode),
+            color: speakerColor,
+            size: widget.centerPortraitLayout ? 18 : 20,
+          ),
           label: Text(
             widget.voiceButtonLabel,
             style: TextStyle(color: speakerColor, fontWeight: FontWeight.w700),
           ),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFF1F5F9),
+            backgroundColor: widget.centerPortraitLayout
+                ? speakerColor.withValues(alpha: 0.1)
+                : const Color(0xFFF1F5F9),
             foregroundColor: speakerColor,
             elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.centerPortraitLayout ? 18 : 22,
+              vertical: widget.centerPortraitLayout ? 14 : 16,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              side: BorderSide(
+                color: widget.centerPortraitLayout
+                    ? speakerColor.withValues(alpha: 0.18)
+                    : const Color(0xFFE2E8F0),
+              ),
             ),
           ),
         );
@@ -362,6 +389,27 @@ class _MallamPanelState extends State<MallamPanel>
           ),
         );
 
+        final centeredSupportNote = widget.centerPortraitLayout
+            ? Container(
+                constraints: const BoxConstraints(maxWidth: 420),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Text(
+                  'Mallam stays calm and centered here so the facilitator can focus on choosing the next lesson.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            : null;
+
         final content = widget.centerPortraitLayout
             ? <Widget>[
                 ConstrainedBox(
@@ -378,7 +426,7 @@ class _MallamPanelState extends State<MallamPanel>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           header,
-                          SizedBox(height: compactLayout ? 20 : 28),
+                          SizedBox(height: compactLayout ? 24 : 32),
                           Center(child: portrait),
                         ],
                       ),
@@ -386,6 +434,10 @@ class _MallamPanelState extends State<MallamPanel>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           primaryPromptCard,
+                          if (centeredSupportNote != null) ...[
+                            const SizedBox(height: 16),
+                            centeredSupportNote,
+                          ],
                           const SizedBox(height: 18),
                           Center(child: voiceAction),
                         ],

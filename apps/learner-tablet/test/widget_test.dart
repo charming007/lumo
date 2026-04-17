@@ -50,14 +50,15 @@ void main() {
 
     await tester.pumpWidget(const LumoApp(includeSeedDemoContent: true));
     await tester.pump(const Duration(seconds: 3));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
   }
 
   testWidgets('shows learner app shell after splash', (tester) async {
     await pumpAppAtSize(tester, const Size(1400, 1000));
 
-    expect(find.text('Next step'), findsOneWidget);
-    expect(find.text('Learners'), findsOneWidget);
+    expect(find.text('Facilitator actions'), findsOneWidget);
+    expect(find.text('Learner List'), findsOneWidget);
+    expect(find.text('Subjects'), findsOneWidget);
   });
 
   testWidgets(
@@ -87,8 +88,8 @@ void main() {
       find.text('Loading the live learner roster before the tablet opens.'),
       findsOneWidget,
     );
-    expect(find.text('Next step'), findsNothing);
-    expect(find.text('Learners'), findsNothing);
+    expect(find.text('Facilitator actions'), findsNothing);
+    expect(find.text('Learner List'), findsNothing);
 
     completer.complete(
       LumoBootstrap(
@@ -124,8 +125,8 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    expect(find.text('Next step'), findsOneWidget);
-    expect(find.text('Learners'), findsOneWidget);
+    expect(find.text('Facilitator actions'), findsOneWidget);
+    expect(find.text('Learner List'), findsOneWidget);
 
     state.dispose();
     await tester.pumpWidget(const SizedBox.shrink());
@@ -273,8 +274,8 @@ void main() {
     await pumpAppAtSize(tester, const Size(800, 1280));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Next step'), findsOneWidget);
-    expect(find.text('Learners'), findsOneWidget);
+    expect(find.text('Facilitator actions'), findsOneWidget);
+    expect(find.text('Learner List'), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsWidgets);
   });
 
@@ -283,7 +284,7 @@ void main() {
   ) async {
     await pumpAppAtSize(tester, const Size(800, 1280));
 
-    await tester.tap(find.text('Learners'));
+    await tester.tap(find.text('Learner List'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -296,7 +297,7 @@ void main() {
   ) async {
     await pumpAppAtSize(tester, const Size(540, 960));
 
-    await tester.tap(find.text('Learners'));
+    await tester.tap(find.text('Learner List'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -310,7 +311,7 @@ void main() {
   ) async {
     await pumpAppAtSize(tester, const Size(540, 960));
 
-    await tester.tap(find.text('Learners'));
+    await tester.tap(find.text('Learner List'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Profile').first);
     await tester.tap(find.text('Profile').first);
