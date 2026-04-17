@@ -2292,12 +2292,16 @@ class SubjectModulesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedLearner = state.currentLearner;
+    final resumableSession = selectedLearner == null
+        ? null
+        : state.resumableRuntimeSessionForLearner(selectedLearner);
     final lessons = selectedLearner == null
         ? state.assignedLessons
             .where((lesson) => lesson.moduleId == module.id)
             .toList()
         : state.lessonsForLearnerAndModule(selectedLearner, module.id);
-    final nextAssignedLesson = state.nextAssignedLessonForLearner(selectedLearner);
+    final nextAssignedLesson =
+        state.nextAssignedLessonForLearner(selectedLearner);
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
           (lesson) => lesson?.id == nextAssignedLesson?.id,
           orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
@@ -2316,6 +2320,8 @@ class SubjectModulesPage extends StatelessWidget {
         onChanged: onChanged,
         lesson: lesson,
         module: module,
+        resumeFrom:
+            resumableSession?.lessonId == lesson.id ? resumableSession : null,
       );
     }
 
@@ -2359,8 +2365,9 @@ class SubjectModulesPage extends StatelessWidget {
                   child: LayoutBuilder(
                     builder: (context, detailConstraints) {
                       final compact = detailConstraints.maxWidth < 380;
-                      final journeyDirection =
-                          detailConstraints.maxWidth < 700 ? Axis.vertical : Axis.horizontal;
+                      final journeyDirection = detailConstraints.maxWidth < 700
+                          ? Axis.vertical
+                          : Axis.horizontal;
 
                       Widget buildHeader() {
                         return Wrap(
@@ -2377,7 +2384,8 @@ class SubjectModulesPage extends StatelessWidget {
                               color: LumoTheme.primary,
                             ),
                             StatusPill(
-                              text: '${lessons.length} lesson${lessons.length == 1 ? '' : 's'}',
+                              text:
+                                  '${lessons.length} lesson${lessons.length == 1 ? '' : 's'}',
                               color: LumoTheme.accentOrange,
                             ),
                           ],
@@ -2435,7 +2443,7 @@ class SubjectModulesPage extends StatelessWidget {
                         }
 
                         final lesson = highlightedLesson;
-                        final syncPending = lesson!.isAssignmentPlaceholder;
+                        final syncPending = lesson.isAssignmentPlaceholder;
                         final isNext = nextAssignedLesson?.id == lesson.id;
                         final ctaLabel = syncPending
                             ? 'Lesson content not available yet'
@@ -2447,7 +2455,8 @@ class SubjectModulesPage extends StatelessWidget {
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(30),
-                            onTap: syncPending ? null : () => openLesson(lesson),
+                            onTap:
+                                syncPending ? null : () => openLesson(lesson),
                             child: Ink(
                               width: double.infinity,
                               padding: const EdgeInsets.all(24),
@@ -2456,8 +2465,14 @@ class SubjectModulesPage extends StatelessWidget {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: syncPending
-                                      ? const [Color(0xFFFFFBEB), Color(0xFFFFFFFF)]
-                                      : const [Color(0xFF312E81), Color(0xFF5B21B6)],
+                                      ? const [
+                                          Color(0xFFFFFBEB),
+                                          Color(0xFFFFFFFF)
+                                        ]
+                                      : const [
+                                          Color(0xFF312E81),
+                                          Color(0xFF5B21B6)
+                                        ],
                                 ),
                                 borderRadius: BorderRadius.circular(30),
                                 boxShadow: [
@@ -2479,7 +2494,9 @@ class SubjectModulesPage extends StatelessWidget {
                                     runSpacing: 10,
                                     children: [
                                       StatusPill(
-                                        text: isNext ? 'Next step' : 'Lesson card',
+                                        text: isNext
+                                            ? 'Next step'
+                                            : 'Lesson card',
                                         color: syncPending
                                             ? LumoTheme.accentOrange
                                             : Colors.white,
@@ -2527,7 +2544,8 @@ class SubjectModulesPage extends StatelessWidget {
                                     style: TextStyle(
                                       color: syncPending
                                           ? const Color(0xFF78350F)
-                                          : Colors.white.withValues(alpha: 0.92),
+                                          : Colors.white
+                                              .withValues(alpha: 0.92),
                                       height: 1.45,
                                       fontSize: 15,
                                     ),
@@ -2539,12 +2557,14 @@ class SubjectModulesPage extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       color: syncPending
                                           ? const Color(0xFFFFFFFF)
-                                          : Colors.white.withValues(alpha: 0.12),
+                                          : Colors.white
+                                              .withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(22),
                                       border: Border.all(
                                         color: syncPending
                                             ? const Color(0xFFFCD34D)
-                                            : Colors.white.withValues(alpha: 0.16),
+                                            : Colors.white
+                                                .withValues(alpha: 0.16),
                                       ),
                                     ),
                                     child: compact
@@ -2585,7 +2605,8 @@ class SubjectModulesPage extends StatelessWidget {
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.w800,
                                                     color: syncPending
-                                                        ? const Color(0xFF92400E)
+                                                        ? const Color(
+                                                            0xFF92400E)
                                                         : Colors.white,
                                                   ),
                                                 ),
@@ -2660,7 +2681,8 @@ class SubjectModulesPage extends StatelessWidget {
                               learner: selectedLearner,
                               nextLesson: nextAssignedLesson,
                               backendSummary:
-                                  state.backendRoutingSummaryForLearner(selectedLearner),
+                                  state.backendRoutingSummaryForLearner(
+                                      selectedLearner),
                               onOpenProfile: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
