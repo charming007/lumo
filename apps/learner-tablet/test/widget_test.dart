@@ -874,6 +874,77 @@ void main() {
     state.dispose();
   });
 
+  testWidgets(
+      'home replay prompt becomes learner-aware when a learner is in focus', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    String? replayedPrompt;
+    state.voiceReplay = (text, mode) async {
+      replayedPrompt = text;
+    };
+
+    await tester.tap(find.text('Hear Mallam again'));
+    await pumpForUi(tester);
+
+    final firstName = learner.name.split(' ').first;
+    expect(replayedPrompt, isNotNull);
+    expect(replayedPrompt, contains('Assalamu alaikum. Good'));
+    expect(replayedPrompt, contains(firstName));
+    expect(replayedPrompt, isNot(contains('You are on the home page.')));
+
+    state.dispose();
+  });
+
+  testWidgets('lesson launch setup preselects the current learner', (
+    tester,
+  ) async {
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final module = state.modules.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonLaunchSetupPage(
+          state: state,
+          onChanged: () {},
+          lesson: lesson,
+          module: module,
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(
+      find.textContaining('${learner.name} is selected for ${lesson.title}.'),
+      findsOneWidget,
+    );
+    expect(find.text('Start with ${learner.name}'), findsOneWidget);
+    expect(find.text('Select learner to continue'), findsNothing);
+
+    state.dispose();
+  });
+
   testWidgets('lesson launch setup stays usable on narrow tablet widths', (
     tester,
   ) async {
@@ -899,7 +970,11 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Choose learner'), findsOneWidget);
-    expect(find.text('Select learner to continue'), findsOneWidget);
+    expect(
+      find.text('Select learner to continue').evaluate().isNotEmpty ||
+          find.textContaining('is selected for').evaluate().isNotEmpty,
+      isTrue,
+    );
     expect(find.byType(SingleChildScrollView), findsWidgets);
 
     state.dispose();

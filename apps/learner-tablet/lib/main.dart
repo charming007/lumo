@@ -989,6 +989,36 @@ class _MallamStageShell extends StatelessWidget {
   }
 }
 
+String _timeAwareMallamGreeting() {
+  final hour = DateTime.now().hour;
+  if (hour < 12) return 'Assalamu alaikum. Good morning.';
+  if (hour < 17) return 'Assalamu alaikum. Good afternoon.';
+  return 'Assalamu alaikum. Good evening.';
+}
+
+String _buildHomeMallamReplayPrompt(LumoAppState state) {
+  final learner = state.suggestedLearnerForHome;
+  final nextLesson = state.nextAssignedLessonForLearner(learner);
+  final module =
+      learner == null ? null : state.recommendedModuleForLearner(learner);
+  final greeting = _timeAwareMallamGreeting();
+
+  if (learner == null) {
+    return '$greeting You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.';
+  }
+
+  final learnerName = learner.name.split(' ').first;
+  if (nextLesson != null) {
+    return '$greeting $learnerName is ready for ${nextLesson.title}. Tap Student List to open learner cards, or open ${module?.title ?? nextLesson.subject} to continue the lesson path.';
+  }
+
+  if (module != null) {
+    return '$greeting $learnerName is ready to keep learning. Tap Student List to open learner cards, or choose ${module.title} to keep the next lesson moving.';
+  }
+
+  return '$greeting You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.';
+}
+
 class _HomeMallamStage extends StatelessWidget {
   final LumoAppState state;
 
@@ -1032,7 +1062,7 @@ class _HomeMallamStage extends StatelessWidget {
               FilledButton.tonalIcon(
                 onPressed: () {
                   state.replayVisiblePrompt(
-                    'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
+                    _buildHomeMallamReplayPrompt(state),
                   );
                 },
                 icon: const Icon(Icons.volume_up_rounded),
@@ -3800,10 +3830,35 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
 
   bool get _resumeLocksLearner => widget.resumeFrom != null;
 
+  LearnerProfile? _preferredLaunchLearner() {
+    final resumeLearner = _resumeLearner;
+    if (resumeLearner != null) return resumeLearner;
+
+    final currentLearner = widget.state.currentLearner;
+    if (currentLearner != null &&
+        widget.state.learners
+            .any((learner) => learner.id == currentLearner.id)) {
+      return currentLearner;
+    }
+
+    if (widget.state.learners.length == 1) {
+      return widget.state.learners.first;
+    }
+
+    final suggestedLearner = widget.state.suggestedLearnerForHome;
+    if (suggestedLearner != null &&
+        widget.state.learners
+            .any((learner) => learner.id == suggestedLearner.id)) {
+      return suggestedLearner;
+    }
+
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
-    selectedLearner = _resumeLearner;
+    selectedLearner = _preferredLaunchLearner();
   }
 
   @override
