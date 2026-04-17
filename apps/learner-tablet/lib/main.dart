@@ -8337,34 +8337,46 @@ class _HomeQuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 68,
-          height: 68,
-          child: FilledButton(
-            onPressed: onTap,
-            style: FilledButton.styleFrom(
-              foregroundColor: color,
-              backgroundColor: color.withValues(alpha: 0.12),
-              padding: EdgeInsets.zero,
-              shape: const CircleBorder(),
-              side: BorderSide(color: color.withValues(alpha: 0.16)),
-            ),
-            child: Icon(icon, size: 28),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IgnorePointer(
+                child: SizedBox(
+                  width: 68,
+                  height: 68,
+                  child: FilledButton(
+                    onPressed: onTap,
+                    style: FilledButton.styleFrom(
+                      foregroundColor: color,
+                      backgroundColor: color.withValues(alpha: 0.12),
+                      padding: EdgeInsets.zero,
+                      shape: const CircleBorder(),
+                      side: BorderSide(color: color.withValues(alpha: 0.16)),
+                    ),
+                    child: Icon(icon, size: 28),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  color: Color(0xFF334155),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-            color: Color(0xFF334155),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
