@@ -713,6 +713,8 @@ test('admin storage recovery endpoints expose durable recovery summary and lates
   assert.equal(restoreSmartResponse.status, 201);
   assert.equal(restoreSmartResponse.body.selectedCandidate.source, 'backup');
   assert.ok(typeof restoreSmartResponse.body.result.restoredFrom === 'string');
+  assert.ok(typeof restoreSmartResponse.body.result.preflightCheckpoint?.backupPath === 'string');
+  assert.ok(String(restoreSmartResponse.body.result.preflightCheckpoint?.label || '').startsWith('pre-restore-backup-'));
 
   const restoreLatestResponse = await request('/api/v1/admin/storage/restore-latest', {
     method: 'POST',
@@ -726,6 +728,7 @@ test('admin storage recovery endpoints expose durable recovery summary and lates
   assert.equal(restoreLatestResponse.status, 201);
   assert.ok(typeof restoreLatestResponse.body.selectedBackup.path === 'string');
   assert.ok(typeof restoreLatestResponse.body.result.restoredFrom === 'string');
+  assert.ok(typeof restoreLatestResponse.body.result.preflightCheckpoint?.backupPath === 'string');
 });
 
 test('admin storage reconcile-cache endpoint returns 501 when cache reconcile is unavailable in file mode', async () => {
@@ -795,6 +798,8 @@ test('admin storage recovery control restores Postgres primary from warm cache w
     assert.equal(response.body.recovered, true);
     assert.equal(response.body.source, 'warm-cache');
     assert.equal(response.body.status.primaryIntegrity.journalAligned, true);
+    assert.ok(typeof response.body.preflightCheckpoint?.backupPath === 'string');
+    assert.ok(String(response.body.preflightCheckpoint?.label || '').startsWith('pre-recover-primary-from-cache-'));
 
   } finally {
     data.storage = originalStorage;

@@ -616,6 +616,22 @@ function reconcileStorageCache(actor = {}) {
   return result;
 }
 
+function createPreflightRecoveryCheckpoint(action, actor = {}) {
+  const data = require('./data');
+
+  if (typeof data.storage?.checkpoint !== 'function') {
+    return null;
+  }
+
+  const label = `pre-${String(action || 'recovery').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'recovery'}-${new Date().toISOString()}`;
+  const backupPath = data.storage.checkpoint(label);
+
+  return {
+    label,
+    backupPath,
+  };
+}
+
 function recoverStoragePrimaryFromWarmCache(actor = {}) {
   const data = require('./data');
 
@@ -625,12 +641,14 @@ function recoverStoragePrimaryFromWarmCache(actor = {}) {
     throw error;
   }
 
+  const preflightCheckpoint = createPreflightRecoveryCheckpoint('recover-primary-from-cache', actor);
   const recovered = data.storage.recoverPrimaryFromWarmCache() || {};
   data.reload();
   const snapshot = exportStorageSnapshot();
   const result = {
     recoveredAt: new Date().toISOString(),
     ...recovered,
+    preflightCheckpoint,
     collectionCounts: snapshot.collectionCounts,
     status: getStorageStatus(),
   };
@@ -638,11 +656,17 @@ function recoverStoragePrimaryFromWarmCache(actor = {}) {
   recordStorageOperation('recover-primary-from-cache', result, {
     actorName: actor.actorName,
     actorRole: actor.actorRole,
+    backupPath: preflightCheckpoint?.backupPath || null,
+    label: preflightCheckpoint?.label || null,
     summary: {
       recovered: Boolean(result.recovered),
       recordsAfterRecovery: summarizeCollectionCounts(snapshot.collectionCounts),
       cacheInSync: Boolean(result.status?.cache?.inSync),
       journalAligned: Boolean(result.status?.primaryIntegrity?.journalAligned),
+      preflightCheckpointCreated: Boolean(preflightCheckpoint?.backupPath),
+    },
+    metadata: {
+      preflightCheckpoint,
     },
   });
 
@@ -741,6 +765,7 @@ function restoreStorageMutation(id, actor = {}) {
     throw error;
   }
 
+  const preflightCheckpoint = createPreflightRecoveryCheckpoint('restore-mutation', actor);
   data.storage.restoreFromMutation(id);
   data.reload();
 
@@ -749,6 +774,7 @@ function restoreStorageMutation(id, actor = {}) {
   const result = {
     mutationId: Number(id),
     restoredFromMutationId: Number(id),
+    preflightCheckpoint,
     status,
     collectionCounts: snapshot.collectionCounts,
   };
@@ -756,9 +782,12 @@ function restoreStorageMutation(id, actor = {}) {
   recordStorageOperation('restore-mutation', result, {
     actorName: actor.actorName,
     actorRole: actor.actorRole,
+    backupPath: preflightCheckpoint?.backupPath || null,
+    label: preflightCheckpoint?.label || null,
     summary: {
       restoredFromMutationId: Number(id),
       recordsAfterRestore: summarizeCollectionCounts(snapshot.collectionCounts),
+      preflightCheckpointCreated: Boolean(preflightCheckpoint?.backupPath),
     },
     metadata: {
       mutation: {
@@ -768,6 +797,7 @@ function restoreStorageMutation(id, actor = {}) {
         snapshotHash: detail.snapshotHash,
         collectionCounts: detail.collectionCounts,
       },
+      preflightCheckpoint,
     },
   });
 
@@ -1389,11 +1419,13 @@ function restoreStorageBackup(backupPath, actor = {}) {
     throw error;
   }
 
+  const preflightCheckpoint = createPreflightRecoveryCheckpoint('restore-backup', actor);
   data.storage.restoreFromBackup(backupPath);
   data.reload();
 
   const result = {
     restoredFrom: backupPath,
+    preflightCheckpoint,
     status: getStorageStatus(),
   };
 
@@ -1401,9 +1433,14 @@ function restoreStorageBackup(backupPath, actor = {}) {
     actorName: actor.actorName,
     actorRole: actor.actorRole,
     backupPath,
+    label: preflightCheckpoint?.label || null,
     summary: {
       backupCount: result.status?.backups?.length ?? 0,
       persistent: Boolean(result.status?.db?.persistent),
+      preflightCheckpointCreated: Boolean(preflightCheckpoint?.backupPath),
+    },
+    metadata: {
+      preflightCheckpoint,
     },
   });
 

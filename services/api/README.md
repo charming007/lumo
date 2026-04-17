@@ -246,6 +246,7 @@ Use `force: true` only after reviewing the preview output and deciding to accept
 
 Behavior:
 - Postgres-backed durability now stores a restorable snapshot copy on each journaled storage mutation (`write`, `checkpoint`, `restore`, `restore-mutation`)
+- destructive recovery controls now create an automatic preflight checkpoint before mutating primary state (`restore`, `restore-smart`, `restore-latest`, `restore-mutation`, `recover-primary-from-cache`) and return it as `preflightCheckpoint` in the response
 - admins can inspect individual journal entries, including whether they contain a recoverable snapshot
 - `GET /api/v1/admin/storage/recovery` now returns the recovery plan alongside integrity, backup, mutation, and operations state
 - `GET /api/v1/admin/storage/recovery-plan` ranks backup, restorable mutation, and warm-cache candidates so operators can see the safest restore path before pulling the trigger
