@@ -210,6 +210,27 @@ function laneCards(module: CurriculumCanvasModule) {
   ];
 }
 
+function lessonJourneyAccent(index: number) {
+  const accents = [
+    { solid: '#8B5CF6', glow: 'rgba(139,92,246,0.30)', soft: 'rgba(139,92,246,0.18)' },
+    { solid: '#14B8A6', glow: 'rgba(20,184,166,0.30)', soft: 'rgba(20,184,166,0.18)' },
+    { solid: '#F97316', glow: 'rgba(249,115,22,0.30)', soft: 'rgba(249,115,22,0.18)' },
+    { solid: '#38BDF8', glow: 'rgba(56,189,248,0.28)', soft: 'rgba(56,189,248,0.18)' },
+    { solid: '#F43F5E', glow: 'rgba(244,63,94,0.28)', soft: 'rgba(244,63,94,0.16)' },
+  ];
+  return accents[index % accents.length];
+}
+
+function lessonJourneyIcon(lesson: CurriculumCanvasLesson | null) {
+  if (!lesson) return '＋';
+  if (lesson.mode === 'guided') return '🧭';
+  if (lesson.mode === 'group') return '👥';
+  if (lesson.mode === 'independent') return '✍️';
+  if (lesson.mode === 'practice') return '🎯';
+  if (lesson.mode === 'ops') return '🛠️';
+  return '📘';
+}
+
 export function CurriculumCanvas({
   data,
   failedSources = [],
@@ -697,16 +718,18 @@ export function CurriculumCanvas({
           <aside style={{ padding: 18, borderRadius: 28, background: '#020617', color: 'white', border: '1px solid rgba(99,102,241,0.22)', boxShadow: '0 20px 44px rgba(2, 6, 23, 0.38)', position: 'sticky', top: 20, minHeight: 320 }}>
             {selected ? (
               <div style={{ display: 'grid', gap: 18 }}>
-                <div>
-                  <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 }}>Selected node</div>
-                  <div style={{ fontSize: 28, fontWeight: 900 }}>{selected.module.title}</div>
-                  <div style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.6 }}>{selected.subject.name} → {selected.strand.name} → {selected.module.level}</div>
-                </div>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <div>
+                    <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 }}>Selected node</div>
+                    <div style={{ fontSize: 28, fontWeight: 900 }}>{selected.module.title}</div>
+                    <div style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.6 }}>{selected.subject.name} → {selected.strand.name} → {selected.module.level}</div>
+                  </div>
 
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Pill label={`${selected.module.readyLessons}/${selected.module.lessonCount} ready`} tone="#052e16" text="#86efac" />
-                  <Pill label={selected.module.assessmentCoverageLabel} tone="#3b0764" text="#d8b4fe" />
-                  <Pill label={selected.module.gapCount ? `${selected.module.gapCount} gaps to clear` : 'ready to release'} tone={selected.module.gapCount ? '#3b2f0d' : '#1e1b4b'} text={selected.module.gapCount ? '#fcd34d' : '#c4b5fd'} />
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Pill label={`${selected.module.readyLessons}/${selected.module.lessonCount} ready`} tone="#052e16" text="#86efac" />
+                    <Pill label={selected.module.assessmentCoverageLabel} tone="#3b0764" text="#d8b4fe" />
+                    <Pill label={selected.module.gapCount ? `${selected.module.gapCount} gaps to clear` : 'ready to release'} tone={selected.module.gapCount ? '#3b2f0d' : '#1e1b4b'} text={selected.module.gapCount ? '#fcd34d' : '#c4b5fd'} />
+                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gap: 10 }}>
@@ -733,236 +756,114 @@ export function CurriculumCanvas({
                       Clear this blocker stack
                     </Link>
                   </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                    {!selected.module.assessments.length ? (
-                      <form action={createCanvasAssessmentQuickAction} style={{ display: 'contents' }}>
-                        <input type="hidden" name="subjectId" value={selected.subject.id} />
-                        <input type="hidden" name="moduleId" value={selected.module.id} />
-                        <input type="hidden" name="moduleTitle" value={selected.module.title} />
-                        <input type="hidden" name="returnPath" value={selectedModuleUrl} />
-                        <button type="submit" style={{ ...quickActionButtonStyle, background: 'rgba(237,233,254,0.18)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.26)' }}>
-                          Create draft gate
-                        </button>
-                      </form>
-                    ) : (
-                      <Link href={`/assessments?subject=${encodeURIComponent(selected.subject.id)}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(237,233,254,0.18)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.26)' }}>
-                        Tune gate coverage
-                      </Link>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const missingLesson = selected.module.lessons.find((lesson) => !lesson.assessmentId);
-                        if (missingLesson) {
-                          setSelectedLessonId(missingLesson.id);
-                          return;
-                        }
-                        if (selected.module.assessments[0]) {
-                          setSelectedAssessmentId(selected.module.assessments[0].id);
-                        }
-                      }}
-                      style={{ ...quickActionButtonStyle, background: 'rgba(8,47,73,0.22)', color: '#a5f3fc', border: '1px solid rgba(103,232,249,0.24)' }}
-                    >
-                      {selected.module.lessons.some((lesson) => !lesson.assessmentId) ? 'Open first unlinked lesson' : 'Inspect gate lane'}
-                    </button>
-                  </div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
-                  <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Release readout</div>
-                  <div style={{ color: selected.module.gapCount ? '#fde68a' : '#bbf7d0', lineHeight: 1.7 }}>{selected.module.blockerSummary}</div>
-                </div>
-
-                <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, background: 'rgba(67,20,7,0.14)', border: '1px solid rgba(251,146,60,0.18)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ padding: 16, borderRadius: 24, background: 'linear-gradient(180deg, rgba(30,41,59,0.94) 0%, rgba(15,23,42,0.96) 100%)', border: '1px solid rgba(129,140,248,0.24)', display: 'grid', gap: 14, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <div>
-                      <div style={{ color: '#fdba74', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Release punch list</div>
-                      <div style={{ color: '#f8fafc', lineHeight: 1.6, marginTop: 6 }}>This is the closeout queue for the selected module. Fix these first instead of wandering around the graph.</div>
+                      <div style={{ color: '#c7d2fe', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Lesson journey</div>
+                      <div style={{ color: '#f8fafc', fontSize: 20, fontWeight: 900, marginTop: 6 }}>Follow the learning path</div>
+                      <div style={{ color: '#cbd5e1', lineHeight: 1.6, marginTop: 6 }}>Tap a lesson node to inspect or edit. Missing slots stay visible as open circles so the lane never lies.</div>
                     </div>
-                    <Pill label={selected.module.gapCount ? `${selected.module.gapCount} gaps still open` : 'No blockers left'} tone={selected.module.gapCount ? '#431407' : '#052e16'} text={selected.module.gapCount ? '#fdba74' : '#86efac'} />
+                    <Pill label={`${selectedModuleSlots.length} stops`} tone="#172554" text="#93c5fd" />
                   </div>
 
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {[
-                      {
-                        id: 'missing-slots',
-                        label: 'Empty sequence slots',
-                        count: selectedModuleMissingSlots,
-                        note: selectedModuleMissingSlots
-                          ? `${selectedModuleMissingOrders.join(', ')} still need lesson shells or real authored lessons.`
-                          : 'Every expected lesson slot is represented on the canvas.',
-                        action: selectedModuleMissingSlots ? 'Create shells below' : 'Sequence mapped',
-                      },
-                      {
-                        id: 'not-ready',
-                        label: 'Lessons not release-ready',
-                        count: selectedModuleNotReadyLessons.length,
-                        note: selectedModuleNotReadyLessons.length
-                          ? `${selectedModuleNotReadyLessons[0]?.title ?? 'A lesson'} is the first lesson still sitting in draft/review.`
-                          : 'All mapped lessons are already approved/published.',
-                        action: selectedModuleNotReadyLessons.length ? 'Open first lesson' : 'Ready',
-                      },
-                      {
-                        id: 'gate-coverage',
-                        label: 'Lessons missing gate links',
-                        count: selectedModuleUnlinkedLessons.length,
-                        note: selectedModuleUnlinkedLessons.length
-                          ? `${selectedModuleUnlinkedLessons[0]?.title ?? 'A lesson'} still has no visible gate connection.`
-                          : 'Every mapped lesson points at a visible gate.',
-                        action: selectedModuleUnlinkedLessons.length ? 'Inspect first unlinked lesson' : 'Gate coverage clean',
-                      },
-                      {
-                        id: 'module-gates',
-                        label: 'Module gate count',
-                        count: selectedModuleGateCount,
-                        note: selectedModuleGateCount
-                          ? `${selectedModuleGateCount} progression gate${selectedModuleGateCount === 1 ? '' : 's'} already attached to this module.`
-                          : 'No gate exists yet, so the module still fails release readiness.',
-                        action: selectedModuleGateCount ? 'Inspect gates below' : 'Create draft gate',
-                      },
-                    ].map((item) => (
-                      <div key={item.id} style={{ padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.36)', border: '1px solid rgba(148,163,184,0.12)', display: 'grid', gap: 5 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                          <div style={{ color: '#f8fafc', fontWeight: 800 }}>{item.label}</div>
-                          <Pill label={String(item.count)} tone={item.count ? '#431407' : '#052e16'} text={item.count ? '#fdba74' : '#86efac'} />
-                        </div>
-                        <div style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14 }}>{item.note}</div>
-                        <div style={{ color: item.count ? '#fdba74' : '#94a3b8', fontSize: 12, fontWeight: 700, letterSpacing: 0.3 }}>{item.action}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {selectedModuleNotReadyLessons[0] ? (
-                      <button type="button" onClick={() => setSelectedLessonId(selectedModuleNotReadyLessons[0].id)} style={{ ...filterButtonStyle, background: 'rgba(79,70,229,0.18)', color: '#e0e7ff' }}>
-                        Open first not-ready lesson
-                      </button>
+                  <div style={{ position: 'relative', display: 'grid', gap: 14, padding: '8px 2px 4px' }}>
+                    {selectedModuleSlots.length > 1 ? (
+                      <div aria-hidden="true" style={{ position: 'absolute', left: 'calc(50% - 3px)', top: 18, bottom: 18, width: 6, borderRadius: 999, background: 'linear-gradient(180deg, rgba(129,140,248,0.12) 0%, rgba(45,212,191,0.18) 40%, rgba(244,114,182,0.16) 100%)' }} />
                     ) : null}
-                    {selectedModuleUnlinkedLessons[0] ? (
-                      <button type="button" onClick={() => setSelectedLessonId(selectedModuleUnlinkedLessons[0].id)} style={{ ...filterButtonStyle, background: 'rgba(245,158,11,0.14)', color: '#fde68a' }}>
-                        Open first unlinked lesson
-                      </button>
-                    ) : null}
-                    {!selectedModuleGateCount ? (
-                      <form action={createCanvasAssessmentQuickAction}>
-                        <input type="hidden" name="subjectId" value={selected.subject.id} />
-                        <input type="hidden" name="moduleId" value={selected.module.id} />
-                        <input type="hidden" name="moduleTitle" value={selected.module.title} />
-                        <input type="hidden" name="returnPath" value={selectedModuleUrl} />
-                        <button type="submit" style={{ ...filterButtonStyle, background: 'rgba(237,233,254,0.18)', color: '#ddd6fe' }}>
-                          Create draft gate now
-                        </button>
-                      </form>
-                    ) : selected.module.assessments[0] ? (
-                      <button type="button" onClick={() => setSelectedAssessmentId(selected.module.assessments[0].id)} style={{ ...filterButtonStyle, background: 'rgba(237,233,254,0.18)', color: '#ddd6fe' }}>
-                        Inspect first gate
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
 
-                <form action={quickUpdateCanvasModuleAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
-                  <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Module quick edit</div>
-                  <input type="hidden" name="moduleId" value={selected.module.id} />
-                  <input type="hidden" name="returnPath" value={selectedModuleUrl} />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
-                    <label style={{ display: 'grid', gap: 6 }}>
-                      <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Status</span>
-                      <select name="status" defaultValue={selected.module.status} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
-                        <option value="draft">Draft</option>
-                        <option value="review">Review</option>
-                        <option value="published">Published</option>
-                        <option value="active">Active</option>
-                      </select>
-                    </label>
-                    <label style={{ display: 'grid', gap: 6 }}>
-                      <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Level</span>
-                      <input name="level" defaultValue={selected.module.level} maxLength={80} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
-                    </label>
-                    <label style={{ display: 'grid', gap: 6 }}>
-                      <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Expected lessons</span>
-                      <input name="lessonCount" type="number" min="0" max="60" defaultValue={selected.module.lessonCount} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
-                    </label>
-                  </div>
-                  <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 13 }}>Fix sequencing metadata here when the module card itself is wrong. That saves a stupid detour back to the content board.</div>
-                  <button type="submit" style={{ ...actionLinkStyle, background: '#0EA5E9', color: '#082f49', border: 0 }}>Save module settings</button>
-                </form>
-
-                <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, background: 'rgba(8,47,73,0.18)', border: '1px solid rgba(103,232,249,0.18)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div>
-                      <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Module sequencing + bulk ops</div>
-                      <div style={{ color: '#e2e8f0', lineHeight: 1.6, marginTop: 6 }}>Clean the whole lane from here: create missing lesson shells, batch-move mapped lessons, and see which sequence slots still need real authoring.</div>
-                    </div>
-                    <Pill label={`${selected.module.lessons.length}/${selected.module.lessonCount} slots mapped`} tone="#082f49" text="#a5f3fc" />
-                  </div>
-
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {selectedModuleSlots.map((slot) => {
+                    {selectedModuleSlots.map((slot, index) => {
                       const lesson = slot.lesson;
+                      const accent = lessonJourneyAccent(index);
+                      const offset = index % 2 === 0 ? 34 : -34;
+                      const lessonStatus = lesson ? statusTone(lesson.status) : null;
+                      const isSelected = lesson ? selectedLessonId === lesson.id : false;
+                      const gateLinked = lesson ? Boolean(lesson.assessmentId || lesson.assessmentTitle) : false;
                       return (
-                        <div key={`${selected.module.id}-slot-${slot.order}`} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 10, alignItems: 'center', padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.42)', border: '1px solid rgba(148,163,184,0.12)' }}>
-                          <div style={{ width: 34, height: 34, borderRadius: 999, display: 'grid', placeItems: 'center', fontWeight: 900, background: lesson ? 'rgba(79,70,229,0.24)' : 'rgba(148,163,184,0.12)', color: lesson ? '#ddd6fe' : '#cbd5e1' }}>{slot.order}</div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ color: '#f8fafc', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lesson?.title ?? `Open lesson slot ${slot.order}`}</div>
-                            <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.5 }}>{lesson ? `Sequence ${lesson.order ?? 'unassigned'} · ${lessonSummary(lesson)}` : 'No lesson mapped yet — create a shell or open the full authoring flow.'}</div>
-                            {!lesson ? <div style={{ color: '#fdba74', fontSize: 12, marginTop: 4 }}>Expected sequence slot is empty.</div> : null}
-                          </div>
-                          <div style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
-                            {lesson ? <Pill label={lesson.status} tone={statusTone(lesson.status).tone} text={statusTone(lesson.status).text} /> : <Pill label="missing" tone="#431407" text="#fdba74" />}
-                            {lesson ? (
-                              <button type="button" onClick={() => setSelectedLessonId(lesson.id)} style={{ ...filterButtonStyle, padding: '7px 10px', fontSize: 12, background: 'rgba(79,70,229,0.18)', color: '#e0e7ff' }}>
-                                Inspect slot
-                              </button>
-                            ) : (
-                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...actionLinkStyle, padding: '7px 10px', fontSize: 12, background: '#EDE9FE', color: '#5B21B6' }}>
-                                Fill slot
+                        <div
+                          key={`${selected.module.id}-journey-${slot.order}`}
+                          style={{
+                            position: 'relative',
+                            display: 'grid',
+                            gridTemplateColumns: 'minmax(0, 1fr)',
+                            justifyItems: 'center',
+                            paddingLeft: offset > 0 ? `${offset}px` : 0,
+                            paddingRight: offset < 0 ? `${Math.abs(offset)}px` : 0,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (lesson) {
+                                setSelectedLessonId(lesson.id);
+                              }
+                            }}
+                            style={{
+                              width: '100%',
+                              maxWidth: 270,
+                              background: lesson ? 'rgba(15,23,42,0.82)' : 'rgba(15,23,42,0.52)',
+                              border: isSelected ? `1px solid ${accent.solid}` : lesson ? '1px solid rgba(148,163,184,0.16)' : '1px dashed rgba(148,163,184,0.24)',
+                              borderRadius: 28,
+                              padding: '14px 16px',
+                              cursor: lesson ? 'pointer' : 'default',
+                              boxShadow: isSelected ? `0 16px 34px ${accent.glow}` : 'none',
+                              display: 'grid',
+                              gap: 10,
+                              justifyItems: 'center',
+                              textAlign: 'center',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 92,
+                                height: 92,
+                                borderRadius: '50%',
+                                background: lesson
+                                  ? `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.28) 0%, ${accent.solid} 42%, #0f172a 100%)`
+                                  : 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.12) 0%, rgba(100,116,139,0.34) 55%, rgba(15,23,42,0.92) 100%)',
+                                border: lesson ? '4px solid rgba(255,255,255,0.16)' : '2px dashed rgba(148,163,184,0.35)',
+                                boxShadow: lesson ? `0 18px 34px ${accent.glow}` : 'none',
+                                display: 'grid',
+                                placeItems: 'center',
+                                color: '#fff',
+                                fontSize: lesson ? 32 : 24,
+                                fontWeight: 900,
+                              }}
+                            >
+                              {lessonJourneyIcon(lesson)}
+                            </div>
+
+                            <div style={{ display: 'grid', gap: 4, width: '100%' }}>
+                              <div style={{ color: lesson ? accent.solid : '#94a3b8', fontSize: 12, fontWeight: 800, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+                                Lesson {slot.order}
+                              </div>
+                              <div style={{ color: '#f8fafc', fontWeight: 800, lineHeight: 1.4 }}>
+                                {lesson?.title ?? `Open lesson slot ${slot.order}`}
+                              </div>
+                              <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.5 }}>
+                                {lesson ? lessonSummary(lesson) : 'No lesson mapped yet — create a shell or author the real lesson.'}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                              {lesson && lessonStatus ? <Pill label={lesson.status} tone={lessonStatus.tone} text={lessonStatus.text} /> : <Pill label="missing" tone="#431407" text="#fdba74" />}
+                              <Pill label={gateLinked ? 'Gate linked' : 'Gate open'} tone={gateLinked ? '#052e16' : '#3b0764'} text={gateLinked ? '#86efac' : '#d8b4fe'} />
+                            </div>
+
+                            {!lesson ? (
+                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...actionLinkStyle, background: accent.soft, color: '#f8fafc', border: `1px solid ${accent.glow}` }}>
+                                Fill this stop
                               </Link>
+                            ) : (
+                              <div style={{ color: isSelected ? '#e9d5ff' : '#cbd5e1', fontSize: 12, fontWeight: 700 }}>
+                                {isSelected ? 'Journey stop open now' : 'Open this stop'}
+                              </div>
                             )}
-                          </div>
+                          </button>
                         </div>
                       );
                     })}
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                    <form action={bulkUpdateCanvasModuleLessonsAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
-                      <div style={{ color: '#cbd5e1', fontWeight: 800 }}>Batch move mapped lessons</div>
-                      <input type="hidden" name="moduleId" value={selected.module.id} />
-                      <input type="hidden" name="subjectId" value={selected.subject.id} />
-                      <input type="hidden" name="moduleTitle" value={selected.module.title} />
-                      <input type="hidden" name="returnPath" value={selectedModuleUrl} />
-                      {selected.module.lessons.map((lesson) => <input key={lesson.id} type="hidden" name="lessonIds" value={lesson.id} />)}
-                      <select name="status" defaultValue={selected.module.lessons.some((lesson) => lesson.status !== 'approved') ? 'approved' : 'review'} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
-                        <option value="draft">Move all to draft</option>
-                        <option value="review">Move all to review</option>
-                        <option value="approved">Move all to approved</option>
-                      </select>
-                      <button type="submit" style={{ ...actionLinkStyle, background: 'rgba(79,70,229,0.28)', color: '#e0e7ff', border: '1px solid rgba(129,140,248,0.34)' }}>
-                        Apply to {selected.module.lessons.length} mapped lesson{selected.module.lessons.length === 1 ? '' : 's'}
-                      </button>
-                    </form>
-
-                    <form action={createCanvasModuleLessonShellsAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
-                      <div style={{ color: '#cbd5e1', fontWeight: 800 }}>Create missing lesson shells</div>
-                      <input type="hidden" name="moduleId" value={selected.module.id} />
-                      <input type="hidden" name="subjectId" value={selected.subject.id} />
-                      <input type="hidden" name="moduleTitle" value={selected.module.title} />
-                      <input type="hidden" name="returnPath" value={selectedModuleUrl} />
-                      <input type="hidden" name="missingCount" value={selectedModuleMissingSlots} />
-                      <input type="hidden" name="startIndex" value={selected.module.lessons.length} />
-                      {selectedModuleLessonShellTitles.map((title) => <input key={title} type="hidden" name="titles" value={title} />)}
-                      {selectedModuleMissingOrders.map((order) => <input key={`${selected.module.id}-missing-order-${order}`} type="hidden" name="orders" value={order} />)}
-                      <div style={{ color: selectedModuleMissingSlots ? '#e2e8f0' : '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>
-                        {selectedModuleMissingSlots
-                          ? `${selectedModuleMissingSlots} expected slot${selectedModuleMissingSlots === 1 ? '' : 's'} are still empty. This creates draft shells in one hit so authors stop hand-building obvious placeholders.`
-                          : 'No empty slots left. Good. Go fix real content instead of creating junk.'}
-                      </div>
-                      <button type="submit" disabled={!selectedModuleMissingSlots} style={{ ...actionLinkStyle, background: selectedModuleMissingSlots ? '#EDE9FE' : 'rgba(148,163,184,0.18)', color: selectedModuleMissingSlots ? '#5B21B6' : '#94a3b8', border: 0, opacity: selectedModuleMissingSlots ? 1 : 0.7, cursor: selectedModuleMissingSlots ? 'pointer' : 'not-allowed' }}>
-                        {selectedModuleMissingSlots ? `Create ${selectedModuleMissingSlots} draft shell${selectedModuleMissingSlots === 1 ? '' : 's'}` : 'Module already fully mapped'}
-                      </button>
-                    </form>
                   </div>
                 </div>
 
@@ -981,34 +882,126 @@ export function CurriculumCanvas({
                   </div>
                 </div>
 
-                <div style={{ padding: 14, borderRadius: 18, background: 'rgba(79,70,229,0.12)', border: '1px solid rgba(129,140,248,0.24)', display: 'grid', gap: 10 }}>
-                  <div style={{ color: '#c7d2fe', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Shareable node link</div>
-                  <div style={{ color: '#e0e7ff', lineHeight: 1.6, fontSize: 14 }}>The URL keeps this selected module plus the active filters. Copy the link from here and someone lands on the exact same operating context instead of a random first card.</div>
-                </div>
+                <details style={{ borderRadius: 20, border: '1px solid rgba(148,163,184,0.14)', background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                  <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '14px 16px', color: '#cbd5e1', fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Operator controls</span>
+                    <span style={{ color: '#94a3b8', fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase' }}>Hidden by default</span>
+                  </summary>
+                  <div style={{ display: 'grid', gap: 14, padding: '0 16px 16px' }}>
+                    <div style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 8 }}>
+                      <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Release readout</div>
+                      <div style={{ color: selected.module.gapCount ? '#fde68a' : '#bbf7d0', lineHeight: 1.7 }}>{selected.module.blockerSummary}</div>
+                    </div>
+
+                    <form action={quickUpdateCanvasModuleAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
+                      <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Module quick edit</div>
+                      <input type="hidden" name="moduleId" value={selected.module.id} />
+                      <input type="hidden" name="returnPath" value={selectedModuleUrl} />
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+                        <label style={{ display: 'grid', gap: 6 }}>
+                          <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Status</span>
+                          <select name="status" defaultValue={selected.module.status} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
+                            <option value="draft">Draft</option>
+                            <option value="review">Review</option>
+                            <option value="published">Published</option>
+                            <option value="active">Active</option>
+                          </select>
+                        </label>
+                        <label style={{ display: 'grid', gap: 6 }}>
+                          <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Level</span>
+                          <input name="level" defaultValue={selected.module.level} maxLength={80} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+                        </label>
+                        <label style={{ display: 'grid', gap: 6 }}>
+                          <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Expected lessons</span>
+                          <input name="lessonCount" type="number" min="0" max="60" defaultValue={selected.module.lessonCount} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+                        </label>
+                      </div>
+                      <button type="submit" style={{ ...actionLinkStyle, background: '#0EA5E9', color: '#082f49', border: 0 }}>Save module settings</button>
+                    </form>
+
+                    <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, background: 'rgba(8,47,73,0.18)', border: '1px solid rgba(103,232,249,0.18)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Module sequencing + bulk ops</div>
+                          <div style={{ color: '#e2e8f0', lineHeight: 1.6, marginTop: 6 }}>Hidden by default so learners see the journey first, not the plumbing.</div>
+                        </div>
+                        <Pill label={`${selected.module.lessons.length}/${selected.module.lessonCount} slots mapped`} tone="#082f49" text="#a5f3fc" />
+                      </div>
+
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {selectedModuleSlots.map((slot) => {
+                          const lesson = slot.lesson;
+                          return (
+                            <div key={`${selected.module.id}-slot-${slot.order}`} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 10, alignItems: 'center', padding: '12px 14px', borderRadius: 16, background: 'rgba(2,6,23,0.42)', border: '1px solid rgba(148,163,184,0.12)' }}>
+                              <div style={{ width: 34, height: 34, borderRadius: 999, display: 'grid', placeItems: 'center', fontWeight: 900, background: lesson ? 'rgba(79,70,229,0.24)' : 'rgba(148,163,184,0.12)', color: lesson ? '#ddd6fe' : '#cbd5e1' }}>{slot.order}</div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ color: '#f8fafc', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lesson?.title ?? `Open lesson slot ${slot.order}`}</div>
+                                <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.5 }}>{lesson ? `Sequence ${lesson.order ?? 'unassigned'} · ${lessonSummary(lesson)}` : 'No lesson mapped yet — create a shell or open the full authoring flow.'}</div>
+                              </div>
+                              <div style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
+                                {lesson ? <Pill label={lesson.status} tone={statusTone(lesson.status).tone} text={statusTone(lesson.status).text} /> : <Pill label="missing" tone="#431407" text="#fdba74" />}
+                                {lesson ? (
+                                  <button type="button" onClick={() => setSelectedLessonId(lesson.id)} style={{ ...filterButtonStyle, padding: '7px 10px', fontSize: 12, background: 'rgba(79,70,229,0.18)', color: '#e0e7ff' }}>
+                                    Inspect slot
+                                  </button>
+                                ) : (
+                                  <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...actionLinkStyle, padding: '7px 10px', fontSize: 12, background: '#EDE9FE', color: '#5B21B6' }}>
+                                    Fill slot
+                                  </Link>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                        <form action={bulkUpdateCanvasModuleLessonsAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
+                          <div style={{ color: '#cbd5e1', fontWeight: 800 }}>Batch move mapped lessons</div>
+                          <input type="hidden" name="moduleId" value={selected.module.id} />
+                          <input type="hidden" name="subjectId" value={selected.subject.id} />
+                          <input type="hidden" name="moduleTitle" value={selected.module.title} />
+                          <input type="hidden" name="returnPath" value={selectedModuleUrl} />
+                          {selected.module.lessons.map((lesson) => <input key={lesson.id} type="hidden" name="lessonIds" value={lesson.id} />)}
+                          <select name="status" defaultValue={selected.module.lessons.some((lesson) => lesson.status !== 'approved') ? 'approved' : 'review'} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
+                            <option value="draft">Move all to draft</option>
+                            <option value="review">Move all to review</option>
+                            <option value="approved">Move all to approved</option>
+                          </select>
+                          <button type="submit" style={{ ...actionLinkStyle, background: 'rgba(79,70,229,0.28)', color: '#e0e7ff', border: '1px solid rgba(129,140,248,0.34)' }}>
+                            Apply to {selected.module.lessons.length} mapped lesson{selected.module.lessons.length === 1 ? '' : 's'}
+                          </button>
+                        </form>
+
+                        <form action={createCanvasModuleLessonShellsAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
+                          <div style={{ color: '#cbd5e1', fontWeight: 800 }}>Create missing lesson shells</div>
+                          <input type="hidden" name="moduleId" value={selected.module.id} />
+                          <input type="hidden" name="subjectId" value={selected.subject.id} />
+                          <input type="hidden" name="moduleTitle" value={selected.module.title} />
+                          <input type="hidden" name="returnPath" value={selectedModuleUrl} />
+                          <input type="hidden" name="missingCount" value={selectedModuleMissingSlots} />
+                          <input type="hidden" name="startIndex" value={selected.module.lessons.length} />
+                          {selectedModuleLessonShellTitles.map((title) => <input key={title} type="hidden" name="titles" value={title} />)}
+                          {selectedModuleMissingOrders.map((order) => <input key={`${selected.module.id}-missing-order-${order}`} type="hidden" name="orders" value={order} />)}
+                          <div style={{ color: selectedModuleMissingSlots ? '#e2e8f0' : '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>
+                            {selectedModuleMissingSlots
+                              ? `${selectedModuleMissingSlots} expected slot${selectedModuleMissingSlots === 1 ? '' : 's'} are still empty. This creates draft shells in one hit so authors stop hand-building obvious placeholders.`
+                              : 'No empty slots left. Good. Go fix real content instead of creating junk.'}
+                          </div>
+                          <button type="submit" disabled={!selectedModuleMissingSlots} style={{ ...actionLinkStyle, background: selectedModuleMissingSlots ? '#EDE9FE' : 'rgba(148,163,184,0.18)', color: selectedModuleMissingSlots ? '#5B21B6' : '#94a3b8', border: 0, opacity: selectedModuleMissingSlots ? 1 : 0.7, cursor: selectedModuleMissingSlots ? 'pointer' : 'not-allowed' }}>
+                            {selectedModuleMissingSlots ? `Create ${selectedModuleMissingSlots} draft shell${selectedModuleMissingSlots === 1 ? '' : 's'}` : 'Module already fully mapped'}
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </details>
 
                 <div style={{ display: 'grid', gap: 12 }}>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 8 }}>
-                      <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Lesson nodes</div>
-                      <div style={{ color: '#64748b', fontSize: 12 }}>Click a lesson for inline triage</div>
-                    </div>
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      {selected.module.lessons.length ? selected.module.lessons.map((lesson) => (
-                        <LessonNode
-                          key={lesson.id}
-                          lesson={lesson}
-                          selected={selectedLessonId === lesson.id}
-                          onInspect={() => setSelectedLessonId(lesson.id)}
-                          returnPath={panelUrl(selectedModuleUrl, 'lesson', lesson.id)}
-                        />
-                      )) : <div style={{ color: '#cbd5e1' }}>No lessons mapped yet.</div>}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 8 }}>
                       <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Assessment gates</div>
-                      <div style={{ color: '#64748b', fontSize: 12 }}>Open a gate card for quick triage</div>
+                      <div style={{ color: '#64748b', fontSize: 12 }}>Quick gate triage</div>
                     </div>
                     <div style={{ display: 'grid', gap: 10 }}>
                       {selected.module.assessments.length ? selected.module.assessments.map((assessment) => (
@@ -1225,14 +1218,17 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
         ))}
       </div>
 
-      <div style={{ padding: 14, borderRadius: 18, background: 'rgba(79,70,229,0.12)', border: '1px solid rgba(129,140,248,0.24)', display: 'grid', gap: 8 }}>
-        <div style={{ color: '#c7d2fe', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Operator readout</div>
-        <div style={{ color: '#e2e8f0', lineHeight: 1.7 }}>
+      <details style={{ borderRadius: 18, border: '1px solid rgba(129,140,248,0.24)', background: 'rgba(79,70,229,0.12)', overflow: 'hidden' }}>
+        <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '14px 16px', color: '#c7d2fe', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Operator readout</span>
+          <span style={{ color: '#cbd5e1', fontSize: 11 }}>Hidden by default</span>
+        </summary>
+        <div style={{ padding: '0 16px 16px', color: '#e2e8f0', lineHeight: 1.7 }}>
           {lesson.assessmentTitle
             ? `This lesson already maps to ${lesson.assessmentTitle}. If the content is wrong, edit the lesson body rather than creating another orphaned gate.`
             : 'This lesson is still floating without a linked assessment gate. That is the kind of tiny operational mess that turns into release chaos later.'}
         </div>
-      </div>
+      </details>
 
       <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, background: 'rgba(8,47,73,0.18)', border: '1px solid rgba(103,232,249,0.18)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
