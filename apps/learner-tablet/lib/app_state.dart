@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
@@ -33,6 +34,7 @@ class LumoAppState {
   VoiceReplayStop? voiceReplayStop;
   Timer? _syncRetryTimer;
   Timer? _persistenceDebounce;
+  final Set<VoidCallback> _listeners = <VoidCallback>{};
 
   LearnerProfile? currentLearner;
   LearningModule? selectedModule;
@@ -88,6 +90,20 @@ class LumoAppState {
   void attachVoiceReplay(VoiceReplay replay, {VoiceReplayStop? onStop}) {
     voiceReplay = replay;
     voiceReplayStop = onStop;
+  }
+
+  void addListener(VoidCallback listener) {
+    _listeners.add(listener);
+  }
+
+  void removeListener(VoidCallback listener) {
+    _listeners.remove(listener);
+  }
+
+  void _notifyListeners() {
+    for (final listener in List<VoidCallback>.from(_listeners)) {
+      listener();
+    }
   }
 
   Future<void> stopVoiceReplay() async {
@@ -2221,6 +2237,7 @@ class LumoAppState {
     if (currentLearner?.id == learner.id) {
       currentLearner = learner;
     }
+    _notifyListeners();
   }
 
   void _projectCompletedRuntimeSession(
@@ -2769,6 +2786,7 @@ class LumoAppState {
       recentRuntimeSessionsByLearnerId[learner.id] =
           _mergeRuntimeSessions(existing, sessions);
       learnerRuntimeError = null;
+      _notifyListeners();
       persistStateSoon();
     } catch (error) {
       learnerRuntimeError = error.toString().replaceFirst('Exception: ', '');
@@ -3858,6 +3876,7 @@ class LumoAppState {
   void dispose() {
     _syncRetryTimer?.cancel();
     _persistenceDebounce?.cancel();
+    _listeners.clear();
     unawaited(_persistStateNow());
   }
 

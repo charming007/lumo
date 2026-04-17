@@ -26,6 +26,20 @@ class _DelayedApiClient extends LumoApiClient {
   Future<LumoBootstrap> fetchBootstrap() => _completer.future;
 }
 
+class _RewardsRefreshApiClient extends LumoApiClient {
+  _RewardsRefreshApiClient(this._completer);
+
+  final Completer<RewardSnapshot> _completer;
+
+  @override
+  Future<RewardSnapshot> fetchLearnerRewards({
+    String? learnerId,
+    String? learnerCode,
+  }) {
+    return _completer.future;
+  }
+}
+
 void _noop() {}
 
 void main() {
@@ -355,6 +369,76 @@ void main() {
           state: state,
           learner: staleLearner,
         ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('160 XP'), findsWidgets);
+    expect(find.textContaining('Bright Reader'), findsWidgets);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'learner profile refreshes while an async reward reconciliation lands', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final rewardsCompleter = Completer<RewardSnapshot>();
+    final state = LumoAppState(
+      includeSeedDemoContent: true,
+      apiClient: _RewardsRefreshApiClient(rewardsCompleter),
+    )..usingFallbackData = false;
+    final staleLearner = state.learners.first.copyWith(
+      rewards: const RewardSnapshot(
+        learnerId: 'learner-1',
+        totalXp: 120,
+        points: 120,
+        level: 2,
+        levelLabel: 'Rising Voice',
+        nextLevel: 3,
+        nextLevelLabel: 'Bright Reader',
+        xpIntoLevel: 40,
+        xpForNextLevel: 40,
+        progressToNextLevel: 0.5,
+        badgesUnlocked: 0,
+      ),
+    );
+    state.learners[0] = staleLearner;
+    state.currentLearner = staleLearner;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LearnerProfilePage(
+          state: state,
+          learner: staleLearner,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('120 XP'), findsWidgets);
+    expect(find.textContaining('Rising Voice'), findsWidgets);
+
+    unawaited(state.refreshLearnerRewards(staleLearner));
+    await tester.pump();
+
+    rewardsCompleter.complete(
+      const RewardSnapshot(
+        learnerId: 'learner-1',
+        totalXp: 160,
+        points: 160,
+        level: 3,
+        levelLabel: 'Bright Reader',
+        nextLevel: 4,
+        nextLevelLabel: 'Story Scout',
+        xpIntoLevel: 0,
+        xpForNextLevel: 80,
+        progressToNextLevel: 0,
+        badgesUnlocked: 1,
       ),
     );
     await tester.pumpAndSettle();
