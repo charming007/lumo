@@ -15,6 +15,7 @@ import 'app_state.dart';
 import 'audio_capture_service.dart';
 import 'browser_runtime_observer.dart';
 import 'design_shell.dart';
+import 'dialogue.dart';
 import 'instructions.dart';
 import 'learner_audio_playback_service.dart';
 import 'models.dart';
@@ -765,8 +766,8 @@ class HomePage extends StatelessWidget {
                                 maxCount: shouldForceSingleRowSubjectStrip
                                     ? 3
                                     : shortHeight
-                                    ? (compact ? 2 : 3)
-                                    : 2,
+                                        ? (compact ? 2 : 3)
+                                        : 2,
                               );
                               final crossAxisCount =
                                   shouldForceSingleRowSubjectStrip
@@ -1035,7 +1036,7 @@ class _HomeMallamStage extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.volume_up_rounded),
-                label: const Text('Replay Mallam'),
+                label: const Text('Hear Mallam again'),
                 style: FilledButton.styleFrom(
                   foregroundColor: LumoTheme.primary,
                   backgroundColor: LumoTheme.primary.withValues(alpha: 0.1),
@@ -2316,7 +2317,7 @@ class SubjectModulesPage extends StatelessWidget {
                     ResponsivePane(
                       flex: 5,
                       child: _MallamStageShell(
-                        eyebrow: 'AI Mallam',
+                        eyebrow: 'Mallam',
                         frameless: true,
                         child: MallamPanel(
                           instruction: modulesInstruction,
@@ -2330,7 +2331,7 @@ class SubjectModulesPage extends StatelessWidget {
                           speakerMode: SpeakerMode.guiding,
                           statusLabel: 'AI Mallam leads the journey',
                           secondaryStatus: 'Lesson path guide',
-                          voiceButtonLabel: 'Replay Mallam',
+                          voiceButtonLabel: 'Hear Mallam again',
                           centerPortraitLayout: true,
                           minimalStageLayout: true,
                           framelessStage: true,
@@ -2358,8 +2359,8 @@ class SubjectModulesPage extends StatelessWidget {
                               final showJourneyHeader =
                                   detailConstraints.maxHeight < 1100;
                               final journeyHint = selectedLearner == null
-                                  ? 'Tap the first big card to start the next lesson, then keep moving along the path.'
-                                  : 'Tap the first big card to start ${selectedLearner.name}\'s next lesson, then keep moving along the path.';
+                                  ? 'Start with the first big card, then keep a gentle rhythm by following the path one lesson at a time.'
+                                  : 'Start ${selectedLearner.name} on the first big card, then follow the path one lesson at a time so the flow stays calm.';
 
                               return Container(
                                 width: double.infinity,
@@ -2898,7 +2899,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     speakerMode: SpeakerMode.guiding,
                     statusLabel: 'AI Mallam is guiding registration',
                     secondaryStatus: 'Registration guide',
-                    voiceButtonLabel: 'Replay Mallam',
+                    voiceButtonLabel: 'Hear Mallam again',
                     voiceHint:
                         'Keep Mallam visible and dominant on this screen so the facilitator can finish intake without losing the voice guide.',
                     centerPortraitLayout: true,
@@ -4445,11 +4446,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         _latestTranscriptNeedsManualReview = hasSavedAudio;
       }
       microphoneStatus = hasSavedAudio
-          ? 'Recovered ${widget.lesson.title} with saved learner audio attached. Review the answer, then continue cleanly from this step.'
+          ? 'We picked up ${widget.lesson.title} with the learner voice saved. Listen once, then keep going from here.'
           : hasDraftResponse
-              ? 'Recovered ${widget.lesson.title} with a drafted learner answer. Confirm it or edit it before Mallam continues.'
+              ? 'We picked up ${widget.lesson.title} with a draft answer ready. Check it once, then keep going.'
               : _resumedSession
-                  ? 'Resumed ${widget.lesson.title} at step ${session.stepIndex + 1}. ${session.automationStatus}'
+                  ? 'Back in ${widget.lesson.title}, step ${session.stepIndex + 1}. ${session.automationStatus}'
                   : session.automationStatus;
     }
     _transcriptStrategyExpanded = _shouldExpandTranscriptStrategyByDefault;
@@ -4509,8 +4510,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (!wasAutoMode && widget.state.activeSession != null) {
       setState(() {
         microphoneStatus = _autoPausedByTranscriptFailure
-            ? 'Answer confirmed. Continue manually until you are ready to resume hands-free.'
-            : 'Answer confirmed. Mallam advanced and the hands-free loop is back on for the next step.';
+            ? 'Answer confirmed. Keep guiding for now, then resume hands-free when you want.'
+            : 'Answer confirmed. Mallam moved on and is ready for the next step.';
       });
     }
   }
@@ -4537,10 +4538,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         isAutoMode = true;
         _autoPausedByTranscriptFailure = false;
         microphoneStatus =
-            'Saved learner audio accepted. Mallam will continue from the fallback capture.';
+            'Saved learner audio accepted. Mallam can keep going from here.';
       } else {
         microphoneStatus =
-            'Saved learner audio accepted. Continue manually or resume hands-free when ready.';
+            'Saved learner audio accepted. Continue now or resume hands-free when ready.';
       }
     });
 
@@ -5163,12 +5164,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       return 'Slow down and coach this step manually';
     }
     if (speechRecognitionActive && isAutoMode) {
-      return 'Mallam can listen and continue when the answer is clear';
+      return 'Mallam can listen and move on when the answer is clear';
     }
     if (isAutoMode) {
-      return 'Audio-first support is active';
+      return 'Audio support is on';
     }
-    return 'You are guiding this step manually';
+    return 'You are guiding this step';
   }
 
   String get _sessionStatusBody {
@@ -5188,12 +5189,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       return 'Transcript help has struggled on this step, so it is better to coach, replay, or type the answer than keep forcing retries.';
     }
     if (speechRecognitionActive && isAutoMode) {
-      return 'Keep the learner focused on speaking. Lumo will only move on after a stable answer or your confirmation.';
+      return 'Keep the learner speaking. Lumo will only move on after a clear answer or your confirmation.';
     }
     if (isAutoMode) {
-      return 'Lumo is still saving learner audio and can keep the flow moving even when transcript help is patchy.';
+      return 'Lumo is still saving learner audio, so the lesson can keep moving even when transcript help is patchy.';
     }
-    return 'Replay Mallam, capture the learner response, then choose when to move to the next step.';
+    return 'Replay Mallam, capture the learner answer, then move on when it is clear.';
   }
 
   bool get _showDeviceDiagnosticsPanel {
@@ -5256,7 +5257,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     setState(() {
       _savedAudioPlaybackError = null;
       microphoneStatus =
-          'Mallam replayed the step so the learner can hear it again before the next review.';
+          'Mallam repeated the step so the learner gets a clean second listen before you review the answer.';
     });
   }
 
@@ -5268,8 +5269,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final prompt =
         widget.state.personalizePrompt(session.currentStep.coachPrompt);
     final readyMessage = _resumedSession
-        ? 'Mallam has resumed this step. The mic will reopen for the learner now.'
-        : 'Mallam finished speaking. Start recording and let the learner answer now.';
+        ? 'We are back on this step. The learner can answer now.'
+        : 'Mallam finished. Let the learner answer now.';
     await _speakAndMaybeAutoRecord(
       prompt,
       mode: SpeakerMode.guiding,
@@ -5294,15 +5295,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       return 'You did it.';
     }
     if (remainingSteps == 1) {
-      return 'One more to go.';
+      return 'Nice work. One more.';
     }
 
     const affirmations = [
       'Good job.',
-      'Nice one.',
-      'Well done.',
+      'Nice work.',
+      'Yes, that’s it.',
       'You got it.',
-      'That is right.',
+      'Perfect.',
     ];
     final seed = session.totalResponses + session.stepIndex;
     return affirmations[seed % affirmations.length];
@@ -5313,13 +5314,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (!mounted) return;
     setState(() {
       isSpeaking = true;
-      microphoneStatus = 'Mallam is praising the learner.';
+      microphoneStatus = 'Mallam is encouraging the learner.';
     });
     await widget.state.replayVisiblePrompt(text, mode: SpeakerMode.affirming);
     if (!mounted) return;
     setState(() {
       isSpeaking = false;
-      microphoneStatus = 'Mallam is preparing the next step.';
+      microphoneStatus = 'Mallam is getting the next step ready.';
     });
   }
 
@@ -5332,16 +5333,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (!mounted) return;
     setState(() {
       isSpeaking = true;
-      microphoneStatus = 'Mallam is speaking now.';
+      microphoneStatus = 'Mallam is speaking.';
     });
     await widget.state.replayVisiblePrompt(text, mode: mode);
     if (!mounted) return;
     setState(() {
       isSpeaking = false;
       microphoneStatus = isAutoMode
-          ? (autoReadyMessage ??
-              'Mallam finished speaking. The mic will start for the learner now.')
-          : 'Mallam finished speaking. Listen for the learner response.';
+          ? (autoReadyMessage ?? 'Mallam finished. The learner can answer now.')
+          : 'Mallam finished. Listen for the learner answer.';
     });
     if (isAutoMode) {
       await _startRecordingIfPossible(
@@ -5359,7 +5359,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       setState(() {
         microphoneStatus = fallbackMessage ??
             microphoneStatus ??
-            'Mallam finished speaking. Start recording when the learner is ready.';
+            'Mallam finished. Start recording when the learner is ready.';
       });
     }
   }
@@ -5389,16 +5389,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             ? SpeakerMode.waiting
             : SpeakerMode.guiding;
     final status = switch (supportType) {
-      'hint' => "Hint given. The mic will start for the learner's next try.",
-      'model' =>
-        'Model answer played. The mic will start for the learner to repeat it.',
-      'slow' =>
-        'Slow repeat played. The mic will start for the learner response.',
+      'hint' => "A small hint is in. Let the learner try again.",
+      'model' => 'The full answer played. Let the learner say it now.',
+      'slow' => 'Mallam slowed it down. The learner can answer now.',
       'translate' =>
-        'Translated support played. The mic will start for the learner response.',
-      'wait' =>
-        'Think time is over. The mic will start when the learner is ready.',
-      _ => 'Support played. The mic will start for the learner response.',
+        'Extra language support played. The learner can answer now.',
+      'wait' => 'Think time is done. Listen for the learner answer.',
+      _ => 'Support played. The learner can answer now.',
     };
 
     await _speakAndMaybeAutoRecord(
@@ -5439,8 +5436,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     transcriptReviewPending = false;
     _promptedCurrentStep = false;
     setState(() {
-      microphoneStatus =
-          'Correct response captured. Mallam is moving to the next step.';
+      microphoneStatus = 'That answer worked. Moving to the next step.';
     });
     await _speakCurrentStepIfNeeded(force: true);
   }
@@ -6001,11 +5997,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (savedDuration < _kMinimumUsefulRecording) {
       setState(() {
         microphoneStatus =
-            'That recording was extremely short (${formatDuration(savedDuration)}). Mallam will reopen the mic for a clearer learner answer.';
+            'That take was very short (${formatDuration(savedDuration)}). Mallam will reopen the mic for a clearer answer.';
       });
       await _startRecordingIfPossible(
         fallbackMessage:
-            'The last take was too short. The mic is reopening for a clearer learner answer.',
+            'The last take was too short. The mic is reopening for a clearer answer.',
       );
       return;
     }
@@ -6018,8 +6014,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         transcriptReviewPending = true;
         _autoPausedByTranscriptFailure = _consecutiveTranscriptMisses >= 2;
         microphoneStatus = _avoidConcurrentSpeechCapture
-            ? 'Saved learner audio is ready for manual acceptance. This device is in audio-only fallback during recording, so confirm the answer once and continue cleanly.'
-            : 'Transcript help missed the learner again. Confirm the saved audio manually so the lesson can continue instead of looping on the mic.';
+            ? 'The learner audio is ready. Confirm it once, then keep the lesson moving.'
+            : 'Transcript help missed that again. Check the saved audio once so the lesson does not get stuck in a retry loop.';
       });
       return;
     }
@@ -6030,8 +6026,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
     final recoverySupport = _consecutiveTranscriptMisses >= 2 ? 'slow' : 'wait';
     final recoveryMessage = _consecutiveTranscriptMisses >= 2
-        ? 'Transcript help missed that answer, so Mallam will slow-repeat and reopen the mic.'
-        : 'Transcript help missed that answer, so Mallam will give a short pause and reopen the mic.';
+        ? 'Transcript help missed that, so Mallam will say it slowly and reopen the mic.'
+        : 'Transcript help missed that, so Mallam will pause briefly and reopen the mic.';
 
     if (markReadyForResume) {
       setState(() {
@@ -6573,7 +6569,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           speakerMode: session.speakerMode,
           statusLabel: _speakerModeLabel(session.speakerMode),
           secondaryStatus: stepLabel,
-          voiceButtonLabel: 'Replay Mallam',
+          voiceButtonLabel: 'Hear Mallam again',
           speakerOutputMode: session.speakerOutputMode,
           voiceHint: null,
           centerPortraitLayout: true,

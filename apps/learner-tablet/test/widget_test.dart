@@ -65,7 +65,7 @@ void main() {
   testWidgets('shows learner app shell after splash', (tester) async {
     await pumpAppAtSize(tester, const Size(1400, 1000));
 
-    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.text('Hear Mallam again'), findsOneWidget);
     expect(find.text('Register'), findsOneWidget);
     expect(find.text('Student list'), findsOneWidget);
     expect(find.text('Subjects'), findsNothing);
@@ -124,7 +124,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.text('Hear Mallam again'), findsOneWidget);
     expect(find.text('AI Mallam is ready'), findsNothing);
     expect(find.text('Home guide'), findsNothing);
     expect(
@@ -202,7 +202,7 @@ void main() {
     await tester.pump();
     await pumpForUi(tester);
 
-    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.text('Hear Mallam again'), findsOneWidget);
     expect(find.text('Student list'), findsOneWidget);
 
     state.dispose();
@@ -252,7 +252,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.text('Hear Mallam again'), findsOneWidget);
     expect(find.text('Follow Mallam one lesson at a time'), findsNothing);
     expect(
       find.textContaining('You opened ${module.title}.'),
@@ -260,7 +260,7 @@ void main() {
     );
     expect(find.text('Lesson journey'), findsOneWidget);
     expect(
-      find.textContaining('Tap the first big card to start'),
+      find.textContaining('first big card'),
       findsOneWidget,
     );
     expect(find.text('Lesson path'), findsNothing);
@@ -297,7 +297,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Back'), findsOneWidget);
-    expect(find.text('Replay Mallam'), findsWidgets);
+    expect(find.text('Hear Mallam again'), findsWidgets);
     expect(find.text('Save answer'), findsOneWidget);
 
     state.dispose();
@@ -391,7 +391,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(800, 1280));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.text('Hear Mallam again'), findsOneWidget);
     expect(find.text('Student list'), findsOneWidget);
     expect(find.byType(GridView), findsOneWidget);
     expect(find.byType(DetailCard), findsNothing);
@@ -407,7 +407,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(1280, 800));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.text('Hear Mallam again'), findsOneWidget);
     expect(find.byType(DetailCard), findsNothing);
     expect(find.text('English'), findsOneWidget);
     expect(find.text('Basic Mathematics'), findsOneWidget);
@@ -440,7 +440,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(1280, 800));
 
     final replayButtonBottom =
-        tester.getBottomLeft(find.text('Replay Mallam')).dy;
+        tester.getBottomLeft(find.text('Hear Mallam again')).dy;
     final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
 
     expect(
@@ -856,11 +856,12 @@ void main() {
     expect(find.text('Lesson journey'), findsOneWidget);
     expect(find.text('Start next lesson'), findsOneWidget);
     expect(
-      find.textContaining('Tap the first big card'),
+      find.textContaining('first big card'),
       findsOneWidget,
     );
 
-    final mallamGuideTopLeft = tester.getTopLeft(find.text('Replay Mallam'));
+    final mallamGuideTopLeft =
+        tester.getTopLeft(find.text('Hear Mallam again'));
     final lessonChooserTopLeft =
         tester.getTopLeft(find.text('Start next lesson'));
     expect(
@@ -996,7 +997,7 @@ void main() {
     expect(find.byType(SingleChildScrollView), findsWidgets);
 
     final mallamGuideTopLeft =
-        tester.getTopLeft(find.text('Replay Mallam').first);
+        tester.getTopLeft(find.text('Hear Mallam again').first);
     final answerPanelTopLeft = tester.getTopLeft(
       find.textContaining('Capture or type the learner answer'),
     );
@@ -1173,7 +1174,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Play saved voice'), findsWidgets);
-    expect(find.text('Replay Mallam'), findsWidgets);
+    expect(find.text('Hear Mallam again'), findsWidgets);
     expect(
       find.text('Save note + resume hands-free').evaluate().isNotEmpty ||
           find.text('Confirm transcript').evaluate().isNotEmpty,
@@ -1217,7 +1218,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Play saved voice'), findsWidgets);
     expect(find.text('Confirm transcript'), findsOneWidget);
-    expect(find.text('Replay Mallam'), findsWidgets);
+    expect(find.text('Hear Mallam again'), findsWidgets);
 
     state.dispose();
   });
@@ -1248,7 +1249,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Replay Mallam'), findsWidgets);
+    expect(find.text('Hear Mallam again'), findsWidgets);
     expect(find.textContaining('Capture or type the learner answer'),
         findsOneWidget);
     expect(
@@ -1296,7 +1297,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(find.byType(LessonSessionPage), findsOneWidget);
-    expect(find.text('Replay Mallam'), findsWidgets);
+    expect(find.text('Hear Mallam again'), findsWidgets);
 
     state.dispose();
   });
@@ -1395,7 +1396,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Lesson journey'), findsOneWidget);
-    expect(find.textContaining('Tap the first big card'), findsOneWidget);
+    expect(find.textContaining('first big card'), findsOneWidget);
 
     state.dispose();
   });

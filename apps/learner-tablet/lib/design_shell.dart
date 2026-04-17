@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -129,6 +130,8 @@ const bool _kFlutterTest = bool.fromEnvironment('FLUTTER_TEST');
 class _MallamPanelState extends State<MallamPanel>
     with SingleTickerProviderStateMixin {
   late final AnimationController _stagePulseController;
+  Timer? _replayFeedbackTimer;
+  bool _replayFeedbackActive = false;
 
   @override
   void initState() {
@@ -146,6 +149,7 @@ class _MallamPanelState extends State<MallamPanel>
 
   @override
   void dispose() {
+    _replayFeedbackTimer?.cancel();
     _stagePulseController.dispose();
     super.dispose();
   }
@@ -328,36 +332,83 @@ class _MallamPanelState extends State<MallamPanel>
                 ),
               );
 
-        final voiceAction = FilledButton.tonalIcon(
-          onPressed: widget.onVoiceTap,
-          icon: Icon(
-            _speakerIcon(widget.speakerMode),
-            color: speakerColor,
-            size: widget.centerPortraitLayout ? 18 : 20,
-          ),
-          label: Text(
-            widget.voiceButtonLabel,
-            style: TextStyle(color: speakerColor, fontWeight: FontWeight.w700),
-          ),
-          style: FilledButton.styleFrom(
-            backgroundColor: widget.centerPortraitLayout
-                ? speakerColor.withValues(alpha: 0.1)
-                : const Color(0xFFF1F5F9),
-            foregroundColor: speakerColor,
-            elevation: 0,
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.centerPortraitLayout ? 18 : 22,
-              vertical: widget.centerPortraitLayout ? 14 : 16,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: BorderSide(
-                color: widget.centerPortraitLayout
-                    ? speakerColor.withValues(alpha: 0.18)
-                    : const Color(0xFFE2E8F0),
+        Future<void> handleVoiceReplayTap() async {
+          widget.onVoiceTap();
+          if (!mounted) return;
+          setState(() => _replayFeedbackActive = true);
+          _replayFeedbackTimer?.cancel();
+          _replayFeedbackTimer = Timer(const Duration(seconds: 3), () {
+            if (!mounted) return;
+            setState(() => _replayFeedbackActive = false);
+          });
+        }
+
+        final replayHelperText = _replayFeedbackActive
+            ? 'Mallam is speaking again. Let the learner hear it once, then continue.'
+            : 'Tap any time to hear Mallam repeat the current cue.';
+
+        final voiceAction = Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: handleVoiceReplayTap,
+              icon: Icon(
+                _replayFeedbackActive
+                    ? Icons.graphic_eq_rounded
+                    : _speakerIcon(widget.speakerMode),
+                color: speakerColor,
+                size: widget.centerPortraitLayout ? 18 : 20,
+              ),
+              label: Text(
+                _replayFeedbackActive
+                    ? 'Mallam is replaying'
+                    : widget.voiceButtonLabel,
+                style: TextStyle(
+                  color: speakerColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: widget.centerPortraitLayout
+                    ? speakerColor.withValues(alpha: 0.1)
+                    : const Color(0xFFF1F5F9),
+                foregroundColor: speakerColor,
+                elevation: 0,
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.centerPortraitLayout ? 18 : 22,
+                  vertical: widget.centerPortraitLayout ? 14 : 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  side: BorderSide(
+                    color: widget.centerPortraitLayout
+                        ? speakerColor.withValues(alpha: 0.18)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: widget.centerPortraitLayout ? 320 : double.infinity,
+              ),
+              child: Text(
+                replayHelperText,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _replayFeedbackActive
+                      ? speakerColor.withValues(alpha: 0.88)
+                      : const Color(0xFF64748B),
+                  fontSize: 13,
+                  height: 1.4,
+                  fontWeight:
+                      _replayFeedbackActive ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         );
 
         final guidancePanel = Container(
@@ -377,7 +428,7 @@ class _MallamPanelState extends State<MallamPanel>
                       color: speakerColor, size: 18),
                   const SizedBox(width: 8),
                   const Text(
-                    'Facilitator guidance',
+                    'What to do next',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF0F172A),
@@ -417,7 +468,7 @@ class _MallamPanelState extends State<MallamPanel>
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: const Text(
-                  'Mallam stays calm and centered here so the facilitator can focus on choosing the next lesson.',
+                  'Mallam stays visible here, ready to repeat the cue whenever the learner needs a softer second pass.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF64748B),
