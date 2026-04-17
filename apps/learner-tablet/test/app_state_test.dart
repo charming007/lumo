@@ -2589,5 +2589,25 @@ void main() {
         contains('Voice Starter'),
       );
     });
+
+    test(
+        'limited offline recovery mode clears the blocker and restores fallback content',
+        () async {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.learners.clear();
+      state.modules.clear();
+      state.assignedLessons.clear();
+      state.deploymentBlockerReason = 'Bootstrap failed';
+      state.usingFallbackData = true;
+
+      await state.allowLimitedOfflineRecoveryMode();
+
+      expect(state.acknowledgedOfflineFallbackRisk, isTrue);
+      expect(state.deploymentBlockerReason, isNull);
+      expect(state.learners, isNotEmpty);
+      expect(state.modules, isNotEmpty);
+      expect(state.assignedLessons, isNotEmpty);
+      expect(state.suggestedLearnerForHome, isNotNull);
+    });
   });
 }

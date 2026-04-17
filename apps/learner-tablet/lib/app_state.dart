@@ -64,6 +64,7 @@ class LumoAppState {
   bool isRegisteringLearner = false;
   bool isSyncingEvents = false;
   bool usingFallbackData = true;
+  bool acknowledgedOfflineFallbackRisk = false;
   bool restoredFromPersistence = false;
   String? deploymentBlockerReason;
   String? persistenceError;
@@ -162,7 +163,8 @@ class LumoAppState {
       kReleaseBuild &&
       deploymentBlockerReason != null &&
       !hasUsableOfflineSnapshot &&
-      usingFallbackData;
+      usingFallbackData &&
+      !acknowledgedOfflineFallbackRisk;
 
   String get pendingSyncSummary {
     final latest = latestSyncEvent;
@@ -170,6 +172,14 @@ class LumoAppState {
     final learnerCode =
         latest.payload['learnerCode']?.toString() ?? 'Unknown learner';
     return '${latest.type.replaceAll('_', ' ')} pending for $learnerCode';
+  }
+
+  Future<void> allowLimitedOfflineRecoveryMode() async {
+    acknowledgedOfflineFallbackRisk = true;
+    deploymentBlockerReason = null;
+    usingFallbackData = true;
+    _restoreGuaranteedOfflineFallbackIfNeeded();
+    persistStateSoon();
   }
 
   String get backendStatusLabel {
@@ -331,6 +341,8 @@ class LumoAppState {
       registrationContext =
           _decodeRegistrationContext(snapshot['registrationContext']);
       usingFallbackData = snapshot['usingFallbackData'] != false;
+      acknowledgedOfflineFallbackRisk =
+          snapshot['acknowledgedOfflineFallbackRisk'] == true;
       backendError = _readNullableString(snapshot['backendError']);
       lastSyncedAt = _parseDate(snapshot['lastSyncedAt']);
       backendGeneratedAt = _parseDate(snapshot['backendGeneratedAt']);
@@ -373,7 +385,9 @@ class LumoAppState {
               : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
       deploymentBlockerReason =
-          hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
+          hasUsableOfflineSnapshot || acknowledgedOfflineFallbackRisk
+              ? null
+              : offlineSnapshotTrustProblem;
       restoredFromPersistence = true;
       persistenceError = null;
     } catch (error) {
@@ -435,6 +449,7 @@ class LumoAppState {
         ..clear()
         ..addAll(data.assignmentPacks);
       usingFallbackData = false;
+      acknowledgedOfflineFallbackRisk = false;
       deploymentBlockerReason = null;
       lastSyncedAt = DateTime.now();
       snapshotSavedAt = lastSyncedAt;
@@ -3208,6 +3223,7 @@ class LumoAppState {
           activeSession == null ? null : _encodeLessonSession(activeSession!),
       'speakerMode': speakerMode.name,
       'usingFallbackData': usingFallbackData,
+      'acknowledgedOfflineFallbackRisk': acknowledgedOfflineFallbackRisk,
       'backendError': backendError,
       'lastSyncedAt': lastSyncedAt?.toIso8601String(),
       'backendGeneratedAt': backendGeneratedAt?.toIso8601String(),
