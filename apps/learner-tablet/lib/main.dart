@@ -922,8 +922,13 @@ class HomePage extends StatelessWidget {
                       );
                     }
 
+                    final mallamStageHeight = !stacked
+                        ? 520.0
+                        : constraints.maxWidth < 600
+                            ? 220.0
+                            : 420.0;
                     final mallamStage = SizedBox(
-                      height: stacked ? 420 : 520,
+                      height: mallamStageHeight,
                       child: _HomeMallamStage(state: state),
                     );
 
@@ -2336,9 +2341,6 @@ class SubjectModulesPage extends StatelessWidget {
                 flex: 5,
                 child: _MallamStageShell(
                   eyebrow: 'AI Mallam',
-                  title: 'Follow Mallam one lesson at a time',
-                  description:
-                      'Mallam stays full-height on the left while the lesson path on the right shows the next simple step.',
                   child: MallamPanel(
                     instruction: modulesInstruction,
                     onVoiceTap: () {
@@ -2355,6 +2357,7 @@ class SubjectModulesPage extends StatelessWidget {
                     voiceHint:
                         'Keep Mallam visible and dominant so the child and facilitator always have a clear guide while choosing the next lesson.',
                     centerPortraitLayout: true,
+                    minimalStageLayout: true,
                   ),
                 ),
               ),
@@ -5994,13 +5997,34 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Icon(Icons.extension_rounded, color: LumoTheme.primary),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Play time',
+                  style: TextStyle(
+                    color: Color(0xFF4338CA),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
               const Text(
-                'Interactive activity',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                'Tap, listen, and answer',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
@@ -6753,6 +6777,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final stepLabel =
         'Step ${session.stepIndex + 1} of ${widget.lesson.steps.length}';
     final isStackedLayout = MediaQuery.sizeOf(context).width < 960;
+    final sessionUsesCompactChrome =
+        isStackedLayout || MediaQuery.sizeOf(context).height < 900;
 
     Widget buildLessonGuidePane() {
       final lessonStage = _MallamStageShell(
@@ -6773,6 +6799,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           speakerOutputMode: session.speakerOutputMode,
           voiceHint: null,
           centerPortraitLayout: true,
+          minimalStageLayout: true,
         ),
       );
 
@@ -6810,8 +6837,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         return SingleChildScrollView(
           child: Column(
             children: [
-              SizedBox(height: 620, child: lessonStage),
-              const SizedBox(height: 16),
+              SizedBox(
+                height: sessionUsesCompactChrome ? 500 : 560,
+                child: lessonStage,
+              ),
+              const SizedBox(height: 12),
               hiddenLessonTools,
             ],
           ),
@@ -6821,7 +6851,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       return Column(
         children: [
           Expanded(child: lessonStage),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           hiddenLessonTools,
         ],
       );
@@ -6836,7 +6866,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       child: Scaffold(
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(sessionUsesCompactChrome ? 16 : 20),
             child: _ResponsiveWorkspaceRow(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -6859,95 +6889,113 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                               children: [
                                 OutlinedButton.icon(
                                   onPressed: _confirmLeaveLessonSession,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
+                                    ),
+                                  ),
                                   icon: const Icon(Icons.arrow_back_rounded),
                                   label: const Text('Back'),
                                 ),
-                                const Spacer(),
-                                StatusPill(
-                                  text: widget.lesson.subject,
-                                  color: LumoTheme.primary,
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF5F3FF),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: const Color(0xFFD9D6FE),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              '${session.stepIndex + 1}/${widget.lesson.steps.length}',
+                                              style: const TextStyle(
+                                                color: Color(0xFF4338CA),
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                compactSessionHeader
+                                                    ? 'Keep going, ${learner.name}'
+                                                    : 'Nice work, ${learner.name}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF4C1D95),
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          child: LinearProgressIndicator(
+                                            value: session.progress,
+                                            minHeight: 8,
+                                            color: LumoTheme.primary,
+                                            backgroundColor:
+                                                const Color(0xFFE9E7FF),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                StatusPill(
-                                  text: stepLabel,
-                                  color: LumoTheme.primary,
-                                ),
-                                StatusPill(
-                                  text: learner.name,
-                                  color: LumoTheme.accentGreen,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              widget.lesson.title,
-                              maxLines: compactSessionHeader ? 2 : 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: compactSessionHeader ? 22 : 26,
-                                fontWeight: FontWeight.w900,
-                                color: const Color(0xFF1E1B4B),
-                                height: 1.1,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              expectedResponse,
-                              maxLines: compactSessionHeader ? 2 : 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF475569),
-                                height: 1.35,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            LinearProgressIndicator(
-                              value: session.progress,
-                              minHeight: 10,
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(999),
-                              ),
-                              color: LumoTheme.primary,
-                              backgroundColor: const Color(0xFFE9E7FF),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${session.stepIndex + 1} of ${widget.lesson.steps.length} • ${session.totalResponses} responses',
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                             Expanded(
                               child: SingleChildScrollView(
                                 child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    if (step.activity != null) ...[
+                                      _buildActivityPanel(step),
+                                      const SizedBox(height: 14),
+                                    ],
                                     SoftPanel(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
                                           const Text(
-                                            'Task',
+                                            'Try this',
                                             style: TextStyle(
                                               fontWeight: FontWeight.w800,
-                                              fontSize: 18,
+                                              fontSize: 16,
+                                              color: Color(0xFF4338CA),
                                             ),
                                           ),
                                           const SizedBox(height: 8),
                                           Text(
                                             step.title,
-                                            style: const TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w800,
+                                            maxLines:
+                                                compactSessionHeader ? 2 : 3,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: compactSessionHeader
+                                                  ? 22
+                                                  : 24,
+                                              fontWeight: FontWeight.w900,
+                                              color: const Color(0xFF1E1B4B),
+                                              height: 1.1,
                                             ),
                                           ),
                                           const SizedBox(height: 8),
@@ -6955,15 +7003,18 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             step.instruction,
                                             style: const TextStyle(
                                               fontSize: 16,
-                                              height: 1.4,
+                                              height: 1.35,
                                             ),
                                           ),
-                                          const SizedBox(height: 12),
+                                          const SizedBox(height: 10),
                                           Container(
                                             width: double.infinity,
-                                            padding: const EdgeInsets.all(12),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 12,
+                                            ),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFFF8FAFC),
+                                              color: const Color(0xFFFFFFFF),
                                               borderRadius:
                                                   BorderRadius.circular(16),
                                               border: Border.all(
@@ -6972,34 +7023,26 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ),
                                             child: Text(
                                               expectedResponse,
+                                              maxLines:
+                                                  compactSessionHeader ? 2 : 3,
+                                              overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
-                                                fontSize: 18,
+                                                fontSize: 17,
                                                 fontWeight: FontWeight.w700,
                                                 color: Color(0xFF0F172A),
+                                                height: 1.3,
                                               ),
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(height: 16),
-                                    if (step.activity != null) ...[
-                                      _buildActivityPanel(step),
-                                      const SizedBox(height: 16),
-                                    ],
+                                    const SizedBox(height: 14),
                                     SoftPanel(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            'Next action',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
                                           Text(
                                             transcriptReviewPending
                                                 ? 'Review this answer, then continue.'
@@ -7110,10 +7153,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           ),
                                           const SizedBox(height: 10),
                                           Text(
-                                            '${session.stepIndex + 1}/${widget.lesson.steps.length} complete • ${session.totalResponses} responses',
+                                            session.isLastStep
+                                                ? 'Last one — then you are done.'
+                                                : '${widget.lesson.steps.length - session.stepIndex - 1} tiny step${widget.lesson.steps.length - session.stepIndex - 1 == 1 ? '' : 's'} left after this.',
                                             style: const TextStyle(
                                               color: Color(0xFF64748B),
-                                              fontWeight: FontWeight.w600,
+                                              fontWeight: FontWeight.w700,
                                             ),
                                           ),
                                           if (transcriptReviewPending) ...[
@@ -7194,13 +7239,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           });
                                         },
                                         title: const Text(
-                                          'Facilitator details',
+                                          'More for grown-ups',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                         subtitle: const Text(
-                                          'Recovery, pacing, diagnostics, and extra controls stay tucked away by default.',
+                                          'Open only when you need recovery or device help.',
                                           style: TextStyle(
                                             color: Color(0xFF64748B),
                                           ),

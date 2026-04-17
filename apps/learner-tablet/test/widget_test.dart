@@ -153,6 +153,38 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('module lesson screen keeps Mallam stage minimal on the left', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final module = state.modules.first;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: _noop,
+          module: module,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.text('Follow Mallam one lesson at a time'), findsNothing);
+    expect(
+      find.textContaining('You opened ${module.title}.'),
+      findsNothing,
+    );
+
+    state.dispose();
+  });
+
   testWidgets('auto-reopens a recovered in-progress lesson after splash', (
     tester,
   ) async {
@@ -177,11 +209,12 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Learner microphone capture'), findsOneWidget);
-    expect(find.textContaining(lesson.title), findsWidgets);
+    expect(find.text('Back'), findsOneWidget);
+    expect(find.text('Replay Mallam'), findsWidgets);
+    expect(find.text('Save answer'), findsOneWidget);
 
     state.dispose();
   });
@@ -669,8 +702,7 @@ void main() {
     expect(find.text('Start next lesson'), findsOneWidget);
     expect(find.text('Tap to choose learner'), findsWidgets);
 
-    final mallamGuideTopLeft =
-        tester.getTopLeft(find.text('Follow Mallam one lesson at a time'));
+    final mallamGuideTopLeft = tester.getTopLeft(find.text('Replay Mallam'));
     final lessonChooserTopLeft =
         tester.getTopLeft(find.text('Start next lesson'));
     expect(

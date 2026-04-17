@@ -99,6 +99,7 @@ class MallamPanel extends StatefulWidget {
   final String? speakerOutputMode;
   final String? voiceHint;
   final bool centerPortraitLayout;
+  final bool minimalStageLayout;
 
   const MallamPanel({
     super.key,
@@ -112,6 +113,7 @@ class MallamPanel extends StatefulWidget {
     this.speakerOutputMode,
     this.voiceHint,
     this.centerPortraitLayout = false,
+    this.minimalStageLayout = false,
   });
 
   @override
@@ -173,27 +175,29 @@ class _MallamPanelState extends State<MallamPanel>
           color: const Color(0xFF0F172A),
         );
 
-        final header = Align(
-          alignment: widget.centerPortraitLayout
-              ? Alignment.center
-              : Alignment.centerLeft,
-          child: Wrap(
-            alignment: widget.centerPortraitLayout
-                ? WrapAlignment.center
-                : WrapAlignment.start,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _ModeChip(label: widget.statusLabel, color: speakerColor),
-              if (widget.secondaryStatus != null &&
-                  !widget.centerPortraitLayout)
-                _ModeChip(
-                  label: widget.secondaryStatus!,
-                  color: const Color(0xFF0F172A),
+        final header = widget.minimalStageLayout
+            ? const SizedBox.shrink()
+            : Align(
+                alignment: widget.centerPortraitLayout
+                    ? Alignment.center
+                    : Alignment.centerLeft,
+                child: Wrap(
+                  alignment: widget.centerPortraitLayout
+                      ? WrapAlignment.center
+                      : WrapAlignment.start,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _ModeChip(label: widget.statusLabel, color: speakerColor),
+                    if (widget.secondaryStatus != null &&
+                        !widget.centerPortraitLayout)
+                      _ModeChip(
+                        label: widget.secondaryStatus!,
+                        color: const Color(0xFF0F172A),
+                      ),
+                  ],
                 ),
-            ],
-          ),
-        );
+              );
 
         final portrait = Container(
           height: imageFrameSize,
@@ -260,59 +264,62 @@ class _MallamPanelState extends State<MallamPanel>
           ),
         );
 
-        final primaryPromptCard = Container(
-          width: double.infinity,
-          constraints: BoxConstraints(
-            maxWidth: widget.centerPortraitLayout ? 520 : double.infinity,
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: widget.centerPortraitLayout ? 0 : 20,
-            vertical: widget.centerPortraitLayout ? 0 : 20,
-          ),
-          decoration: BoxDecoration(
-            color: widget.centerPortraitLayout
-                ? Colors.transparent
-                : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(24),
-            border: widget.centerPortraitLayout
-                ? null
-                : Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            crossAxisAlignment: widget.centerPortraitLayout
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.prompt,
-                textAlign: widget.centerPortraitLayout || compactLayout
-                    ? TextAlign.center
-                    : TextAlign.left,
-                style: promptStyle.copyWith(
-                  fontSize: widget.centerPortraitLayout && !compactLayout
-                      ? 24
-                      : promptStyle.fontSize,
-                  height:
-                      widget.centerPortraitLayout ? 1.4 : promptStyle.height,
+        final primaryPromptCard = widget.minimalStageLayout
+            ? const SizedBox.shrink()
+            : Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  maxWidth: widget.centerPortraitLayout ? 520 : double.infinity,
                 ),
-              ),
-              if (widget.voiceHint != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  widget.voiceHint!,
-                  textAlign: widget.centerPortraitLayout || compactLayout
-                      ? TextAlign.center
-                      : TextAlign.left,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.centerPortraitLayout ? 0 : 20,
+                  vertical: widget.centerPortraitLayout ? 0 : 20,
                 ),
-              ],
-            ],
-          ),
-        );
+                decoration: BoxDecoration(
+                  color: widget.centerPortraitLayout
+                      ? Colors.transparent
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(24),
+                  border: widget.centerPortraitLayout
+                      ? null
+                      : Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: widget.centerPortraitLayout
+                      ? CrossAxisAlignment.center
+                      : CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.prompt,
+                      textAlign: widget.centerPortraitLayout || compactLayout
+                          ? TextAlign.center
+                          : TextAlign.left,
+                      style: promptStyle.copyWith(
+                        fontSize: widget.centerPortraitLayout && !compactLayout
+                            ? 24
+                            : promptStyle.fontSize,
+                        height: widget.centerPortraitLayout
+                            ? 1.4
+                            : promptStyle.height,
+                      ),
+                    ),
+                    if (widget.voiceHint != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        widget.voiceHint!,
+                        textAlign: widget.centerPortraitLayout || compactLayout
+                            ? TextAlign.center
+                            : TextAlign.left,
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
 
         final voiceAction = FilledButton.tonalIcon(
           onPressed: widget.onVoiceTap,
@@ -391,7 +398,8 @@ class _MallamPanelState extends State<MallamPanel>
           ),
         );
 
-        final centeredSupportNote = widget.centerPortraitLayout
+        final centeredSupportNote = widget.centerPortraitLayout &&
+                !widget.minimalStageLayout
             ? Container(
                 constraints: const BoxConstraints(maxWidth: 420),
                 padding:
@@ -418,35 +426,45 @@ class _MallamPanelState extends State<MallamPanel>
                 ConstrainedBox(
                   constraints: BoxConstraints(
                     minHeight: math.max(
-                      compactLayout ? 520.0 : 640.0,
-                      constraints.maxHeight - 48,
+                      compactLayout ? 440.0 : 560.0,
+                      constraints.maxHeight -
+                          (widget.minimalStageLayout ? 24 : 48),
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          header,
-                          SizedBox(height: compactLayout ? 24 : 32),
-                          Center(child: portrait),
-                        ],
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          primaryPromptCard,
-                          if (centeredSupportNote != null) ...[
-                            const SizedBox(height: 16),
-                            centeredSupportNote,
+                  child: widget.minimalStageLayout
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Center(child: portrait),
+                            const SizedBox(height: 22),
+                            Center(child: voiceAction),
                           ],
-                          const SizedBox(height: 18),
-                          Center(child: voiceAction),
-                        ],
-                      ),
-                    ],
-                  ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                header,
+                                SizedBox(height: compactLayout ? 24 : 32),
+                                Center(child: portrait),
+                              ],
+                            ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                primaryPromptCard,
+                                if (centeredSupportNote != null) ...[
+                                  const SizedBox(height: 16),
+                                  centeredSupportNote,
+                                ],
+                                const SizedBox(height: 18),
+                                Center(child: voiceAction),
+                              ],
+                            ),
+                          ],
+                        ),
                 ),
               ]
             : <Widget>[
