@@ -6,9 +6,19 @@ npm install
 npm run start:dev
 ```
 
-## Production recommendation
-Current scaffold uses Node watch mode for speed during development.
-Before live production rollout, replace with a plain Node start command or a compiled server entry.
+## Production start guardrails
+Use the normal start command for staging/production:
+
+```bash
+npm run start
+```
+
+It now runs a runtime config audit before booting the server and fails fast on unsafe release misconfigurations such as:
+- `NODE_ENV=production|staging` without `LUMO_ADMIN_API_KEY`
+- `LUMO_DB_MODE=postgres` without `DATABASE_URL`
+- `LUMO_CORS_ALLOW_ANY_ORIGIN=true` in production-like environments
+
+Non-blocking warnings still print for softer risks like loopback-only CORS, missing canonical API URL, or file-mode storage in production-like environments.
 
 ## Planned env vars
 - `PORT`

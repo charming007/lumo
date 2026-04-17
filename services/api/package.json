@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "start": "node src/main.js",
+    "start": "node ./scripts/validate-runtime-env.mjs && node src/main.js",
     "start:dev": "node --watch src/main.js",
-    "build": "echo 'Build step placeholder for modular API service'",
+    "build": "node ./scripts/validate-runtime-env.mjs && echo 'Build step placeholder for modular API service'",
     "test": "node --test",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push"
