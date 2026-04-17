@@ -688,6 +688,7 @@ class HomePage extends StatelessWidget {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 900;
+                    final shortHeight = constraints.maxHeight < 760;
 
                     void openRegister() {
                       Navigator.of(context).push(
@@ -740,62 +741,73 @@ class HomePage extends StatelessWidget {
 
                     Widget buildSubjectSection() {
                       return Expanded(
-                        child: DetailCard(
-                          child: Padding(
-                            padding: const EdgeInsets.all(2),
-                            child: LayoutBuilder(
-                              builder: (context, subjectConstraints) {
-                                final crossAxisCount = _adaptiveGridCount(
-                                  subjectConstraints.maxWidth,
-                                  minTileWidth: compact ? 178 : 205,
-                                  maxCount: compact ? 2 : 4,
-                                );
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            top: shortHeight ? 0 : (compact ? 4 : 8),
+                            left: compact ? 0 : 2,
+                            right: compact ? 0 : 2,
+                            bottom: compact ? 2 : 4,
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, subjectConstraints) {
+                              final crossAxisCount = _adaptiveGridCount(
+                                subjectConstraints.maxWidth,
+                                minTileWidth: compact ? 190 : 220,
+                                maxCount: compact ? 2 : 4,
+                              );
 
-                                final aspectRatio =
-                                    subjectConstraints.maxWidth < 700
-                                        ? 1.42
-                                        : subjectConstraints.maxWidth < 1100
-                                            ? 1.58
-                                            : 1.72;
+                              final aspectRatio = shortHeight
+                                  ? (subjectConstraints.maxWidth < 700
+                                      ? 1.78
+                                      : subjectConstraints.maxWidth < 1100
+                                          ? 2.02
+                                          : 2.2)
+                                  : (subjectConstraints.maxWidth < 700
+                                      ? 1.5
+                                      : subjectConstraints.maxWidth < 1100
+                                          ? 1.72
+                                          : 1.84);
 
-                                return GridView.builder(
-                                  itemCount: state.modules.length,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    mainAxisSpacing: 10,
-                                    crossAxisSpacing: 10,
-                                    childAspectRatio: aspectRatio,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final module = state.modules[index];
-                                    return _SubjectCard(
+                              return GridView.builder(
+                                padding: EdgeInsets.zero,
+                                itemCount: state.modules.length,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  mainAxisSpacing: shortHeight
+                                      ? (compact ? 8 : 10)
+                                      : (compact ? 12 : 14),
+                                  crossAxisSpacing: compact ? 12 : 14,
+                                  childAspectRatio: aspectRatio,
+                                ),
+                                itemBuilder: (context, index) {
+                                  final module = state.modules[index];
+                                  return _SubjectCard(
+                                    module: module,
+                                    lessonCount:
+                                        state.assignedLessonCountForModule(
                                       module: module,
-                                      lessonCount:
-                                          state.assignedLessonCountForModule(
-                                        module: module,
-                                        learner: state.currentLearner,
-                                      ),
-                                      compact: compact,
-                                      onTap: () {
-                                        state.selectModule(module);
-                                        onChanged();
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => SubjectModulesPage(
-                                              state: state,
-                                              onChanged: onChanged,
-                                              module: module,
-                                            ),
+                                      learner: state.currentLearner,
+                                    ),
+                                    compact: compact || shortHeight,
+                                    onTap: () {
+                                      state.selectModule(module);
+                                      onChanged();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => SubjectModulesPage(
+                                            state: state,
+                                            onChanged: onChanged,
+                                            module: module,
                                           ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                );
-                              },
-                            ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
                       );
@@ -807,16 +819,17 @@ class HomePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Expanded(
-                              flex: compact ? 3 : 4,
+                              flex: shortHeight ? 2 : (compact ? 3 : 4),
                               child: Padding(
                                 padding: EdgeInsets.only(
-                                  top: compact ? 18 : 10,
+                                  top: shortHeight ? 0 : (compact ? 18 : 10),
                                   right: compact ? 0 : 8,
                                 ),
                                 child: _HomeMallamStage(state: state),
                               ),
                             ),
-                            SizedBox(height: compact ? 4 : 6),
+                            SizedBox(
+                                height: shortHeight ? 0 : (compact ? 4 : 6)),
                             buildSubjectSection(),
                           ],
                         ),
@@ -929,7 +942,12 @@ class _HomeMallamStage extends StatelessWidget {
       builder: (context, constraints) {
         final compact =
             constraints.maxWidth < 900 || constraints.maxHeight < 420;
-        final portraitSize = compact ? 208.0 : 280.0;
+        final shortHeight = constraints.maxHeight < 320;
+        final portraitSize = shortHeight
+            ? 164.0
+            : compact
+                ? 208.0
+                : 280.0;
 
         return Container(
           decoration: const BoxDecoration(
@@ -937,13 +955,13 @@ class _HomeMallamStage extends StatelessWidget {
           ),
           child: Column(
             children: [
-              const Spacer(flex: 1),
+              SizedBox(height: shortHeight ? 0 : 6),
               Image.asset(
                 'assets/images/mallam_tutor_cutout.png',
                 height: portraitSize,
                 fit: BoxFit.contain,
               ),
-              SizedBox(height: compact ? 8 : 10),
+              SizedBox(height: shortHeight ? 4 : (compact ? 8 : 10)),
               FilledButton.tonalIcon(
                 onPressed: () {
                   state.replayVisiblePrompt(
@@ -967,7 +985,10 @@ class _HomeMallamStage extends StatelessWidget {
                   ),
                 ),
               ),
-              Spacer(flex: compact ? 2 : 3),
+              if (shortHeight)
+                const SizedBox(height: 0)
+              else
+                Spacer(flex: compact ? 1 : 2),
             ],
           ),
         );
@@ -8500,22 +8521,23 @@ class _SubjectCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         onTap: onTap,
         child: Ink(
-          padding: EdgeInsets.all(compact ? 14 : 16),
+          padding: EdgeInsets.all(compact ? 16 : 18),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: palette,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             boxShadow: [
               BoxShadow(
-                color: palette.first.withValues(alpha: 0.18),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: palette.first.withValues(alpha: 0.14),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -8554,24 +8576,24 @@ class _SubjectCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: compact ? 20 : 22,
+                  fontSize: compact ? 19 : 22,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
-                  height: 1.0,
+                  height: 1.05,
                 ),
               ),
               SizedBox(height: compact ? 4 : 6),
               Text(
                 module.description,
-                maxLines: compact ? 1 : 2,
+                maxLines: compact ? 2 : 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white,
-                  height: 1.2,
+                  color: Colors.white.withValues(alpha: 0.96),
+                  height: 1.25,
                   fontSize: compact ? 12 : 13,
                 ),
               ),
-              SizedBox(height: compact ? 8 : 12),
+              SizedBox(height: compact ? 10 : 12),
               const Row(
                 children: [
                   Text(

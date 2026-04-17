@@ -9,6 +9,7 @@ import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/main.dart';
 import 'package:lumo_learner_tablet/models.dart';
 import 'package:lumo_learner_tablet/seed_data.dart';
+import 'package:lumo_learner_tablet/widgets.dart';
 
 class _FailingApiClient extends LumoApiClient {
   @override
@@ -356,6 +357,24 @@ void main() {
     expect(find.text('Replay Mallam'), findsOneWidget);
     expect(find.text('Student list'), findsOneWidget);
     expect(find.byType(GridView), findsOneWidget);
+    expect(find.byType(DetailCard), findsNothing);
+    expect(find.text('English'), findsOneWidget);
+    expect(find.text('Basic Mathematics'), findsOneWidget);
+    expect(find.text('Life Skills'), findsOneWidget);
+  });
+
+  testWidgets(
+      'home screen keeps all subject cards visible on short tablet heights', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(1280, 800));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.byType(DetailCard), findsNothing);
+    expect(find.text('English'), findsOneWidget);
+    expect(find.text('Basic Mathematics'), findsOneWidget);
+    expect(find.text('Life Skills'), findsOneWidget);
   });
 
   testWidgets('student list stays usable on portrait tablet widths', (
