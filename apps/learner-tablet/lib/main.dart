@@ -677,7 +677,6 @@ class HomePage extends StatelessWidget {
     final currentLearner = state.currentLearner;
     final homeLearner = currentLearner ?? state.suggestedLearnerForHome;
     final nextAssignedLesson = state.nextAssignedLessonForLearner(homeLearner);
-
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -690,302 +689,281 @@ class HomePage extends StatelessWidget {
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final stacked = constraints.maxWidth < 960;
-                    final stagePane = ResponsivePane(
-                      flex: 5,
-                      child: _HomeMallamStage(state: state),
-                    );
-                    final detailPane = ResponsivePane(
-                      flex: 5,
-                      child: Container(
-                        height: double.infinity,
-                        padding: EdgeInsets.only(left: stacked ? 0 : 8),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              DetailCard(
+                    final stacked = constraints.maxWidth < 1100;
+
+                    void openRegister() {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => RegisterPage(
+                            state: state,
+                            onChanged: onChanged,
+                          ),
+                        ),
+                      );
+                    }
+
+                    void openLearners() {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AllStudentsPage(
+                            state: state,
+                            onChanged: onChanged,
+                          ),
+                        ),
+                      );
+                    }
+
+                    Widget buildActionPanel() {
+                      return DetailCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Next step',
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      SizedBox(height: 6),
+                                      Text(
+                                        'Mallam owns the main stage. Use these quick buttons for setup, then let the child choose a subject below.',
+                                        style: TextStyle(
+                                          color: Color(0xFF475569),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                StatusPill(
+                                  text: '$learnerCount learners',
+                                  color: LumoTheme.accentGreen,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            _PrimaryActionCard(
+                              title: 'Register',
+                              subtitle: 'Add a new learner',
+                              icon: Icons.person_add_alt_1_rounded,
+                              color: LumoTheme.primary,
+                              onTap: openRegister,
+                            ),
+                            const SizedBox(height: 12),
+                            _PrimaryActionCard(
+                              title: 'Learners',
+                              subtitle: 'Open the full learner roster',
+                              icon: Icons.groups_rounded,
+                              color: LumoTheme.accentGreen,
+                              onTap: openLearners,
+                            ),
+                            if (learnerCount == 0) ...[
+                              const SizedBox(height: 16),
+                              SoftPanel(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Home',
+                                      'No learners yet',
                                       style: TextStyle(
-                                        fontSize: 28,
                                         fontWeight: FontWeight.w800,
+                                        fontSize: 18,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    Text(
-                                      'Pick the next learner action while Mallam stays anchored on the left.',
+                                    const Text(
+                                      'Start by registering the first learner, then let them enter through a subject card below.',
                                       style: TextStyle(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.62),
+                                        color: Color(0xFF475569),
                                         height: 1.4,
                                       ),
                                     ),
-                                    const SizedBox(height: 20),
-                                    LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        final compact =
-                                            constraints.maxWidth < 720;
-                                        final cards = [
-                                          _PrimaryActionCard(
-                                            title: 'Register',
-                                            subtitle:
-                                                'Open learner registration flow',
-                                            icon:
-                                                Icons.person_add_alt_1_rounded,
-                                            color: LumoTheme.primary,
-                                            onTap: () {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (_) => RegisterPage(
-                                                    state: state,
-                                                    onChanged: onChanged,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                          _PrimaryActionCard(
-                                            title: 'Student List',
-                                            subtitle:
-                                                'See all registered learners',
-                                            icon: Icons.groups_rounded,
-                                            color: LumoTheme.accentGreen,
-                                            onTap: () {
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      AllStudentsPage(
-                                                    state: state,
-                                                    onChanged: onChanged,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ];
-
-                                        if (compact) {
-                                          return Column(
-                                            children: [
-                                              for (var i = 0;
-                                                  i < cards.length;
-                                                  i++) ...[
-                                                SizedBox(
-                                                  width: double.infinity,
-                                                  child: cards[i],
-                                                ),
-                                                if (i < cards.length - 1)
-                                                  const SizedBox(height: 12),
-                                              ],
-                                            ],
-                                          );
-                                        }
-
-                                        return Row(
-                                          children: [
-                                            for (var i = 0;
-                                                i < cards.length;
-                                                i++) ...[
-                                              Expanded(child: cards[i]),
-                                              if (i < cards.length - 1)
-                                                const SizedBox(width: 12),
-                                            ],
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: 20),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: MetricTile(
-                                            label: 'Learners',
-                                            value: '$learnerCount',
-                                            icon: Icons.people_alt_rounded,
-                                            color: LumoTheme.primary,
-                                          ),
+                                    const SizedBox(height: 14),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: FilledButton.icon(
+                                        onPressed: openRegister,
+                                        icon: const Icon(
+                                          Icons.person_add_alt_1_rounded,
                                         ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: MetricTile(
-                                            label: 'Subjects',
-                                            value: '${state.modules.length}',
-                                            icon: Icons.menu_book_rounded,
-                                            color: LumoTheme.accentOrange,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (learnerCount == 0) ...[
-                                      const SizedBox(height: 18),
-                                      SoftPanel(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'No learners are loaded yet',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 18,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            const Text(
-                                              'This tablet is ready, but there is nobody to teach yet. Register the first learner before opening subject lessons so the session flow does not dead-end at learner selection.',
-                                              style: TextStyle(
-                                                color: Color(0xFF475569),
-                                                height: 1.4,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 14),
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: FilledButton.icon(
-                                                onPressed: () {
-                                                  Navigator.of(context).push(
-                                                    MaterialPageRoute(
-                                                      builder: (_) =>
-                                                          RegisterPage(
-                                                        state: state,
-                                                        onChanged: onChanged,
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                                icon: const Icon(
-                                                  Icons
-                                                      .person_add_alt_1_rounded,
-                                                ),
-                                                label: const Text(
-                                                  'Register first learner',
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                        label: const Text(
+                                          'Register first learner',
                                         ),
                                       ),
-                                    ],
-                                    if (homeLearner != null) ...[
-                                      const SizedBox(height: 18),
-                                      _CurrentLearnerBanner(
-                                        title: currentLearner == null
-                                            ? 'Ready now: ${homeLearner.name}'
-                                            : 'Current learner: ${homeLearner.name}',
-                                        learner: homeLearner,
-                                        nextLesson: nextAssignedLesson,
-                                        backendSummary: state
-                                            .backendRoutingSummaryForLearner(
-                                          homeLearner,
-                                        ),
-                                        onOpenProfile: () {
-                                          state.selectLearner(homeLearner);
-                                          onChanged();
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  LearnerProfilePage(
-                                                state: state,
-                                                learner: homeLearner,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        onContinue: nextAssignedLesson == null
-                                            ? null
-                                            : () => launchLessonFlow(
-                                                  context: context,
-                                                  state: state,
-                                                  onChanged: onChanged,
-                                                  lesson: nextAssignedLesson,
-                                                ),
-                                      ),
-                                    ],
+                                    ),
                                   ],
                                 ),
                               ),
+                            ],
+                            if (homeLearner != null) ...[
                               const SizedBox(height: 16),
-                              _BackendStatusBanner(
-                                state: state,
-                                onRefresh: () async {
-                                  await state.bootstrap();
+                              _CurrentLearnerBanner(
+                                title: currentLearner == null
+                                    ? 'Ready now: ${homeLearner.name}'
+                                    : 'Current learner: ${homeLearner.name}',
+                                learner: homeLearner,
+                                nextLesson: nextAssignedLesson,
+                                backendSummary:
+                                    state.backendRoutingSummaryForLearner(
+                                  homeLearner,
+                                ),
+                                onOpenProfile: () {
+                                  state.selectLearner(homeLearner);
                                   onChanged();
-                                },
-                                onSyncQueue: () async {
-                                  await state.syncPendingEvents();
-                                  onChanged();
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              const SectionTitle(
-                                title: 'Subjects',
-                                subtitle:
-                                    'Tap a subject to open its learning modules.',
-                              ),
-                              const SizedBox(height: 12),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final crossAxisCount = _adaptiveGridCount(
-                                    constraints.maxWidth,
-                                    minTileWidth: 260,
-                                    maxCount: 3,
-                                  );
-
-                                  return GridView.builder(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    itemCount: state.modules.length,
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      mainAxisSpacing: 12,
-                                      crossAxisSpacing: 12,
-                                      childAspectRatio: 1.08,
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => LearnerProfilePage(
+                                        state: state,
+                                        learner: homeLearner,
+                                      ),
                                     ),
-                                    itemBuilder: (context, index) {
-                                      final module = state.modules[index];
-                                      return _SubjectCard(
-                                        module: module,
-                                        lessonCount:
-                                            state.assignedLessonCountForModule(
-                                          module: module,
-                                          learner: state.currentLearner,
-                                        ),
-                                        onTap: () {
-                                          state.selectModule(module);
-                                          onChanged();
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  SubjectModulesPage(
-                                                state: state,
-                                                onChanged: onChanged,
-                                                module: module,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    },
                                   );
                                 },
+                                onContinue: nextAssignedLesson == null
+                                    ? null
+                                    : () => launchLessonFlow(
+                                          context: context,
+                                          state: state,
+                                          onChanged: onChanged,
+                                          lesson: nextAssignedLesson,
+                                        ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }
+
+                    Widget buildSubjectSection() {
+                      return DetailCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: SectionTitle(
+                                    title: 'Subjects',
+                                    subtitle:
+                                        'The bottom row is the learner doorway. Tap a subject to open its learning modules.',
+                                  ),
+                                ),
+                                StatusPill(
+                                  text: '${state.modules.length} subjects',
+                                  color: LumoTheme.accentOrange,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final crossAxisCount = _adaptiveGridCount(
+                                  constraints.maxWidth,
+                                  minTileWidth: 300,
+                                  maxCount: 3,
+                                );
+
+                                final aspectRatio = constraints.maxWidth < 700
+                                    ? 1.0
+                                    : constraints.maxWidth < 1100
+                                        ? 1.08
+                                        : 1.18;
+
+                                return GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: state.modules.length,
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossAxisCount,
+                                    mainAxisSpacing: 14,
+                                    crossAxisSpacing: 14,
+                                    childAspectRatio: aspectRatio,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final module = state.modules[index];
+                                    return _SubjectCard(
+                                      module: module,
+                                      lessonCount:
+                                          state.assignedLessonCountForModule(
+                                        module: module,
+                                        learner: state.currentLearner,
+                                      ),
+                                      onTap: () {
+                                        state.selectModule(module);
+                                        onChanged();
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => SubjectModulesPage(
+                                              state: state,
+                                              onChanged: onChanged,
+                                              module: module,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final mallamStage = SizedBox(
+                      height: stacked ? 420 : 520,
+                      child: _HomeMallamStage(state: state),
+                    );
+
+                    if (stacked) {
+                      return SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            mallamStage,
+                            const SizedBox(height: 16),
+                            buildActionPanel(),
+                            const SizedBox(height: 20),
+                            buildSubjectSection(),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 7, child: mallamStage),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                flex: 4,
+                                child: SizedBox(
+                                  height: 520,
+                                  child: SingleChildScrollView(
+                                    child: buildActionPanel(),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 20),
+                          buildSubjectSection(),
+                        ],
                       ),
-                    );
-
-                    return _ResponsiveWorkspaceRow(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: stacked
-                          ? [detailPane, stagePane]
-                          : [stagePane, detailPane],
                     );
                   },
                 ),
@@ -7912,13 +7890,9 @@ class _RosterFreshnessBanner extends StatelessWidget {
 
 class _BackendStatusBanner extends StatelessWidget {
   final LumoAppState state;
-  final Future<void> Function()? onRefresh;
-  final Future<void> Function()? onSyncQueue;
 
   const _BackendStatusBanner({
     required this.state,
-    this.onRefresh,
-    this.onSyncQueue,
   });
 
   @override
@@ -8098,36 +8072,6 @@ class _BackendStatusBanner extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ],
-          if (onRefresh != null || onSyncQueue != null) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                if (onRefresh != null)
-                  OutlinedButton.icon(
-                    onPressed: state.isBootstrapping
-                        ? null
-                        : () async {
-                            await onRefresh!.call();
-                          },
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Refresh backend'),
-                  ),
-                if (onSyncQueue != null)
-                  FilledButton.tonalIcon(
-                    onPressed:
-                        state.pendingSyncEvents.isEmpty || state.isSyncingEvents
-                            ? null
-                            : () async {
-                                await onSyncQueue!.call();
-                              },
-                    icon: const Icon(Icons.cloud_upload_rounded),
-                    label: const Text('Sync queue now'),
-                  ),
-              ],
             ),
           ],
         ],
@@ -8329,58 +8273,89 @@ class _SubjectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _modulePalette(module.id);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: palette),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: palette.first.withValues(alpha: 0.20),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: palette,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                StatusPill(text: module.badge, color: Colors.white),
-                Text(
-                  '$lessonCount modules',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Text(
-              module.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: palette.first.withValues(alpha: 0.22),
+                blurRadius: 26,
+                offset: const Offset(0, 14),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              module.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, height: 1.3),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  StatusPill(text: module.badge, color: Colors.white),
+                  Text(
+                    '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                module.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  height: 1.05,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                module.description,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  height: 1.35,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: const [
+                  Text(
+                    'Open subject',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
