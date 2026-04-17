@@ -489,6 +489,72 @@ void main() {
     state.dispose();
   });
 
+  testWidgets(
+      'registration picks up backend routing defaults that arrive after the page opens',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..registrationDraft = const RegistrationDraft(
+        name: 'Amina Bello',
+        age: '9',
+        guardianName: 'Hauwa Bello',
+        village: 'Kawo',
+        consentCaptured: true,
+      )
+      ..registrationContext = const RegistrationContext();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegisterPage(
+          state: state,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Backend cohort'), findsNothing);
+
+    const cohort = BackendCohort(
+      id: 'cohort-a',
+      name: 'Cohort A',
+      podId: 'pod-a',
+    );
+    const mallam = BackendMallam(
+      id: 'mallam-1',
+      name: 'Mallam Musa',
+      podIds: ['pod-a'],
+    );
+    state.registrationContext = const RegistrationContext(
+      cohorts: [cohort],
+      mallams: [mallam],
+      defaultTarget: RegistrationTarget(
+        cohort: cohort,
+        mallam: mallam,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegisterPage(
+          state: state,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Backend cohort'), findsOneWidget);
+    expect(find.text('Cohort A'), findsWidgets);
+    expect(state.registrationDraft.cohort, 'Cohort A');
+    expect(state.registrationDraft.mallamId, 'mallam-1');
+
+    state.dispose();
+  });
+
   testWidgets('registration flow stays usable on portrait tablet widths', (
     tester,
   ) async {
@@ -687,7 +753,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Lesson content not available yet'), findsWidgets);
+    expect(
+        find.textContaining('Lesson content not available yet'), findsWidgets);
     expect(find.text('Refresh sync before starting'), findsOneWidget);
     expect(
       tester

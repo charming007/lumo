@@ -1,4 +1,4 @@
-import { assessmentMatchesModule } from './module-assessment-match';
+import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match';
 import type { Assessment, CurriculumModule, Lesson, Strand, Subject } from './types';
 
 export type CurriculumCanvasLesson = {
@@ -360,7 +360,7 @@ function buildModuleNode({
   const rescueAssessments = rescueChildren.filter((node) => node.nodeType === 'assessment').map(normalizeAssessmentFromNode);
 
   const liveAssessments = assessments
-    .filter((assessment) => assessmentMatchesModule(module, assessment))
+    .filter((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment))
     .sort((left, right) => safeText(left.title, 'Untitled assessment').localeCompare(safeText(right.title, 'Untitled assessment')));
 
   const moduleAssessments = liveAssessments.length ? liveAssessments : rescueAssessments;

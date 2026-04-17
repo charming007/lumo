@@ -6,7 +6,7 @@ import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../lib/api';
 import { buildEnglishLessonBlueprints, buildEnglishOpsSummary } from '../../lib/english-curriculum';
 import { API_BASE_SOURCE } from '../../lib/config';
-import { assessmentMatchesModule } from '../../lib/module-assessment-match';
+import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 import { createLessonAction } from '../actions';
 
@@ -120,7 +120,7 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
   const releaseQueue = blueprints.filter((item) => item.releaseLabel !== 'pod-ready');
   const podReady = blueprints.filter((item) => item.releaseLabel === 'pod-ready');
   const readinessBoard = [...blueprints].sort((left, right) => left.readinessScore - right.readinessScore || left.lessonTitle.localeCompare(right.lessonTitle));
-  const modulesMissingAssessments = englishModules.filter((module) => !assessments.some((assessment) => assessmentMatchesModule(module, assessment)));
+  const modulesMissingAssessments = englishModules.filter((module) => !assessments.some((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment)));
   const byModule = Array.from(
     blueprints.reduce((map, blueprint) => {
       if (!map.has(blueprint.moduleTitle)) map.set(blueprint.moduleTitle, [] as typeof blueprints);

@@ -18,7 +18,7 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
-import { assessmentMatchesModule } from '../lib/module-assessment-match';
+import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { Card, Pill } from '../lib/ui';
 import type { Assessment, Assignment, CurriculumModule, Lesson, Strand, Subject } from '../lib/types';
 
@@ -249,7 +249,7 @@ export function ContentSubjectLanes({
                         <div id={`strand-panel-${strand.id}`} hidden={strandCollapsed} style={{ display: strandCollapsed ? 'none' : 'grid', gap: 12 }}>
                           {strandModules.length > 0 ? strandModules.map((module) => {
                             const moduleLessons = subjectLessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
-                            const moduleAssessments = subjectAssessments.filter((assessment) => assessmentMatchesModule(module, assessment));
+                            const moduleAssessments = subjectAssessments.filter((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment));
                             const moduleAssignments = assignments.filter((assignment) => moduleLessons.some((lesson) => lesson.title === assignment.lessonTitle));
                             const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                             const pill = statusPill(module.status);

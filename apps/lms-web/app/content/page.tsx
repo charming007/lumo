@@ -19,7 +19,7 @@ import { DeploymentBlockerCard } from '../../components/deployment-blocker-card'
 import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { API_BASE_SOURCE } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
-import { assessmentMatchesModule } from '../../lib/module-assessment-match';
+import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -164,7 +164,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   });
 
   const moduleHasAssessmentGate = (module: (typeof modules)[number]) => assessments.some(
-    (assessment) => assessmentMatchesModule(module, assessment),
+    (assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment),
   );
 
   const blockedModules = modules.filter((module) => {

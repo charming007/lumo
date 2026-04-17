@@ -2649,22 +2649,47 @@ class _RegisterPageState extends State<RegisterPage> {
   String? profilePhotoBase64;
   final ImagePicker _imagePicker = ImagePicker();
 
+  RegistrationDraft _routingHydratedDraft(RegistrationDraft draft) {
+    final context = widget.state.registrationContext;
+    final defaultTarget = context.defaultTarget;
+
+    final currentCohort = draft.cohort.trim();
+    final currentMallamId = draft.mallamId.trim();
+
+    final resolvedCohort = currentCohort.isNotEmpty
+        ? currentCohort
+        : defaultTarget?.cohort.name ?? currentCohort;
+    final resolvedMallamId = currentMallamId.isNotEmpty
+        ? currentMallamId
+        : defaultTarget?.mallam.id ?? currentMallamId;
+
+    if (resolvedCohort == draft.cohort && resolvedMallamId == draft.mallamId) {
+      return draft;
+    }
+
+    final nextDraft = draft.copyWith(
+      cohort: resolvedCohort,
+      mallamId: resolvedMallamId,
+    );
+    widget.state.updateDraft(nextDraft);
+    return nextDraft;
+  }
+
+  void _syncRoutingDefaultsFromState() {
+    final hydratedDraft = _routingHydratedDraft(widget.state.registrationDraft);
+
+    if (cohortController.text != hydratedDraft.cohort) {
+      cohortController.text = hydratedDraft.cohort;
+    }
+    if (selectedMallamId != hydratedDraft.mallamId) {
+      selectedMallamId = hydratedDraft.mallamId;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    var draft = widget.state.registrationDraft;
-    final defaultTarget = widget.state.registrationContext.defaultTarget;
-    if (defaultTarget != null) {
-      draft = draft.copyWith(
-        cohort: draft.cohort.trim().isEmpty
-            ? defaultTarget.cohort.name
-            : draft.cohort,
-        mallamId: draft.mallamId.trim().isEmpty
-            ? defaultTarget.mallam.id
-            : draft.mallamId,
-      );
-      widget.state.updateDraft(draft);
-    }
+    final draft = _routingHydratedDraft(widget.state.registrationDraft);
     nameController = TextEditingController(text: draft.name);
     ageController = TextEditingController(text: draft.age);
     cohortController = TextEditingController(text: draft.cohort);
@@ -2751,6 +2776,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    _syncRoutingDefaultsFromState();
+
     final draft = RegistrationDraft(
       name: nameController.text,
       age: ageController.text,
