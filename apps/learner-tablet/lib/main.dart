@@ -675,23 +675,19 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final learnerCount = state.learners.length;
-    final currentLearner = state.currentLearner;
-    final homeLearner = currentLearner ?? state.suggestedLearnerForHome;
-    final nextAssignedLesson = state.nextAssignedLessonForLearner(homeLearner);
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               LumoTopBar(onLogoTap: () {}),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final stacked = constraints.maxWidth < 1100;
+                    final compact = constraints.maxWidth < 900;
 
                     void openRegister() {
                       Navigator.of(context).push(
@@ -716,178 +712,63 @@ class HomePage extends StatelessWidget {
                     }
 
                     Widget buildActionPanel() {
-                      return DetailCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Facilitator actions',
-                                        style: TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      SizedBox(height: 6),
-                                      Text(
-                                        'Mallam owns the main stage. Use these quick buttons for setup, then let the child choose a subject below.',
-                                        style: TextStyle(
-                                          color: Color(0xFF475569),
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                StatusPill(
-                                  text: '$learnerCount learners',
-                                  color: LumoTheme.accentGreen,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            _PrimaryActionCard(
-                              title: 'Register',
-                              subtitle: 'Add a new learner',
-                              icon: Icons.person_add_alt_1_rounded,
-                              color: LumoTheme.primary,
-                              onTap: openRegister,
-                            ),
-                            const SizedBox(height: 12),
-                            _PrimaryActionCard(
-                              title: 'Learner List',
-                              subtitle: 'Open the full learner roster',
-                              icon: Icons.groups_rounded,
-                              color: LumoTheme.accentGreen,
-                              onTap: openLearners,
-                            ),
-                            if (learnerCount == 0) ...[
-                              const SizedBox(height: 16),
-                              SoftPanel(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'No learners yet',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Start by registering the first learner, then let them enter through a subject card below.',
-                                      style: TextStyle(
-                                        color: Color(0xFF475569),
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: FilledButton.icon(
-                                        onPressed: openRegister,
-                                        icon: const Icon(
-                                          Icons.person_add_alt_1_rounded,
-                                        ),
-                                        label: const Text(
-                                          'Register first learner',
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            if (homeLearner != null) ...[
-                              const SizedBox(height: 16),
-                              _CurrentLearnerBanner(
-                                title: currentLearner == null
-                                    ? 'Ready now: ${homeLearner.name}'
-                                    : 'Current learner: ${homeLearner.name}',
-                                learner: homeLearner,
-                                nextLesson: nextAssignedLesson,
-                                backendSummary:
-                                    state.backendRoutingSummaryForLearner(
-                                  homeLearner,
-                                ),
-                                onOpenProfile: () {
-                                  state.selectLearner(homeLearner);
-                                  onChanged();
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => LearnerProfilePage(
-                                        state: state,
-                                        learner: homeLearner,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                onContinue: nextAssignedLesson == null
-                                    ? null
-                                    : () => launchLessonFlow(
-                                          context: context,
-                                          state: state,
-                                          onChanged: onChanged,
-                                          lesson: nextAssignedLesson,
-                                        ),
-                              ),
-                            ],
-                          ],
+                      final buttons = [
+                        Expanded(
+                          child: _MediumActionButton(
+                            title: 'Register',
+                            icon: Icons.person_add_alt_1_rounded,
+                            color: LumoTheme.primary,
+                            onTap: openRegister,
+                          ),
                         ),
-                      );
+                        SizedBox(width: compact ? 10 : 14),
+                        Expanded(
+                          child: _MediumActionButton(
+                            title: 'Student list',
+                            icon: Icons.groups_rounded,
+                            color: LumoTheme.accentGreen,
+                            onTap: openLearners,
+                          ),
+                        ),
+                      ];
+
+                      return compact
+                          ? Column(
+                              children: [
+                                Row(children: buttons),
+                              ],
+                            )
+                          : Row(children: buttons);
                     }
 
                     Widget buildSubjectSection() {
-                      return DetailCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: SectionTitle(
-                                    title: 'Subjects',
-                                    subtitle:
-                                        'The bottom row is the learner doorway. Tap a subject to open its learning modules.',
-                                  ),
-                                ),
-                                StatusPill(
-                                  text: '${state.modules.length} subjects',
-                                  color: LumoTheme.accentOrange,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            LayoutBuilder(
-                              builder: (context, constraints) {
+                      return Expanded(
+                        child: DetailCard(
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: LayoutBuilder(
+                              builder: (context, subjectConstraints) {
                                 final crossAxisCount = _adaptiveGridCount(
-                                  constraints.maxWidth,
-                                  minTileWidth: 300,
-                                  maxCount: 3,
+                                  subjectConstraints.maxWidth,
+                                  minTileWidth: compact ? 180 : 210,
+                                  maxCount: compact ? 2 : 4,
                                 );
 
-                                final aspectRatio = constraints.maxWidth < 700
-                                    ? 1.0
-                                    : constraints.maxWidth < 1100
-                                        ? 1.08
-                                        : 1.18;
+                                final aspectRatio =
+                                    subjectConstraints.maxWidth < 700
+                                        ? 1.24
+                                        : subjectConstraints.maxWidth < 1100
+                                            ? 1.34
+                                            : 1.46;
 
                                 return GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
                                   itemCount: state.modules.length,
+                                  physics: const NeverScrollableScrollPhysics(),
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: crossAxisCount,
-                                    mainAxisSpacing: 14,
-                                    crossAxisSpacing: 14,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
                                     childAspectRatio: aspectRatio,
                                   ),
                                   itemBuilder: (context, index) {
@@ -917,60 +798,23 @@ class HomePage extends StatelessWidget {
                                 );
                               },
                             ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    final mallamStageHeight = !stacked
-                        ? 520.0
-                        : constraints.maxWidth < 600
-                            ? 220.0
-                            : 420.0;
-                    final mallamStage = SizedBox(
-                      height: mallamStageHeight,
-                      child: _HomeMallamStage(state: state),
-                    );
-
-                    if (stacked) {
-                      return SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            mallamStage,
-                            const SizedBox(height: 16),
-                            buildActionPanel(),
-                            const SizedBox(height: 20),
-                            buildSubjectSection(),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(flex: 7, child: mallamStage),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                flex: 4,
-                                child: SizedBox(
-                                  height: 520,
-                                  child: SingleChildScrollView(
-                                    child: buildActionPanel(),
-                                  ),
-                                ),
-                              ),
-                            ],
                           ),
-                          const SizedBox(height: 20),
-                          buildSubjectSection(),
-                        ],
-                      ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          flex: compact ? 4 : 5,
+                          child: _HomeMallamStage(state: state),
+                        ),
+                        SizedBox(height: compact ? 12 : 16),
+                        buildActionPanel(),
+                        SizedBox(height: compact ? 12 : 16),
+                        buildSubjectSection(),
+                      ],
                     );
                   },
                 ),
@@ -8470,16 +8314,14 @@ class _BackendStatusBanner extends StatelessWidget {
   }
 }
 
-class _PrimaryActionCard extends StatelessWidget {
+class _MediumActionButton extends StatelessWidget {
   final String title;
-  final String subtitle;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
-  const _PrimaryActionCard({
+  const _MediumActionButton({
     required this.title,
-    required this.subtitle,
     required this.icon,
     required this.color,
     required this.onTap,
@@ -8487,34 +8329,23 @@ class _PrimaryActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: color.withValues(alpha: 0.18)),
+    return SizedBox(
+      height: 72,
+      child: FilledButton.tonalIcon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 22),
+        label: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: color.withValues(alpha: 0.12),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: const TextStyle(color: Color(0xFF64748B), height: 1.35),
-            ),
-          ],
+        style: FilledButton.styleFrom(
+          foregroundColor: color,
+          backgroundColor: color.withValues(alpha: 0.1),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: color.withValues(alpha: 0.16)),
+          ),
         ),
       ),
     );
@@ -8561,7 +8392,6 @@ class _CurrentLearnerBanner extends StatelessWidget {
   final LessonCardModel? nextLesson;
   final String backendSummary;
   final VoidCallback onOpenProfile;
-  final VoidCallback? onContinue;
 
   const _CurrentLearnerBanner({
     required this.title,
@@ -8569,7 +8399,6 @@ class _CurrentLearnerBanner extends StatelessWidget {
     required this.nextLesson,
     required this.backendSummary,
     required this.onOpenProfile,
-    this.onContinue,
   });
 
   @override
@@ -8622,26 +8451,10 @@ class _CurrentLearnerBanner extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              OutlinedButton.icon(
-                onPressed: onOpenProfile,
-                icon: const Icon(Icons.badge_rounded),
-                label: const Text('Open learner profile'),
-              ),
-              if (onContinue != null)
-                FilledButton.icon(
-                  onPressed: onContinue,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: Text(
-                    nextLesson == null
-                        ? 'Open learner flow'
-                        : 'Continue lesson',
-                  ),
-                ),
-            ],
+          OutlinedButton.icon(
+            onPressed: onOpenProfile,
+            icon: const Icon(Icons.badge_rounded),
+            label: const Text('Open learner profile'),
           ),
         ],
       ),
@@ -8666,38 +8479,49 @@ class _SubjectCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Ink(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: palette,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: palette.first.withValues(alpha: 0.22),
-                blurRadius: 26,
-                offset: const Offset(0, 14),
+                color: palette.first.withValues(alpha: 0.18),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              Row(
                 children: [
-                  StatusPill(text: module.badge, color: Colors.white),
+                  Expanded(
+                    child: Text(
+                      module.badge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
                     style: const TextStyle(
                       color: Colors.white,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -8709,38 +8533,38 @@ class _SubjectCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
                   color: Colors.white,
-                  height: 1.05,
+                  height: 1.0,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Text(
                 module.description,
-                maxLines: 3,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
-                  height: 1.35,
-                  fontSize: 15,
+                  height: 1.25,
+                  fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: const [
+              const SizedBox(height: 12),
+              const Row(
+                children: [
                   Text(
-                    'Open subject',
+                    'Open',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(width: 8),
+                  SizedBox(width: 6),
                   Icon(
                     Icons.arrow_forward_rounded,
                     color: Colors.white,
-                    size: 20,
+                    size: 18,
                   ),
                 ],
               ),
