@@ -1,3 +1,13 @@
+import nextEnv from '@next/env';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const { loadEnvConfig } = nextEnv;
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const projectDir = path.resolve(currentDir, '..');
+const isDev = process.env.NODE_ENV !== 'production' && process.env.npm_lifecycle_event !== 'build';
+loadEnvConfig(projectDir, isDev);
+
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
 const lifecycleEvent = process.env.npm_lifecycle_event;
 const isHostedDeployment =

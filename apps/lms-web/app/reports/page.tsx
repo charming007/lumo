@@ -107,6 +107,10 @@ function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function pickNumber(...values: Array<number | null | undefined>) {
+  return values.find((value) => value !== null && value !== undefined) ?? 0;
+}
+
 function safeRows(message: string, columns: number): ReactNode[][] {
   return [[<span key={message} style={{ color: '#64748b' }}>{message}</span>, ...Array.from({ length: columns - 1 }, () => '')]];
 }
@@ -403,10 +407,10 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
     },
     totals: {
       learners: scopedStudents.length,
-      centers: new Set(podSnapshots.map((pod) => pod.centerName).filter(Boolean)).size || report.totalCenters,
-      pods: podSnapshots.length || report.activePods,
-      mallams: mallamSnapshots.length || report.totalTeachers,
-      activeAssignments: assignments.length || report.totalAssignments,
+      centers: pickNumber(new Set(podSnapshots.map((pod) => pod.centerName).filter(Boolean)).size, report.totalCenters),
+      pods: pickNumber(podSnapshots.length, report.activePods),
+      mallams: pickNumber(mallamSnapshots.length, report.totalTeachers),
+      activeAssignments: pickNumber(assignments.length, report.totalAssignments),
       lessonsCompleted: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId)).reduce((sum, item) => sum + item.lessonsCompleted, 0),
       completedSessions: progress.filter((item) => scopedStudents.some((student) => student.id === item.studentId)).reduce((sum, item) => sum + item.lessonsCompleted, 0),
       attendanceAverage: scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate ?? 0)) : report.averageAttendance,
@@ -462,11 +466,28 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
 
   const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : fallbackOperationsReport;
   const ngoSummary = ngoSummaryResult.status === 'fulfilled' ? ngoSummaryResult.value : fallbackNgoSummary;
+  const scopedLearnerCount = pickNumber(ngoSummary.scope.learnerCount, scopedStudents.length, report.totalStudents);
+  const activeAssignmentsCount = pickNumber(ngoSummary.totals.activeAssignments, report.totalAssignments);
+  const centersCount = pickNumber(ngoSummary.totals.centers, report.totalCenters);
+  const podCount = pickNumber(ngoSummary.totals.pods, podSnapshots.length, report.activePods);
+  const mallamCount = pickNumber(ngoSummary.totals.mallams, report.totalTeachers);
+  const attendanceAverage = pickNumber(
+    ngoSummary.totals.attendanceAverage,
+    scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : undefined,
+    report.averageAttendance,
+  );
+  const masteryAverage = pickNumber(
+    ngoSummary.totals.averageMastery,
+    podSnapshots.length ? average(podSnapshots.map((pod) => pod.masteryAverage)) : undefined,
+    report.averageMastery,
+  );
+  const progressionReadyCount = pickNumber(ngoSummary.progression.ready, operationsReport.summary.progressionReady);
+  const progressionWatchCount = pickNumber(ngoSummary.progression.watch, operationsReport.summary.progressionWatch);
 
   const donorCoverage = ngoSummary.totals.learners > 0 && ngoSummary.totals.centers > 0
     ? `${ngoSummary.totals.learners} learners across ${ngoSummary.totals.centers} center${ngoSummary.totals.centers === 1 ? '' : 's'}`
     : report.totalStudents > 0 && report.totalCenters > 0
-      ? `${scopedStudents.length || report.totalStudents} learners across ${report.totalCenters} center${report.totalCenters === 1 ? '' : 's'}`
+      ? `${pickNumber(scopedStudents.length, report.totalStudents)} learners across ${report.totalCenters} center${report.totalCenters === 1 ? '' : 's'}`
       : 'Coverage feed unavailable';
   const learnerRetentionSignal = ngoSummary.totals.learners
     ? `${Math.round(ngoSummary.totals.attendanceAverage * 100)}% average attendance suggests ${ngoSummary.totals.attendanceAverage >= 0.9 ? 'strong' : ngoSummary.totals.attendanceAverage >= 0.85 ? 'stable' : 'fragile'} retention`
@@ -491,9 +512,9 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
 
   const complianceRows = [
     ['Learner attendance logged', `${report.presentToday}/${report.totalStudents || 0} present today`, report.totalStudents ? `${Math.round((report.presentToday / report.totalStudents) * 100)}% capture` : 'No capture'],
-    ['Assignments tracked', `${ngoSummary.totals.activeAssignments || report.totalAssignments} live`, `${report.assignmentsDueThisWeek} due this week`],
+    ['Assignments tracked', `${activeAssignmentsCount} live`, `${report.assignmentsDueThisWeek} due this week`],
     ['Pods under watch', `${report.podsNeedingAttention} flagged`, `${podSnapshots.filter((item) => item.attendanceAverage < 0.85).length} below 85% attendance`],
-    ['Promotion evidence', `${ngoSummary.progression.ready || operationsReport.summary.progressionReady} ready`, `${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} watchlist`],
+    ['Promotion evidence', `${progressionReadyCount} ready`, `${progressionWatchCount} watchlist`],
   ];
 
   const recentRewardRequests = (operationsReport.recent.rewardRequests ?? []).slice(0, 6);
@@ -511,26 +532,26 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
     mallamName: selectedMallam?.displayName,
   });
   const scopedReportNarratives = [
-    `Scope: ${scopeLabel}. ${scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents} learner${(scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents) === 1 ? '' : 's'} are represented in this pull.`,
-    `${ngoSummary.progression.ready || operationsReport.summary.progressionReady} learner${(ngoSummary.progression.ready || operationsReport.summary.progressionReady) === 1 ? '' : 's'} are ready to progress, while ${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} remain on watch.`,
-    `Attendance sits around ${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}% and reward backlog pressure is ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0} urgent item${(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) === 1 ? '' : 's'}.`,
+    `Scope: ${scopeLabel}. ${scopedLearnerCount} learner${scopedLearnerCount === 1 ? '' : 's'} are represented in this pull.`,
+    `${progressionReadyCount} learner${progressionReadyCount === 1 ? '' : 's'} are ready to progress, while ${progressionWatchCount} remain on watch.`,
+    `Attendance sits around ${Math.round(attendanceAverage * 100)}% and reward backlog pressure is ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0} urgent item${(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) === 1 ? '' : 's'}.`,
   ];
   const narrativePack = [
     {
       title: 'Operator call summary',
-      detail: `${scopeLabel}: ${scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents} learner${(scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents) === 1 ? '' : 's'} in scope, ${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} on watch, and reward backlog pressure sitting at ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0} urgent item${(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) === 1 ? '' : 's'}.`,
+      detail: `${scopeLabel}: ${scopedLearnerCount} learner${scopedLearnerCount === 1 ? '' : 's'} in scope, ${progressionWatchCount} on watch, and reward backlog pressure sitting at ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0} urgent item${(operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0) === 1 ? '' : 's'}.`,
       tone: '#EEF2FF',
       text: '#3730A3',
     },
     {
       title: 'NGO / donor update',
-      detail: `${donorCoverage}. Attendance is ${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}% on average, ${ngoSummary.progression.ready || operationsReport.summary.progressionReady} learner${(ngoSummary.progression.ready || operationsReport.summary.progressionReady) === 1 ? '' : 's'} are progression-ready, and facilitator pressure is visible across ${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length} mallam${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length === 1 ? '' : 's'}.`,
+      detail: `${donorCoverage}. Attendance is ${Math.round(attendanceAverage * 100)}% on average, ${progressionReadyCount} learner${progressionReadyCount === 1 ? '' : 's'} are progression-ready, and facilitator pressure is visible across ${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length} mallam${mallamSnapshots.filter((mallam) => mallam.watchCount > 0).length === 1 ? '' : 's'}.`,
       tone: '#ECFDF5',
       text: '#166534',
     },
     {
       title: 'Government / compliance readout',
-      detail: `${report.presentToday}/${report.totalStudents || 0} learners are marked present today, ${ngoSummary.totals.activeAssignments || report.totalAssignments} assignment${(ngoSummary.totals.activeAssignments || report.totalAssignments) === 1 ? '' : 's'} remain visible in the operating picture, and ${report.podsNeedingAttention} pod${report.podsNeedingAttention === 1 ? '' : 's'} still need intervention first.`,
+      detail: `${report.presentToday}/${report.totalStudents || 0} learners are marked present today, ${activeAssignmentsCount} assignment${activeAssignmentsCount === 1 ? '' : 's'} remain visible in the operating picture, and ${report.podsNeedingAttention} pod${report.podsNeedingAttention === 1 ? '' : 's'} still need intervention first.`,
       tone: '#FFF7ED',
       text: '#9A3412',
     },
@@ -550,13 +571,13 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
       cohortId: cohortFilter || null,
       podId: podFilter || null,
       mallamId: mallamFilter || null,
-      learnerCount: scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents,
+      learnerCount: scopedLearnerCount,
     },
     metrics: {
-      attendanceAverage: ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance),
-      averageMastery: ngoSummary.totals.averageMastery || (podSnapshots.length ? average(podSnapshots.map((pod) => pod.masteryAverage)) : report.averageMastery),
-      progressionReady: ngoSummary.progression.ready || operationsReport.summary.progressionReady,
-      progressionWatch: ngoSummary.progression.watch || operationsReport.summary.progressionWatch,
+      attendanceAverage,
+      averageMastery: masteryAverage,
+      progressionReady: progressionReadyCount,
+      progressionWatch: progressionWatchCount,
       rewardBacklogUrgent: operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0,
     },
     narratives: narrativePack,
@@ -567,11 +588,11 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
     ['Scope', 'Learners', 'Attendance', 'Mastery', 'Ready', 'Watch', 'Urgent reward backlog'],
     [
       scopeLabel,
-      scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents,
-      `${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}%`,
-      `${Math.round((ngoSummary.totals.averageMastery || (podSnapshots.length ? average(podSnapshots.map((pod) => pod.masteryAverage)) : report.averageMastery)) * 100)}%`,
-      ngoSummary.progression.ready || operationsReport.summary.progressionReady,
-      ngoSummary.progression.watch || operationsReport.summary.progressionWatch,
+      scopedLearnerCount,
+      `${Math.round(attendanceAverage * 100)}%`,
+      `${Math.round(masteryAverage * 100)}%`,
+      progressionReadyCount,
+      progressionWatchCount,
       operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0,
     ],
     [],
@@ -589,9 +610,9 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
   ]);
   const shareSummary = [
     `Lumo reporting pull · ${scopeLabel}`,
-    `${scopedStudents.length || ngoSummary.scope.learnerCount || report.totalStudents} learners in scope.`,
-    `${ngoSummary.progression.ready || operationsReport.summary.progressionReady} ready to progress; ${ngoSummary.progression.watch || operationsReport.summary.progressionWatch} on watch.`,
-    `Attendance ${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}% · urgent reward backlog ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0}.`,
+    `${scopedLearnerCount} learners in scope.`,
+    `${progressionReadyCount} ready to progress; ${progressionWatchCount} on watch.`,
+    `Attendance ${Math.round(attendanceAverage * 100)}% · urgent reward backlog ${operationsReport.summary.rewardBacklogUrgent ?? ngoSummary.rewardOps?.summary?.urgentCount ?? 0}.`,
     highestRiskPods[0] ? `Top intervention pod: ${highestRiskPods[0].label} at ${Math.round(highestRiskPods[0].attendanceAverage * 100)}% attendance with ${highestRiskPods[0].watchCount} watch learners.` : 'No intervention pod is dominating the queue right now.',
   ].join('\n');
 
@@ -762,15 +783,15 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         <Card title="Program overview" eyebrow="Coverage">
           <MetricList items={[
-            { label: 'Total learners', value: String(ngoSummary.totals.learners || scopedStudents.length || report.totalStudents) },
-            { label: 'Mallams and facilitators', value: String(ngoSummary.totals.mallams || report.totalTeachers) },
-            { label: 'Centers live', value: String(ngoSummary.totals.centers || report.totalCenters) },
-            { label: 'Active pods', value: String(ngoSummary.totals.pods || podSnapshots.length || report.activePods) },
+            { label: 'Total learners', value: String(scopedLearnerCount) },
+            { label: 'Mallams and facilitators', value: String(mallamCount) },
+            { label: 'Centers live', value: String(centersCount) },
+            { label: 'Active pods', value: String(podCount) },
           ]} />
         </Card>
         <Card title="Delivery metrics" eyebrow="Execution">
           <MetricList items={[
-            { label: 'Assignments tracked', value: String(ngoSummary.totals.activeAssignments || report.totalAssignments) },
+            { label: 'Assignments tracked', value: String(activeAssignmentsCount) },
             { label: 'Assignments due this week', value: String(report.assignmentsDueThisWeek) },
             { label: 'Present today', value: String(report.presentToday) },
             { label: 'Pods needing attention', value: String(report.podsNeedingAttention) },
@@ -778,10 +799,10 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
         </Card>
         <Card title="Learning metrics" eyebrow="Outcomes">
           <MetricList items={[
-            { label: 'Average attendance', value: `${Math.round((ngoSummary.totals.attendanceAverage || (scopedStudents.length ? average(scopedStudents.map((student) => student.attendanceRate)) : report.averageAttendance)) * 100)}%` },
-            { label: 'Average mastery', value: `${Math.round((ngoSummary.totals.averageMastery || (podSnapshots.length ? average(podSnapshots.map((pod) => pod.masteryAverage)) : report.averageMastery)) * 100)}%` },
-            { label: 'Ready to progress', value: String(ngoSummary.progression.ready || operationsReport.summary.progressionReady) },
-            { label: 'Watchlist learners', value: String(ngoSummary.progression.watch || operationsReport.summary.progressionWatch) },
+            { label: 'Average attendance', value: `${Math.round(attendanceAverage * 100)}%` },
+            { label: 'Average mastery', value: `${Math.round(masteryAverage * 100)}%` },
+            { label: 'Ready to progress', value: String(progressionReadyCount) },
+            { label: 'Watchlist learners', value: String(progressionWatchCount) },
           ]} />
         </Card>
         <Card title="Operations pulse" eyebrow="Runtime + reward pressure">
