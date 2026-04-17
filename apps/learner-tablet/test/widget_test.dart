@@ -71,6 +71,39 @@ void main() {
     expect(find.text('Subjects'), findsNothing);
   });
 
+  testWidgets(
+    'home subject cards stay in a single 3-card row on the learner tablet layout',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(
+            state: state,
+            onChanged: _noop,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final subjectGrid = tester.widget<GridView>(find.byType(GridView).first);
+      final delegate =
+          subjectGrid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+
+      expect(delegate.crossAxisCount, 3);
+      expect(find.text('English'), findsOneWidget);
+      expect(find.text('Basic Mathematics'), findsOneWidget);
+      expect(find.text('Life Skills'), findsOneWidget);
+
+      state.dispose();
+    },
+  );
+
   testWidgets('home screen keeps Mallam frameless with replay CTA only', (
     tester,
   ) async {
@@ -225,7 +258,11 @@ void main() {
       find.textContaining('You opened ${module.title}.'),
       findsNothing,
     );
-    expect(find.text('Lesson journey'), findsNothing);
+    expect(find.text('Lesson journey'), findsOneWidget);
+    expect(
+      find.textContaining('Tap the first big card to start'),
+      findsOneWidget,
+    );
     expect(find.text('Lesson path'), findsNothing);
     expect(find.text('Next step'), findsNothing);
 
