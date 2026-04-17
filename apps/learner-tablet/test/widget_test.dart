@@ -377,6 +377,25 @@ void main() {
     expect(find.text('Life Skills'), findsOneWidget);
   });
 
+  testWidgets('home screen keeps the three subject cards on one tablet row', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(1280, 800));
+
+    final subjectCards = find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_SubjectCard',
+    );
+
+    expect(subjectCards, findsNWidgets(3));
+
+    final firstCardTop = tester.getTopLeft(subjectCards.at(0)).dy;
+    final secondCardTop = tester.getTopLeft(subjectCards.at(1)).dy;
+    final thirdCardTop = tester.getTopLeft(subjectCards.at(2)).dy;
+
+    expect((firstCardTop - secondCardTop).abs(), lessThan(1));
+    expect((firstCardTop - thirdCardTop).abs(), lessThan(1));
+  });
+
   testWidgets('home screen keeps the Mallam stage and subjects tightly stacked',
       (
     tester,

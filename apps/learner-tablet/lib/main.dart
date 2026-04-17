@@ -753,11 +753,21 @@ class HomePage extends StatelessWidget {
                             builder: (context, subjectConstraints) {
                               final minTileWidth = compact ? 210.0 : 260.0;
                               final crossAxisSpacing = compact ? 10.0 : 14.0;
-                              final crossAxisCount = _adaptiveGridCount(
+                              final adaptiveCrossAxisCount = _adaptiveGridCount(
                                 subjectConstraints.maxWidth,
                                 minTileWidth: minTileWidth,
                                 maxCount: shortHeight ? (compact ? 2 : 3) : 2,
                               );
+                              final shouldForceSingleRowSubjectStrip =
+                                  shortHeight &&
+                                      !compact &&
+                                      state.modules.length == 3 &&
+                                      subjectConstraints.maxWidth >=
+                                          (minTileWidth * 3);
+                              final crossAxisCount =
+                                  shouldForceSingleRowSubjectStrip
+                                      ? 3
+                                      : adaptiveCrossAxisCount;
 
                               final aspectRatio = shortHeight
                                   ? (subjectConstraints.maxWidth < 700
