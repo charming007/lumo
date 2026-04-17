@@ -6432,8 +6432,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                       builder: (context, detailConstraints) {
                         final compactSessionHeader =
                             isStackedLayout || detailConstraints.maxWidth < 560;
-                        final shouldScrollDetailPane =
-                            isStackedLayout || detailConstraints.maxHeight < 640;
                         final detailContent = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -6470,6 +6468,31 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                     color: LumoTheme.accentOrange,
                                   ),
                               ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.lesson.title,
+                              maxLines: compactSessionHeader ? 2 : 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: compactSessionHeader ? 22 : 26,
+                                fontWeight: FontWeight.w900,
+                                color: const Color(0xFF1E1B4B),
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _resumedSession
+                                  ? 'Recovered lesson session ready to continue.'
+                                  : 'Live lesson session is open and ready for the next prompt.',
+                              maxLines: compactSessionHeader ? 3 : 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                height: 1.35,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(height: 12),
                             LayoutBuilder(
@@ -6817,8 +6840,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                               ),
                             ],
                             const SizedBox(height: 16),
-                            Flexible(
-                              fit: FlexFit.tight,
+                            Expanded(
                               child: SingleChildScrollView(
                                 child: Column(
                                   children: [
@@ -8022,19 +8044,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                           ],
                         );
 
-                        if (!shouldScrollDetailPane) {
-                          return detailContent;
-                        }
-
-                        return SingleChildScrollView(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minWidth: detailConstraints.maxWidth,
-                              maxWidth: detailConstraints.maxWidth,
-                            ),
-                            child: detailContent,
-                          ),
-                        );
+                        return detailContent;
                       },
                     ),
                   ),
