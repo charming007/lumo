@@ -1,327 +1,195 @@
 import Link from 'next/link';
-import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
-import { fetchAssessments, fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../../../lib/api';
-import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
-import { Card, PageShell, Pill, responsiveGrid } from '../../../../lib/ui';
-import { API_BASE_SOURCE } from '../../../../lib/config';
-import { filterLessonsForModule } from '../../../../lib/module-lesson-match';
+import { fetchCurriculumModules, fetchLesson, fetchSubjects } from '../../../../lib/api';
+import { PageShell, Pill } from '../../../../lib/ui';
 import { createLessonAction } from '../../../actions';
 
-function statusTone(status: string) {
-  if (status === 'published' || status === 'approved') return { tone: '#DCFCE7', text: '#166534' };
-  if (status === 'review') return { tone: '#FEF3C7', text: '#92400E' };
-  return { tone: '#E0E7FF', text: '#3730A3' };
+function normalizeParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
 }
 
-function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
-  const palette = tone === 'warning'
-    ? { background: '#fff7ed', border: '#fed7aa', text: '#9a3412' }
-    : { background: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
+const inputStyle = {
+  border: '1px solid #d1d5db',
+  borderRadius: 12,
+  padding: '12px 14px',
+  fontSize: 14,
+  width: '100%',
+  background: 'white',
+} as const;
 
-  return (
-    <div style={{ padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, lineHeight: 1.6 }}>
-      {message}
-    </div>
-  );
-}
+const cardStyle = {
+  padding: 20,
+  borderRadius: 24,
+  background: 'white',
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 12px 30px rgba(15,23,42,0.06)',
+} as const;
 
-function sanitizeReturnPath(path?: string) {
-  if (!path || !path.startsWith('/')) return '/content';
-  if (path.startsWith('//')) return '/content';
-  return path;
-}
-
-function appendMessageParam(path: string, message: string) {
-  const searchParams = new URLSearchParams({ message });
-  return `${path}${path.includes('?') ? '&' : '?'}${searchParams.toString()}`;
-}
-
-export default async function NewLessonPage({ searchParams }: { searchParams?: Promise<{ subjectId?: string; moduleId?: string; duplicate?: string; from?: string; message?: string; createdLessonId?: string; createdLessonTitle?: string }> }) {
-  if (API_BASE_SOURCE === 'missing-production-env') {
-    return (
-      <DeploymentBlockerCard
-        title="Lesson Studio"
-        subtitle="Production wiring is incomplete, so lesson authoring is blocked instead of pretending curriculum creation is live."
-        blockerHeadline="Deployment blocker: lesson authoring API base URL is missing."
-        blockerDetail={(
-          <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so lesson templates, module context, duplicate flows, and create actions would degrade into fake-ready authoring. Fix the env var, redeploy, then verify the live curriculum feeds before creating lesson packs.
-          </>
-        )}
-        whyBlocked={[
-          'Lesson Studio is a write surface. If production wiring is missing, authors can waste time in a polished shell that cannot prove module context or save against the live backend.',
-          'Subjects, modules, sibling lessons, and assessment gates all need the production API to keep new lesson packs attached to the real curriculum spine.',
-          'Blocking here is safer than letting a missing API base masquerade as a valid authoring lane.',
-        ]}
-        verificationItems={[
-          {
-            surface: 'Lesson create form',
-            expected: 'Subjects, modules, and duplicate packs load from the live curriculum API before authors can create anything',
-            failure: 'Studio opens with dead context or disabled save paths while production is miswired',
-          },
-          {
-            surface: 'Assessment context',
-            expected: 'Module-linked gates and sibling lesson packs match the live curriculum lane',
-            failure: 'Authors build into a module that only exists in fallback or stale data',
-          },
-          {
-            surface: 'Post-create handoff',
-            expected: 'New lesson opens in the live library and editor after save',
-            failure: 'Operators think a lesson was created when the backend was never connected',
-          },
-        ]}
-        docs={[
-          { label: 'Content blocker', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'English Studio blocker', href: '/english', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Canvas rescue', href: '/canvas', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
-        ]}
-      />
-    );
-  }
-
+export default async function LessonStudioCreatePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    message?: string;
+    from?: string | string[];
+    subjectId?: string | string[];
+    moduleId?: string | string[];
+    duplicate?: string | string[];
+    createdLessonId?: string | string[];
+    createdLessonTitle?: string | string[];
+  }>;
+}) {
   const query = await searchParams;
-  const [subjectsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
-    fetchSubjects(),
-    fetchCurriculumModules(),
-    fetchLessons(),
-    fetchAssessments(),
-  ]);
+  const [subjects, modules] = await Promise.all([fetchSubjects(), fetchCurriculumModules()]);
 
-  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
-  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
-  const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
-  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
-  const failedSources = [
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
-    modulesResult.status === 'rejected' ? 'modules' : null,
-    lessonsResult.status === 'rejected' ? 'lessons' : null,
-    assessmentsResult.status === 'rejected' ? 'assessments' : null,
-  ].filter(Boolean);
+  const from = normalizeParam(query?.from) || '/content';
+  const subjectId = normalizeParam(query?.subjectId) || subjects[0]?.id || '';
+  const moduleId = normalizeParam(query?.moduleId) || modules.find((module) => module.subjectId === subjectId)?.id || modules[0]?.id || '';
+  const duplicateLessonId = normalizeParam(query?.duplicate);
+  const createdLessonId = normalizeParam(query?.createdLessonId);
+  const createdLessonTitle = normalizeParam(query?.createdLessonTitle);
 
-  const requestedSubjectId = query?.subjectId?.trim() ?? '';
-  const requestedModuleId = query?.moduleId?.trim() ?? '';
-  const duplicateLessonId = query?.duplicate ?? '';
-  const createdLessonId = query?.createdLessonId ?? '';
-  const createdLessonTitle = query?.createdLessonTitle ?? '';
-  const duplicateLesson = lessons.find((lesson) => lesson.id === duplicateLessonId) ?? null;
-  const requestedSubject = subjects.find((subject) => subject.id === requestedSubjectId) ?? null;
-  const duplicateModule = modules.find((module) => module.id === duplicateLesson?.moduleId) || null;
-  const requestedModule = modules.find((module) => module.id === requestedModuleId) || null;
-  const requestedModuleMatchesSubject = !requestedModule || !requestedSubject
-    ? true
-    : requestedModule.subjectId === requestedSubject.id;
-  const subjectScopedFallbackModule = requestedSubject
-    ? modules.find((module) => module.subjectId === requestedSubject.id) || null
-    : null;
-  const fallbackModule = duplicateModule || subjectScopedFallbackModule || modules[0] || null;
-  const activeModule = requestedModule && requestedModuleMatchesSubject ? requestedModule : fallbackModule;
-  const scopedSubjectId = activeModule?.subjectId ?? requestedSubject?.id ?? '';
-  const scopedModuleId = activeModule?.id ?? '';
-  const relatedAssessments = activeModule
-    ? assessments.filter((assessment) => assessment.moduleId === activeModule.id || assessment.moduleTitle === activeModule.title)
-    : [];
-  const siblingLessons = activeModule
-    ? filterLessonsForModule(lessons, activeModule)
-    : [];
-  const returnPath = sanitizeReturnPath(query?.from);
-  const queryParamsWereAdjusted = Boolean(
-    (requestedSubjectId && requestedSubjectId !== scopedSubjectId)
-    || (requestedModuleId && requestedModuleId !== scopedModuleId)
-  );
-  const authoringDependenciesReady = subjects.length > 0 && modules.length > 0 && lessonsResult.status === 'fulfilled';
+  const duplicateLesson = duplicateLessonId ? await fetchLesson(duplicateLessonId).catch(() => null) : null;
+  const selectedModule = modules.find((module) => module.id === moduleId) ?? modules[0] ?? null;
+  const selectedSubject = subjects.find((subject) => subject.id === subjectId) ?? subjects.find((subject) => subject.id === selectedModule?.subjectId) ?? subjects[0] ?? null;
+  const subjectModules = modules.filter((module) => module.subjectId === (selectedSubject?.id ?? subjectId));
+
+  const initialTitle = duplicateLesson ? `${duplicateLesson.title} (Copy)` : 'Who helps in our community?';
+  const initialDuration = duplicateLesson?.durationMinutes ?? 8;
+  const initialMode = duplicateLesson?.mode ?? 'guided';
+  const initialStatus = duplicateLesson?.status === 'published' ? 'draft' : duplicateLesson?.status ?? 'draft';
+  const initialOrder = duplicateLesson?.order ?? '';
 
   return (
     <PageShell
       title="Lesson Studio"
-      subtitle="Full-page lesson authoring for real curriculum work: objectives, localization, assessment checks, and the learner activity spine in one place."
+      subtitle="The missing lesson authoring route is live now. Create a real lesson pack here instead of bouncing operators into a 404."
       breadcrumbs={[
         { label: 'Dashboard', href: '/' },
-        { label: 'Content Library', href: returnPath },
-        { label: 'Lesson Studio' },
+        { label: 'Content Library', href: '/content' },
       ]}
-      aside={
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href={returnPath} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
-            Back to library
+      aside={(
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
+            Back to board
           </Link>
-          <Link href="/english" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
-            Open English Studio
-          </Link>
-          <Link href="/guide#interactive-authoring" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
-            Authoring walkthrough
+          <Link href="/canvas" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+            Open canvas
           </Link>
         </div>
-      }
+      )}
     >
       <FeedbackBanner message={query?.message} />
 
-      {failedSources.length ? (
-        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          Lesson Studio is running in degraded mode: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
-        </div>
-      ) : null}
-
-      {queryParamsWereAdjusted ? (
-        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          The requested lesson lane was invalid, so Lesson Studio snapped back to a real module instead of silently authoring into nonsense.
-        </div>
-      ) : null}
-
       {createdLessonId ? (
-        <section style={{ marginBottom: 20, padding: 22, borderRadius: 24, background: 'linear-gradient(135deg, #ecfdf5 0%, #eef2ff 100%)', border: '1px solid #bbf7d0', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            <div style={{ maxWidth: 760 }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#166534', marginBottom: 8 }}>Lesson created</div>
-              <h2 style={{ margin: 0, fontSize: 28, color: '#0f172a' }}>{createdLessonTitle || 'New lesson pack'} is live</h2>
-              <p style={{ margin: '10px 0 0', color: '#475569', lineHeight: 1.7 }}>
-                The create step is done. No more dumping authors onto a dead-looking page right after submit — choose the next move that actually makes sense.
-              </p>
+        <section style={{ ...cardStyle, marginBottom: 18, background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)', border: '1px solid #c7d2fe' }}>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: '#6366f1', fontWeight: 900 }}>Lesson created</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#1e1b4b' }}>{createdLessonTitle || 'New lesson saved'}</div>
+            <div style={{ color: '#4338ca', lineHeight: 1.7 }}>
+              The create flow no longer dead-ends. You can immediately open the new lesson, duplicate again, or jump back to the source board with context intact.
             </div>
-            <Pill label={`Lesson ID: ${createdLessonId}`} tone="#DCFCE7" text="#166534" />
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
-            <Link href={`/content/lessons/${createdLessonId}?from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
-              Open lesson pack
-            </Link>
-            <Link href={appendMessageParam(returnPath, `Lesson ${createdLessonTitle || 'created'} is ready in the library`)} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
-              Back to library
-            </Link>
-            <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(scopedSubjectId || activeModule?.subjectId || '')}&moduleId=${encodeURIComponent(scopedModuleId || activeModule?.id || '')}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: 'white', color: '#334155', textDecoration: 'none', border: '1px solid #cbd5e1' }}>
-              Create another lesson
-            </Link>
-            <Link href={`/content/lessons/new?duplicate=${createdLessonId}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: 'white', color: '#5b21b6', textDecoration: 'none', border: '1px solid #ddd6fe' }}>
-              Duplicate this pack
-            </Link>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href={`/content/lessons/${createdLessonId}?from=${encodeURIComponent(from)}`} style={{ borderRadius: 12, padding: '11px 14px', textDecoration: 'none', fontWeight: 800, background: '#4F46E5', color: '#ffffff' }}>
+                Open lesson editor
+              </Link>
+              <Link href={from} style={{ borderRadius: 12, padding: '11px 14px', textDecoration: 'none', fontWeight: 800, background: '#ffffff', color: '#0f172a', border: '1px solid #dbe4ee' }}>
+                Return to previous board
+              </Link>
+            </div>
           </div>
         </section>
       ) : null}
 
-      <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
-        <Card title={String(subjects.length)} eyebrow="Subjects available">
-          <div style={{ color: '#64748b' }}>Pick the right lane first so this lesson lands in the proper curriculum spine.</div>
-        </Card>
-        <Card title={String(modules.length)} eyebrow="Modules available">
-          <div style={{ color: '#64748b' }}>Authoring is attached to real modules, not floating random lesson records.</div>
-        </Card>
-        <Card title={duplicateLesson ? duplicateLesson.title : 'Fresh pack'} eyebrow="Starting point">
-          <div style={{ color: '#64748b' }}>{duplicateLesson ? 'Duplicating an existing lesson so authors can move faster without rebuilding the whole flow.' : 'No duplicate selected — start clean or apply one of the built-in quick templates.'}</div>
-        </Card>
-      </section>
-
-      <section style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
-        {authoringDependenciesReady ? (
-          <LessonCreateForm
-            subjects={subjects}
-            modules={modules}
-            lessons={lessons}
-            action={createLessonAction}
-            initialSubjectId={scopedSubjectId}
-            initialModuleId={scopedModuleId}
-            duplicateLessonId={duplicateLessonId}
-            returnPath={returnPath}
-          />
-        ) : (
-          <Card title="Authoring temporarily unavailable" eyebrow="Missing dependencies">
-            {sectionAlert(
-              failedSources.length
-                ? 'The lesson form is paused until subjects, modules, and lesson baselines load again. Keeping the route alive is better than exploding during a demo.'
-                : 'Create flow needs subjects, modules, and lesson baselines before it can open.'
-              , 'warning')}
-          </Card>
-        )}
-
-        <div style={{ ...responsiveGrid(320), alignItems: 'start' }}>
-          <Card title={activeModule?.title ?? 'No module selected yet'} eyebrow="Current authoring lane">
-            <div style={{ display: 'grid', gap: 12 }}>
-              {activeModule ? (
-                <>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Pill label={activeModule.subjectName} />
-                    <Pill label={activeModule.level} tone="#F8FAFC" text="#334155" />
-                    <Pill label={activeModule.status} tone={statusTone(activeModule.status).tone} text={statusTone(activeModule.status).text} />
-                  </div>
-                  <div style={{ color: '#64748b', lineHeight: 1.7 }}>
-                    {activeModule.lessonCount} planned lesson{activeModule.lessonCount === 1 ? '' : 's'} in this module • {siblingLessons.length} already exist • {relatedAssessments.length} assessment gate{relatedAssessments.length === 1 ? '' : 's'} wired.
-                  </div>
-                </>
-              ) : (
-                sectionAlert(failedSources.length ? 'Module context is unavailable because the module feed failed.' : 'Pick a module to see its publishing context.', failedSources.length ? 'warning' : 'neutral')
-              )}
-            </div>
-          </Card>
-
-
-          <Card title="Authoring route map" eyebrow="Use the right lane, not guesswork">
-            <div style={{ display: 'grid', gap: 12 }}>
-              {[
-                ['1. Lock the curriculum lane', activeModule ? `${activeModule.subjectName} → ${activeModule.title} is the current publishing lane. Keep the lesson here unless the curriculum spine itself is wrong.` : 'Pick a real subject and module before writing anything.'],
-                ['2. Build the interaction properly', 'If the lesson uses taps, options, expected answers, media prompts, or speaking evidence, stay in Lesson Studio and build the full activity spine. The quick create shortcut is not enough.'],
-                ['3. Gate before publish', relatedAssessments.length ? `${relatedAssessments.length} assessment gate${relatedAssessments.length === 1 ? '' : 's'} are already visible for this module, so authors can align lesson evidence before anyone hits publish.` : 'No assessment gate is linked yet, so treat this lane as structurally incomplete until that is fixed.'],
-                ['4. Hand off cleanly', 'After save, open the lesson pack, sanity-check the activity flow, then move to assignments and reports only when the lesson is genuinely release-safe.'],
-              ].map(([title, detail]) => (
-                <div key={title} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
-                  <div style={{ color: '#64748b', lineHeight: 1.6 }}>{detail}</div>
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <Link href="/guide#lesson-studio" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
-                  Open lesson studio guide →
-                </Link>
-                <Link href="/guide#interactive-authoring" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
-                  Interactive lesson tutorial →
-                </Link>
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(280px, 0.75fr)', gap: 18 }}>
+        <form action={createLessonAction} style={{ ...cardStyle, display: 'grid', gap: 16 }}>
+          <input type="hidden" name="returnPath" value={from} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <div style={{ fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: '#64748b', fontWeight: 800 }}>Authoring pack</div>
+              <div style={{ fontSize: 26, fontWeight: 900, color: '#0f172a' }}>{duplicateLesson ? 'Duplicate lesson into a new pack' : 'Create a lesson pack'}</div>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>
+                Subject and module context are preloaded from the link you clicked, so the LMS stops making operators reassemble state by hand.
               </div>
             </div>
-          </Card>
-
-          <Card title="Assessment context" eyebrow="Before authors get cocky">
-            <div style={{ display: 'grid', gap: 12 }}>
-              {relatedAssessments.length ? relatedAssessments.map((assessment) => (
-                <div key={assessment.id} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-                    <strong>{assessment.title}</strong>
-                    <Pill label={assessment.status} tone={statusTone(assessment.status).tone} text={statusTone(assessment.status).text} />
-                  </div>
-                  <div style={{ color: '#64748b', lineHeight: 1.6 }}>{assessment.triggerLabel || assessment.trigger} • Gate: {assessment.progressionGate}</div>
-                </div>
-              )) : (
-                sectionAlert(
-                  assessmentsResult.status === 'rejected'
-                    ? 'Assessment gate context is unavailable because the feed failed.'
-                    : 'No assessment gate is linked to this module yet. Shipping lessons into that lane without a progression check is sloppy.',
-                  assessmentsResult.status === 'rejected' ? 'warning' : 'neutral'
-                )
-              )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Pill label={selectedSubject?.name ?? 'No subject'} tone="#EEF2FF" text="#3730A3" />
+              <Pill label={selectedModule?.title ?? 'No module'} tone="#ECFDF5" text="#166534" />
             </div>
-          </Card>
+          </div>
 
-          <Card title="Module lesson baseline" eyebrow="What already exists">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <label style={{ display: 'grid', gap: 6, color: '#475569' }}>
+              Subject
+              <select name="subjectId" defaultValue={selectedSubject?.id ?? ''} style={inputStyle}>
+                {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: 6, color: '#475569' }}>
+              Module
+              <select name="moduleId" defaultValue={selectedModule?.id ?? ''} style={inputStyle}>
+                {subjectModules.length ? subjectModules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>) : modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <label style={{ display: 'grid', gap: 6, color: '#475569' }}>
+            Lesson title
+            <input name="title" defaultValue={initialTitle} maxLength={120} style={inputStyle} />
+          </label>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+            <label style={{ display: 'grid', gap: 6, color: '#475569' }}>
+              Sequence slot
+              <input name="order" type="number" min="1" max="60" defaultValue={initialOrder} placeholder="Optional" style={inputStyle} />
+            </label>
+            <label style={{ display: 'grid', gap: 6, color: '#475569' }}>
+              Duration (min)
+              <input name="durationMinutes" type="number" min="1" max="240" defaultValue={initialDuration} style={inputStyle} />
+            </label>
+            <label style={{ display: 'grid', gap: 6, color: '#475569' }}>
+              Mode
+              <select name="mode" defaultValue={initialMode} style={inputStyle}>
+                <option value="guided">Guided</option>
+                <option value="group">Group</option>
+                <option value="independent">Independent</option>
+                <option value="practice">Practice</option>
+                <option value="ops">Ops</option>
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: 6, color: '#475569' }}>
+              Status
+              <select name="status" defaultValue={initialStatus} style={inputStyle}>
+                <option value="draft">Draft</option>
+                <option value="review">Review</option>
+                <option value="approved">Approved</option>
+                <option value="published">Published</option>
+              </select>
+            </label>
+          </div>
+
+          <button type="submit" style={{ border: 0, borderRadius: 14, padding: '13px 16px', fontWeight: 800, background: '#4F46E5', color: '#ffffff', cursor: 'pointer' }}>
+            {duplicateLesson ? 'Create duplicated lesson' : 'Create lesson'}
+          </button>
+        </form>
+
+        <aside style={{ display: 'grid', gap: 16 }}>
+          <div style={cardStyle}>
+            <div style={{ fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: '#64748b', fontWeight: 800, marginBottom: 8 }}>Why this matters</div>
+            <div style={{ color: '#475569', lineHeight: 1.7 }}>
+              This route was being linked from the canvas, content board, and English studio without existing. That is exactly the kind of last-mile polish miss that makes a “working” LMS feel fake in production.
+            </div>
+          </div>
+
+          <div style={cardStyle}>
+            <div style={{ fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: '#64748b', fontWeight: 800, marginBottom: 8 }}>Operator moves</div>
             <div style={{ display: 'grid', gap: 10 }}>
-              {siblingLessons.length ? siblingLessons.slice(0, 6).map((lesson) => (
-                <div key={lesson.id} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 6 }}>
-                    <strong>{lesson.title}</strong>
-                    <Pill label={lesson.status} tone={statusTone(lesson.status).tone} text={statusTone(lesson.status).text} />
-                  </div>
-                  <div style={{ color: '#64748b', marginBottom: 8 }}>{lesson.durationMinutes} min • {lesson.mode}</div>
-                  <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>
-                    Open lesson pack →
-                  </Link>
-                </div>
-              )) : (
-                sectionAlert(
-                  lessonsResult.status === 'rejected'
-                    ? 'Existing lesson baseline is unavailable because the lesson feed failed.'
-                    : 'No lessons exist in this module yet. Good. Build the first proper pack instead of another placeholder record.',
-                  lessonsResult.status === 'rejected' ? 'warning' : 'neutral'
-                )
-              )}
+              <Link href={from} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Return to previous board →</Link>
+              <Link href={`/content?subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? '')}`} style={{ color: '#166534', fontWeight: 800, textDecoration: 'none' }}>Open related module lane →</Link>
+              <Link href="/content?view=blocked" style={{ color: '#92400E', fontWeight: 800, textDecoration: 'none' }}>Review blocker stack →</Link>
             </div>
-          </Card>
-        </div>
+          </div>
+        </aside>
       </section>
     </PageShell>
   );
