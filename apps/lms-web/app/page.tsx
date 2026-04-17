@@ -49,6 +49,37 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatDueLabel(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function assignmentUrgency(value: string, status: string) {
+  if (status === 'completed') return { label: 'Completed', tone: '#E5E7EB', text: '#334155' };
+
+  const dueDate = startOfDay(new Date(value));
+  if (Number.isNaN(dueDate.getTime())) return { label: 'Date unverified', tone: '#E5E7EB', text: '#475569' };
+
+  const today = startOfDay(new Date());
+  const dayMs = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((dueDate.getTime() - today.getTime()) / dayMs);
+
+  if (diffDays < 0) return { label: `${Math.abs(diffDays)}d overdue`, tone: '#FEE2E2', text: '#991B1B' };
+  if (diffDays === 0) return { label: 'Due today', tone: '#FEF3C7', text: '#92400E' };
+  if (diffDays === 1) return { label: 'Due tomorrow', tone: '#FEF3C7', text: '#92400E' };
+  if (diffDays <= 7) return { label: `Due in ${diffDays}d`, tone: '#E0E7FF', text: '#3730A3' };
+  return { label: 'Upcoming', tone: '#F8FAFC', text: '#334155' };
+}
+
 function metricDisplay(value: string, available: boolean) {
   return available ? value : '—';
 }
@@ -108,8 +139,11 @@ export default async function HomePage() {
   const summaryAvailable = summaryResult.status === 'fulfilled';
   const insights: DashboardInsight[] = insightsResult.status === 'fulfilled' ? insightsResult.value : [];
   const workboard: WorkboardItem[] = workboardResult.status === 'fulfilled' ? workboardResult.value : [];
+  const workboardAvailable = workboardResult.status === 'fulfilled';
   const mallams: Mallam[] = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+  const mallamsAvailable = mallamsResult.status === 'fulfilled';
   const assignments: Assignment[] = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
+  const assignmentsAvailable = assignmentsResult.status === 'fulfilled';
 
   const failedSources = [
     { label: 'dashboard summary', result: summaryResult },
@@ -122,6 +156,7 @@ export default async function HomePage() {
   const readyLearners = workboard.filter((item) => item.progressionStatus === 'ready');
   const watchLearners = workboard.filter((item) => item.progressionStatus === 'watch');
   const activeMallams = mallams.filter((mallam) => mallam.status === 'active');
+  const hasCriticalDashboardGap = !summaryAvailable || !workboardAvailable;
   const dueSoonAssignments = assignments
     .filter((assignment) => assignment.status !== 'completed')
     .slice()
@@ -143,6 +178,9 @@ export default async function HomePage() {
           <Link href="/reports" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>
             Open reports
           </Link>
+          <Link href="/canvas" style={{ ...quickActionStyle, background: '#ECFEFF', color: '#155E75', border: '1px solid #A5F3FC' }}>
+            Open canvas
+          </Link>
         </div>
       )}
     >
@@ -159,19 +197,43 @@ export default async function HomePage() {
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 800 }}>Command center</div>
               <strong style={{ fontSize: 22, color: '#0f172a' }}>Deployment health at a glance</strong>
               <div style={{ color: '#64748b', lineHeight: 1.6 }}>
-                {failedSources.length
-                  ? 'Some dashboard feeds are degraded, so use the route links below to verify detail before acting.'
-                  : 'Use this page to spot who needs intervention, who is ready to progress, and whether facilitators are actually covered.'}
+                {hasCriticalDashboardGap
+                  ? 'Critical dashboard feeds are down, so deployment review is blocked until the summary and progression queue recover.'
+                  : failedSources.length
+                    ? 'Some dashboard feeds are degraded, so use the route links below to verify detail before acting.'
+                    : 'Use this page to spot who needs intervention, who is ready to progress, and whether facilitators are actually covered.'}
               </div>
             </div>
             <Pill
-              label={failedSources.length ? 'Degraded feed' : 'Live feed'}
-              tone={failedSources.length ? '#FEF3C7' : '#DCFCE7'}
-              text={failedSources.length ? '#92400E' : '#166534'}
+              label={hasCriticalDashboardGap ? 'Deployment review blocked' : failedSources.length ? 'Degraded feed' : 'Live feed'}
+              tone={hasCriticalDashboardGap ? '#FEE2E2' : failedSources.length ? '#FEF3C7' : '#DCFCE7'}
+              text={hasCriticalDashboardGap ? '#991B1B' : failedSources.length ? '#92400E' : '#166534'}
             />
           </div>
         </div>
       </section>
+
+      {hasCriticalDashboardGap ? (
+        <section style={{ marginBottom: 20 }}>
+          <div style={{ padding: '18px 20px', borderRadius: 20, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <strong style={{ fontSize: 20, color: '#9a3412' }}>Stop treating this dashboard as a release signal.</strong>
+              <div style={{ color: '#9a3412', lineHeight: 1.7 }}>
+                {summaryAvailable
+                  ? 'The progression queue is missing, so the dashboard cannot honestly show who is blocked, ready, or quietly slipping.'
+                  : workboardAvailable
+                    ? 'The summary feed is missing, so the top-line deployment counts are unavailable and sign-off would be fiction.'
+                    : 'Both the summary and progression queue are unavailable, so this route is intentionally calling the outage out instead of faking calm zeros.'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href="/progress" style={{ ...quickActionStyle, background: '#9a3412', color: 'white' }}>Check progress feed</Link>
+              <Link href="/students" style={{ ...quickActionStyle, background: '#fff', color: '#9a3412', border: '1px solid #fdba74' }}>Cross-check learner roster</Link>
+              <Link href="/reports" style={{ ...quickActionStyle, background: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74' }}>Verify reports before sign-off</Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
@@ -244,9 +306,18 @@ export default async function HomePage() {
                       <Pill label={`Attendance ${Math.round(item.attendanceRate * 100)}%`} tone="#F8FAFC" text="#334155" />
                       <Pill label={`Mastery ${Math.round(item.mastery * 100)}%`} tone="#EEF2FF" text="#3730A3" />
                       <Pill label={`Level ${item.levelLabel}`} tone="#ECFDF5" text="#166534" />
+                      <Pill label={`${item.badgesUnlocked} badge${item.badgesUnlocked === 1 ? '' : 's'}`} tone="#FDF2F8" text="#9D174D" />
                     </div>
                     <div style={{ color: '#3730A3', fontWeight: 700 }}>
                       Next module: {item.recommendedNextModuleTitle ?? 'No recommendation yet'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <Link href={`/students/${item.id}`} style={{ ...quickActionStyle, background: '#111827', color: 'white', padding: '10px 12px' }}>
+                        Open learner
+                      </Link>
+                      <Link href="/progress" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE', padding: '10px 12px' }}>
+                        Open progress board
+                      </Link>
                     </div>
                   </div>
                 );
@@ -261,13 +332,23 @@ export default async function HomePage() {
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Mallam coverage</div>
-              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{activeMallams.length}</div>
-              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>{mallams.length ? `${activeMallams.length} of ${mallams.length} facilitators are active in the live roster.` : 'Mallam feed is unavailable right now.'}</div>
+              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{mallamsAvailable ? activeMallams.length : '—'}</div>
+              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
+                {mallamsAvailable
+                  ? `${activeMallams.length} of ${mallams.length} facilitators are active in the live roster.`
+                  : 'Mallam feed is unavailable right now, so facilitator coverage needs a route-level cross-check.'}
+              </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Assignment pressure</div>
-              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{dueSoonAssignments.length}</div>
-              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>{dueSoonAssignments.length ? 'Incomplete assignments sorted by nearest due date so operators can triage delivery first.' : 'No incomplete assignments are visible from the live feed.'}</div>
+              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{assignmentsAvailable ? dueSoonAssignments.length : '—'}</div>
+              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
+                {assignmentsAvailable
+                  ? dueSoonAssignments.length
+                    ? 'Incomplete assignments sorted by nearest due date so operators can triage delivery first.'
+                    : 'No incomplete assignments are visible from the live feed.'
+                  : 'Assignment feed is unavailable, so delivery pressure cannot be cleared from this card.'}
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/progress" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open progress</Link>
@@ -301,13 +382,23 @@ export default async function HomePage() {
         <Card title="Assignments due soon" eyebrow="Next delivery pressure">
           <SimpleTable
             columns={['Lesson', 'Cohort', 'Owner', 'Due', 'Status']}
-            rows={dueSoonAssignments.length ? dueSoonAssignments.map((item) => [
-              item.lessonTitle,
-              item.cohortName,
-              item.teacherName,
-              item.dueDate,
-              item.status,
-            ]) : [[<span key="no-assignments" style={{ color: '#64748b' }}>No incomplete assignments are visible right now.</span>, '', '', '', '']]}
+            rows={assignmentsAvailable
+              ? dueSoonAssignments.length
+                ? dueSoonAssignments.map((item) => {
+                    const urgency = assignmentUrgency(item.dueDate, item.status);
+                    return [
+                      item.lessonTitle,
+                      item.cohortName,
+                      item.teacherName,
+                      <div key={`${item.id}-due`} style={{ display: 'grid', gap: 6 }}>
+                        <span>{formatDueLabel(item.dueDate)}</span>
+                        <Pill label={urgency.label} tone={urgency.tone} text={urgency.text} />
+                      </div>,
+                      <Pill key={`${item.id}-status`} label={item.status.replace(/-/g, ' ')} tone={item.status === 'completed' ? '#E5E7EB' : item.status === 'active' ? '#DCFCE7' : '#E0E7FF'} text={item.status === 'completed' ? '#334155' : item.status === 'active' ? '#166534' : '#3730A3'} />,
+                    ];
+                  })
+                : [[<span key="no-assignments" style={{ color: '#64748b' }}>No incomplete assignments are visible right now.</span>, '', '', '', '']]
+              : [[<span key="assignments-unavailable" style={{ color: '#9a3412' }}>Assignment feed unavailable — do not treat this as a clear delivery board.</span>, '', '', '', '']]}
           />
         </Card>
       </section>
