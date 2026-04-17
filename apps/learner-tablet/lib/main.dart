@@ -744,16 +744,18 @@ class HomePage extends StatelessWidget {
                         flex: shortHeight ? 8 : (compact ? 6 : 5),
                         child: Padding(
                           padding: EdgeInsets.only(
-                            top: 0,
+                            top: shortHeight ? 6 : (compact ? 10 : 14),
                             left: compact ? 0 : 2,
                             right: compact ? 0 : 2,
                             bottom: shortHeight ? 0 : (compact ? 2 : 4),
                           ),
                           child: LayoutBuilder(
                             builder: (context, subjectConstraints) {
+                              final minTileWidth = compact ? 190.0 : 220.0;
+                              final crossAxisSpacing = compact ? 10.0 : 12.0;
                               final crossAxisCount = _adaptiveGridCount(
                                 subjectConstraints.maxWidth,
-                                minTileWidth: compact ? 190 : 220,
+                                minTileWidth: minTileWidth,
                                 maxCount: shortHeight
                                     ? (compact ? 2 : 3)
                                     : (compact ? 2 : 4),
@@ -771,47 +773,61 @@ class HomePage extends StatelessWidget {
                                           ? 1.72
                                           : 1.84);
 
+                              final preferredTileWidth = shortHeight
+                                  ? (compact ? 196.0 : 232.0)
+                                  : (compact ? 204.0 : 244.0);
+                              final centeredGridWidth = math.min(
+                                subjectConstraints.maxWidth,
+                                (crossAxisCount * preferredTileWidth) +
+                                    ((crossAxisCount - 1) * crossAxisSpacing),
+                              );
+
                               return Align(
                                 alignment: Alignment.topCenter,
-                                child: GridView.builder(
-                                  padding: EdgeInsets.zero,
-                                  itemCount: state.modules.length,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  shrinkWrap: true,
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    mainAxisSpacing: shortHeight
-                                        ? (compact ? 6 : 8)
-                                        : (compact ? 12 : 14),
-                                    crossAxisSpacing: compact ? 10 : 12,
-                                    childAspectRatio: aspectRatio,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final module = state.modules[index];
-                                    return _SubjectCard(
-                                      module: module,
-                                      lessonCount:
-                                          state.assignedLessonCountForModule(
+                                child: SizedBox(
+                                  width: centeredGridWidth,
+                                  child: GridView.builder(
+                                    padding: EdgeInsets.zero,
+                                    itemCount: state.modules.length,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      mainAxisSpacing: shortHeight
+                                          ? (compact ? 6 : 8)
+                                          : (compact ? 12 : 14),
+                                      crossAxisSpacing: crossAxisSpacing,
+                                      childAspectRatio: aspectRatio,
+                                    ),
+                                    itemBuilder: (context, index) {
+                                      final module = state.modules[index];
+                                      return _SubjectCard(
                                         module: module,
-                                        learner: state.currentLearner,
-                                      ),
-                                      compact: compact || shortHeight,
-                                      onTap: () {
-                                        state.selectModule(module);
-                                        onChanged();
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => SubjectModulesPage(
-                                              state: state,
-                                              onChanged: onChanged,
-                                              module: module,
+                                        lessonCount:
+                                            state.assignedLessonCountForModule(
+                                          module: module,
+                                          learner: state.currentLearner,
+                                        ),
+                                        compact: compact || shortHeight,
+                                        onTap: () {
+                                          state.selectModule(module);
+                                          onChanged();
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (_) => SubjectModulesPage(
+                                                    state: state,
+                                                    onChanged: onChanged,
+                                                    module: module,
+                                                  ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
                                 ),
                               );
                             },
