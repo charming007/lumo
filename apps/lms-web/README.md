@@ -44,6 +44,6 @@ If the API is down, key pages now stay usable in degraded mode and call out whic
 
 Deploy to Vercel with root directory set to `apps/lms-web`.
 
-`NEXT_PUBLIC_API_BASE_URL` is mandatory for a production deployment.
+`NEXT_PUBLIC_API_BASE_URL` is mandatory for any hosted deployment.
 
-Production builds now fail fast if it is missing, because a dashboard/admin shell that boots without its live API is not a valid release. Set the env var in Vercel (or your build environment) before deploying.
+Hosted and production builds now fail fast if it is missing, because a dashboard/admin shell that boots without its live API is not a valid release. Set the env var in Vercel (or your build environment) before deploying.

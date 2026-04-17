@@ -261,6 +261,16 @@ export default async function HomePage() {
   const releaseFeedsFailed = modulesResult.status === 'rejected' || lessonsResult.status === 'rejected' || assessmentsResult.status === 'rejected';
   const publishReadyModules = releaseFeedsFailed ? null : Math.max(modules.length - releaseBlockers.length, 0);
   const highestPriorityBlocker = releaseFeedsFailed ? null : releaseBlockers[0] ?? null;
+  const releaseVisibilityLabel = releaseFeedsFailed
+    ? 'Partial'
+    : releaseBlockers.length
+      ? 'Blocked'
+      : 'Clear';
+  const releaseVisibilityDetail = releaseFeedsFailed
+    ? 'Curriculum blocker counts may be incomplete until modules, lessons, and assessments recover.'
+    : highestPriorityBlocker
+      ? `${highestPriorityBlocker.title} is still blocking release readiness.`
+      : 'Curriculum blocker lane is backed by live module, lesson, and assessment feeds.';
   const releaseMetrics = releaseFeedsFailed
     ? [
       { label: 'Modules publish-ready', value: 'Unavailable' },
@@ -332,8 +342,8 @@ export default async function HomePage() {
             </div>
             <div style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(226, 232, 240, 0.9)' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#8a94a6', marginBottom: 6, fontWeight: 800 }}>Release visibility</div>
-              <strong style={{ fontSize: 22, color: '#0f172a' }}>{releaseFeedsFailed ? 'Partial' : 'Clear'}</strong>
-              <div style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseFeedsFailed ? 'Curriculum blocker counts may be incomplete until modules, lessons, and assessments recover.' : 'Curriculum blocker lane is backed by live module, lesson, and assessment feeds.'}</div>
+              <strong style={{ fontSize: 22, color: '#0f172a' }}>{releaseVisibilityLabel}</strong>
+              <div style={{ color: '#64748b', lineHeight: 1.6 }}>{releaseVisibilityDetail}</div>
             </div>
             <div style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(226, 232, 240, 0.9)' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#8a94a6', marginBottom: 6, fontWeight: 800 }}>Immediate move</div>
