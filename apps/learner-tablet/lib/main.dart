@@ -741,71 +741,78 @@ class HomePage extends StatelessWidget {
 
                     Widget buildSubjectSection() {
                       return Expanded(
+                        flex: shortHeight ? 6 : (compact ? 5 : 4),
                         child: Padding(
                           padding: EdgeInsets.only(
-                            top: shortHeight ? 0 : (compact ? 4 : 8),
+                            top: shortHeight ? 2 : (compact ? 4 : 8),
                             left: compact ? 0 : 2,
                             right: compact ? 0 : 2,
-                            bottom: compact ? 2 : 4,
+                            bottom: shortHeight ? 0 : (compact ? 2 : 4),
                           ),
                           child: LayoutBuilder(
                             builder: (context, subjectConstraints) {
                               final crossAxisCount = _adaptiveGridCount(
                                 subjectConstraints.maxWidth,
                                 minTileWidth: compact ? 190 : 220,
-                                maxCount: compact ? 2 : 4,
+                                maxCount: shortHeight
+                                    ? (compact ? 2 : 3)
+                                    : (compact ? 2 : 4),
                               );
 
                               final aspectRatio = shortHeight
                                   ? (subjectConstraints.maxWidth < 700
-                                      ? 1.78
+                                      ? 1.56
                                       : subjectConstraints.maxWidth < 1100
-                                          ? 2.02
-                                          : 2.2)
+                                          ? 1.72
+                                          : 1.88)
                                   : (subjectConstraints.maxWidth < 700
                                       ? 1.5
                                       : subjectConstraints.maxWidth < 1100
                                           ? 1.72
                                           : 1.84);
 
-                              return GridView.builder(
-                                padding: EdgeInsets.zero,
-                                itemCount: state.modules.length,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  mainAxisSpacing: shortHeight
-                                      ? (compact ? 8 : 10)
-                                      : (compact ? 12 : 14),
-                                  crossAxisSpacing: compact ? 12 : 14,
-                                  childAspectRatio: aspectRatio,
-                                ),
-                                itemBuilder: (context, index) {
-                                  final module = state.modules[index];
-                                  return _SubjectCard(
-                                    module: module,
-                                    lessonCount:
-                                        state.assignedLessonCountForModule(
+                              return Align(
+                                alignment: Alignment.topCenter,
+                                child: GridView.builder(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: state.modules.length,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  shrinkWrap: true,
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossAxisCount,
+                                    mainAxisSpacing: shortHeight
+                                        ? (compact ? 8 : 10)
+                                        : (compact ? 12 : 14),
+                                    crossAxisSpacing: compact ? 12 : 14,
+                                    childAspectRatio: aspectRatio,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final module = state.modules[index];
+                                    return _SubjectCard(
                                       module: module,
-                                      learner: state.currentLearner,
-                                    ),
-                                    compact: compact || shortHeight,
-                                    onTap: () {
-                                      state.selectModule(module);
-                                      onChanged();
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => SubjectModulesPage(
-                                            state: state,
-                                            onChanged: onChanged,
-                                            module: module,
+                                      lessonCount:
+                                          state.assignedLessonCountForModule(
+                                        module: module,
+                                        learner: state.currentLearner,
+                                      ),
+                                      compact: compact || shortHeight,
+                                      onTap: () {
+                                        state.selectModule(module);
+                                        onChanged();
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => SubjectModulesPage(
+                                              state: state,
+                                              onChanged: onChanged,
+                                              module: module,
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
                               );
                             },
                           ),
@@ -819,7 +826,7 @@ class HomePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Expanded(
-                              flex: shortHeight ? 2 : (compact ? 3 : 4),
+                              flex: shortHeight ? 5 : (compact ? 3 : 4),
                               child: Padding(
                                 padding: EdgeInsets.only(
                                   top: shortHeight ? 0 : (compact ? 18 : 10),
@@ -829,7 +836,7 @@ class HomePage extends StatelessWidget {
                               ),
                             ),
                             SizedBox(
-                                height: shortHeight ? 0 : (compact ? 4 : 6)),
+                                height: shortHeight ? 4 : (compact ? 4 : 6)),
                             buildSubjectSection(),
                           ],
                         ),
