@@ -29,5 +29,6 @@ flutter:
   assets:
     - assets/images/lumo_logo.jpg
     - assets/images/mallam_tutor.jpg
+    - assets/images/mallam_tutor_cutout.png
     - assets/video/mallam_voice.mp4
     - assets/audio/lesson_complete_chime.wav

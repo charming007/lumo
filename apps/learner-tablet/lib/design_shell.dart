@@ -203,13 +203,15 @@ class _MallamPanelState extends State<MallamPanel>
                 ),
               );
 
+        final useFramelessPortrait =
+            widget.framelessPortrait || widget.centerPortraitLayout;
+
         final portrait = Container(
           height: imageFrameSize,
           width: imageFrameSize,
-          padding: widget.framelessPortrait
-              ? EdgeInsets.zero
-              : EdgeInsets.all(widget.centerPortraitLayout ? 0 : 14),
-          decoration: widget.framelessPortrait
+          padding:
+              useFramelessPortrait ? EdgeInsets.zero : const EdgeInsets.all(14),
+          decoration: useFramelessPortrait
               ? const BoxDecoration(color: Colors.transparent)
               : BoxDecoration(
                   gradient: const LinearGradient(
@@ -217,9 +219,7 @@ class _MallamPanelState extends State<MallamPanel>
                     end: Alignment.bottomCenter,
                     colors: [Color(0xFFE0E7FF), Color(0xFFF8FAFC)],
                   ),
-                  borderRadius: BorderRadius.circular(
-                    widget.centerPortraitLayout ? 40 : 32,
-                  ),
+                  borderRadius: BorderRadius.circular(32),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: const [
                     BoxShadow(
@@ -232,13 +232,11 @@ class _MallamPanelState extends State<MallamPanel>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              if (!widget.framelessPortrait)
+              if (!useFramelessPortrait)
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        widget.centerPortraitLayout ? 40 : 28,
-                      ),
+                      borderRadius: BorderRadius.circular(28),
                       gradient: RadialGradient(
                         center: const Alignment(-0.15, -0.35),
                         radius: 0.95,
@@ -259,12 +257,10 @@ class _MallamPanelState extends State<MallamPanel>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(
-                    widget.framelessPortrait
-                        ? 0
-                        : (widget.centerPortraitLayout ? 36 : 24),
+                    useFramelessPortrait ? 0 : 24,
                   ),
                   child: Image.asset(
-                    'assets/images/mallam_tutor.jpg',
+                    'assets/images/mallam_tutor_cutout.png',
                     height: imageSize,
                     width: imageSize,
                     fit: BoxFit.contain,

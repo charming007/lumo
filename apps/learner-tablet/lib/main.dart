@@ -712,54 +712,51 @@ class HomePage extends StatelessWidget {
                     }
 
                     Widget buildActionPanel() {
-                      final buttons = [
-                        Expanded(
-                          child: _MediumActionButton(
-                            title: 'Register',
-                            icon: Icons.person_add_alt_1_rounded,
-                            color: LumoTheme.primary,
-                            onTap: openRegister,
-                          ),
+                      final actions = [
+                        _HomeQuickAction(
+                          title: 'Register',
+                          icon: Icons.person_add_alt_1_rounded,
+                          color: LumoTheme.primary,
+                          onTap: openRegister,
                         ),
-                        SizedBox(width: compact ? 10 : 14),
-                        Expanded(
-                          child: _MediumActionButton(
-                            title: 'Student list',
-                            icon: Icons.groups_rounded,
-                            color: LumoTheme.accentGreen,
-                            onTap: openLearners,
-                          ),
+                        _HomeQuickAction(
+                          title: 'Student list',
+                          icon: Icons.groups_rounded,
+                          color: LumoTheme.accentGreen,
+                          onTap: openLearners,
                         ),
                       ];
 
-                      return compact
-                          ? Column(
-                              children: [
-                                Row(children: buttons),
-                              ],
-                            )
-                          : Row(children: buttons);
+                      return Align(
+                        alignment: Alignment.topRight,
+                        child: Wrap(
+                          spacing: compact ? 12 : 16,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.end,
+                          children: actions,
+                        ),
+                      );
                     }
 
                     Widget buildSubjectSection() {
                       return Expanded(
                         child: DetailCard(
                           child: Padding(
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(2),
                             child: LayoutBuilder(
                               builder: (context, subjectConstraints) {
                                 final crossAxisCount = _adaptiveGridCount(
                                   subjectConstraints.maxWidth,
-                                  minTileWidth: compact ? 180 : 210,
+                                  minTileWidth: compact ? 178 : 205,
                                   maxCount: compact ? 2 : 4,
                                 );
 
                                 final aspectRatio =
                                     subjectConstraints.maxWidth < 700
-                                        ? 1.24
+                                        ? 1.42
                                         : subjectConstraints.maxWidth < 1100
-                                            ? 1.34
-                                            : 1.46;
+                                            ? 1.58
+                                            : 1.72;
 
                                 return GridView.builder(
                                   itemCount: state.modules.length,
@@ -767,8 +764,8 @@ class HomePage extends StatelessWidget {
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: crossAxisCount,
-                                    mainAxisSpacing: 12,
-                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 10,
+                                    crossAxisSpacing: 10,
                                     childAspectRatio: aspectRatio,
                                   ),
                                   itemBuilder: (context, index) {
@@ -780,6 +777,7 @@ class HomePage extends StatelessWidget {
                                         module: module,
                                         learner: state.currentLearner,
                                       ),
+                                      compact: compact,
                                       onTap: () {
                                         state.selectModule(module);
                                         onChanged();
@@ -803,17 +801,26 @@ class HomePage extends StatelessWidget {
                       );
                     }
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    return Stack(
                       children: [
-                        Expanded(
-                          flex: compact ? 4 : 5,
-                          child: _HomeMallamStage(state: state),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              flex: compact ? 3 : 4,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  top: compact ? 52 : 32,
+                                  right: compact ? 0 : 8,
+                                ),
+                                child: _HomeMallamStage(state: state),
+                              ),
+                            ),
+                            SizedBox(height: compact ? 8 : 10),
+                            buildSubjectSection(),
+                          ],
                         ),
-                        SizedBox(height: compact ? 12 : 16),
                         buildActionPanel(),
-                        SizedBox(height: compact ? 12 : 16),
-                        buildSubjectSection(),
                       ],
                     );
                   },
@@ -934,7 +941,7 @@ class _HomeMallamStage extends StatelessWidget {
               Expanded(
                 child: Center(
                   child: Image.asset(
-                    'assets/images/mallam_tutor.jpg',
+                    'assets/images/mallam_tutor_cutout.png',
                     height: portraitSize,
                     fit: BoxFit.contain,
                   ),
@@ -2979,6 +2986,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   title: 'Guide registration from here',
                   description:
                       'Mallam stays full-height on the left while the facilitator completes the learner intake on the right.',
+                  frameless: true,
                   child: MallamPanel(
                     instruction: registrationInstruction,
                     onVoiceTap: () {
@@ -2997,6 +3005,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     voiceHint:
                         'Keep Mallam visible and dominant on this screen so the facilitator can finish intake without losing the voice guide.',
                     centerPortraitLayout: true,
+                    framelessStage: true,
+                    framelessPortrait: true,
                   ),
                 ),
               ),
@@ -8312,13 +8322,13 @@ class _BackendStatusBanner extends StatelessWidget {
   }
 }
 
-class _MediumActionButton extends StatelessWidget {
+class _HomeQuickAction extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
-  const _MediumActionButton({
+  const _HomeQuickAction({
     required this.title,
     required this.icon,
     required this.color,
@@ -8327,25 +8337,34 @@ class _MediumActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 72,
-      child: FilledButton.tonalIcon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 22),
-        label: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-        ),
-        style: FilledButton.styleFrom(
-          foregroundColor: color,
-          backgroundColor: color.withValues(alpha: 0.1),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: color.withValues(alpha: 0.16)),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 68,
+          height: 68,
+          child: FilledButton(
+            onPressed: onTap,
+            style: FilledButton.styleFrom(
+              foregroundColor: color,
+              backgroundColor: color.withValues(alpha: 0.12),
+              padding: EdgeInsets.zero,
+              shape: const CircleBorder(),
+              side: BorderSide(color: color.withValues(alpha: 0.16)),
+            ),
+            child: Icon(icon, size: 28),
           ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            color: Color(0xFF334155),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -8456,11 +8475,13 @@ class _CurrentLearnerBanner extends StatelessWidget {
 class _SubjectCard extends StatelessWidget {
   final LearningModule module;
   final int lessonCount;
+  final bool compact;
   final VoidCallback onTap;
 
   const _SubjectCard({
     required this.module,
     required this.lessonCount,
+    required this.compact,
     required this.onTap,
   });
 
@@ -8473,7 +8494,7 @@ class _SubjectCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Ink(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(compact ? 14 : 16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: palette,
@@ -8499,9 +8520,9 @@ class _SubjectCard extends StatelessWidget {
                       module.badge,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: compact ? 11 : 12,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.2,
                       ),
@@ -8510,9 +8531,9 @@ class _SubjectCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: compact ? 11 : 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -8523,25 +8544,25 @@ class _SubjectCard extends StatelessWidget {
                 module.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 22,
+                style: TextStyle(
+                  fontSize: compact ? 20 : 22,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                   height: 1.0,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: compact ? 4 : 6),
               Text(
                 module.description,
-                maxLines: 2,
+                maxLines: compact ? 1 : 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  height: 1.25,
-                  fontSize: 13,
+                  height: 1.2,
+                  fontSize: compact ? 12 : 13,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: compact ? 8 : 12),
               const Row(
                 children: [
                   Text(
