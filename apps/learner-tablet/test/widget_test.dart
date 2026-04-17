@@ -377,6 +377,40 @@ void main() {
     expect(find.text('Life Skills'), findsOneWidget);
   });
 
+  testWidgets('home screen keeps the Mallam stage and subjects tightly stacked',
+      (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(1280, 800));
+
+    final replayButtonBottom =
+        tester.getBottomLeft(find.text('Replay Mallam')).dy;
+    final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
+
+    expect(
+      replayButtonBottom,
+      lessThan(firstSubjectTop),
+      reason:
+          'The replay control should still sit above the subject grid on the learner home screen.',
+    );
+    expect(
+      firstSubjectTop - replayButtonBottom,
+      lessThan(200),
+      reason:
+          'Short-height tablet home should stay compact instead of leaving a large dead gap between Mallam and the subject cards.',
+    );
+  });
+
+  testWidgets('home screen pulls subject cards upward on short layouts', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(1280, 800));
+
+    final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
+
+    expect(firstSubjectTop, lessThan(450));
+  });
+
   testWidgets('student list stays usable on portrait tablet widths', (
     tester,
   ) async {

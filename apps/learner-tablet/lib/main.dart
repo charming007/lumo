@@ -683,12 +683,12 @@ class HomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               LumoTopBar(onLogoTap: () {}),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 900;
-                    final shortHeight = constraints.maxHeight < 760;
+                    final shortHeight = constraints.maxHeight < 840;
 
                     void openRegister() {
                       Navigator.of(context).push(
@@ -741,10 +741,10 @@ class HomePage extends StatelessWidget {
 
                     Widget buildSubjectSection() {
                       return Expanded(
-                        flex: shortHeight ? 6 : (compact ? 5 : 4),
+                        flex: shortHeight ? 8 : (compact ? 6 : 5),
                         child: Padding(
                           padding: EdgeInsets.only(
-                            top: shortHeight ? 2 : (compact ? 4 : 8),
+                            top: 0,
                             left: compact ? 0 : 2,
                             right: compact ? 0 : 2,
                             bottom: shortHeight ? 0 : (compact ? 2 : 4),
@@ -761,10 +761,10 @@ class HomePage extends StatelessWidget {
 
                               final aspectRatio = shortHeight
                                   ? (subjectConstraints.maxWidth < 700
-                                      ? 1.56
+                                      ? 1.58
                                       : subjectConstraints.maxWidth < 1100
-                                          ? 1.72
-                                          : 1.88)
+                                          ? 1.76
+                                          : 1.94)
                                   : (subjectConstraints.maxWidth < 700
                                       ? 1.5
                                       : subjectConstraints.maxWidth < 1100
@@ -782,9 +782,9 @@ class HomePage extends StatelessWidget {
                                       SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: crossAxisCount,
                                     mainAxisSpacing: shortHeight
-                                        ? (compact ? 8 : 10)
+                                        ? (compact ? 6 : 8)
                                         : (compact ? 12 : 14),
-                                    crossAxisSpacing: compact ? 12 : 14,
+                                    crossAxisSpacing: compact ? 10 : 12,
                                     childAspectRatio: aspectRatio,
                                   ),
                                   itemBuilder: (context, index) {
@@ -825,18 +825,31 @@ class HomePage extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Expanded(
-                              flex: shortHeight ? 5 : (compact ? 3 : 4),
-                              child: Padding(
+                            if (shortHeight)
+                              Padding(
                                 padding: EdgeInsets.only(
-                                  top: shortHeight ? 0 : (compact ? 18 : 10),
+                                  top: 0,
                                   right: compact ? 0 : 8,
                                 ),
-                                child: _HomeMallamStage(state: state),
+                                child: SizedBox(
+                                  height: compact ? 170 : 200,
+                                  child: _HomeMallamStage(state: state),
+                                ),
+                              )
+                            else
+                              Expanded(
+                                flex: compact ? 2 : 3,
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    top: 0,
+                                    right: compact ? 0 : 8,
+                                  ),
+                                  child: _HomeMallamStage(state: state),
+                                ),
                               ),
-                            ),
                             SizedBox(
-                                height: shortHeight ? 4 : (compact ? 4 : 6)),
+                              height: shortHeight ? 0 : (compact ? 2 : 4),
+                            ),
                             buildSubjectSection(),
                           ],
                         ),
@@ -948,27 +961,33 @@ class _HomeMallamStage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact =
-            constraints.maxWidth < 900 || constraints.maxHeight < 420;
-        final shortHeight = constraints.maxHeight < 320;
-        final portraitSize = shortHeight
-            ? 164.0
-            : compact
-                ? 208.0
-                : 280.0;
+            constraints.maxWidth < 900 || constraints.maxHeight < 500;
+        final shortHeight = constraints.maxHeight < 280;
+        final portraitSize = math.min(
+          shortHeight
+              ? 136.0
+              : compact
+                  ? 172.0
+                  : 236.0,
+          math.max(96.0, constraints.maxHeight - (compact ? 46.0 : 58.0)),
+        );
 
         return Container(
           decoration: const BoxDecoration(
             color: Colors.transparent,
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              SizedBox(height: shortHeight ? 0 : 6),
-              Image.asset(
-                'assets/images/mallam_tutor_cutout.png',
-                height: portraitSize,
-                fit: BoxFit.contain,
+              Flexible(
+                child: Image.asset(
+                  'assets/images/mallam_tutor_cutout.png',
+                  height: portraitSize,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.topCenter,
+                ),
               ),
-              SizedBox(height: shortHeight ? 4 : (compact ? 8 : 10)),
+              SizedBox(height: shortHeight ? 2 : (compact ? 4 : 6)),
               FilledButton.tonalIcon(
                 onPressed: () {
                   state.replayVisiblePrompt(
@@ -980,9 +999,9 @@ class _HomeMallamStage extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   foregroundColor: LumoTheme.primary,
                   backgroundColor: LumoTheme.primary.withValues(alpha: 0.1),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 14,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 16 : 18,
+                    vertical: compact ? 12 : 14,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
@@ -992,10 +1011,7 @@ class _HomeMallamStage extends StatelessWidget {
                   ),
                 ),
               ),
-              if (shortHeight)
-                const SizedBox(height: 0)
-              else
-                Spacer(flex: compact ? 1 : 2),
+              SizedBox(height: shortHeight ? 0 : (compact ? 2 : 4)),
             ],
           ),
         );
