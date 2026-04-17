@@ -26,10 +26,17 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
   );
 }
 
+function sanitizeReturnPath(path?: string) {
+  if (!path || !path.startsWith('/')) return '/content';
+  if (path.startsWith('//')) return '/content';
+  return path;
+}
+
 export default async function LessonDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ from?: string; message?: string }> }) {
   const { id } = await params;
   const query = await searchParams;
-  const returnPath = query?.from || '/content';
+  const returnPath = sanitizeReturnPath(query?.from);
+  const returnPathIsEnglishStudio = returnPath === '/english' || returnPath.startsWith('/english?');
 
   if (API_BASE_SOURCE === 'missing-production-env') {
     return (
@@ -177,7 +184,7 @@ export default async function LessonDetailPage({ params, searchParams }: { param
       subtitle="Edit the real lesson payload without leaving the LMS: structure, localization, evidence, assessment items, and the exact learner flow."
       breadcrumbs={[
         { label: 'Dashboard', href: '/' },
-        { label: returnPath === '/english' ? 'English Curriculum Studio' : 'Content Library', href: returnPath },
+        { label: returnPathIsEnglishStudio ? 'English Curriculum Studio' : 'Content Library', href: returnPath },
         { label: 'Lesson Studio', href: `/content/lessons/new?from=${encodeURIComponent(returnPath)}` },
         { label: lesson.title },
       ]}

@@ -718,9 +718,16 @@ class LearningModule {
   });
 
   factory LearningModule.fromBackend(Map<String, dynamic> json) {
-    final moduleId = json['id']?.toString() ?? 'module';
-    final subjectId = json['subjectId']?.toString() ?? moduleId;
-    final subjectName = json['subjectName']?.toString()?.trim();
+    final subjectId = json['subjectId']?.toString().trim();
+    final moduleId = json['id']?.toString().trim();
+    final resolvedModuleId = moduleId != null && moduleId.isNotEmpty
+        ? moduleId
+        : subjectId != null && subjectId.isNotEmpty
+            ? subjectId
+            : 'module';
+    final resolvedSubjectId =
+        subjectId != null && subjectId.isNotEmpty ? subjectId : resolvedModuleId;
+    final subjectName = json['subjectName']?.toString().trim();
     final title = json['title']?.toString().trim();
     final level = json['level']?.toString() ?? 'beginner';
     final badge = json['badge']?.toString().trim();
@@ -735,7 +742,7 @@ class LearningModule {
     final readinessGoal = json['readinessGoal']?.toString().trim();
 
     return LearningModule(
-      id: moduleId,
+      id: resolvedModuleId,
       title: moduleTitle,
       description: description != null && description.isNotEmpty
           ? description
@@ -745,7 +752,7 @@ class LearningModule {
           : 'We are opening $moduleTitle. Follow Mallam one step at a time.',
       readinessGoal: readinessGoal != null && readinessGoal.isNotEmpty
           ? readinessGoal
-          : _moduleGoal(level, subjectId),
+          : _moduleGoal(level, resolvedSubjectId),
       badge: badge != null && badge.isNotEmpty ? badge : 'Live backend',
     );
   }
