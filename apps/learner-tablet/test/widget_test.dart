@@ -661,16 +661,18 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text(state.modules.first.title), findsWidgets);
+    expect(find.text('Lesson journey'), findsOneWidget);
+    expect(find.text('Start next lesson'), findsOneWidget);
     expect(find.text('Tap to choose learner'), findsWidgets);
 
     final mallamGuideTopLeft =
-        tester.getTopLeft(find.text('Guide the subject from here'));
+        tester.getTopLeft(find.text('Follow Mallam one lesson at a time'));
     final lessonChooserTopLeft =
-        tester.getTopLeft(find.text('Tap to choose learner').first);
+        tester.getTopLeft(find.text('Start next lesson'));
     expect(
       mallamGuideTopLeft.dy,
       lessThan(lessonChooserTopLeft.dy),
@@ -852,7 +854,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(
@@ -1183,6 +1186,39 @@ void main() {
     expect(state.activeSession?.latestLearnerAudioPath, isNotNull);
     expect(state.activeSession?.latestLearnerResponse, isNotNull);
     expect(state.activeSession?.stepIndex, 0);
+
+    state.dispose();
+  });
+
+  testWidgets('subject module page highlights the guided lesson journey', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final nextLesson = state.nextAssignedLessonForLearner(learner)!;
+    final module =
+        state.modules.firstWhere((item) => item.id == nextLesson.moduleId);
+    state.selectLearner(learner);
+    state.selectModule(module);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: module,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Lesson journey'), findsOneWidget);
+    expect(find.textContaining('Tap the first big card'), findsOneWidget);
 
     state.dispose();
   });

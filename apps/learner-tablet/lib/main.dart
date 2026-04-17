@@ -2420,8 +2420,8 @@ class SubjectModulesPage extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text(
                                 selectedLearner == null
-                                    ? 'Pick the next lesson with the big card below. Keep the path simple and clear.'
-                                    : 'Ready for ${selectedLearner.name}. Start with the big next step, then continue along the path.',
+                                    ? 'Tap the first big card. Then move down the path one lesson at a time.'
+                                    : 'Ready for ${selectedLearner.name}. Tap the first big card, then keep moving down the path.',
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.45,
