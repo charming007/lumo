@@ -7,6 +7,7 @@ const reporting = require('./reporting');
 const rewards = require('./rewards');
 const seed = require('./seed');
 const { buildAllowedOrigins, isLoopbackOrigin, isProductionLike, buildConfigAudit } = require('./config-audit');
+const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole } = require('./auth');
 
 const app = express();
@@ -30,6 +31,8 @@ function applyCors(req, res) {
     'Content-Type',
     'Accept',
     'Origin',
+    'Authorization',
+    'x-lumo-api-key',
     'x-lumo-role',
     'x-lumo-user',
     'x-lumo-actor',
