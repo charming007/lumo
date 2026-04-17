@@ -741,41 +741,41 @@ class HomePage extends StatelessWidget {
 
                     Widget buildSubjectSection() {
                       return Expanded(
-                        flex: shortHeight ? 8 : (compact ? 6 : 5),
+                        flex: shortHeight ? 9 : (compact ? 6 : 5),
                         child: Padding(
                           padding: EdgeInsets.only(
-                            top: shortHeight ? 6 : (compact ? 10 : 14),
+                            top: shortHeight ? 2 : (compact ? 8 : 10),
                             left: compact ? 0 : 2,
                             right: compact ? 0 : 2,
                             bottom: shortHeight ? 0 : (compact ? 2 : 4),
                           ),
                           child: LayoutBuilder(
                             builder: (context, subjectConstraints) {
-                              final minTileWidth = compact ? 190.0 : 220.0;
-                              final crossAxisSpacing = compact ? 10.0 : 12.0;
+                              final minTileWidth = compact ? 210.0 : 260.0;
+                              final crossAxisSpacing = compact ? 10.0 : 14.0;
                               final crossAxisCount = _adaptiveGridCount(
                                 subjectConstraints.maxWidth,
                                 minTileWidth: minTileWidth,
                                 maxCount: shortHeight
                                     ? (compact ? 2 : 3)
-                                    : (compact ? 2 : 4),
+                                    : (compact ? 2 : 3),
                               );
 
                               final aspectRatio = shortHeight
                                   ? (subjectConstraints.maxWidth < 700
-                                      ? 1.58
+                                      ? 1.48
                                       : subjectConstraints.maxWidth < 1100
-                                          ? 1.76
-                                          : 1.94)
+                                          ? 1.6
+                                          : 1.72)
                                   : (subjectConstraints.maxWidth < 700
-                                      ? 1.5
+                                      ? 1.42
                                       : subjectConstraints.maxWidth < 1100
-                                          ? 1.72
-                                          : 1.84);
+                                          ? 1.56
+                                          : 1.66);
 
                               final preferredTileWidth = shortHeight
-                                  ? (compact ? 196.0 : 232.0)
-                                  : (compact ? 204.0 : 244.0);
+                                  ? (compact ? 214.0 : 292.0)
+                                  : (compact ? 228.0 : 280.0);
                               final centeredGridWidth = math.min(
                                 subjectConstraints.maxWidth,
                                 (crossAxisCount * preferredTileWidth) +
@@ -810,7 +810,7 @@ class HomePage extends StatelessWidget {
                                           module: module,
                                           learner: state.currentLearner,
                                         ),
-                                        compact: compact || shortHeight,
+                                        compact: false,
                                         onTap: () {
                                           state.selectModule(module);
                                           onChanged();
@@ -838,36 +838,45 @@ class HomePage extends StatelessWidget {
 
                     return Stack(
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (shortHeight)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  top: 0,
-                                  right: compact ? 0 : 8,
-                                ),
-                                child: SizedBox(
-                                  height: compact ? 170 : 200,
-                                  child: _HomeMallamStage(state: state),
-                                ),
-                              )
-                            else
-                              Expanded(
-                                flex: compact ? 2 : 3,
-                                child: Padding(
-                                  padding: EdgeInsets.only(
-                                    top: 0,
-                                    right: compact ? 0 : 8,
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1080),
+                            child: Column(
+                              mainAxisAlignment: shortHeight
+                                  ? MainAxisAlignment.start
+                                  : MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (shortHeight)
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      top: 0,
+                                      right: compact ? 0 : 8,
+                                    ),
+                                    child: SizedBox(
+                                      height: compact ? 196 : 236,
+                                      child: _HomeMallamStage(state: state),
+                                    ),
+                                  )
+                                else
+                                  Expanded(
+                                    flex: compact ? 3 : 4,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 0,
+                                        right: compact ? 0 : 8,
+                                      ),
+                                      child: _HomeMallamStage(state: state),
+                                    ),
                                   ),
-                                  child: _HomeMallamStage(state: state),
+                                SizedBox(
+                                  height: shortHeight ? 0 : (compact ? 0 : 2),
                                 ),
-                              ),
-                            SizedBox(
-                              height: shortHeight ? 0 : (compact ? 2 : 4),
+                                buildSubjectSection(),
+                              ],
                             ),
-                            buildSubjectSection(),
-                          ],
+                          ),
                         ),
                         buildActionPanel(),
                       ],
@@ -981,11 +990,11 @@ class _HomeMallamStage extends StatelessWidget {
         final shortHeight = constraints.maxHeight < 280;
         final portraitSize = math.min(
           shortHeight
-              ? 136.0
+              ? 164.0
               : compact
-                  ? 172.0
-                  : 236.0,
-          math.max(96.0, constraints.maxHeight - (compact ? 46.0 : 58.0)),
+                  ? 220.0
+                  : 296.0,
+          math.max(120.0, constraints.maxHeight - (compact ? 24.0 : 30.0)),
         );
 
         return Container(
@@ -993,17 +1002,20 @@ class _HomeMallamStage extends StatelessWidget {
             color: Colors.transparent,
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Flexible(
-                child: Image.asset(
-                  'assets/images/mallam_tutor_cutout.png',
-                  height: portraitSize,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.topCenter,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    'assets/images/mallam_tutor_cutout.png',
+                    height: portraitSize,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                  ),
                 ),
               ),
-              SizedBox(height: shortHeight ? 2 : (compact ? 4 : 6)),
+              SizedBox(height: shortHeight ? 4 : (compact ? 6 : 10)),
               FilledButton.tonalIcon(
                 onPressed: () {
                   state.replayVisiblePrompt(
