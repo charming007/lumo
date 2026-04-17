@@ -49,6 +49,10 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+function metricDisplay(value: string, available: boolean) {
+  return available ? value : '—';
+}
+
 export default async function HomePage() {
   if (API_BASE_SOURCE === 'missing-production-env') {
     return (
@@ -101,6 +105,7 @@ export default async function HomePage() {
   ]);
 
   const summary: DashboardSummary = summaryResult.status === 'fulfilled' ? summaryResult.value : emptySummary;
+  const summaryAvailable = summaryResult.status === 'fulfilled';
   const insights: DashboardInsight[] = insightsResult.status === 'fulfilled' ? insightsResult.value : [];
   const workboard: WorkboardItem[] = workboardResult.status === 'fulfilled' ? workboardResult.value : [];
   const mallams: Mallam[] = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
@@ -170,12 +175,48 @@ export default async function HomePage() {
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
-          { label: 'Active learners', value: String(summary.activeLearners), note: 'Learners currently visible to the admin surface' },
-          { label: 'Ready to progress', value: String(summary.learnersReadyToProgress), note: 'Pulled from the live progression workboard' },
-          { label: 'Active assignments', value: String(summary.activeAssignments), note: 'Delivery workload still in flight' },
-          { label: 'Sync success', value: formatPercent(summary.syncSuccessRate), note: 'Dashboard transport confidence, not vibes' },
-          { label: 'Active pods', value: String(summary.activePods), note: 'Pods currently represented in the live feed' },
-          { label: 'Assessments live', value: String(summary.assessmentsLive), note: 'Assessment gates available to operators now' },
+          {
+            label: 'Active learners',
+            value: metricDisplay(String(summary.activeLearners), summaryAvailable),
+            note: summaryAvailable
+              ? 'Learners currently visible to the admin surface'
+              : 'Unavailable until the live dashboard summary feed recovers.',
+          },
+          {
+            label: 'Ready to progress',
+            value: metricDisplay(String(summary.learnersReadyToProgress), summaryAvailable),
+            note: summaryAvailable
+              ? 'Pulled from the live progression workboard'
+              : 'Unavailable until the live dashboard summary feed recovers.',
+          },
+          {
+            label: 'Active assignments',
+            value: metricDisplay(String(summary.activeAssignments), summaryAvailable),
+            note: summaryAvailable
+              ? 'Delivery workload still in flight'
+              : 'Unavailable until the live dashboard summary feed recovers.',
+          },
+          {
+            label: 'Sync success',
+            value: metricDisplay(formatPercent(summary.syncSuccessRate), summaryAvailable),
+            note: summaryAvailable
+              ? 'Dashboard transport confidence, not vibes'
+              : 'Unavailable until the live dashboard summary feed recovers.',
+          },
+          {
+            label: 'Active pods',
+            value: metricDisplay(String(summary.activePods), summaryAvailable),
+            note: summaryAvailable
+              ? 'Pods currently represented in the live feed'
+              : 'Unavailable until the live dashboard summary feed recovers.',
+          },
+          {
+            label: 'Assessments live',
+            value: metricDisplay(String(summary.assessmentsLive), summaryAvailable),
+            note: summaryAvailable
+              ? 'Assessment gates available to operators now'
+              : 'Unavailable until the live dashboard summary feed recovers.',
+          },
         ].map((item) => (
           <Card key={item.label} title={item.value} eyebrow={item.label}>
             <div style={{ color: '#64748b', lineHeight: 1.6 }}>{item.note}</div>
