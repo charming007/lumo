@@ -249,6 +249,7 @@ class LearnerBootstrapLoadingPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
                         const LinearProgressIndicator(
+                          value: 0.72,
                           minHeight: 10,
                           borderRadius: BorderRadius.all(Radius.circular(999)),
                           color: LumoTheme.primary,
@@ -587,6 +588,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         const SizedBox(
                           width: 220,
                           child: LinearProgressIndicator(
+                            value: 0.72,
                             minHeight: 8,
                             borderRadius: BorderRadius.all(
                               Radius.circular(999),
@@ -2295,6 +2297,27 @@ class SubjectModulesPage extends StatelessWidget {
             .where((lesson) => lesson.moduleId == module.id)
             .toList()
         : state.lessonsForLearnerAndModule(selectedLearner, module.id);
+    final nextAssignedLesson = state.nextAssignedLessonForLearner(selectedLearner);
+    final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
+          (lesson) => lesson?.id == nextAssignedLesson?.id,
+          orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
+                (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
+                orElse: () => lessons.isNotEmpty ? lessons.first : null,
+              ),
+        );
+
+    void openLesson(LessonCardModel lesson) {
+      if (lesson.isAssignmentPlaceholder) return;
+      state.selectModule(module);
+      onChanged();
+      launchLessonFlow(
+        context: context,
+        state: state,
+        onChanged: onChanged,
+        lesson: lesson,
+        module: module,
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -2307,24 +2330,24 @@ class SubjectModulesPage extends StatelessWidget {
                 flex: 5,
                 child: _MallamStageShell(
                   eyebrow: 'AI Mallam',
-                  title: 'Guide the subject from here',
+                  title: 'Follow Mallam one lesson at a time',
                   description:
-                      'Mallam stays full-height on the left while the facilitator works through module lessons on the right.',
+                      'Mallam stays full-height on the left while the lesson path on the right shows the next simple step.',
                   child: MallamPanel(
                     instruction: modulesInstruction,
                     onVoiceTap: () {
                       state.replayVisiblePrompt(
-                        'You opened ${module.title}. Tap a module lesson to choose a learner and begin.',
+                        'You opened ${module.title}. Start with the big next lesson card, then follow the path one step at a time.',
                       );
                     },
                     prompt:
-                        'You opened ${module.title}. Tap a module lesson to choose a learner and begin.',
+                        'You opened ${module.title}. Start with the big next lesson card, then follow the path one step at a time.',
                     speakerMode: SpeakerMode.guiding,
-                    statusLabel: 'AI Mallam introduces the subject',
-                    secondaryStatus: 'Module guide',
+                    statusLabel: 'AI Mallam leads the journey',
+                    secondaryStatus: 'Lesson path guide',
                     voiceButtonLabel: 'Replay Mallam',
                     voiceHint:
-                        'Keep Mallam visible and dominant on this screen so the facilitator can choose the next lesson without losing the voice guide.',
+                        'Keep Mallam visible and dominant so the child and facilitator always have a clear guide while choosing the next lesson.',
                     centerPortraitLayout: true,
                   ),
                 ),
@@ -2335,186 +2358,251 @@ class SubjectModulesPage extends StatelessWidget {
                 child: DetailCard(
                   child: LayoutBuilder(
                     builder: (context, detailConstraints) {
-                      final useScrollableLayout =
-                          detailConstraints.maxHeight < 940;
-                      final moduleNextLesson = selectedLearner == null
-                          ? lessons.cast<LessonCardModel?>().firstWhere(
-                              (lesson) => !lesson!.isAssignmentPlaceholder,
-                              orElse: () => lessons.isEmpty ? null : lessons.first,
-                            )
-                          : lessons.cast<LessonCardModel?>().firstWhere(
-                              (lesson) => lesson!.id == state.nextAssignedLessonForLearner(selectedLearner)?.id,
-                              orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
-                                (lesson) => !lesson!.isAssignmentPlaceholder,
-                                orElse: () => lessons.isEmpty ? null : lessons.first,
-                              ),
-                            );
-                      final journeyLessons = [
-                        if (moduleNextLesson != null) moduleNextLesson,
-                        ...lessons.where((lesson) => lesson.id != moduleNextLesson?.id),
-                      ];
+                      final compact = detailConstraints.maxWidth < 380;
+                      final journeyDirection =
+                          detailConstraints.maxWidth < 700 ? Axis.vertical : Axis.horizontal;
 
-                      void openLesson(LessonCardModel lesson) {
-                        if (lesson.isAssignmentPlaceholder) return;
-                        state.selectModule(module);
-                        onChanged();
-                        launchLessonFlow(
-                          context: context,
-                          state: state,
-                          onChanged: onChanged,
-                          lesson: lesson,
-                          module: module,
-                          resumeFrom: resumableSession?.lessonId == lesson.id
-                              ? resumableSession
-                              : null,
+                      Widget buildHeader() {
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Back'),
+                            ),
+                            StatusPill(
+                              text: module.badge,
+                              color: LumoTheme.primary,
+                            ),
+                            StatusPill(
+                              text: '${lessons.length} lesson${lessons.length == 1 ? '' : 's'}',
+                              color: LumoTheme.accentOrange,
+                            ),
+                          ],
                         );
                       }
 
-                      Widget lessonJourneyTile(LessonCardModel lesson, int index) {
-                        final syncPending = lesson.isAssignmentPlaceholder;
-                        final isStart = moduleNextLesson?.id == lesson.id;
-                        final stepLabel = syncPending
-                            ? 'Wait'
-                            : isStart
-                                ? 'Start here'
-                                : index == 1
-                                    ? 'Then'
-                                    : 'Later';
-                        final accent = syncPending
-                            ? const Color(0xFFF59E0B)
-                            : isStart
-                                ? LumoTheme.primary
-                                : const Color(0xFF94A3B8);
-                        final background = syncPending
-                            ? const Color(0xFFFFFBEB)
-                            : isStart
-                                ? const Color(0xFFEEF2FF)
-                                : const Color(0xFFF8FAFC);
-                        final border = syncPending
-                            ? const Color(0xFFFCD34D)
-                            : isStart
-                                ? const Color(0xFFC7D2FE)
-                                : const Color(0xFFE2E8F0);
-                        final actionLabel = syncPending
-                            ? 'Lesson content not ready yet'
-                            : resumableSession?.lessonId == lesson.id
-                                ? 'Resume lesson'
-                                : isStart
-                                    ? 'Start lesson'
-                                    : 'Open lesson';
-
-                        return GestureDetector(
-                          onTap: syncPending ? null : () => openLesson(lesson),
-                          child: Opacity(
-                            opacity: syncPending ? 0.8 : 1,
-                            child: Container(
-                              padding: const EdgeInsets.all(18),
-                              decoration: BoxDecoration(
-                                color: background,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: border, width: isStart ? 2 : 1),
-                                boxShadow: isStart
-                                    ? const [
-                                        BoxShadow(
-                                          color: Color(0x140F172A),
-                                          blurRadius: 18,
-                                          offset: Offset(0, 10),
-                                        ),
-                                      ]
-                                    : null,
+                      Widget buildJourneyHeader() {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFFF8FAFF), Color(0xFFEEF2FF)],
+                            ),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Lesson journey',
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.05,
+                                  color: Color(0xFF0F172A),
+                                ),
                               ),
-                              child: Row(
+                              const SizedBox(height: 8),
+                              Text(
+                                selectedLearner == null
+                                    ? 'Pick the next lesson with the big card below. Keep the path simple and clear.'
+                                    : 'Ready for ${selectedLearner.name}. Start with the big next step, then continue along the path.',
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.45,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      Widget buildHighlightedLesson() {
+                        if (highlightedLesson == null) {
+                          return const SoftPanel(
+                            child: Text(
+                              'No lessons are mapped to this subject yet.',
+                            ),
+                          );
+                        }
+
+                        final lesson = highlightedLesson;
+                        final syncPending = lesson!.isAssignmentPlaceholder;
+                        final isNext = nextAssignedLesson?.id == lesson.id;
+                        final ctaLabel = syncPending
+                            ? 'Lesson content not available yet'
+                            : isNext
+                                ? 'Start next lesson'
+                                : 'Open this lesson';
+
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(30),
+                            onTap: syncPending ? null : () => openLesson(lesson),
+                            child: Ink(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: syncPending
+                                      ? const [Color(0xFFFFFBEB), Color(0xFFFFFFFF)]
+                                      : const [Color(0xFF312E81), Color(0xFF5B21B6)],
+                                ),
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (syncPending
+                                            ? const Color(0xFFF59E0B)
+                                            : const Color(0xFF4F46E5))
+                                        .withValues(alpha: 0.18),
+                                    blurRadius: 28,
+                                    offset: const Offset(0, 18),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    width: 52,
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: accent,
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      syncPending ? '…' : '${index + 1}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w900,
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    children: [
+                                      StatusPill(
+                                        text: isNext ? 'Next step' : 'Lesson card',
+                                        color: syncPending
+                                            ? LumoTheme.accentOrange
+                                            : Colors.white,
                                       ),
+                                      StatusPill(
+                                        text: '${lesson.steps.length} steps',
+                                        color: syncPending
+                                            ? LumoTheme.accentOrange
+                                            : Colors.white,
+                                      ),
+                                      StatusPill(
+                                        text: '${lesson.durationMinutes} min',
+                                        color: syncPending
+                                            ? LumoTheme.accentOrange
+                                            : Colors.white,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 18),
+                                  Text(
+                                    lesson.title,
+                                    style: TextStyle(
+                                      fontSize: compact ? 24 : 32,
+                                      fontWeight: FontWeight.w900,
+                                      height: 1.05,
+                                      color: syncPending
+                                          ? const Color(0xFF92400E)
+                                          : Colors.white,
                                     ),
                                   ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          crossAxisAlignment: WrapCrossAlignment.center,
-                                          children: [
-                                            Text(
-                                              stepLabel,
-                                              style: TextStyle(
-                                                color: accent,
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            StatusPill(
-                                              text: syncPending
-                                                  ? 'Sync pending'
-                                                  : '${lesson.durationMinutes} min',
-                                              color: accent,
-                                            ),
-                                            if (!syncPending)
-                                              StatusPill(
-                                                text: '${lesson.steps.length} steps',
-                                                color: const Color(0xFF0EA5E9),
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          lesson.title,
-                                          style: const TextStyle(
-                                            fontSize: 21,
-                                            fontWeight: FontWeight.w800,
-                                            color: Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          lesson.readinessFocus,
-                                          style: const TextStyle(
-                                            color: Color(0xFF334155),
-                                            fontWeight: FontWeight.w700,
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                        if (isStart && !syncPending) ...[
-                                          const SizedBox(height: 10),
-                                          Text(
-                                            selectedLearner == null
-                                                ? 'Pick this first to begin the guided lesson path.'
-                                                : 'This is the clearest next lesson for ${selectedLearner.name}.',
-                                            style: const TextStyle(
-                                              color: Color(0xFF475569),
-                                              height: 1.35,
-                                            ),
-                                          ),
-                                        ],
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          actionLabel,
-                                          style: TextStyle(
-                                            color: accent,
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                      ],
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    lesson.readinessFocus,
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      color: syncPending
+                                          ? const Color(0xFFB45309)
+                                          : const Color(0xFFE0E7FF),
                                     ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    lesson.scenario,
+                                    style: TextStyle(
+                                      color: syncPending
+                                          ? const Color(0xFF78350F)
+                                          : Colors.white.withValues(alpha: 0.92),
+                                      height: 1.45,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: syncPending
+                                          ? const Color(0xFFFFFFFF)
+                                          : Colors.white.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(22),
+                                      border: Border.all(
+                                        color: syncPending
+                                            ? const Color(0xFFFCD34D)
+                                            : Colors.white.withValues(alpha: 0.16),
+                                      ),
+                                    ),
+                                    child: compact
+                                        ? Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                syncPending
+                                                    ? 'Waiting for lesson sync'
+                                                    : 'Tap the big card to keep moving',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  color: syncPending
+                                                      ? const Color(0xFF92400E)
+                                                      : Colors.white,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                ctaLabel,
+                                                style: TextStyle(
+                                                  color: syncPending
+                                                      ? LumoTheme.accentOrange
+                                                      : const Color(0xFFE0E7FF),
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  syncPending
+                                                      ? 'Waiting for lesson sync'
+                                                      : 'Tap the big card to keep moving',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    color: syncPending
+                                                        ? const Color(0xFF92400E)
+                                                        : Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                ctaLabel,
+                                                textAlign: TextAlign.end,
+                                                style: TextStyle(
+                                                  color: syncPending
+                                                      ? LumoTheme.accentOrange
+                                                      : const Color(0xFFE0E7FF),
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                   ),
                                 ],
                               ),
@@ -2523,8 +2611,8 @@ class SubjectModulesPage extends StatelessWidget {
                         );
                       }
 
-                      Widget lessonJourney() {
-                        if (journeyLessons.isEmpty) {
+                      Widget buildJourneyPath() {
+                        if (lessons.isEmpty) {
                           return const SoftPanel(
                             child: Text(
                               'No lessons are mapped to this subject yet.',
@@ -2532,39 +2620,27 @@ class SubjectModulesPage extends StatelessWidget {
                           );
                         }
 
-                        final journeyCards = <Widget>[];
-                        for (var i = 0; i < journeyLessons.length; i++) {
-                          if (i > 0) {
-                            journeyCards.add(
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(left: 22),
-                                    child: Container(
-                                      width: 8,
-                                      height: 26,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFC7D2FE),
-                                        borderRadius: BorderRadius.circular(999),
-                                      ),
-                                    ),
-                                  ),
+                        return SingleChildScrollView(
+                          scrollDirection: journeyDirection,
+                          child: Flex(
+                            direction: journeyDirection,
+                            children: [
+                              for (var i = 0; i < lessons.length; i++) ...[
+                                _LessonJourneyStepCard(
+                                  lesson: lessons[i],
+                                  index: i,
+                                  highlightedLessonId: highlightedLesson?.id,
+                                  nextLessonId: nextAssignedLesson?.id,
+                                  onTap: lessons[i].isAssignmentPlaceholder
+                                      ? null
+                                      : () => openLesson(lessons[i]),
                                 ),
-                              ),
-                            );
-                          }
-                          journeyCards.add(lessonJourneyTile(journeyLessons[i], i));
-                        }
-
-                        if (useScrollableLayout) {
-                          return Column(children: journeyCards);
-                        }
-
-                        return Expanded(
-                          child: ListView(
-                            children: journeyCards,
+                                if (i < lessons.length - 1)
+                                  _LessonJourneyConnector(
+                                    direction: journeyDirection,
+                                  ),
+                              ],
+                            ],
                           ),
                         );
                       }
@@ -2572,38 +2648,9 @@ class SubjectModulesPage extends StatelessWidget {
                       final content = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              OutlinedButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('Back'),
-                              ),
-                              StatusPill(
-                                text: module.badge,
-                                color: LumoTheme.primary,
-                              ),
-                            ],
-                          ),
+                          buildHeader(),
                           const SizedBox(height: 20),
-                          Text(
-                            module.title,
-                            style: const TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            module.description,
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 16,
-                              height: 1.4,
-                            ),
-                          ),
+                          buildJourneyHeader(),
                           const SizedBox(height: 16),
                           _BackendStatusBanner(state: state),
                           const SizedBox(height: 16),
@@ -2611,13 +2658,9 @@ class SubjectModulesPage extends StatelessWidget {
                             _CurrentLearnerBanner(
                               title: 'Current learner: ${selectedLearner.name}',
                               learner: selectedLearner,
-                              nextLesson: state.nextAssignedLessonForLearner(
-                                selectedLearner,
-                              ),
+                              nextLesson: nextAssignedLesson,
                               backendSummary:
-                                  state.backendRoutingSummaryForLearner(
-                                selectedLearner,
-                              ),
+                                  state.backendRoutingSummaryForLearner(selectedLearner),
                               onOpenProfile: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
@@ -2631,17 +2674,33 @@ class SubjectModulesPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 16),
                           ],
-                          lessonList(),
+                          buildHighlightedLesson(),
+                          const SizedBox(height: 18),
+                          const Text(
+                            'Lesson path',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Start with the highlighted step, then follow the path from left to right.',
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          buildJourneyPath(),
                         ],
                       );
 
-                      if (!useScrollableLayout) {
-                        return content;
+                      if (detailConstraints.maxHeight < 940) {
+                        return SingleChildScrollView(child: content);
                       }
 
-                      return SingleChildScrollView(
-                        child: content,
-                      );
+                      return content;
                     },
                   ),
                 ),
@@ -2650,6 +2709,182 @@ class SubjectModulesPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LessonJourneyStepCard extends StatelessWidget {
+  final LessonCardModel lesson;
+  final int index;
+  final String? highlightedLessonId;
+  final String? nextLessonId;
+  final VoidCallback? onTap;
+
+  const _LessonJourneyStepCard({
+    required this.lesson,
+    required this.index,
+    required this.highlightedLessonId,
+    required this.nextLessonId,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isHighlighted = highlightedLessonId == lesson.id;
+    final isNext = nextLessonId == lesson.id;
+    final syncPending = lesson.isAssignmentPlaceholder;
+    final borderColor = syncPending
+        ? const Color(0xFFFCD34D)
+        : isHighlighted
+            ? const Color(0xFFC7D2FE)
+            : const Color(0xFFE2E8F0);
+
+    return Container(
+      width: 240,
+      margin: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: Ink(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: syncPending
+                  ? const Color(0xFFFFFBEB)
+                  : isHighlighted
+                      ? const Color(0xFFEEF2FF)
+                      : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: borderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: syncPending
+                            ? const Color(0xFFF59E0B)
+                            : isHighlighted
+                                ? LumoTheme.primary
+                                : const Color(0xFFCBD5E1),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        syncPending
+                            ? 'Waiting'
+                            : isNext
+                                ? 'Next'
+                                : isHighlighted
+                                    ? 'Ready now'
+                                    : 'Later',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: syncPending
+                              ? const Color(0xFFB45309)
+                              : const Color(0xFF334155),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  lesson.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  lesson.readinessFocus,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    StatusPill(
+                      text: '${lesson.steps.length} steps',
+                      color: syncPending
+                          ? LumoTheme.accentOrange
+                          : LumoTheme.primary,
+                    ),
+                    StatusPill(
+                      text: '${lesson.durationMinutes} min',
+                      color: syncPending
+                          ? LumoTheme.accentOrange
+                          : LumoTheme.accentGreen,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  syncPending
+                      ? 'Lesson content not available yet'
+                      : 'Tap to choose learner',
+                  style: TextStyle(
+                    color: syncPending
+                        ? LumoTheme.accentOrange
+                        : LumoTheme.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LessonJourneyConnector extends StatelessWidget {
+  final Axis direction;
+
+  const _LessonJourneyConnector({required this.direction});
+
+  @override
+  Widget build(BuildContext context) {
+    final line = Container(
+      width: direction == Axis.horizontal ? 40 : 4,
+      height: direction == Axis.horizontal ? 4 : 28,
+      decoration: BoxDecoration(
+        color: const Color(0xFFC7D2FE),
+        borderRadius: BorderRadius.circular(999),
+      ),
+    );
+
+    return Padding(
+      padding: direction == Axis.horizontal
+          ? const EdgeInsets.symmetric(horizontal: 8)
+          : const EdgeInsets.symmetric(vertical: 8),
+      child: Center(child: line),
     );
   }
 }

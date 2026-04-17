@@ -185,7 +185,8 @@ class _MallamPanelState extends State<MallamPanel>
             runSpacing: 8,
             children: [
               _ModeChip(label: widget.statusLabel, color: speakerColor),
-              if (widget.secondaryStatus != null && !widget.centerPortraitLayout)
+              if (widget.secondaryStatus != null &&
+                  !widget.centerPortraitLayout)
                 _ModeChip(
                   label: widget.secondaryStatus!,
                   color: const Color(0xFF0F172A),
@@ -291,7 +292,8 @@ class _MallamPanelState extends State<MallamPanel>
                   fontSize: widget.centerPortraitLayout && !compactLayout
                       ? 24
                       : promptStyle.fontSize,
-                  height: widget.centerPortraitLayout ? 1.4 : promptStyle.height,
+                  height:
+                      widget.centerPortraitLayout ? 1.4 : promptStyle.height,
                 ),
               ),
               if (widget.voiceHint != null) ...[
@@ -392,7 +394,8 @@ class _MallamPanelState extends State<MallamPanel>
         final centeredSupportNote = widget.centerPortraitLayout
             ? Container(
                 constraints: const BoxConstraints(maxWidth: 420),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(18),
