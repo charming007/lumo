@@ -712,6 +712,189 @@ void main() {
       state.dispose();
     });
 
+    test(
+        'recovers a persisted active session when lesson ids churn but the lesson title still matches',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'currentLearnerId': beginner.id,
+          'learners': [
+            {
+              'id': beginner.id,
+              'name': beginner.name,
+              'age': beginner.age,
+              'cohort': beginner.cohort,
+              'streakDays': beginner.streakDays,
+              'guardianName': beginner.guardianName,
+              'preferredLanguage': beginner.preferredLanguage,
+              'readinessLabel': beginner.readinessLabel,
+              'village': beginner.village,
+              'guardianPhone': beginner.guardianPhone,
+              'sex': beginner.sex,
+              'baselineLevel': beginner.baselineLevel,
+              'consentCaptured': beginner.consentCaptured,
+              'learnerCode': beginner.learnerCode,
+            },
+          ],
+          'modules': const [],
+          'assignedLessons': const [],
+          'assignmentPacks': const [],
+          'pendingSyncEvents': const [],
+          'recentRuntimeSessionsByLearnerId': const {},
+          'registrationDraft': const {},
+          'registrationContext': const {},
+          'speakerMode': 'guiding',
+          'usingFallbackData': false,
+          'activeSession': {
+            'sessionId': 'session-recover-title-match',
+            'lessonId': 'lesson-recover-stale-id',
+            'lessonTitle': 'Recovered English lesson',
+            'moduleId': 'english',
+            'currentLearnerId': beginner.id,
+            'stepIndex': 0,
+            'completionState': 'inProgress',
+            'speakerMode': 'guiding',
+            'latestLearnerResponse': 'Hello again',
+            'latestReview': 'pending',
+            'supportActionsUsed': 1,
+            'attemptsThisStep': 1,
+            'facilitatorObservations': const [],
+            'transcript': const [
+              {
+                'speaker': 'Mallam',
+                'text': 'Say hello again.',
+                'timestamp': '2026-04-15T10:00:00.000Z',
+              },
+            ],
+            'startedAt': '2026-04-15T10:00:00.000Z',
+            'audioInputMode': 'Shared mic on tablet',
+            'speakerOutputMode': 'Tablet speaker',
+            'totalResponses': 1,
+            'totalAudioCaptures': 0,
+            'lastSupportType': 'Prompt replay',
+            'automationStatus': 'Mallam is waiting to continue.',
+            'practiceMode': 'standard',
+            'lastUpdatedAt': '2026-04-15T10:04:00.000Z'
+          },
+        }),
+      });
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'subjectId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Foundational English',
+                      'level': 'foundation-a',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'lesson-recover-live-id',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Recovered English lesson',
+                      'durationMinutes': 9,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Resume guidance',
+                      'scenario': 'Recovered from persisted state after lesson id churn',
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Resume guidance',
+                          'instruction': 'Say hello again',
+                          'coachPrompt': 'Say hello again.',
+                          'expectedResponse': 'Hello',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Foundational English',
+                  'level': 'foundation-a',
+                  'lessons': [
+                    {
+                      'id': 'lesson-recover-live-id',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Recovered English lesson',
+                      'durationMinutes': 9,
+                      'status': 'assigned',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Resume guidance',
+                      'scenario': 'Recovered from persisted state after lesson id churn',
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'title': 'Resume guidance',
+                          'instruction': 'Say hello again',
+                          'coachPrompt': 'Say hello again.',
+                          'expectedResponse': 'Hello',
+                          'speakerMode': 'guiding',
+                          'type': 'prompt',
+                        },
+                      ],
+                    },
+                  ],
+                  'assignmentPacks': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.restorePersistedState();
+      expect(state.activeSession, isNull);
+      expect(state.hasPendingRecoveredSession, isTrue);
+
+      await state.bootstrap();
+
+      expect(state.hasPendingRecoveredSession, isFalse);
+      expect(state.activeSession, isNotNull);
+      expect(state.activeSession!.sessionId, 'session-recover-title-match');
+      expect(state.activeSession!.lesson.id, 'lesson-recover-live-id');
+      expect(state.activeSession!.latestLearnerResponse, 'Hello again');
+      expect(state.currentLearner?.id, beginner.id);
+      state.dispose();
+    });
+
     test('logs learner reward redemption history and reduces spendable points',
         () async {
       final state = LumoAppState(includeSeedDemoContent: true);

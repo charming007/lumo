@@ -3309,13 +3309,60 @@ class LumoAppState {
     }
   }
 
+  LessonCardModel? _resolvePersistedSessionLesson(Map<String, dynamic> raw) {
+    final assigned = assignedLessons.toList(growable: false);
+    if (assigned.isEmpty) return null;
+
+    final lessonId = _readNullableString(raw['lessonId']);
+    if (lessonId != null) {
+      final exactMatch = assigned.cast<LessonCardModel?>().firstWhere(
+            (item) => item?.id == lessonId,
+            orElse: () => null,
+          );
+      if (exactMatch != null) return exactMatch;
+    }
+
+    final normalizedTitle = _readNullableString(raw['lessonTitle'])
+            ?.trim()
+            .toLowerCase() ??
+        '';
+    final normalizedModuleId =
+        _readNullableString(raw['moduleId'])?.trim().toLowerCase() ?? '';
+    final persistedStepCount = (raw['transcript'] as List?)
+            ?.whereType<Map>()
+            .length ??
+        0;
+
+    if (normalizedTitle.isNotEmpty) {
+      final titleMatches = assigned.where((lesson) {
+        final lessonTitle = lesson.title.trim().toLowerCase();
+        final lessonModuleId = lesson.moduleId.trim().toLowerCase();
+        final moduleMatches = normalizedModuleId.isEmpty ||
+            lessonModuleId == normalizedModuleId;
+        return lessonTitle == normalizedTitle && moduleMatches;
+      }).toList(growable: false);
+      if (titleMatches.length == 1) return titleMatches.first;
+      if (titleMatches.length > 1 && persistedStepCount > 0) {
+        final stepCountMatches = titleMatches
+            .where((lesson) => lesson.steps.length >= persistedStepCount)
+            .toList(growable: false);
+        if (stepCountMatches.length == 1) return stepCountMatches.first;
+      }
+    }
+
+    if (normalizedModuleId.isNotEmpty) {
+      final moduleMatches = assigned
+          .where((lesson) => lesson.moduleId.trim().toLowerCase() == normalizedModuleId)
+          .toList(growable: false);
+      if (moduleMatches.length == 1) return moduleMatches.first;
+    }
+
+    return null;
+  }
+
   LessonSessionState? _decodeActiveSession(Object? raw) {
     if (raw is! Map) return null;
-    final lessonId = raw['lessonId']?.toString();
-    final lesson = assignedLessons.cast<LessonCardModel?>().firstWhere(
-          (item) => item?.id == lessonId,
-          orElse: () => null,
-        );
+    final lesson = _resolvePersistedSessionLesson(Map<String, dynamic>.from(raw));
     if (lesson == null) return null;
 
     final boundedStepIndex = lesson.steps.isEmpty
@@ -3737,6 +3784,7 @@ class LumoAppState {
         'sessionId': session.sessionId,
         'lessonId': session.lesson.id,
         'lessonTitle': session.lesson.title,
+        'moduleId': session.lesson.moduleId,
         'currentLearnerId': currentLearner?.id,
         'stepIndex': session.stepIndex,
         'completionState': session.completionState.name,
