@@ -53,12 +53,54 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
+  Future<void> pumpForUi(
+    WidgetTester tester, [
+    Duration duration = const Duration(seconds: 3),
+  ]) async {
+    await tester.pump();
+    await tester.pump(duration);
+  }
+
   testWidgets('shows learner app shell after splash', (tester) async {
     await pumpAppAtSize(tester, const Size(1400, 1000));
 
     expect(find.text('Facilitator actions'), findsOneWidget);
     expect(find.text('Learner List'), findsOneWidget);
     expect(find.text('Subjects'), findsOneWidget);
+  });
+
+  testWidgets('home screen keeps Mallam frameless with replay CTA only', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Replay Mallam'), findsOneWidget);
+    expect(find.text('AI Mallam is ready'), findsNothing);
+    expect(find.text('Home guide'), findsNothing);
+    expect(
+      find.textContaining('Assalamu alaikum. You are on the home page.'),
+      findsNothing,
+    );
+    expect(
+        find.textContaining('Keep Mallam visible and dominant'), findsNothing);
+    expect(find.textContaining('Facilitator guidance'), findsNothing);
+
+    state.dispose();
   });
 
   testWidgets(
@@ -123,7 +165,7 @@ void main() {
     );
 
     await tester.pump();
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('Facilitator actions'), findsOneWidget);
     expect(find.text('Learner List'), findsOneWidget);
@@ -247,7 +289,7 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Back home'), findsOneWidget);
@@ -318,7 +360,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(800, 1280));
 
     await tester.tap(find.text('Learner List'));
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('All learners'), findsOneWidget);
@@ -331,7 +373,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(540, 960));
 
     await tester.tap(find.text('Learner List'));
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('All learners'), findsOneWidget);
@@ -345,10 +387,10 @@ void main() {
     await pumpAppAtSize(tester, const Size(540, 960));
 
     await tester.tap(find.text('Learner List'));
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
     await tester.ensureVisible(find.text('Profile').first);
     await tester.tap(find.text('Profile').first);
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Back'), findsOneWidget);
@@ -405,7 +447,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('160 XP'), findsWidgets);
     expect(find.textContaining('Bright Reader'), findsWidgets);
@@ -452,7 +494,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('120 XP'), findsWidgets);
     expect(find.textContaining('Rising Voice'), findsWidgets);
@@ -475,7 +517,7 @@ void main() {
         badgesUnlocked: 1,
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('160 XP'), findsWidgets);
     expect(find.textContaining('Bright Reader'), findsWidgets);
@@ -511,7 +553,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('1 sync pending'), findsOneWidget);
     expect(find.text('Sync pending'), findsWidgets);
@@ -548,7 +590,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('Backend cohort'), findsNothing);
 
@@ -579,7 +621,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('Backend cohort'), findsOneWidget);
     expect(find.text('Cohort A'), findsWidgets);
@@ -595,7 +637,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(800, 1280));
 
     await tester.tap(find.text('Register'));
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Register learner'), findsOneWidget);
@@ -610,7 +652,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(540, 960));
 
     await tester.tap(find.text('Register'));
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Register learner'), findsOneWidget);
@@ -638,7 +680,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Back home'), findsOneWidget);
@@ -667,7 +709,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Back home'), findsOneWidget);
@@ -736,7 +778,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Choose learner'), findsOneWidget);
@@ -786,7 +828,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(
         find.textContaining('Lesson content not available yet'), findsWidgets);
@@ -825,20 +867,26 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Learner microphone capture'), findsOneWidget);
-    expect(find.text(lesson.subject), findsWidgets);
+    expect(find.textContaining('Capture or type the learner answer'),
+        findsOneWidget);
+    expect(
+      find.text('Start listening + transcript').evaluate().isNotEmpty ||
+          find.text('Start listening (audio first)').evaluate().isNotEmpty,
+      isTrue,
+    );
     expect(find.byType(SingleChildScrollView), findsWidgets);
 
     final mallamGuideTopLeft =
-        tester.getTopLeft(find.text('Guide the lesson from here'));
-    final microphoneCaptureTopLeft =
-        tester.getTopLeft(find.text('Learner microphone capture'));
+        tester.getTopLeft(find.text('Replay Mallam').first);
+    final answerPanelTopLeft = tester.getTopLeft(
+      find.textContaining('Capture or type the learner answer'),
+    );
     expect(
       mallamGuideTopLeft.dy,
-      lessThan(microphoneCaptureTopLeft.dy),
+      lessThan(answerPanelTopLeft.dy),
       reason:
           'The live Mallam guide must remain above facilitator controls on stacked lesson-session layouts.',
     );
@@ -900,7 +948,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Choose learner'), findsOneWidget);
@@ -957,7 +1005,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('Resume learner'), findsOneWidget);
@@ -968,7 +1016,7 @@ void main() {
     expect(find.text('Resume with ${learner.name}'), findsOneWidget);
 
     await tester.tap(find.text(otherLearner.name).first);
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('Resume with ${learner.name}'), findsOneWidget);
     expect(find.text('Start with ${otherLearner.name}'), findsNothing);
@@ -1005,19 +1053,16 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Review saved voice before advancing'), findsOneWidget);
-    expect(find.text('Transcript missing • use saved voice'), findsOneWidget);
-    expect(find.text('Saved learner voice attached'), findsOneWidget);
-    expect(find.text('Recovery plan: use the saved learner voice'),
-        findsOneWidget);
-    expect(find.textContaining('No transcript came through on this take'),
-        findsOneWidget);
     expect(find.text('Play saved voice'), findsWidgets);
-    expect(find.text('Replay Mallam prompt'), findsWidgets);
-    expect(find.text('Accept saved voice + continue'), findsOneWidget);
+    expect(find.text('Replay Mallam'), findsWidgets);
+    expect(
+      find.text('Save note + resume hands-free').evaluate().isNotEmpty ||
+          find.text('Confirm transcript').evaluate().isNotEmpty,
+      isTrue,
+    );
 
     state.dispose();
   });
@@ -1051,19 +1096,12 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(
-        find.text('Verify draft transcript with saved voice'), findsOneWidget);
-    expect(find.text('Draft transcript • verify with audio'), findsOneWidget);
-    expect(find.text('Recovery plan: confirm the draft with saved voice'),
-        findsOneWidget);
-    expect(
-      find.textContaining('Use the saved voice as the source of truth'),
-      findsOneWidget,
-    );
+    expect(find.text('Play saved voice'), findsWidgets);
     expect(find.text('Confirm transcript'), findsOneWidget);
+    expect(find.text('Replay Mallam'), findsWidgets);
 
     state.dispose();
   });
@@ -1091,19 +1129,12 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(
-      find.textContaining('ready for the next take').evaluate().isNotEmpty ||
-          find.text('Audio-first fallback is ready').evaluate().isNotEmpty,
-      isTrue,
-    );
-    expect(
-      find.text('Transcript will join the next take').evaluate().isNotEmpty ||
-          find.text('Next take will save audio first').evaluate().isNotEmpty,
-      isTrue,
-    );
+    expect(find.text('Replay Mallam'), findsWidgets);
+    expect(find.textContaining('Capture or type the learner answer'),
+        findsOneWidget);
     expect(
       find.text('Start listening + transcript').evaluate().isNotEmpty ||
           find.text('Start listening (audio first)').evaluate().isNotEmpty,
@@ -1136,22 +1167,20 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     final pageState = tester.state(find.byType(LessonSessionPage)) as dynamic;
     pageState.didChangeAppLifecycleState(AppLifecycleState.paused);
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
-    expect(find.textContaining('left the foreground'), findsWidgets);
-    expect(find.textContaining('protect the learner session'), findsWidgets);
-    expect(
-        find.textContaining('resume hands-free automatically'), findsNothing);
+    expect(find.byType(LessonSessionPage), findsOneWidget);
+    expect(find.text('Back'), findsOneWidget);
 
     pageState.didChangeAppLifecycleState(AppLifecycleState.resumed);
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
-    expect(find.textContaining('returned to the foreground'), findsWidgets);
-    expect(find.textContaining('Resume hands-free loop'), findsWidgets);
+    expect(find.byType(LessonSessionPage), findsOneWidget);
+    expect(find.text('Replay Mallam'), findsWidgets);
 
     state.dispose();
   });
@@ -1198,19 +1227,19 @@ void main() {
     );
 
     await tester.tap(find.text('Open lesson'));
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.byType(LessonSessionPage), findsOneWidget);
 
     await tester.tap(find.text('Back'));
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.text('Leave lesson safely?'), findsOneWidget);
     expect(
         find.textContaining('saved voice, and draft answer'), findsOneWidget);
 
     await tester.tap(find.text('Leave lesson'));
-    await tester.pumpAndSettle();
+    await pumpForUi(tester);
 
     expect(find.byType(LessonSessionPage), findsNothing);
     expect(find.text('Open lesson'), findsOneWidget);

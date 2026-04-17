@@ -1070,25 +1070,56 @@ class _HomeMallamStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _MallamStageShell(
-      eyebrow: 'AI Mallam',
-      child: MallamPanel(
-        instruction: homeInstruction,
-        onVoiceTap: () {
-          state.replayVisiblePrompt(
-            'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
-          );
-        },
-        prompt:
-            'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
-        speakerMode: SpeakerMode.guiding,
-        statusLabel: 'AI Mallam is ready',
-        secondaryStatus: 'Home guide',
-        voiceButtonLabel: 'Replay Mallam',
-        voiceHint:
-            'Keep Mallam visible and dominant on this screen so the facilitator never loses the voice guide while choosing the next action.',
-        centerPortraitLayout: true,
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.maxWidth < 900 || constraints.maxHeight < 420;
+        final portraitSize = compact ? 220.0 : 300.0;
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.transparent,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Center(
+                  child: Image.asset(
+                    'assets/images/mallam_tutor.jpg',
+                    height: portraitSize,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  state.replayVisiblePrompt(
+                    'Assalamu alaikum. You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.',
+                  );
+                },
+                icon: const Icon(Icons.volume_up_rounded),
+                label: const Text('Replay Mallam'),
+                style: FilledButton.styleFrom(
+                  foregroundColor: LumoTheme.primary,
+                  backgroundColor: LumoTheme.primary.withValues(alpha: 0.1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    side: BorderSide(
+                      color: LumoTheme.primary.withValues(alpha: 0.14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
