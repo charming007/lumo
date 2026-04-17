@@ -630,7 +630,7 @@ export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) 
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
 
   const lesson = await apiRead<{
-    lessonAssessment?: { [key: string]: unknown; title?: string | null; items?: Array<Record<string, unknown>> } | null;
+    lessonAssessment?: { [key: string]: unknown; title?: string | null; assessmentId?: string | null; items?: Array<Record<string, unknown>> } | null;
   }>(`/api/v1/lessons/${lessonId}`);
 
   const nextLessonAssessment = lesson.lessonAssessment && typeof lesson.lessonAssessment === 'object'
@@ -639,8 +639,10 @@ export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) 
 
   if (assessmentId && assessmentTitle) {
     nextLessonAssessment.title = assessmentTitle;
+    nextLessonAssessment.assessmentId = assessmentId;
   } else {
     delete nextLessonAssessment.title;
+    delete nextLessonAssessment.assessmentId;
   }
 
   await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', {

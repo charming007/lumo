@@ -295,6 +295,7 @@ export function LessonEditorForm({
 
   const lessonAssessment = useMemo(
     () => ({
+      ...(lesson.lessonAssessment && typeof lesson.lessonAssessment === 'object' ? lesson.lessonAssessment : {}),
       title: assessmentTitle,
       kind: assessmentKind,
       items: assessmentItemsText
@@ -310,7 +311,7 @@ export function LessonEditorForm({
           };
         }),
     }),
-    [assessmentTitle, assessmentKind, assessmentItemsText],
+    [lesson.lessonAssessment, assessmentTitle, assessmentKind, assessmentItemsText],
   );
 
   const activitySteps = useMemo(

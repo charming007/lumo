@@ -337,13 +337,14 @@ export function LessonCreateForm({
   const learningObjectives = useMemo(() => learningObjectivesText.split('\n').map((item) => item.trim()).filter(Boolean), [learningObjectivesText]);
   const localization = useMemo(() => ({ locale: 'en-NG', supportLanguage, supportLanguageLabel, notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean) }), [supportLanguage, supportLanguageLabel, localizationNotesText]);
   const lessonAssessment = useMemo(() => ({
+    ...(duplicateLesson?.lessonAssessment && typeof duplicateLesson.lessonAssessment === 'object' ? duplicateLesson.lessonAssessment : {}),
     title: assessmentTitle,
     kind: assessmentKind,
     items: assessmentItemsText.split('\n').map((line) => line.trim()).filter(Boolean).map((line, index) => {
       const [prompt, evidence = 'teacher-check'] = line.split('|').map((part) => part.trim());
       return { id: `assessment-item-${index + 1}`, prompt, evidence };
     }),
-  }), [assessmentTitle, assessmentKind, assessmentItemsText]);
+  }), [duplicateLesson?.lessonAssessment, assessmentTitle, assessmentKind, assessmentItemsText]);
   const activitySteps = useMemo(() => activityDrafts.map((draft, index) => ({
     id: draft.id || `activity-${index + 1}`,
     order: index + 1,

@@ -199,7 +199,11 @@ function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessm
     typeof explicitAssessmentTitleValue === 'string' ? explicitAssessmentTitleValue : null,
     '',
   ) || null;
-  const explicitAssessmentIdValue = 'assessmentId' in lesson ? lesson.assessmentId : null;
+  const explicitAssessmentIdValue = 'assessmentId' in lesson
+    ? lesson.assessmentId
+    : ('lessonAssessment' in lesson && lesson.lessonAssessment && typeof lesson.lessonAssessment === 'object' && typeof lesson.lessonAssessment.assessmentId === 'string'
+      ? lesson.lessonAssessment.assessmentId
+      : null);
   const explicitAssessmentId = typeof explicitAssessmentIdValue === 'string' ? explicitAssessmentIdValue : null;
   const rawObjectives = 'learningObjectives' in lesson ? lesson.learningObjectives : undefined;
   const rawActivityCount = 'activityCount' in lesson ? lesson.activityCount : undefined;

@@ -248,13 +248,14 @@ export function EnglishStudioAuthoringForm({
   }), [supportLanguage, supportLanguageLabel, localizationNotesText]);
   const assessmentTitle = activeAssessment?.title ?? `${title} quick check`;
   const lessonAssessment = useMemo(() => ({
+    assessmentId: activeAssessment?.id ?? null,
     title: assessmentTitle,
     kind: assessmentKind,
     items: assessmentItemsText.split('\n').map((line, index) => {
       const [prompt, evidence = 'teacher-check'] = line.split('|').map((part) => part.trim());
       return { id: `english-assessment-${index + 1}`, prompt, evidence };
     }).filter((item) => item.prompt),
-  }), [assessmentTitle, assessmentKind, assessmentItemsText]);
+  }), [activeAssessment?.id, assessmentTitle, assessmentKind, assessmentItemsText]);
 
   const activitySteps = useMemo(() => activityDrafts.map((draft, index) => ({
     id: draft.id || `english-${index + 1}`,

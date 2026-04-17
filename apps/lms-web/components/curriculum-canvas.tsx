@@ -1216,7 +1216,7 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
           ['Sequence slot', lesson.order ? String(lesson.order) : 'Unassigned'],
           ['Objectives', String(lesson.objectiveCount ?? 0)],
           ['Activities', String(lesson.activityCount ?? 0)],
-          ['Module link', lesson.assessmentTitle ? 'Connected' : 'Needs triage'],
+          ['Module link', lesson.assessmentId || lesson.assessmentTitle ? 'Connected' : 'Needs triage'],
         ].map(([label, value]) => (
           <div key={label} style={{ padding: 14, borderRadius: 18, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1 }}>{label}</div>
