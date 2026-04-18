@@ -1029,6 +1029,10 @@ export function CurriculumCanvas({
                       <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Module quick edit</div>
                       <input type="hidden" name="moduleId" value={selected.module.id} />
                       <input type="hidden" name="returnPath" value={selectedModuleUrl} />
+                      <label style={{ display: 'grid', gap: 6 }}>
+                        <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Title</span>
+                        <input name="title" defaultValue={selected.module.title} maxLength={120} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }} />
+                      </label>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
                         <label style={{ display: 'grid', gap: 6 }}>
                           <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Status</span>

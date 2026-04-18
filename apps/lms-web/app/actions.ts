@@ -394,6 +394,7 @@ export async function updateModuleAction(formData: FormData) {
   const moduleId = String(formData.get('moduleId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
+    title: String(formData.get('title') || '').trim(),
     status: String(formData.get('status') || ''),
     lessonCount: Number(formData.get('lessonCount') || 0),
     level: String(formData.get('level') || ''),
@@ -520,11 +521,13 @@ export async function quickUpdateLessonStatusAction(formData: FormData) {
 export async function quickUpdateCanvasModuleAction(formData: FormData) {
   const moduleId = String(formData.get('moduleId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const title = String(formData.get('title') || '').trim();
   const status = String(formData.get('status') || 'draft');
   const level = String(formData.get('level') || '').trim();
   const lessonCount = Math.max(Number(formData.get('lessonCount') || 0), 0);
 
   await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'PATCH', {
+    title,
     status,
     level,
     lessonCount,

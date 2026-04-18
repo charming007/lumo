@@ -63,11 +63,13 @@ function SelectionSummary({ title, lines }: { title: string; lines: string[] }) 
 export function UpdateModuleFormClient({ modules }: { modules: CurriculumModule[] }) {
   const [moduleId, setModuleId] = useState(modules[0]?.id ?? '');
   const selectedModule = useMemo(() => modules.find((item) => item.id === moduleId) ?? modules[0], [modules, moduleId]);
+  const [title, setTitle] = useState(selectedModule?.title ?? '');
   const [status, setStatus] = useState(selectedModule?.status ?? 'draft');
   const [lessonCount, setLessonCount] = useState(String(selectedModule?.lessonCount ?? 1));
   const [level, setLevel] = useState(selectedModule?.level ?? 'beginner');
 
   useEffect(() => {
+    setTitle(selectedModule?.title ?? '');
     setStatus(selectedModule?.status ?? 'draft');
     setLessonCount(String(selectedModule?.lessonCount ?? 1));
     setLevel(selectedModule?.level ?? 'beginner');
@@ -79,6 +81,7 @@ export function UpdateModuleFormClient({ modules }: { modules: CurriculumModule[
       <SectionHint>Pick the exact module to edit. The form now follows your selection instead of silently clinging to the first row.</SectionHint>
       <FieldLabel>Module<select name="moduleId" value={selectedModule?.id ?? ''} onChange={(event) => setModuleId(event.target.value)} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
       {selectedModule ? <SelectionSummary title={selectedModule.title} lines={[selectedModule.subjectName, selectedModule.strandName, `${selectedModule.lessonCount} planned lessons`, selectedModule.level]} /> : null}
+      <FieldLabel>Title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} style={inputStyle} /></FieldLabel>
       <FieldLabel>Status<select name="status" value={status} onChange={(event) => setStatus(event.target.value)} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" value={lessonCount} onChange={(event) => setLessonCount(event.target.value)} style={inputStyle} /></FieldLabel>

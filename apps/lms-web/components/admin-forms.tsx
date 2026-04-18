@@ -331,6 +331,7 @@ export function UpdateModuleForm({ modules, returnPath }: { modules: CurriculumM
       <h2 style={{ margin: 0 }}>Update module</h2>
       <SectionHint>Pick the exact module to edit. No more “first row wins” nonsense.</SectionHint>
       <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
+      <FieldLabel>Title<input name="title" defaultValue={module?.title ?? ''} style={inputStyle} /></FieldLabel>
       <FieldLabel>Status<select name="status" defaultValue={module?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
       <div style={twoColumnGrid}>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(module?.lessonCount ?? 1)} style={inputStyle} /></FieldLabel>
