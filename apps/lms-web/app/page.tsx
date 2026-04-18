@@ -165,6 +165,7 @@ export default async function HomePage() {
 
   const readyLearners = workboard.filter((item) => item.progressionStatus === 'ready');
   const watchLearners = workboard.filter((item) => item.progressionStatus === 'watch');
+  const priorityQueue = [...watchLearners, ...readyLearners];
   const activeMallams = mallams.filter((mallam) => mallam.status === 'active');
   const hasCriticalDashboardGap = !summaryAvailable || !workboardAvailable;
   const dueSoonAssignments = assignments
@@ -353,9 +354,11 @@ export default async function HomePage() {
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <Card title="Priority queue" eyebrow="Immediate intervention">
-          {workboard.length ? (
+          {!workboardAvailable ? (
+            sectionAlert('The progression workboard is unavailable right now, so this dashboard cannot safely pretend there is no intervention queue.', 'warning')
+          ) : priorityQueue.length ? (
             <div style={{ display: 'grid', gap: 12 }}>
-              {[...watchLearners, ...readyLearners].slice(0, 6).map((item) => {
+              {priorityQueue.slice(0, 6).map((item) => {
                 const tone = statusTone(item.progressionStatus);
                 const learnerHref = item.studentId ? `/students/${item.studentId}` : null;
                 return (
@@ -396,7 +399,7 @@ export default async function HomePage() {
               })}
             </div>
           ) : (
-            sectionAlert('The progression workboard is unavailable right now, so this dashboard cannot safely pretend there is no intervention queue.')
+            sectionAlert('The live workboard is healthy, but no learner is currently flagged ready or watch. Nice problem to have.')
           )}
         </Card>
 
@@ -433,7 +436,9 @@ export default async function HomePage() {
 
       <section style={{ ...responsiveGrid(340), marginBottom: 20 }}>
         <Card title="Executive signals" eyebrow="Narrative from the dashboard feed">
-          {insights.length ? (
+          {insightsResult.status !== 'fulfilled' ? (
+            sectionAlert('Dashboard insights did not load, so use reports and progress before making any “looks fine to me” call.', 'warning')
+          ) : insights.length ? (
             <div style={{ display: 'grid', gap: 12 }}>
               {insights.map((item, index) => (
                 <div key={`${item.headline}-${index}`} style={{ border: '1px solid #e2e8f0', borderRadius: 18, padding: '14px 16px', display: 'grid', gap: 6 }}>
@@ -447,7 +452,7 @@ export default async function HomePage() {
               ))}
             </div>
           ) : (
-            sectionAlert('Dashboard insights did not load, so use reports and progress before making any “looks fine to me” call.', 'warning')
+            sectionAlert('The dashboard insights feed is live, but there are no narrative callouts right now. Cross-check reports if you want extra color, not because the page is lying.')
           )}
         </Card>
 
@@ -469,7 +474,7 @@ export default async function HomePage() {
                       <Pill key={`${item.id}-status`} label={item.status.replace(/-/g, ' ')} tone={item.status === 'completed' ? '#E5E7EB' : item.status === 'active' ? '#DCFCE7' : '#E0E7FF'} text={item.status === 'completed' ? '#334155' : item.status === 'active' ? '#166534' : '#3730A3'} />,
                     ];
                   })
-                : [[<span key="no-assignments" style={{ color: '#64748b' }}>No incomplete assignments are visible right now.</span>, '', '', '', '']]
+                : [[<span key="no-assignments" style={{ color: '#64748b' }}>The assignments feed is live, and there are no incomplete assignments to triage right now.</span>, '', '', '', '']]
               : [[<span key="assignments-unavailable" style={{ color: '#9a3412' }}>Assignment feed unavailable — do not treat this as a clear delivery board.</span>, '', '', '', '']]}
           />
         </Card>
