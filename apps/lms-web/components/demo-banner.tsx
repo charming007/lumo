@@ -7,7 +7,7 @@ type Props = {
 };
 
 function bannerTone(apiSource: ApiBaseSource) {
-  if (apiSource === 'missing-production-env') {
+  if (apiSource === 'missing-production-env' || apiSource === 'invalid-production-env') {
     return {
       background: '#7c2d12',
       detail: '#fed7aa',
@@ -23,6 +23,10 @@ function bannerTone(apiSource: ApiBaseSource) {
 function describeApiSource(apiSource: ApiBaseSource) {
   if (apiSource === 'missing-production-env') {
     return 'Production deploy is missing NEXT_PUBLIC_API_BASE_URL. The LMS is still up so operators can see explicit blocker states, but live API-backed screens stay intentionally degraded until the env var is fixed.';
+  }
+
+  if (apiSource === 'invalid-production-env') {
+    return 'Production deploy has an unsafe NEXT_PUBLIC_API_BASE_URL (placeholder, local-only, invalid, or non-HTTPS). The LMS now treats that as a hard blocker instead of pretending the backend wiring is fine.';
   }
 
   if (apiSource === 'local-fallback') {

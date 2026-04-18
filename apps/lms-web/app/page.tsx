@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 import { fetchAssignments, fetchDashboardInsights, fetchDashboardSummary, fetchMallams, fetchWorkboard } from '../lib/api';
-import { API_BASE_SOURCE } from '../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, DashboardInsight, DashboardSummary, Mallam, WorkboardItem } from '../lib/types';
 
@@ -85,19 +85,29 @@ function metricDisplay(value: string, available: boolean) {
 }
 
 export default async function HomePage() {
-  if (API_BASE_SOURCE === 'missing-production-env') {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
         title="Dashboard"
-        subtitle="The admin landing page is intentionally blocked until the production LMS is wired to the real API."
-        blockerHeadline="Deployment blocker: dashboard API base URL is missing."
+        subtitle="The admin landing page is intentionally blocked until the production LMS is wired to a real, production-safe API."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: dashboard API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the main admin landing page cannot safely show live learner counts, workboard priority, mallam coverage, or assignment activity. Blocking the dashboard is better than shipping a polished lie.
+            {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
+              ? (
+                <>
+                  This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the main admin landing page cannot safely show live learner counts, workboard priority, mallam coverage, or assignment activity. Blocking the dashboard is better than shipping a polished lie.
+                </>
+              )
+              : (
+                <>
+                  <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would let a broken deployment masquerade as a live admin dashboard.
+                </>
+              )}
           </>
         )}
         whyBlocked={[
-          'The root route is the first thing deployment reviewers and operators see. If it implies the dashboard is healthy while the API is disconnected, every downstream sign-off becomes suspect.',
+          'The root route is the first thing deployment reviewers and operators see. If it implies the dashboard is healthy while the API is missing, placeholder-only, or pointed at localhost, every downstream sign-off becomes suspect.',
           'Dashboard counts drive escalation: who is ready, who is slipping, and whether mallam + pod coverage actually exists right now.',
           'A quiet empty-state admin landing is worse than a loud blocker because it invites bad operational decisions.',
         ]}
@@ -113,9 +123,9 @@ export default async function HomePage() {
             failure: 'No intervention rows even though student/progress pages show active learners',
           },
           {
-            surface: 'Mallam activity',
-            expected: 'Facilitator coverage and active assignment signals line up with live mallam + assignment feeds',
-            failure: 'Dashboard looks calm while actual teaching operations are missing or stale',
+            surface: 'Configured API base URL',
+            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
+            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
           },
         ]}
         docs={[

@@ -22,13 +22,45 @@ const isProductionDeployment =
 const isBuildCommand = lifecycleEvent === 'build';
 const shouldBlockBuild = isHostedDeployment || isProductionDeployment || isBuildCommand;
 
-if (!configuredApiBase) {
+function invalidProductionApiReason(value) {
+  if (!value) {
+    return 'NEXT_PUBLIC_API_BASE_URL is missing, so live dashboard/admin data will stay intentionally blocked in the shipped UI.';
+  }
+
+  try {
+    const parsed = new URL(value);
+    const hostname = parsed.hostname.toLowerCase();
+    const protocol = parsed.protocol.toLowerCase();
+    const looksPlaceholder = hostname === 'example.com' || hostname.endsWith('.example.com');
+    const looksLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname.endsWith('.local');
+
+    if (protocol !== 'https:') {
+      return `NEXT_PUBLIC_API_BASE_URL must use https in production. Current value: ${value}`;
+    }
+
+    if (looksPlaceholder) {
+      return `NEXT_PUBLIC_API_BASE_URL still points at the placeholder host ${hostname}. Replace it with the real production API before deploying.`;
+    }
+
+    if (looksLocal) {
+      return `NEXT_PUBLIC_API_BASE_URL points at ${hostname}, which is only reachable from the local machine. Production LMS users would hit a dead backend.`;
+    }
+
+    return null;
+  } catch {
+    return `NEXT_PUBLIC_API_BASE_URL is not a valid URL. Current value: ${value}`;
+  }
+}
+
+const invalidReason = invalidProductionApiReason(configuredApiBase);
+
+if (invalidReason) {
   const lines = [
     '',
     shouldBlockBuild ? 'Lumo LMS deployment build blocker.' : 'Lumo LMS build warning.',
-    'NEXT_PUBLIC_API_BASE_URL is missing, so live dashboard/admin data will stay intentionally blocked in the shipped UI.',
+    invalidReason,
     shouldBlockBuild
-      ? 'Hosted builds must stop here instead of deploying a dashboard that only renders blocker cards.'
+      ? 'Hosted builds must stop here instead of deploying a dashboard that only renders blocker cards or silently points at a fake backend.'
       : 'Set it in Vercel or your build environment before shipping to production.',
     '',
   ];

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
-import { API_BASE_SOURCE } from '../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../lib/config';
 
 const shellStyle: CSSProperties = {
   margin: '16px clamp(16px, 4vw, 32px) 0',
@@ -25,7 +25,7 @@ const actionStyle: CSSProperties = {
 };
 
 export function ProductionConfigBanner() {
-  if (API_BASE_SOURCE !== 'missing-production-env') {
+  if (!API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return null;
   }
 
@@ -33,10 +33,14 @@ export function ProductionConfigBanner() {
     <section style={shellStyle} aria-label="Production configuration warning">
       <div style={{ display: 'grid', gap: 6 }}>
         <strong style={{ color: 'white', fontSize: 18 }}>
-          Deployment blocker: NEXT_PUBLIC_API_BASE_URL is missing in production.
+          {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
+            ? 'Deployment blocker: NEXT_PUBLIC_API_BASE_URL is missing in production.'
+            : 'Deployment blocker: NEXT_PUBLIC_API_BASE_URL is configured, but it is not safe to ship.'}
         </strong>
         <span style={{ lineHeight: 1.7 }}>
-          This LMS is intentionally refusing to fake a backend URL. Until the env var is set, live API-backed screens across dashboard, content, reports, and the rest of the app can only render degraded fallback states.
+          {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
+            ? 'This LMS is intentionally refusing to fake a backend URL. Until the env var is set, live API-backed screens across dashboard, content, reports, and the rest of the app can only render degraded fallback states.'
+            : API_BASE_DIAGNOSTIC.blockerDetail}
         </span>
       </div>
 
@@ -47,10 +51,16 @@ export function ProductionConfigBanner() {
         </div>
         <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
           <strong style={{ color: 'white' }}>Expected format:</strong>{' '}
-          <code style={{ color: 'white', fontWeight: 900 }}>https://your-lumo-api.up.railway.app</code>
+          <code style={{ color: 'white', fontWeight: 900 }}>{API_BASE_DIAGNOSTIC.expectedFormat}</code>
         </div>
+        {API_BASE_DIAGNOSTIC.configuredApiBase ? (
+          <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
+            <strong style={{ color: 'white' }}>Current value:</strong>{' '}
+            <code style={{ color: 'white', fontWeight: 900 }}>{API_BASE_DIAGNOSTIC.configuredApiBase}</code>
+          </div>
+        ) : null}
         <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
-          Add it in your production deployment settings, redeploy, then verify the three pages that expose the most obvious live data paths.
+          Fix the production env, redeploy, then verify the three pages that expose the most obvious live data paths.
         </div>
       </div>
 
