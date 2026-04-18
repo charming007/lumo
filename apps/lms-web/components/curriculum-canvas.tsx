@@ -372,31 +372,54 @@ export function CurriculumCanvas({
       }
     }
 
-    for (const subject of data.subjects) {
-      for (const strand of subject.strands) {
-        for (const module of strand.modules) {
-          if (module.id === selectedModuleId) {
-            return { subject, strand, module };
+    const filteredFirstSubject = filteredSubjects[0];
+    const filteredFirstStrand = filteredFirstSubject?.strands[0];
+    const filteredFirstModule = filteredFirstStrand?.modules[0] ?? null;
+    if (filteredFirstSubject && filteredFirstStrand && filteredFirstModule) {
+      return {
+        subject: filteredFirstSubject,
+        strand: filteredFirstStrand,
+        module: filteredFirstModule,
+      };
+    }
+
+    if (!filteredSubjects.length) {
+      for (const subject of data.subjects) {
+        for (const strand of subject.strands) {
+          for (const module of strand.modules) {
+            if (module.id === selectedModuleId) {
+              return { subject, strand, module };
+            }
           }
         }
       }
     }
 
-    const filteredFirstModule = filteredSubjects[0]?.strands[0]?.modules[0] ?? firstModule;
-    if (filteredFirstModule) {
-      const subject = filteredSubjects[0] ?? data.subjects[0];
+    if (!filteredSubjects.length && firstModule) {
+      const subject = data.subjects[0];
       const strand = subject?.strands[0];
-      return subject && strand ? { subject, strand, module: filteredFirstModule } : null;
+      return subject && strand ? { subject, strand, module: firstModule } : null;
     }
 
     return null;
   }, [data.subjects, filteredSubjects, firstModule, selectedModuleId]);
 
   useEffect(() => {
-    if (!selected && filteredSubjects[0]?.strands[0]?.modules[0]?.id) {
-      setSelectedModuleId(filteredSubjects[0].strands[0].modules[0].id);
+    const firstVisibleModuleId = filteredSubjects[0]?.strands[0]?.modules[0]?.id ?? null;
+    if (!firstVisibleModuleId) {
+      return;
     }
-  }, [filteredSubjects, selected]);
+
+    const selectedStillVisible = filteredSubjects.some((subject) =>
+      subject.strands.some((strand) => strand.modules.some((module) => module.id === selectedModuleId)),
+    );
+
+    if (!selectedStillVisible) {
+      setSelectedModuleId(firstVisibleModuleId);
+      setSelectedLessonId(null);
+      setSelectedAssessmentId(null);
+    }
+  }, [filteredSubjects, selectedModuleId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
