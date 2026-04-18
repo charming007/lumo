@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { CurriculumCanvas } from '../../components/curriculum-canvas';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
-import { API_BASE_SOURCE } from '../../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { PageShell, Pill } from '../../lib/ui';
 import {
   bulkUpdateCanvasModuleLessonsAction,
@@ -45,7 +46,7 @@ function buildHardRescueCanvasData(reason: string) {
                   {
                     id: 'rescue-config-check',
                     title: 'Check the deployed API base URL',
-                    status: API_BASE_SOURCE === 'missing-production-env' ? 'review' : 'approved',
+                    status: API_BASE_DIAGNOSTIC.deploymentBlocked ? 'review' : 'approved',
                     durationMinutes: 5,
                     mode: 'ops',
                     assessmentTitle: 'Production config checkpoint',
@@ -286,6 +287,59 @@ function RescueVisibilityDeck({
 
 export default async function CurriculumCanvasPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
+
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Curriculum Canvas"
+        subtitle="The visual curriculum graph is blocked until the production LMS is wired to a real, production-safe API."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: curriculum canvas API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
+              ? (
+                <>
+                  This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the curriculum graph cannot honestly render subjects, strands, modules, lesson readiness, or assessment coverage. A rescue lane here would still look deployable while the actual LMS graph is disconnected.
+                </>
+              )
+              : (
+                <>
+                  <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would let a broken curriculum graph masquerade as a usable release surface.
+                </>
+              )}
+          </>
+        )}
+        whyBlocked={[
+          'Canvas is not decorative. It is used to inspect curriculum coverage, release blockers, lesson readiness, and assessment attachment depth before shipping content changes.',
+          'Rendering a rescue lane while production wiring is missing still creates a dangerous illusion: reviewers can mistake fallback cards for a healthy curriculum graph.',
+          'If the API base URL is missing or unsafe, the right move is a loud blocker with explicit fix steps, not a clever fallback that blurs the outage.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Curriculum graph',
+            expected: 'Subjects, strands, modules, lessons, and assessment links load from the live LMS API',
+            failure: 'Fallback-only rescue cards that look useful even though no production curriculum data is connected',
+          },
+          {
+            surface: 'Release readiness cues',
+            expected: 'Blocked modules, ready lessons, and assessment coverage reflect live data before deployment review',
+            failure: 'Operators infer release status from placeholders or disconnected fallback content',
+          },
+          {
+            surface: 'Configured API base URL',
+            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
+            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content blocker', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Assessments blocker', href: '/assessments', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const [
     subjectsResult,
     strandsResult,
@@ -341,7 +395,7 @@ export default async function CurriculumCanvasPage({ searchParams }: { searchPar
     treeFailureShouldSurface ? 'canvas-tree' : null,
   ].filter((value): value is string => Boolean(value));
 
-  const hardRescueReason = API_BASE_SOURCE === 'missing-production-env'
+  const hardRescueReason = API_BASE_DIAGNOSTIC.deploymentBlocked
     ? 'NEXT_PUBLIC_API_BASE_URL is missing in production, so the canvas is rendering an explicit rescue lane instead of pretending the empty route is acceptable.'
     : failedSources.length
       ? `These curriculum feeds failed: ${failedSources.join(', ')}. The route is rendering operator rescue cards so production never collapses into a blank page.`

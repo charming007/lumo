@@ -162,12 +162,18 @@ export default async function HomePage() {
     { label: 'mallams', result: mallamsResult },
     { label: 'assignments', result: assignmentsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
+  const criticalDashboardFailures = [
+    !summaryAvailable ? 'dashboard summary' : null,
+    !workboardAvailable ? 'workboard' : null,
+    !mallamsAvailable ? 'mallams' : null,
+    !assignmentsAvailable ? 'assignments' : null,
+  ].filter(Boolean) as string[];
 
   const readyLearners = workboard.filter((item) => item.progressionStatus === 'ready');
   const watchLearners = workboard.filter((item) => item.progressionStatus === 'watch');
   const priorityQueue = [...watchLearners, ...readyLearners];
   const activeMallams = mallams.filter((mallam) => mallam.status === 'active');
-  const hasCriticalDashboardGap = !summaryAvailable || !workboardAvailable;
+  const hasCriticalDashboardGap = criticalDashboardFailures.length > 0;
   const dueSoonAssignments = assignments
     .filter((assignment) => assignment.status !== 'completed')
     .slice()
@@ -175,11 +181,19 @@ export default async function HomePage() {
     .slice(0, 5);
 
   if (hasCriticalDashboardGap) {
-    const blockerDetail = !summaryAvailable && !workboardAvailable
-      ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
-      : !summaryAvailable
-        ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
-        : 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.';
+    const blockerDetail = !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
+      ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+      : !summaryAvailable && !workboardAvailable
+        ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+        : !summaryAvailable
+          ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
+          : !workboardAvailable
+            ? 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.'
+            : !mallamsAvailable && !assignmentsAvailable
+              ? 'Mallam coverage and assignment pressure both failed to load from the live API. That strips out the facilitator and delivery checks operators use before trusting this dashboard.'
+              : !mallamsAvailable
+                ? 'The mallam coverage feed failed to load from the live API. Without the live roster, this dashboard cannot honestly represent facilitator coverage.'
+                : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.';
 
     return (
       <DeploymentBlockerCard
@@ -194,8 +208,8 @@ export default async function HomePage() {
           </>
         )}
         whyBlocked={[
-          'The root route is the deployment reviewer’s first trust check. If summary or progression data is missing, the page should not cosplay as a healthy command center.',
-          'Operators use this screen to decide who needs intervention now. Missing the workboard or top-line counts turns that into vibes-based operations.',
+          'The root route is the deployment reviewer’s first trust check. If summary, progression, mallam coverage, or assignment pressure is missing, the page should not cosplay as a healthy command center.',
+          'Operators use this screen to decide who needs intervention now, whether facilitators are actually covered, and whether delivery load is under control. Missing any of those turns this into vibes-based operations.',
           'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
         ]}
         verificationItems={[
@@ -210,15 +224,15 @@ export default async function HomePage() {
             failure: 'No intervention queue or only empty-state fallback copy',
           },
           {
-            surface: 'Cross-route verification',
-            expected: 'Learners, progress, and reports routes agree with the dashboard after redeploy',
-            failure: 'Route-level data exists but the dashboard still cannot assemble a trustworthy release view',
+            surface: 'Coverage + flow readout',
+            expected: 'Mallam coverage and due-soon assignment pressure reflect live roster + assignment feeds',
+            failure: 'Dashboard still looks deployable even though facilitator coverage or delivery pressure is unknown',
           },
         ]}
         fixItems={[
-          { label: 'Failing feeds', value: failedSources.length ? failedSources.join(', ') : 'dashboard summary and progression workboard' },
-          { label: 'Operator action', value: 'Restore the live API/feed health before using this route as a release signal' },
-          { label: 'Cross-check', value: 'Verify /progress, /students, and /reports after the upstream fix lands' },
+          { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
+          { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
+          { label: 'Cross-check', value: 'Verify /progress, /students, /mallams, and /assignments after the upstream fix lands' },
         ]}
         docs={[
           { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
@@ -264,7 +278,7 @@ export default async function HomePage() {
               <strong style={{ fontSize: 22, color: '#0f172a' }}>Deployment health at a glance</strong>
               <div style={{ color: '#64748b', lineHeight: 1.6 }}>
                 {hasCriticalDashboardGap
-                  ? 'Critical dashboard feeds are down, so deployment review is blocked until the summary and progression queue recover.'
+                  ? 'Critical dashboard feeds are down, so deployment review is blocked until summary, progression, facilitator coverage, and assignment pressure are trustworthy again.'
                   : failedSources.length
                     ? 'Some dashboard feeds are degraded, so use the route links below to verify detail before acting.'
                     : 'Use this page to spot who needs intervention, who is ready to progress, and whether facilitators are actually covered.'}
@@ -285,11 +299,19 @@ export default async function HomePage() {
             <div style={{ display: 'grid', gap: 6 }}>
               <strong style={{ fontSize: 20, color: '#9a3412' }}>Stop treating this dashboard as a release signal.</strong>
               <div style={{ color: '#9a3412', lineHeight: 1.7 }}>
-                {summaryAvailable
-                  ? 'The progression queue is missing, so the dashboard cannot honestly show who is blocked, ready, or quietly slipping.'
-                  : workboardAvailable
-                    ? 'The summary feed is missing, so the top-line deployment counts are unavailable and sign-off would be fiction.'
-                    : 'Both the summary and progression queue are unavailable, so this route is intentionally calling the outage out instead of faking calm zeros.'}
+                {!summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
+                  ? 'Summary, progression, facilitator coverage, and assignment pressure are all down, so this route is intentionally calling the outage out instead of faking calm zeros.'
+                  : !summaryAvailable && !workboardAvailable
+                    ? 'Both the summary and progression queue are unavailable, so this route is intentionally calling the outage out instead of faking calm zeros.'
+                    : !summaryAvailable
+                      ? 'The summary feed is missing, so the top-line deployment counts are unavailable and sign-off would be fiction.'
+                      : !workboardAvailable
+                        ? 'The progression queue is missing, so the dashboard cannot honestly show who is blocked, ready, or quietly slipping.'
+                        : !mallamsAvailable && !assignmentsAvailable
+                          ? 'Both facilitator coverage and assignment pressure are missing, so the dashboard cannot honestly represent staffing or delivery load.'
+                          : !mallamsAvailable
+                            ? 'Facilitator coverage is missing, so the dashboard cannot honestly represent who is available to support delivery.'
+                            : 'Assignment pressure is missing, so the dashboard cannot honestly represent delivery load or due-soon risk.'}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

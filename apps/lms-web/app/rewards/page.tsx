@@ -5,7 +5,7 @@ import { RewardRequestQueuePanel } from '../../components/reward-request-queue-p
 import { RewardsAdminForm } from '../../components/rewards-admin-form';
 import { ExportShareCard } from '../../components/export-share-card';
 import { fetchCohorts, fetchMallams, fetchPods, fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard, fetchRewardsReport, fetchStudents, fetchWorkboard } from '../../lib/api';
-import { API_BASE_SOURCE } from '../../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { RewardCatalog } from '../../lib/rewards';
 import type { RewardRequestQueue, RewardSnapshot, RewardsReport, Student, WorkboardItem } from '../../lib/types';
@@ -124,7 +124,7 @@ function toCsv(rows: Array<Array<string | number>>) {
 }
 
 export default async function RewardsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; status?: string | string[] }> }) {
-  if (API_BASE_SOURCE === 'missing-production-env') {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
         title="Rewards & Progression"

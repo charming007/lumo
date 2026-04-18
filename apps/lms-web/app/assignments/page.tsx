@@ -5,7 +5,7 @@ import { ReassignAssignmentForm } from '../../components/reassign-assignment-for
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { fetchAssignments, fetchAssessments, fetchCohorts, fetchLessons, fetchMallams, fetchPods } from '../../lib/api';
-import { API_BASE_SOURCE } from '../../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyAssignmentRows(message: string): ReactNode[][] {
@@ -47,7 +47,7 @@ function startOfDay(date: Date) {
 export default async function AssignmentsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; status?: string | string[]; cohort?: string | string[]; mallam?: string | string[]; pod?: string | string[] }> }) {
   const query = await searchParams;
 
-  if (API_BASE_SOURCE === 'missing-production-env') {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
         title="Assignments"

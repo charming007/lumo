@@ -5,7 +5,7 @@ import { fetchAssignments, fetchCohorts, fetchDashboardInsights, fetchMallams, f
 import { CopyableTextCard } from '../../components/copyable-text-card';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { ExportShareCard } from '../../components/export-share-card';
-import { API_BASE_SOURCE } from '../../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const EMPTY_REPORT: ReportsOverview = {
@@ -165,7 +165,7 @@ function toCsv(rows: Array<Array<string | number>>) {
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
-  if (API_BASE_SOURCE === 'missing-production-env') {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
         title="Reports"

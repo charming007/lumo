@@ -4,7 +4,7 @@ import { DeploymentBlockerCard } from '../../../components/deployment-blocker-ca
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { MallamRosterManager } from '../../../components/mallam-roster-manager';
 import { ApiRequestError, fetchMallam, fetchMallams, fetchStudents } from '../../../lib/api';
-import { API_BASE_SOURCE } from '../../../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../../lib/ui';
 
 function average(values: number[]) {
@@ -38,7 +38,7 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
 export default async function MallamDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
 
-  if (API_BASE_SOURCE === 'missing-production-env') {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
         title="Mallam detail"

@@ -3,7 +3,7 @@ import { AttendanceCaptureForm } from '../../components/attendance-form';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAttendance, fetchStudents } from '../../lib/api';
-import { API_BASE_SOURCE } from '../../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 function emptyAttendanceRows(message: string): ReactNode[][] {
@@ -11,7 +11,7 @@ function emptyAttendanceRows(message: string): ReactNode[][] {
 }
 
 export default async function AttendancePage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
-  if (API_BASE_SOURCE === 'missing-production-env') {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
         title="Attendance"

@@ -3,7 +3,7 @@ import { DeploymentBlockerCard } from '../../components/deployment-blocker-card'
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ProgressCaptureForm, ProgressUpdateForm } from '../../components/progress-form';
 import { fetchCohorts, fetchCurriculumModules, fetchMallams, fetchPods, fetchProgress, fetchStudents, fetchSubjects } from '../../lib/api';
-import { API_BASE_SOURCE } from '../../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyProgressRows(message: string): ReactNode[][] {
@@ -22,7 +22,7 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
 }
 
 export default async function ProgressPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; subject?: string | string[]; status?: string | string[] }> }) {
-  if (API_BASE_SOURCE === 'missing-production-env') {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
         title="Progress"

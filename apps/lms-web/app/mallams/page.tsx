@@ -3,7 +3,7 @@ import { DeploymentBlockerCard } from '../../components/deployment-blocker-card'
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
-import { API_BASE_SOURCE } from '../../lib/config';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 const actionButtonStyle = {
@@ -37,7 +37,7 @@ function average(values: number[]) {
 }
 
 export default async function MallamsPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; center?: string | string[]; pod?: string | string[]; status?: string | string[]; certification?: string | string[] }> }) {
-  if (API_BASE_SOURCE === 'missing-production-env') {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
         title="Mallams"
