@@ -113,6 +113,7 @@ export type RewardRequestQueue = {
 
 export type WorkboardItem = {
   id: string;
+  studentId?: string;
   studentName: string;
   cohortName: string | null;
   mallamName: string | null;

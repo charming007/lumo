@@ -292,6 +292,7 @@ export default async function HomePage() {
             <div style={{ display: 'grid', gap: 12 }}>
               {[...watchLearners, ...readyLearners].slice(0, 6).map((item) => {
                 const tone = statusTone(item.progressionStatus);
+                const learnerHref = item.studentId ? `/students/${item.studentId}` : null;
                 return (
                   <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: 18, padding: '14px 16px', display: 'grid', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -312,9 +313,15 @@ export default async function HomePage() {
                       Next module: {item.recommendedNextModuleTitle ?? 'No recommendation yet'}
                     </div>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      <Link href={`/students/${item.id}`} style={{ ...quickActionStyle, background: '#111827', color: 'white', padding: '10px 12px' }}>
-                        Open learner
-                      </Link>
+                      {learnerHref ? (
+                        <Link href={learnerHref} style={{ ...quickActionStyle, background: '#111827', color: 'white', padding: '10px 12px' }}>
+                          Open learner
+                        </Link>
+                      ) : (
+                        <span style={{ ...quickActionStyle, background: '#E5E7EB', color: '#64748B', padding: '10px 12px', cursor: 'not-allowed' }}>
+                          Learner link unavailable
+                        </span>
+                      )}
                       <Link href="/progress" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE', padding: '10px 12px' }}>
                         Open progress board
                       </Link>
