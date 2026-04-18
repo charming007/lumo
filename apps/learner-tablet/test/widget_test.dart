@@ -1327,6 +1327,13 @@ void main() {
     expect(find.text('Hear Mallam again'), findsWidgets);
     expect(find.textContaining('Capture or type the learner answer'),
         findsOneWidget);
+    expect(find.textContaining('Session pulse • ${learner.name.split(' ').first}'),
+        findsOneWidget);
+    expect(find.text('Hands-free').evaluate().isNotEmpty ||
+        find.text('Step by step').evaluate().isNotEmpty, isTrue);
+    expect(find.text('Saved voice backup attached').evaluate().isNotEmpty ||
+        find.text('Transcript can drive next step').evaluate().isNotEmpty ||
+        find.text('Transcript assist only').evaluate().isNotEmpty, isTrue);
     expect(
       find.text('Start listening + transcript').evaluate().isNotEmpty ||
           find.text('Start listening (audio first)').evaluate().isNotEmpty,
@@ -1373,6 +1380,8 @@ void main() {
 
     expect(find.byType(LessonSessionPage), findsOneWidget);
     expect(find.text('Hear Mallam again'), findsWidgets);
+    expect(find.text('The lesson is paused safely'), findsOneWidget);
+    expect(find.text('Ready to resume'), findsOneWidget);
 
     state.dispose();
   });

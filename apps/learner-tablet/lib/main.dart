@@ -6853,6 +6853,71 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.favorite_rounded,
+                                                color: Color(0xFF4338CA),
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  'Session pulse • ${learner.name.split(' ').first}',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 16,
+                                                    color: Color(0xFF1E1B4B),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            _sessionStatusHeadline,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            _sessionStatusBody,
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.45,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              StatusPill(
+                                                text: _lessonModeLabel,
+                                                color: const Color(0xFF4338CA),
+                                              ),
+                                              StatusPill(
+                                                text: _transcriptSourceOfTruthLabel,
+                                                color: const Color(0xFF0F766E),
+                                              ),
+                                              StatusPill(
+                                                text: _automationSafetyLabel,
+                                                color: const Color(0xFFB45309),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    SoftPanel(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
                                           Text(
                                             transcriptReviewPending
                                                 ? 'Review this answer, then continue.'
