@@ -115,8 +115,6 @@ void main() {
     final learner = state.suggestedLearnerForHome;
     final learnerName = learner?.name.split(' ').first;
     final nextLesson = state.nextAssignedLessonForLearner(learner);
-    final module =
-        learner == null ? null : state.recommendedModuleForLearner(learner);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -134,14 +132,19 @@ void main() {
     expect(learnerName, isNotNull);
     expect(
       find.text('Mallam is ready for ${learnerName!}\'s next step.'),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.text('Learner: $learnerName'), findsOneWidget);
-    if (module != null) {
-      expect(find.text('Subject: ${module.title}'), findsOneWidget);
-    }
-    expect(find.text('Next: ${nextLesson!.title}'), findsOneWidget);
-    expect(find.textContaining('jump straight into'), findsOneWidget);
+    expect(find.text('What Mallam is noticing'), findsNothing);
+    expect(find.text(state.suggestedLearnerForHome!.supportPlan), findsNothing);
+    expect(find.text('Learner: $learnerName'), findsNothing);
+    expect(
+      find.text(
+        'Subject: ${state.recommendedModuleForLearner(learner!).title}',
+      ),
+      findsNothing,
+    );
+    expect(find.text('Next: ${nextLesson!.title}'), findsNothing);
+    expect(find.textContaining('jump straight into'), findsNothing);
     expect(find.text('AI Mallam is ready'), findsNothing);
     expect(find.text('Home guide'), findsNothing);
     expect(
@@ -926,6 +929,7 @@ void main() {
     expect(replayedPrompt, isNotNull);
     expect(replayedPrompt, contains('Assalamu alaikum. Good'));
     expect(replayedPrompt, contains(firstName));
+    expect(replayedPrompt, contains(learner.supportPlan));
     expect(replayedPrompt, isNot(contains('You are on the home page.')));
 
     state.dispose();

@@ -139,7 +139,9 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
     final session = widget.state.activeSession;
     final lesson = session?.lesson;
     if (session == null || lesson == null) {
-      _recoveryLaunchHandled = true;
+      if (!widget.state.hasPendingRecoveredSession) {
+        _recoveryLaunchHandled = true;
+      }
       return;
     }
 
@@ -684,6 +686,49 @@ class HomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               LumoTopBar(onLogoTap: () {}),
+              if (state.hasPendingRecoveredSession) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFFCD34D)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.history_toggle_off_rounded,
+                            color: Color(0xFFB45309),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Recovered lesson is waiting for live lesson sync.',
+                              style: TextStyle(
+                                color: Color(0xFF78350F),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        state.pendingRecoveredSessionLabel,
+                        style: const TextStyle(
+                          color: Color(0xFF92400E),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 6),
               Expanded(
                 child: LayoutBuilder(
@@ -996,6 +1041,25 @@ String _timeAwareMallamGreeting() {
   return 'Assalamu alaikum. Good evening.';
 }
 
+String _buildLearnerHumanMoment(LearnerProfile learner) {
+  final supportPlan = learner.supportPlan.trim();
+  final attendance = learner.lastAttendance.trim();
+  final lastLesson = learner.lastLessonSummary.trim();
+
+  if (supportPlan.isNotEmpty) {
+    return supportPlan;
+  }
+  if (attendance.isNotEmpty &&
+      attendance.toLowerCase() != 'attendance not captured yet') {
+    return attendance;
+  }
+  if (lastLesson.isNotEmpty &&
+      lastLesson.toLowerCase() != 'no lesson captured yet.') {
+    return lastLesson;
+  }
+  return '${learner.name.split(' ').first} is ready for a calm, voice-first check-in.';
+}
+
 String _buildHomeMallamReplayPrompt(LumoAppState state) {
   final learner = state.suggestedLearnerForHome;
   final nextLesson = state.nextAssignedLessonForLearner(learner);
@@ -1008,15 +1072,16 @@ String _buildHomeMallamReplayPrompt(LumoAppState state) {
   }
 
   final learnerName = learner.name.split(' ').first;
+  final learnerMoment = _buildLearnerHumanMoment(learner);
   if (nextLesson != null) {
-    return '$greeting $learnerName is ready for ${nextLesson.title}. Tap Student List to open learner cards, or open ${module?.title ?? nextLesson.subject} to continue the lesson path.';
+    return '$greeting $learnerName is ready for ${nextLesson.title}. $learnerMoment Tap Student List to open learner cards, or open ${module?.title ?? nextLesson.subject} to continue the lesson path.';
   }
 
   if (module != null) {
-    return '$greeting $learnerName is ready to keep learning. Tap Student List to open learner cards, or choose ${module.title} to keep the next lesson moving.';
+    return '$greeting $learnerName is ready to keep learning. $learnerMoment Tap Student List to open learner cards, or choose ${module.title} to keep the next lesson moving.';
   }
 
-  return '$greeting You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.';
+  return '$greeting $learnerName is on the home page. $learnerMoment Tap Register to add another learner, Student List to see all learners, or choose a subject to open its modules.';
 }
 
 class _HomeMallamStage extends StatelessWidget {
@@ -1036,6 +1101,8 @@ class _HomeMallamStage extends StatelessWidget {
         final module =
             learner == null ? null : state.recommendedModuleForLearner(learner);
         final learnerName = learner?.name.split(' ').first;
+        final learnerMoment =
+            learner == null ? null : _buildLearnerHumanMoment(learner);
         final showCompactSummary = constraints.maxHeight < 340;
         final showSummaryChips =
             constraints.maxWidth >= 620 && !showCompactSummary;
@@ -1082,90 +1149,7 @@ class _HomeMallamStage extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(height: shortHeight ? 4 : (compact ? 6 : 10)),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: compact ? 14 : 18,
-                    vertical: compact ? 12 : 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x12243361),
-                        blurRadius: 18,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        summaryTitle,
-                        textAlign: TextAlign.center,
-                        maxLines: showCompactSummary ? 1 : 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: showCompactSummary
-                              ? (compact ? 15 : 16)
-                              : (compact ? 17 : 19),
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                      SizedBox(height: compact ? 6 : 8),
-                      Text(
-                        summaryBody,
-                        textAlign: TextAlign.center,
-                        maxLines: showCompactSummary ? 2 : 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: showCompactSummary
-                              ? (compact ? 12 : 13)
-                              : (compact ? 13 : 14),
-                          height: 1.45,
-                          color: const Color(0xFF475569),
-                        ),
-                      ),
-                      if (showSummaryChips &&
-                          (learnerName != null ||
-                              module != null ||
-                              nextLesson != null)) ...[
-                        SizedBox(height: compact ? 10 : 12),
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            if (learnerName != null)
-                              _InfoChip(
-                                icon: Icons.person_rounded,
-                                label: 'Learner: $learnerName',
-                              ),
-                            if (module != null)
-                              _InfoChip(
-                                icon: Icons.auto_stories_rounded,
-                                label: 'Subject: ${module.title}',
-                              ),
-                            if (nextLesson != null)
-                              _InfoChip(
-                                icon: Icons.play_circle_fill_rounded,
-                                label: 'Next: ${nextLesson.title}',
-                              ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(height: shortHeight ? 6 : (compact ? 8 : 10)),
+              SizedBox(height: shortHeight ? 10 : (compact ? 14 : 18)),
               FilledButton.tonalIcon(
                 onPressed: () {
                   state.replayVisiblePrompt(
@@ -6439,6 +6423,28 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final micPermissionHealthy = _micPermissionGranted;
     final latestAudioPath = session?.latestLearnerAudioPath;
     final latestAudioDuration = session?.latestLearnerAudioDuration;
+    final diagnosticCallouts = <String>[
+      if (!micPermissionHealthy)
+        _micPermissionState == AudioPermissionState.denied
+            ? 'Mic access is blocked, so Mallam cannot capture a fresh learner take yet.'
+            : 'Mic access has not been confirmed on this device yet.',
+      if (!transcriptHealthy)
+        'Transcript help is degraded, so saved learner audio is the source of truth for now.',
+      if (_autoPausedByTranscriptFailure)
+        'Hands-free paused itself safely after transcript trouble on this step.',
+      if (!backendHealthy)
+        widget.state.usingFallbackData
+            ? 'Backend sync is offline, so this tablet is leaning on local fallback state.'
+            : 'Backend sync is degraded, so roster freshness and lesson evidence may lag.',
+      if (syncWarn)
+        'Runtime sync still has warnings or queued events waiting to go upstream.',
+      if (recordingHealthy &&
+          micPermissionHealthy &&
+          transcriptHealthy &&
+          backendHealthy &&
+          !syncWarn)
+        'Recorder, transcript help, and backend sync all look steady right now.'
+    ];
     final diagnosticsPayload = const JsonEncoder.withIndent('  ').convert({
       'device': _deviceLabel,
       'recordingMode': _recordingModeLabel,
@@ -6474,6 +6480,58 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           Text(
             'Spot recorder, transcript, device, and backend trouble before the hands-free loop goes sideways.',
             style: const TextStyle(color: Color(0xFF475569), height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'What Lumo sees right now',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...diagnosticCallouts.take(3).map(
+                  (callout) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 3),
+                          child: Icon(
+                            Icons.radio_button_checked_rounded,
+                            size: 12,
+                            color: Color(0xFF4338CA),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            callout,
+                            style: const TextStyle(
+                              color: Color(0xFF334155),
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
