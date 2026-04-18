@@ -41,6 +41,17 @@ class _RewardsRefreshApiClient extends LumoApiClient {
   }
 }
 
+class _PlaceholderRecoveryApiClient extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap() async {
+    return LumoBootstrap(
+      learners: learnerProfilesSeed,
+      modules: learningModules,
+      lessons: assignedLessonsSeed,
+    );
+  }
+}
+
 void _noop() {}
 
 void main() {
@@ -1066,15 +1077,20 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('sync-pending placeholder lessons stay blocked in launch setup', (
+  testWidgets('sync-pending placeholder lessons can refresh into a real launch flow', (
     tester,
   ) async {
-    final state = LumoAppState(includeSeedDemoContent: true);
-    final module = state.modules.first;
+    final state = LumoAppState(
+      includeSeedDemoContent: true,
+      apiClient: _PlaceholderRecoveryApiClient(),
+    )..usingFallbackData = false;
+    final module = state.modules.firstWhere((item) => item.id == 'english');
     final lesson = LessonCardModel(
       id: 'assignment-placeholder:assignment-42',
       moduleId: module.id,
-      title: 'Sync pending lesson',
+      title: assignedLessonsSeed
+          .firstWhere((item) => item.moduleId == module.id)
+          .title,
       subject: 'Live assignment',
       durationMinutes: 10,
       status: 'assigned',
@@ -1110,14 +1126,20 @@ void main() {
 
     expect(
         find.textContaining('Lesson content not available yet'), findsWidgets);
-    expect(find.text('Refresh sync before starting'), findsOneWidget);
-    expect(
-      tester
-          .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Refresh sync before starting'))
-          .onPressed,
-      isNull,
+    final refreshButton = find.widgetWithText(
+      FilledButton,
+      'Refresh sync before starting',
     );
+    expect(refreshButton, findsOneWidget);
+    expect(tester.widget<FilledButton>(refreshButton).onPressed, isNotNull);
+
+    await tester.ensureVisible(refreshButton);
+    await tester.tap(refreshButton);
+    await pumpForUi(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Refresh sync before starting'), findsNothing);
+    expect(find.textContaining('is selected for'), findsOneWidget);
 
     state.dispose();
   });

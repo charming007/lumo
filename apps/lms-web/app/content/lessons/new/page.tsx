@@ -87,11 +87,70 @@ export default async function LessonStudioCreatePage({
     );
   }
 
-  const [subjects, modules, lessons] = await Promise.all([
+  const [subjectsResult, modulesResult, lessonsResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchCurriculumModules(),
     fetchLessons(),
   ]);
+
+  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const failedSources = [
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+  ].filter(Boolean) as string[];
+  const missingCoreAuthoringFeeds = [
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+  ].filter(Boolean) as string[];
+
+  if (missingCoreAuthoringFeeds.length) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Studio"
+        subtitle="Critical authoring feeds are degraded, so lesson creation is blocked instead of crashing into a Next.js error page."
+        blockerHeadline="Deployment blocker: lesson authoring dependencies are down."
+        blockerDetail={(
+          <>
+            Lesson Studio cannot safely create a lesson when the core curriculum feeds are missing. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ')}.
+          </>
+        )}
+        whyBlocked={[
+          'Creating a lesson without live subject and module inventory risks producing an orphaned or mis-scoped lesson record.',
+          'A server error page on a core admin authoring route is a deployment blocker, not a tolerable degraded state.',
+          'Blocking loudly here keeps content operations honest while the upstream feed failure is fixed.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson create route',
+            expected: 'Loads subject and module inventory or shows this blocker card when those feeds are down',
+            failure: 'Next.js error page or a form that pretends authoring is available without curriculum context',
+          },
+          {
+            surface: 'Duplicate lesson picker',
+            expected: 'Existing lessons load when the lessons feed is healthy, but the route still boots without it',
+            failure: 'The whole route crashes because an optional duplicate source feed failed',
+          },
+          {
+            surface: 'Return path after recovery',
+            expected: 'Operators can create a lesson and hand straight into the editor once feeds recover',
+            failure: 'Authoring stays blocked after subjects/modules recover',
+          },
+        ]}
+        fixItems={[
+          { label: 'Failing feeds', value: missingCoreAuthoringFeeds.join(', ') },
+          { label: 'Operator action', value: 'Restore subject/module inventory before using Lesson Studio' },
+          { label: 'Optional feed', value: lessonsResult.status === 'rejected' ? 'Duplicate lesson source list is currently unavailable' : 'Duplicate lesson source list is healthy' },
+        ]}
+        docs={[
+          { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Curriculum canvas', href: '/canvas', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+        ]}
+      />
+    );
+  }
 
   const from = normalizeParam(query?.from) || '/content';
   const subjectId = normalizeParam(query?.subjectId) || subjects[0]?.id || '';

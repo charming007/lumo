@@ -83,12 +83,79 @@ export default async function LessonStudioEditPage({
     );
   }
 
-  const [lesson, modules, subjects, assessments] = await Promise.all([
+  const [lessonResult, modulesResult, subjectsResult, assessmentsResult] = await Promise.allSettled([
     fetchLesson(id),
     fetchCurriculumModules(),
     fetchSubjects(),
     fetchAssessments(),
   ]);
+
+  const failedSources = [
+    lessonResult.status === 'rejected' ? 'lesson' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+  ].filter(Boolean) as string[];
+  const missingCoreEditorFeeds = [
+    lessonResult.status === 'rejected' ? 'lesson' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+  ].filter(Boolean) as string[];
+
+  if (missingCoreEditorFeeds.length) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Editor"
+        subtitle="Critical editor feeds are degraded, so lesson editing is blocked instead of crashing into a server error page."
+        blockerHeadline="Deployment blocker: lesson editor dependencies are down."
+        blockerDetail={(
+          <>
+            The editor cannot safely load this lesson pack while core authoring data is missing. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ')}.
+          </>
+        )}
+        whyBlocked={[
+          'The lesson payload plus subject/module context are the minimum required to edit safely. Without them, save actions become guesswork or outright impossible.',
+          'A production admin route that faceplants on one failed feed is a release blocker because operators lose the ability to fix live curriculum issues.',
+          'Blocking loudly here is safer than rendering a broken editor shell that hides which dependency actually failed.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson editor route',
+            expected: 'Loads the lesson plus subject/module context or shows this blocker card when those core feeds fail',
+            failure: 'Next.js error page on /content/lessons/[id]',
+          },
+          {
+            surface: 'Assessment context panel',
+            expected: 'Assessment link details appear when the assessments feed is healthy, but the editor still loads without it',
+            failure: 'The entire route crashes because assessment metadata is temporarily unavailable',
+          },
+          {
+            surface: 'Save path after recovery',
+            expected: 'Operators can reopen the editor and save once lesson/modules/subjects recover',
+            failure: 'Content editing remains blocked after upstream recovery',
+          },
+        ]}
+        fixItems={[
+          { label: 'Failing feeds', value: missingCoreEditorFeeds.join(', ') },
+          { label: 'Operator action', value: 'Restore lesson + curriculum context before editing this pack' },
+          { label: 'Optional feed', value: assessmentsResult.status === 'rejected' ? 'Assessment context is temporarily unavailable' : 'Assessment context is healthy' },
+        ]}
+        docs={[
+          { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Assessments', href: '/assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
+
+  const lesson = lessonResult.status === 'fulfilled' ? lessonResult.value : null;
+  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+
+  if (!lesson) {
+    return null;
+  }
 
   const selectedModule = modules.find((module) => module.id === lesson.moduleId) ?? modules[0] ?? null;
   const selectedSubject = subjects.find((subject) => subject.id === (lesson.subjectId ?? selectedModule?.subjectId)) ?? subjects[0] ?? null;

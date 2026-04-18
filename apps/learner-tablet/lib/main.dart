@@ -3949,6 +3949,56 @@ class LessonLaunchSetupPage extends StatefulWidget {
 class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
   LearnerProfile? selectedLearner;
 
+  LessonCardModel? _resolveSyncedLessonReplacement() {
+    final normalizedTitle = widget.lesson.title.trim().toLowerCase();
+    final normalizedModuleId = widget.module.id.trim().toLowerCase();
+
+    for (final lesson in widget.state.assignedLessons) {
+      if (lesson.isAssignmentPlaceholder) continue;
+      final lessonTitle = lesson.title.trim().toLowerCase();
+      final lessonModuleId = lesson.moduleId.trim().toLowerCase();
+      final titleMatches =
+          normalizedTitle.isNotEmpty && lessonTitle == normalizedTitle;
+      final moduleMatches =
+          normalizedModuleId.isNotEmpty && lessonModuleId == normalizedModuleId;
+      if (titleMatches || moduleMatches) {
+        return lesson;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _refreshSyncPendingLesson() async {
+    await widget.state.bootstrap();
+    widget.onChanged();
+    if (!mounted) return;
+
+    final replacementLesson = _resolveSyncedLessonReplacement();
+    if (replacementLesson != null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => LessonLaunchSetupPage(
+            state: widget.state,
+            onChanged: widget.onChanged,
+            lesson: replacementLesson,
+            module: widget.module,
+            resumeFrom: widget.resumeFrom,
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {});
+    final message = widget.state.backendError == null
+        ? 'Sync refreshed, but the full lesson payload still has not arrived on this tablet yet.'
+        : 'Sync failed: ${widget.state.backendError}';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   LearnerProfile? get _resumeLearner {
     final resumeFrom = widget.resumeFrom;
     if (resumeFrom == null) return null;
@@ -4316,29 +4366,31 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                   ];
 
                   final ctaButton = FilledButton.icon(
-                    onPressed: syncPendingLesson ||
-                            state.learners.isEmpty ||
-                            resumeMissingLearner
-                        ? null
-                        : selectedLearner == null
+                    onPressed: syncPendingLesson
+                        ? () async {
+                            await _refreshSyncPendingLesson();
+                          }
+                        : state.learners.isEmpty || resumeMissingLearner
                             ? null
-                            : () {
-                                final learner = selectedLearner!;
-                                state.selectLearner(learner);
-                                state.selectModule(widget.module);
-                                widget.onChanged();
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => LessonCountdownPage(
-                                      state: state,
-                                      onChanged: widget.onChanged,
-                                      learner: learner,
-                                      lesson: lesson,
-                                      resumeFrom: widget.resumeFrom,
-                                    ),
-                                  ),
-                                );
-                              },
+                            : selectedLearner == null
+                                ? null
+                                : () {
+                                    final learner = selectedLearner!;
+                                    state.selectLearner(learner);
+                                    state.selectModule(widget.module);
+                                    widget.onChanged();
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => LessonCountdownPage(
+                                          state: state,
+                                          onChanged: widget.onChanged,
+                                          learner: learner,
+                                          lesson: lesson,
+                                          resumeFrom: widget.resumeFrom,
+                                        ),
+                                      ),
+                                    );
+                                  },
                     icon: Icon(
                       _resumeLocksLearner
                           ? Icons.play_circle_fill_rounded
