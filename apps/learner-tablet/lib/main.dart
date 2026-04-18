@@ -1031,6 +1031,30 @@ class _HomeMallamStage extends StatelessWidget {
         final compact =
             constraints.maxWidth < 900 || constraints.maxHeight < 500;
         final shortHeight = constraints.maxHeight < 280;
+        final learner = state.suggestedLearnerForHome;
+        final nextLesson = state.nextAssignedLessonForLearner(learner);
+        final module =
+            learner == null ? null : state.recommendedModuleForLearner(learner);
+        final learnerName = learner?.name.split(' ').first;
+        final showCompactSummary = constraints.maxHeight < 340;
+        final showSummaryChips =
+            constraints.maxWidth >= 620 && !showCompactSummary;
+        final summaryTitle = learnerName == null
+            ? 'Mallam is ready to welcome the next learner.'
+            : nextLesson != null
+                ? 'Mallam is ready for $learnerName\'s next step.'
+                : '$learnerName is back on the mat.';
+        final summaryBody = showCompactSummary
+            ? learnerName == null
+                ? 'Register or open Student list, then choose a subject.'
+                : nextLesson != null
+                    ? 'Open ${module?.title ?? nextLesson.subject} to keep $learnerName moving.'
+                    : 'Open ${module?.title ?? 'a subject'} to keep $learnerName learning.'
+            : learnerName == null
+                ? 'Register a learner or open Student list, then choose a subject to keep the tablet moving.'
+                : nextLesson != null
+                    ? '$learnerName can jump straight into ${nextLesson.title}. Open ${module?.title ?? nextLesson.subject} to keep the flow calm and continuous.'
+                    : 'Open ${module?.title ?? 'a subject'} to keep $learnerName learning without hunting around the tablet.';
         final portraitSize = math.min(
           shortHeight
               ? 176.0
@@ -1059,6 +1083,89 @@ class _HomeMallamStage extends StatelessWidget {
                 ),
               ),
               SizedBox(height: shortHeight ? 4 : (compact ? 6 : 10)),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 14 : 18,
+                    vertical: compact ? 12 : 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x12243361),
+                        blurRadius: 18,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        summaryTitle,
+                        textAlign: TextAlign.center,
+                        maxLines: showCompactSummary ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: showCompactSummary
+                              ? (compact ? 15 : 16)
+                              : (compact ? 17 : 19),
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      SizedBox(height: compact ? 6 : 8),
+                      Text(
+                        summaryBody,
+                        textAlign: TextAlign.center,
+                        maxLines: showCompactSummary ? 2 : 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: showCompactSummary
+                              ? (compact ? 12 : 13)
+                              : (compact ? 13 : 14),
+                          height: 1.45,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                      if (showSummaryChips &&
+                          (learnerName != null ||
+                              module != null ||
+                              nextLesson != null)) ...[
+                        SizedBox(height: compact ? 10 : 12),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (learnerName != null)
+                              _InfoChip(
+                                icon: Icons.person_rounded,
+                                label: 'Learner: $learnerName',
+                              ),
+                            if (module != null)
+                              _InfoChip(
+                                icon: Icons.auto_stories_rounded,
+                                label: 'Subject: ${module.title}',
+                              ),
+                            if (nextLesson != null)
+                              _InfoChip(
+                                icon: Icons.play_circle_fill_rounded,
+                                label: 'Next: ${nextLesson.title}',
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: shortHeight ? 6 : (compact ? 8 : 10)),
               FilledButton.tonalIcon(
                 onPressed: () {
                   state.replayVisiblePrompt(
@@ -1087,6 +1194,46 @@ class _HomeMallamStage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: LumoTheme.primary),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF334155),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -6900,7 +7047,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 color: const Color(0xFF4338CA),
                                               ),
                                               StatusPill(
-                                                text: _transcriptSourceOfTruthLabel,
+                                                text:
+                                                    _transcriptSourceOfTruthLabel,
                                                 color: const Color(0xFF0F766E),
                                               ),
                                               StatusPill(

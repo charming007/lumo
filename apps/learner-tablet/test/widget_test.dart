@@ -104,7 +104,7 @@ void main() {
     },
   );
 
-  testWidgets('home screen keeps Mallam frameless with replay CTA only', (
+  testWidgets('home screen gives Mallam a human home summary without clutter', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1600, 1400);
@@ -112,6 +112,11 @@ void main() {
     addTearDown(tester.view.reset);
 
     final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.suggestedLearnerForHome;
+    final learnerName = learner?.name.split(' ').first;
+    final nextLesson = state.nextAssignedLessonForLearner(learner);
+    final module =
+        learner == null ? null : state.recommendedModuleForLearner(learner);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -125,6 +130,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(nextLesson, isNotNull);
+    expect(learnerName, isNotNull);
+    expect(
+      find.text('Mallam is ready for ${learnerName!}\'s next step.'),
+      findsOneWidget,
+    );
+    expect(find.text('Learner: $learnerName'), findsOneWidget);
+    if (module != null) {
+      expect(find.text('Subject: ${module.title}'), findsOneWidget);
+    }
+    expect(find.text('Next: ${nextLesson!.title}'), findsOneWidget);
+    expect(find.textContaining('jump straight into'), findsOneWidget);
     expect(find.text('AI Mallam is ready'), findsNothing);
     expect(find.text('Home guide'), findsNothing);
     expect(
@@ -945,6 +962,71 @@ void main() {
     state.dispose();
   });
 
+  testWidgets(
+      'subject modules page shows all learner-facing lessons for the selected module',
+      (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final module = state.modules.firstWhere((item) => item.id == 'english');
+    final seedLesson = state.assignedLessons.firstWhere(
+      (item) => item.moduleId == module.id,
+    );
+    state.selectLearner(learner);
+    state.assignedLessons.add(
+      LessonCardModel(
+        id: 'english-extension-lesson',
+        moduleId: 'english-reading',
+        title: 'English extension',
+        subject: module.title,
+        durationMinutes: seedLesson.durationMinutes,
+        status: seedLesson.status,
+        mascotName: seedLesson.mascotName,
+        readinessFocus: 'Keep building ${module.title}',
+        scenario: 'Alternate backend module key for the same subject.',
+        steps: seedLesson.steps,
+      ),
+    );
+
+    expect(
+      state
+          .lessonsForLearnerAndModule(learner, module.id)
+          .map((lesson) => lesson.id),
+      containsAll([seedLesson.id, 'english-extension-lesson']),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: module,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text(seedLesson.title), findsOneWidget);
+
+    await tester.dragUntilVisible(
+      find.text('English extension'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('English extension'), findsOneWidget);
+
+    state.dispose();
+  });
+
   testWidgets('lesson launch setup stays usable on narrow tablet widths', (
     tester,
   ) async {
@@ -1327,13 +1409,18 @@ void main() {
     expect(find.text('Hear Mallam again'), findsWidgets);
     expect(find.textContaining('Capture or type the learner answer'),
         findsOneWidget);
-    expect(find.textContaining('Session pulse • ${learner.name.split(' ').first}'),
+    expect(
+        find.textContaining('Session pulse • ${learner.name.split(' ').first}'),
         findsOneWidget);
-    expect(find.text('Hands-free').evaluate().isNotEmpty ||
-        find.text('Step by step').evaluate().isNotEmpty, isTrue);
-    expect(find.text('Saved voice backup attached').evaluate().isNotEmpty ||
-        find.text('Transcript can drive next step').evaluate().isNotEmpty ||
-        find.text('Transcript assist only').evaluate().isNotEmpty, isTrue);
+    expect(
+        find.text('Hands-free').evaluate().isNotEmpty ||
+            find.text('Step by step').evaluate().isNotEmpty,
+        isTrue);
+    expect(
+        find.text('Saved voice backup attached').evaluate().isNotEmpty ||
+            find.text('Transcript can drive next step').evaluate().isNotEmpty ||
+            find.text('Transcript assist only').evaluate().isNotEmpty,
+        isTrue);
     expect(
       find.text('Start listening + transcript').evaluate().isNotEmpty ||
           find.text('Start listening (audio first)').evaluate().isNotEmpty,

@@ -715,11 +715,38 @@ class LumoAppState {
     persistStateSoon();
   }
 
+  Set<String> _moduleKeyVariants(LearningModule module) {
+    String normalize(String value) => value.trim().toLowerCase();
+
+    final variants = <String>{
+      normalize(module.id),
+      normalize(module.title),
+    };
+
+    for (final lesson in assignedLessons) {
+      if (normalize(lesson.moduleId) == normalize(module.id)) {
+        variants.add(normalize(lesson.subject));
+      }
+    }
+
+    variants.removeWhere((value) => value.isEmpty);
+    return variants;
+  }
+
+  bool _lessonMatchesModule({
+    required LessonCardModel lesson,
+    required LearningModule module,
+  }) {
+    final variants = _moduleKeyVariants(module);
+    return variants.contains(lesson.moduleId.trim().toLowerCase()) ||
+        variants.contains(lesson.subject.trim().toLowerCase());
+  }
+
   List<LessonCardModel> lessonsForSelectedModule() {
     final module = selectedModule;
     if (module == null) return assignedLessons;
     final filtered = assignedLessons
-        .where((lesson) => lesson.moduleId == module.id)
+        .where((lesson) => _lessonMatchesModule(lesson: lesson, module: module))
         .toList();
     return filtered.isEmpty ? assignedLessons : filtered;
   }
@@ -882,7 +909,9 @@ class LumoAppState {
     LearnerProfile? learner,
     String moduleId,
   ) {
-    final liveModuleIds = modules.map((item) => item.id).toSet();
+    final module =
+        modules.where((item) => item.id == moduleId).firstOrNull ??
+        selectedModule;
     final moduleLessonIds = <String>{};
     final moduleLessonTitles = <String>{};
 
@@ -903,18 +932,16 @@ class LumoAppState {
       }
     }
 
-    final matches = lessonsForLearner(learner)
-        .where(
-          (lesson) =>
-              liveModuleIds.contains(moduleId) &&
-              (lesson.moduleId == moduleId ||
-                  moduleLessonIds.contains(lesson.id.trim()) ||
-                  moduleLessonTitles.contains(
-                    lesson.title.trim().toLowerCase(),
-                  )),
-        )
+    return lessonsForLearner(learner)
+        .where((lesson) {
+          final packMatch =
+              moduleLessonIds.contains(lesson.id.trim()) ||
+              moduleLessonTitles.contains(lesson.title.trim().toLowerCase());
+          if (packMatch) return true;
+          if (module == null) return lesson.moduleId == moduleId;
+          return _lessonMatchesModule(lesson: lesson, module: module);
+        })
         .toList();
-    return matches;
   }
 
   LessonCardModel? nextAssignedLessonForLearner(
