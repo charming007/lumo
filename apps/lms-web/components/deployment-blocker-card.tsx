@@ -8,6 +8,11 @@ type VerificationItem = {
   failure: string;
 };
 
+type FixItem = {
+  label: string;
+  value: string;
+};
+
 type Props = {
   title: string;
   subtitle: string;
@@ -15,6 +20,7 @@ type Props = {
   blockerDetail: ReactNode;
   whyBlocked: string[];
   verificationItems: VerificationItem[];
+  fixItems?: FixItem[];
   docs?: Array<{ label: string; href: string; background: string; color: string; border?: string }>;
 };
 
@@ -35,6 +41,11 @@ export function DeploymentBlockerCard({
   blockerDetail,
   whyBlocked,
   verificationItems,
+  fixItems = [
+    { label: 'Env var', value: 'NEXT_PUBLIC_API_BASE_URL' },
+    { label: 'Expected format', value: 'https://your-lumo-api.up.railway.app' },
+    { label: 'Deployment action', value: 'Set env in Vercel and redeploy' },
+  ],
   docs = [],
 }: Props) {
   return (
@@ -68,14 +79,8 @@ export function DeploymentBlockerCard({
         </div>
 
         <section style={{ ...responsiveGrid(280) }}>
-          <Card title="What to fix" eyebrow="Required env">
-            <MetricList
-              items={[
-                { label: 'Env var', value: 'NEXT_PUBLIC_API_BASE_URL' },
-                { label: 'Expected format', value: 'https://your-lumo-api.up.railway.app' },
-                { label: 'Deployment action', value: 'Set env in Vercel and redeploy' },
-              ]}
-            />
+          <Card title="What to fix" eyebrow="Required action">
+            <MetricList items={fixItems} />
           </Card>
 
           <Card title="Why this page is blocked" eyebrow="No fake green lights">

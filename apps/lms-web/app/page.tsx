@@ -214,6 +214,11 @@ export default async function HomePage() {
             failure: 'Route-level data exists but the dashboard still cannot assemble a trustworthy release view',
           },
         ]}
+        fixItems={[
+          { label: 'Failing feeds', value: failedSources.length ? failedSources.join(', ') : 'dashboard summary and progression workboard' },
+          { label: 'Operator action', value: 'Restore the live API/feed health before using this route as a release signal' },
+          { label: 'Cross-check', value: 'Verify /progress, /students, and /reports after the upstream fix lands' },
+        ]}
         docs={[
           { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
           { label: 'Cross-check learners', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
