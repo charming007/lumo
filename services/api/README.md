@@ -274,9 +274,11 @@ Behavior:
 The API now rate-limits the write paths most likely to cause operator or client-side damage when something goes sideways:
 - learner sync ingestion
 - learner reward redemption requests
-- admin storage restore/import controls
+- protected operator/admin mutation routes (curriculum, rewards moderation, learner repairs, storage recovery/import, and other authenticated write controls)
 
 When a throttle trips, the API returns `429` plus `Retry-After`, `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers.
 That gives the tablet app and admin tooling a clean backoff signal instead of letting retry storms or repeated destructive clicks pile up.
+
+Protected `POST`/`PATCH`/`DELETE` routes now share the admin mutation bucket by default, while `GET` routes stay unthrottled and learner-app public write paths continue using their dedicated learner throttles.
 
 `/readyz` and `/api/v1/admin/config/audit` now also expose the active throttle posture under `throttles` so ops can review what is actually deployed.

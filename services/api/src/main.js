@@ -100,6 +100,10 @@ const adminMutationThrottle = buildThrottleMiddleware({
   keyFn: (req) => `${req.actor?.role || req.header('x-lumo-role') || 'anonymous'}:${req.actor?.name || req.header('x-lumo-actor') || req.header('x-lumo-user') || getClientAddress(req)}`,
 });
 
+function protectedMutation(allowedRoles, ...middleware) {
+  return [requireRole(allowedRoles), adminMutationThrottle, ...middleware];
+}
+
 function applyCors(req, res) {
   const requestOrigin = req.headers.origin;
   const allowAnyOrigin = (process.env.LUMO_CORS_ALLOW_ANY_ORIGIN || '').toLowerCase() === 'true';
@@ -1195,7 +1199,7 @@ app.get('/api/v1/mallams/:id/summary', (req, res) => {
   return res.json(summary);
 });
 
-app.post('/api/v1/mallams', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/mallams', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateTeacher(req.body);
     const mallam = store.createTeacher(req.body);
@@ -1205,7 +1209,7 @@ app.post('/api/v1/mallams', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.patch('/api/v1/mallams/:id', requireRole(['admin']), (req, res, next) => {
+app.patch('/api/v1/mallams/:id', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateTeacher(req.body, { partial: true });
     const mallam = store.updateTeacher(req.params.id, req.body);
@@ -1220,7 +1224,7 @@ app.patch('/api/v1/mallams/:id', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.delete('/api/v1/mallams/:id', requireRole(['admin']), (req, res) => {
+app.delete('/api/v1/mallams/:id', ...protectedMutation(['admin']), (req, res) => {
   const mallam = store.deleteTeacher(req.params.id);
 
   if (!mallam) {
@@ -1234,7 +1238,7 @@ app.get('/api/v1/students', (_req, res) => {
   res.json(store.listStudents().map(presenters.presentStudent));
 });
 
-app.post('/api/v1/students', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/students', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateStudent(req.body);
     const student = store.createStudent(req.body);
@@ -1244,7 +1248,7 @@ app.post('/api/v1/students', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.patch('/api/v1/students/:id', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.patch('/api/v1/students/:id', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     validators.validateStudent(req.body, { partial: true });
     const student = store.updateStudent(req.params.id, req.body);
@@ -1259,7 +1263,7 @@ app.patch('/api/v1/students/:id', requireRole(['admin', 'teacher']), (req, res, 
   }
 });
 
-app.post('/api/v1/students/:id/mallam', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/students/:id/mallam', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const updatedStudent = assignStudentMallam(req.params.id, normalizeMallamAssignmentValue(req.body?.mallamId));
     return res.status(201).json(updatedStudent);
@@ -1268,7 +1272,7 @@ app.post('/api/v1/students/:id/mallam', requireRole(['admin', 'teacher']), (req,
   }
 });
 
-app.post('/api/v1/mallams/:id/roster', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/mallams/:id/roster', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const learnerIds = Array.isArray(req.body?.learnerIds)
       ? req.body.learnerIds.map((value) => String(value)).filter(Boolean)
@@ -1287,7 +1291,7 @@ app.post('/api/v1/mallams/:id/roster', requireRole(['admin', 'teacher']), (req, 
   }
 });
 
-app.delete('/api/v1/students/:id', requireRole(['admin']), (req, res) => {
+app.delete('/api/v1/students/:id', ...protectedMutation(['admin']), (req, res) => {
   const student = store.deleteStudent(req.params.id);
 
   if (!student) {
@@ -1317,7 +1321,7 @@ app.get('/api/v1/students/:id/rewards', (req, res) => {
   return res.json(snapshot);
 });
 
-app.post('/api/v1/students/:id/rewards', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/students/:id/rewards', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const student = store.findStudentById(req.params.id);
 
@@ -1468,7 +1472,7 @@ app.get('/api/v1/rewards/requests/:id', (req, res) => {
 });
 
 
-app.post('/api/v1/rewards/requests/:id/approve', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/rewards/requests/:id/approve', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.approveRewardRedemptionRequest(req.params.id, {
       actorName: req.actor?.name,
@@ -1482,7 +1486,7 @@ app.post('/api/v1/rewards/requests/:id/approve', requireRole(['admin', 'teacher'
   }
 });
 
-app.post('/api/v1/rewards/requests/:id/reject', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/rewards/requests/:id/reject', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.rejectRewardRedemptionRequest(req.params.id, {
       actorName: req.actor?.name,
@@ -1498,7 +1502,7 @@ app.post('/api/v1/rewards/requests/:id/reject', requireRole(['admin', 'teacher']
 });
 
 
-app.post('/api/v1/rewards/requests/:id/reopen', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/rewards/requests/:id/reopen', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.reopenRewardRedemptionRequest(req.params.id, {
       actorName: req.actor?.name,
@@ -1513,7 +1517,7 @@ app.post('/api/v1/rewards/requests/:id/reopen', requireRole(['admin', 'teacher']
   }
 });
 
-app.post('/api/v1/rewards/requests/:id/requeue', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/rewards/requests/:id/requeue', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.requeueRewardRedemptionRequest(req.params.id, {
       actorName: req.actor?.name,
@@ -1528,7 +1532,7 @@ app.post('/api/v1/rewards/requests/:id/requeue', requireRole(['admin', 'teacher'
   }
 });
 
-app.post('/api/v1/rewards/requests/:id/expire', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/rewards/requests/:id/expire', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.expireRewardRedemptionRequest(req.params.id, {
       actorName: req.actor?.name,
@@ -1544,7 +1548,7 @@ app.post('/api/v1/rewards/requests/:id/expire', requireRole(['admin', 'teacher']
   }
 });
 
-app.post('/api/v1/admin/rewards/requests/expire-stale', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/rewards/requests/expire-stale', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     const result = rewards.expireStaleRewardRedemptionRequests({
       olderThanDays: coerceOptionalNumber(req.body?.olderThanDays) ?? 14,
@@ -1562,7 +1566,7 @@ app.post('/api/v1/admin/rewards/requests/expire-stale', requireRole(['admin']), 
   }
 });
 
-app.post('/api/v1/rewards/requests/:id/fulfill', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/rewards/requests/:id/fulfill', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.fulfillRewardRedemptionRequest(req.params.id, {
       actorName: req.actor?.name,
@@ -1595,7 +1599,7 @@ app.get('/api/v1/admin/rewards/integrity', requireRole(['admin']), (req, res) =>
   }));
 });
 
-app.post('/api/v1/admin/rewards/repair-integrity', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/rewards/repair-integrity', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(rewards.repairRewardRequestIntegrity({
       cohortId: coerceOptionalString(req.body?.cohortId),
@@ -1635,7 +1639,7 @@ app.get('/api/v1/curriculum/canvas/focus/:nodeType/:nodeId', (req, res, next) =>
   }
 });
 
-app.post('/api/v1/curriculum/canvas/children', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/curriculum/canvas/children', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     const parentType = req.body?.parentType || 'root';
     const childType = req.body?.childType;
@@ -1675,7 +1679,7 @@ app.post('/api/v1/curriculum/canvas/children', requireRole(['admin']), (req, res
   }
 });
 
-app.patch('/api/v1/curriculum/canvas/nodes/:nodeType/:nodeId', requireRole(['admin']), (req, res, next) => {
+app.patch('/api/v1/curriculum/canvas/nodes/:nodeType/:nodeId', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     const { nodeType, nodeId } = req.params;
     requireCurriculumNode(nodeType, nodeId);
@@ -1709,7 +1713,7 @@ app.patch('/api/v1/curriculum/canvas/nodes/:nodeType/:nodeId', requireRole(['adm
   }
 });
 
-app.post('/api/v1/curriculum/canvas/reorder', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/curriculum/canvas/reorder', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     const parentType = req.body?.parentType || 'root';
     const parentId = req.body?.parentId || null;
@@ -1737,7 +1741,7 @@ app.get('/api/v1/subjects', (_req, res) => {
   res.json(store.listSubjects());
 });
 
-app.post('/api/v1/subjects', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/subjects', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateSubject(req.body);
     const subject = store.createSubject(req.body);
@@ -1747,7 +1751,7 @@ app.post('/api/v1/subjects', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.patch('/api/v1/subjects/:id', requireRole(['admin']), (req, res, next) => {
+app.patch('/api/v1/subjects/:id', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateSubject(req.body, { partial: true });
     const subject = store.updateSubject(req.params.id, req.body);
@@ -1762,7 +1766,7 @@ app.patch('/api/v1/subjects/:id', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.delete('/api/v1/subjects/:id', requireRole(['admin']), (req, res) => {
+app.delete('/api/v1/subjects/:id', ...protectedMutation(['admin']), (req, res) => {
   const subject = store.deleteSubject(req.params.id);
 
   if (!subject) {
@@ -1776,7 +1780,7 @@ app.get('/api/v1/strands', (_req, res) => {
   res.json(store.listStrands().map(presenters.presentStrand));
 });
 
-app.post('/api/v1/strands', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/strands', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateStrand(req.body);
     const strand = store.createStrand(req.body);
@@ -1786,7 +1790,7 @@ app.post('/api/v1/strands', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.patch('/api/v1/strands/:id', requireRole(['admin']), (req, res, next) => {
+app.patch('/api/v1/strands/:id', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateStrand(req.body, { partial: true });
     const strand = store.updateStrand(req.params.id, req.body);
@@ -1801,7 +1805,7 @@ app.patch('/api/v1/strands/:id', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.delete('/api/v1/strands/:id', requireRole(['admin']), (req, res) => {
+app.delete('/api/v1/strands/:id', ...protectedMutation(['admin']), (req, res) => {
   const strand = store.deleteStrand(req.params.id);
 
   if (!strand) {
@@ -1815,7 +1819,7 @@ app.get('/api/v1/curriculum/modules', (_req, res) => {
   res.json(store.listModules().map(presenters.presentCurriculumModule));
 });
 
-app.post('/api/v1/curriculum/modules', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/curriculum/modules', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateModule(req.body);
     const module = store.createModule(req.body);
@@ -1825,7 +1829,7 @@ app.post('/api/v1/curriculum/modules', requireRole(['admin']), (req, res, next) 
   }
 });
 
-app.patch('/api/v1/curriculum/modules/:id', requireRole(['admin']), (req, res, next) => {
+app.patch('/api/v1/curriculum/modules/:id', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateModule(req.body, { partial: true });
     const module = store.updateModule(req.params.id, req.body);
@@ -1840,7 +1844,7 @@ app.patch('/api/v1/curriculum/modules/:id', requireRole(['admin']), (req, res, n
   }
 });
 
-app.delete('/api/v1/curriculum/modules/:id', requireRole(['admin']), (req, res) => {
+app.delete('/api/v1/curriculum/modules/:id', ...protectedMutation(['admin']), (req, res) => {
   const module = store.deleteModule(req.params.id);
 
   if (!module) {
@@ -1864,7 +1868,7 @@ app.get('/api/v1/lessons/:id', (req, res) => {
   return res.json(presenters.presentLesson(lesson));
 });
 
-app.post('/api/v1/lessons', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/lessons', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateLesson(req.body);
     const lesson = store.createLesson(req.body);
@@ -1874,7 +1878,7 @@ app.post('/api/v1/lessons', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.patch('/api/v1/lessons/:id', requireRole(['admin']), (req, res, next) => {
+app.patch('/api/v1/lessons/:id', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateLesson(req.body, { partial: true });
     const lesson = store.updateLesson(req.params.id, req.body);
@@ -1889,7 +1893,7 @@ app.patch('/api/v1/lessons/:id', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.delete('/api/v1/lessons/:id', requireRole(['admin']), (req, res) => {
+app.delete('/api/v1/lessons/:id', ...protectedMutation(['admin']), (req, res) => {
   const lesson = store.deleteLesson(req.params.id);
 
   if (!lesson) {
@@ -1903,7 +1907,7 @@ app.get('/api/v1/assessments', (_req, res) => {
   res.json(store.listAssessments().map(presenters.presentAssessment));
 });
 
-app.post('/api/v1/assessments', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/assessments', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateAssessment(req.body);
     const assessment = store.createAssessment(req.body);
@@ -1913,7 +1917,7 @@ app.post('/api/v1/assessments', requireRole(['admin']), (req, res, next) => {
   }
 });
 
-app.patch('/api/v1/assessments/:id', requireRole(['admin']), (req, res, next) => {
+app.patch('/api/v1/assessments/:id', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     validators.validateAssessment(req.body, { partial: true });
     const assessment = store.updateAssessment(req.params.id, req.body);
@@ -1928,7 +1932,7 @@ app.patch('/api/v1/assessments/:id', requireRole(['admin']), (req, res, next) =>
   }
 });
 
-app.delete('/api/v1/assessments/:id', requireRole(['admin']), (req, res) => {
+app.delete('/api/v1/assessments/:id', ...protectedMutation(['admin']), (req, res) => {
   const assessment = store.deleteAssessment(req.params.id);
 
   if (!assessment) {
@@ -1942,7 +1946,7 @@ app.get('/api/v1/assignments', (_req, res) => {
   res.json(store.listAssignments().map(presenters.presentAssignment));
 });
 
-app.post('/api/v1/assignments', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/assignments', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     validators.validateAssignment(req.body);
     const assignment = store.createAssignment(req.body);
@@ -1952,7 +1956,7 @@ app.post('/api/v1/assignments', requireRole(['admin', 'teacher']), (req, res, ne
   }
 });
 
-app.patch('/api/v1/assignments/:id', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.patch('/api/v1/assignments/:id', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     validators.validateAssignment(req.body, { partial: true });
     const assignment = store.updateAssignment(req.params.id, req.body);
@@ -1971,7 +1975,7 @@ app.get('/api/v1/attendance', (_req, res) => {
   res.json(store.listAttendance().map(presenters.presentAttendance));
 });
 
-app.post('/api/v1/attendance', requireRole(['admin', 'teacher', 'facilitator']), (req, res, next) => {
+app.post('/api/v1/attendance', ...protectedMutation(['admin', 'teacher', 'facilitator']), (req, res, next) => {
   try {
     validators.validateAttendance(req.body);
     const record = store.createAttendance(req.body);
@@ -1985,7 +1989,7 @@ app.get('/api/v1/progress', (_req, res) => {
   res.json(store.listProgress().map(presenters.presentProgress));
 });
 
-app.post('/api/v1/progress', requireRole(['admin', 'teacher', 'facilitator']), (req, res, next) => {
+app.post('/api/v1/progress', ...protectedMutation(['admin', 'teacher', 'facilitator']), (req, res, next) => {
   try {
     validators.validateProgress(req.body);
     const record = store.createProgress(req.body);
@@ -1995,7 +1999,7 @@ app.post('/api/v1/progress', requireRole(['admin', 'teacher', 'facilitator']), (
   }
 });
 
-app.patch('/api/v1/progress/:id', requireRole(['admin', 'teacher', 'facilitator']), (req, res, next) => {
+app.patch('/api/v1/progress/:id', ...protectedMutation(['admin', 'teacher', 'facilitator']), (req, res, next) => {
   try {
     validators.validateProgress(req.body, { partial: true });
     const record = store.updateProgress(req.params.id, req.body);
@@ -2076,7 +2080,7 @@ app.get('/api/v1/rewards/adjustments', (req, res) => {
   });
 });
 
-app.post('/api/v1/rewards/transactions/:id/correct', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/rewards/transactions/:id/correct', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = rewards.correctRewardTransaction(req.params.id, {
       xpDelta: req.body?.xpDelta,
@@ -2094,7 +2098,7 @@ app.post('/api/v1/rewards/transactions/:id/correct', requireRole(['admin', 'teac
   }
 });
 
-app.post('/api/v1/rewards/transactions/:id/revoke', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/rewards/transactions/:id/revoke', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     const result = rewards.revokeRewardTransaction(req.params.id, {
       reason: req.body?.reason,
@@ -2110,7 +2114,7 @@ app.post('/api/v1/rewards/transactions/:id/revoke', requireRole(['admin']), (req
   }
 });
 
-app.post('/api/v1/progress/:id/override', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/progress/:id/override', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const record = store.findProgressById(req.params.id);
 
@@ -2200,7 +2204,7 @@ app.get('/api/v1/progression-overrides/:id', (req, res) => {
   return res.json(detail);
 });
 
-app.post('/api/v1/progression-overrides/:id/revoke', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/progression-overrides/:id/revoke', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     const audit = store.listProgressionOverrides().find((entry) => entry.id === req.params.id) || null;
 
@@ -2235,7 +2239,7 @@ app.post('/api/v1/progression-overrides/:id/revoke', requireRole(['admin']), (re
   }
 });
 
-app.post('/api/v1/progression-overrides/:id/reapply', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/progression-overrides/:id/reapply', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     const audit = store.findProgressionOverrideById(req.params.id);
 
@@ -2270,7 +2274,7 @@ app.post('/api/v1/progression-overrides/:id/reapply', requireRole(['admin']), (r
   }
 });
 
-app.post('/api/v1/learner-app/sessions/:sessionId/repair', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/learner-app/sessions/:sessionId/repair', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const session = store.findLessonSessionBySessionId(req.params.sessionId);
 
@@ -2337,7 +2341,7 @@ app.post('/api/v1/learner-app/sessions/:sessionId/repair', requireRole(['admin',
   }
 });
 
-app.post('/api/v1/learner-app/sessions/:sessionId/abandon', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/learner-app/sessions/:sessionId/abandon', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const session = store.findLessonSessionBySessionId(req.params.sessionId);
 
@@ -2394,7 +2398,7 @@ app.post('/api/v1/learner-app/sessions/:sessionId/abandon', requireRole(['admin'
   }
 });
 
-app.post('/api/v1/learner-app/sessions/:sessionId/reopen', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/learner-app/sessions/:sessionId/reopen', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const session = store.findLessonSessionBySessionId(req.params.sessionId);
 
@@ -2452,7 +2456,7 @@ app.post('/api/v1/learner-app/sessions/:sessionId/reopen', requireRole(['admin',
   }
 });
 
-app.post('/api/v1/admin/sessions/:sessionId/rebuild-from-events', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/admin/sessions/:sessionId/rebuild-from-events', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const result = store.rebuildLessonSessionFromEventLog(req.params.sessionId, {
       apply: Boolean(req.body?.apply),
@@ -2531,7 +2535,7 @@ app.get('/api/v1/session-repairs/:id', (req, res) => {
   return res.json(detail);
 });
 
-app.post('/api/v1/session-repairs/:id/revert', requireRole(['admin', 'teacher']), (req, res, next) => {
+app.post('/api/v1/session-repairs/:id/revert', ...protectedMutation(['admin', 'teacher']), (req, res, next) => {
   try {
     const repair = store.findSessionRepairById(req.params.id);
 
@@ -2612,7 +2616,7 @@ app.get('/api/v1/observations', (_req, res) => {
   res.json(store.listObservations().map(presenters.presentObservation));
 });
 
-app.post('/api/v1/observations', requireRole(['admin', 'teacher', 'facilitator']), (req, res, next) => {
+app.post('/api/v1/observations', ...protectedMutation(['admin', 'teacher', 'facilitator']), (req, res, next) => {
   try {
     validators.validateObservation(req.body);
     const record = store.createObservation(req.body);
@@ -2718,7 +2722,7 @@ app.get('/api/v1/admin/storage/drift', requireRole(['admin']), (_req, res) => {
   res.json(store.buildStorageDriftReport());
 });
 
-app.post('/api/v1/admin/storage/repair-drift', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/repair-drift', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.repairStorageDrift({
       actorName: req.actor?.name,
@@ -2775,7 +2779,7 @@ app.get('/api/v1/admin/storage/operations/:id', requireRole(['admin']), (req, re
   return res.json(operation);
 });
 
-app.post('/api/v1/admin/storage/repair-integrity', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/repair-integrity', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.repairStorageIntegrity({
       apply: Boolean(req.body?.apply),
@@ -2791,7 +2795,7 @@ app.get('/api/v1/admin/storage/export', requireRole(['admin']), (_req, res) => {
   res.json(store.exportStorageSnapshot());
 });
 
-app.post('/api/v1/admin/storage/import/preview', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/import/preview', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     return res.json(store.previewStorageImport({
       snapshot: req.body?.snapshot,
@@ -2802,7 +2806,7 @@ app.post('/api/v1/admin/storage/import/preview', requireRole(['admin']), (req, r
   }
 });
 
-app.post('/api/v1/admin/storage/import', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/import', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     return res.status(201).json(store.importStorageSnapshot({
       snapshot: req.body?.snapshot,
@@ -2817,7 +2821,7 @@ app.post('/api/v1/admin/storage/import', requireRole(['admin']), adminMutationTh
   }
 });
 
-app.post('/api/v1/admin/storage/reload', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/reload', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.reloadStorageSnapshot({
       actorName: req.actor?.name,
@@ -2828,7 +2832,7 @@ app.post('/api/v1/admin/storage/reload', requireRole(['admin']), (req, res, next
   }
 });
 
-app.post('/api/v1/admin/storage/reconcile-cache', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/reconcile-cache', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.reconcileStorageCache({
       actorName: req.actor?.name,
@@ -2839,7 +2843,7 @@ app.post('/api/v1/admin/storage/reconcile-cache', requireRole(['admin']), (req, 
   }
 });
 
-app.post('/api/v1/admin/storage/recover-primary-from-cache', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/recover-primary-from-cache', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.recoverStoragePrimaryFromWarmCache({
       actorName: req.actor?.name,
@@ -2857,7 +2861,7 @@ app.get('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res) => {
   });
 });
 
-app.post('/api/v1/admin/storage/checkpoint', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/checkpoint', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     return res.status(201).json(store.checkpointStorage(coerceOptionalString(req.body?.label) || 'manual-checkpoint', {
       actorName: req.actor?.name,
@@ -2868,7 +2872,7 @@ app.post('/api/v1/admin/storage/checkpoint', requireRole(['admin']), (req, res, 
   }
 });
 
-app.delete('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res, next) => {
+app.delete('/api/v1/admin/storage/backups', ...protectedMutation(['admin']), (req, res, next) => {
   try {
     const backupPath = coerceOptionalString(req.body?.backupPath) || coerceOptionalString(req.query.backupPath);
 
@@ -2887,7 +2891,7 @@ app.delete('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res, n
   }
 });
 
-app.post('/api/v1/admin/storage/restore-mutation', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-mutation', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     const mutationId = Number(req.body?.mutationId);
 
@@ -2906,7 +2910,7 @@ app.post('/api/v1/admin/storage/restore-mutation', requireRole(['admin']), admin
   }
 });
 
-app.post('/api/v1/admin/storage/restore', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/restore', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     const backupPath = coerceOptionalString(req.body?.backupPath);
 
@@ -2964,7 +2968,7 @@ app.get('/api/v1/admin/storage/recovery-plan', requireRole(['admin']), (req, res
   }));
 });
 
-app.post('/api/v1/admin/storage/restore-smart', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-smart', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     return res.status(201).json(store.restoreStorageSmart({
       label: coerceOptionalString(req.body?.label),
@@ -2979,7 +2983,7 @@ app.post('/api/v1/admin/storage/restore-smart', requireRole(['admin']), adminMut
   }
 });
 
-app.post('/api/v1/admin/storage/restore-latest', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-latest', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     const backups = store.listStorageBackups(100);
     const label = coerceOptionalString(req.body?.label);
