@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchSubjects } from '../../../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
 import { PageShell } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
 
@@ -28,6 +30,58 @@ export default async function LessonStudioEditPage({
   const { id } = await params;
   const query = await searchParams;
   const from = normalizeParam(query?.from) || '/content';
+
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Editor"
+        subtitle="Production wiring is incomplete, so lesson editing is blocked instead of pretending a live lesson pack can be loaded."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson editor API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
+              ? (
+                <>
+                  This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the lesson editor cannot safely load the lesson, module context, or assessment links. Blocking here is better than throwing operators into a broken editor route.
+                </>
+              )
+              : (
+                <>
+                  <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would make lesson editing look available while the route is pointed at a dead or unsafe backend.
+                </>
+              )}
+          </>
+        )}
+        whyBlocked={[
+          'Lesson editing depends on live lesson payloads, subject/module context, and assessment links. If the API base is wrong, this route should stop loudly instead of crashing mid-load.',
+          'Operators use this route for real curriculum fixes. A broken editor is a deployment blocker, not a cosmetic bug.',
+          'This keeps lesson routes aligned with the rest of the LMS production blocker behavior instead of leaving a hidden hole in content ops.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson edit route',
+            expected: 'Loads the live lesson payload or shows the blocker card before any fetch explodes',
+            failure: 'Server error page when production API env is missing or invalid',
+          },
+          {
+            surface: 'Assessment context panel',
+            expected: 'Shows the linked gate only when lesson + module data load from the API',
+            failure: 'Editor shell breaks before operators can even see why the route is unavailable',
+          },
+          {
+            surface: 'Configured API base URL',
+            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
+            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content blocker', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Assessments blocker', href: '/assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
 
   const [lesson, modules, subjects, assessments] = await Promise.all([
     fetchLesson(id),

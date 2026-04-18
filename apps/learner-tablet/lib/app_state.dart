@@ -176,6 +176,15 @@ class LumoAppState {
   }
 
   Future<void> allowLimitedOfflineRecoveryMode() async {
+    final releaseDeploymentBlockActive = kReleaseBuild &&
+        deploymentBlockerReason != null &&
+        !hasUsableOfflineSnapshot;
+
+    if (releaseDeploymentBlockActive) {
+      persistStateSoon();
+      return;
+    }
+
     acknowledgedOfflineFallbackRisk = true;
     deploymentBlockerReason = null;
     usingFallbackData = true;
@@ -909,8 +918,7 @@ class LumoAppState {
     LearnerProfile? learner,
     String moduleId,
   ) {
-    final module =
-        modules.where((item) => item.id == moduleId).firstOrNull ??
+    final module = modules.where((item) => item.id == moduleId).firstOrNull ??
         selectedModule;
     final moduleLessonIds = <String>{};
     final moduleLessonTitles = <String>{};
@@ -932,16 +940,13 @@ class LumoAppState {
       }
     }
 
-    return lessonsForLearner(learner)
-        .where((lesson) {
-          final packMatch =
-              moduleLessonIds.contains(lesson.id.trim()) ||
-              moduleLessonTitles.contains(lesson.title.trim().toLowerCase());
-          if (packMatch) return true;
-          if (module == null) return lesson.moduleId == moduleId;
-          return _lessonMatchesModule(lesson: lesson, module: module);
-        })
-        .toList();
+    return lessonsForLearner(learner).where((lesson) {
+      final packMatch = moduleLessonIds.contains(lesson.id.trim()) ||
+          moduleLessonTitles.contains(lesson.title.trim().toLowerCase());
+      if (packMatch) return true;
+      if (module == null) return lesson.moduleId == moduleId;
+      return _lessonMatchesModule(lesson: lesson, module: module);
+    }).toList();
   }
 
   LessonCardModel? nextAssignedLessonForLearner(

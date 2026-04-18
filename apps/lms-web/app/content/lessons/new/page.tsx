@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
 import { PageShell } from '../../../../lib/ui';
 import { createLessonAction } from '../../../actions';
 
@@ -32,6 +34,59 @@ export default async function LessonStudioCreatePage({
   }>;
 }) {
   const query = await searchParams;
+
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Studio"
+        subtitle="Production wiring is incomplete, so lesson authoring is blocked instead of crashing behind a broken API dependency."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson studio API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
+              ? (
+                <>
+                  This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so lesson authoring cannot safely load subjects, modules, or duplicate sources. Blocking this route is better than shipping a lesson studio that faceplants when an operator tries to create content.
+                </>
+              )
+              : (
+                <>
+                  <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would make lesson authoring look live while it is pointed at a dead or unsafe backend.
+                </>
+              )}
+          </>
+        )}
+        whyBlocked={[
+          'Lesson Studio depends on live subject, module, and lesson inventory data. Without a valid production API base, this route can only lie or crash.',
+          'Content authors should see one honest blocker state, not a Next.js error page that looks like random breakage.',
+          'Blocking here keeps deployment review consistent with the rest of the LMS surfaces already enforcing the production API guard.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson create route',
+            expected: 'Loads subject/module inventory or shows the blocker card before any fetch explodes',
+            failure: 'Server error or broken form shell when production API env is missing or invalid',
+          },
+          {
+            surface: 'Duplicate lesson flow',
+            expected: 'Existing lessons load for duplication when the API is healthy',
+            failure: 'Empty duplicate source or route crash while the deployment pretends authoring is available',
+          },
+          {
+            surface: 'Configured API base URL',
+            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
+            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content blocker', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Canvas blocker', href: '/canvas', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
+
   const [subjects, modules, lessons] = await Promise.all([
     fetchSubjects(),
     fetchCurriculumModules(),

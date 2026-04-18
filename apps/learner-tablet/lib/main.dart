@@ -416,28 +416,31 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                               icon: const Icon(Icons.refresh_rounded),
                               label: const Text('Retry production bootstrap'),
                             ),
-                            OutlinedButton.icon(
-                              onPressed: () async {
-                                await state.allowLimitedOfflineRecoveryMode();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Opened limited offline mode. Refresh the live roster before trusting learner assignments.',
+                            if (!kReleaseBuild)
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  await state.allowLimitedOfflineRecoveryMode();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Opened limited offline mode. Refresh the live roster before trusting learner assignments.',
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.cloud_off_rounded),
-                              label: const Text('Open limited offline mode'),
-                            ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.cloud_off_rounded),
+                                label: const Text('Open limited offline mode'),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        const Text(
-                          'Limited offline mode keeps the tablet usable with clearly flagged fallback learners and lessons, but it is not a substitute for a real production bootstrap.',
-                          style: TextStyle(
+                        Text(
+                          !kReleaseBuild
+                              ? 'Limited offline mode keeps the tablet usable with clearly flagged fallback learners and lessons, but it is not a substitute for a real production bootstrap.'
+                              : 'Release builds stay blocked here until the live bootstrap succeeds or the device already has a trusted offline snapshot from that same production backend.',
+                          style: const TextStyle(
                             color: Color(0xFF64748B),
                             height: 1.45,
                           ),
@@ -6502,34 +6505,34 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 ),
                 const SizedBox(height: 8),
                 ...diagnosticCallouts.take(3).map(
-                  (callout) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 3),
-                          child: Icon(
-                            Icons.radio_button_checked_rounded,
-                            size: 12,
-                            color: Color(0xFF4338CA),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            callout,
-                            style: const TextStyle(
-                              color: Color(0xFF334155),
-                              height: 1.35,
-                              fontWeight: FontWeight.w600,
+                      (callout) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 3),
+                              child: Icon(
+                                Icons.radio_button_checked_rounded,
+                                size: 12,
+                                color: Color(0xFF4338CA),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                callout,
+                                style: const TextStyle(
+                                  color: Color(0xFF334155),
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
               ],
             ),
           ),
