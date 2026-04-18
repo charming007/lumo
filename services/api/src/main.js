@@ -106,6 +106,18 @@ function protectedMutation(allowedRoles, ...middleware) {
 
 const dangerousAdminMutationIdempotencyCache = new Map();
 
+function getDangerousAdminMutationIdempotencyRecord(cacheKey) {
+  const record = dangerousAdminMutationIdempotencyCache.get(cacheKey);
+  if (!record) return null;
+
+  if (record.expiresAt <= Date.now()) {
+    dangerousAdminMutationIdempotencyCache.delete(cacheKey);
+    return null;
+  }
+
+  return record;
+}
+
 function shouldEnforceDangerousAdminMutationGuard() {
   const authAudit = getAuthAudit();
   return authAudit.productionLike || authAudit.hasAnyConfiguredKey;
@@ -144,21 +156,50 @@ function requireConfirmedDangerousAdminMutation(action) {
 
     const ttlMs = readPositiveIntEnv('LUMO_DANGEROUS_ADMIN_IDEMPOTENCY_TTL_MS', 10 * 60_000);
     const now = Date.now();
-    for (const [cacheKey, expiresAt] of dangerousAdminMutationIdempotencyCache.entries()) {
-      if (expiresAt <= now) dangerousAdminMutationIdempotencyCache.delete(cacheKey);
-    }
 
     const scope = `${req.actor?.role || 'anonymous'}:${req.actor?.name || getClientAddress(req)}`;
     const cacheKey = `${action}:${scope}:${idempotencyKey}`;
-    if (dangerousAdminMutationIdempotencyCache.has(cacheKey)) {
+    const existingRecord = getDangerousAdminMutationIdempotencyRecord(cacheKey);
+    if (existingRecord) {
       return res.status(409).json({
         message: 'Duplicate dangerous admin mutation blocked by idempotency guard.',
         action,
         idempotencyKey,
+        state: existingRecord.state,
       });
     }
 
-    dangerousAdminMutationIdempotencyCache.set(cacheKey, now + ttlMs);
+    dangerousAdminMutationIdempotencyCache.set(cacheKey, {
+      action,
+      idempotencyKey,
+      state: 'pending',
+      createdAt: now,
+      expiresAt: now + ttlMs,
+    });
+
+    let finalized = false;
+    const finalizeIdempotency = () => {
+      if (finalized) return;
+      finalized = true;
+
+      const currentRecord = dangerousAdminMutationIdempotencyCache.get(cacheKey);
+      if (!currentRecord) return;
+
+      if (res.statusCode >= 200 && res.statusCode < 400) {
+        dangerousAdminMutationIdempotencyCache.set(cacheKey, {
+          ...currentRecord,
+          state: 'completed',
+          completedAt: Date.now(),
+          expiresAt: Date.now() + ttlMs,
+        });
+        return;
+      }
+
+      dangerousAdminMutationIdempotencyCache.delete(cacheKey);
+    };
+
+    res.once('finish', finalizeIdempotency);
+    res.once('close', finalizeIdempotency);
     res.setHeader('x-lumo-confirmed-action', action);
     res.setHeader('x-lumo-idempotency-key', idempotencyKey);
     return next();
@@ -191,9 +232,13 @@ function applyCors(req, res) {
     'x-lumo-actor',
     'x-lumo-sync-batch',
     'x-lumo-client-id',
+    'x-lumo-confirm-action',
+    'idempotency-key',
+    'x-idempotency-key',
+    'x-request-id',
   ].join(', '));
   res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Expose-Headers', 'x-lumo-sync-accepted, x-lumo-sync-ignored');
+  res.header('Access-Control-Expose-Headers', 'x-lumo-sync-accepted, x-lumo-sync-ignored, x-lumo-confirmed-action, x-lumo-idempotency-key, x-request-id');
   res.header('Access-Control-Max-Age', '86400');
 }
 
@@ -206,6 +251,16 @@ app.use((req, res, next) => {
 
   next();
 });
+app.use((req, res, next) => {
+  const requestId = String(req.header('x-request-id') || '').trim() || crypto.randomUUID();
+  req.requestId = requestId;
+  res.setHeader('x-request-id', requestId);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
+
 app.use(express.json({ limit: process.env.LUMO_JSON_BODY_LIMIT || '1mb' }));
 
 app.use((req, _res, next) => {
@@ -3070,10 +3125,13 @@ app.post('/api/v1/admin/storage/restore-latest', ...protectedMutation(['admin'])
   }
 });
 
-app.use((error, _req, res, _next) => {
-  const statusCode = error.statusCode || 500;
+app.use((error, req, res, _next) => {
+  const statusCode = error.statusCode || (error.type === 'entity.parse.failed' ? 400 : 500);
   res.status(statusCode).json({
-    message: error.message || 'Internal server error',
+    message: error.type === 'entity.parse.failed'
+      ? 'Invalid JSON body.'
+      : error.message || 'Internal server error',
+    requestId: req.requestId || null,
     ...(error.details ? { details: error.details } : {}),
   });
 });

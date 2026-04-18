@@ -51,6 +51,45 @@ test('OPTIONS preflight exposes auth headers needed by browser admin clients', a
     const allowedHeaders = String(response.headers.get('access-control-allow-headers') || '').toLowerCase();
     assert.match(allowedHeaders, /authorization/);
     assert.match(allowedHeaders, /x-lumo-api-key/);
+    assert.match(allowedHeaders, /x-lumo-confirm-action/);
+    assert.match(allowedHeaders, /idempotency-key/);
+    assert.match(allowedHeaders, /x-request-id/);
+
+    const exposedHeaders = String(response.headers.get('access-control-expose-headers') || '').toLowerCase();
+    assert.match(exposedHeaders, /x-lumo-confirmed-action/);
+    assert.match(exposedHeaders, /x-lumo-idempotency-key/);
+    assert.match(exposedHeaders, /x-request-id/);
+  });
+});
+
+test('responses carry request tracing and secure default headers, including invalid json errors', async () => {
+  await withServer(async (baseUrl) => {
+    const traced = await fetch(`${baseUrl}/health`, {
+      headers: {
+        'x-request-id': 'health-trace-123',
+      },
+    });
+
+    assert.equal(traced.status, 200);
+    assert.equal(traced.headers.get('x-request-id'), 'health-trace-123');
+    assert.equal(traced.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(traced.headers.get('x-frame-options'), 'DENY');
+    assert.equal(traced.headers.get('referrer-policy'), 'no-referrer');
+
+    const invalidJson = await fetch(`${baseUrl}/api/v1/learner-app/sync`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-request-id': 'broken-json-456',
+      },
+      body: '{"events": [}',
+    });
+
+    assert.equal(invalidJson.status, 400);
+    assert.equal(invalidJson.headers.get('x-request-id'), 'broken-json-456');
+    const body = await invalidJson.json();
+    assert.equal(body.message, 'Invalid JSON body.');
+    assert.equal(body.requestId, 'broken-json-456');
   });
 });
 

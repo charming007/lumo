@@ -79,25 +79,85 @@ test('dangerous storage restore routes require explicit confirmation and idempot
 });
 
 test('dangerous storage restore routes reject duplicate idempotency keys for the same actor and action', async () => {
+  const checkpoint = await request('/api/v1/admin/storage/checkpoint', {
+    method: 'POST',
+    body: JSON.stringify({ label: 'dangerous-guard-restore-source' }),
+  });
+  assert.equal(checkpoint.status, 201);
+  assert.ok(checkpoint.body.backupPath);
+
   const headers = {
-    'x-lumo-confirm-action': 'storage-restore-latest',
-    'idempotency-key': 'restore-latest-duplicate',
+    'x-lumo-confirm-action': 'storage-restore-backup',
+    'idempotency-key': 'restore-backup-duplicate',
   };
 
-  const first = await request('/api/v1/admin/storage/restore-latest', {
+  const first = await request('/api/v1/admin/storage/restore', {
     method: 'POST',
     headers,
-    body: JSON.stringify({}),
+    body: JSON.stringify({ backupPath: checkpoint.body.backupPath }),
   });
-  assert.notEqual(first.status, 428);
+  assert.equal(first.status, 200);
 
-  const second = await request('/api/v1/admin/storage/restore-latest', {
+  const second = await request('/api/v1/admin/storage/restore', {
     method: 'POST',
     headers,
-    body: JSON.stringify({}),
+    body: JSON.stringify({ backupPath: checkpoint.body.backupPath }),
   });
 
   assert.equal(second.status, 409);
-  assert.equal(second.body.action, 'storage-restore-latest');
-  assert.equal(second.body.idempotencyKey, 'restore-latest-duplicate');
+  assert.equal(second.body.action, 'storage-restore-backup');
+  assert.equal(second.body.idempotencyKey, 'restore-backup-duplicate');
+  assert.equal(second.body.state, 'completed');
+});
+
+test('failed dangerous admin mutations do not burn the idempotency key', async () => {
+  const headers = {
+    'x-lumo-confirm-action': 'storage-import',
+    'idempotency-key': 'storage-import-retryable',
+  };
+
+  const first = await request('/api/v1/admin/storage/import', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({}),
+  });
+  assert.equal(first.status, 400);
+  assert.equal(first.body.requestId !== null, true);
+
+  const second = await request('/api/v1/admin/storage/import', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      snapshot: {
+        organizations: [],
+        centers: [],
+        pods: [],
+        cohorts: [],
+        teachers: [],
+        students: [],
+        subjects: [],
+        strands: [],
+        modules: [],
+        lessons: [],
+        assessments: [],
+        assignments: [],
+        attendance: [],
+        observations: [],
+        progress: [],
+        syncEvents: [],
+        lessonSessions: [],
+        sessionEventLog: [],
+        rewardTransactions: [],
+        rewardAdjustments: [],
+        rewardRedemptionRequests: [],
+        progressionOverrides: [],
+        sessionRepairs: [],
+        storageOperations: [],
+      },
+    }),
+  });
+
+  assert.equal(second.status, 201);
+  assert.equal(second.headers.get('x-lumo-confirmed-action'), 'storage-import');
+  assert.equal(second.headers.get('x-lumo-idempotency-key'), 'storage-import-retryable');
 });
