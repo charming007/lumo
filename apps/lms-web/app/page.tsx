@@ -173,6 +173,56 @@ export default async function HomePage() {
     .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
     .slice(0, 5);
 
+  if (hasCriticalDashboardGap) {
+    const blockerDetail = !summaryAvailable && !workboardAvailable
+      ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+      : !summaryAvailable
+        ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
+        : 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.';
+
+    return (
+      <DeploymentBlockerCard
+        title="Dashboard"
+        subtitle="The admin landing page stays blocked when the critical live dashboard feeds are down."
+        blockerHeadline="Deployment blocker: dashboard live feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length
+              ? `Failed feed${failedSources.length === 1 ? '' : 's'}: ${failedSources.join(', ')}.`
+              : 'The dashboard refused to guess.'}
+          </>
+        )}
+        whyBlocked={[
+          'The root route is the deployment reviewer’s first trust check. If summary or progression data is missing, the page should not cosplay as a healthy command center.',
+          'Operators use this screen to decide who needs intervention now. Missing the workboard or top-line counts turns that into vibes-based operations.',
+          'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Dashboard summary',
+            expected: 'Active learners, assignments, pods, assessments, and readiness counts load from the live API',
+            failure: 'Zeroed or missing metrics on the root route',
+          },
+          {
+            surface: 'Progression queue',
+            expected: 'Ready/watch learners and next-module recommendations load from the live workboard',
+            failure: 'No intervention queue or only empty-state fallback copy',
+          },
+          {
+            surface: 'Cross-route verification',
+            expected: 'Learners, progress, and reports routes agree with the dashboard after redeploy',
+            failure: 'Route-level data exists but the dashboard still cannot assemble a trustworthy release view',
+          },
+        ]}
+        docs={[
+          { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Cross-check learners', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Verify reports', href: '/reports', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
+
   return (
     <PageShell
       title="Dashboard"
