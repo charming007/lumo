@@ -456,6 +456,9 @@ export function CurriculumCanvas({
   const selectedModuleUnlinkedLessons = selected ? selected.module.lessons.filter((lesson) => !lesson.assessmentId) : [];
   const selectedModuleNotReadyLessons = selected ? selected.module.lessons.filter((lesson) => !['approved', 'published', 'active'].includes(normalize(lesson.status))) : [];
   const selectedModuleGateCount = selected?.module.assessments.length ?? 0;
+  const firstLessonMissingGate = selectedModuleUnlinkedLessons[0] ?? null;
+  const firstLessonNeedingReadiness = selectedModuleNotReadyLessons[0] ?? null;
+  const firstAssessmentGate = selected?.module.assessments[0] ?? null;
 
   useEffect(() => {
     if (selectedLessonId && !selectedLesson) {
@@ -755,6 +758,112 @@ export function CurriculumCanvas({
                     <Link href={`/content?view=blocked&subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(254,243,199,0.14)', color: '#fde68a', border: '1px solid rgba(252,211,77,0.24)' }}>
                       Clear this blocker stack
                     </Link>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (firstLessonMissingGate) {
+                          setSelectedLessonId(firstLessonMissingGate.id);
+                          setSelectedAssessmentId(null);
+                        }
+                      }}
+                      disabled={!firstLessonMissingGate}
+                      style={{
+                        ...quickActionButtonStyle,
+                        background: firstLessonMissingGate ? 'rgba(91,33,182,0.24)' : 'rgba(255,255,255,0.05)',
+                        border: firstLessonMissingGate ? '1px solid rgba(196,181,253,0.28)' : quickActionButtonStyle.border,
+                        color: firstLessonMissingGate ? '#e9d5ff' : '#64748b',
+                        cursor: firstLessonMissingGate ? 'pointer' : 'not-allowed',
+                        opacity: firstLessonMissingGate ? 1 : 0.6,
+                      }}
+                    >
+                      {firstLessonMissingGate ? `Fix first open gate · ${firstLessonMissingGate.title}` : 'All visible lessons have gates'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (firstLessonNeedingReadiness) {
+                          setSelectedLessonId(firstLessonNeedingReadiness.id);
+                          setSelectedAssessmentId(null);
+                        }
+                      }}
+                      disabled={!firstLessonNeedingReadiness}
+                      style={{
+                        ...quickActionButtonStyle,
+                        background: firstLessonNeedingReadiness ? 'rgba(14,165,233,0.22)' : 'rgba(255,255,255,0.05)',
+                        border: firstLessonNeedingReadiness ? '1px solid rgba(125,211,252,0.24)' : quickActionButtonStyle.border,
+                        color: firstLessonNeedingReadiness ? '#bae6fd' : '#64748b',
+                        cursor: firstLessonNeedingReadiness ? 'pointer' : 'not-allowed',
+                        opacity: firstLessonNeedingReadiness ? 1 : 0.6,
+                      }}
+                    >
+                      {firstLessonNeedingReadiness ? `Open first lesson not ready · ${firstLessonNeedingReadiness.title}` : 'All visible lessons look release-ready'}
+                    </button>
+                    {selectedModuleGateCount ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (firstAssessmentGate) {
+                            setSelectedAssessmentId(firstAssessmentGate.id);
+                            setSelectedLessonId(null);
+                          }
+                        }}
+                        style={{
+                          ...quickActionButtonStyle,
+                          background: 'rgba(237,233,254,0.18)',
+                          color: '#ddd6fe',
+                          border: '1px solid rgba(196,181,253,0.26)',
+                        }}
+                      >
+                        Inspect first gate · {firstAssessmentGate?.title}
+                      </button>
+                    ) : (
+                      <form action={createCanvasAssessmentQuickAction} style={{ display: 'contents' }}>
+                        <input type="hidden" name="subjectId" value={selected.subject.id} />
+                        <input type="hidden" name="moduleId" value={selected.module.id} />
+                        <input type="hidden" name="moduleTitle" value={selected.module.title} />
+                        <input type="hidden" name="returnPath" value={selectedModuleUrl} />
+                        <button
+                          type="submit"
+                          style={{
+                            ...quickActionButtonStyle,
+                            background: 'rgba(237,233,254,0.18)',
+                            color: '#ddd6fe',
+                            border: '1px solid rgba(196,181,253,0.26)',
+                          }}
+                        >
+                          Create missing gate draft
+                        </button>
+                      </form>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const focusLesson = firstLessonMissingGate ?? firstLessonNeedingReadiness;
+                        if (focusLesson) {
+                          setSelectedLessonId(focusLesson.id);
+                          setSelectedAssessmentId(null);
+                          return;
+                        }
+                        if (firstAssessmentGate) {
+                          setSelectedAssessmentId(firstAssessmentGate.id);
+                          setSelectedLessonId(null);
+                        }
+                      }}
+                      disabled={!firstLessonMissingGate && !firstLessonNeedingReadiness && !firstAssessmentGate}
+                      style={{
+                        ...quickActionButtonStyle,
+                        background: firstLessonMissingGate || firstLessonNeedingReadiness || firstAssessmentGate ? 'rgba(245,158,11,0.16)' : 'rgba(255,255,255,0.05)',
+                        border: firstLessonMissingGate || firstLessonNeedingReadiness || firstAssessmentGate ? '1px solid rgba(252,211,77,0.24)' : quickActionButtonStyle.border,
+                        color: firstLessonMissingGate || firstLessonNeedingReadiness || firstAssessmentGate ? '#fde68a' : '#64748b',
+                        cursor: firstLessonMissingGate || firstLessonNeedingReadiness || firstAssessmentGate ? 'pointer' : 'not-allowed',
+                        opacity: firstLessonMissingGate || firstLessonNeedingReadiness || firstAssessmentGate ? 1 : 0.6,
+                      }}
+                    >
+                      Jump to next triage target
+                    </button>
                   </div>
                 </div>
 
