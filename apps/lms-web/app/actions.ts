@@ -308,6 +308,7 @@ export async function deleteMallamAction(formData: FormData) {
 }
 
 export async function createSubjectAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     id: String(formData.get('id') || ''),
     name: String(formData.get('name') || ''),
@@ -318,11 +319,15 @@ export async function createSubjectAction(formData: FormData) {
 
   await apiWrite('/api/v1/subjects', 'POST', payload);
   revalidatePath('/content');
-  redirect('/content?message=Subject%20created%20and%20added%20to%20the%20library');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Subject created and added to the library',
+  }));
 }
 
 export async function updateSubjectAction(formData: FormData) {
   const subjectId = String(formData.get('subjectId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     name: String(formData.get('name') || ''),
     icon: String(formData.get('icon') || ''),
@@ -331,18 +336,26 @@ export async function updateSubjectAction(formData: FormData) {
 
   await apiWrite(`/api/v1/subjects/${subjectId}`, 'PATCH', payload);
   revalidatePath('/content');
-  redirect('/content?message=Subject%20changes%20saved');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Subject changes saved',
+  }));
 }
 
 export async function deleteSubjectAction(formData: FormData) {
   const subjectId = String(formData.get('subjectId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
 
   await apiWrite(`/api/v1/subjects/${subjectId}`, 'DELETE');
   revalidatePath('/content');
-  redirect('/content?message=Subject%20removed%20from%20the%20library');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Subject removed from the library',
+  }));
 }
 
 export async function createStrandAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     subjectId: String(formData.get('subjectId') || ''),
     name: String(formData.get('name') || ''),
@@ -351,11 +364,15 @@ export async function createStrandAction(formData: FormData) {
 
   await apiWrite('/api/v1/strands', 'POST', payload);
   revalidatePath('/content');
-  redirect('/content?message=Strand%20created%20and%20ready%20for%20module%20planning');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Strand created and ready for module planning',
+  }));
 }
 
 export async function updateStrandAction(formData: FormData) {
   const strandId = String(formData.get('strandId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     subjectId: String(formData.get('subjectId') || ''),
     name: String(formData.get('name') || ''),
@@ -364,18 +381,26 @@ export async function updateStrandAction(formData: FormData) {
 
   await apiWrite(`/api/v1/strands/${strandId}`, 'PATCH', payload);
   revalidatePath('/content');
-  redirect('/content?message=Strand%20changes%20saved');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Strand changes saved',
+  }));
 }
 
 export async function deleteStrandAction(formData: FormData) {
   const strandId = String(formData.get('strandId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
 
   await apiWrite(`/api/v1/strands/${strandId}`, 'DELETE');
   revalidatePath('/content');
-  redirect('/content?message=Strand%20removed%20from%20the%20library');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Strand removed from the library',
+  }));
 }
 
 export async function createModuleAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     strandId: String(formData.get('strandId') || ''),
     title: String(formData.get('title') || ''),
@@ -387,7 +412,10 @@ export async function createModuleAction(formData: FormData) {
 
   await apiWrite('/api/v1/curriculum/modules', 'POST', payload);
   revalidatePath('/content');
-  redirect('/content?message=Module%20created%20and%20added%20to%20the%20publishing%20board');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Module created and added to the publishing board',
+  }));
 }
 
 export async function updateModuleAction(formData: FormData) {
@@ -725,6 +753,7 @@ export async function createCanvasAssessmentQuickAction(formData: FormData) {
 
 export async function updateAssessmentAction(formData: FormData) {
   const assessmentId = String(formData.get('assessmentId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
     title: String(formData.get('title') || ''),
     kind: String(formData.get('kind') || ''),
@@ -737,31 +766,46 @@ export async function updateAssessmentAction(formData: FormData) {
 
   await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', payload);
   revalidatePath('/content');
-  redirect('/content?message=Assessment%20changes%20saved');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Assessment changes saved',
+  }));
 }
 
 export async function deleteModuleAction(formData: FormData) {
   const moduleId = String(formData.get('moduleId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
 
   await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'DELETE');
   revalidatePath('/content');
-  redirect('/content?message=Module%20removed%20from%20the%20library');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Module removed from the library',
+  }));
 }
 
 export async function deleteLessonAction(formData: FormData) {
   const lessonId = String(formData.get('lessonId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
 
   await apiWrite(`/api/v1/lessons/${lessonId}`, 'DELETE');
   revalidatePath('/content');
-  redirect('/content?message=Lesson%20removed%20from%20the%20library');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Lesson removed from the library',
+  }));
 }
 
 export async function deleteAssessmentAction(formData: FormData) {
   const assessmentId = String(formData.get('assessmentId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
 
   await apiWrite(`/api/v1/assessments/${assessmentId}`, 'DELETE');
   revalidatePath('/content');
-  redirect('/content?message=Assessment%20gate%20removed');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: 'Assessment gate removed',
+  }));
 }
 
 export async function createAttendanceAction(formData: FormData) {

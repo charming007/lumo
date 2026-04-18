@@ -54,6 +54,7 @@ export function ContentSubjectLanes({
   lessons,
   assessments,
   assignments,
+  returnPath,
 }: {
   subjects: Subject[];
   strands: Strand[];
@@ -61,6 +62,7 @@ export function ContentSubjectLanes({
   lessons: Lesson[];
   assessments: Assessment[];
   assignments: Assignment[];
+  returnPath: string;
 }) {
   const subjectSummaries = useMemo(() => subjects
     .map((subject) => {
@@ -169,10 +171,10 @@ export function ContentSubjectLanes({
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <ModalLauncher buttonLabel="✏️" title={`Edit subject · ${subject.name}`} description="Update the subject label, icon, or sort order." eyebrow="Edit subject" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                      <UpdateSubjectForm subject={subject} embedded />
+                      <UpdateSubjectForm subject={subject} embedded returnPath={returnPath} />
                     </ModalLauncher>
                     <ModalLauncher buttonLabel="🗑" title={`Delete subject · ${subject.name}`} description="Remove the full subject lane only if it should disappear from the content library." eyebrow="Delete subject" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                      <DeleteSubjectForm subject={subject} embedded />
+                      <DeleteSubjectForm subject={subject} embedded returnPath={returnPath} />
                     </ModalLauncher>
                   </div>
                 </div>
@@ -188,9 +190,9 @@ export function ContentSubjectLanes({
                 <div id={`subject-panel-${subject.id}`} hidden={collapsed} style={{ display: collapsed ? 'none' : 'grid', gap: 12 }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a real strand directly from the curriculum canvas instead of bouncing to a separate admin surface." eyebrow="Create strand" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
-                      <CreateStrandForm subjects={subjects} initialSubjectId={subject.id} initialOrder={subjectStrands.length + 1} />
+                      <CreateStrandForm subjects={subjects} initialSubjectId={subject.id} initialOrder={subjectStrands.length + 1} returnPath={returnPath} />
                     </ModalLauncher>
-                    <Link href={`/content/lessons/new?subjectId=${subject.id}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none' }}>
+                    <Link href={`/content/lessons/new?subjectId=${subject.id}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none' }}>
                       Open lesson studio for {subject.name} →
                     </Link>
                     {subjectAssignments.length ? (
@@ -236,13 +238,13 @@ export function ContentSubjectLanes({
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             <Pill label={strandCollapsed ? 'Hidden' : 'Visible'} tone={strandCollapsed ? '#E2E8F0' : '#ECFDF5'} text={strandCollapsed ? '#334155' : '#166534'} />
                             <ModalLauncher buttonLabel="＋ Module" title={`Create module in ${strand.name}`} description="Create a real module directly from this strand lane so the canvas writes back into the live curriculum spine." eyebrow="Create module" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
-                              <CreateModuleForm strands={strands} initialStrandId={strand.id} initialTitle={`${strand.name} Module`} initialOrder={strandModules.length + 1} />
+                              <CreateModuleForm strands={strands} initialStrandId={strand.id} initialTitle={`${strand.name} Module`} initialOrder={strandModules.length + 1} returnPath={returnPath} />
                             </ModalLauncher>
                             <ModalLauncher buttonLabel="✏️" title={`Edit strand · ${strand.name}`} description="Rename or reorder this strand without leaving the subject lane." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                              <UpdateStrandForm strand={strand} subjects={subjects} embedded />
+                              <UpdateStrandForm strand={strand} subjects={subjects} embedded returnPath={returnPath} />
                             </ModalLauncher>
                             <ModalLauncher buttonLabel="🗑" title={`Delete strand · ${strand.name}`} description="Remove this strand and everything nested under it if it no longer belongs in the curriculum map." eyebrow="Delete strand" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                              <DeleteStrandForm strand={strand} embedded />
+                              <DeleteStrandForm strand={strand} embedded returnPath={returnPath} />
                             </ModalLauncher>
                           </div>
                         </div>
@@ -264,22 +266,22 @@ export function ContentSubjectLanes({
                                   </div>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                     <Pill label={module.status} tone={pill.tone} text={pill.text} />
-                                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+                                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
                                       Open lesson studio →
                                     </Link>
                                     <ModalLauncher buttonLabel="＋ Lesson" title={`Create lesson in ${module.title}`} description="Create a lesson shell from the module card, then hand off immediately into the full lesson studio flow." eyebrow="Create lesson" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
                                       <div style={{ display: 'grid', gap: 12 }}>
                                         <div style={{ color: '#64748b', lineHeight: 1.6 }}>For the real payload, use the full lesson studio. This shortcut only creates the lesson record in the correct curriculum lane.</div>
-                                        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
+                                        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
                                           Open full lesson studio
                                         </Link>
                                       </div>
                                     </ModalLauncher>
                                     <ModalLauncher buttonLabel="✏️ Edit module" title={`Edit module · ${module.title}`} description="Update module metadata from the same content lane." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                                      <UpdateModuleForm modules={[module]} />
+                                      <UpdateModuleForm modules={[module]} returnPath={returnPath} />
                                     </ModalLauncher>
                                     <ModalLauncher buttonLabel="🗑 Delete module" title={`Delete module · ${module.title}`} description="Remove this module and its linked content if it should no longer exist." eyebrow="Delete module" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                                      <DeleteModuleForm modules={[module]} />
+                                      <DeleteModuleForm modules={[module]} returnPath={returnPath} />
                                     </ModalLauncher>
                                   </div>
                                 </div>
@@ -297,18 +299,18 @@ export function ContentSubjectLanes({
                                               {assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length} live assignment{assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length === 1 ? '' : 's'} using this learner-facing lesson
                                             </div>
                                             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-                                              <Link href={`/content/lessons/${lesson.id}?from=%2Fcontent`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open authoring editor →</Link>
-                                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&duplicate=${encodeURIComponent(lesson.id)}&from=%2Fcontent`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
+                                              <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open authoring editor →</Link>
+                                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&duplicate=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(returnPath)}`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
                                               <Link href={`/assignments?q=${encodeURIComponent(lesson.title)}`} style={{ color: '#C2410C', fontWeight: 700, textDecoration: 'none' }}>View delivery usage →</Link>
                                             </div>
                                           </div>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                             <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
                                             <ModalLauncher buttonLabel="✏️" title={`Edit lesson · ${lesson.title}`} description="Update the lesson state, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                                              <UpdateLessonForm lessons={[lesson]} />
+                                              <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
                                             </ModalLauncher>
                                             <ModalLauncher buttonLabel="🗑" title={`Delete lesson · ${lesson.title}`} description="Delete this lesson if it should no longer be in the module lane." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                                              <DeleteLessonForm lessons={[lesson]} />
+                                              <DeleteLessonForm lessons={[lesson]} returnPath={returnPath} />
                                             </ModalLauncher>
                                           </div>
                                         </div>
@@ -332,10 +334,10 @@ export function ContentSubjectLanes({
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                               <Pill label={assessment.status} tone={assessmentPill.tone} text={assessmentPill.text} />
                                               <ModalLauncher buttonLabel="✏️" title={`Edit assessment · ${assessment.title}`} description="Update this progression gate from inside the module lane." eyebrow="Edit assessment" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                                                <UpdateAssessmentForm assessments={[assessment]} />
+                                                <UpdateAssessmentForm assessments={[assessment]} returnPath={returnPath} />
                                               </ModalLauncher>
                                               <ModalLauncher buttonLabel="🗑" title={`Delete assessment · ${assessment.title}`} description="Remove this assessment gate if it should no longer control progression." eyebrow="Delete assessment" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                                                <DeleteAssessmentForm assessments={[assessment]} />
+                                                <DeleteAssessmentForm assessments={[assessment]} returnPath={returnPath} />
                                               </ModalLauncher>
                                             </div>
                                           </div>
@@ -344,7 +346,7 @@ export function ContentSubjectLanes({
                                         <div style={{ display: 'grid', gap: 10 }}>
                                           <div style={{ color: '#64748b' }}>No assessment linked yet.</div>
                                           <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Attach the missing progression gate without leaving this strand." eyebrow="Create assessment" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
-                                            <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath="/content" />
+                                            <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                                           </ModalLauncher>
                                         </div>
                                       )}

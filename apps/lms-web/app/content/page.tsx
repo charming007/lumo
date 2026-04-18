@@ -64,6 +64,21 @@ function emptyTableRows(message: string, columns: number) {
   return [[<span key={message} style={{ color: '#64748b', lineHeight: 1.6 }}>{message}</span>, ...Array.from({ length: columns - 1 }, () => '')]];
 }
 
+function buildContentReturnPath(query?: { q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }) {
+  const params = new URLSearchParams();
+  const q = normalizeFilterValue(query?.q).trim();
+  const subject = normalizeFilterValue(query?.subject).trim();
+  const status = normalizeFilterValue(query?.status).trim();
+  const view = normalizeFilterValue(query?.view).trim();
+
+  if (q) params.set('q', q);
+  if (subject) params.set('subject', subject);
+  if (status) params.set('status', status);
+  if (view) params.set('view', view);
+
+  return params.size ? `/content?${params.toString()}` : '/content';
+}
+
 export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
   if (API_BASE_SOURCE === 'missing-production-env') {
     return (
@@ -135,6 +150,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const subjectFilter = normalizeFilterValue(query?.subject).trim();
   const statusFilter = normalizeFilterValue(query?.status).trim();
   const viewFilter = normalizeFilterValue(query?.view).trim();
+  const returnPath = buildContentReturnPath(query);
   const subjectFilterName = subjects.find((subject) => subject.id === subjectFilter)?.name;
 
   const filteredModules = modules.filter((module) => {
@@ -194,13 +210,13 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       aside={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <ModalLauncher buttonLabel="Create Subject" title="Create subject" description="Add a new subject lane and optionally seed its first strand.">
-            <CreateSubjectForm />
+            <CreateSubjectForm returnPath={returnPath} />
           </ModalLauncher>
           <ModalLauncher buttonLabel="Create Strand" title="Create strand" description="Add a planning lane inside the right subject before you drop modules into it.">
-            <CreateStrandForm subjects={subjects} />
+            <CreateStrandForm subjects={subjects} returnPath={returnPath} />
           </ModalLauncher>
           <ModalLauncher buttonLabel="Create Module" title="Create module" description="Add a module to the right strand without leaving the content board.">
-            <CreateModuleForm strands={strands} />
+            <CreateModuleForm strands={strands} returnPath={returnPath} />
           </ModalLauncher>
           <Link href="/content/lessons/new" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
             Open lesson studio
@@ -361,6 +377,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             lessons={filteredLessons}
             assessments={filteredAssessments}
             assignments={assignments}
+            returnPath={returnPath}
           />
 
           <section style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
@@ -410,7 +427,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       </Link>
                       {!hasAssessment ? (
                         <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate from the blockers board instead of hunting through the full content lane." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
-                          <CreateAssessmentForm modules={[module]} subjects={subjects} />
+                          <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                         </ModalLauncher>
                       ) : (
                         <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
@@ -434,10 +451,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   <Pill key={`${assessment.id}-status`} label={assessment.status} tone={statusPill(assessment.status).tone} text={statusPill(assessment.status).text} />,
                   <div key={`${assessment.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <ModalLauncher buttonLabel="Edit assessment" title={`Edit assessment · ${assessment.title}`} description="Update the selected assessment gate from the control board." eyebrow="Edit assessment" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                      <UpdateAssessmentForm assessments={[assessment]} />
+                      <UpdateAssessmentForm assessments={[assessment]} returnPath={returnPath} />
                     </ModalLauncher>
                     <ModalLauncher buttonLabel="Delete assessment" title={`Delete assessment · ${assessment.title}`} description="Remove this gate from the control board if it should no longer exist." eyebrow="Delete assessment" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                      <DeleteAssessmentForm assessments={[assessment]} />
+                      <DeleteAssessmentForm assessments={[assessment]} returnPath={returnPath} />
                     </ModalLauncher>
                   </div>,
                 ]) : emptyTableRows(filtersActive ? 'No assessment gates match the current content filters.' : 'No assessment gates are available right now.', 6)}
@@ -458,10 +475,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   <Pill key={`${module.id}-status`} label={module.status} tone={statusPill(module.status).tone} text={statusPill(module.status).text} />,
                   <div key={`${module.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <ModalLauncher buttonLabel="Edit module" title={`Edit module · ${module.title}`} description="Update the selected module without leaving the tracker." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                      <UpdateModuleForm modules={[module]} />
+                      <UpdateModuleForm modules={[module]} returnPath={returnPath} />
                     </ModalLauncher>
                     <ModalLauncher buttonLabel="Delete module" title={`Delete module · ${module.title}`} description="Remove this module from the release tracker." eyebrow="Delete module" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                      <DeleteModuleForm modules={[module]} />
+                      <DeleteModuleForm modules={[module]} returnPath={returnPath} />
                     </ModalLauncher>
                   </div>,
                 ]) : emptyTableRows(filtersActive ? 'No modules match the current content filters.' : 'No modules are available right now.', 7)}
@@ -486,10 +503,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       Duplicate as new
                     </Link>
                     <ModalLauncher buttonLabel="Quick edit" title={`Quick edit · ${lesson.title}`} description="Use the compact editor for status/mode/duration only. For actual authoring, open the full lesson editor." eyebrow="Quick edit" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                      <UpdateLessonForm lessons={[lesson]} />
+                      <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
                     </ModalLauncher>
                     <ModalLauncher buttonLabel="Delete lesson" title={`Delete lesson · ${lesson.title}`} description="Remove this lesson from the inventory if it no longer belongs here." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                      <DeleteLessonForm lessons={[lesson]} />
+                      <DeleteLessonForm lessons={[lesson]} returnPath={returnPath} />
                     </ModalLauncher>
                   </div>,
                 ]) : emptyTableRows(filtersActive ? 'No lessons match the current content filters.' : 'No lessons are available right now.', 7)}

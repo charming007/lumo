@@ -210,9 +210,10 @@ export function DeleteMallamForm({ mallam, embedded = false }: { mallam: Mallam;
   );
 }
 
-export function CreateSubjectForm() {
+export function CreateSubjectForm({ returnPath }: { returnPath?: string }) {
   return (
     <form action={createSubjectAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Create subject</h2>
       <SectionHint>Create the subject lane first, and optionally seed its first strand so the module flow is immediately usable.</SectionHint>
       <FieldLabel>Subject ID<input name="id" defaultValue="science" style={inputStyle} /></FieldLabel>
@@ -227,11 +228,12 @@ export function CreateSubjectForm() {
   );
 }
 
-export function UpdateSubjectForm({ subject, embedded = false }: { subject: Subject; embedded?: boolean }) {
+export function UpdateSubjectForm({ subject, embedded = false, returnPath }: { subject: Subject; embedded?: boolean; returnPath?: string }) {
   return (
     <div style={embedded ? embeddedCardStyle : cardStyle}>
       <form action={updateSubjectAction} style={{ display: 'grid', gap: 12 }}>
         <input type="hidden" name="subjectId" value={subject.id} />
+        <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
         <h2 style={{ margin: 0 }}>Update subject</h2>
         <FieldLabel>Subject name<input name="name" defaultValue={subject.name} style={inputStyle} /></FieldLabel>
         <div style={twoColumnGrid}>
@@ -244,10 +246,11 @@ export function UpdateSubjectForm({ subject, embedded = false }: { subject: Subj
   );
 }
 
-export function DeleteSubjectForm({ subject, embedded = false }: { subject: Subject; embedded?: boolean }) {
+export function DeleteSubjectForm({ subject, embedded = false, returnPath }: { subject: Subject; embedded?: boolean; returnPath?: string }) {
   return (
     <form action={deleteSubjectAction} style={embedded ? embeddedCardStyle : cardStyle}>
       <input type="hidden" name="subjectId" value={subject.id} />
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <div style={{ display: 'grid', gap: 10 }}>
         <h2 style={{ margin: 0 }}>Delete subject</h2>
         <div style={{ color: '#475569', lineHeight: 1.6 }}>
@@ -259,9 +262,10 @@ export function DeleteSubjectForm({ subject, embedded = false }: { subject: Subj
   );
 }
 
-export function CreateStrandForm({ subjects, initialSubjectId, initialName, initialOrder }: { subjects: Subject[]; initialSubjectId?: string; initialName?: string; initialOrder?: number }) {
+export function CreateStrandForm({ subjects, initialSubjectId, initialName, initialOrder, returnPath }: { subjects: Subject[]; initialSubjectId?: string; initialName?: string; initialOrder?: number; returnPath?: string }) {
   return (
     <form action={createStrandAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Create strand</h2>
       <SectionHint>Give each subject a real planning lane before you start dumping modules into it.</SectionHint>
       <FieldLabel>Subject<select name="subjectId" defaultValue={initialSubjectId ?? subjects[0]?.id} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
@@ -272,11 +276,12 @@ export function CreateStrandForm({ subjects, initialSubjectId, initialName, init
   );
 }
 
-export function UpdateStrandForm({ strand, subjects, embedded = false }: { strand: Strand; subjects: Subject[]; embedded?: boolean }) {
+export function UpdateStrandForm({ strand, subjects, embedded = false, returnPath }: { strand: Strand; subjects: Subject[]; embedded?: boolean; returnPath?: string }) {
   return (
     <div style={embedded ? embeddedCardStyle : cardStyle}>
       <form action={updateStrandAction} style={{ display: 'grid', gap: 12 }}>
         <input type="hidden" name="strandId" value={strand.id} />
+        <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
         <h2 style={{ margin: 0 }}>Update strand</h2>
         <FieldLabel>Subject<select name="subjectId" defaultValue={strand.subjectId} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
         <FieldLabel>Strand name<input name="name" defaultValue={strand.name} style={inputStyle} /></FieldLabel>
@@ -287,10 +292,11 @@ export function UpdateStrandForm({ strand, subjects, embedded = false }: { stran
   );
 }
 
-export function DeleteStrandForm({ strand, embedded = false }: { strand: Strand; embedded?: boolean }) {
+export function DeleteStrandForm({ strand, embedded = false, returnPath }: { strand: Strand; embedded?: boolean; returnPath?: string }) {
   return (
     <form action={deleteStrandAction} style={embedded ? embeddedCardStyle : cardStyle}>
       <input type="hidden" name="strandId" value={strand.id} />
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <div style={{ display: 'grid', gap: 10 }}>
         <h2 style={{ margin: 0 }}>Delete strand</h2>
         <div style={{ color: '#475569', lineHeight: 1.6 }}>
@@ -302,11 +308,12 @@ export function DeleteStrandForm({ strand, embedded = false }: { strand: Strand;
   );
 }
 
-export function CreateModuleForm({ strands, initialStrandId, initialTitle, initialLevel, initialLessonCount, initialOrder, initialStatus }: { strands: Strand[]; initialStrandId?: string; initialTitle?: string; initialLevel?: string; initialLessonCount?: number; initialOrder?: number; initialStatus?: string }) {
+export function CreateModuleForm({ strands, initialStrandId, initialTitle, initialLevel, initialLessonCount, initialOrder, initialStatus, returnPath }: { strands: Strand[]; initialStrandId?: string; initialTitle?: string; initialLevel?: string; initialLessonCount?: number; initialOrder?: number; initialStatus?: string; returnPath?: string }) {
   const defaultStrand = strands.find((strand) => strand.id === initialStrandId) ?? strands[0];
 
   return (
     <form action={createModuleAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Create module</h2>
       <SectionHint>Build a real content lane by selecting the exact strand first, not some hardcoded fake default.</SectionHint>
       <FieldLabel>Strand<select name="strandId" defaultValue={defaultStrand?.id} style={inputStyle}>{strands.map((strand) => <option key={strand.id} value={strand.id}>{strand.subjectName} • {strand.name}</option>)}</select></FieldLabel>
@@ -342,11 +349,12 @@ export function UpdateModuleForm({ modules, returnPath }: { modules: CurriculumM
   );
 }
 
-export function DeleteModuleForm({ modules }: { modules: CurriculumModule[] }) {
+export function DeleteModuleForm({ modules, returnPath }: { modules: CurriculumModule[]; returnPath?: string }) {
   const module = modules[0];
 
   return (
     <form action={deleteModuleAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Delete module</h2>
       <SectionHint>This removes the module and its linked lessons, assessments, assignments, and progress references from the seeded ops dataset.</SectionHint>
       <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
@@ -372,11 +380,12 @@ export function CreateLessonForm({ modules }: { modules: CurriculumModule[] }) {
   );
 }
 
-export function UpdateLessonForm({ lessons }: { lessons: Lesson[] }) {
+export function UpdateLessonForm({ lessons, returnPath }: { lessons: Lesson[]; returnPath?: string }) {
   const lesson = lessons[0];
 
   return (
     <form action={updateLessonAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Update lesson</h2>
       <SectionHint>Pick the exact lesson to move through draft, review, approved, or published states.</SectionHint>
       <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
@@ -390,11 +399,12 @@ export function UpdateLessonForm({ lessons }: { lessons: Lesson[] }) {
   );
 }
 
-export function DeleteLessonForm({ lessons }: { lessons: Lesson[] }) {
+export function DeleteLessonForm({ lessons, returnPath }: { lessons: Lesson[]; returnPath?: string }) {
   const lesson = lessons[0];
 
   return (
     <form action={deleteLessonAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Delete lesson</h2>
       <SectionHint>This removes the lesson and clears linked assignments so the content board stays honest.</SectionHint>
       <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
@@ -407,11 +417,12 @@ export function CreateAssessmentForm({ modules, subjects, returnPath }: { module
   return <CreateAssessmentFormClient modules={modules} subjects={subjects} returnPath={returnPath} />;
 }
 
-export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[] }) {
+export function UpdateAssessmentForm({ assessments, returnPath }: { assessments: Assessment[]; returnPath?: string }) {
   const assessment = assessments[0];
 
   return (
     <form action={updateAssessmentAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Update assessment gate</h2>
       <SectionHint>Target the exact assessment gate instead of silently editing the first one in the list.</SectionHint>
       <FieldLabel>Assessment<select name="assessmentId" defaultValue={assessment?.id ?? ''} style={inputStyle}>{assessments.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
@@ -431,11 +442,12 @@ export function UpdateAssessmentForm({ assessments }: { assessments: Assessment[
   );
 }
 
-export function DeleteAssessmentForm({ assessments }: { assessments: Assessment[] }) {
+export function DeleteAssessmentForm({ assessments, returnPath }: { assessments: Assessment[]; returnPath?: string }) {
   const assessment = assessments[0];
 
   return (
     <form action={deleteAssessmentAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Delete assessment gate</h2>
       <SectionHint>This removes the assessment gate and detaches it from any scheduled assignments.</SectionHint>
       <FieldLabel>Assessment<select name="assessmentId" defaultValue={assessment?.id ?? ''} style={inputStyle}>{assessments.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
