@@ -5307,6 +5307,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       ? 'Stay in audio-only review'
       : 'Use audio only for this take';
 
+  String? get _savedAudioEvidenceLabel {
+    final session = widget.state.activeSession;
+    final path = session?.latestLearnerAudioPath?.trim();
+    if (path == null || path.isEmpty) return null;
+
+    final duration = session?.latestLearnerAudioDuration;
+    final durationLabel =
+        duration == null ? 'Saved learner voice ready' : formatDuration(duration);
+    return '$durationLabel clip • ${compactPath(path)}';
+  }
+
   bool get _shouldExpandTranscriptStrategyByDefault =>
       transcriptReviewPending ||
       _isAudioOnlyReviewState ||
@@ -7259,45 +7270,113 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                       const Color(0xFFFCD34D),
                                                 ),
                                               ),
-                                              child: Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  if (session
-                                                          .latestLearnerAudioPath !=
-                                                      null)
-                                                    FilledButton.tonalIcon(
-                                                      onPressed:
-                                                          _toggleSavedAudioPlayback,
-                                                      icon: Icon(
-                                                        learnerAudioPlaybackService
-                                                                .isPlaying
-                                                            ? Icons
-                                                                .pause_circle_rounded
-                                                            : Icons
-                                                                .play_circle_fill_rounded,
+                                                  if (_savedAudioEvidenceLabel !=
+                                                      null) ...[
+                                                    Wrap(
+                                                      spacing: 8,
+                                                      runSpacing: 8,
+                                                      crossAxisAlignment:
+                                                          WrapCrossAlignment
+                                                              .center,
+                                                      children: [
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 8,
+                                                          ),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: const Color(
+                                                              0xFFFFFFFF,
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                              999,
+                                                            ),
+                                                            border: Border.all(
+                                                              color: const Color(
+                                                                0xFFFDE68A,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            _savedAudioEvidenceLabel!,
+                                                            style:
+                                                                const TextStyle(
+                                                              color: Color(
+                                                                0xFF92400E,
+                                                              ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          _isAudioOnlyReviewState
+                                                              ? 'Use the saved clip as the source of truth before Mallam continues.'
+                                                              : 'Quick audio check first, then confirm the text.',
+                                                          style:
+                                                              const TextStyle(
+                                                            color: Color(
+                                                              0xFF92400E,
+                                                            ),
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 10),
+                                                  ],
+                                                  Wrap(
+                                                    spacing: 8,
+                                                    runSpacing: 8,
+                                                    children: [
+                                                      if (session
+                                                              .latestLearnerAudioPath !=
+                                                          null)
+                                                        FilledButton.tonalIcon(
+                                                          onPressed:
+                                                              _toggleSavedAudioPlayback,
+                                                          icon: Icon(
+                                                            learnerAudioPlaybackService
+                                                                    .isPlaying
+                                                                ? Icons
+                                                                    .pause_circle_rounded
+                                                                : Icons
+                                                                    .play_circle_fill_rounded,
+                                                          ),
+                                                          label: Text(
+                                                            learnerAudioPlaybackService
+                                                                    .isPlaying
+                                                                ? 'Pause saved voice'
+                                                                : 'Play saved voice',
+                                                          ),
+                                                        ),
+                                                      FilledButton.icon(
+                                                        onPressed: responseController
+                                                                .text
+                                                                .trim()
+                                                                .isEmpty
+                                                            ? null
+                                                            : _confirmTranscriptAndAdvance,
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .check_circle_rounded,
+                                                        ),
+                                                        label: Text(
+                                                          _reviewPrimaryCtaLabel,
+                                                        ),
                                                       ),
-                                                      label: Text(
-                                                        learnerAudioPlaybackService
-                                                                .isPlaying
-                                                            ? 'Pause saved voice'
-                                                            : 'Play saved voice',
-                                                      ),
-                                                    ),
-                                                  FilledButton.icon(
-                                                    onPressed: responseController
-                                                            .text
-                                                            .trim()
-                                                            .isEmpty
-                                                        ? null
-                                                        : _confirmTranscriptAndAdvance,
-                                                    icon: const Icon(
-                                                      Icons
-                                                          .check_circle_rounded,
-                                                    ),
-                                                    label: Text(
-                                                      _reviewPrimaryCtaLabel,
-                                                    ),
+                                                    ],
                                                   ),
                                                 ],
                                               ),

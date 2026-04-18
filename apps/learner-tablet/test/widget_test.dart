@@ -1335,6 +1335,11 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Play saved voice'), findsWidgets);
+    expect(find.text('0:04 clip • .../audio/fallback-review.m4a'), findsOneWidget);
+    expect(
+      find.text('Use the saved clip as the source of truth before Mallam continues.'),
+      findsOneWidget,
+    );
     expect(find.text('Hear Mallam again'), findsWidgets);
     expect(
       find.text('Save note + resume hands-free').evaluate().isNotEmpty ||
@@ -1378,6 +1383,11 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Play saved voice'), findsWidgets);
+    expect(find.text('0:05 clip • .../audio/fallback-draft.m4a'), findsOneWidget);
+    expect(
+      find.text('Quick audio check first, then confirm the text.'),
+      findsOneWidget,
+    );
     expect(find.text('Confirm transcript'), findsOneWidget);
     expect(find.text('Hear Mallam again'), findsWidgets);
 
