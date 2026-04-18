@@ -12,6 +12,94 @@ const { getActor, requireRole } = require('./auth');
 
 const app = express();
 
+function readPositiveIntEnv(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function getClientAddress(req) {
+  const forwardedFor = String(req.header('x-forwarded-for') || '').split(',')[0].trim();
+  return forwardedFor || req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function buildThrottleMiddleware({
+  bucket,
+  windowMs,
+  maxRequests,
+  keyFn = (req) => getClientAddress(req),
+  skip = () => false,
+}) {
+  const entries = new Map();
+
+  return (req, res, next) => {
+    const resolvedWindowMs = typeof windowMs === 'function' ? Number(windowMs(req)) : Number(windowMs);
+    const resolvedMaxRequests = typeof maxRequests === 'function' ? Number(maxRequests(req)) : Number(maxRequests);
+
+    if (skip(req) || resolvedMaxRequests <= 0 || resolvedWindowMs <= 0) {
+      return next();
+    }
+
+    const now = Date.now();
+    const subject = String(keyFn(req) || 'anonymous');
+    const key = `${bucket}:${subject}`;
+    const current = entries.get(key);
+
+    if (!current || current.resetAt <= now) {
+      entries.set(key, { count: 1, resetAt: now + resolvedWindowMs });
+      res.setHeader('RateLimit-Limit', String(resolvedMaxRequests));
+      res.setHeader('RateLimit-Remaining', String(Math.max(0, resolvedMaxRequests - 1)));
+      res.setHeader('RateLimit-Reset', String(Math.ceil((now + resolvedWindowMs) / 1000)));
+      return next();
+    }
+
+    if (current.count >= resolvedMaxRequests) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfterSeconds));
+      res.setHeader('RateLimit-Limit', String(resolvedMaxRequests));
+      res.setHeader('RateLimit-Remaining', '0');
+      res.setHeader('RateLimit-Reset', String(Math.ceil(current.resetAt / 1000)));
+      return res.status(429).json({
+        message: 'Too many requests. Slow down and retry shortly.',
+        throttle: {
+          bucket,
+          scope: subject,
+          retryAfterSeconds,
+        },
+      });
+    }
+
+    current.count += 1;
+    entries.set(key, current);
+    res.setHeader('RateLimit-Limit', String(resolvedMaxRequests));
+    res.setHeader('RateLimit-Remaining', String(Math.max(0, resolvedMaxRequests - current.count)));
+    res.setHeader('RateLimit-Reset', String(Math.ceil(current.resetAt / 1000)));
+    return next();
+  };
+}
+
+const learnerSyncThrottle = buildThrottleMiddleware({
+  bucket: 'learner-sync',
+  windowMs: () => readPositiveIntEnv('LUMO_SYNC_THROTTLE_WINDOW_MS', 60_000),
+  maxRequests: () => readPositiveIntEnv('LUMO_SYNC_THROTTLE_MAX_REQUESTS', 120),
+  keyFn: (req) => req.header('x-lumo-client-id') || req.header('x-lumo-sync-batch') || getClientAddress(req),
+});
+
+const learnerRewardRequestThrottle = buildThrottleMiddleware({
+  bucket: 'learner-reward-request',
+  windowMs: () => readPositiveIntEnv('LUMO_REWARD_REQUEST_THROTTLE_WINDOW_MS', 60_000),
+  maxRequests: () => readPositiveIntEnv('LUMO_REWARD_REQUEST_THROTTLE_MAX_REQUESTS', 12),
+  keyFn: (req) => req.body?.learnerId || req.body?.learnerCode || req.query?.learnerId || req.query?.learnerCode || req.header('x-lumo-client-id') || getClientAddress(req),
+});
+
+const adminMutationThrottle = buildThrottleMiddleware({
+  bucket: 'admin-mutation',
+  windowMs: () => readPositiveIntEnv('LUMO_ADMIN_MUTATION_THROTTLE_WINDOW_MS', 60_000),
+  maxRequests: () => readPositiveIntEnv('LUMO_ADMIN_MUTATION_THROTTLE_MAX_REQUESTS', 90),
+  keyFn: (req) => `${req.actor?.role || req.header('x-lumo-role') || 'anonymous'}:${req.actor?.name || req.header('x-lumo-actor') || req.header('x-lumo-user') || getClientAddress(req)}`,
+});
+
 function applyCors(req, res) {
   const requestOrigin = req.headers.origin;
   const allowAnyOrigin = (process.env.LUMO_CORS_ALLOW_ANY_ORIGIN || '').toLowerCase() === 'true';
@@ -53,7 +141,7 @@ app.use((req, res, next) => {
 
   next();
 });
-app.use(express.json());
+app.use(express.json({ limit: process.env.LUMO_JSON_BODY_LIMIT || '1mb' }));
 
 app.use((req, _res, next) => {
   req.actor = getActor(req);
@@ -910,7 +998,7 @@ app.get('/api/v1/learner-app/sessions/:sessionId', (req, res) => {
   });
 });
 
-app.post('/api/v1/learner-app/sync', (req, res, next) => {
+app.post('/api/v1/learner-app/sync', learnerSyncThrottle, (req, res, next) => {
   try {
     const events = Array.isArray(req.body?.events)
       ? req.body.events
@@ -928,7 +1016,7 @@ app.post('/api/v1/learner-app/sync', (req, res, next) => {
   }
 });
 
-app.post('/api/v1/learner-app/sync-batches', (req, res, next) => {
+app.post('/api/v1/learner-app/sync-batches', learnerSyncThrottle, (req, res, next) => {
   try {
     const events = Array.isArray(req.body?.events)
       ? req.body.events
@@ -1319,7 +1407,7 @@ app.get('/api/v1/learner-app/rewards/requests', (req, res) => {
   }));
 });
 
-app.post('/api/v1/learner-app/rewards/requests', (req, res, next) => {
+app.post('/api/v1/learner-app/rewards/requests', learnerRewardRequestThrottle, (req, res, next) => {
   try {
     const learner = resolveStudentScope({ learnerId: req.body?.learnerId || req.query.learnerId, learnerCode: req.body?.learnerCode || req.query.learnerCode });
 
@@ -2714,7 +2802,7 @@ app.post('/api/v1/admin/storage/import/preview', requireRole(['admin']), (req, r
   }
 });
 
-app.post('/api/v1/admin/storage/import', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/import', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     return res.status(201).json(store.importStorageSnapshot({
       snapshot: req.body?.snapshot,
@@ -2799,7 +2887,7 @@ app.delete('/api/v1/admin/storage/backups', requireRole(['admin']), (req, res, n
   }
 });
 
-app.post('/api/v1/admin/storage/restore-mutation', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-mutation', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     const mutationId = Number(req.body?.mutationId);
 
@@ -2818,7 +2906,7 @@ app.post('/api/v1/admin/storage/restore-mutation', requireRole(['admin']), (req,
   }
 });
 
-app.post('/api/v1/admin/storage/restore', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/restore', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     const backupPath = coerceOptionalString(req.body?.backupPath);
 
@@ -2876,7 +2964,7 @@ app.get('/api/v1/admin/storage/recovery-plan', requireRole(['admin']), (req, res
   }));
 });
 
-app.post('/api/v1/admin/storage/restore-smart', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-smart', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     return res.status(201).json(store.restoreStorageSmart({
       label: coerceOptionalString(req.body?.label),
@@ -2891,7 +2979,7 @@ app.post('/api/v1/admin/storage/restore-smart', requireRole(['admin']), (req, re
   }
 });
 
-app.post('/api/v1/admin/storage/restore-latest', requireRole(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-latest', requireRole(['admin']), adminMutationThrottle, (req, res, next) => {
   try {
     const backups = store.listStorageBackups(100);
     const label = coerceOptionalString(req.body?.label);

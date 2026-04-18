@@ -28,6 +28,10 @@ Non-blocking warnings still print for softer risks like loopback-only CORS, miss
 - `LUMO_ADMIN_API_KEY` (required in production/staging for protected admin/teacher/facilitator endpoints)
 - `LUMO_TEACHER_API_KEY` (optional dedicated teacher key)
 - `LUMO_FACILITATOR_API_KEY` (optional dedicated facilitator key)
+- `LUMO_SYNC_THROTTLE_WINDOW_MS` / `LUMO_SYNC_THROTTLE_MAX_REQUESTS` (learner sync burst control, defaults `60000` / `120`)
+- `LUMO_REWARD_REQUEST_THROTTLE_WINDOW_MS` / `LUMO_REWARD_REQUEST_THROTTLE_MAX_REQUESTS` (learner reward request burst control, defaults `60000` / `12`)
+- `LUMO_ADMIN_MUTATION_THROTTLE_WINDOW_MS` / `LUMO_ADMIN_MUTATION_THROTTLE_MAX_REQUESTS` (admin destructive restore/import burst control, defaults `60000` / `90`)
+- `LUMO_JSON_BODY_LIMIT` (Express JSON payload cap, defaults `1mb`)
 
 ## Protected route auth
 
@@ -264,3 +268,15 @@ Behavior:
 - storage integrity now flags Postgres journal drift and the absence of any viable recovery path, not just cache drift
 - `POST /api/v1/admin/storage/restore-mutation` restores the primary snapshot to the exact state captured by a prior mutation id, then records a fresh `restore-mutation` audit/journal entry
 - file mode still exposes an empty mutation journal rather than pretending this capability exists
+
+## Write-path throttles
+
+The API now rate-limits the write paths most likely to cause operator or client-side damage when something goes sideways:
+- learner sync ingestion
+- learner reward redemption requests
+- admin storage restore/import controls
+
+When a throttle trips, the API returns `429` plus `Retry-After`, `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers.
+That gives the tablet app and admin tooling a clean backoff signal instead of letting retry storms or repeated destructive clicks pile up.
+
+`/readyz` and `/api/v1/admin/config/audit` now also expose the active throttle posture under `throttles` so ops can review what is actually deployed.

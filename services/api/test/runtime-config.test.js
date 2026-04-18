@@ -74,3 +74,20 @@ test('runtime validator allows local development and prints warnings instead of 
   assert.equal(result.status, 0);
   assert.ok(`${result.stderr}${result.stdout}`.includes('Warnings:'));
 });
+
+
+test('buildConfigAudit exposes throttle posture for production reviews', () => {
+  const audit = withEnv({
+    NODE_ENV: 'production',
+    LUMO_SYNC_THROTTLE_MAX_REQUESTS: '600',
+    LUMO_REWARD_REQUEST_THROTTLE_MAX_REQUESTS: '61',
+    LUMO_ADMIN_MUTATION_THROTTLE_MAX_REQUESTS: '241',
+  }, () => buildConfigAudit());
+
+  assert.equal(audit.throttles.learnerSync.maxRequests, 600);
+  assert.equal(audit.throttles.learnerRewardRequests.maxRequests, 61);
+  assert.equal(audit.throttles.adminMutations.maxRequests, 241);
+  assert.ok(audit.warnings.some((entry) => entry.includes('LUMO_SYNC_THROTTLE_MAX_REQUESTS')));
+  assert.ok(audit.warnings.some((entry) => entry.includes('LUMO_REWARD_REQUEST_THROTTLE_MAX_REQUESTS')));
+  assert.ok(audit.warnings.some((entry) => entry.includes('LUMO_ADMIN_MUTATION_THROTTLE_MAX_REQUESTS')));
+});

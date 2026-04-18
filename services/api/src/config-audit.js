@@ -29,6 +29,13 @@ function isProductionLike() {
   return ['production', 'staging'].includes(String(process.env.NODE_ENV || '').toLowerCase());
 }
 
+function readPositiveIntEnv(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
 function buildConfigAudit() {
   const mode = getDbMode();
   const dbMeta = getDbModeMeta();
@@ -36,6 +43,21 @@ function buildConfigAudit() {
   const allowAnyOrigin = (process.env.LUMO_CORS_ALLOW_ANY_ORIGIN || '').toLowerCase() === 'true';
   const apiBaseUrl = String(process.env.API_BASE_URL || process.env.LUMO_PUBLIC_API_URL || '').trim() || null;
   const authAudit = getAuthAudit();
+  const throttles = {
+    jsonBodyLimit: String(process.env.LUMO_JSON_BODY_LIMIT || '1mb'),
+    learnerSync: {
+      windowMs: readPositiveIntEnv('LUMO_SYNC_THROTTLE_WINDOW_MS', 60_000),
+      maxRequests: readPositiveIntEnv('LUMO_SYNC_THROTTLE_MAX_REQUESTS', 120),
+    },
+    learnerRewardRequests: {
+      windowMs: readPositiveIntEnv('LUMO_REWARD_REQUEST_THROTTLE_WINDOW_MS', 60_000),
+      maxRequests: readPositiveIntEnv('LUMO_REWARD_REQUEST_THROTTLE_MAX_REQUESTS', 12),
+    },
+    adminMutations: {
+      windowMs: readPositiveIntEnv('LUMO_ADMIN_MUTATION_THROTTLE_WINDOW_MS', 60_000),
+      maxRequests: readPositiveIntEnv('LUMO_ADMIN_MUTATION_THROTTLE_MAX_REQUESTS', 90),
+    },
+  };
   const warnings = [];
   const errors = [];
 
@@ -67,6 +89,18 @@ function buildConfigAudit() {
     warnings.push('Protected endpoints still allow header-based demo auth because no LUMO_*_API_KEY values are configured. Safe for local demos only.');
   }
 
+  if (isProductionLike() && throttles.learnerSync.maxRequests > 500) {
+    warnings.push('Learner sync throttle is set unusually high for a production-like environment. Re-check LUMO_SYNC_THROTTLE_MAX_REQUESTS.');
+  }
+
+  if (isProductionLike() && throttles.learnerRewardRequests.maxRequests > 60) {
+    warnings.push('Learner reward request throttle is set unusually high for a production-like environment. Re-check LUMO_REWARD_REQUEST_THROTTLE_MAX_REQUESTS.');
+  }
+
+  if (isProductionLike() && throttles.adminMutations.maxRequests > 240) {
+    warnings.push('Admin destructive mutation throttle is set unusually high for a production-like environment. Re-check LUMO_ADMIN_MUTATION_THROTTLE_MAX_REQUESTS.');
+  }
+
   return {
     checkedAt: new Date().toISOString(),
     environment: {
@@ -81,6 +115,7 @@ function buildConfigAudit() {
       loopbackOnly: allowedOrigins.length > 0 && allowedOrigins.every((origin) => isLoopbackOrigin(origin)),
     },
     auth: authAudit,
+    throttles,
     runtime: {
       watchMode: process.execArgv.includes('--watch'),
       pid: process.pid,
