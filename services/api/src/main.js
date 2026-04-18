@@ -8,7 +8,7 @@ const rewards = require('./rewards');
 const seed = require('./seed');
 const { buildAllowedOrigins, isLoopbackOrigin, isProductionLike, buildConfigAudit } = require('./config-audit');
 const { getDbMode, getDbModeMeta } = require('./db-mode');
-const { getActor, requireRole } = require('./auth');
+const { getActor, requireRole, getAuthAudit } = require('./auth');
 
 const app = express();
 
@@ -102,6 +102,67 @@ const adminMutationThrottle = buildThrottleMiddleware({
 
 function protectedMutation(allowedRoles, ...middleware) {
   return [requireRole(allowedRoles), adminMutationThrottle, ...middleware];
+}
+
+const dangerousAdminMutationIdempotencyCache = new Map();
+
+function shouldEnforceDangerousAdminMutationGuard() {
+  const authAudit = getAuthAudit();
+  return authAudit.productionLike || authAudit.hasAnyConfiguredKey;
+}
+
+function requireConfirmedDangerousAdminMutation(action) {
+  return (req, res, next) => {
+    if (!shouldEnforceDangerousAdminMutationGuard()) {
+      return next();
+    }
+
+    const confirmation = String(req.header('x-lumo-confirm-action') || '').trim();
+    const idempotencyKey = String(req.header('idempotency-key') || req.header('x-idempotency-key') || '').trim();
+
+    if (confirmation !== action) {
+      return res.status(428).json({
+        message: `Missing confirmation header for dangerous admin action: ${action}`,
+        required: {
+          confirmationHeader: 'x-lumo-confirm-action',
+          confirmationValue: action,
+          idempotencyHeader: 'idempotency-key',
+        },
+      });
+    }
+
+    if (!idempotencyKey) {
+      return res.status(428).json({
+        message: 'Missing idempotency key for dangerous admin action.',
+        required: {
+          confirmationHeader: 'x-lumo-confirm-action',
+          confirmationValue: action,
+          idempotencyHeader: 'idempotency-key',
+        },
+      });
+    }
+
+    const ttlMs = readPositiveIntEnv('LUMO_DANGEROUS_ADMIN_IDEMPOTENCY_TTL_MS', 10 * 60_000);
+    const now = Date.now();
+    for (const [cacheKey, expiresAt] of dangerousAdminMutationIdempotencyCache.entries()) {
+      if (expiresAt <= now) dangerousAdminMutationIdempotencyCache.delete(cacheKey);
+    }
+
+    const scope = `${req.actor?.role || 'anonymous'}:${req.actor?.name || getClientAddress(req)}`;
+    const cacheKey = `${action}:${scope}:${idempotencyKey}`;
+    if (dangerousAdminMutationIdempotencyCache.has(cacheKey)) {
+      return res.status(409).json({
+        message: 'Duplicate dangerous admin mutation blocked by idempotency guard.',
+        action,
+        idempotencyKey,
+      });
+    }
+
+    dangerousAdminMutationIdempotencyCache.set(cacheKey, now + ttlMs);
+    res.setHeader('x-lumo-confirmed-action', action);
+    res.setHeader('x-lumo-idempotency-key', idempotencyKey);
+    return next();
+  };
 }
 
 function applyCors(req, res) {
@@ -2806,7 +2867,7 @@ app.post('/api/v1/admin/storage/import/preview', ...protectedMutation(['admin'])
   }
 });
 
-app.post('/api/v1/admin/storage/import', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/import', ...protectedMutation(['admin']), requireConfirmedDangerousAdminMutation('storage-import'), adminMutationThrottle, (req, res, next) => {
   try {
     return res.status(201).json(store.importStorageSnapshot({
       snapshot: req.body?.snapshot,
@@ -2821,7 +2882,7 @@ app.post('/api/v1/admin/storage/import', ...protectedMutation(['admin']), adminM
   }
 });
 
-app.post('/api/v1/admin/storage/reload', ...protectedMutation(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/reload', ...protectedMutation(['admin']), requireConfirmedDangerousAdminMutation('storage-reload'), (req, res, next) => {
   try {
     return res.status(201).json(store.reloadStorageSnapshot({
       actorName: req.actor?.name,
@@ -2843,7 +2904,7 @@ app.post('/api/v1/admin/storage/reconcile-cache', ...protectedMutation(['admin']
   }
 });
 
-app.post('/api/v1/admin/storage/recover-primary-from-cache', ...protectedMutation(['admin']), (req, res, next) => {
+app.post('/api/v1/admin/storage/recover-primary-from-cache', ...protectedMutation(['admin']), requireConfirmedDangerousAdminMutation('storage-recover-primary-from-cache'), (req, res, next) => {
   try {
     return res.status(201).json(store.recoverStoragePrimaryFromWarmCache({
       actorName: req.actor?.name,
@@ -2891,7 +2952,7 @@ app.delete('/api/v1/admin/storage/backups', ...protectedMutation(['admin']), (re
   }
 });
 
-app.post('/api/v1/admin/storage/restore-mutation', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-mutation', ...protectedMutation(['admin']), requireConfirmedDangerousAdminMutation('storage-restore-mutation'), adminMutationThrottle, (req, res, next) => {
   try {
     const mutationId = Number(req.body?.mutationId);
 
@@ -2910,7 +2971,7 @@ app.post('/api/v1/admin/storage/restore-mutation', ...protectedMutation(['admin'
   }
 });
 
-app.post('/api/v1/admin/storage/restore', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/restore', ...protectedMutation(['admin']), requireConfirmedDangerousAdminMutation('storage-restore-backup'), adminMutationThrottle, (req, res, next) => {
   try {
     const backupPath = coerceOptionalString(req.body?.backupPath);
 
@@ -2968,7 +3029,7 @@ app.get('/api/v1/admin/storage/recovery-plan', requireRole(['admin']), (req, res
   }));
 });
 
-app.post('/api/v1/admin/storage/restore-smart', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-smart', ...protectedMutation(['admin']), requireConfirmedDangerousAdminMutation('storage-restore-smart'), adminMutationThrottle, (req, res, next) => {
   try {
     return res.status(201).json(store.restoreStorageSmart({
       label: coerceOptionalString(req.body?.label),
@@ -2983,7 +3044,7 @@ app.post('/api/v1/admin/storage/restore-smart', ...protectedMutation(['admin']),
   }
 });
 
-app.post('/api/v1/admin/storage/restore-latest', ...protectedMutation(['admin']), adminMutationThrottle, (req, res, next) => {
+app.post('/api/v1/admin/storage/restore-latest', ...protectedMutation(['admin']), requireConfirmedDangerousAdminMutation('storage-restore-latest'), adminMutationThrottle, (req, res, next) => {
   try {
     const backups = store.listStorageBackups(100);
     const label = coerceOptionalString(req.body?.label);

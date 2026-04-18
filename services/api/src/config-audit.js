@@ -58,6 +58,21 @@ function buildConfigAudit() {
       maxRequests: readPositiveIntEnv('LUMO_ADMIN_MUTATION_THROTTLE_MAX_REQUESTS', 90),
     },
   };
+  const dangerousAdminMutationGuard = {
+    enforced: authAudit.productionLike || authAudit.hasAnyConfiguredKey,
+    confirmationHeader: 'x-lumo-confirm-action',
+    idempotencyHeader: 'idempotency-key',
+    idempotencyTtlMs: readPositiveIntEnv('LUMO_DANGEROUS_ADMIN_IDEMPOTENCY_TTL_MS', 10 * 60_000),
+    protectedActions: [
+      'storage-import',
+      'storage-reload',
+      'storage-recover-primary-from-cache',
+      'storage-restore-mutation',
+      'storage-restore-backup',
+      'storage-restore-smart',
+      'storage-restore-latest',
+    ],
+  };
   const warnings = [];
   const errors = [];
 
@@ -116,6 +131,7 @@ function buildConfigAudit() {
     },
     auth: authAudit,
     throttles,
+    dangerousAdminMutationGuard,
     runtime: {
       watchMode: process.execArgv.includes('--watch'),
       pid: process.pid,
