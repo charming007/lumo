@@ -416,6 +416,50 @@ void main() {
     expect(state.suggestedLearnerForHome, isNotNull);
   });
 
+  testWidgets(
+      'deployment blocker page can open limited offline mode from the blocker UI', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    addTearDown(state.dispose);
+    state.learners.clear();
+    state.modules.clear();
+    state.assignedLessons.clear();
+    state.deploymentBlockerReason = 'Bootstrap failed';
+    state.usingFallbackData = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LearnerDeploymentBlockerPage(
+          state: state,
+          onRetry: () async {},
+        ),
+      ),
+    );
+
+    expect(find.text('Open limited offline mode'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Open limited offline mode'));
+    await tester.tap(find.text('Open limited offline mode'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 450));
+
+    expect(state.acknowledgedOfflineFallbackRisk, isTrue);
+    expect(state.deploymentBlockerReason, isNull);
+    expect(state.learners, isNotEmpty);
+    expect(state.modules, isNotEmpty);
+    expect(state.assignedLessons, isNotEmpty);
+    expect(
+      find.textContaining('Opened limited offline mode'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('home screen stays usable on portrait tablet widths', (
     tester,
   ) async {

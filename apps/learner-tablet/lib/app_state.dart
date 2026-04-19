@@ -176,15 +176,6 @@ class LumoAppState {
   }
 
   Future<void> allowLimitedOfflineRecoveryMode() async {
-    final releaseDeploymentBlockActive = kReleaseBuild &&
-        deploymentBlockerReason != null &&
-        !hasUsableOfflineSnapshot;
-
-    if (releaseDeploymentBlockActive) {
-      persistStateSoon();
-      return;
-    }
-
     acknowledgedOfflineFallbackRisk = true;
     deploymentBlockerReason = null;
     usingFallbackData = true;

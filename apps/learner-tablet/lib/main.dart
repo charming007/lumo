@@ -416,31 +416,28 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                               icon: const Icon(Icons.refresh_rounded),
                               label: const Text('Retry production bootstrap'),
                             ),
-                            if (!kReleaseBuild)
-                              OutlinedButton.icon(
-                                onPressed: () async {
-                                  await state.allowLimitedOfflineRecoveryMode();
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Opened limited offline mode. Refresh the live roster before trusting learner assignments.',
-                                        ),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                await state.allowLimitedOfflineRecoveryMode();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Opened limited offline mode. Refresh the live roster before trusting learner assignments.',
                                       ),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.cloud_off_rounded),
-                                label: const Text('Open limited offline mode'),
-                              ),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.cloud_off_rounded),
+                              label: const Text('Open limited offline mode'),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          !kReleaseBuild
-                              ? 'Limited offline mode keeps the tablet usable with clearly flagged fallback learners and lessons, but it is not a substitute for a real production bootstrap.'
-                              : 'Release builds stay blocked here until the live bootstrap succeeds or the device already has a trusted offline snapshot from that same production backend.',
-                          style: const TextStyle(
+                        const Text(
+                          'Limited offline mode keeps the tablet usable with clearly flagged fallback learners and lessons, but it is not a substitute for a real production bootstrap.',
+                          style: TextStyle(
                             color: Color(0xFF64748B),
                             height: 1.45,
                           ),
