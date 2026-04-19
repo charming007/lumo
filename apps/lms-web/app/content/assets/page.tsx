@@ -133,14 +133,14 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const assetFeedFailed = assetsResult.status === 'rejected';
   const storageUploadsBlocked = assetUploadsReady === false;
   const degradedActionLabel = storageUploadsBlocked
-    ? 'Use Register external asset for CDN/runtime URLs while upload storage is fixed'
+    ? 'Check asset upload env + storage, then use Register external asset until it is fixed'
     : assetFeedFailed
-      ? 'Check the API logs and config audit, then retry the asset registry feed'
+      ? 'Check the live asset feed path, not just the page shell'
       : 'Core curriculum scope is missing — restore subject/module/lesson feeds first';
   const degradedActionDetail = storageUploadsBlocked
-    ? `${assetUploadBlocker ?? 'Upload storage is unavailable.'}${assetUploadRoot ? ` Current root: ${assetUploadRoot}.` : ''}`
+    ? `${assetUploadBlocker ?? 'Upload storage is unavailable.'}${assetUploadRoot ? ` Current root: ${assetUploadRoot}.` : ''} Inspect LUMO_ASSET_UPLOAD_DIR on the API service, then verify /api/v1/admin/config/audit, /api/v1/admin/storage/status, and /api/v1/admin/storage/integrity before retrying uploads.`
     : assetFeedFailed
-      ? 'The registry list itself is down, so the safest next move is to inspect the API/config audit instead of trusting an empty table.'
+      ? 'The registry list itself is down. Check NEXT_PUBLIC_API_BASE_URL in the LMS, API_BASE_URL/LUMO_PUBLIC_API_URL on the API if operator links look wrong, then verify /api/v1/assets and /api/v1/admin/config/audit instead of trusting an empty table.'
       : 'Without live subject, module, and lesson scope, any asset operation risks creating orphaned media records.';
 
   if (missingCoreLibraryFeeds.length) {
@@ -224,9 +224,9 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9a3412' }}>Operator fallback</div>
             <div style={{ marginTop: 8, color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
               {storageUploadsBlocked
-                ? 'Skip storage-backed upload attempts for now. Register the external runtime URL or object-store key so lesson authoring can keep moving.'
+                ? 'Skip storage-backed uploads for now. Register the external runtime URL or object-store key, then fix LUMO_ASSET_UPLOAD_DIR permissions/path on the API service before coming back.'
                 : assetFeedFailed
-                  ? 'Do not trust an empty asset table as proof the library is clean. Treat it as a registry outage until the feed comes back.'
+                  ? 'Do not trust an empty asset table as proof the library is clean. Treat it as a registry outage until /api/v1/assets responds again and NEXT_PUBLIC_API_BASE_URL is confirmed correct.'
                   : 'Restore curriculum scope first, then come back here. Asset actions without real lesson/module context are how orphaned files happen.'}
             </div>
           </div>
