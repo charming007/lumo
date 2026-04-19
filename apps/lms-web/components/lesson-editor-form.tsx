@@ -790,6 +790,10 @@ export function LessonEditorForm({
                     </FieldLabel>
                   </div>
 
+                  <div style={{ padding: 12, borderRadius: 14, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.6, fontSize: 13 }}>
+                    Asset entries are references, not uploads. Paste the final URL, storage path, or stable asset key you expect runtime to resolve.
+                  </div>
+
                   <LessonActivityStructuredBuilders
                     type={activity.type}
                     choiceLines={activity.choiceLines}

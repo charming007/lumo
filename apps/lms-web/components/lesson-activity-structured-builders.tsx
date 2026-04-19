@@ -147,8 +147,8 @@ function getChoiceLabels(type: BuilderType) {
         hint: 'Build the learner-facing answer cards here. Add the option label, mark the right answer, then attach the image or prompt asset that makes the choice real.',
         labelName: 'Option label',
         mediaTypeLabel: 'Visual asset type',
-        mediaValueLabel: 'Image file, URL, or asset key',
-        mediaPlaceholder: 'For example: nurse-card, https://..., or storage/path/image.webp',
+        mediaValueLabel: 'Image reference',
+        mediaPlaceholder: 'Paste a URL, storage path, or stable asset key (uploads are not in this form yet)',
         emptyState: 'No visual options yet. Add at least two cards so this stops pretending to be an image task and starts acting like one.',
       };
     case 'tap_choice':
@@ -157,8 +157,8 @@ function getChoiceLabels(type: BuilderType) {
         hint: 'Create the tappable learner targets instead of editing raw transport strings. Keep labels short, then attach an optional support asset when the target is visual or audio-led.',
         labelName: 'Tap target label',
         mediaTypeLabel: 'Support asset type',
-        mediaValueLabel: 'Support asset file, URL, or key',
-        mediaPlaceholder: 'Optional image/audio reference for this tap target',
+        mediaValueLabel: 'Support asset reference',
+        mediaPlaceholder: 'Optional URL, storage path, or stable asset key for this tap target',
         emptyState: 'No tap targets yet. Add at least two targets so the learner has an actual decision to make.',
       };
     case 'word_build':
@@ -167,8 +167,8 @@ function getChoiceLabels(type: BuilderType) {
         hint: 'Add the tiles, chunks, or word pieces learners manipulate. Attach card art or audio only when it genuinely helps the build.',
         labelName: 'Piece label',
         mediaTypeLabel: 'Piece asset type',
-        mediaValueLabel: 'Piece asset file, URL, or key',
-        mediaPlaceholder: 'Optional tile art, card reference, or audio cue',
+        mediaValueLabel: 'Piece asset reference',
+        mediaPlaceholder: 'Optional URL, storage path, card key, or audio cue reference',
         emptyState: 'No build pieces yet. Add the letters, chunks, or cards learners need to assemble the target word.',
       };
     default:
@@ -191,8 +191,8 @@ function getMediaLabels(type: BuilderType) {
         title: 'Listening asset builder',
         hint: 'Attach the model audio, prompt card, or support cue learners hear or see before they repeat.',
         typeLabel: 'Listening asset type',
-        valueLabel: 'Listening asset file, URL, or key',
-        placeholder: 'Audio file, transcript card key, or support image reference',
+        valueLabel: 'Listening asset reference',
+        placeholder: 'Audio URL, storage path, transcript key, or support image reference',
         emptyState: 'No listening asset attached yet. Add the cue learners repeat from so the step is not doing audio theatre with plain text.',
       };
     case 'speak_answer':
@@ -200,8 +200,8 @@ function getMediaLabels(type: BuilderType) {
         title: 'Speaking support builder',
         hint: 'Attach the prompt card, illustration, or audio cue that helps the learner answer out loud.',
         typeLabel: 'Speaking support type',
-        valueLabel: 'Support file, URL, or key',
-        placeholder: 'Prompt card, image, or audio reference',
+        valueLabel: 'Support asset reference',
+        placeholder: 'Prompt-card key, URL, storage path, image, or audio reference',
         emptyState: 'No speaking support attached yet. That is fine for a text-led oral prompt, but add one if the step depends on a visible cue.',
       };
     case 'listen_answer':
@@ -209,8 +209,8 @@ function getMediaLabels(type: BuilderType) {
         title: 'Listening support builder',
         hint: 'Attach the audio, story card, or scene support learners need before answering.',
         typeLabel: 'Listening support type',
-        valueLabel: 'Support file, URL, or key',
-        placeholder: 'Audio prompt, story card, or visual cue reference',
+        valueLabel: 'Support asset reference',
+        placeholder: 'Audio URL, story-card key, storage path, or visual cue reference',
         emptyState: 'No listening support attached yet. Add the story/audio cue if the answer depends on hearing something first.',
       };
     case 'letter_intro':
@@ -218,8 +218,8 @@ function getMediaLabels(type: BuilderType) {
         title: 'Letter support builder',
         hint: 'Attach the letter card, trace card, anchor image, or sound cue used during the introduction.',
         typeLabel: 'Letter support type',
-        valueLabel: 'Letter asset file, URL, or key',
-        placeholder: 'Trace card, letter card, image, or audio reference',
+        valueLabel: 'Letter asset reference',
+        placeholder: 'Trace-card key, letter-card key, URL, storage path, image, or audio reference',
         emptyState: 'No letter support attached yet. Add the card or cue that makes the letter intro visible to the learner.',
       };
     case 'image_choice':
@@ -227,8 +227,8 @@ function getMediaLabels(type: BuilderType) {
         title: 'Shared prompt asset builder',
         hint: 'Optional step-level media shown above all answer cards, such as the scene image or spoken instruction cue.',
         typeLabel: 'Prompt asset type',
-        valueLabel: 'Prompt asset file, URL, or key',
-        placeholder: 'Shared scene image or instruction audio reference',
+        valueLabel: 'Prompt asset reference',
+        placeholder: 'Shared scene URL, storage path, prompt-card key, or instruction audio reference',
         emptyState: 'No shared prompt asset yet. That is optional if all the visual meaning already lives on the answer cards.',
       };
     case 'tap_choice':
@@ -236,8 +236,8 @@ function getMediaLabels(type: BuilderType) {
         title: 'Shared prompt asset builder',
         hint: 'Optional shared asset shown before learners tap a target.',
         typeLabel: 'Prompt asset type',
-        valueLabel: 'Prompt asset file, URL, or key',
-        placeholder: 'Shared image, audio, or prompt-card reference',
+        valueLabel: 'Prompt asset reference',
+        placeholder: 'Shared image/audio URL, storage path, or prompt-card key',
         emptyState: 'No shared prompt asset yet. Add one only if learners need a common cue before tapping.',
       };
     case 'word_build':
@@ -245,8 +245,8 @@ function getMediaLabels(type: BuilderType) {
         title: 'Build support builder',
         hint: 'Attach the target card, audio model, or extra support asset used to guide the build.',
         typeLabel: 'Build support type',
-        valueLabel: 'Support file, URL, or key',
-        placeholder: 'Word-card, tile art, or audio reference',
+        valueLabel: 'Support asset reference',
+        placeholder: 'Word-card key, tile art URL/storage path, or audio reference',
         emptyState: 'No build support asset yet. That is okay if the build pieces carry the whole interaction.',
       };
     default:
@@ -336,6 +336,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
             <button type="button" onClick={addChoiceRow} style={props.ghostButtonStyle}>+ Add option</button>
           </div>
           {props.fieldHint('Pick the closest real asset type so authoring, runtime preview, and delivery all agree on what learners should actually see or hear.')}
+          {props.fieldHint('These fields store references only: paste a stable URL, storage path, or agreed asset key. This editor does not upload or browse media yet.')}
         </div>
       ) : null}
 

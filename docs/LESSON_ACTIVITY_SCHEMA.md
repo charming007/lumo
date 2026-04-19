@@ -534,9 +534,12 @@ Show prominently:
 
 1. The LMS editor is still mostly generic; it does not yet enforce type-specific required fields.
 2. The learner runtime only consumes the first media item, so multi-cue authoring is not fully honored yet.
-3. `detail`, `evidence`, `tags`, and `facilitatorNotes` are valuable in LMS authoring but are only partially reflected in the current learner runtime.
-4. `tap_choice` exists in both LMS and learner runtime mappings, but current LMS presets use it less than other types, so it needs explicit QA coverage.
-5. `listen_answer` can currently represent multiple listening-task shapes; if product wants clearer semantics later, it may need to split into more specific subtypes.
+3. Asset fields in the LMS are currently **reference-only**. Authors can enter a URL, storage path, or stable asset key, but there is no real upload flow, media browser, validation pass, or canonical asset registry yet.
+4. `detail`, `evidence`, `tags`, and `facilitatorNotes` are valuable in LMS authoring but are only partially reflected in the current learner runtime.
+5. `tap_choice` exists in both LMS and learner runtime mappings, but current LMS presets use it less than other types, so it needs explicit QA coverage.
+6. `listen_answer` can currently represent multiple listening-task shapes; if product wants clearer semantics later, it may need to split into more specific subtypes.
+
+For the implementation-facing author/operator note on the current asset-reference workflow and the missing media-library pieces, see `docs/LESSON_ASSET_AUTHORING_NOTE.md`.
 
 ---
 
