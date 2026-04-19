@@ -1460,6 +1460,8 @@ class AllStudentsPage extends StatelessWidget {
                             final nextLesson =
                                 state.nextAssignedLessonForLearner(learner);
                             if (nextLesson == null) return;
+                            state.selectLearner(learner);
+                            onChanged();
                             launchLessonFlow(
                               context: context,
                               state: state,
@@ -2303,6 +2305,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                         width: double.infinity,
                                         child: FilledButton.icon(
                                           onPressed: () {
+                                            state.selectLearner(learner);
                                             launchLessonFlow(
                                               context: context,
                                               state: state,

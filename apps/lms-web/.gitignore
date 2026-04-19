@@ -2,3 +2,4 @@
 .next
 .next.audit-backup
 *.tsbuildinfo
+.env*.local
