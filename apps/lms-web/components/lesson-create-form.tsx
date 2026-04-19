@@ -785,6 +785,9 @@ export function LessonCreateForm({
                         sectionLabel={<div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>{supportsChoices ? typeGuide.choicesLabel : typeGuide.mediaLabel}</div>}
                         fieldHint={(children) => <span style={{ color: '#64748B', fontSize: 12 }}>{children}</span>}
                         fieldLabel={(children) => <FieldLabel>{children}</FieldLabel>}
+                        assets={assets}
+                        subjectId={subjectId}
+                        moduleId={moduleId}
                       />
                       {supportsChoices ? <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.choicesHint}</span> : null}
                       {supportsMedia ? <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.mediaHint}</span> : null}

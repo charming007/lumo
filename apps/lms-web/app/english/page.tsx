@@ -3,7 +3,7 @@ import { DeploymentBlockerCard } from '../../components/deployment-blocker-card'
 import { EnglishStudioAuthoringForm } from '../../components/english-studio-authoring-form';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
-import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../lib/api';
+import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../lib/api';
 import { buildEnglishLessonBlueprints, buildEnglishOpsSummary } from '../../lib/english-curriculum';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
@@ -85,12 +85,13 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
   }
 
   const query = await searchParams;
-  const [modulesResult, lessonsResult, assessmentsResult, assignmentsResult, subjectsResult] = await Promise.allSettled([
+  const [modulesResult, lessonsResult, assessmentsResult, assignmentsResult, subjectsResult, assetsResult] = await Promise.allSettled([
     fetchCurriculumModules(),
     fetchLessons(),
     fetchAssessments(),
     fetchAssignments(),
     fetchSubjects(),
+    fetchLessonAssets(),
   ]);
 
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
@@ -98,6 +99,7 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
   const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
   const englishModules = modules.filter((module) => module.subjectId === englishSubject?.id || module.subjectName?.toLowerCase().includes('english'));
   const quickAuthoringBlocker = !englishSubject
@@ -112,6 +114,7 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
     assignmentsResult.status === 'rejected' ? 'assignments' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
+    assetsResult.status === 'rejected' ? 'assets' : null,
   ].filter(Boolean);
 
   const blueprints = buildEnglishLessonBlueprints({ modules, lessons, assessments });
@@ -144,7 +147,7 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
           )}
           <Link href="/guide#english-studio" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>Open LMS guide</Link>
           <ModalLauncher buttonLabel="Quick English authoring" title="Quick English authoring" description="Build the lesson from an activity spine, inspect readiness, then create it in the live content lane." eyebrow="English studio" disabled={Boolean(quickAuthoringBlocker)} triggerStyle={quickAuthoringBlocker ? { background: '#CBD5E1', color: '#475569' } : undefined}>
-            <EnglishStudioAuthoringForm subjects={subjects} modules={modules} assessments={assessments} action={createLessonAction} />
+            <EnglishStudioAuthoringForm subjects={subjects} modules={modules} assessments={assessments} assets={assets} action={createLessonAction} />
           </ModalLauncher>
         </div>
       }

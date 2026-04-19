@@ -193,11 +193,13 @@ export function EnglishStudioAuthoringForm({
   subjects,
   modules,
   assessments,
+  assets,
   action,
 }: {
   subjects: Subject[];
   modules: CurriculumModule[];
   assessments: Assessment[];
+  assets: import('../lib/types').LessonAsset[];
   action: (formData: FormData) => void;
 }) {
   const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
@@ -707,6 +709,9 @@ export function EnglishStudioAuthoringForm({
                       sectionLabel={<div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>{typeGuide.choicesLabel ?? typeGuide.mediaLabel ?? 'Structured step builders'}</div>}
                       fieldHint={(children) => <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{children}</div>}
                       fieldLabel={(children) => <FieldLabel>{children}</FieldLabel>}
+                      assets={assets}
+                      subjectId={englishSubject?.id ?? undefined}
+                      moduleId={moduleId}
                     />
                   </div>
                 );
