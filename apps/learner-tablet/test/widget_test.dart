@@ -1626,11 +1626,13 @@ void main() {
     await pumpForUi(tester);
 
     expect(find.text('Selected object'), findsOneWidget);
-    expect(find.text('Chosen object'), findsOneWidget);
+    expect(find.text('Choose the matching object'), findsOneWidget);
+    expect(find.text('No object selected yet'), findsOneWidget);
 
-    final nextStepButton = find.widgetWithText(FilledButton, 'Next step');
-    expect(nextStepButton, findsOneWidget);
-    expect(tester.widget<FilledButton>(nextStepButton).onPressed, isNull);
+    final continueButton = find.widgetWithText(FilledButton, 'Continue');
+    expect(continueButton, findsOneWidget);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+    expect(find.widgetWithText(OutlinedButton, 'Back'), findsOneWidget);
 
     final antChoice = find.ancestor(
       of: find.text('ant').first,
@@ -1641,10 +1643,101 @@ void main() {
     await pumpForUi(tester, const Duration(milliseconds: 400));
 
     expect(find.text('ant'), findsWidgets);
-    expect(tester.widget<FilledButton>(nextStepButton).onPressed, isNotNull);
+    expect(find.text('Selected'), findsOneWidget);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
 
     state.dispose();
   });
+
+  testWidgets(
+    'image choice lessons keep three object cards on one row at tablet width',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'image-choice-grid',
+        moduleId: 'english',
+        title: 'Grid check',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Check image choice layout.',
+        scenario: 'Choice cards should render as a clean tablet row.',
+        steps: [
+          LessonStep(
+            id: 'grid-step-1',
+            type: LessonStepType.practice,
+            title: 'Pick the ant',
+            instruction: 'Tap the matching object card.',
+            expectedResponse: 'ant',
+            coachPrompt: 'Tap the ant card.',
+            facilitatorTip: 'Watch whether the learner can see all choices.',
+            realWorldCheck: 'All three cards stay visible and tappable.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the matching object.',
+              supportText: 'All three cards should stay in one row.',
+              targetResponse: 'ant',
+              choices: ['ant', 'ball', 'sun'],
+              choiceEmoji: ['🐜', '⚽', '☀️'],
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      final antCard = find.ancestor(
+        of: find.text('ant').first,
+        matching: find.byType(InkWell),
+      );
+      final ballCard = find.ancestor(
+        of: find.text('ball').first,
+        matching: find.byType(InkWell),
+      );
+      final sunCard = find.ancestor(
+        of: find.text('sun').first,
+        matching: find.byType(InkWell),
+      );
+
+      expect(antCard, findsOneWidget);
+      expect(ballCard, findsOneWidget);
+      expect(sunCard, findsOneWidget);
+
+      final antTopLeft = tester.getTopLeft(antCard);
+      final ballTopLeft = tester.getTopLeft(ballCard);
+      final sunTopLeft = tester.getTopLeft(sunCard);
+
+      expect(ballTopLeft.dy, equals(antTopLeft.dy));
+      expect(sunTopLeft.dy, equals(antTopLeft.dy));
+      expect(ballTopLeft.dx, greaterThan(antTopLeft.dx));
+      expect(sunTopLeft.dx, greaterThan(ballTopLeft.dx));
+
+      state.dispose();
+    },
+  );
 
   testWidgets('lesson session shows a preflight listening readiness card', (
     tester,

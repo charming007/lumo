@@ -5807,9 +5807,21 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     required int choiceCount,
   }) {
     if (choiceCount <= 1) return 1;
-    if (maxWidth >= 1180 && choiceCount >= 4) return 4;
-    if (maxWidth >= 900 && choiceCount >= 3) return 3;
-    if (maxWidth >= 640 && choiceCount >= 2) return 2;
+
+    const spacing = 16.0;
+    for (var columns = choiceCount.clamp(1, 4); columns >= 1; columns--) {
+      final minCardWidth = switch (columns) {
+        4 => 120.0,
+        3 => 150.0,
+        2 => 180.0,
+        _ => 0.0,
+      };
+      final totalSpacing = spacing * (columns - 1);
+      if (maxWidth >= (columns * minCardWidth) + totalSpacing) {
+        return columns;
+      }
+    }
+
     return 1;
   }
 
@@ -5934,38 +5946,19 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               child: Text(fallbackEmoji, style: const TextStyle(fontSize: 36)),
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            choice.label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1E3A8A),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.86),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const Text(
-              'Picture choice',
-              style: TextStyle(
-                color: Color(0xFF1D4ED8),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
           if (hasAudio) ...[
-            const SizedBox(height: 8),
-            const Icon(
-              Icons.volume_up_rounded,
-              color: Color(0xFF4338CA),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.86),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Icon(
+                Icons.volume_up_rounded,
+                color: Color(0xFF4338CA),
+                size: 18,
+              ),
             ),
           ],
         ],
@@ -6268,6 +6261,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                       final totalSpacing = spacing * (columnCount - 1);
                       final cardWidth =
                           (constraints.maxWidth - totalSpacing) / columnCount;
+                      final previewHeight = switch (columnCount) {
+                        4 => 96.0,
+                        3 => 120.0,
+                        _ => 156.0,
+                      };
                       return Wrap(
                         spacing: spacing,
                         runSpacing: spacing,
@@ -6326,7 +6324,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           child: _buildChoicePreview(
                                             choiceItem,
                                             emoji,
-                                            imageHeight: 156,
+                                            imageHeight: previewHeight,
                                             borderRadius: 22,
                                           ),
                                         ),
