@@ -130,6 +130,30 @@ function describeActionError(error: unknown, fallback: string) {
   return fallback;
 }
 
+async function runAssetLibraryAction<T>({
+  execute,
+  returnPath,
+  successMessage,
+  failurePrefix,
+}: {
+  execute: () => Promise<T>;
+  returnPath: string;
+  successMessage: string;
+  failurePrefix: string;
+}) {
+  try {
+    await execute();
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `${failurePrefix}: ${describeActionError(error, 'asset operation could not be completed')}`,
+    }));
+  }
+
+  revalidatePath('/content/assets');
+  redirect(appendSearchParams(returnPath, { message: successMessage }));
+}
+
 function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
   const rawValue = formData.get(key);
 
@@ -568,9 +592,12 @@ export async function registerLessonAssetAction(formData: FormData) {
     status: 'ready',
   };
 
-  await apiWrite('/api/v1/assets', 'POST', payload);
-  revalidatePath('/content/assets');
-  redirect(appendSearchParams(returnPath, { message: 'Asset registered in library' }));
+  await runAssetLibraryAction({
+    execute: () => apiWrite('/api/v1/assets', 'POST', payload),
+    returnPath,
+    successMessage: 'Asset registered in library',
+    failurePrefix: 'Asset registration failed',
+  });
 }
 
 export async function uploadLessonAssetAction(formData: FormData) {
@@ -612,9 +639,12 @@ export async function uploadLessonAssetAction(formData: FormData) {
       tags: String(formData.get('tags') || '').split(',').map((item) => item.trim()).filter(Boolean),
     };
 
-    await apiWrite('/api/v1/assets/upload', 'POST', payload);
-    revalidatePath('/content/assets');
-    redirect(appendSearchParams(returnPath, { message: 'Asset uploaded and registered' }));
+    await runAssetLibraryAction({
+      execute: () => apiWrite('/api/v1/assets/upload', 'POST', payload),
+      returnPath,
+      successMessage: 'Asset uploaded and registered',
+      failurePrefix: 'Upload failed',
+    });
   } catch (error) {
     rethrowRedirectError(error);
     redirect(appendSearchParams(returnPath, {
@@ -639,9 +669,12 @@ export async function updateLessonAssetAction(formData: FormData) {
     status: String(formData.get('status') || 'ready'),
   };
 
-  await apiWrite(`/api/v1/assets/${assetId}`, 'PATCH', payload);
-  revalidatePath('/content/assets');
-  redirect(appendSearchParams(returnPath, { message: 'Asset details saved' }));
+  await runAssetLibraryAction({
+    execute: () => apiWrite(`/api/v1/assets/${assetId}`, 'PATCH', payload),
+    returnPath,
+    successMessage: 'Asset details saved',
+    failurePrefix: 'Asset update failed',
+  });
 }
 
 export async function archiveLessonAssetAction(formData: FormData) {
@@ -649,21 +682,27 @@ export async function archiveLessonAssetAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
   const nextStatus = String(formData.get('status') || 'archived');
 
-  await apiWrite(`/api/v1/assets/${assetId}`, 'PATCH', { status: nextStatus });
-  revalidatePath('/content/assets');
-  redirect(appendSearchParams(returnPath, { message: nextStatus === 'archived' ? 'Asset archived' : 'Asset restored to ready' }));
+  await runAssetLibraryAction({
+    execute: () => apiWrite(`/api/v1/assets/${assetId}`, 'PATCH', { status: nextStatus }),
+    returnPath,
+    successMessage: nextStatus === 'archived' ? 'Asset archived' : 'Asset restored to ready',
+    failurePrefix: nextStatus === 'archived' ? 'Asset archive failed' : 'Asset restore failed',
+  });
 }
 
 export async function deleteLessonAssetAction(formData: FormData) {
   const assetId = String(formData.get('assetId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
 
-  await apiWrite(`/api/v1/assets/${assetId}`, 'DELETE', undefined, 'admin', {
-    'x-lumo-confirm-action': 'asset-delete',
-    'idempotency-key': `asset-delete-${assetId}`,
+  await runAssetLibraryAction({
+    execute: () => apiWrite(`/api/v1/assets/${assetId}`, 'DELETE', undefined, 'admin', {
+      'x-lumo-confirm-action': 'asset-delete',
+      'idempotency-key': `asset-delete-${assetId}`,
+    }),
+    returnPath,
+    successMessage: 'Asset permanently deleted',
+    failurePrefix: 'Asset deletion failed',
   });
-  revalidatePath('/content/assets');
-  redirect(appendSearchParams(returnPath, { message: 'Asset permanently deleted' }));
 }
 
 export async function createAssessmentAction(formData: FormData) {
