@@ -24,6 +24,7 @@ import type {
   StudentDetail,
   StorageIntegrityReport,
   StorageStatus,
+  ConfigAudit,
   Strand,
   Subject,
   WorkboardItem,
@@ -194,6 +195,10 @@ export function fetchNgoSummary(params?: { cohortId?: string; podId?: string; ma
 
 export function fetchStorageStatus() {
   return getJson<StorageStatus>('/api/v1/admin/storage/status');
+}
+
+export function fetchConfigAudit() {
+  return getJson<ConfigAudit>('/api/v1/admin/config/audit');
 }
 
 export function fetchStorageIntegrity() {

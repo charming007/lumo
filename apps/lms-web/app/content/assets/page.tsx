@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { AssetLibraryFilters, AssetLibraryTable, AssetRegisterForm, AssetUploadForm } from '../../../components/asset-library-forms';
 import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../components/feedback-banner';
-import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../lib/api';
+import { fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus } from '../../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../../lib/config';
 import { PageShell } from '../../../lib/ui';
 
@@ -86,7 +86,7 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     );
   }
 
-  const [subjectsResult, modulesResult, lessonsResult, assetsResult] = await Promise.allSettled([
+  const [subjectsResult, modulesResult, lessonsResult, assetsResult, storageStatusResult, configAuditResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchCurriculumModules(),
     fetchLessons(),
@@ -100,12 +100,16 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
       lessonId: filters.lessonId || undefined,
       includeArchived: filters.includeArchived || undefined,
     }),
+    fetchStorageStatus(),
+    fetchConfigAudit(),
   ]);
 
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
+  const storageStatus = storageStatusResult.status === 'fulfilled' ? storageStatusResult.value : null;
+  const configAudit = configAuditResult.status === 'fulfilled' ? configAuditResult.value : null;
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
@@ -117,6 +121,9 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
   ].filter(Boolean) as string[];
+  const assetUploadsReady = configAudit?.assetUploads?.ready ?? null;
+  const assetUploadBlocker = configAudit?.assetUploads?.blocker ?? null;
+  const assetUploadRoot = configAudit?.assetUploads?.root ?? storageStatus?.path ?? null;
 
   if (missingCoreLibraryFeeds.length) {
     return (
@@ -178,8 +185,17 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   >
     <FeedbackBanner message={query?.message} />
     {failedSources.length ? (
-      <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-        Asset library is running in degraded mode: {failedSources.join(', ')} feed{failedSources.length === 1 ? ' is' : 's are'} unavailable.
+      <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, display: 'grid', gap: 8 }}>
+        <div>
+          Asset library is running in degraded mode: {failedSources.join(', ')} feed{failedSources.length === 1 ? ' is' : 's are'} unavailable.
+        </div>
+        {assetsResult.status === 'rejected' ? (
+          <div style={{ color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
+            Existing asset rows could not be loaded from the live API. {assetUploadsReady === false && assetUploadBlocker
+              ? <>Storage-backed uploads are also blocked: {assetUploadBlocker}{assetUploadRoot ? <> <code style={{ fontWeight: 900 }}>{assetUploadRoot}</code></> : null}</>
+              : 'The asset registry API itself needs attention — check the API logs and admin config audit before trusting this empty state.'}
+          </div>
+        ) : null}
       </div>
     ) : null}
     <section style={{ display: 'grid', gap: 18 }}>

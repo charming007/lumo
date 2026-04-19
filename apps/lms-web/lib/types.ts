@@ -511,6 +511,29 @@ export type StorageStatus = {
   };
 };
 
+export type ConfigAudit = {
+  checkedAt: string;
+  storage: {
+    mode?: string;
+    persistent?: boolean;
+    hasDatabaseUrl?: boolean;
+    driver?: string;
+  };
+  assetUploads?: {
+    root?: string;
+    ready?: boolean;
+    blocker?: string | null;
+  };
+  apiBaseUrl?: string | null;
+  errors: string[];
+  warnings: string[];
+  summary: {
+    ready: boolean;
+    errorCount: number;
+    warningCount: number;
+  };
+};
+
 export type StorageIntegrityReport = {
   checkedAt: string;
   summary: {
