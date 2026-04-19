@@ -1,3 +1,4 @@
+const fs = require('fs');
 const repository = require('./repository');
 const presenters = require('./presenters');
 const rewards = require('./rewards');
@@ -1126,6 +1127,193 @@ function buildRewardsReport({ cohortId = null, podId = null, mallamId = null, le
   };
 }
 
+function normalizeAssetReferenceValues(value) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => normalizeAssetReferenceValues(item));
+  }
+
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  const normalized = String(value).trim();
+  return normalized ? [normalized] : [];
+}
+
+function buildAssetReferenceContext({ lesson, step, referenceType, choice = null, kind = null, value }) {
+  return {
+    lessonId: lesson.id,
+    lessonTitle: lesson.title,
+    subjectId: lesson.subjectId ?? null,
+    moduleId: lesson.moduleId ?? null,
+    stepId: step.id,
+    stepType: step.type,
+    referenceType,
+    choiceId: choice?.id ?? null,
+    choiceLabel: choice?.label ?? null,
+    kind: kind ?? null,
+    value,
+  };
+}
+
+function buildAssetCoverageReport({ subjectId = null, moduleId = null, lessonId = null, includeArchived = false, limit = 50 } = {}) {
+  const assets = repository.listLessonAssets().filter((asset) => includeArchived || asset.status !== 'archived');
+  const lessons = repository.listLessons().filter((lesson) => (!subjectId || lesson.subjectId === subjectId) && (!moduleId || lesson.moduleId === moduleId) && (!lessonId || lesson.id === lessonId));
+  const assetsByAlias = new Map();
+  const referencedAssetIds = new Set();
+
+  function addAlias(key, asset) {
+    const normalized = String(key || '').trim();
+    if (!normalized || assetsByAlias.has(normalized)) return;
+    assetsByAlias.set(normalized, asset);
+  }
+
+  assets.forEach((asset) => {
+    addAlias(asset.id, asset);
+    addAlias(`asset:${asset.id}`, asset);
+    addAlias(asset.fileUrl, asset);
+    addAlias(asset.storagePath, asset);
+    addAlias(asset.fileName, asset);
+    addAlias(asset.originalFileName, asset);
+  });
+
+  const issues = [];
+  const lessonBreakdown = [];
+  const kindRollup = new Map();
+
+  function registerIssue(type, severity, context, asset = null, note = null) {
+    issues.push({
+      type,
+      severity,
+      ...context,
+      assetId: asset?.id ?? null,
+      assetTitle: asset?.title ?? null,
+      assetStatus: asset?.status ?? null,
+      note: note ?? null,
+    });
+  }
+
+  lessons.forEach((lesson) => {
+    const steps = Array.isArray(lesson.activitySteps ?? lesson.activities) ? (lesson.activitySteps ?? lesson.activities) : [];
+    const lessonStats = {
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      subjectId: lesson.subjectId ?? null,
+      moduleId: lesson.moduleId ?? null,
+      stepCount: steps.length,
+      referenceCount: 0,
+      matchedCount: 0,
+      canonicalCount: 0,
+      legacyCount: 0,
+      missingCount: 0,
+      archivedCount: 0,
+      brokenManagedCount: 0,
+    };
+
+    function inspectReference(context) {
+      lessonStats.referenceCount += 1;
+      const rollup = kindRollup.get(context.kind || 'unknown') || { kind: context.kind || 'unknown', references: 0, matched: 0, missing: 0, archived: 0, brokenManaged: 0 };
+      rollup.references += 1;
+      kindRollup.set(rollup.kind, rollup);
+
+      const matchedAsset = assetsByAlias.get(context.value) || null;
+      const isCanonical = context.value.startsWith('asset:');
+
+      if (!matchedAsset) {
+        lessonStats.missingCount += 1;
+        rollup.missing += 1;
+        registerIssue(isCanonical ? 'missing-canonical-asset-reference' : 'unresolved-asset-reference', 'error', context, null, isCanonical
+          ? 'Canonical asset reference does not resolve to a registry record.'
+          : 'Lesson points at a file/url/key that is not present in the asset registry.');
+        return;
+      }
+
+      referencedAssetIds.add(matchedAsset.id);
+      lessonStats.matchedCount += 1;
+      rollup.matched += 1;
+
+      if (isCanonical) {
+        lessonStats.canonicalCount += 1;
+      } else {
+        lessonStats.legacyCount += 1;
+        registerIssue('legacy-asset-reference', 'warn', context, matchedAsset, 'Lesson resolves via URL/path/file alias instead of canonical asset:<id> reference.');
+      }
+
+      if (matchedAsset.status === 'archived') {
+        lessonStats.archivedCount += 1;
+        rollup.archived += 1;
+        registerIssue('archived-asset-reference', 'warn', context, matchedAsset, 'Lesson still references an archived asset record.');
+      }
+
+      if (matchedAsset.storagePath && !fs.existsSync(matchedAsset.storagePath)) {
+        lessonStats.brokenManagedCount += 1;
+        rollup.brokenManaged += 1;
+        registerIssue('broken-managed-asset-file', 'error', context, matchedAsset, 'Registry record exists but the managed file is missing from disk.');
+      }
+    }
+
+    steps.forEach((step) => {
+      (Array.isArray(step.media) ? step.media : []).forEach((media) => {
+        normalizeAssetReferenceValues(media?.value).forEach((value) => inspectReference(buildAssetReferenceContext({ lesson, step, referenceType: 'step-media', kind: media?.kind, value })));
+      });
+
+      (Array.isArray(step.choices) ? step.choices : []).forEach((choice) => {
+        normalizeAssetReferenceValues(choice?.media?.value).forEach((value) => inspectReference(buildAssetReferenceContext({ lesson, step, referenceType: 'choice-media', choice, kind: choice?.media?.kind, value })));
+      });
+    });
+
+    lessonBreakdown.push(lessonStats);
+  });
+
+  const safeLimit = Math.max(1, Math.min(Number(limit || 50), 200));
+  const orphanedAssets = assets
+    .filter((asset) => !referencedAssetIds.has(asset.id))
+    .map((asset) => ({
+      assetId: asset.id,
+      title: asset.title,
+      kind: asset.kind,
+      status: asset.status,
+      subjectId: asset.subjectId ?? null,
+      moduleId: asset.moduleId ?? null,
+      lessonId: asset.lessonId ?? null,
+      fileUrl: asset.fileUrl ?? null,
+      storagePath: asset.storagePath ?? null,
+      createdAt: asset.createdAt ?? null,
+      updatedAt: asset.updatedAt ?? null,
+    }))
+    .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))
+    .slice(0, safeLimit);
+
+  return {
+    scope: { subjectId, moduleId, lessonId, includeArchived, lessonCount: lessons.length, assetCount: assets.length },
+    summary: {
+      lessonCount: lessons.length,
+      assetCount: assets.length,
+      referenceCount: lessonBreakdown.reduce((sum, item) => sum + item.referenceCount, 0),
+      matchedCount: lessonBreakdown.reduce((sum, item) => sum + item.matchedCount, 0),
+      canonicalCount: lessonBreakdown.reduce((sum, item) => sum + item.canonicalCount, 0),
+      legacyCount: lessonBreakdown.reduce((sum, item) => sum + item.legacyCount, 0),
+      missingCount: lessonBreakdown.reduce((sum, item) => sum + item.missingCount, 0),
+      archivedCount: lessonBreakdown.reduce((sum, item) => sum + item.archivedCount, 0),
+      brokenManagedCount: lessonBreakdown.reduce((sum, item) => sum + item.brokenManagedCount, 0),
+      orphanedAssetCount: assets.filter((asset) => !referencedAssetIds.has(asset.id)).length,
+      lessonsWithIssues: lessonBreakdown.filter((item) => item.missingCount || item.archivedCount || item.brokenManagedCount || item.legacyCount).length,
+    },
+    byKind: Array.from(kindRollup.values()).sort((a, b) => b.references - a.references || a.kind.localeCompare(b.kind)),
+    lessons: lessonBreakdown.sort((a, b) => b.missingCount - a.missingCount || b.legacyCount - a.legacyCount || a.lessonTitle.localeCompare(b.lessonTitle)),
+    issues: issues
+      .sort((a, b) => {
+        const severityRank = { error: 0, warn: 1, info: 2 };
+        return (severityRank[a.severity] ?? 9) - (severityRank[b.severity] ?? 9)
+          || a.lessonTitle.localeCompare(b.lessonTitle)
+          || a.stepId.localeCompare(b.stepId)
+          || a.value.localeCompare(b.value);
+      })
+      .slice(0, safeLimit),
+    orphanedAssets,
+  };
+}
+
 module.exports = {
   buildOverviewReport,
   buildDashboardInsights,
@@ -1144,4 +1332,5 @@ module.exports = {
   buildStorageReport,
   buildOperationsReport,
   buildRewardsReport,
+  buildAssetCoverageReport,
 };

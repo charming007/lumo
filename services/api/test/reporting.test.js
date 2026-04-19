@@ -24,6 +24,91 @@ test('buildRewardsReport returns reward ops summary and scoped details', () => {
   assert.ok(Array.isArray(report.leaderboard));
 });
 
+test('buildAssetCoverageReport surfaces canonical, legacy, missing, broken, and orphaned asset references', () => {
+  const managedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumo-asset-coverage-'));
+  const existingFile = path.join(managedDir, 'hello.png');
+  const missingFile = path.join(managedDir, 'missing.png');
+  fs.writeFileSync(existingFile, 'ok');
+
+  const canonicalAsset = store.createLessonAsset({
+    id: 'asset-canonical-report',
+    kind: 'image',
+    title: 'Canonical card',
+    fileName: 'canonical.png',
+    storagePath: existingFile,
+    fileUrl: 'https://cdn.example.com/canonical.png',
+    status: 'ready',
+  });
+  const archivedAsset = store.createLessonAsset({
+    id: 'asset-archived-report',
+    kind: 'audio',
+    title: 'Archived audio',
+    fileName: 'archived.mp3',
+    fileUrl: 'https://cdn.example.com/archived.mp3',
+    status: 'archived',
+  });
+  store.createLessonAsset({
+    id: 'asset-broken-report',
+    kind: 'image',
+    title: 'Broken managed art',
+    fileName: 'missing.png',
+    storagePath: missingFile,
+    fileUrl: 'https://cdn.example.com/missing.png',
+    status: 'ready',
+  });
+  store.createLessonAsset({
+    id: 'asset-orphan-report',
+    kind: 'image',
+    title: 'Unused orphan',
+    fileName: 'orphan.png',
+    fileUrl: 'https://cdn.example.com/orphan.png',
+    status: 'ready',
+  });
+
+  store.createLesson({
+    id: 'lesson-asset-report',
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Asset report lesson',
+    status: 'published',
+    activitySteps: [
+      {
+        id: 'step-1',
+        type: 'listen_repeat',
+        prompt: 'Say hello.',
+        media: [
+          { kind: 'image', value: `asset:${canonicalAsset.id}` },
+          { kind: 'image', value: canonicalAsset.fileUrl },
+          { kind: 'image', value: 'asset:missing-registry-record' },
+        ],
+      },
+      {
+        id: 'step-2',
+        type: 'image_choice',
+        prompt: 'Pick the greeting card.',
+        choices: [
+          { id: 'choice-1', label: 'Archived option', media: { kind: 'audio', value: `asset:${archivedAsset.id}` } },
+          { id: 'choice-2', label: 'Broken option', media: { kind: 'image', value: 'asset:asset-broken-report' } },
+        ],
+      },
+    ],
+  });
+
+  const report = reporting.buildAssetCoverageReport({ includeArchived: true, limit: 20 });
+
+  assert.equal(report.summary.referenceCount, 5);
+  assert.equal(report.summary.canonicalCount, 3);
+  assert.equal(report.summary.legacyCount, 1);
+  assert.equal(report.summary.missingCount, 1);
+  assert.equal(report.summary.archivedCount, 1);
+  assert.equal(report.summary.brokenManagedCount, 1);
+  assert.equal(report.summary.orphanedAssetCount >= 1, true);
+  assert.ok(report.issues.some((issue) => issue.type === 'legacy-asset-reference' && issue.value === canonicalAsset.fileUrl));
+  assert.ok(report.issues.some((issue) => issue.type === 'missing-canonical-asset-reference'));
+  assert.ok(report.issues.some((issue) => issue.type === 'archived-asset-reference' && issue.assetId === archivedAsset.id));
+  assert.ok(report.issues.some((issue) => issue.type === 'broken-managed-asset-file' && issue.assetId === 'asset-broken-report'));
+  assert.ok(report.orphanedAssets.some((asset) => asset.assetId === 'asset-orphan-report'));
+});
 
 test('buildOperationsReport returns combined runtime, progression, rewards, integrity, and storage signals', () => {
   const report = reporting.buildOperationsReport({ limit: 5 });

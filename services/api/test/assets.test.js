@@ -312,3 +312,76 @@ test('asset registry feed skips malformed records instead of failing the whole l
     assets.splice(originalLength);
   }
 });
+
+test('asset coverage report endpoint exposes operator-facing integrity signals', async () => {
+  const managedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumo-api-assets-report-'));
+  const existingFile = path.join(managedDir, 'report-ok.png');
+  const missingFile = path.join(managedDir, 'report-missing.png');
+  fs.writeFileSync(existingFile, 'ok');
+
+  const readyAsset = store.createLessonAsset({
+    id: 'asset-report-ready',
+    kind: 'image',
+    title: 'Report ready image',
+    fileName: 'report-ok.png',
+    storagePath: existingFile,
+    fileUrl: 'https://cdn.example.com/report-ok.png',
+    status: 'ready',
+  });
+  store.createLessonAsset({
+    id: 'asset-report-broken',
+    kind: 'image',
+    title: 'Report broken image',
+    fileName: 'report-missing.png',
+    storagePath: missingFile,
+    fileUrl: 'https://cdn.example.com/report-missing.png',
+    status: 'ready',
+  });
+  store.createLessonAsset({
+    id: 'asset-report-orphan',
+    kind: 'image',
+    title: 'Report orphan image',
+    fileName: 'report-orphan.png',
+    fileUrl: 'https://cdn.example.com/report-orphan.png',
+    status: 'ready',
+  });
+
+  store.createLesson({
+    id: 'lesson-assets-report-route',
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Route-level asset coverage',
+    status: 'published',
+    activitySteps: [
+      {
+        id: 'route-step-1',
+        type: 'listen_repeat',
+        prompt: 'Repeat hello.',
+        media: [
+          { kind: 'image', value: `asset:${readyAsset.id}` },
+          { kind: 'image', value: readyAsset.fileUrl },
+          { kind: 'image', value: 'asset:route-missing-asset' },
+          { kind: 'image', value: 'asset:asset-report-broken' },
+        ],
+      },
+    ],
+  });
+
+  const response = await request('/api/v1/reports/assets?includeArchived=true&limit=20', {
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Asset Ops',
+      'x-lumo-api-key': 'asset-test-key',
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.summary.referenceCount >= 4, true);
+  assert.equal(response.body.summary.legacyCount >= 1, true);
+  assert.equal(response.body.summary.missingCount >= 1, true);
+  assert.equal(response.body.summary.brokenManagedCount >= 1, true);
+  assert.ok(response.body.issues.some((issue) => issue.type === 'legacy-asset-reference' && issue.assetId === readyAsset.id));
+  assert.ok(response.body.issues.some((issue) => issue.type === 'missing-canonical-asset-reference'));
+  assert.ok(response.body.issues.some((issue) => issue.type === 'broken-managed-asset-file' && issue.assetId === 'asset-report-broken'));
+  assert.ok(response.body.orphanedAssets.some((asset) => asset.assetId === 'asset-report-orphan'));
+});

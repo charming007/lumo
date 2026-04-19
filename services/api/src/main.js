@@ -3274,6 +3274,16 @@ app.get('/api/v1/reports/storage', requireRole(['admin']), (req, res) => {
   }));
 });
 
+app.get('/api/v1/reports/assets', requireRole(['admin']), (req, res) => {
+  res.json(reporting.buildAssetCoverageReport({
+    subjectId: coerceOptionalString(req.query.subjectId),
+    moduleId: coerceOptionalString(req.query.moduleId),
+    lessonId: coerceOptionalString(req.query.lessonId),
+    includeArchived: String(req.query.includeArchived || '').toLowerCase() === 'true',
+    limit: Number(req.query.limit || 50),
+  }));
+});
+
 app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
   res.json(store.getStorageStatus());
 });

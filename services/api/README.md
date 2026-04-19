@@ -250,6 +250,23 @@ Admin-only persistence report for the current storage engine, including:
 - mutation journal totals, restorable mutation counts, action mix, and recent mutation entries
 - raw storage status metadata (`updatedAt`, cache file path, backup metadata)
 
+### `GET /api/v1/reports/assets`
+Admin-only asset integrity / coverage report for operator triage, including:
+- total lesson asset references scanned across step media + choice media
+- canonical `asset:<id>` usage vs legacy URL/path/file aliases
+- unresolved references that do not match any asset registry record
+- archived assets still wired into live lessons
+- managed upload records whose backing file is missing on disk
+- orphaned asset records that are not referenced by any lesson in scope
+- per-lesson and per-kind breakdowns plus a capped issue list for triage queues
+
+Optional filters:
+- `subjectId`
+- `moduleId`
+- `lessonId`
+- `includeArchived=true`
+- `limit`
+
 ### Mutation journal control endpoints
 - `GET /api/v1/admin/storage/mutations`
 - `GET /api/v1/admin/storage/mutations/:id`
