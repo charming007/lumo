@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
-import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchSubjects } from '../../../../lib/api';
+import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessonAssets, fetchSubjects } from '../../../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
 import { PageShell } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
@@ -73,11 +73,12 @@ export default async function LessonStudioEditPage({
     );
   }
 
-  const [lessonResult, modulesResult, subjectsResult, assessmentsResult] = await Promise.allSettled([
+  const [lessonResult, modulesResult, subjectsResult, assessmentsResult, assetsResult] = await Promise.allSettled([
     fetchLesson(id),
     fetchCurriculumModules(),
     fetchSubjects(),
     fetchAssessments(),
+    fetchLessonAssets(),
   ]);
 
   const failedSources = [
@@ -85,6 +86,7 @@ export default async function LessonStudioEditPage({
     modulesResult.status === 'rejected' ? 'modules' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    assetsResult.status === 'rejected' ? 'assets' : null,
   ].filter(Boolean) as string[];
   const missingCoreEditorFeeds = [
     lessonResult.status === 'rejected' ? 'lesson' : null,
@@ -142,6 +144,7 @@ export default async function LessonStudioEditPage({
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
 
   if (!lesson) {
     return null;
@@ -165,7 +168,7 @@ export default async function LessonStudioEditPage({
       ]}
       aside={(
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href="/content/assets" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
+          <Link href={`/content/assets?subjectId=${encodeURIComponent(lesson.subjectId ?? selectedSubject?.id ?? '')}&moduleId=${encodeURIComponent(lesson.moduleId ?? selectedModule?.id ?? '')}&lessonId=${encodeURIComponent(lesson.id)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
             Browse assets
           </Link>
           <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
@@ -184,6 +187,7 @@ export default async function LessonStudioEditPage({
           lesson={lesson}
           subjects={subjects}
           modules={modules}
+          assets={assets}
           action={updateLessonAction}
           returnPath={from}
         />

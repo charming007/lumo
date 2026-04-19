@@ -215,8 +215,20 @@ function listLessonAssets() {
   return repository.listLessonAssets();
 }
 
+function findLessonAssetById(id) {
+  return repository.findLessonAssetById(id);
+}
+
 function createLessonAsset(input) {
   return repository.createLessonAsset(input);
+}
+
+function updateLessonAsset(id, input) {
+  return repository.updateLessonAsset(id, input);
+}
+
+function deleteLessonAsset(id) {
+  return repository.deleteLessonAsset(id);
 }
 
 function listSubjects() {
@@ -1680,7 +1692,10 @@ module.exports = {
   updateLesson,
   deleteLesson,
   listLessonAssets,
+  findLessonAssetById,
   createLessonAsset,
+  updateLessonAsset,
+  deleteLessonAsset,
   listSubjects,
   createSubject,
   updateSubject,

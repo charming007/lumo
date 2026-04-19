@@ -27,6 +27,91 @@ function buildAssetFileUrl(req, storagePath) {
   return `${req.protocol}://${req.get('host')}/media/${relative}`;
 }
 
+const ASSET_KIND_MIME_ALLOWLIST = {
+  image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+  illustration: ['image/jpeg', 'image/png', 'image/webp'],
+  audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/ogg'],
+  'prompt-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  'story-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  'trace-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  'letter-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  tile: ['image/jpeg', 'image/png', 'image/webp'],
+  'word-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  hint: ['text/plain', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
+  transcript: ['text/plain', 'application/pdf'],
+};
+
+function normalizeAssetTags(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
+  return String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function ensureAssetScopeHierarchy({ subjectId = null, moduleId = null, lessonId = null } = {}) {
+  const subject = subjectId ? store.listSubjects().find((item) => item.id === subjectId) : null;
+  const module = moduleId ? store.listModules().find((item) => item.id === moduleId) : null;
+  const lesson = lessonId ? store.findLessonById(lessonId) : null;
+
+  if (module && subject && store.listStrands().find((item) => item.id === module.strandId)?.subjectId !== subject.id) {
+    const error = new Error('Selected module does not belong to selected subject');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (lesson && module && lesson.moduleId !== module.id) {
+    const error = new Error('Selected lesson does not belong to selected module');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (lesson && subject && lesson.subjectId !== subject.id) {
+    const error = new Error('Selected lesson does not belong to selected subject');
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function validateAssetUrl(value, label = 'fileUrl') {
+  if (!value) return null;
+  let parsed;
+  try {
+    parsed = new URL(String(value));
+  } catch {
+    const error = new Error(`Invalid ${label}: must be a valid URL`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    const error = new Error(`Invalid ${label}: only http/https URLs are allowed`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return parsed.toString();
+}
+
+function assertAssetMimeAllowed(kind, mimeType) {
+  if (!mimeType) return;
+  const allowed = ASSET_KIND_MIME_ALLOWLIST[kind] || [];
+  if (allowed.length && !allowed.includes(String(mimeType).toLowerCase())) {
+    const error = new Error(`Invalid content type for ${kind}: ${mimeType}`);
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function ensureUploadPathIsManaged(storagePath) {
+  const resolved = path.resolve(String(storagePath || ''));
+  const relative = path.relative(assetUploadRoot, resolved);
+  return relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function buildPresentedAsset(req, item) {
+  return presenters.presentLessonAsset({
+    ...item,
+    fileUrl: item.fileUrl || (item.storagePath ? buildAssetFileUrl(req, item.storagePath) : null),
+  });
+}
 
 function readPositiveIntEnv(name, fallback) {
   const raw = process.env[name];
@@ -94,6 +179,8 @@ function buildThrottleMiddleware({
     return next();
   };
 }
+
+const ASSET_MAX_UPLOAD_BYTES = readPositiveIntEnv('LUMO_ASSET_MAX_UPLOAD_BYTES', 10 * 1024 * 1024);
 
 const learnerSyncThrottle = buildThrottleMiddleware({
   bucket: 'learner-sync',
@@ -2044,32 +2131,92 @@ app.get('/api/v1/assets', (req, res) => {
   const moduleId = String(req.query.moduleId || '').trim();
   const lessonId = String(req.query.lessonId || '').trim();
   const kind = String(req.query.kind || '').trim();
+  const status = String(req.query.status || '').trim();
+  const source = String(req.query.source || '').trim();
+  const tag = String(req.query.tag || req.query.tags || '').trim().toLowerCase();
+  const includeArchived = String(req.query.includeArchived || '').toLowerCase() === 'true';
   const items = store.listLessonAssets()
+    .filter((item) => includeArchived || item.status !== 'archived')
     .filter((item) => !subjectId || item.subjectId === subjectId)
     .filter((item) => !moduleId || item.moduleId === moduleId)
     .filter((item) => !lessonId || item.lessonId === lessonId)
     .filter((item) => !kind || item.kind === kind)
-    .filter((item) => !q || [item.title, item.description, ...(Array.isArray(item.tags) ? item.tags : []), item.originalFileName, item.fileName].filter(Boolean).join(' ').toLowerCase().includes(q))
+    .filter((item) => !status || item.status === status)
+    .filter((item) => !source || item.source === source)
+    .filter((item) => !tag || (Array.isArray(item.tags) ? item.tags : []).some((value) => String(value).toLowerCase() === tag))
+    .filter((item) => !q || [item.title, item.description, ...(Array.isArray(item.tags) ? item.tags : []), item.originalFileName, item.fileName, item.storagePath, item.source, item.createdBy].filter(Boolean).join(' ').toLowerCase().includes(q))
     .slice()
-    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
 
-  res.json(items.map((item) => presenters.presentLessonAsset({
-    ...item,
-    fileUrl: item.fileUrl || (item.storagePath ? buildAssetFileUrl(req, item.storagePath) : null),
-  })));
+  res.json(items.map((item) => buildPresentedAsset(req, item)));
+});
+
+app.get('/api/v1/assets/:id', (req, res) => {
+  const asset = store.findLessonAssetById(req.params.id);
+  if (!asset) {
+    return res.status(404).json({ message: 'Asset not found' });
+  }
+  return res.json(buildPresentedAsset(req, asset));
 });
 
 app.post('/api/v1/assets', ...protectedMutation(['admin']), (req, res, next) => {
   try {
-    const tags = Array.isArray(req.body.tags) ? req.body.tags : String(req.body.tags || '').split(',').map((item) => item.trim()).filter(Boolean);
-    const payload = { ...req.body, tags, status: req.body.status || 'ready' };
+    const payload = {
+      ...req.body,
+      tags: normalizeAssetTags(req.body.tags),
+      fileUrl: validateAssetUrl(req.body.fileUrl),
+      status: req.body.status || 'ready',
+    };
+    ensureAssetScopeHierarchy(payload);
+    assertAssetMimeAllowed(payload.kind, payload.mimeType);
     validators.validateLessonAsset(payload);
     const created = store.createLessonAsset({
       ...payload,
       createdBy: getActor(req).name,
       source: req.body.source || 'manual',
     });
-    return res.status(201).json(presenters.presentLessonAsset(created));
+    return res.status(201).json(buildPresentedAsset(req, created));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/v1/assets/:id', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    const existing = store.findLessonAssetById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ message: 'Asset not found' });
+    }
+
+    const payload = {
+      ...req.body,
+      tags: req.body.tags !== undefined ? normalizeAssetTags(req.body.tags) : existing.tags,
+      fileUrl: req.body.fileUrl !== undefined ? validateAssetUrl(req.body.fileUrl) : existing.fileUrl,
+    };
+    const nextAsset = { ...existing, ...payload };
+    ensureAssetScopeHierarchy(nextAsset);
+    assertAssetMimeAllowed(nextAsset.kind, nextAsset.mimeType);
+    validators.validateLessonAsset(payload, { partial: true });
+    const updated = store.updateLessonAsset(req.params.id, payload);
+    return res.json(buildPresentedAsset(req, updated));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.delete('/api/v1/assets/:id', ...protectedMutation(['admin']), requireConfirmedDangerousAdminMutation('asset-delete'), (req, res, next) => {
+  try {
+    const existing = store.findLessonAssetById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ message: 'Asset not found' });
+    }
+
+    if (existing.storagePath && ensureUploadPathIsManaged(existing.storagePath) && fs.existsSync(existing.storagePath)) {
+      fs.unlinkSync(existing.storagePath);
+    }
+
+    store.deleteLessonAsset(req.params.id);
+    return res.status(204).send();
   } catch (error) {
     return next(error);
   }
@@ -2082,7 +2229,20 @@ app.post('/api/v1/assets/upload', ...protectedMutation(['admin']), (req, res, ne
       return res.status(400).json({ message: 'fileName and base64 are required' });
     }
 
-    const tags = Array.isArray(req.body.tags) ? req.body.tags : String(req.body.tags || '').split(',').map((item) => item.trim()).filter(Boolean);
+    const normalizedKind = kind || 'image';
+    const normalizedMimeType = String(contentType || 'application/octet-stream').toLowerCase();
+    assertAssetMimeAllowed(normalizedKind, normalizedMimeType);
+
+    const buffer = Buffer.from(String(base64), 'base64');
+    if (!buffer.length) {
+      return res.status(400).json({ message: 'Uploaded file is empty or invalid base64' });
+    }
+    if (buffer.length > ASSET_MAX_UPLOAD_BYTES) {
+      return res.status(413).json({ message: `File exceeds upload limit of ${ASSET_MAX_UPLOAD_BYTES} bytes` });
+    }
+
+    const tags = normalizeAssetTags(req.body.tags);
+    ensureAssetScopeHierarchy({ subjectId, moduleId, lessonId });
     const assetId = `asset-${crypto.randomUUID()}`;
     const ext = path.extname(String(fileName || '')).trim() || '';
     const safeBase = sanitizeAssetFileName(path.basename(String(fileName || 'asset'), ext));
@@ -2090,19 +2250,18 @@ app.post('/api/v1/assets/upload', ...protectedMutation(['admin']), (req, res, ne
     fs.mkdirSync(datedDir, { recursive: true });
     const storedFileName = `${assetId}-${safeBase}${ext}`;
     const storagePath = path.join(datedDir, storedFileName);
-    const buffer = Buffer.from(String(base64), 'base64');
-    fs.writeFileSync(storagePath, buffer);
+    fs.writeFileSync(storagePath, buffer, { flag: 'wx' });
 
     const payload = {
       id: assetId,
-      kind: kind || 'image',
+      kind: normalizedKind,
       title: title || safeBase,
       description: description || '',
       tags,
       subjectId: subjectId || null,
       moduleId: moduleId || null,
       lessonId: lessonId || null,
-      mimeType: contentType || null,
+      mimeType: normalizedMimeType,
       fileName: storedFileName,
       originalFileName: fileName,
       sizeBytes: buffer.length,
@@ -2115,12 +2274,11 @@ app.post('/api/v1/assets/upload', ...protectedMutation(['admin']), (req, res, ne
 
     validators.validateLessonAsset(payload);
     const created = store.createLessonAsset(payload);
-    return res.status(201).json(presenters.presentLessonAsset(created));
+    return res.status(201).json(buildPresentedAsset(req, created));
   } catch (error) {
     return next(error);
   }
 });
-
 app.get('/api/v1/assessments', (_req, res) => {
   res.json(store.listAssessments().map(presenters.presentAssessment));
 });

@@ -1,21 +1,41 @@
 import Link from 'next/link';
-import { AssetLibraryTable, AssetRegisterForm, AssetUploadForm } from '../../../components/asset-library-forms';
+import { AssetLibraryFilters, AssetLibraryTable, AssetRegisterForm, AssetUploadForm } from '../../../components/asset-library-forms';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../lib/api';
 import { PageShell } from '../../../lib/ui';
 
-export default async function AssetLibraryPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
-  const query = await searchParams;
+export default async function AssetLibraryPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
+  const query = (await searchParams) || {};
+  const filters = {
+    q: query.q || '',
+    kind: query.kind || '',
+    status: query.status || '',
+    tag: query.tag || '',
+    subjectId: query.subjectId || '',
+    moduleId: query.moduleId || '',
+    lessonId: query.lessonId || '',
+    includeArchived: query.includeArchived || '',
+  };
+
   const [subjects, modules, lessons, assets] = await Promise.all([
     fetchSubjects(),
     fetchCurriculumModules(),
     fetchLessons(),
-    fetchLessonAssets(),
+    fetchLessonAssets({
+      q: filters.q || undefined,
+      kind: filters.kind || undefined,
+      status: filters.status || undefined,
+      tag: filters.tag || undefined,
+      subjectId: filters.subjectId || undefined,
+      moduleId: filters.moduleId || undefined,
+      lessonId: filters.lessonId || undefined,
+      includeArchived: filters.includeArchived || undefined,
+    }),
   ]);
 
   return <PageShell
     title="Asset Library"
-    subtitle="Upload media, register existing files, and browse copy-ready references for lesson authoring."
+    subtitle="Upload media, register existing files, search the catalog, and manage trustworthy lesson assets without spreadsheet hell."
     breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Content Library', href: '/content' }]}
     aside={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}><Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Back to content</Link></div>}
   >
@@ -25,7 +45,8 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
         <AssetUploadForm returnPath="/content/assets" subjects={subjects} modules={modules} lessons={lessons} />
         <AssetRegisterForm returnPath="/content/assets" subjects={subjects} modules={modules} lessons={lessons} />
       </div>
-      <AssetLibraryTable items={assets} />
+      <AssetLibraryFilters subjects={subjects} modules={modules} lessons={lessons} filters={filters} />
+      <AssetLibraryTable items={assets} returnPath="/content/assets" subjects={subjects} modules={modules} lessons={lessons} />
     </section>
   </PageShell>;
 }

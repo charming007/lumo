@@ -44,10 +44,13 @@ async function apiRead<T>(path: string, role = 'admin') {
   return response.json() as Promise<T>;
 }
 
-async function apiWrite<T = void>(path: string, method: string, payload?: Record<string, unknown>, role = 'admin') {
+async function apiWrite<T = void>(path: string, method: string, payload?: Record<string, unknown>, role = 'admin', extraHeaders?: Record<string, string>) {
   const response = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: buildApiHeaders(role, Boolean(payload)),
+    headers: {
+      ...buildApiHeaders(role, Boolean(payload)),
+      ...(extraHeaders || {}),
+    },
     body: payload ? JSON.stringify(payload) : undefined,
   });
 
@@ -567,6 +570,49 @@ export async function uploadLessonAssetAction(formData: FormData) {
   await apiWrite('/api/v1/assets/upload', 'POST', payload);
   revalidatePath('/content/assets');
   redirect(appendSearchParams(returnPath, { message: 'Asset uploaded and registered' }));
+}
+
+export async function updateLessonAssetAction(formData: FormData) {
+  const assetId = String(formData.get('assetId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
+  const payload = {
+    kind: String(formData.get('kind') || 'image'),
+    title: String(formData.get('title') || ''),
+    description: String(formData.get('description') || ''),
+    subjectId: String(formData.get('subjectId') || '') || null,
+    moduleId: String(formData.get('moduleId') || '') || null,
+    lessonId: String(formData.get('lessonId') || '') || null,
+    tags: String(formData.get('tags') || '').split(',').map((item) => item.trim()).filter(Boolean),
+    fileUrl: String(formData.get('fileUrl') || '') || null,
+    storagePath: String(formData.get('storagePath') || '') || null,
+    status: String(formData.get('status') || 'ready'),
+  };
+
+  await apiWrite(`/api/v1/assets/${assetId}`, 'PATCH', payload);
+  revalidatePath('/content/assets');
+  redirect(appendSearchParams(returnPath, { message: 'Asset details saved' }));
+}
+
+export async function archiveLessonAssetAction(formData: FormData) {
+  const assetId = String(formData.get('assetId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
+  const nextStatus = String(formData.get('status') || 'archived');
+
+  await apiWrite(`/api/v1/assets/${assetId}`, 'PATCH', { status: nextStatus });
+  revalidatePath('/content/assets');
+  redirect(appendSearchParams(returnPath, { message: nextStatus === 'archived' ? 'Asset archived' : 'Asset restored to ready' }));
+}
+
+export async function deleteLessonAssetAction(formData: FormData) {
+  const assetId = String(formData.get('assetId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
+
+  await apiWrite(`/api/v1/assets/${assetId}`, 'DELETE', undefined, 'admin', {
+    'x-lumo-confirm-action': 'asset-delete',
+    'idempotency-key': `asset-delete-${assetId}`,
+  });
+  revalidatePath('/content/assets');
+  redirect(appendSearchParams(returnPath, { message: 'Asset permanently deleted' }));
 }
 
 export async function createAssessmentAction(formData: FormData) {

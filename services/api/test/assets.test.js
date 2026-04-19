@@ -1,0 +1,166 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumo-api-assets-'));
+process.env.LUMO_DATA_FILE = path.join(tempDir, 'store.json');
+process.env.LUMO_DB_MODE = 'file';
+process.env.LUMO_ASSET_MAX_UPLOAD_BYTES = '32';
+process.env.LUMO_ADMIN_API_KEY = 'asset-test-key';
+process.env.PORT = '0';
+
+const { startServer } = require('../src/main');
+
+let server;
+let baseUrl;
+
+async function request(pathname, options = {}) {
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    ...options,
+    headers: {
+      'content-type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+  const raw = await response.text();
+  return {
+    status: response.status,
+    headers: response.headers,
+    body: raw ? JSON.parse(raw) : null,
+  };
+}
+
+test.before(async () => {
+  server = startServer(0);
+  await new Promise((resolve) => server.once('listening', resolve));
+  const address = server.address();
+  baseUrl = `http://127.0.0.1:${address.port}`;
+});
+
+test.after(async () => {
+  if (server) {
+    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
+test('assets can be updated, archived, filtered, and safely deleted', async () => {
+  const headers = {
+    'x-lumo-role': 'admin',
+    'x-lumo-actor': 'Asset Admin',
+    'x-lumo-api-key': 'asset-test-key',
+  };
+
+  const created = await request('/api/v1/assets', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      kind: 'image',
+      title: 'Phonics card',
+      tags: ['phonics', 'alpha'],
+      subjectId: 'english',
+      moduleId: 'module-1',
+      fileUrl: 'https://cdn.example.com/card.png',
+      status: 'ready',
+    }),
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.title, 'Phonics card');
+
+  const updated = await request(`/api/v1/assets/${created.body.id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ title: 'Phonics card v2', status: 'archived', tags: ['phonics', 'review'] }),
+  });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.title, 'Phonics card v2');
+  assert.equal(updated.body.status, 'archived');
+
+  const hiddenByDefault = await request('/api/v1/assets');
+  assert.equal(hiddenByDefault.status, 200);
+  assert.equal(hiddenByDefault.body.some((item) => item.id === created.body.id), false);
+
+  const archivedVisible = await request('/api/v1/assets?includeArchived=true&status=archived&tag=review&q=v2');
+  assert.equal(archivedVisible.status, 200);
+  assert.equal(archivedVisible.body.length, 1);
+  assert.equal(archivedVisible.body[0].id, created.body.id);
+
+  const missingHeaders = await request(`/api/v1/assets/${created.body.id}`, {
+    method: 'DELETE',
+    headers,
+  });
+  assert.equal(missingHeaders.status, 428);
+
+  const deleted = await request(`/api/v1/assets/${created.body.id}`, {
+    method: 'DELETE',
+    headers: {
+      ...headers,
+      'x-lumo-confirm-action': 'asset-delete',
+      'idempotency-key': 'asset-delete-test-1',
+    },
+  });
+  assert.equal(deleted.status, 204);
+
+  const afterDelete = await request('/api/v1/assets?includeArchived=true');
+  assert.equal(afterDelete.status, 200);
+  assert.equal(afterDelete.body.some((item) => item.id === created.body.id), false);
+});
+
+test('asset upload enforces mime and size limits', async () => {
+  const headers = {
+    'x-lumo-role': 'admin',
+    'x-lumo-actor': 'Asset Admin',
+    'x-lumo-api-key': 'asset-test-key',
+  };
+
+  const badMime = await request('/api/v1/assets/upload', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      fileName: 'script.svg',
+      contentType: 'image/svg+xml',
+      base64: Buffer.from('tiny').toString('base64'),
+      kind: 'image',
+      title: 'Bad svg',
+    }),
+  });
+  assert.equal(badMime.status, 400);
+  assert.match(badMime.body.message, /Invalid content type/);
+
+  const tooLarge = await request('/api/v1/assets/upload', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      fileName: 'large.png',
+      contentType: 'image/png',
+      base64: Buffer.alloc(40, 1).toString('base64'),
+      kind: 'image',
+      title: 'Too large',
+    }),
+  });
+  assert.equal(tooLarge.status, 413);
+  assert.match(tooLarge.body.message, /upload limit/);
+});
+
+test('asset scope validation rejects mismatched lesson/module relationships', async () => {
+  const response = await request('/api/v1/assets', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Asset Admin',
+      'x-lumo-api-key': 'asset-test-key',
+    },
+    body: JSON.stringify({
+      kind: 'image',
+      title: 'Broken scope',
+      subjectId: 'math',
+      moduleId: 'module-1',
+      fileUrl: 'https://cdn.example.com/broken.png',
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.match(response.body.message, /does not belong/);
+});

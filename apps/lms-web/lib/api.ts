@@ -216,12 +216,15 @@ export function fetchOperationsReport(limit = 20, params?: { cohortId?: string; 
 }
 
 
-export function fetchLessonAssets(params?: { q?: string; subjectId?: string; moduleId?: string; lessonId?: string; kind?: string }) {
+export function fetchLessonAssets(params?: { q?: string; subjectId?: string; moduleId?: string; lessonId?: string; kind?: string; status?: string; tag?: string; includeArchived?: string }) {
   const query = new URLSearchParams();
   if (params?.q) query.set('q', params.q);
   if (params?.subjectId) query.set('subjectId', params.subjectId);
   if (params?.moduleId) query.set('moduleId', params.moduleId);
   if (params?.lessonId) query.set('lessonId', params.lessonId);
   if (params?.kind) query.set('kind', params.kind);
+  if (params?.status) query.set('status', params.status);
+  if (params?.tag) query.set('tag', params.tag);
+  if (params?.includeArchived) query.set('includeArchived', params.includeArchived);
   return getJson<LessonAsset[]>(`/api/v1/assets${query.size ? `?${query.toString()}` : ''}`);
 }

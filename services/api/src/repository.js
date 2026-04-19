@@ -1248,6 +1248,17 @@ function updateLessonAsset(id, input) {
   return commit(asset);
 }
 
+function deleteLessonAsset(id) {
+  const index = data.lessonAssets.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const [asset] = data.lessonAssets.splice(index, 1);
+  return commit(asset);
+}
+
 module.exports = {
   listCenters,
   findCenterById,
@@ -1288,6 +1299,7 @@ module.exports = {
   updateLesson,
   createLessonAsset,
   updateLessonAsset,
+  deleteLessonAsset,
   deleteLesson,
   listAssessments,
   findAssessmentById,
