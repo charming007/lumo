@@ -445,6 +445,21 @@ function presentObservation(entry) {
   };
 }
 
+
+
+function presentLessonAsset(entry) {
+  const subject = entry.subjectId ? repository.findSubjectById(entry.subjectId) : null;
+  const module = entry.moduleId ? repository.findModuleById(entry.moduleId) : null;
+  const lesson = entry.lessonId ? repository.findLessonById(entry.lessonId) : null;
+
+  return {
+    ...entry,
+    subjectName: subject?.name ?? null,
+    moduleTitle: module?.title ?? null,
+    lessonTitle: lesson?.title ?? null,
+  };
+}
+
 function presentLesson(entry) {
   const subject = repository.findSubjectById(entry.subjectId);
   const module = entry.moduleId ? repository.findModuleById(entry.moduleId) : null;
@@ -495,6 +510,7 @@ module.exports = {
   presentProgress,
   presentAttendance,
   presentObservation,
+  presentLessonAsset,
   presentLesson,
   presentLessonSession,
 };

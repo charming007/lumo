@@ -258,6 +258,23 @@ function validateModule(body, { partial = false } = {}) {
   assertAllowed('level', body.level, ['beginner', 'emerging', 'confident']);
 }
 
+
+
+function validateLessonAsset(body, { partial = false } = {}) {
+  if (!partial) {
+    requireFields(body, ['kind', 'title']);
+  }
+
+  assertExists('subjectId', body.subjectId, repository.findSubjectById);
+  assertExists('moduleId', body.moduleId, repository.findModuleById);
+  assertExists('lessonId', body.lessonId, repository.findLessonById);
+  assertAllowed('status', body.status, ['draft', 'ready', 'archived']);
+
+  if (body.tags !== undefined) {
+    assertArray('tags', body.tags);
+  }
+}
+
 function validateLesson(body, { partial = false } = {}) {
   if (!partial) {
     requireFields(body, ['subjectId', 'moduleId', 'title', 'durationMinutes']);
@@ -308,5 +325,6 @@ module.exports = {
   validateStrand,
   validateModule,
   validateLesson,
+  validateLessonAsset,
   validateAssessment,
 };

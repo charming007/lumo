@@ -107,6 +107,7 @@ const seed = {
     { id: 'module-3', strandId: 'strand-3', level: 'beginner', title: 'Healthy Habits', lessonCount: 3, order: 1, status: 'published' },
   ],
   lessons: [],
+  lessonAssets: [],
   assessments: [],
   assignments: [],
   attendance: [],

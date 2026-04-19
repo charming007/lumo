@@ -217,6 +217,33 @@ export type CurriculumModule = {
   strandName: string;
 };
 
+
+
+export type LessonAsset = {
+  id: string;
+  kind: string;
+  title: string;
+  description?: string;
+  tags?: string[];
+  subjectId?: string | null;
+  subjectName?: string | null;
+  moduleId?: string | null;
+  moduleTitle?: string | null;
+  lessonId?: string | null;
+  lessonTitle?: string | null;
+  mimeType?: string | null;
+  fileName?: string | null;
+  originalFileName?: string | null;
+  sizeBytes?: number | null;
+  storagePath?: string | null;
+  fileUrl?: string | null;
+  status?: string;
+  source?: string | null;
+  createdBy?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
 export type LessonActivityMedia = {
   kind?: string;
   value?: string | string[] | null;

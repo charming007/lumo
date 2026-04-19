@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const store = require('./store');
 const presenters = require('./presenters');
@@ -11,6 +13,20 @@ const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole, getAuthAudit } = require('./auth');
 
 const app = express();
+const assetUploadRoot = path.resolve(__dirname, '..', 'data', 'uploads');
+fs.mkdirSync(assetUploadRoot, { recursive: true });
+
+function sanitizeAssetFileName(value) {
+  return String(value || 'asset').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'asset';
+}
+
+function buildAssetFileUrl(req, storagePath) {
+  const normalized = String(storagePath || '').replace(/\\/g, '/');
+  const marker = '/data/uploads/';
+  const relative = normalized.includes(marker) ? normalized.split(marker)[1] : path.basename(normalized);
+  return `${req.protocol}://${req.get('host')}/media/${relative}`;
+}
+
 
 function readPositiveIntEnv(name, fallback) {
   const raw = process.env[name];
@@ -261,7 +277,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: process.env.LUMO_JSON_BODY_LIMIT || '1mb' }));
+app.use(express.json({ limit: process.env.LUMO_JSON_BODY_LIMIT || '25mb' }));
+app.use('/media', express.static(assetUploadRoot, { fallthrough: false }));
 
 app.use((req, _res, next) => {
   req.actor = getActor(req);
@@ -2017,6 +2034,91 @@ app.delete('/api/v1/lessons/:id', ...protectedMutation(['admin']), (req, res) =>
   }
 
   return res.status(204).send();
+});
+
+
+
+app.get('/api/v1/assets', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const subjectId = String(req.query.subjectId || '').trim();
+  const moduleId = String(req.query.moduleId || '').trim();
+  const lessonId = String(req.query.lessonId || '').trim();
+  const kind = String(req.query.kind || '').trim();
+  const items = store.listLessonAssets()
+    .filter((item) => !subjectId || item.subjectId === subjectId)
+    .filter((item) => !moduleId || item.moduleId === moduleId)
+    .filter((item) => !lessonId || item.lessonId === lessonId)
+    .filter((item) => !kind || item.kind === kind)
+    .filter((item) => !q || [item.title, item.description, ...(Array.isArray(item.tags) ? item.tags : []), item.originalFileName, item.fileName].filter(Boolean).join(' ').toLowerCase().includes(q))
+    .slice()
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+
+  res.json(items.map((item) => presenters.presentLessonAsset({
+    ...item,
+    fileUrl: item.fileUrl || (item.storagePath ? buildAssetFileUrl(req, item.storagePath) : null),
+  })));
+});
+
+app.post('/api/v1/assets', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    const tags = Array.isArray(req.body.tags) ? req.body.tags : String(req.body.tags || '').split(',').map((item) => item.trim()).filter(Boolean);
+    const payload = { ...req.body, tags, status: req.body.status || 'ready' };
+    validators.validateLessonAsset(payload);
+    const created = store.createLessonAsset({
+      ...payload,
+      createdBy: getActor(req).name,
+      source: req.body.source || 'manual',
+    });
+    return res.status(201).json(presenters.presentLessonAsset(created));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/assets/upload', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    const { fileName, contentType, base64, kind, title, description, subjectId, moduleId, lessonId } = req.body || {};
+    if (!fileName || !base64) {
+      return res.status(400).json({ message: 'fileName and base64 are required' });
+    }
+
+    const tags = Array.isArray(req.body.tags) ? req.body.tags : String(req.body.tags || '').split(',').map((item) => item.trim()).filter(Boolean);
+    const assetId = `asset-${crypto.randomUUID()}`;
+    const ext = path.extname(String(fileName || '')).trim() || '';
+    const safeBase = sanitizeAssetFileName(path.basename(String(fileName || 'asset'), ext));
+    const datedDir = path.join(assetUploadRoot, new Date().toISOString().slice(0, 10));
+    fs.mkdirSync(datedDir, { recursive: true });
+    const storedFileName = `${assetId}-${safeBase}${ext}`;
+    const storagePath = path.join(datedDir, storedFileName);
+    const buffer = Buffer.from(String(base64), 'base64');
+    fs.writeFileSync(storagePath, buffer);
+
+    const payload = {
+      id: assetId,
+      kind: kind || 'image',
+      title: title || safeBase,
+      description: description || '',
+      tags,
+      subjectId: subjectId || null,
+      moduleId: moduleId || null,
+      lessonId: lessonId || null,
+      mimeType: contentType || null,
+      fileName: storedFileName,
+      originalFileName: fileName,
+      sizeBytes: buffer.length,
+      storagePath,
+      fileUrl: buildAssetFileUrl(req, storagePath),
+      status: 'ready',
+      createdBy: getActor(req).name,
+      source: 'upload',
+    };
+
+    validators.validateLessonAsset(payload);
+    const created = store.createLessonAsset(payload);
+    return res.status(201).json(presenters.presentLessonAsset(created));
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.get('/api/v1/assessments', (_req, res) => {

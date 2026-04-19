@@ -520,6 +520,55 @@ export async function updateLessonAction(formData: FormData) {
   }));
 }
 
+
+
+export async function registerLessonAssetAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
+  const payload = {
+    kind: String(formData.get('kind') || 'image'),
+    title: String(formData.get('title') || ''),
+    description: String(formData.get('description') || ''),
+    subjectId: String(formData.get('subjectId') || '') || null,
+    moduleId: String(formData.get('moduleId') || '') || null,
+    lessonId: String(formData.get('lessonId') || '') || null,
+    tags: String(formData.get('tags') || '').split(',').map((item) => item.trim()).filter(Boolean),
+    fileUrl: String(formData.get('fileUrl') || '') || null,
+    storagePath: String(formData.get('storagePath') || '') || null,
+    source: 'manual',
+    status: 'ready',
+  };
+
+  await apiWrite('/api/v1/assets', 'POST', payload);
+  revalidatePath('/content/assets');
+  redirect(appendSearchParams(returnPath, { message: 'Asset registered in library' }));
+}
+
+export async function uploadLessonAssetAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    redirect(appendSearchParams(returnPath, { message: 'Pick a file before uploading' }));
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const payload = {
+    fileName: file.name,
+    contentType: file.type || 'application/octet-stream',
+    base64: bytes.toString('base64'),
+    kind: String(formData.get('kind') || 'image'),
+    title: String(formData.get('title') || file.name.replace(/\.[^.]+$/, '')),
+    description: String(formData.get('description') || ''),
+    subjectId: String(formData.get('subjectId') || '') || null,
+    moduleId: String(formData.get('moduleId') || '') || null,
+    lessonId: String(formData.get('lessonId') || '') || null,
+    tags: String(formData.get('tags') || '').split(',').map((item) => item.trim()).filter(Boolean),
+  };
+
+  await apiWrite('/api/v1/assets/upload', 'POST', payload);
+  revalidatePath('/content/assets');
+  redirect(appendSearchParams(returnPath, { message: 'Asset uploaded and registered' }));
+}
+
 export async function createAssessmentAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {

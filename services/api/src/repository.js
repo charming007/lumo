@@ -1185,6 +1185,69 @@ function reorderCurriculumNodes({ parentType, parentId = null, nodeType, ordered
   throw error;
 }
 
+
+
+function listLessonAssets() {
+  return data.lessonAssets;
+}
+
+function findLessonAssetById(id) {
+  return data.lessonAssets.find((item) => item.id === id) || null;
+}
+
+function createLessonAsset(input) {
+  const asset = {
+    id: input.id || `asset-${data.lessonAssets.length + 1}`,
+    kind: input.kind || 'image',
+    title: input.title || input.originalFileName || input.fileName || 'Untitled asset',
+    description: input.description || '',
+    tags: Array.isArray(input.tags) ? [...input.tags] : [],
+    subjectId: input.subjectId || null,
+    moduleId: input.moduleId || null,
+    lessonId: input.lessonId || null,
+    mimeType: input.mimeType || null,
+    fileName: input.fileName || null,
+    originalFileName: input.originalFileName || null,
+    sizeBytes: input.sizeBytes !== undefined ? Number(input.sizeBytes) : null,
+    storagePath: input.storagePath || null,
+    fileUrl: input.fileUrl || null,
+    status: input.status || 'ready',
+    createdBy: input.createdBy || 'Unknown actor',
+    source: input.source || 'upload',
+    createdAt: input.createdAt || new Date().toISOString(),
+    updatedAt: input.updatedAt || input.createdAt || new Date().toISOString(),
+  };
+
+  data.lessonAssets.push(asset);
+  return commit(asset);
+}
+
+function updateLessonAsset(id, input) {
+  const asset = findLessonAssetById(id);
+  if (!asset) return null;
+
+  Object.assign(asset, {
+    kind: input.kind ?? asset.kind,
+    title: input.title ?? asset.title,
+    description: input.description ?? asset.description,
+    tags: input.tags !== undefined ? (Array.isArray(input.tags) ? [...input.tags] : []) : asset.tags,
+    subjectId: input.subjectId !== undefined ? input.subjectId : asset.subjectId,
+    moduleId: input.moduleId !== undefined ? input.moduleId : asset.moduleId,
+    lessonId: input.lessonId !== undefined ? input.lessonId : asset.lessonId,
+    mimeType: input.mimeType ?? asset.mimeType,
+    fileName: input.fileName ?? asset.fileName,
+    originalFileName: input.originalFileName ?? asset.originalFileName,
+    sizeBytes: input.sizeBytes !== undefined ? Number(input.sizeBytes) : asset.sizeBytes,
+    storagePath: input.storagePath ?? asset.storagePath,
+    fileUrl: input.fileUrl ?? asset.fileUrl,
+    status: input.status ?? asset.status,
+    source: input.source ?? asset.source,
+    updatedAt: input.updatedAt || new Date().toISOString(),
+  });
+
+  return commit(asset);
+}
+
 module.exports = {
   listCenters,
   findCenterById,
@@ -1219,8 +1282,12 @@ module.exports = {
   deleteModule,
   listLessons,
   findLessonById,
+  listLessonAssets,
+  findLessonAssetById,
   createLesson,
   updateLesson,
+  createLessonAsset,
+  updateLessonAsset,
   deleteLesson,
   listAssessments,
   findAssessmentById,

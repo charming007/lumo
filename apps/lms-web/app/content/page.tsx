@@ -221,6 +221,9 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <Link href="/content/lessons/new" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
             Open lesson studio
           </Link>
+          <Link href="/content/assets" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none', border: '1px solid #BBF7D0' }}>
+            Asset library
+          </Link>
           <Link href="/guide#content-library" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
             Open LMS guide
           </Link>
@@ -346,7 +349,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             {[
               ['Clear blockers first', filteredBlockedModules.length ? `${filteredBlockedModules.length} blocker row${filteredBlockedModules.length === 1 ? '' : 's'} still need action before this curriculum slice is genuinely release-safe.` : 'No blocker rows in this scoped view right now.'],
               ['Use full authoring when structure matters', 'Quick edit is fine for status or duration. If the learner flow, media cues, or evidence design matters, open Lesson Studio and do it properly.'],
-              ['Asset library lane is now in Lesson Studio', 'The safest real slice lives inside the lesson step editor: authors can open the asset picker, inject reusable library refs, and stop hand-editing media pipes like savages.'],
+              ['Asset library is live', 'Authors can upload or register media once, then browse copy-ready runtime URLs and asset keys from the library instead of winging every media reference by hand.'],
               ['Route back into delivery on purpose', 'After content is structurally clean, move into assignments or reports with the same scoped story instead of making operators reconstruct context from memory.'],
             ].map(([title, detail]) => (
               <div key={title} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>

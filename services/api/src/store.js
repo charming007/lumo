@@ -211,6 +211,14 @@ function deleteLesson(id) {
   return repository.deleteLesson(id);
 }
 
+function listLessonAssets() {
+  return repository.listLessonAssets();
+}
+
+function createLessonAsset(input) {
+  return repository.createLessonAsset(input);
+}
+
 function listSubjects() {
   return repository.listSubjects();
 }
@@ -1671,6 +1679,8 @@ module.exports = {
   createLesson,
   updateLesson,
   deleteLesson,
+  listLessonAssets,
+  createLessonAsset,
   listSubjects,
   createSubject,
   updateSubject,

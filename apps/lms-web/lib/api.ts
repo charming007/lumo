@@ -27,6 +27,7 @@ import type {
   Strand,
   Subject,
   WorkboardItem,
+  LessonAsset,
 } from './types';
 
 import { API_BASE } from './config';
@@ -212,4 +213,15 @@ export function fetchOperationsReport(limit = 20, params?: { cohortId?: string; 
   if (params?.since) query.set('since', params.since);
   if (params?.until) query.set('until', params.until);
   return getJson<OperationsReport>(`/api/v1/reports/operations?${query.toString()}`);
+}
+
+
+export function fetchLessonAssets(params?: { q?: string; subjectId?: string; moduleId?: string; lessonId?: string; kind?: string }) {
+  const query = new URLSearchParams();
+  if (params?.q) query.set('q', params.q);
+  if (params?.subjectId) query.set('subjectId', params.subjectId);
+  if (params?.moduleId) query.set('moduleId', params.moduleId);
+  if (params?.lessonId) query.set('lessonId', params.lessonId);
+  if (params?.kind) query.set('kind', params.kind);
+  return getJson<LessonAsset[]>(`/api/v1/assets${query.size ? `?${query.toString()}` : ''}`);
 }
