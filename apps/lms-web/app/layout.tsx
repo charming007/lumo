@@ -27,7 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body style={{ margin: 0, fontFamily: 'Inter, Arial, sans-serif', background: '#f5f7fb' }}>
-        <AppShell>
+        <AppShell seedCount={seedCount}>
           <DemoBanner role={meta.actor.role} mode={meta.mode} seedCount={seedCount} apiSource={API_BASE_SOURCE} />
           <ProductionConfigBanner />
           {children}

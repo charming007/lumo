@@ -14,3 +14,34 @@ export function describeLiveBackendWithCatalog(seedCount: number, storageMode: s
 
   return `Backend storage is live in ${storageMode} mode with persistent backing and ${backupLabel}.`;
 }
+
+export function describeRuntimeStatus(mode: string, seedCount: number) {
+  const normalizedMode = mode.trim().toLowerCase();
+
+  if (normalizedMode === 'offline' || normalizedMode === 'degraded') {
+    return {
+      label: `Runtime status: ${mode}`,
+      detail: `The LMS is not fully healthy right now, so some reads or writes may still be degraded.`,
+    };
+  }
+
+  if (seedCount > 0) {
+    return {
+      label: 'Runtime status: live LMS with starter catalog',
+      detail: `Core LMS storage is live. The catalog still includes ${seedCount} starter content pack${seedCount === 1 ? '' : 's'}, so content/admin surfaces should be treated as reference material until they are replaced or verified against field operations.`,
+    };
+  }
+
+  return {
+    label: 'Runtime status: live LMS',
+    detail: 'Core LMS storage is live and the operator catalog is no longer showing starter content packs.',
+  };
+}
+
+export function describeDashboardStatus(seedCount: number) {
+  if (seedCount > 0) {
+    return 'Live LMS · starter catalog still visible';
+  }
+
+  return 'Live LMS feed connected';
+}

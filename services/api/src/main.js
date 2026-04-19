@@ -1198,12 +1198,16 @@ app.get('/readyz', (_req, res) => {
 });
 
 app.get('/api/v1/meta', (req, res) => {
+  const storeMeta = store.getStoreMeta();
+  const configAudit = buildConfigAudit();
+  const mode = configAudit.summary.ready ? 'live' : 'degraded';
+
   res.json({
     actor: req.actor,
-    mode: 'demo-seeded',
+    mode,
     seedSummary: seed.getSeedSummary(),
-    store: store.getStoreMeta(),
-    configAudit: buildConfigAudit(),
+    store: storeMeta,
+    configAudit,
   });
 });
 

@@ -18,7 +18,7 @@ const mobileMenuButtonStyle: React.CSSProperties = {
 
 const SIDEBAR_PREFERENCE_KEY = 'lumo:lms-sidebar-collapsed';
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, seedCount = 0 }: { children: React.ReactNode; seedCount?: number }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -59,6 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Topbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
+          seedCount={seedCount}
         />
         {children}
       </main>

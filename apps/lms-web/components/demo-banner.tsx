@@ -1,5 +1,5 @@
 import type { ApiBaseSource } from '../lib/config';
-import { describeCatalogState } from '../lib/trust-copy';
+import { describeCatalogState, describeRuntimeStatus } from '../lib/trust-copy';
 
 type Props = {
   role: string;
@@ -61,6 +61,7 @@ function describeDataset(mode: string, seedCount: number) {
 
 export function DemoBanner({ role, mode, seedCount = 0, apiSource = 'env' }: Props) {
   const tone = bannerTone(apiSource);
+  const runtimeStatus = describeRuntimeStatus(mode, seedCount);
   const detail = describeApiSource(apiSource);
   const datasetDetail = describeDataset(mode, seedCount);
 
@@ -80,12 +81,15 @@ export function DemoBanner({ role, mode, seedCount = 0, apiSource = 'env' }: Pro
       }}
     >
       <div style={{ minWidth: 0, flex: '1 1 320px' }}>
-        <strong>Lumo operator shell</strong> — runtime mode: {mode}
+        <strong>Lumo operator shell</strong> — {runtimeStatus.label}
         {detail ? (
           <div style={{ marginTop: 4, fontSize: 13, color: tone.detail, lineHeight: 1.5 }}>
             {detail}
           </div>
         ) : null}
+        <div style={{ marginTop: 4, fontSize: 13, color: tone.detail, lineHeight: 1.5 }}>
+          {runtimeStatus.detail}
+        </div>
         {datasetDetail ? (
           <div style={{ marginTop: 4, fontSize: 13, color: tone.detail, lineHeight: 1.5 }}>
             {datasetDetail}

@@ -1,6 +1,9 @@
+import { describeDashboardStatus } from '../lib/trust-copy';
+
 type TopbarProps = {
   sidebarCollapsed?: boolean;
   onToggleSidebarCollapse?: () => void;
+  seedCount?: number;
 };
 
 const desktopSidebarToggleStyle: React.CSSProperties = {
@@ -14,7 +17,9 @@ const desktopSidebarToggleStyle: React.CSSProperties = {
   boxShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
 };
 
-export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse }: TopbarProps) {
+export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seedCount = 0 }: TopbarProps) {
+  const dashboardStatus = describeDashboardStatus(seedCount);
+
   return (
     <div
       style={{
@@ -50,7 +55,7 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse }: To
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
         <div style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>Northern Nigeria pilot</div>
-        <div style={{ background: '#fef3c7', color: '#92400e', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Verify dashboard feed status</div>
+        <div style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{dashboardStatus}</div>
         <div style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Admin</div>
       </div>
 
