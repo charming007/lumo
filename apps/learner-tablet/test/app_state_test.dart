@@ -5,9 +5,19 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:lumo_learner_tablet/api_client.dart';
 import 'package:lumo_learner_tablet/app_state.dart';
+import 'package:lumo_learner_tablet/bundled_content.dart';
 import 'package:lumo_learner_tablet/main.dart';
 import 'package:lumo_learner_tablet/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeBundledContentLoader extends BundledContentLoader {
+  const _FakeBundledContentLoader(this.library);
+
+  final BundledContentLibrary library;
+
+  @override
+  Future<BundledContentLibrary> load() async => library;
+}
 
 void main() {
   group('LumoAppState learner assignment flow', () {
@@ -2608,6 +2618,266 @@ void main() {
       expect(state.modules, isNotEmpty);
       expect(state.assignedLessons, isNotEmpty);
       expect(state.suggestedLearnerForHome, isNotNull);
+    });
+
+    test('bootstrap merges bundled Meet Mallam content without overriding live lessons',
+        () async {
+      final liveLesson = LessonCardModel(
+        id: 'live-lesson-1',
+        moduleId: 'english',
+        title: 'Live English hello',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Live greeting flow',
+        scenario: 'Live lesson from backend bootstrap.',
+        steps: const [
+          LessonStep(
+            id: 'live-step-1',
+            type: LessonStepType.practice,
+            title: 'Live hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Keep it short.',
+            realWorldCheck: 'Learner says hello.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final bundledLesson = LessonCardModel(
+        id: 'lf-meet-mallam',
+        moduleId: 'lumo-fundamentals',
+        title: 'Meet Mallam',
+        subject: 'Lumo Fundamentals',
+        durationMinutes: 6,
+        status: 'bundled',
+        mascotName: 'Mallam',
+        readinessFocus: 'Offline starter',
+        scenario: 'Bundled offline intro lesson.',
+        steps: const [
+          LessonStep(
+            id: 'bundled-step-1',
+            type: LessonStepType.practice,
+            title: 'Meet Mallam',
+            instruction: 'Say hello to Mallam.',
+            expectedResponse: 'Hello Mallam',
+            coachPrompt: 'Say hello to Mallam.',
+            facilitatorTip: 'Model the phrase once.',
+            realWorldCheck: 'Learner greets Mallam.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        bundledContentLoader: _FakeBundledContentLoader(
+          BundledContentLibrary(
+            modules: const [
+              LearningModule(
+                id: 'lumo-fundamentals',
+                title: 'Lumo Fundamentals',
+                description: 'Offline starter pack',
+                voicePrompt: 'Meet Mallam offline.',
+                readinessGoal: 'Ready for offline startup.',
+                badge: 'Bundled pack',
+              ),
+            ],
+            lessons: [bundledLesson],
+          ),
+        ),
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'id': 'english',
+                      'subjectId': 'english',
+                      'subjectName': 'English',
+                      'title': 'English',
+                      'level': 'beginner',
+                      'status': 'published',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': liveLesson.id,
+                      'moduleId': liveLesson.moduleId,
+                      'title': liveLesson.title,
+                      'subject': liveLesson.subject,
+                      'durationMinutes': liveLesson.durationMinutes,
+                      'status': liveLesson.status,
+                      'mascotName': liveLesson.mascotName,
+                      'readinessFocus': liveLesson.readinessFocus,
+                      'scenario': liveLesson.scenario,
+                      'activitySteps': [
+                        {
+                          'id': 'live-step-1',
+                          'type': 'listen_repeat',
+                          'title': 'Live hello',
+                          'prompt': 'Say hello.',
+                          'detail': 'Greeting step',
+                          'evidence': 'Learner greets',
+                        },
+                      ],
+                    },
+                  ],
+                  'assignments': [],
+                  'registrationContext': {
+                    'cohorts': [],
+                    'mallams': [],
+                  },
+                  'meta': {
+                    'generatedAt': '2026-04-19T10:00:00.000Z',
+                    'contractVersion': 'learner-app.v2',
+                    'assignmentCount': 0,
+                  },
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'module': {
+                    'id': 'english',
+                    'subjectId': 'english',
+                    'subjectName': 'English',
+                    'title': 'English',
+                    'level': 'beginner',
+                    'status': 'published',
+                  },
+                  'lessons': [
+                    {
+                      'id': liveLesson.id,
+                      'moduleId': liveLesson.moduleId,
+                      'title': liveLesson.title,
+                      'subject': liveLesson.subject,
+                      'durationMinutes': liveLesson.durationMinutes,
+                      'status': liveLesson.status,
+                      'mascotName': liveLesson.mascotName,
+                      'readinessFocus': liveLesson.readinessFocus,
+                      'scenario': liveLesson.scenario,
+                      'activitySteps': [
+                        {
+                          'id': 'live-step-1',
+                          'type': 'listen_repeat',
+                          'title': 'Live hello',
+                          'prompt': 'Say hello.',
+                          'detail': 'Greeting step',
+                          'evidence': 'Learner greets',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(state.modules, isNotEmpty);
+      expect(
+        state.modules.any((module) => module.id == 'lumo-fundamentals'),
+        isTrue,
+      );
+      expect(
+        state.assignedLessons.any((lesson) => lesson.id == liveLesson.id),
+        isTrue,
+      );
+      expect(
+        state.assignedLessons.any((lesson) => lesson.id == bundledLesson.id),
+        isTrue,
+      );
+    });
+
+    test('offline bootstrap failure still exposes bundled Meet Mallam module',
+        () async {
+      final bundledLesson = LessonCardModel(
+        id: 'lf-meet-mallam',
+        moduleId: 'lumo-fundamentals',
+        title: 'Meet Mallam',
+        subject: 'Lumo Fundamentals',
+        durationMinutes: 6,
+        status: 'bundled',
+        mascotName: 'Mallam',
+        readinessFocus: 'Offline starter',
+        scenario: 'Bundled offline intro lesson.',
+        steps: const [
+          LessonStep(
+            id: 'bundled-step-1',
+            type: LessonStepType.practice,
+            title: 'Meet Mallam',
+            instruction: 'Say hello to Mallam.',
+            expectedResponse: 'Hello Mallam',
+            coachPrompt: 'Say hello to Mallam.',
+            facilitatorTip: 'Model the phrase once.',
+            realWorldCheck: 'Learner greets Mallam.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        bundledContentLoader: _FakeBundledContentLoader(
+          BundledContentLibrary(
+            modules: const [
+              LearningModule(
+                id: 'lumo-fundamentals',
+                title: 'Lumo Fundamentals',
+                description: 'Offline starter pack',
+                voicePrompt: 'Meet Mallam offline.',
+                readinessGoal: 'Ready for offline startup.',
+                badge: 'Bundled pack',
+              ),
+            ],
+            lessons: [bundledLesson],
+          ),
+        ),
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            throw Exception('network offline');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(state.usingFallbackData, isTrue);
+      expect(
+        state.modules.any((module) => module.id == 'lumo-fundamentals'),
+        isTrue,
+      );
+      expect(
+        state.assignedLessons.any((lesson) => lesson.id == 'lf-meet-mallam'),
+        isTrue,
+      );
     });
   });
 }
