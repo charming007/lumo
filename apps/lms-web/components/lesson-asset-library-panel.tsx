@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ModalLauncher } from './modal-launcher';
+import { AssetPreview, AssetRuntimeLink } from './asset-preview';
 import type { LessonActivityStep, LessonAsset } from '../lib/types';
 
 type AssetTemplate = {
@@ -172,6 +173,14 @@ function buildChoiceLabel(asset: LessonAsset) {
   return asset.title.replace(/\s+(card|image|illustration|audio)$/i, '').trim() || asset.title;
 }
 
+function scopeLabelForAsset(asset: LessonAsset, scopeRank: number) {
+  if (scopeRank === 0) return `Lesson · ${asset.lessonTitle ?? asset.title}`;
+  if (scopeRank === 1) return `Module · ${asset.moduleTitle ?? 'Scoped asset'}`;
+  if (scopeRank === 2) return `Subject · ${asset.subjectName ?? 'Scoped asset'}`;
+  if (scopeRank === 3) return 'Shared library';
+  return 'Other scope';
+}
+
 export function LessonAssetLibraryPanel({
   stepType,
   mediaLines,
@@ -196,11 +205,20 @@ export function LessonAssetLibraryPanel({
   onChoiceLinesChange: (value: string) => void;
 }) {
   const [query, setQuery] = useState('');
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'scoped' | 'shared'>('all');
+  const [kindFilter, setKindFilter] = useState('all');
   const normalizedQuery = query.trim().toLowerCase();
 
   const visibleAssets = useMemo(() => assets
     .filter((asset) => Boolean(getPreferredAssetValue(asset)))
     .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
+    .filter((asset) => {
+      const scopeRank = getScopeRank(asset, lessonId, moduleId, subjectId);
+      if (scopeFilter === 'scoped') return scopeRank <= 2;
+      if (scopeFilter === 'shared') return scopeRank === 3;
+      return true;
+    })
+    .filter((asset) => kindFilter === 'all' ? true : asset.kind === kindFilter)
     .filter((asset) => {
       if (!normalizedQuery) return true;
       return [
@@ -218,7 +236,11 @@ export function LessonAssetLibraryPanel({
       const scopeDiff = getScopeRank(left, lessonId, moduleId, subjectId) - getScopeRank(right, lessonId, moduleId, subjectId);
       if (scopeDiff !== 0) return scopeDiff;
       return left.title.localeCompare(right.title);
-    }), [assets, lessonId, moduleId, normalizedQuery, stepType, subjectId]);
+    }), [assets, kindFilter, lessonId, moduleId, normalizedQuery, scopeFilter, stepType, subjectId]);
+
+  const supportedKinds = useMemo(() => Array.from(new Set(assets
+    .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
+    .map((asset) => asset.kind))).sort((left, right) => left.localeCompare(right)), [assets, stepType]);
 
   const templatesForStep = useMemo(() => assetTemplates.filter((template) => template.appliesTo.includes(stepType)), [stepType]);
 
@@ -256,32 +278,45 @@ export function LessonAssetLibraryPanel({
             triggerStyle={{ background: '#0F766E', boxShadow: '0 16px 30px rgba(15, 118, 110, 0.18)' }}
           >
             <div style={{ display: 'grid', gap: 16 }}>
-              <div style={{ display: 'grid', gap: 8 }}>
-                <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
-                  Search asset registry
-                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="audio, goat, prompt card…" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
-                </label>
-                <div style={{ color: '#64748B', fontSize: 13 }}>
-                  Filtered for <strong>{stepType}</strong>. Lesson/module/subject-scoped assets appear first so authors reach the safe local option before the generic pile.
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1.3fr) repeat(2, minmax(160px, 0.7fr))' }}>
+                  <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+                    Search asset registry
+                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="audio, goat, prompt card…" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
+                  </label>
+                  <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+                    Scope
+                    <select value={scopeFilter} onChange={(event) => setScopeFilter(event.target.value as 'all' | 'scoped' | 'shared')} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                      <option value="all">All visible scopes</option>
+                      <option value="scoped">Lesson / module / subject</option>
+                      <option value="shared">Shared library only</option>
+                    </select>
+                  </label>
+                  <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+                    Kind
+                    <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value)} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                      <option value="all">All supported kinds</option>
+                      {supportedKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ color: '#64748B', fontSize: 13 }}>
+                    Filtered for <strong>{stepType}</strong>. Lesson/module/subject-scoped assets appear first so authors reach the safe local option before the generic pile.
+                  </div>
+                  <div style={{ color: '#0f172a', fontSize: 13, fontWeight: 800 }}>{visibleAssets.length} match{visibleAssets.length === 1 ? '' : 'es'}</div>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+              <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
                 {visibleAssets.length ? visibleAssets.map((asset) => {
                   const preferredValue = getPreferredAssetValue(asset);
                   const scopeRank = getScopeRank(asset, lessonId, moduleId, subjectId);
-                  const scopeLabel = scopeRank === 0
-                    ? `Lesson · ${asset.lessonTitle ?? asset.title}`
-                    : scopeRank === 1
-                      ? `Module · ${asset.moduleTitle ?? 'Scoped asset'}`
-                      : scopeRank === 2
-                        ? `Subject · ${asset.subjectName ?? 'Scoped asset'}`
-                        : scopeRank === 3
-                          ? 'Shared library'
-                          : 'Other scope';
+                  const scopeLabel = scopeLabelForAsset(asset, scopeRank);
 
                   return (
                     <div key={asset.id} style={{ padding: 16, borderRadius: 18, background: 'white', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
+                      <AssetPreview asset={asset} compact />
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <div style={{ fontWeight: 800, color: '#0f172a' }}>{asset.title}</div>
                         <span style={{ padding: '5px 9px', borderRadius: 999, background: '#ECFDF5', color: '#166534', fontWeight: 800, fontSize: 12 }}>{asset.kind}</span>
@@ -294,8 +329,11 @@ export function LessonAssetLibraryPanel({
                       </div>
                       <div style={{ color: '#475569', lineHeight: 1.6 }}>{asset.description || 'No description yet. The file is still browseable, but someone should describe it better.'}</div>
                       <code style={{ display: 'block', padding: 10, borderRadius: 12, background: '#F8FAFC', color: '#334155', fontSize: 12, overflowWrap: 'anywhere' }}>{preferredValue}</code>
-                      <div style={{ color: '#64748B', fontSize: 12 }}>
-                        Inserts <strong>{asset.fileUrl ? 'runtime URL' : asset.storagePath ? 'storage path' : 'asset key'}</strong> so authors are not stuck copy-pasting from the asset board.
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ color: '#64748B', fontSize: 12 }}>
+                          Inserts <strong>{asset.fileUrl ? 'runtime URL' : asset.storagePath ? 'storage path' : 'asset key'}</strong> so authors are not stuck copy-pasting from the asset board.
+                        </div>
+                        <AssetRuntimeLink asset={asset} label="Open preview" />
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button
@@ -354,9 +392,12 @@ export function LessonAssetLibraryPanel({
 
             return (
               <div key={template.id} style={{ padding: 14, borderRadius: 16, background: 'white', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 800, color: '#0f172a' }}>{template.label}</div>
-                  <div style={{ color: '#475569', lineHeight: 1.6, marginTop: 4 }}>{template.note}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#0f172a' }}>{template.label}</div>
+                    <div style={{ color: '#475569', lineHeight: 1.6, marginTop: 4 }}>{template.note}</div>
+                  </div>
+                  <span style={{ padding: '5px 9px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 800, fontSize: 12 }}>{template.category}</span>
                 </div>
                 <code style={{ display: 'block', padding: 10, borderRadius: 12, background: '#F8FAFC', color: '#334155', fontSize: 12, overflowWrap: 'anywhere' }}>{resolvedValue || `No ${template.kind} asset available yet`}</code>
                 <button
