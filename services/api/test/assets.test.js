@@ -144,6 +144,48 @@ test('asset upload enforces mime and size limits', async () => {
   assert.match(tooLarge.body.message, /upload limit/);
 });
 
+test('managed uploaded assets present canonical public file URLs instead of stale internal origins', async () => {
+  process.env.LUMO_PUBLIC_API_URL = 'https://api.lumo.example';
+
+  const headers = {
+    'x-lumo-role': 'admin',
+    'x-lumo-actor': 'Asset Admin',
+    'x-lumo-api-key': 'asset-test-key',
+    'x-forwarded-proto': 'https',
+    'x-forwarded-host': 'internal-proxy.example',
+  };
+
+  const uploaded = await request('/api/v1/assets/upload', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      fileName: 'tiny.png',
+      contentType: 'image/png',
+      base64: Buffer.from('tiny').toString('base64'),
+      kind: 'image',
+      title: 'Tiny image',
+    }),
+  });
+
+  assert.equal(uploaded.status, 201);
+  assert.match(uploaded.body.fileUrl, /^https:\/\/api\.lumo\.example\/media\//);
+  assert.doesNotMatch(uploaded.body.fileUrl, /internal-proxy\.example/);
+
+  const listed = await request('/api/v1/assets?includeArchived=true', {
+    headers: {
+      'x-forwarded-proto': 'https',
+      'x-forwarded-host': 'another-internal-hop.example',
+    },
+  });
+
+  assert.equal(listed.status, 200);
+  const asset = listed.body.find((item) => item.id === uploaded.body.id);
+  assert.ok(asset);
+  assert.equal(asset.fileUrl, uploaded.body.fileUrl);
+
+  delete process.env.LUMO_PUBLIC_API_URL;
+});
+
 test('asset scope validation rejects mismatched lesson/module relationships', async () => {
   const response = await request('/api/v1/assets', {
     method: 'POST',

@@ -13,6 +13,7 @@ const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole, getAuthAudit } = require('./auth');
 
 const app = express();
+app.set('trust proxy', true);
 const assetUploadRoot = path.resolve(__dirname, '..', 'data', 'uploads');
 fs.mkdirSync(assetUploadRoot, { recursive: true });
 
@@ -24,7 +25,12 @@ function buildAssetFileUrl(req, storagePath) {
   const normalized = String(storagePath || '').replace(/\\/g, '/');
   const marker = '/data/uploads/';
   const relative = normalized.includes(marker) ? normalized.split(marker)[1] : path.basename(normalized);
-  return `${req.protocol}://${req.get('host')}/media/${relative}`;
+  const publicBase = String(process.env.LUMO_PUBLIC_API_URL || process.env.API_BASE_URL || '').trim();
+  const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
+  const forwardedHost = String(req.get('x-forwarded-host') || '').split(',')[0].trim();
+  const requestOrigin = `${forwardedProto || req.protocol}://${forwardedHost || req.get('host')}`;
+  const origin = publicBase || requestOrigin;
+  return new URL(`/media/${relative}`, origin).toString();
 }
 
 const ASSET_KIND_MIME_ALLOWLIST = {
@@ -107,9 +113,12 @@ function ensureUploadPathIsManaged(storagePath) {
 }
 
 function buildPresentedAsset(req, item) {
+  const shouldRefreshManagedFileUrl = item.storagePath && ensureUploadPathIsManaged(item.storagePath);
   return presenters.presentLessonAsset({
     ...item,
-    fileUrl: item.fileUrl || (item.storagePath ? buildAssetFileUrl(req, item.storagePath) : null),
+    fileUrl: shouldRefreshManagedFileUrl
+      ? buildAssetFileUrl(req, item.storagePath)
+      : (item.fileUrl || (item.storagePath ? buildAssetFileUrl(req, item.storagePath) : null)),
   });
 }
 
