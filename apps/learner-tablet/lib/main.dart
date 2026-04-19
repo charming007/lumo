@@ -5804,7 +5804,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   Widget _buildChoicePreview(
-      LessonActivityChoice choice, String fallbackEmoji) {
+    LessonActivityChoice choice,
+    String fallbackEmoji, {
+    double imageHeight = 96,
+    double borderRadius = 16,
+  }) {
     final imageMedia =
         _firstMediaOfKind(choice.mediaItems, const ['image', 'photo']);
     final imageValue = imageMedia?.firstValue?.trim();
@@ -5828,17 +5832,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
     if (imageValue != null && imageValue.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(borderRadius),
         child: _buildMediaImage(
           imageValue,
           width: double.infinity,
-          height: 96,
+          height: imageHeight,
           fallback: () => Container(
-            height: 96,
+            height: imageHeight,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: const Color(0xFFEEF2FF),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(borderRadius),
             ),
             child: Text(
               fallbackEmoji,
@@ -5858,12 +5862,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       };
 
       return Container(
-        height: 96,
+        height: imageHeight,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(color: accentColor.withValues(alpha: 0.24)),
         ),
         child: Column(
@@ -5893,11 +5897,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
 
     return Container(
-      height: 96,
+      height: imageHeight,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: const Color(0xFFEEF2FF),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -6171,95 +6175,192 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               const SizedBox(height: 12),
               _buildSharedMediaGallery(activity),
             ],
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              children: List.generate(choiceItems.length, (index) {
-                final choiceItem = choiceItems[index];
-                final emoji = index < activity.choiceEmoji.length
-                    ? activity.choiceEmoji[index]
-                    : '🖼️';
-                final isSelected = selectedChoiceLabel.toLowerCase() ==
-                    choiceItem.label.trim().toLowerCase();
-                return InkWell(
-                  onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
-                  borderRadius: BorderRadius.circular(24),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 184,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color:
-                          isSelected ? const Color(0xFFEEF2FF) : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF4F46E5)
-                            : const Color(0xFFD6D3FF),
-                        width: isSelected ? 2.4 : 1.4,
-                      ),
-                      boxShadow: isSelected
-                          ? const [
-                              BoxShadow(
-                                color: Color(0x144F46E5),
-                                blurRadius: 20,
-                                offset: Offset(0, 10),
-                              ),
-                            ]
-                          : const [],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildChoicePreview(choiceItem, emoji),
-                        const SizedBox(height: 12),
-                        Text(
-                          choiceItem.label,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 17,
-                          ),
-                        ),
-                        if (_firstMediaOfKind(
-                              choiceItem.mediaItems,
-                              const ['audio'],
-                            ) !=
-                            null) ...[
-                          const SizedBox(height: 10),
-                          FilledButton.tonalIcon(
-                            onPressed: () => _playChoiceMedia(choiceItem),
-                            icon: const Icon(Icons.play_arrow_rounded),
-                            label: const Text('Hear choice'),
-                          ),
-                        ],
-                        if (isSelected) ...[
-                          const SizedBox(height: 10),
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.check_circle_rounded,
-                                color: Color(0xFF4F46E5),
-                                size: 18,
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                'Selected',
-                                style: TextStyle(
-                                  color: Color(0xFF4338CA),
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFF),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: const Color(0xFFD7E3FF)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Choose the matching object',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E3A8A),
                     ),
                   ),
-                );
-              }),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Tap one large card. The selected card glows blue so the learner can see what was picked.',
+                    style: TextStyle(
+                      color: Color(0xFF475569),
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cardWidth = constraints.maxWidth >= 720
+                          ? (constraints.maxWidth - 16) / 2
+                          : constraints.maxWidth;
+                      return Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: List.generate(choiceItems.length, (index) {
+                          final choiceItem = choiceItems[index];
+                          final emoji = index < activity.choiceEmoji.length
+                              ? activity.choiceEmoji[index]
+                              : '🖼️';
+                          final isSelected =
+                              selectedChoiceLabel.toLowerCase() ==
+                                  choiceItem.label.trim().toLowerCase();
+                          final hasAudio = _firstMediaOfKind(
+                                choiceItem.mediaItems,
+                                const ['audio'],
+                              ) !=
+                              null;
+                          return InkWell(
+                            onTap: () => _setResponseAndMaybeSubmit(
+                              choiceItem.label,
+                            ),
+                            borderRadius: BorderRadius.circular(28),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: cardWidth,
+                              constraints: const BoxConstraints(minHeight: 260),
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFFEFF6FF)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(28),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF2563EB)
+                                      : const Color(0xFFD7E3FF),
+                                  width: isSelected ? 3 : 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isSelected
+                                        ? const Color(0x1A2563EB)
+                                        : const Color(0x0D0F172A),
+                                    blurRadius: isSelected ? 24 : 12,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: _buildChoicePreview(
+                                            choiceItem,
+                                            emoji,
+                                            imageHeight: 156,
+                                            borderRadius: 22,
+                                          ),
+                                        ),
+                                        if (isSelected)
+                                          Positioned(
+                                            top: 12,
+                                            right: 12,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 8,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF2563EB),
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.check_rounded,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                  SizedBox(width: 6),
+                                                  Text(
+                                                    'Selected',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    choiceItem.label,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 20,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    isSelected
+                                        ? 'Good pick. This card is ready for the next step.'
+                                        : 'Tap to choose this object.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? const Color(0xFF1D4ED8)
+                                          : const Color(0xFF64748B),
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  if (hasAudio) ...[
+                                    const SizedBox(height: 14),
+                                    FilledButton.tonalIcon(
+                                      onPressed: () =>
+                                          _playChoiceMedia(choiceItem),
+                                      style: FilledButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 14,
+                                        ),
+                                      ),
+                                      icon:
+                                          const Icon(Icons.play_arrow_rounded),
+                                      label: const Text('Hear choice'),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -7709,7 +7810,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           const SizedBox(height: 14),
                                           Text(
                                             isChoiceStep
-                                                ? 'Selected object'
+                                                ? 'Selection label'
                                                 : 'Learner transcript',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w800,
@@ -7722,7 +7823,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             transcriptReviewPending
                                                 ? 'Check the learner words here, then confirm before Mallam continues.'
                                                 : (isChoiceStep
-                                                    ? 'The chosen object label appears here. Mallam moves on only after a choice is clear.'
+                                                    ? 'The chosen object appears in this confirmation box. The blue Next Step button stays locked until something is selected.'
                                                     : 'Draft transcript or typed learner answer appears right under the prompt.'),
                                             style: const TextStyle(
                                               color: Color(0xFF475569),
@@ -7730,37 +7831,128 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ),
                                           ),
                                           const SizedBox(height: 12),
-                                          TextField(
-                                            controller: responseController,
-                                            onChanged: (_) => setState(() {}),
-                                            readOnly: isChoiceStep,
-                                            maxLines: isChoiceStep ? 2 : 3,
-                                            decoration: InputDecoration(
-                                              labelText: isChoiceStep
-                                                  ? 'Chosen object'
-                                                  : (speechRecognitionActive
-                                                      ? 'Learner transcript'
-                                                      : 'Learner response'),
-                                              hintText: isChoiceStep
-                                                  ? 'Tap one object card to continue.'
-                                                  : _learnerResponseHintText,
-                                              filled: true,
-                                              fillColor: const Color(
-                                                0xFFF8FAFC,
-                                              ),
-                                              border: OutlineInputBorder(
+                                          if (isChoiceStep)
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(18),
+                                              decoration: BoxDecoration(
+                                                color: hasDraftResponse
+                                                    ? const Color(0xFFEFF6FF)
+                                                    : const Color(0xFFF8FAFC),
                                                 borderRadius:
-                                                    BorderRadius.circular(18),
+                                                    BorderRadius.circular(22),
+                                                border: Border.all(
+                                                  color: hasDraftResponse
+                                                      ? const Color(0xFF93C5FD)
+                                                      : const Color(0xFFE2E8F0),
+                                                  width: hasDraftResponse
+                                                      ? 2
+                                                      : 1.4,
+                                                ),
                                               ),
-                                              enabledBorder: OutlineInputBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(18),
-                                                borderSide: const BorderSide(
-                                                  color: Color(0xFFE2E8F0),
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    width: 44,
+                                                    height: 44,
+                                                    decoration: BoxDecoration(
+                                                      color: hasDraftResponse
+                                                          ? const Color(
+                                                              0xFF2563EB,
+                                                            )
+                                                          : const Color(
+                                                              0xFFE2E8F0,
+                                                            ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                        14,
+                                                      ),
+                                                    ),
+                                                    child: Icon(
+                                                      hasDraftResponse
+                                                          ? Icons.check_rounded
+                                                          : Icons
+                                                              .touch_app_rounded,
+                                                      color: hasDraftResponse
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              0xFF64748B,
+                                                            ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 14),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          hasDraftResponse
+                                                              ? responseController
+                                                                  .text
+                                                              : 'No object selected yet',
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 18,
+                                                            fontWeight:
+                                                                FontWeight.w800,
+                                                            color: Color(
+                                                              0xFF0F172A,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
+                                                        Text(
+                                                          hasDraftResponse
+                                                              ? 'Selection captured. You can move to the next step now.'
+                                                              : 'Tap one image/object card to unlock the next action.',
+                                                          style:
+                                                              const TextStyle(
+                                                            color: Color(
+                                                              0xFF475569,
+                                                            ),
+                                                            height: 1.35,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          else
+                                            TextField(
+                                              controller: responseController,
+                                              onChanged: (_) => setState(() {}),
+                                              maxLines: 3,
+                                              decoration: InputDecoration(
+                                                labelText:
+                                                    speechRecognitionActive
+                                                        ? 'Learner transcript'
+                                                        : 'Learner response',
+                                                hintText:
+                                                    _learnerResponseHintText,
+                                                filled: true,
+                                                fillColor: const Color(
+                                                  0xFFF8FAFC,
+                                                ),
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                ),
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                  borderSide: const BorderSide(
+                                                    color: Color(0xFFE2E8F0),
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
                                           if (liveTranscript.isNotEmpty ||
                                               speechRecognitionActive) ...[
                                             const SizedBox(height: 12),
@@ -7825,7 +8017,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                         : 'Save answer',
                                                   ),
                                                 ),
-                                              FilledButton.tonal(
+                                              FilledButton(
                                                 onPressed: isChoiceStep
                                                     ? (canAdvanceChoiceStep
                                                         ? () async {
@@ -7845,6 +8037,39 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                             await _afterCorrectResponse();
                                                           }
                                                         : null),
+                                                style: FilledButton.styleFrom(
+                                                  backgroundColor: isChoiceStep
+                                                      ? const Color(0xFF2563EB)
+                                                      : null,
+                                                  foregroundColor: isChoiceStep
+                                                      ? Colors.white
+                                                      : null,
+                                                  disabledBackgroundColor:
+                                                      isChoiceStep
+                                                          ? const Color(
+                                                              0xFFDBEAFE,
+                                                            )
+                                                          : null,
+                                                  disabledForegroundColor:
+                                                      isChoiceStep
+                                                          ? const Color(
+                                                              0xFF93C5FD,
+                                                            )
+                                                          : null,
+                                                  padding: isChoiceStep
+                                                      ? const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 22,
+                                                          vertical: 16,
+                                                        )
+                                                      : null,
+                                                  textStyle: isChoiceStep
+                                                      ? const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                        )
+                                                      : null,
+                                                ),
                                                 child: Text(
                                                   session.isLastStep
                                                       ? 'Finish lesson'
