@@ -346,6 +346,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             {[
               ['Clear blockers first', filteredBlockedModules.length ? `${filteredBlockedModules.length} blocker row${filteredBlockedModules.length === 1 ? '' : 's'} still need action before this curriculum slice is genuinely release-safe.` : 'No blocker rows in this scoped view right now.'],
               ['Use full authoring when structure matters', 'Quick edit is fine for status or duration. If the learner flow, media cues, or evidence design matters, open Lesson Studio and do it properly.'],
+              ['Asset library lane is now in Lesson Studio', 'The safest real slice lives inside the lesson step editor: authors can open the asset picker, inject reusable library refs, and stop hand-editing media pipes like savages.'],
               ['Route back into delivery on purpose', 'After content is structurally clean, move into assignments or reports with the same scoped story instead of making operators reconstruct context from memory.'],
             ].map(([title, detail]) => (
               <div key={title} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>

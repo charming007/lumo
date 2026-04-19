@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
+import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import { findModuleForLesson } from '../lib/module-lesson-match';
@@ -795,6 +796,15 @@ export function LessonEditorForm({
                   <div style={{ padding: 12, borderRadius: 14, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.6, fontSize: 13 }}>
                     Asset entries are references, not uploads. Paste the final URL, storage path, or stable asset key you expect runtime to resolve.
                   </div>
+
+                  <LessonAssetLibraryPanel
+                    stepType={activity.type}
+                    mediaLines={activity.mediaLines}
+                    choiceLines={activity.choiceLines}
+                    activitySteps={activitySteps}
+                    onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
+                    onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
+                  />
 
                   <LessonActivityStructuredBuilders
                     type={activity.type}
