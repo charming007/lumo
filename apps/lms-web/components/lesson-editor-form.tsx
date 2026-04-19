@@ -9,7 +9,6 @@ import { findModuleForLesson } from '../lib/module-lesson-match';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
-  getLessonTypeGuide,
   lessonStepTypeAccentMap,
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
@@ -321,7 +320,7 @@ export function LessonEditorForm({
     [activitySteps],
   );
   const primaryLessonType = visibleLessonTypes[0] ?? 'speak_answer';
-  const primaryLessonTypeGuide = getLessonTypeGuide(primaryLessonType);
+  const primaryLessonTypeGuide = getLessonStepTypeGuidance(primaryLessonType);
   const totalActivityMinutes = useMemo(
     () => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0),
     [activitySteps],
