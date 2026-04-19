@@ -99,7 +99,7 @@ export function DeleteModuleFormClient({ modules }: { modules: CurriculumModule[
   return (
     <form action={deleteModuleAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Delete module</h2>
-      <SectionHint>This removes the module and its linked lessons, assessments, assignments, and progress references from the seeded ops dataset.</SectionHint>
+      <SectionHint>This removes the module and its linked lessons, assessments, assignments, and progress references from the current curriculum dataset.</SectionHint>
       <FieldLabel>Module<select name="moduleId" value={selectedModule?.id ?? ''} onChange={(event) => setModuleId(event.target.value)} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
       {selectedModule ? <SelectionSummary title={selectedModule.title} lines={[selectedModule.subjectName, selectedModule.strandName, `${selectedModule.lessonCount} planned lessons`, selectedModule.status]} /> : null}
       {selectedModule ? <DeleteConfirmSubmit expectedText={selectedModule.title} entityLabel="module" actionLabel="Delete module" pendingLabel="Deleting module…" impactNote="Linked lessons and release wiring go with it. No sneaky recycle bin." /> : null}

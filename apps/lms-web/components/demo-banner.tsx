@@ -1,4 +1,5 @@
 import type { ApiBaseSource } from '../lib/config';
+import { describeCatalogState } from '../lib/trust-copy';
 
 type Props = {
   role: string;
@@ -46,8 +47,9 @@ function describeApiSource(apiSource: ApiBaseSource) {
 
 function describeDataset(mode: string, seedCount: number) {
   const normalizedMode = mode.trim().toLowerCase();
-  if (seedCount > 0) {
-    return `Catalog is currently seeded (${seedCount} seeded pack${seedCount === 1 ? '' : 's'} visible). Treat that as sample content state, not proof that every operational metric is fake.`;
+  const catalogDetail = describeCatalogState(seedCount);
+  if (catalogDetail) {
+    return catalogDetail;
   }
 
   if (normalizedMode === 'offline' || normalizedMode === 'degraded') {

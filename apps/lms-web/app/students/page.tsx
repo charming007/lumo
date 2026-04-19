@@ -117,7 +117,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
       ) : null}
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
-          { label: 'Learners live', value: String(students.length), note: 'Across the current seeded cohorts' },
+          { label: 'Learners live', value: String(students.length), note: 'Across the current operator roster dataset' },
           { label: 'Below attendance comfort zone', value: String(flaggedLearners), note: 'Needs guardian follow-up or scheduling fix' },
           { label: 'Ready to progress', value: String(workboard.filter((item) => item.progressionStatus === 'ready').length), note: 'Good candidates for the next module gate' },
           { label: 'Watchlist', value: String(workboard.filter((item) => item.progressionStatus === 'watch').length), note: 'Keep mallam coaching visible this week' },

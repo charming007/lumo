@@ -318,7 +318,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           { label: 'Modules', value: String(modules.length), note: 'Structured by strand, not dumped into a fake flat list.' },
           { label: 'Lessons ready', value: String(lessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length), note: 'Approved or published lessons live in the release lane.' },
           { label: 'Assessment gates', value: String(assessments.length), note: 'Every progression checkpoint stays visible and editable.' },
-          { label: 'Live assignments', value: String(assignments.length), note: 'This curriculum board now points at learner-facing delivery, not fake demo nodes.' },
+          { label: 'Live assignments', value: String(assignments.length), note: 'This curriculum board now points at learner-facing delivery, not placeholder curriculum rows.' },
         ].map((item) => (
           <Card key={item.label} title={item.value} eyebrow={item.label}><div style={{ color: '#64748b' }}>{item.note}</div></Card>
         ))}

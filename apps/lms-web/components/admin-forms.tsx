@@ -356,7 +356,7 @@ export function DeleteModuleForm({ modules, returnPath }: { modules: CurriculumM
     <form action={deleteModuleAction} style={cardStyle}>
       <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Delete module</h2>
-      <SectionHint>This removes the module and its linked lessons, assessments, assignments, and progress references from the seeded ops dataset.</SectionHint>
+      <SectionHint>This removes the module and its linked lessons, assessments, assignments, and progress references from the current curriculum dataset.</SectionHint>
       <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
       <ActionButton label="Delete module" pendingLabel="Deleting module…" style={{ ...buttonStyle, background: '#dc2626' }} />
     </form>

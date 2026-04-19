@@ -7,6 +7,7 @@ import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
+import { describeCatalogState, describeLiveBackendWithCatalog } from '../../lib/trust-copy';
 import type { MetaResponse, OperationsReport, RewardSnapshot, RewardsReport, StorageBackupList, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
 
 const EMPTY_META: MetaResponse = {
@@ -203,6 +204,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const integrityRewardRequests = integrity.summary.rewardRequestCount ?? integrity.summary.rewardRequests ?? 0;
   const issuePreview = integrity.issues.slice(0, 6);
   const visibleBackups = backups.items.length ? backups.items : (storageStatus?.backups ?? []);
+  const catalogStateDetail = describeCatalogState(seedCount);
   const seededCatalogVisible = seedCount > 0;
   const trustState = failedSources.length
     ? 'Operator review required'
@@ -210,7 +212,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
       ? 'Integrity issues need cleanup'
       : storagePersistent
         ? seededCatalogVisible
-          ? 'Live backend + seeded catalog'
+          ? 'Live backend + starter catalog visible'
           : 'Live backend posture visible'
         : 'Volatile mode — do not fake confidence';
   const trustDetail = failedSources.length
@@ -218,18 +220,17 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     : integrity.summary.issueCount
       ? `${integrity.summary.issueCount} integrity issue${integrity.summary.issueCount === 1 ? '' : 's'} are visible. Fix those before calling the stack healthy.`
       : storagePersistent
-        ? seededCatalogVisible
-          ? `Backend storage is live in ${String(storageMode || 'unknown')} mode with persistent backing and ${visibleBackups.length} visible backup${visibleBackups.length === 1 ? '' : 's'}. The curriculum/admin dataset still includes ${seedCount} seeded pack${seedCount === 1 ? '' : 's'}, so do not describe this as fully live content.`
-          : `Backend storage is live in ${String(storageMode || 'unknown')} mode with persistent backing and ${visibleBackups.length} visible backup${visibleBackups.length === 1 ? '' : 's'}.`
+        ? describeLiveBackendWithCatalog(seedCount, String(storageMode || 'unknown'), visibleBackups.length)
         : 'This environment is still volatile. Nice-looking controls do not magically make ephemeral storage safe.';
   const settingsDateStamp = new Date().toISOString().slice(0, 10);
   const settingsShareText = [
     `Lumo settings trust snapshot · ${trustState}`,
     trustDetail,
+    catalogStateDetail,
     `Storage mode: ${String(storageMode || 'unknown')} (${storagePersistent ? 'persistent' : 'volatile'}) via ${storageDriver}.`,
     `Progression watch: ${watch} · ready now: ${ready}.`,
     `Reward queue: ${operationsReport.summary.rewardPendingRequests} pending with ${operationsReport.summary.integrityIssueCount} integrity issues reported.`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
   const settingsJson = JSON.stringify({
     generatedAt: new Date().toISOString(),
     trustState,
