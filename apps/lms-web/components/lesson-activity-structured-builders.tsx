@@ -40,15 +40,15 @@ type Props = {
 const stackStyle: StyleObject = { display: 'grid', gap: 12 };
 const rowStyle: StyleObject = {
   display: 'grid',
-  gap: 12,
-  gridTemplateColumns: 'minmax(120px, 0.85fr) minmax(140px, 1.1fr) minmax(110px, 0.75fr) minmax(150px, 0.95fr) minmax(260px, 1.8fr) auto',
-  alignItems: 'start',
+  gap: 10,
+  gridTemplateColumns: 'minmax(120px, 0.9fr) minmax(140px, 1.2fr) minmax(110px, 0.8fr) minmax(140px, 0.9fr) minmax(220px, 1.5fr) auto',
+  alignItems: 'end',
 };
 const mediaRowStyle: StyleObject = {
   display: 'grid',
-  gap: 12,
-  gridTemplateColumns: 'minmax(150px, 0.9fr) minmax(300px, 1.9fr) auto',
-  alignItems: 'start',
+  gap: 10,
+  gridTemplateColumns: 'minmax(160px, 1fr) minmax(260px, 1.8fr) auto',
+  alignItems: 'end',
 };
 const cardStyle: StyleObject = {
   padding: 14,
@@ -63,40 +63,21 @@ const compactNoteStyle: StyleObject = {
   color: '#64748B',
   lineHeight: 1.5,
 };
-const attachmentCardStyle: StyleObject = {
-  border: '1px solid #D7E0EA',
-  borderRadius: 14,
-  background: '#FFFFFF',
+const emptyStateStyle: StyleObject = {
   padding: 12,
-  display: 'grid',
-  gap: 10,
-  minWidth: 0,
+  borderRadius: 14,
+  border: '1px dashed #CBD5E1',
+  background: '#FFFFFF',
+  color: '#64748B',
+  lineHeight: 1.6,
 };
-const previewFrameStyle: StyleObject = {
-  borderRadius: 12,
-  border: '1px solid #E2E8F0',
-  background: '#F8FAFC',
-  minHeight: 104,
-  display: 'grid',
-  placeItems: 'center',
-  overflow: 'hidden',
-};
-const previewImageStyle: StyleObject = {
-  width: '100%',
-  maxHeight: 180,
-  objectFit: 'cover',
-  display: 'block',
-};
-const pillStyle: StyleObject = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-  padding: '5px 9px',
+const helperPillStyle: StyleObject = {
+  padding: '6px 10px',
   borderRadius: 999,
   background: '#EEF2FF',
   color: '#3730A3',
-  fontSize: 11,
-  fontWeight: 800,
+  fontWeight: 700,
+  fontSize: 12,
 };
 
 function parseChoiceLines(choiceLines: string): ChoiceRow[] {
@@ -158,68 +139,47 @@ function serializeMediaLines(rows: MediaRow[]) {
     .join('\n');
 }
 
-function isLikelyUrl(value: string) {
-  return /^https?:\/\//i.test(value.trim());
-}
-
-function isLikelyImageUrl(value: string) {
-  return /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(value.trim());
-}
-
-function isLikelyAudioUrl(value: string) {
-  return /\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i.test(value.trim());
-}
-
-function getMediaKindGuidance(kind: string) {
-  switch (normalizeLessonAssetKind(kind)) {
-    case 'image':
-    case 'illustration':
-    case 'prompt-card':
-    case 'story-card':
-    case 'trace-card':
-    case 'letter-card':
-    case 'tile':
-    case 'word-card':
-      return 'Paste an image URL, CDN path, or asset key. Visual kinds show a thumbnail when the value is a direct image URL.';
-    case 'audio':
-      return 'Paste an audio URL, storage path, or asset key. Direct audio URLs get an inline player.';
-    case 'hint':
-    case 'transcript':
-      return 'Use a short text value, transcript ref, or asset key.';
-    default:
-      return 'Paste a URL, asset key, or storage path.';
-  }
-}
-
 function getChoiceLabels(type: BuilderType) {
   switch (type) {
     case 'image_choice':
       return {
-        title: 'Choice builder',
-        hint: 'Add one card per image option. Mark the right answer and attach per-option image media when needed.',
-        labelName: 'Visible label',
-        mediaHint: 'Usually image URL, asset key, or storage path.',
+        title: 'Visual option builder',
+        hint: 'Build the learner-facing answer cards here. Add the option label, mark the right answer, then attach the image or prompt asset that makes the choice real.',
+        labelName: 'Option label',
+        mediaTypeLabel: 'Visual asset type',
+        mediaValueLabel: 'Image file, URL, or asset key',
+        mediaPlaceholder: 'For example: nurse-card, https://..., or storage/path/image.webp',
+        emptyState: 'No visual options yet. Add at least two cards so this stops pretending to be an image task and starts acting like one.',
       };
     case 'tap_choice':
       return {
         title: 'Tap target builder',
-        hint: 'Add clean tap targets with short labels. Mark the right tap explicitly.',
-        labelName: 'Tap label',
-        mediaHint: 'Optional image/audio tied to this tap target.',
+        hint: 'Create the tappable learner targets instead of editing raw transport strings. Keep labels short, then attach an optional support asset when the target is visual or audio-led.',
+        labelName: 'Tap target label',
+        mediaTypeLabel: 'Support asset type',
+        mediaValueLabel: 'Support asset file, URL, or key',
+        mediaPlaceholder: 'Optional image/audio reference for this tap target',
+        emptyState: 'No tap targets yet. Add at least two targets so the learner has an actual decision to make.',
       };
     case 'word_build':
       return {
         title: 'Build piece builder',
-        hint: 'Add the letters, chunks, or word pieces learners use. Mark the pieces that belong in the final build.',
+        hint: 'Add the tiles, chunks, or word pieces learners manipulate. Attach card art or audio only when it genuinely helps the build.',
         labelName: 'Piece label',
-        mediaHint: 'Optional tile art, audio cue, or card reference.',
+        mediaTypeLabel: 'Piece asset type',
+        mediaValueLabel: 'Piece asset file, URL, or key',
+        mediaPlaceholder: 'Optional tile art, card reference, or audio cue',
+        emptyState: 'No build pieces yet. Add the letters, chunks, or cards learners need to assemble the target word.',
       };
     default:
       return {
         title: 'Choice builder',
-        hint: 'Add structured choice rows instead of editing pipe-delimited text.',
-        labelName: 'Label',
-        mediaHint: 'Optional media value for this row.',
+        hint: 'Add structured learner options here instead of editing pipe-delimited text.',
+        labelName: 'Option label',
+        mediaTypeLabel: 'Asset type',
+        mediaValueLabel: 'Asset file, URL, or key',
+        mediaPlaceholder: 'Optional asset reference',
+        emptyState: 'No structured choices yet. Add rows here when the step needs learner-facing options.',
       };
   }
 }
@@ -228,88 +188,77 @@ function getMediaLabels(type: BuilderType) {
   switch (type) {
     case 'listen_repeat':
       return {
-        title: 'Listen cue builder',
-        hint: 'Attach the audio, image, or support cue learners hear/see before repeating.',
+        title: 'Listening asset builder',
+        hint: 'Attach the model audio, prompt card, or support cue learners hear or see before they repeat.',
+        typeLabel: 'Listening asset type',
+        valueLabel: 'Listening asset file, URL, or key',
+        placeholder: 'Audio file, transcript card key, or support image reference',
+        emptyState: 'No listening asset attached yet. Add the cue learners repeat from so the step is not doing audio theatre with plain text.',
       };
     case 'speak_answer':
       return {
         title: 'Speaking support builder',
-        hint: 'Add any prompt card, image cue, or audio support that sets up the spoken response.',
+        hint: 'Attach the prompt card, illustration, or audio cue that helps the learner answer out loud.',
+        typeLabel: 'Speaking support type',
+        valueLabel: 'Support file, URL, or key',
+        placeholder: 'Prompt card, image, or audio reference',
+        emptyState: 'No speaking support attached yet. That is fine for a text-led oral prompt, but add one if the step depends on a visible cue.',
       };
     case 'listen_answer':
       return {
         title: 'Listening support builder',
-        hint: 'Add the audio, story card, or listening prompt learners need before they answer.',
+        hint: 'Attach the audio, story card, or scene support learners need before answering.',
+        typeLabel: 'Listening support type',
+        valueLabel: 'Support file, URL, or key',
+        placeholder: 'Audio prompt, story card, or visual cue reference',
+        emptyState: 'No listening support attached yet. Add the story/audio cue if the answer depends on hearing something first.',
       };
     case 'letter_intro':
       return {
         title: 'Letter support builder',
-        hint: 'Add the letter card, sound clip, or tracing reference used during the intro.',
+        hint: 'Attach the letter card, trace card, anchor image, or sound cue used during the introduction.',
+        typeLabel: 'Letter support type',
+        valueLabel: 'Letter asset file, URL, or key',
+        placeholder: 'Trace card, letter card, image, or audio reference',
+        emptyState: 'No letter support attached yet. Add the card or cue that makes the letter intro visible to the learner.',
       };
     case 'image_choice':
       return {
-        title: 'Shared media builder',
-        hint: 'Optional prompt-level media shown above all image options.',
+        title: 'Shared prompt asset builder',
+        hint: 'Optional step-level media shown above all answer cards, such as the scene image or spoken instruction cue.',
+        typeLabel: 'Prompt asset type',
+        valueLabel: 'Prompt asset file, URL, or key',
+        placeholder: 'Shared scene image or instruction audio reference',
+        emptyState: 'No shared prompt asset yet. That is optional if all the visual meaning already lives on the answer cards.',
       };
     case 'tap_choice':
       return {
-        title: 'Shared media builder',
-        hint: 'Optional shared media shown before learners tap an answer.',
+        title: 'Shared prompt asset builder',
+        hint: 'Optional shared asset shown before learners tap a target.',
+        typeLabel: 'Prompt asset type',
+        valueLabel: 'Prompt asset file, URL, or key',
+        placeholder: 'Shared image, audio, or prompt-card reference',
+        emptyState: 'No shared prompt asset yet. Add one only if learners need a common cue before tapping.',
       };
     case 'word_build':
       return {
         title: 'Build support builder',
-        hint: 'Optional sound cue, target card, or teacher-facing media for the build.',
+        hint: 'Attach the target card, audio model, or extra support asset used to guide the build.',
+        typeLabel: 'Build support type',
+        valueLabel: 'Support file, URL, or key',
+        placeholder: 'Word-card, tile art, or audio reference',
+        emptyState: 'No build support asset yet. That is okay if the build pieces carry the whole interaction.',
       };
     default:
       return {
-        title: 'Media builder',
-        hint: 'Add structured media rows instead of editing raw pipe-delimited text.',
+        title: 'Asset builder',
+        hint: 'Add structured asset rows here instead of editing raw pipe-delimited text.',
+        typeLabel: 'Asset type',
+        valueLabel: 'Asset file, URL, or key',
+        placeholder: 'Asset reference',
+        emptyState: 'No assets attached yet.',
       };
   }
-}
-
-function renderAttachmentPreview(kind: string, value: string, label: string) {
-  const normalizedKind = normalizeLessonAssetKind(kind);
-  const trimmedValue = value.trim();
-  const canPreviewImage = trimmedValue && isLikelyUrl(trimmedValue) && (isLikelyImageUrl(trimmedValue) || normalizedKind !== 'audio');
-  const canPreviewAudio = trimmedValue && isLikelyUrl(trimmedValue) && (normalizedKind === 'audio' || isLikelyAudioUrl(trimmedValue));
-
-  return (
-    <div style={attachmentCardStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={pillStyle}>{getLessonAssetKindLabel(normalizedKind)}</span>
-        {trimmedValue ? (
-          <span style={{ fontSize: 11, color: '#64748B', fontWeight: 700 }}>{isLikelyUrl(trimmedValue) ? 'Direct URL detected' : 'Asset key / path'}</span>
-        ) : null}
-      </div>
-      <div style={previewFrameStyle}>
-        {!trimmedValue ? (
-          <div style={{ padding: 16, textAlign: 'center', color: '#64748B', fontSize: 12, lineHeight: 1.5 }}>
-            Add a value to see the attachment card populate.
-          </div>
-        ) : canPreviewAudio ? (
-          <div style={{ width: '100%', padding: 12, display: 'grid', gap: 10 }}>
-            <div style={{ fontSize: 12, color: '#334155', fontWeight: 700 }}>{label}</div>
-            <audio controls preload="none" style={{ width: '100%' }} src={trimmedValue} />
-          </div>
-        ) : canPreviewImage ? (
-          <img src={trimmedValue} alt={label} style={previewImageStyle} />
-        ) : (
-          <div style={{ padding: 16, width: '100%', display: 'grid', gap: 8 }}>
-            <div style={{ fontSize: 12, color: '#334155', fontWeight: 700 }}>{label}</div>
-            <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.5 }}>
-              No inline thumbnail available for this value. Runtime can still use asset keys, storage paths, or non-direct URLs.
-            </div>
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'grid', gap: 4 }}>
-        <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.6 }}>Attached value</div>
-        <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{trimmedValue || 'Not set yet'}</div>
-      </div>
-    </div>
-  );
 }
 
 export function LessonActivityStructuredBuilders(props: Props) {
@@ -347,7 +296,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
   };
 
   const addMediaRow = () => {
-    const defaultKind = builderType === 'listen_repeat' ? 'audio' : builderType === 'letter_intro' ? 'image' : 'image';
+    const defaultKind = builderType === 'listen_repeat' ? 'audio' : builderType === 'letter_intro' ? 'letter-card' : builderType === 'word_build' ? 'word-card' : 'image';
     const next = [...mediaRows, { kind: defaultKind, value: '' }];
     props.onMediaLinesChange(serializeMediaLines(next));
   };
@@ -362,105 +311,58 @@ export function LessonActivityStructuredBuilders(props: Props) {
       {supportsChoices ? (
         <div style={cardStyle}>
           {props.sectionLabel}
-          <div style={{ fontWeight: 700, color: '#1E293B' }}>{choiceLabels.title}</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ fontWeight: 700, color: '#1E293B' }}>{choiceLabels.title}</div>
+            <span style={helperPillStyle}>{choiceRows.length} option{choiceRows.length === 1 ? '' : 's'}</span>
+          </div>
           <div style={compactNoteStyle}>{choiceLabels.hint}</div>
-          <div style={stackStyle}>
-            {choiceRows.map((row, index) => {
-              const effectiveKind = row.mediaKind || (builderType === 'image_choice' ? 'image' : '');
-              const previewLabel = row.label.trim() || row.id.trim() || `Choice ${index + 1}`;
-              return (
-                <div key={`${row.id}-${index}`} style={{ ...cardStyle, background: '#FFFFFF' }}>
-                  <div style={rowStyle}>
-                    {props.fieldLabel(<><span>Choice ID</span><input value={row.id} onChange={(event) => updateChoiceRow(index, { id: event.target.value })} style={props.inputStyle} placeholder={`choice-${index + 1}`} /></>)}
-                    {props.fieldLabel(<><span>{choiceLabels.labelName}</span><input value={row.label} onChange={(event) => updateChoiceRow(index, { label: event.target.value })} style={props.inputStyle} placeholder="Visible label" /></>)}
-                    {props.fieldLabel(<><span>Correct?</span><select value={row.isCorrect ? 'correct' : 'wrong'} onChange={(event) => updateChoiceRow(index, { isCorrect: event.target.value === 'correct' })} style={props.inputStyle}><option value="wrong">Wrong</option><option value="correct">Correct</option></select></>)}
-                    {props.fieldLabel(<><span>Media kind</span><select value={row.mediaKind} onChange={(event) => updateChoiceRow(index, { mediaKind: event.target.value })} style={props.inputStyle}><option value="">No asset</option>{knownLessonAssetKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}</select></>)}
-                    {props.fieldLabel(
-                      <>
-                        <span>Attachment value</span>
-                        <textarea
-                          value={row.mediaValue}
-                          onChange={(event) => updateChoiceRow(index, { mediaValue: event.target.value })}
-                          style={{ ...props.inputStyle, minHeight: 92, resize: 'vertical' }}
-                          placeholder={choiceLabels.mediaHint}
-                        />
-                      </>
-                    )}
-                    <button type="button" onClick={() => removeChoiceRow(index)} style={{ ...props.ghostButtonStyle, alignSelf: 'stretch' }}>Remove</button>
-                  </div>
-                  {row.mediaKind ? (
-                    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(260px, 1fr) minmax(260px, 1fr)' }}>
-                      {renderAttachmentPreview(effectiveKind, row.mediaValue, previewLabel)}
-                      <div style={attachmentCardStyle}>
-                        <div style={{ fontWeight: 700, color: '#0F172A' }}>Attachment guidance</div>
-                        <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>{getMediaKindGuidance(effectiveKind)}</div>
-                        <div style={{ display: 'grid', gap: 6 }}>
-                          <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.6 }}>Visible label</div>
-                          <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.5 }}>{previewLabel}</div>
-                        </div>
-                        <div style={{ display: 'grid', gap: 6 }}>
-                          <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.6 }}>Recommended entry</div>
-                          <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.5 }}>
-                            {isLikelyUrl(row.mediaValue) ? 'Looks like a direct URL. Preview should match runtime closely.' : 'This looks like an asset key or storage path. That is fine — preview falls back to metadata when it cannot render the file inline.'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
+          {choiceRows.length ? (
+            <div style={stackStyle}>
+              {choiceRows.map((row, index) => (
+                <div key={`${row.id}-${index}`} style={rowStyle}>
+                  {props.fieldLabel(<><span>Option ID</span><input value={row.id} onChange={(event) => updateChoiceRow(index, { id: event.target.value })} style={props.inputStyle} placeholder={`choice-${index + 1}`} /></>)}
+                  {props.fieldLabel(<><span>{choiceLabels.labelName}</span><input value={row.label} onChange={(event) => updateChoiceRow(index, { label: event.target.value })} style={props.inputStyle} placeholder="What the learner sees" /></>)}
+                  {props.fieldLabel(<><span>Answer status</span><select value={row.isCorrect ? 'correct' : 'wrong'} onChange={(event) => updateChoiceRow(index, { isCorrect: event.target.value === 'correct' })} style={props.inputStyle}><option value="wrong">Distractor</option><option value="correct">Correct answer</option></select></>)}
+                  {props.fieldLabel(<><span>{choiceLabels.mediaTypeLabel}</span><select value={row.mediaKind} onChange={(event) => updateChoiceRow(index, { mediaKind: event.target.value })} style={props.inputStyle}><option value="">No attached asset</option>{knownLessonAssetKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}</select></>)}
+                  {props.fieldLabel(<><span>{choiceLabels.mediaValueLabel}</span><input value={row.mediaValue} onChange={(event) => updateChoiceRow(index, { mediaValue: event.target.value })} style={props.inputStyle} placeholder={choiceLabels.mediaPlaceholder} /></>)}
+                  <button type="button" onClick={() => removeChoiceRow(index)} style={{ ...props.ghostButtonStyle, alignSelf: 'stretch' }}>Remove</button>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div style={emptyStateStyle}>{choiceLabels.emptyState}</div>
+          )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" onClick={addChoiceRow} style={props.ghostButtonStyle}>+ Add row</button>
+            <button type="button" onClick={addChoiceRow} style={props.ghostButtonStyle}>+ Add option</button>
           </div>
-          {props.fieldHint('Each choice now gets a real attachment card with media-kind controls and preview behavior instead of raw pipe-delimited mediaValue entry.')}
+          {props.fieldHint('Pick the closest real asset type so authoring, runtime preview, and delivery all agree on what learners should actually see or hear.')}
         </div>
       ) : null}
 
       {supportsMedia ? (
         <div style={cardStyle}>
           {props.sectionLabel}
-          <div style={{ fontWeight: 700, color: '#1E293B' }}>{mediaLabels.title}</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ fontWeight: 700, color: '#1E293B' }}>{mediaLabels.title}</div>
+            <span style={helperPillStyle}>{mediaRows.length} asset{mediaRows.length === 1 ? '' : 's'}</span>
+          </div>
           <div style={compactNoteStyle}>{mediaLabels.hint}</div>
-          <div style={stackStyle}>
-            {mediaRows.map((row, index) => (
-              <div key={`${row.kind}-${index}`} style={{ ...cardStyle, background: '#FFFFFF' }}>
-                <div style={mediaRowStyle}>
-                  {props.fieldLabel(<><span>Kind</span><select value={row.kind} onChange={(event) => updateMediaRow(index, { kind: event.target.value })} style={props.inputStyle}>{knownLessonAssetKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}</select></>)}
-                  {props.fieldLabel(
-                    <>
-                      <span>Attachment value</span>
-                      <textarea
-                        value={row.value}
-                        onChange={(event) => updateMediaRow(index, { value: event.target.value })}
-                        style={{ ...props.inputStyle, minHeight: 92, resize: 'vertical' }}
-                        placeholder="Paste a direct URL, asset key, storage path, or transcript ref"
-                      />
-                    </>
-                  )}
+          {mediaRows.length ? (
+            <div style={stackStyle}>
+              {mediaRows.map((row, index) => (
+                <div key={`${row.kind}-${index}`} style={mediaRowStyle}>
+                  {props.fieldLabel(<><span>{mediaLabels.typeLabel}</span><select value={row.kind} onChange={(event) => updateMediaRow(index, { kind: event.target.value })} style={props.inputStyle}>{knownLessonAssetKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}</select></>)}
+                  {props.fieldLabel(<><span>{mediaLabels.valueLabel}</span><input value={row.value} onChange={(event) => updateMediaRow(index, { value: event.target.value })} style={props.inputStyle} placeholder={mediaLabels.placeholder} /></>)}
                   <button type="button" onClick={() => removeMediaRow(index)} style={{ ...props.ghostButtonStyle, alignSelf: 'stretch' }}>Remove</button>
                 </div>
-                <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(260px, 1fr) minmax(260px, 1fr)' }}>
-                  {renderAttachmentPreview(row.kind, row.value, `${getLessonAssetKindLabel(row.kind)} ${index + 1}`)}
-                  <div style={attachmentCardStyle}>
-                    <div style={{ fontWeight: 700, color: '#0F172A' }}>Attachment guidance</div>
-                    <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>{getMediaKindGuidance(row.kind)}</div>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.6 }}>Authoring note</div>
-                      <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.5 }}>
-                        {row.kind === 'audio' ? 'Use direct audio URLs when possible so reviewers can hear the cue inline before saving.' : 'Visual and support assets can use direct URLs for preview or stable asset keys when files live outside the LMS app.'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div style={emptyStateStyle}>{mediaLabels.emptyState}</div>
+          )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" onClick={addMediaRow} style={props.ghostButtonStyle}>+ Add media</button>
+            <button type="button" onClick={addMediaRow} style={props.ghostButtonStyle}>+ Add asset</button>
           </div>
-          {props.fieldHint('Shared lesson media now renders as attachment cards with clear media-kind controls, URL/path-safe entry, and preview support where the browser can actually render it.')}
         </div>
       ) : null}
     </div>

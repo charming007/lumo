@@ -592,8 +592,13 @@ export function EnglishStudioAuthoringForm({
                 const noteCount = countNonEmptyLines(activity.facilitatorNotes);
                 const assetIntent = getDraftAssetIntentSummary(activity);
                 const runtimePreview = getStepRuntimePreviewHints(activitySteps[index]);
+                const stepSurface = assetIntent.tone === 'good'
+                  ? { border: '1px solid #86EFAC', background: '#F0FDF4' }
+                  : assetIntent.tone === 'warn'
+                    ? { border: '1px solid #FDBA74', background: '#FFFBEB' }
+                    : { border: '1px solid #E5E7EB', background: 'white' };
                 return (
-                  <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10, minWidth: 0 }}>
+                  <div key={activity.id} style={{ padding: 14, borderRadius: 16, ...stepSurface, display: 'grid', gap: 10, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                       <div style={{ display: 'grid', gap: 6 }}>
                         <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>

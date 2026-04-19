@@ -641,8 +641,14 @@ export function LessonCreateForm({
               const noteCount = countNonEmptyLines(activity.facilitatorNotes);
               const assetIntent = getDraftAssetIntentSummary(activity);
 
+              const stepSurface = assetIntent.tone === 'good'
+                ? { border: '1px solid #86EFAC', background: '#F0FDF4' }
+                : assetIntent.tone === 'warn'
+                  ? { border: '1px solid #FDBA74', background: '#FFFBEB' }
+                  : { border: '1px solid #E5E7EB', background: 'white' };
+
               return (
-                <div key={activity.id} style={{ padding: 18, borderRadius: 18, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 14, minWidth: 0 }}>
+                <div key={activity.id} style={{ padding: 18, borderRadius: 18, ...stepSurface, display: 'grid', gap: 14, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ display: 'grid', gap: 8 }}>
                       <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>

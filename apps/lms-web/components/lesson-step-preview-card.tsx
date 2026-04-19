@@ -2,8 +2,34 @@
 
 import { getPreviewAssetSummary } from './lesson-authoring-shared';
 import { lessonStepTypeLabelMap } from './lesson-step-authoring';
-import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
+import { buildLessonAssetPreviewItems, getLessonAssetKindLabel, getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import type { LessonActivityStep } from '../lib/types';
+
+function AssetPreviewChip({ item }: { item: ReturnType<typeof buildLessonAssetPreviewItems>[number] }) {
+  const isImageLike = ['image', 'illustration'].includes(item.kind) && /^https?:\/\//i.test(item.previewValue);
+  const isAudio = item.kind === 'audio';
+  const title = item.choiceLabel ? `${item.label} • ${getLessonAssetKindLabel(item.kind)}` : item.label;
+
+  return (
+    <div style={{ display: 'grid', gap: 8, minWidth: 0, padding: 10, borderRadius: 14, background: item.tone.bg, border: `1px solid ${item.tone.border}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <strong style={{ color: item.tone.text, fontSize: 12 }}>{title}</strong>
+        <span style={{ color: item.readiness.ready ? '#166534' : '#92400E', fontSize: 11, fontWeight: 800 }}>{item.readiness.label}</span>
+      </div>
+      {isImageLike ? (
+        <img src={item.previewValue} alt={title} style={{ width: '100%', height: 96, objectFit: 'cover', borderRadius: 12, display: 'block', background: '#fff' }} />
+      ) : (
+        <div style={{ minHeight: 72, borderRadius: 12, background: 'rgba(255,255,255,0.72)', border: `1px dashed ${item.tone.border}`, display: 'grid', placeItems: 'center', padding: 12, textAlign: 'center' }}>
+          <div style={{ display: 'grid', gap: 6, justifyItems: 'center' }}>
+            <div style={{ fontSize: 24 }}>{isAudio ? '🔊' : item.kind === 'letter-card' ? '🔤' : item.kind === 'trace-card' ? '✍️' : item.kind === 'tile' || item.kind === 'word-card' ? '🧩' : item.kind === 'story-card' || item.kind === 'prompt-card' ? '🪪' : item.kind === 'hint' || item.kind === 'transcript' ? '📝' : '🖼️'}</div>
+            <div style={{ color: item.tone.text, fontWeight: 700, fontSize: 12, lineHeight: 1.35, wordBreak: 'break-word' }}>{item.previewValue || 'Value missing'}</div>
+          </div>
+        </div>
+      )}
+      <div style={{ color: item.tone.text, fontSize: 11, lineHeight: 1.45 }}>{item.readiness.detail}</div>
+    </div>
+  );
+}
 
 export function LessonStepPreviewCard({
   step,
@@ -16,10 +42,11 @@ export function LessonStepPreviewCard({
 }) {
   const assetSummary = getPreviewAssetSummary(step);
   const runtimePreview = showRuntimeHints ? getStepRuntimePreviewHints(step) : null;
+  const previewItems = runtimePreview?.previewItems ?? buildLessonAssetPreviewItems(step);
   const readinessTone = assetSummary.isMediaBacked ? { bg: '#ECFDF5', text: '#166534', border: '#BBF7D0' } : { bg: '#F8FAFC', text: '#475569', border: '#E2E8F0' };
 
   return (
-    <div style={{ display: 'grid', gap: 6, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0', minWidth: 0 }}>
+    <div style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0', minWidth: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <strong>{index + 1}. {step.title || step.prompt}</strong>
         <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes || 0} min</span>
@@ -36,14 +63,24 @@ export function LessonStepPreviewCard({
       <div style={{ color: assetSummary.tone === 'warn' ? '#B45309' : assetSummary.tone === 'good' ? '#166534' : '#64748B', fontSize: 12, lineHeight: 1.5 }}>
         <strong>{assetSummary.label}:</strong> {assetSummary.detail}
       </div>
+      {previewItems.length ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ color: '#0F172A', fontSize: 12, fontWeight: 800 }}>What the learner app should render</div>
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+            {previewItems.map((item) => <AssetPreviewChip key={item.key} item={item} />)}
+          </div>
+        </div>
+      ) : null}
       {runtimePreview ? (
         <div style={{ display: 'grid', gap: 6 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ padding: '4px 8px', borderRadius: 999, background: runtimePreview.hints.length ? '#FEF3C7' : '#ECFDF5', color: runtimePreview.hints.length ? '#92400E' : '#166534', fontWeight: 800, fontSize: 12 }}>
-              {runtimePreview.hints.length ? 'Needs runtime polish' : 'Preview looks learner-ready'}
+              {runtimePreview.readyLabel}
             </span>
           </div>
-          {runtimePreview.hints.length ? <div style={{ color: '#92400E', fontSize: 12, lineHeight: 1.5 }}>{runtimePreview.hints[0]}</div> : null}
+          <div style={{ color: runtimePreview.hints.length ? '#92400E' : '#166534', fontSize: 12, lineHeight: 1.5 }}>
+            {runtimePreview.hints.length ? runtimePreview.hints[0] : 'Preview cards now reflect the asset kinds learner runtime should show, play, or surface as support.'}
+          </div>
         </div>
       ) : null}
     </div>
