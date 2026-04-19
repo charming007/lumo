@@ -31,6 +31,9 @@ test('health endpoint returns storage/db metadata instead of crashing', async ()
     assert.equal(body.service, 'lumo-api');
     assert.equal(body.storage.mode, 'file');
     assert.equal(body.storage.driver, 'json-file');
+    assert.equal(typeof body.assets.ready, 'boolean');
+    assert.equal(typeof body.assets.publicBaseValid, 'boolean');
+    assert.equal(typeof body.assets.persistentRisk, 'boolean');
     assert.equal(typeof body.config.ready, 'boolean');
   });
 });

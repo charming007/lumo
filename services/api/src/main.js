@@ -1268,6 +1268,12 @@ app.get('/health', (_req, res) => {
       driver: storageStatus?.db?.driver || getDbModeMeta().driver,
       persistent: storageStatus?.db?.persistent ?? true,
     },
+    assets: {
+      ready: Boolean(configAudit.assetUploads?.ready),
+      root: configAudit.assetUploads?.root || null,
+      publicBaseValid: Boolean(configAudit.assetUploads?.publicBaseValid),
+      persistentRisk: Boolean(configAudit.assetUploads?.persistentRisk),
+    },
     config: {
       ready: configAudit.summary.ready,
       warningCount: configAudit.summary.warningCount,

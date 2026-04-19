@@ -65,6 +65,9 @@ test('health, readiness, and config audit surfaces expose production posture', a
   assert.equal(typeof auditResponse.body.storage.mode, 'string');
   assert.equal(typeof auditResponse.body.cors.allowAnyOrigin, 'boolean');
   assert.equal(typeof auditResponse.body.auth.roles.admin, 'boolean');
+  assert.equal(typeof auditResponse.body.assetUploads.ready, 'boolean');
+  assert.equal(typeof auditResponse.body.assetUploads.persistentRisk, 'boolean');
+  assert.ok(Array.isArray(auditResponse.body.assetUploads.recommendations));
   assert.equal(typeof auditResponse.body.summary.warningCount, 'number');
   assert.equal(typeof auditResponse.body.summary.errorCount, 'number');
 });

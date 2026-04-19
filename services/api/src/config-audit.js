@@ -109,15 +109,46 @@ function getCanonicalApiBaseAudit() {
 }
 
 function getAssetUploadAudit() {
-  const root = path.resolve(process.env.LUMO_ASSET_UPLOAD_DIR || path.join(__dirname, '..', 'data', 'uploads'));
+  const defaultRoot = path.resolve(path.join(__dirname, '..', 'data', 'uploads'));
+  const configuredRaw = String(process.env.LUMO_ASSET_UPLOAD_DIR || '').trim();
+  const root = path.resolve(configuredRaw || defaultRoot);
+  const canonicalApiBase = getCanonicalApiBaseAudit();
+  const insideWorkspace = !path.relative(process.cwd(), root).startsWith('..') && !path.isAbsolute(path.relative(process.cwd(), root));
+  const usesDefaultPath = root === defaultRoot;
+  const warnings = [];
+  const recommendations = [];
 
   try {
     fs.mkdirSync(root, { recursive: true });
     fs.accessSync(root, fs.constants.R_OK | fs.constants.W_OK);
+
+    if (usesDefaultPath) {
+      warnings.push('Asset uploads are still using the default repo-local path. Good enough for local demos, but fragile for hosted production unless that directory is backed by persistent storage.');
+      recommendations.push('Set LUMO_ASSET_UPLOAD_DIR to a writable persistent volume/disk mount for live uploads.');
+    }
+
+    if (insideWorkspace) {
+      warnings.push('Asset upload root sits inside the app workspace. Redeploys, ephemeral containers, or repo cleanup can silently orphan uploaded media unless that path is mounted persistently.');
+      recommendations.push('Keep uploaded media outside the deploy/repo directory, or mount the workspace path from persistent storage.');
+    }
+
+    if (!canonicalApiBase.valid) {
+      recommendations.push('Fix API_BASE_URL/LUMO_PUBLIC_API_URL so managed asset URLs resolve to the public API origin instead of an internal hop guess.');
+    }
+
     return {
+      configured: configuredRaw || null,
+      defaultRoot,
       root,
       ready: true,
       blocker: null,
+      publicBaseValid: canonicalApiBase.valid,
+      publicBase: canonicalApiBase.configured,
+      usesDefaultPath,
+      insideWorkspace,
+      persistentRisk: usesDefaultPath || insideWorkspace,
+      warnings,
+      recommendations,
     };
   } catch (error) {
     const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : null;
@@ -132,9 +163,20 @@ function getAssetUploadAudit() {
     }
 
     return {
+      configured: configuredRaw || null,
+      defaultRoot,
       root,
       ready: false,
       blocker,
+      publicBaseValid: canonicalApiBase.valid,
+      publicBase: canonicalApiBase.configured,
+      usesDefaultPath,
+      insideWorkspace,
+      persistentRisk: usesDefaultPath || insideWorkspace,
+      warnings,
+      recommendations: [
+        'Fix the upload directory first; managed uploads cannot succeed until the API process can create and write files there.',
+      ],
     };
   }
 }
@@ -211,6 +253,14 @@ function buildConfigAudit() {
 
   if (!assetUploads.ready) {
     errors.push(assetUploads.blocker);
+  } else {
+    for (const warning of assetUploads.warnings) {
+      if (!warnings.includes(warning)) warnings.push(warning);
+    }
+
+    if (isProductionLike() && assetUploads.persistentRisk) {
+      warnings.push('Managed asset uploads look writable, but the current upload root still carries persistence risk for a production-like deployment. Mount durable storage or move uploads to object storage before relying on the asset registry live.');
+    }
   }
 
   if (authAudit.productionLike && !authAudit.roles.admin) {

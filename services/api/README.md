@@ -13,6 +13,12 @@ Use the normal start command for staging/production:
 npm run start
 ```
 
+For an operator-friendly preflight without starting the server, run:
+
+```bash
+npm run runtime:audit
+```
+
 It now runs a runtime config audit before booting the server and fails fast on unsafe release misconfigurations such as:
 - `NODE_ENV=production|staging` without `LUMO_ADMIN_API_KEY`
 - `LUMO_DB_MODE=postgres` without `DATABASE_URL`
@@ -21,6 +27,10 @@ It now runs a runtime config audit before booting the server and fails fast on u
 Non-blocking warnings still print for softer risks like loopback-only CORS, missing canonical API URL, or file-mode storage in production-like environments.
 
 Asset uploads now also fail fast when the configured upload directory is not writable. On hosted deployments, do not assume `services/api/data/uploads` is safely writable forever — set `LUMO_ASSET_UPLOAD_DIR` to a writable persistent path, or use external object storage.
+
+The runtime audit now also calls out two quiet footguns that break live asset libraries later:
+- repo/workspace-local upload roots that look writable but are likely ephemeral across redeploys
+- malformed or missing `API_BASE_URL` / `LUMO_PUBLIC_API_URL`, which makes managed asset URLs fall back to internal request origins
 
 ## Planned env vars
 - `PORT`

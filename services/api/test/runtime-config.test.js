@@ -89,6 +89,25 @@ test('buildConfigAudit flags malformed public api base before managed asset urls
   assert.ok(audit.errors.some((entry) => /not a valid URL/i.test(entry)));
 });
 
+
+test('buildConfigAudit surfaces asset durability risk when uploads stay on the default workspace path', () => {
+  const audit = withEnv({
+    NODE_ENV: 'production',
+    LUMO_ADMIN_API_KEY: 'admin-key',
+    LUMO_PUBLIC_API_URL: 'https://api.lumo.example',
+    LUMO_CORS_ALLOW_ANY_ORIGIN: 'false',
+    LUMO_DB_MODE: 'file',
+    LUMO_ASSET_UPLOAD_DIR: undefined,
+  }, () => buildConfigAudit());
+
+  assert.equal(audit.assetUploads.ready, true);
+  assert.equal(audit.assetUploads.usesDefaultPath, true);
+  assert.equal(audit.assetUploads.insideWorkspace, true);
+  assert.equal(audit.assetUploads.persistentRisk, true);
+  assert.ok(audit.assetUploads.recommendations.some((entry) => entry.includes('LUMO_ASSET_UPLOAD_DIR')));
+  assert.ok(audit.warnings.some((entry) => /persistence risk/i.test(entry)));
+});
+
 test('buildConfigAudit exposes throttle posture for production reviews', () => {
   const audit = withEnv({
     NODE_ENV: 'production',

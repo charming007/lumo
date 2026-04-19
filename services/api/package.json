@@ -6,6 +6,7 @@
     "start": "node ./scripts/validate-runtime-env.mjs && node src/main.js",
     "start:dev": "node --watch src/main.js",
     "build": "node ./scripts/validate-runtime-env.mjs && echo 'Build step placeholder for modular API service'",
+    "runtime:audit": "node ./scripts/runtime-audit.mjs",
     "test": "node --test",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push"
