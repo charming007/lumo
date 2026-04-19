@@ -5808,20 +5808,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }) {
     if (choiceCount <= 1) return 1;
 
-    const spacing = 16.0;
-    for (var columns = choiceCount.clamp(1, 4); columns >= 1; columns--) {
-      final minCardWidth = switch (columns) {
-        4 => 120.0,
-        3 => 150.0,
-        2 => 180.0,
-        _ => 0.0,
-      };
-      final totalSpacing = spacing * (columns - 1);
-      if (maxWidth >= (columns * minCardWidth) + totalSpacing) {
-        return columns;
-      }
-    }
-
+    if (choiceCount >= 4 && maxWidth >= 4 * 96 + 3 * 16) return 4;
+    if (choiceCount >= 3 && maxWidth >= 3 * 112 + 2 * 16) return 3;
+    if (choiceCount >= 2 && maxWidth >= 2 * 140 + 16) return 2;
     return 1;
   }
 
@@ -6261,11 +6250,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                       final totalSpacing = spacing * (columnCount - 1);
                       final cardWidth =
                           (constraints.maxWidth - totalSpacing) / columnCount;
-                      final previewHeight = switch (columnCount) {
-                        4 => 96.0,
-                        3 => 120.0,
-                        _ => 156.0,
-                      };
+                      final previewHeight = cardWidth >= 240
+                          ? 156.0
+                          : cardWidth >= 180
+                              ? 128.0
+                              : 96.0;
                       return Wrap(
                         spacing: spacing,
                         runSpacing: spacing,

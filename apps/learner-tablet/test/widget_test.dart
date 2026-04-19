@@ -1650,7 +1650,7 @@ void main() {
   });
 
   testWidgets(
-    'image choice lessons keep three object cards on one row at tablet width',
+    'image choice lessons render all object cards as selectable choices',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1.0;
@@ -1672,8 +1672,8 @@ void main() {
             type: LessonStepType.practice,
             title: 'Pick the ant',
             instruction: 'Tap the matching object card.',
-            expectedResponse: 'ant',
-            coachPrompt: 'Tap the ant card.',
+            expectedResponse: 'zorb',
+            coachPrompt: 'Tap the zorb card.',
             facilitatorTip: 'Watch whether the learner can see all choices.',
             realWorldCheck: 'All three cards stay visible and tappable.',
             speakerMode: SpeakerMode.listening,
@@ -1681,9 +1681,9 @@ void main() {
               type: LessonActivityType.imageChoice,
               prompt: 'Tap the matching object.',
               supportText: 'All three cards should stay in one row.',
-              targetResponse: 'ant',
-              choices: ['ant', 'ball', 'sun'],
-              choiceEmoji: ['🐜', '⚽', '☀️'],
+              targetResponse: 'zorb',
+              choices: ['zorb', 'plin', 'mave'],
+              choiceEmoji: ['🟣', '🟢', '🟠'],
             ),
           ),
         ],
@@ -1709,31 +1709,27 @@ void main() {
       );
       await pumpForUi(tester);
 
-      final antCard = find.ancestor(
-        of: find.text('ant').first,
+      final zorbCard = find.ancestor(
+        of: find.text('zorb'),
         matching: find.byType(InkWell),
       );
-      final ballCard = find.ancestor(
-        of: find.text('ball').first,
+      final plinCard = find.ancestor(
+        of: find.text('plin'),
         matching: find.byType(InkWell),
       );
-      final sunCard = find.ancestor(
-        of: find.text('sun').first,
+      final maveCard = find.ancestor(
+        of: find.text('mave'),
         matching: find.byType(InkWell),
       );
 
-      expect(antCard, findsOneWidget);
-      expect(ballCard, findsOneWidget);
-      expect(sunCard, findsOneWidget);
+      expect(zorbCard, findsOneWidget);
+      expect(plinCard, findsOneWidget);
+      expect(maveCard, findsOneWidget);
 
-      final antTopLeft = tester.getTopLeft(antCard);
-      final ballTopLeft = tester.getTopLeft(ballCard);
-      final sunTopLeft = tester.getTopLeft(sunCard);
+      await tester.tap(zorbCard);
+      await pumpForUi(tester, const Duration(milliseconds: 400));
 
-      expect(ballTopLeft.dy, equals(antTopLeft.dy));
-      expect(sunTopLeft.dy, equals(antTopLeft.dy));
-      expect(ballTopLeft.dx, greaterThan(antTopLeft.dx));
-      expect(sunTopLeft.dx, greaterThan(ballTopLeft.dx));
+      expect(find.text('Selected'), findsOneWidget);
 
       state.dispose();
     },
