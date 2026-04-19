@@ -75,6 +75,19 @@ test('runtime validator allows local development and prints warnings instead of 
   assert.ok(`${result.stderr}${result.stdout}`.includes('Warnings:'));
 });
 
+test('buildConfigAudit flags malformed public api base before managed asset urls rely on it', () => {
+  const audit = withEnv({
+    NODE_ENV: 'production',
+    LUMO_ADMIN_API_KEY: 'admin-key',
+    LUMO_PUBLIC_API_URL: 'api.lumo.example',
+    LUMO_CORS_ALLOW_ANY_ORIGIN: 'false',
+    LUMO_DB_MODE: 'file',
+  }, () => buildConfigAudit());
+
+  assert.equal(audit.summary.ready, false);
+  assert.equal(audit.publicApiBase.valid, false);
+  assert.ok(audit.errors.some((entry) => /not a valid URL/i.test(entry)));
+});
 
 test('buildConfigAudit exposes throttle posture for production reviews', () => {
   const audit = withEnv({

@@ -186,35 +186,80 @@ test('managed uploaded assets present canonical public file URLs instead of stal
     'x-forwarded-host': 'internal-proxy.example',
   };
 
-  const uploaded = await request('/api/v1/assets/upload', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      fileName: 'tiny.png',
-      contentType: 'image/png',
-      base64: Buffer.from('tiny').toString('base64'),
-      kind: 'image',
-      title: 'Tiny image',
-    }),
-  });
+  try {
+    const uploaded = await request('/api/v1/assets/upload', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        fileName: 'tiny.png',
+        contentType: 'image/png',
+        base64: Buffer.from('tiny').toString('base64'),
+        kind: 'image',
+        title: 'Tiny image',
+      }),
+    });
 
-  assert.equal(uploaded.status, 201);
-  assert.match(uploaded.body.fileUrl, /^https:\/\/api\.lumo\.example\/media\//);
-  assert.doesNotMatch(uploaded.body.fileUrl, /internal-proxy\.example/);
+    assert.equal(uploaded.status, 201);
+    assert.match(uploaded.body.fileUrl, /^https:\/\/api\.lumo\.example\/media\//);
+    assert.doesNotMatch(uploaded.body.fileUrl, /internal-proxy\.example/);
 
-  const listed = await request('/api/v1/assets?includeArchived=true', {
-    headers: {
-      'x-forwarded-proto': 'https',
-      'x-forwarded-host': 'another-internal-hop.example',
-    },
-  });
+    const listed = await request('/api/v1/assets?includeArchived=true', {
+      headers: {
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'another-internal-hop.example',
+      },
+    });
 
-  assert.equal(listed.status, 200);
-  const asset = listed.body.find((item) => item.id === uploaded.body.id);
-  assert.ok(asset);
-  assert.equal(asset.fileUrl, uploaded.body.fileUrl);
+    assert.equal(listed.status, 200);
+    const asset = listed.body.find((item) => item.id === uploaded.body.id);
+    assert.ok(asset);
+    assert.equal(asset.fileUrl, uploaded.body.fileUrl);
+  } finally {
+    delete process.env.LUMO_PUBLIC_API_URL;
+  }
+});
 
-  delete process.env.LUMO_PUBLIC_API_URL;
+test('managed uploaded assets keep the registry feed alive when public api base is malformed', async () => {
+  process.env.LUMO_PUBLIC_API_URL = 'api.lumo.example';
+
+  const headers = {
+    'x-lumo-role': 'admin',
+    'x-lumo-actor': 'Asset Admin',
+    'x-lumo-api-key': 'asset-test-key',
+    'x-forwarded-proto': 'https',
+    'x-forwarded-host': 'fallback-origin.example',
+  };
+
+  try {
+    const uploaded = await request('/api/v1/assets/upload', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        fileName: 'fallback.png',
+        contentType: 'image/png',
+        base64: Buffer.from('tiny').toString('base64'),
+        kind: 'image',
+        title: 'Fallback image',
+      }),
+    });
+
+    assert.equal(uploaded.status, 201);
+    assert.match(uploaded.body.fileUrl, /^https:\/\/fallback-origin\.example\/media\//);
+
+    const listed = await request('/api/v1/assets?includeArchived=true', {
+      headers: {
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'fallback-origin.example',
+      },
+    });
+
+    assert.equal(listed.status, 200);
+    const asset = listed.body.find((item) => item.id === uploaded.body.id);
+    assert.ok(asset);
+    assert.equal(asset.fileUrl, uploaded.body.fileUrl);
+  } finally {
+    delete process.env.LUMO_PUBLIC_API_URL;
+  }
 });
 
 test('asset scope validation rejects mismatched lesson/module relationships', async () => {

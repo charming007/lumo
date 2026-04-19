@@ -38,6 +38,76 @@ function readPositiveIntEnv(name, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
+function getCanonicalApiBaseAudit() {
+  const raw = String(process.env.API_BASE_URL || process.env.LUMO_PUBLIC_API_URL || '').trim();
+  if (!raw) {
+    return {
+      configured: null,
+      valid: false,
+      blocker: null,
+      warning: null,
+    };
+  }
+
+  try {
+    const parsed = new URL(raw);
+    const hostname = parsed.hostname.toLowerCase();
+    const protocol = parsed.protocol.toLowerCase();
+    const looksPlaceholder = hostname === 'example.com' || hostname.endsWith('.example.com');
+    const looksLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname.endsWith('.local');
+
+    if (!['http:', 'https:'].includes(protocol)) {
+      return {
+        configured: raw,
+        valid: false,
+        blocker: `API_BASE_URL/LUMO_PUBLIC_API_URL must use http or https. Current value: ${raw}`,
+        warning: null,
+      };
+    }
+
+    if (isProductionLike() && protocol !== 'https:') {
+      return {
+        configured: raw,
+        valid: false,
+        blocker: `API_BASE_URL/LUMO_PUBLIC_API_URL must use https in production-like environments. Current value: ${raw}`,
+        warning: null,
+      };
+    }
+
+    if (looksPlaceholder) {
+      return {
+        configured: raw,
+        valid: false,
+        blocker: `API_BASE_URL/LUMO_PUBLIC_API_URL still points at placeholder host ${hostname}. Replace it with the real public API URL.`,
+        warning: null,
+      };
+    }
+
+    if (looksLocal && isProductionLike()) {
+      return {
+        configured: raw,
+        valid: false,
+        blocker: `API_BASE_URL/LUMO_PUBLIC_API_URL points at ${hostname}, which is not a real external API origin for production traffic.`,
+        warning: null,
+      };
+    }
+
+    return {
+      configured: parsed.toString(),
+      valid: true,
+      blocker: null,
+      warning: null,
+    };
+  } catch {
+    return {
+      configured: raw,
+      valid: false,
+      blocker: `API_BASE_URL/LUMO_PUBLIC_API_URL is not a valid URL. Current value: ${raw}`,
+      warning: null,
+    };
+  }
+}
+
 function getAssetUploadAudit() {
   const root = path.resolve(process.env.LUMO_ASSET_UPLOAD_DIR || path.join(__dirname, '..', 'data', 'uploads'));
 
@@ -74,7 +144,8 @@ function buildConfigAudit() {
   const dbMeta = getDbModeMeta();
   const allowedOrigins = buildAllowedOrigins();
   const allowAnyOrigin = (process.env.LUMO_CORS_ALLOW_ANY_ORIGIN || '').toLowerCase() === 'true';
-  const apiBaseUrl = String(process.env.API_BASE_URL || process.env.LUMO_PUBLIC_API_URL || '').trim() || null;
+  const canonicalApiBase = getCanonicalApiBaseAudit();
+  const apiBaseUrl = canonicalApiBase.configured;
   const authAudit = getAuthAudit();
   const assetUploads = getAssetUploadAudit();
   const throttles = {
@@ -126,6 +197,14 @@ function buildConfigAudit() {
     warnings.push('API_BASE_URL/LUMO_PUBLIC_API_URL is not set, so operator docs and health surfaces cannot point at a canonical external API URL.');
   }
 
+  if (canonicalApiBase.blocker) {
+    if (isProductionLike()) {
+      errors.push(canonicalApiBase.blocker);
+    } else {
+      warnings.push(canonicalApiBase.blocker);
+    }
+  }
+
   if (mode === 'file' && isProductionLike()) {
     warnings.push('File-backed storage is running in a production-like environment. Use Postgres for durable multi-instance recovery.');
   }
@@ -163,6 +242,7 @@ function buildConfigAudit() {
     storage: dbMeta,
     assetUploads,
     apiBaseUrl,
+    publicApiBase: canonicalApiBase,
     cors: {
       allowAnyOrigin,
       allowedOrigins,
