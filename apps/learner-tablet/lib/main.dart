@@ -7291,12 +7291,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  flex: isStackedLayout ? 1 : 11,
+                  flex: isStackedLayout ? 1 : 12,
                   child: buildLessonGuidePane(),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
-                  flex: isStackedLayout ? 1 : 9,
+                  flex: isStackedLayout ? 1 : 8,
                   child: DetailCard(
                     child: LayoutBuilder(
                       builder: (context, detailConstraints) {
