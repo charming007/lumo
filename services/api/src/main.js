@@ -196,6 +196,57 @@ function buildPresentedAsset(req, item) {
   });
 }
 
+function isAssetRecordUsable(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    return false;
+  }
+
+  if (!item.id || typeof item.id !== 'string') {
+    return false;
+  }
+
+  if (!item.kind || typeof item.kind !== 'string') {
+    return false;
+  }
+
+  if (!item.title || typeof item.title !== 'string') {
+    return false;
+  }
+
+  if (item.tags !== undefined && item.tags !== null && !Array.isArray(item.tags)) {
+    return false;
+  }
+
+  if (item.storagePath !== undefined && item.storagePath !== null && typeof item.storagePath !== 'string') {
+    return false;
+  }
+
+  if (item.fileUrl !== undefined && item.fileUrl !== null && typeof item.fileUrl !== 'string') {
+    return false;
+  }
+
+  return true;
+}
+
+function filterPresentedAssets(req, items, predicate) {
+  return (Array.isArray(items) ? items : []).reduce((acc, item) => {
+    if (!isAssetRecordUsable(item)) {
+      return acc;
+    }
+
+    try {
+      if (!predicate(item)) {
+        return acc;
+      }
+
+      acc.push(buildPresentedAsset(req, item));
+      return acc;
+    } catch {
+      return acc;
+    }
+  }, []);
+}
+
 function readPositiveIntEnv(name, fallback) {
   const raw = process.env[name];
   if (raw === undefined || raw === null || raw === '') return fallback;
@@ -2234,7 +2285,9 @@ app.get('/api/v1/assets', (req, res) => {
   const source = String(req.query.source || '').trim();
   const tag = String(req.query.tag || req.query.tags || '').trim().toLowerCase();
   const includeArchived = String(req.query.includeArchived || '').toLowerCase() === 'true';
-  const items = store.listLessonAssets()
+  const storedAssets = store.listLessonAssets();
+  const items = (Array.isArray(storedAssets) ? storedAssets : [])
+    .filter(isAssetRecordUsable)
     .filter((item) => includeArchived || item.status !== 'archived')
     .filter((item) => !subjectId || item.subjectId === subjectId)
     .filter((item) => !moduleId || item.moduleId === moduleId)
@@ -2247,7 +2300,7 @@ app.get('/api/v1/assets', (req, res) => {
     .slice()
     .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
 
-  res.json(items.map((item) => buildPresentedAsset(req, item)));
+  res.json(filterPresentedAssets(req, items, () => true));
 });
 
 app.get('/api/v1/assets/:id', (req, res) => {

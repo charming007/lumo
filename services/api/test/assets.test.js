@@ -12,6 +12,7 @@ process.env.LUMO_ADMIN_API_KEY = 'asset-test-key';
 process.env.PORT = '0';
 
 const { startServer } = require('../src/main');
+const store = require('../src/store');
 
 let server;
 let baseUrl;
@@ -281,4 +282,33 @@ test('asset scope validation rejects mismatched lesson/module relationships', as
 
   assert.equal(response.status, 400);
   assert.match(response.body.message, /does not belong/);
+});
+
+test('asset registry feed skips malformed records instead of failing the whole listing', async () => {
+  const assets = store.listLessonAssets();
+  const originalLength = assets.length;
+
+  assets.push(null);
+  assets.push('totally-not-an-asset');
+  assets.push({
+    id: 'asset-poison-pill',
+    kind: 'image',
+    title: 'Poison pill',
+    tags: ['bad'],
+    subjectId: 'english',
+    storagePath: { bad: 'path-shape' },
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  });
+
+  try {
+    const response = await request('/api/v1/assets?includeArchived=true');
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.body));
+    assert.equal(response.body.some((item) => item?.id === 'asset-poison-pill'), false);
+    assert.equal(response.body.some((item) => item == null), false);
+  } finally {
+    assets.splice(originalLength);
+  }
 });
