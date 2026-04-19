@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "generatedAt": "2026-04-19T20:11:00+04:00",
+  "packs": [
+    {
+      "id": "lumo-fundamentals",
+      "title": "Lumo Fundamentals",
+      "description": "Bundled offline-first starter pack metadata for foundational lessons.",
+      "manifest": "assets/content_packs/lumo-fundamentals/pack.json"
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "packId": "lumo-fundamentals",
+  "packVersion": "0.1.0",
+  "lesson": {
+    "id": "lf-meet-mallam",
+    "moduleId": "lumo-fundamentals",
+    "title": "Meet Mallam",
+    "subject": "Lumo Fundamentals",
+    "durationMinutes": 6,
+    "status": "Bundled offline starter",
+    "mascotName": "Mallam",
+    "readinessFocus": "Learn who Mallam is, how the tablet speaks, and how to answer one short guided prompt.",
+    "scenario": "The learner meets Mallam for the first time and practices listening, pointing, and repeating in a calm offline session.",
+    "activitySteps": [
+      {
+        "id": "meet-mallam-1",
+        "order": 1,
+        "type": "listen_repeat",
+        "title": "Mallam says hello",
+        "prompt": "Listen to Mallam say hello, then say hello back.",
+        "detail": "Starter introduction step for first-run tablet orientation.",
+        "evidence": "Learner listens, stays engaged, and attempts a spoken hello.",
+        "expectedAnswers": ["Hello, Mallam.", "Hello Mallam", "Hello"],
+        "facilitatorNotes": [
+          "Keep the pace slow and friendly.",
+          "Accept a close spoken greeting."
+        ],
+        "media": [
+          {
+            "kind": "text",
+            "value": "Meet Mallam"
+          }
+        ]
+      },
+      {
+        "id": "meet-mallam-2",
+        "order": 2,
+        "type": "image_choice",
+        "title": "Find Mallam",
+        "prompt": "Tap the picture that shows Mallam.",
+        "detail": "Uses local bundled image support when final media is present; currently prepared with manifest-backed placeholders only.",
+        "evidence": "Learner can pick the guided character card with one cue.",
+        "expectedAnswers": ["Mallam"],
+        "choices": [
+          {
+            "id": "choice-mallam",
+            "label": "Mallam",
+            "isCorrect": true,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:lf-meet-mallam:mallam-card"
+            }
+          },
+          {
+            "id": "choice-book",
+            "label": "Book",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:lf-meet-mallam:book-card"
+            }
+          },
+          {
+            "id": "choice-hand",
+            "label": "Hand",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:lf-meet-mallam:wave-card"
+            }
+          }
+        ],
+        "facilitatorNotes": [
+          "If local image cards are not installed yet, read the labels aloud and point physically.",
+          "Do not block lesson completion if media is still pending."
+        ]
+      },
+      {
+        "id": "meet-mallam-3",
+        "order": 3,
+        "type": "speak_answer",
+        "title": "Say your ready phrase",
+        "prompt": "Say: I am ready to learn.",
+        "detail": "Simple spoken confidence close for the first bundled lesson.",
+        "evidence": "Learner attempts the full readiness phrase with support if needed.",
+        "expectedAnswers": ["I am ready to learn.", "I am ready", "Ready to learn"],
+        "facilitatorNotes": [
+          "Praise effort, not perfect pronunciation.",
+          "Replay the phrase once before prompting a second try."
+        ],
+        "media": [
+          {
+            "kind": "text",
+            "value": "I am ready to learn."
+          }
+        ]
+      }
+    ]
+  },
+  "offlineMedia": {
+    "basePath": "assets/content_packs/lumo-fundamentals/meet_mallam/media",
+    "items": [
+      {
+        "id": "mallam-card",
+        "kind": "image",
+        "relativePath": "images/mallam-card.png",
+        "status": "placeholder",
+        "required": false,
+        "notes": "Final learner-facing art not added yet. Keep manifest stable so the runtime can resolve it once supplied."
+      },
+      {
+        "id": "book-card",
+        "kind": "image",
+        "relativePath": "images/book-card.png",
+        "status": "placeholder",
+        "required": false,
+        "notes": "Starter non-final choice asset slot."
+      },
+      {
+        "id": "wave-card",
+        "kind": "image",
+        "relativePath": "images/wave-card.png",
+        "status": "placeholder",
+        "required": false,
+        "notes": "Starter non-final choice asset slot."
+      },
+      {
+        "id": "intro-hello",
+        "kind": "audio",
+        "relativePath": "audio/intro-hello.mp3",
+        "status": "placeholder",
+        "required": false,
+        "notes": "Reserved slot for future local greeting audio."
+      }
+    ]
+  }
+}

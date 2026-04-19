@@ -1,0 +1,22 @@
+{
+  "id": "lumo-fundamentals",
+  "title": "Lumo Fundamentals",
+  "description": "Starter bundled content pack for offline-first foundational learning on learner tablets.",
+  "version": "0.1.0",
+  "deliveryMode": "bundled-offline",
+  "lessons": [
+    {
+      "id": "lf-meet-mallam",
+      "title": "Meet Mallam",
+      "module": {
+        "id": "lumo-fundamentals",
+        "title": "Lumo Fundamentals",
+        "description": "Foundational, voice-led starter lessons prepared for offline delivery.",
+        "voicePrompt": "Open the fundamentals pack and begin with calm, guided voice support.",
+        "readinessGoal": "Ready to begin local offline lesson packs",
+        "badge": "Bundled pack"
+      },
+      "manifest": "assets/content_packs/lumo-fundamentals/meet_mallam/lesson.json"
+    }
+  ]
+}

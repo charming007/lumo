@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'bundled_content.dart';
 import 'dialogue.dart';
 import 'models.dart';
 import 'seed_data.dart';
@@ -25,11 +26,14 @@ const Duration _kTrustedOfflineSnapshotMaxAge = Duration(hours: 24);
 class LumoAppState {
   LumoAppState({
     LumoApiClient? apiClient,
+    BundledContentLoader? bundledContentLoader,
     bool includeSeedDemoContent = kEnableSeedDemoContent,
   })  : _apiClient = apiClient ?? LumoApiClient(),
+        _bundledContentLoader = bundledContentLoader ?? const BundledContentLoader(),
         _includeSeedDemoContent = includeSeedDemoContent;
 
   final LumoApiClient _apiClient;
+  final BundledContentLoader _bundledContentLoader;
   final bool _includeSeedDemoContent;
   VoiceReplay? voiceReplay;
   VoiceReplayStop? voiceReplayStop;
@@ -472,6 +476,7 @@ class LumoAppState {
       lastSyncError = null;
 
       await _hydrateModuleBundles(mergedModules);
+      await _mergeBundledOfflineContent();
 
       if (learners.isNotEmpty) {
         final existingLearnerId = currentLearner?.id;
@@ -508,6 +513,7 @@ class LumoAppState {
           : null;
       if (!needsProductionBlocker) {
         _restoreGuaranteedOfflineFallbackIfNeeded();
+        await _mergeBundledOfflineContent();
       }
     } finally {
       isBootstrapping = false;
@@ -540,6 +546,39 @@ class LumoAppState {
 
     selectedModule ??= modules.isNotEmpty ? modules.first : null;
     currentLearner ??= suggestedLearnerForHome;
+  }
+
+  Future<void> _mergeBundledOfflineContent() async {
+    try {
+      final bundled = await _bundledContentLoader.load();
+      if (bundled.isEmpty) return;
+
+      modules
+        ..clear()
+        ..addAll(
+          _dedupeModules(
+            _sanitizeModules([
+              ...modules,
+              ...bundled.modules,
+            ]),
+          ),
+        );
+
+      final mergedLessonMap = <String, LessonCardModel>{
+        for (final lesson in assignedLessons) lesson.id.trim(): lesson,
+      };
+      for (final lesson in bundled.lessons) {
+        mergedLessonMap.putIfAbsent(lesson.id.trim(), () => lesson);
+      }
+
+      assignedLessons
+        ..clear()
+        ..addAll(
+          _sanitizeLessons(mergedLessonMap.values.toList()),
+        );
+    } catch (_) {
+      // Bundled starter content is optional. If it fails, the tablet should keep going.
+    }
   }
 
   Future<void> _hydrateModuleBundles(List<LearningModule> sourceModules) async {
