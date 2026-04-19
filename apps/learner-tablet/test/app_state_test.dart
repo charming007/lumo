@@ -19,6 +19,248 @@ class _FakeBundledContentLoader extends BundledContentLoader {
   Future<BundledContentLibrary> load() async => library;
 }
 
+class _BootstrapWithBundledFundamentalsApiClient extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap() async {
+    return LumoBootstrap(
+      learners: const [
+        LearnerProfile(
+          id: 'learner-1',
+          name: 'Amina',
+          age: 7,
+          cohort: 'Alpha',
+          streakDays: 1,
+          guardianName: 'Zainab',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Pod 1',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-AL07',
+        ),
+      ],
+      modules: const [
+        LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Live English path',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Live greeting flow',
+          badge: 'Live backend',
+        ),
+        LearningModule(
+          id: 'math',
+          title: 'Basic Mathematics',
+          description: 'Live Math path',
+          voicePrompt: 'Open Math.',
+          readinessGoal: 'Live counting flow',
+          badge: 'Live backend',
+        ),
+        LearningModule(
+          id: 'life-skills',
+          title: 'Life Skills',
+          description: 'Live Life Skills path',
+          voicePrompt: 'Open Life Skills.',
+          readinessGoal: 'Live routine flow',
+          badge: 'Live backend',
+        ),
+      ],
+      lessons: const [
+        LessonCardModel(
+          id: 'english-live-1',
+          moduleId: 'english',
+          title: 'Live English hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Live greeting flow',
+          scenario: 'Live lesson from backend bootstrap.',
+          steps: [
+            LessonStep(
+              id: 'english-step-1',
+              type: LessonStepType.practice,
+              title: 'Live hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Keep it short.',
+              realWorldCheck: 'Learner greets',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+        LessonCardModel(
+          id: 'math-live-1',
+          moduleId: 'math',
+          title: 'Count together',
+          subject: 'Basic Mathematics',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Live counting flow',
+          scenario: 'Live lesson from backend bootstrap.',
+          steps: [
+            LessonStep(
+              id: 'math-step-1',
+              type: LessonStepType.practice,
+              title: 'Count together',
+              instruction: 'Count to three.',
+              expectedResponse: '1 2 3',
+              coachPrompt: 'Count to three.',
+              facilitatorTip: 'Count together.',
+              realWorldCheck: 'Learner counts',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+        LessonCardModel(
+          id: 'life-live-1',
+          moduleId: 'life-skills',
+          title: 'Wash hands',
+          subject: 'Life Skills',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Live routine flow',
+          scenario: 'Live lesson from backend bootstrap.',
+          steps: [
+            LessonStep(
+              id: 'life-step-1',
+              type: LessonStepType.practice,
+              title: 'Wash hands',
+              instruction: 'Say wash hands.',
+              expectedResponse: 'Wash hands',
+              coachPrompt: 'Say wash hands.',
+              facilitatorTip: 'Model the routine.',
+              realWorldCheck: 'Learner repeats the routine',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
+    final modules = {
+      'english': const LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'Live English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Live greeting flow',
+        badge: '1 lesson',
+      ),
+      'math': const LearningModule(
+        id: 'math',
+        title: 'Basic Mathematics',
+        description: 'Live Math path',
+        voicePrompt: 'Open Math.',
+        readinessGoal: 'Live counting flow',
+        badge: '1 lesson',
+      ),
+      'life-skills': const LearningModule(
+        id: 'life-skills',
+        title: 'Life Skills',
+        description: 'Live Life Skills path',
+        voicePrompt: 'Open Life Skills.',
+        readinessGoal: 'Live routine flow',
+        badge: '1 lesson',
+      ),
+    };
+
+    final lessons = {
+      'english': const [
+        LessonCardModel(
+          id: 'english-live-1',
+          moduleId: 'english',
+          title: 'Live English hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Live greeting flow',
+          scenario: 'Live lesson from backend bootstrap.',
+          steps: [
+            LessonStep(
+              id: 'english-step-1',
+              type: LessonStepType.practice,
+              title: 'Live hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Keep it short.',
+              realWorldCheck: 'Learner greets',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      ],
+      'math': const [
+        LessonCardModel(
+          id: 'math-live-1',
+          moduleId: 'math',
+          title: 'Count together',
+          subject: 'Basic Mathematics',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Live counting flow',
+          scenario: 'Live lesson from backend bootstrap.',
+          steps: [
+            LessonStep(
+              id: 'math-step-1',
+              type: LessonStepType.practice,
+              title: 'Count together',
+              instruction: 'Count to three.',
+              expectedResponse: '1 2 3',
+              coachPrompt: 'Count to three.',
+              facilitatorTip: 'Count together.',
+              realWorldCheck: 'Learner counts',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      ],
+      'life-skills': const [
+        LessonCardModel(
+          id: 'life-live-1',
+          moduleId: 'life-skills',
+          title: 'Wash hands',
+          subject: 'Life Skills',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Live routine flow',
+          scenario: 'Live lesson from backend bootstrap.',
+          steps: [
+            LessonStep(
+              id: 'life-step-1',
+              type: LessonStepType.practice,
+              title: 'Wash hands',
+              instruction: 'Say wash hands.',
+              expectedResponse: 'Wash hands',
+              coachPrompt: 'Say wash hands.',
+              facilitatorTip: 'Model the routine.',
+              realWorldCheck: 'Learner repeats the routine',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      ],
+    };
+
+    return LumoModuleBundle(
+      module: modules[moduleId]!,
+      lessons: lessons[moduleId]!,
+    );
+  }
+}
+
 void main() {
   group('LumoAppState learner assignment flow', () {
     final beginner = LearnerProfile(
@@ -2878,6 +3120,81 @@ void main() {
         state.assignedLessons.any((lesson) => lesson.id == 'lf-meet-mallam'),
         isTrue,
       );
+    });
+
+    test(
+        'bootstrap keeps live subjects alongside bundled fundamentals instead of collapsing to the offline pack',
+        () async {
+      final bundledLesson = LessonCardModel(
+        id: 'lf-meet-mallam',
+        moduleId: 'lumo-fundamentals',
+        title: 'Meet Mallam',
+        subject: 'Lumo Fundamentals',
+        durationMinutes: 6,
+        status: 'bundled',
+        mascotName: 'Mallam',
+        readinessFocus: 'Offline starter',
+        scenario: 'Bundled offline intro lesson.',
+        steps: const [
+          LessonStep(
+            id: 'bundled-step-1',
+            type: LessonStepType.practice,
+            title: 'Meet Mallam',
+            instruction: 'Say hello to Mallam.',
+            expectedResponse: 'Hello Mallam',
+            coachPrompt: 'Say hello to Mallam.',
+            facilitatorTip: 'Model the phrase once.',
+            realWorldCheck: 'Learner greets Mallam.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        bundledContentLoader: _FakeBundledContentLoader(
+          BundledContentLibrary(
+            modules: const [
+              LearningModule(
+                id: 'lumo-fundamentals',
+                title: 'Lumo Fundamentals',
+                description: 'Offline starter pack',
+                voicePrompt: 'Meet Mallam offline.',
+                readinessGoal: 'Ready for offline startup.',
+                badge: 'Bundled pack',
+              ),
+            ],
+            lessons: [bundledLesson],
+          ),
+        ),
+        apiClient: _BootstrapWithBundledFundamentalsApiClient(),
+      );
+
+      await state.bootstrap();
+
+      expect(
+        state.modules.map((module) => module.id),
+        equals(['english', 'math', 'life-skills', 'lumo-fundamentals']),
+      );
+      expect(
+        state.modules.map((module) => module.title),
+        containsAll([
+          'English',
+          'Basic Mathematics',
+          'Life Skills',
+          'Lumo Fundamentals',
+        ]),
+      );
+      expect(
+        state.assignedLessons.map((lesson) => lesson.id),
+        containsAll([
+          'english-live-1',
+          'math-live-1',
+          'life-live-1',
+          'lf-meet-mallam',
+        ]),
+      );
+      state.dispose();
     });
   });
 }
