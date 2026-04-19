@@ -5802,6 +5802,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
   }
 
+  int _imageChoiceColumnCount({
+    required double maxWidth,
+    required int choiceCount,
+  }) {
+    if (choiceCount <= 1) return 1;
+    if (maxWidth >= 1180 && choiceCount >= 4) return 4;
+    if (maxWidth >= 900 && choiceCount >= 3) return 3;
+    if (maxWidth >= 640 && choiceCount >= 2) return 2;
+    return 1;
+  }
+
   Widget _buildChoicePreview(
     LessonActivityChoice choice,
     String fallbackEmoji, {
@@ -5898,16 +5909,60 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     return Container(
       height: imageHeight,
       alignment: Alignment.center,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: const Color(0xFFBFDBFE), width: 1.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(fallbackEmoji, style: const TextStyle(fontSize: 40)),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFF93C5FD)),
+            ),
+            child: Center(
+              child: Text(fallbackEmoji, style: const TextStyle(fontSize: 36)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            choice.label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E3A8A),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.86),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Text(
+              'Picture choice',
+              style: TextStyle(
+                color: Color(0xFF1D4ED8),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
           if (hasAudio) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             const Icon(
               Icons.volume_up_rounded,
               color: Color(0xFF4338CA),
@@ -6205,12 +6260,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   const SizedBox(height: 16),
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final cardWidth = constraints.maxWidth >= 720
-                          ? (constraints.maxWidth - 16) / 2
-                          : constraints.maxWidth;
+                      const spacing = 16.0;
+                      final columnCount = _imageChoiceColumnCount(
+                        maxWidth: constraints.maxWidth,
+                        choiceCount: choiceItems.length,
+                      );
+                      final totalSpacing = spacing * (columnCount - 1);
+                      final cardWidth =
+                          (constraints.maxWidth - totalSpacing) / columnCount;
                       return Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
+                        spacing: spacing,
+                        runSpacing: spacing,
                         children: List.generate(choiceItems.length, (index) {
                           final choiceItem = choiceItems[index];
                           final emoji = index < activity.choiceEmoji.length
@@ -6225,6 +6285,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                               ) !=
                               null;
                           return InkWell(
+                            key: ValueKey('choice-card-${choiceItem.id}'),
                             onTap: () => _setResponseAndMaybeSubmit(
                               choiceItem.label,
                             ),
@@ -7297,6 +7358,177 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final canAdvanceChoiceStep =
         isChoiceStep && hasDraftResponse && !transcriptReviewPending;
 
+    Widget buildChoiceSelectionPanel() {
+      final activity = step.activity;
+      if (activity == null) return const SizedBox.shrink();
+      final choiceItems = activity.choiceItems.isNotEmpty
+          ? activity.choiceItems
+          : List.generate(activity.choices.length, (index) {
+              final choice = activity.choices[index];
+              return LessonActivityChoice(
+                id: 'choice-$index',
+                label: choice,
+                isCorrect: choice == activity.targetResponse,
+              );
+            });
+      final selectedChoiceLabel = responseController.text.trim();
+      final choiceCount = choiceItems.length.clamp(1, 4);
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFF),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFD7E3FF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Choose the matching object',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E3A8A),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Tap one card. The selected card stays highlighted so the learner can see the choice clearly.',
+              style: TextStyle(color: Color(0xFF475569), height: 1.35),
+            ),
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = switch (choiceCount) {
+                  <= 1 => 1,
+                  2 => constraints.maxWidth >= 540 ? 2 : 1,
+                  3 => constraints.maxWidth >= 760 ? 3 : 2,
+                  _ => constraints.maxWidth >= 860 ? 4 : 2,
+                };
+                final childAspectRatio = choiceCount <= 2
+                    ? (columns == 1 ? 1.55 : 1.18)
+                    : (columns >= 3 ? 0.86 : 0.96);
+
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: choiceItems.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: childAspectRatio,
+                  ),
+                  itemBuilder: (context, index) {
+                    final choiceItem = choiceItems[index];
+                    final emoji = index < activity.choiceEmoji.length
+                        ? activity.choiceEmoji[index]
+                        : '🖼️';
+                    final isSelected = selectedChoiceLabel.toLowerCase() ==
+                        choiceItem.label.trim().toLowerCase();
+                    return InkWell(
+                      onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
+                      borderRadius: BorderRadius.circular(28),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFEFF6FF)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFF2563EB)
+                                : const Color(0xFFD7E3FF),
+                            width: isSelected ? 3 : 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isSelected
+                                  ? const Color(0x1A2563EB)
+                                  : const Color(0x0D0F172A),
+                              blurRadius: isSelected ? 24 : 12,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: _buildChoicePreview(
+                                      choiceItem,
+                                      emoji,
+                                      imageHeight: choiceCount <= 2 ? 190 : 148,
+                                      borderRadius: 22,
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    Positioned(
+                                      top: 12,
+                                      right: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2563EB),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.check_rounded,
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Selected',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              choiceItem.label,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 20,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
     Widget buildLessonGuidePane() {
       final lessonStage = _MallamStageShell(
         eyebrow: 'Mallam',
@@ -7323,56 +7555,78 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         ),
       );
 
-      final hiddenLessonTools = DetailCard(
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: EdgeInsets.zero,
-            title: const Text(
-              'Show lesson map and exchange',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            subtitle: const Text(
-              'Open only when you need step-by-step facilitator context.',
-              style: TextStyle(color: Color(0xFF64748B)),
-            ),
-            children: [
-              const SizedBox(height: 12),
-              _LessonStageStrip(
-                session: session,
-                lesson: widget.lesson,
+      final hiddenLessonTools = isChoiceStep
+          ? const SizedBox.shrink()
+          : DetailCard(
+              child: Theme(
+                data: Theme.of(context)
+                    .copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  title: const Text(
+                    'Show lesson map and exchange',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: const Text(
+                    'Open only when you need step-by-step facilitator context.',
+                    style: TextStyle(color: Color(0xFF64748B)),
+                  ),
+                  children: [
+                    const SizedBox(height: 12),
+                    _LessonStageStrip(
+                      session: session,
+                      lesson: widget.lesson,
+                    ),
+                    const SizedBox(height: 12),
+                    _LessonTranscriptPanel(
+                      session: session,
+                      learnerName: learner.name,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              _LessonTranscriptPanel(
-                session: session,
-                learnerName: learner.name,
-              ),
-            ],
-          ),
+            );
+
+      final backButton = Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _confirmLeaveLessonSession,
+          icon: const Icon(Icons.arrow_back_rounded),
+          label: const Text('Back'),
         ),
       );
 
       if (isStackedLayout) {
         return SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              backButton,
+              const SizedBox(height: 12),
               SizedBox(
                 height: sessionUsesCompactChrome ? 500 : 560,
                 child: lessonStage,
               ),
-              const SizedBox(height: 12),
-              hiddenLessonTools,
+              if (!isChoiceStep) ...[
+                const SizedBox(height: 12),
+                hiddenLessonTools,
+              ],
             ],
           ),
         );
       }
 
       return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: lessonStage),
+          backButton,
           const SizedBox(height: 12),
-          hiddenLessonTools,
+          Expanded(child: lessonStage),
+          if (!isChoiceStep) ...[
+            const SizedBox(height: 12),
+            hiddenLessonTools,
+          ],
         ],
       );
     }
@@ -7431,10 +7685,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (step.activity != null) ...[
-                                      _buildActivityPanel(step),
-                                      const SizedBox(height: 16),
-                                    ],
                                     Container(
                                       width: double.infinity,
                                       padding: EdgeInsets.all(
@@ -7451,17 +7701,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            'Prompt',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: compactSessionHeader
-                                                  ? 14
-                                                  : 15,
-                                              color: const Color(0xFF4338CA),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
                                           Text(
                                             step.title,
                                             maxLines:
@@ -7485,52 +7724,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               color: Color(0xFF334155),
                                             ),
                                           ),
-                                          const SizedBox(height: 16),
-                                          Container(
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(18),
-                                              border: Border.all(
-                                                color: const Color(0xFFE2E8F0),
-                                              ),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                const Text(
-                                                  'Target answer',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 13,
-                                                    color: Color(0xFF64748B),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Text(
-                                                  expectedResponse,
-                                                  maxLines: compactSessionHeader
-                                                      ? 3
-                                                      : 4,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Color(0xFF0F172A),
-                                                    height: 1.35,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
                                         ],
                                       ),
                                     ),
                                     const SizedBox(height: 16),
+                                    if (step.activity != null) ...[
+                                      isChoiceStep
+                                          ? buildChoiceSelectionPanel()
+                                          : _buildActivityPanel(step),
+                                      const SizedBox(height: 16),
+                                    ],
                                     Container(
                                       width: double.infinity,
                                       padding: const EdgeInsets.all(20),
@@ -7545,33 +7748,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFEFF6FF),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                999,
-                                              ),
-                                              border: Border.all(
-                                                color: const Color(0xFFBFDBFE),
-                                              ),
-                                            ),
-                                            child: const Text(
-                                              'Start',
-                                              style: TextStyle(
-                                                color: Color(0xFF1D4ED8),
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
                                           Text(
                                             isChoiceStep
-                                                ? 'Selection'
+                                                ? 'Selected object'
                                                 : 'Transcription',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w800,
@@ -7584,7 +7763,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             transcriptReviewPending
                                                 ? 'Check the learner words here, then confirm before Mallam continues.'
                                                 : (isChoiceStep
-                                                    ? 'Tap one picture, then confirm the selected label here.'
+                                                    ? 'Keep the chosen object label visible here before moving on.'
                                                     : (isRecording
                                                         ? 'Listening to the learner now.'
                                                         : 'Start listening, capture the learner voice, then review the text here.')),
@@ -7914,20 +8093,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                             const SizedBox(height: 16),
                             Row(
                               children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: _confirmLeaveLessonSession,
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                        vertical: 18,
-                                      ),
-                                    ),
-                                    icon: const Icon(Icons.arrow_back_rounded),
-                                    label: const Text('Back'),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
                                 Expanded(
                                   child: FilledButton(
                                     onPressed: primaryAction,
