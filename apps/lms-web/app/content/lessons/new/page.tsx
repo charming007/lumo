@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
-import { fetchCurriculumModules, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
 import { PageShell } from '../../../../lib/ui';
 import { createLessonAction } from '../../../actions';
@@ -77,19 +77,22 @@ export default async function LessonStudioCreatePage({
     );
   }
 
-  const [subjectsResult, modulesResult, lessonsResult] = await Promise.allSettled([
+  const [subjectsResult, modulesResult, lessonsResult, assetsResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchCurriculumModules(),
     fetchLessons(),
+    fetchLessonAssets(),
   ]);
 
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
+    assetsResult.status === 'rejected' ? 'assets' : null,
   ].filter(Boolean) as string[];
   const missingCoreAuthoringFeeds = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
@@ -162,7 +165,7 @@ export default async function LessonStudioCreatePage({
       ]}
       aside={(
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href="/content/assets" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
+          <Link href={`/content/assets?subjectId=${encodeURIComponent(selectedSubject?.id ?? '')}&moduleId=${encodeURIComponent(selectedModule?.id ?? '')}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
             Browse assets
           </Link>
           <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
@@ -201,6 +204,7 @@ export default async function LessonStudioCreatePage({
           subjects={subjects}
           modules={modules}
           lessons={lessons}
+          assets={assets}
           action={createLessonAction}
           initialSubjectId={selectedSubject?.id ?? subjectId}
           initialModuleId={selectedModule?.id ?? moduleId}

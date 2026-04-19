@@ -13,7 +13,7 @@ import {
   lessonStepTypeAccentMap,
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
-import type { CurriculumModule, Lesson, Subject } from '../lib/types';
+import type { CurriculumModule, Lesson, LessonAsset, Subject } from '../lib/types';
 
 const cardStyle = {
   background: 'white',
@@ -194,10 +194,12 @@ export function LessonEditorForm({
   modules,
   action,
   returnPath = '/content',
+  assets,
 }: {
   lesson: Lesson;
   subjects: Subject[];
   modules: CurriculumModule[];
+  assets: LessonAsset[];
   action: (formData: FormData) => void;
   returnPath?: string;
 }) {
@@ -802,6 +804,10 @@ export function LessonEditorForm({
                     mediaLines={activity.mediaLines}
                     choiceLines={activity.choiceLines}
                     activitySteps={activitySteps}
+                    assets={assets}
+                    subjectId={subjectId}
+                    moduleId={moduleId}
+                    lessonId={lesson.id}
                     onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
                     onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
                   />

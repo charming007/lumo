@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
+import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import {
   getLessonStepTypeGuidance,
@@ -12,7 +13,7 @@ import {
   lessonStepTypeAccentMap,
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
-import type { CurriculumModule, Lesson, LessonActivityStep, Subject } from '../lib/types';
+import type { CurriculumModule, Lesson, LessonActivityStep, LessonAsset, Subject } from '../lib/types';
 
 const cardStyle = {
   background: 'white',
@@ -248,10 +249,12 @@ export function LessonCreateForm({
   initialModuleId,
   duplicateLessonId,
   returnPath = '/content',
+  assets,
 }: {
   subjects: Subject[];
   modules: CurriculumModule[];
   lessons: Lesson[];
+  assets: LessonAsset[];
   action: (formData: FormData) => void;
   initialSubjectId?: string;
   initialModuleId?: string;
@@ -757,6 +760,18 @@ export function LessonCreateForm({
                       <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.facilitatorHint}</span>
                     </FieldLabel>
                   </div>
+                  <LessonAssetLibraryPanel
+                    stepType={activity.type}
+                    mediaLines={activity.mediaLines}
+                    choiceLines={activity.choiceLines}
+                    activitySteps={activitySteps}
+                    assets={assets}
+                    subjectId={subjectId}
+                    moduleId={moduleId}
+                    onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
+                    onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
+                  />
+
                   {supportsChoices || supportsMedia ? (
                     <div style={{ display: 'grid', gap: 14 }}>
                       <LessonActivityStructuredBuilders
