@@ -501,6 +501,8 @@ export function LessonCreateForm({
             <span style={{ padding: '6px 10px', borderRadius: 999, background: '#E0E7FF', color: '#3730A3', fontWeight: 700, fontSize: 12 }}>{mode}</span>
             <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F1F5F9', color: '#334155', fontWeight: 700, fontSize: 12 }}>{targetAgeRange || 'Age band unset'}</span>
             <span style={{ padding: '6px 10px', borderRadius: 999, background: '#EEF2FF', color: '#4338CA', fontWeight: 700, fontSize: 12 }}>{voicePersona || 'Voice persona pending'}</span>
+            <span style={{ padding: '6px 10px', borderRadius: 999, background: '#ECFEFF', color: '#155E75', fontWeight: 700, fontSize: 12 }}>English runtime: en-NG</span>
+            <span style={{ padding: '6px 10px', borderRadius: 999, background: supportLanguageLabel.trim() ? '#FFF7ED' : '#F8FAFC', color: supportLanguageLabel.trim() ? '#9A3412' : '#475569', fontWeight: 700, fontSize: 12 }}>{supportLanguageLabel.trim() ? `Support: ${supportLanguageLabel}` : 'Support language pending'}</span>
             <span style={{ padding: '6px 10px', borderRadius: 999, background: totalActivityMinutes === (Number(durationMinutes) || 0) ? '#DCFCE7' : '#FEF3C7', color: totalActivityMinutes === (Number(durationMinutes) || 0) ? '#166534' : '#92400E', fontWeight: 700, fontSize: 12 }}>{totalActivityMinutes === (Number(durationMinutes) || 0) ? 'Timing aligned' : 'Timing mismatch'}</span>
           </div>
 
@@ -516,7 +518,7 @@ export function LessonCreateForm({
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Flow snapshot</div>
               <div style={{ display: 'grid', gap: 8 }}>
                 {activitySteps.map((step, index) => (
-                  <LessonStepPreviewCard key={step.id} step={step} index={index} />
+                  <LessonStepPreviewCard key={step.id} step={step} index={index} showRuntimeHints />
                 ))}
               </div>
             </div>
