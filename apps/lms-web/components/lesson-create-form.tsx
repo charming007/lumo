@@ -294,7 +294,7 @@ export function LessonCreateForm({
   const [assessmentKind, setAssessmentKind] = useState(String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'));
   const [assessmentItemsText, setAssessmentItemsText] = useState(asArray<{ prompt?: string; evidence?: string }>(duplicateLesson?.lessonAssessment?.items).map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`).join('\n'));
   const [activityDrafts, setActivityDrafts] = useState(buildDraftsFromLesson(duplicateLesson));
-  const initialSnapshot = useMemo(() => JSON.stringify({
+  const baselineSnapshot = useMemo(() => JSON.stringify({
     subjectId: String(fallbackSubjectId ?? subjects[0]?.id ?? ''),
     moduleId: String(fallbackModuleId),
     title: duplicateLesson ? `${duplicateLesson.title} copy` : 'New lesson title',
@@ -388,7 +388,7 @@ export function LessonCreateForm({
     assessmentItemsText,
     activityDrafts,
   }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
-  const isDirty = currentSnapshot !== initialSnapshot;
+  const isDirty = currentSnapshot !== baselineSnapshot;
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
   const updateActivity = (index: number, patch: Partial<ActivityDraft>) => {
