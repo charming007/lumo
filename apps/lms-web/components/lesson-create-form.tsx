@@ -559,6 +559,7 @@ export function LessonCreateForm({
   })), [activityDrafts]);
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
+  const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getTypeReadinessWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
   const readinessCount = useMemo(() => {
     let count = 0;
     if (title.trim().length >= 8) count += 1;
@@ -576,7 +577,8 @@ export function LessonCreateForm({
     activitySteps.length >= 3 ? null : 'Build at least 3 activity steps so the lesson has a real learner flow.',
     Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing the lesson is bullshit until the lane is release-safe.',
-  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
+    ...typeReadinessWarnings,
+  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = dependencyBlockers.length > 0 || (publishIntent && readinessBlockers.length > 0);
 

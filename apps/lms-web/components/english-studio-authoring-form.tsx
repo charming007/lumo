@@ -650,68 +650,98 @@ export function EnglishStudioAuthoringForm({
             </div>
 
             <div style={{ display: 'grid', gap: 12 }}>
-              {activityDrafts.map((activity, index) => (
-                <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
-                      <button type="button" onClick={() => moveActivity(index, 1)} disabled={index === activityDrafts.length - 1} style={{ ...ghostButtonStyle, opacity: index === activityDrafts.length - 1 ? 0.45 : 1 }}>↓ Move</button>
-                      <button type="button" onClick={() => duplicateActivity(index)} style={ghostButtonStyle}>Duplicate</button>
-                      <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
+              {activityDrafts.map((activity, index) => {
+                const stepWarnings = getTypeReadinessWarnings(activity);
+                return (
+                  <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ padding: '6px 10px', borderRadius: 999, background: '#EEF2FF', color: '#3730A3', fontWeight: 700, fontSize: 12 }}>{typeOptions.find((option) => option.value === activity.type)?.label ?? activity.type}</span>
+                          <span style={{ padding: '6px 10px', borderRadius: 999, background: stepWarnings.length ? '#FEF2F2' : '#ECFDF5', color: stepWarnings.length ? '#B91C1C' : '#166534', fontWeight: 700, fontSize: 12 }}>{stepWarnings.length ? `${stepWarnings.length} type warnings` : 'Type checks clear'}</span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
+                        <button type="button" onClick={() => moveActivity(index, 1)} disabled={index === activityDrafts.length - 1} style={{ ...ghostButtonStyle, opacity: index === activityDrafts.length - 1 ? 0.45 : 1 }}>↓ Move</button>
+                        <button type="button" onClick={() => duplicateActivity(index)} style={ghostButtonStyle}>Duplicate</button>
+                        <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
+                      </div>
                     </div>
+
+                    {stepWarnings.length ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {stepWarnings.map((warning) => (
+                          <div key={warning} style={{ padding: 10, borderRadius: 12, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', lineHeight: 1.5 }}>{warning}</div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <div style={autoFitCompactFields}>
+                      <FieldLabel>
+                        Step title
+                        <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
+                      </FieldLabel>
+                      <FieldLabel>
+                        Type
+                        <select value={activity.type} onChange={(event) => updateActivity(index, { type: event.target.value })} style={inputStyle}>
+                          {typeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </FieldLabel>
+                      <FieldLabel>
+                        Minutes
+                        <input value={activity.durationMinutes} onChange={(event) => updateActivity(index, { durationMinutes: event.target.value })} style={inputStyle} />
+                      </FieldLabel>
+                    </div>
+
+                    <FieldLabel>
+                      Learner prompt
+                      <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={2} style={inputStyle} />
+                    </FieldLabel>
+
+                    <FieldLabel>
+                      Detail
+                      <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={3} style={inputStyle} />
+                    </FieldLabel>
+
+                    <div style={autoFitCompactFields}>
+                      <FieldLabel>
+                        Evidence
+                        <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
+                      </FieldLabel>
+                      <FieldLabel>
+                        Expected answers
+                        <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
+                      </FieldLabel>
+                    </div>
+
+                    <div style={autoFitCompactFields}>
+                      <FieldLabel>
+                        Tags
+                        <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
+                      </FieldLabel>
+                      <FieldLabel>
+                        Facilitator notes
+                        <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={2} style={inputStyle} />
+                      </FieldLabel>
+                    </div>
+
+                    <LessonActivityStructuredBuilders
+                      type={activity.type}
+                      choiceLines={activity.choiceLines}
+                      mediaLines={activity.mediaLines}
+                      onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
+                      onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
+                      inputStyle={inputStyle}
+                      ghostButtonStyle={ghostButtonStyle}
+                      sectionLabel={<div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>Structured step builders</div>}
+                      fieldHint={(children) => <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{children}</div>}
+                      fieldLabel={(children) => <FieldLabel>{children}</FieldLabel>}
+                    />
                   </div>
-
-                  <div style={autoFitCompactFields}>
-                    <FieldLabel>
-                      Step title
-                      <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
-                    </FieldLabel>
-                    <FieldLabel>
-                      Type
-                      <select value={activity.type} onChange={(event) => updateActivity(index, { type: event.target.value })} style={inputStyle}>
-                        {typeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                      </select>
-                    </FieldLabel>
-                    <FieldLabel>
-                      Minutes
-                      <input value={activity.durationMinutes} onChange={(event) => updateActivity(index, { durationMinutes: event.target.value })} style={inputStyle} />
-                    </FieldLabel>
-                  </div>
-
-                  <FieldLabel>
-                    Learner prompt
-                    <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={2} style={inputStyle} />
-                  </FieldLabel>
-
-                  <FieldLabel>
-                    Detail
-                    <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={3} style={inputStyle} />
-                  </FieldLabel>
-
-                  <div style={autoFitCompactFields}>
-                    <FieldLabel>
-                      Evidence
-                      <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
-                    </FieldLabel>
-                    <FieldLabel>
-                      Expected answers
-                      <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
-                    </FieldLabel>
-                  </div>
-
-                  <div style={autoFitCompactFields}>
-                    <FieldLabel>
-                      Tags
-                      <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
-                    </FieldLabel>
-                    <FieldLabel>
-                      Facilitator notes
-                      <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={2} style={inputStyle} />
-                    </FieldLabel>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
