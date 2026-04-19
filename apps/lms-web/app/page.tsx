@@ -106,6 +106,15 @@ function describeNextAction(module: {
   return `${actions[0].charAt(0).toUpperCase()}${actions[0].slice(1)}${actions.length > 1 ? `, ${actions.slice(1, -1).join(', ')}${actions.length > 2 ? ',' : ''} and ${actions.at(-1)}` : ''} before publish.`;
 }
 
+function describeGateWarning(moduleCount: number, liveModuleCount: number) {
+  if (!moduleCount) return 'Every visible release lane has an assessment gate. Leave it that way.';
+  if (liveModuleCount > 0) {
+    return `${moduleCount} module${moduleCount === 1 ? '' : 's'} ${moduleCount === 1 ? 'is' : 'are'} missing a progression gate, including ${liveModuleCount} non-draft module${liveModuleCount === 1 ? '' : 's'} that already look close enough to assign. Freeze assignment until the gate exists.`;
+  }
+
+  return `${moduleCount} draft module${moduleCount === 1 ? '' : 's'} ${moduleCount === 1 ? 'is' : 'are'} still missing a progression gate. Fix that before anybody gets cute with publish state.`;
+}
+
 function dashboardApiSourceDetail() {
   if (API_BASE_SOURCE === 'default-production-fallback') {
     return {
@@ -256,6 +265,8 @@ export default async function HomePage() {
     .sort((left, right) => right.blockerCount - left.blockerCount || right.missingLessons - left.missingLessons || left.title.localeCompare(right.title));
   const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled';
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
+  const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
+  const liveMissingGateBlockers = missingGateBlockers.filter((module) => !module.isDraftModule);
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
 
@@ -491,6 +502,39 @@ export default async function HomePage() {
               </div>
             </div>
             {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. The dashboard refuses to fake content-readiness counts while those feeds are blind.', 'warning') : null}
+            {releaseFeedsAvailable && missingGateBlockers.length ? (
+              <div style={{ padding: '16px 18px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <strong style={{ color: '#991B1B' }}>Assessment gate warning</strong>
+                    <span style={{ color: '#991B1B', lineHeight: 1.6 }}>{describeGateWarning(missingGateBlockers.length, liveMissingGateBlockers.length)}</span>
+                  </div>
+                  <Pill
+                    label={liveMissingGateBlockers.length ? 'Assignment freeze recommended' : 'Gate backlog'}
+                    tone={liveMissingGateBlockers.length ? '#FEE2E2' : '#FEF3C7'}
+                    text={liveMissingGateBlockers.length ? '#991B1B' : '#92400E'}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href="/content?view=blocked" style={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' }}>Review gate blockers</Link>
+                  <Link href="/assignments" style={{ ...quickActionStyle, background: '#fff', color: '#991B1B', border: '1px solid #FECACA', padding: '10px 12px' }}>Cross-check assignment board</Link>
+                </div>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {missingGateBlockers.slice(0, 3).map((module) => {
+                    const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
+                    return (
+                      <div key={`${module.id}-gate-warning`} style={{ padding: '12px 14px', borderRadius: 14, background: '#fff', border: '1px solid #FECACA', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ display: 'grid', gap: 4 }}>
+                          <strong style={{ color: '#7F1D1D' }}>{module.title}</strong>
+                          <span style={{ color: '#991B1B', lineHeight: 1.5 }}>{module.isDraftModule ? 'Still draft and missing its gate.' : 'Looks assignable at a glance, but the progression gate is still missing.'}</span>
+                        </div>
+                        <Link href={blockerBoardHref} style={{ color: '#991B1B', fontWeight: 800, textDecoration: 'none' }}>Open blocker board</Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
             {topReleaseBlocker ? (() => {
               const blockerBoardHref = `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${topReleaseBlocker.subjectId}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`;
               const createLessonHref = `/content/lessons/new?subjectId=${topReleaseBlocker.subjectId}&moduleId=${topReleaseBlocker.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
