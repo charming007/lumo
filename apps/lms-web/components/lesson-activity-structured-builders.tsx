@@ -1,6 +1,11 @@
 'use client';
 
 import React from 'react';
+import {
+  getLessonAssetKindLabel,
+  knownLessonAssetKinds,
+  normalizeLessonAssetKind,
+} from '../lib/lesson-runtime-preview';
 
 type BuilderType = 'image_choice' | 'tap_choice' | 'word_build' | 'listen_repeat' | 'speak_answer' | 'letter_intro' | 'listen_answer';
 
@@ -70,7 +75,7 @@ function parseChoiceLines(choiceLines: string): ChoiceRow[] {
         id: idRaw || `choice-${index + 1}`,
         label: labelRaw || '',
         isCorrect: ['correct', 'true', 'yes', '1'].includes((correctnessRaw || '').toLowerCase()),
-        mediaKind: mediaKindRaw || '',
+        mediaKind: mediaKindRaw ? normalizeLessonAssetKind(mediaKindRaw) : '',
         mediaValue: mediaValueRaw || '',
       };
     });
@@ -105,7 +110,7 @@ function parseMediaLines(mediaLines: string): MediaRow[] {
     .map((line) => {
       const [kindRaw, valueRaw] = line.split('|').map((part) => part.trim());
       return {
-        kind: kindRaw || 'image',
+        kind: normalizeLessonAssetKind(kindRaw || 'image'),
         value: valueRaw || '',
       };
     });
@@ -254,7 +259,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
                 {props.fieldLabel(<><span>Choice ID</span><input value={row.id} onChange={(event) => updateChoiceRow(index, { id: event.target.value })} style={props.inputStyle} placeholder={`choice-${index + 1}`} /></>)}
                 {props.fieldLabel(<><span>{choiceLabels.labelName}</span><input value={row.label} onChange={(event) => updateChoiceRow(index, { label: event.target.value })} style={props.inputStyle} placeholder="Visible label" /></>)}
                 {props.fieldLabel(<><span>Correct?</span><select value={row.isCorrect ? 'correct' : 'wrong'} onChange={(event) => updateChoiceRow(index, { isCorrect: event.target.value === 'correct' })} style={props.inputStyle}><option value="wrong">Wrong</option><option value="correct">Correct</option></select></>)}
-                {props.fieldLabel(<><span>Media kind</span><input value={row.mediaKind} onChange={(event) => updateChoiceRow(index, { mediaKind: event.target.value })} style={props.inputStyle} placeholder={builderType === 'image_choice' ? 'image' : 'audio / image'} /></>)}
+                {props.fieldLabel(<><span>Media kind</span><select value={row.mediaKind} onChange={(event) => updateChoiceRow(index, { mediaKind: event.target.value })} style={props.inputStyle}><option value="">No asset</option>{knownLessonAssetKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}</select></>)}
                 {props.fieldLabel(<><span>Media value</span><input value={row.mediaValue} onChange={(event) => updateChoiceRow(index, { mediaValue: event.target.value })} style={props.inputStyle} placeholder={choiceLabels.mediaHint} /></>)}
                 <button type="button" onClick={() => removeChoiceRow(index)} style={{ ...props.ghostButtonStyle, alignSelf: 'stretch' }}>Remove</button>
               </div>
@@ -263,7 +268,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button type="button" onClick={addChoiceRow} style={props.ghostButtonStyle}>+ Add row</button>
           </div>
-          {props.fieldHint('The form still stores these rows in the same lesson payload shape — you just no longer have to hand-write pipes like a maniac.')}
+          {props.fieldHint('Known asset kinds now map cleanly into runtime preview. Pick the closest real kind so authors and learners see the same thing.')}
         </div>
       ) : null}
 
@@ -275,7 +280,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
           <div style={stackStyle}>
             {mediaRows.map((row, index) => (
               <div key={`${row.kind}-${index}`} style={mediaRowStyle}>
-                {props.fieldLabel(<><span>Kind</span><input value={row.kind} onChange={(event) => updateMediaRow(index, { kind: event.target.value })} style={props.inputStyle} placeholder="image / audio / prompt-card" /></>)}
+                {props.fieldLabel(<><span>Kind</span><select value={row.kind} onChange={(event) => updateMediaRow(index, { kind: event.target.value })} style={props.inputStyle}>{knownLessonAssetKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}</select></>)}
                 {props.fieldLabel(<><span>Value</span><input value={row.value} onChange={(event) => updateMediaRow(index, { value: event.target.value })} style={props.inputStyle} placeholder="URL, asset key, or comma-separated values" /></>)}
                 <button type="button" onClick={() => removeMediaRow(index)} style={{ ...props.ghostButtonStyle, alignSelf: 'stretch' }}>Remove</button>
               </div>
