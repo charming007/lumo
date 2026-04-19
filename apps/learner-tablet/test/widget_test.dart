@@ -618,9 +618,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byWidgetPredicate(
-      (widget) => widget.runtimeType.toString() == '_SubjectCard',
-    ), findsNWidgets(4));
+    expect(
+        find.byWidgetPredicate(
+          (widget) => widget.runtimeType.toString() == '_SubjectCard',
+        ),
+        findsNWidgets(4));
     expect(find.text('English'), findsOneWidget);
     expect(find.text('Basic Mathematics'), findsOneWidget);
     expect(find.text('Life Skills'), findsOneWidget);
@@ -1218,7 +1220,8 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('sync-pending placeholder lessons can refresh into a real launch flow', (
+  testWidgets(
+      'sync-pending placeholder lessons can refresh into a real launch flow', (
     tester,
   ) async {
     final state = LumoAppState(
@@ -1311,7 +1314,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.textContaining('Capture or type the learner answer'),
+    expect(find.textContaining('Start listening, capture the learner voice'),
         findsOneWidget);
     expect(
       find.text('Start listening + transcript').evaluate().isNotEmpty ||
@@ -1323,7 +1326,7 @@ void main() {
     final mallamGuideTopLeft =
         tester.getTopLeft(find.text('Hear Mallam again').first);
     final answerPanelTopLeft = tester.getTopLeft(
-      find.textContaining('Capture or type the learner answer'),
+      find.textContaining('Start listening, capture the learner voice'),
     );
     expect(
       mallamGuideTopLeft.dy,
@@ -1498,9 +1501,11 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Play saved voice'), findsWidgets);
-    expect(find.text('0:04 clip • .../audio/fallback-review.m4a'), findsOneWidget);
     expect(
-      find.text('Use the saved clip as the source of truth before Mallam continues.'),
+        find.text('0:04 clip • .../audio/fallback-review.m4a'), findsOneWidget);
+    expect(
+      find.text(
+          'Use the saved clip as the source of truth before Mallam continues.'),
       findsOneWidget,
     );
     expect(find.text('Hear Mallam again'), findsWidgets);
@@ -1546,13 +1551,96 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Play saved voice'), findsWidgets);
-    expect(find.text('0:05 clip • .../audio/fallback-draft.m4a'), findsOneWidget);
+    expect(
+        find.text('0:05 clip • .../audio/fallback-draft.m4a'), findsOneWidget);
     expect(
       find.text('Quick audio check first, then confirm the text.'),
       findsOneWidget,
     );
     expect(find.text('Confirm transcript'), findsOneWidget);
     expect(find.text('Hear Mallam again'), findsWidgets);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'lesson session keeps voice capture flow explicit for spoken steps', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('Start listening'), findsOneWidget);
+    expect(find.text('Stop listening'), findsOneWidget);
+    expect(find.text('Learner transcript'), findsOneWidget);
+    expect(find.text('Learner response'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'image choice lesson waits for a selection before next step unlocks', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+    state.advanceLessonStep();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('Selected object'), findsOneWidget);
+    expect(find.text('Chosen object'), findsOneWidget);
+
+    final nextStepButton = find.widgetWithText(FilledButton, 'Next step');
+    expect(nextStepButton, findsOneWidget);
+    expect(tester.widget<FilledButton>(nextStepButton).onPressed, isNull);
+
+    final antChoice = find.ancestor(
+      of: find.text('ant').first,
+      matching: find.byType(InkWell),
+    );
+    await tester.ensureVisible(antChoice);
+    await tester.tap(antChoice);
+    await pumpForUi(tester, const Duration(milliseconds: 400));
+
+    expect(find.text('ant'), findsWidgets);
+    expect(tester.widget<FilledButton>(nextStepButton).onPressed, isNotNull);
 
     state.dispose();
   });
@@ -1584,7 +1672,9 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Hear Mallam again'), findsWidgets);
-    expect(find.textContaining('Capture or type the learner answer'),
+    expect(find.text('Learner transcript'), findsOneWidget);
+    expect(find.text('Start listening'), findsOneWidget);
+    expect(find.textContaining('Start listening, capture the learner voice'),
         findsOneWidget);
     expect(
         find.textContaining('Session pulse • ${learner.name.split(' ').first}'),

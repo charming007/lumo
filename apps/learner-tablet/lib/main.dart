@@ -5679,6 +5679,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     await _speakCurrentStepIfNeeded(force: true);
   }
 
+  bool _isChoiceActivityType(LessonActivityType? type) {
+    return type == LessonActivityType.imageChoice ||
+        type == LessonActivityType.tapChoice;
+  }
+
   Future<void> _setResponseAndMaybeSubmit(String value,
       {bool submit = false}) async {
     responseController.text = value;
@@ -6143,53 +6148,79 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   isCorrect: choice == activity.targetResponse,
                 );
               });
+        final selectedChoiceLabel = responseController.text.trim();
         body = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(prompt),
+            Text(
+              prompt,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
             if (supportText != null) ...[
               const SizedBox(height: 8),
               Text(
                 supportText,
-                style: const TextStyle(color: Color(0xFF475569)),
+                style: const TextStyle(color: Color(0xFF475569), height: 1.4),
               ),
             ],
             if (activity.mediaItems.isNotEmpty) ...[
               const SizedBox(height: 12),
               _buildSharedMediaGallery(activity),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: 14,
+              runSpacing: 14,
               children: List.generate(choiceItems.length, (index) {
                 final choiceItem = choiceItems[index];
                 final emoji = index < activity.choiceEmoji.length
                     ? activity.choiceEmoji[index]
                     : '🖼️';
+                final isSelected = selectedChoiceLabel.toLowerCase() ==
+                    choiceItem.label.trim().toLowerCase();
                 return InkWell(
-                  onTap: () => _setResponseAndMaybeSubmit(
-                    choiceItem.label,
-                    submit: true,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    width: 156,
-                    padding: const EdgeInsets.all(14),
+                  onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
+                  borderRadius: BorderRadius.circular(24),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 184,
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFD6D3FF)),
+                      color:
+                          isSelected ? const Color(0xFFEEF2FF) : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF4F46E5)
+                            : const Color(0xFFD6D3FF),
+                        width: isSelected ? 2.4 : 1.4,
+                      ),
+                      boxShadow: isSelected
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x144F46E5),
+                                blurRadius: 20,
+                                offset: Offset(0, 10),
+                              ),
+                            ]
+                          : const [],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildChoicePreview(choiceItem, emoji),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         Text(
                           choiceItem.label,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 17,
+                          ),
                         ),
                         if (_firstMediaOfKind(
                               choiceItem.mediaItems,
@@ -6201,6 +6232,27 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                             onPressed: () => _playChoiceMedia(choiceItem),
                             icon: const Icon(Icons.play_arrow_rounded),
                             label: const Text('Hear choice'),
+                          ),
+                        ],
+                        if (isSelected) ...[
+                          const SizedBox(height: 10),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.check_circle_rounded,
+                                color: Color(0xFF4F46E5),
+                                size: 18,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'Selected',
+                                style: TextStyle(
+                                  color: Color(0xFF4338CA),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],
@@ -7139,6 +7191,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final isStackedLayout = MediaQuery.sizeOf(context).width < 960;
     final sessionUsesCompactChrome =
         isStackedLayout || MediaQuery.sizeOf(context).height < 900;
+    final currentActivity = step.activity;
+    final isChoiceStep = _isChoiceActivityType(currentActivity?.type);
+    final hasDraftResponse = responseController.text.trim().isNotEmpty;
+    final canAdvanceChoiceStep =
+        isChoiceStep && hasDraftResponse && !transcriptReviewPending;
 
     Widget buildLessonGuidePane() {
       final lessonStage = _MallamStageShell(
@@ -7475,9 +7532,198 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           Text(
                                             transcriptReviewPending
                                                 ? 'Review this answer, then continue.'
-                                                : (isRecording
-                                                    ? 'Listening to the learner now.'
-                                                    : 'Capture or type the learner answer, then move on.'),
+                                                : (isChoiceStep
+                                                    ? 'Tap one picture, check the label below, then move to the next step.'
+                                                    : (isRecording
+                                                        ? 'Listening to the learner now.'
+                                                        : 'Start listening, capture the learner voice, then move on.')),
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                          if (!isChoiceStep) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(16),
+                                              decoration: BoxDecoration(
+                                                color: isRecording
+                                                    ? const Color(0xFFFEF2F2)
+                                                    : const Color(0xFFEFF6FF),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: isRecording
+                                                      ? const Color(0xFFFCA5A5)
+                                                      : const Color(0xFF93C5FD),
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                          horizontal: 12,
+                                                          vertical: 8,
+                                                        ),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: isRecording
+                                                              ? const Color(
+                                                                  0xFFDC2626,
+                                                                )
+                                                              : const Color(
+                                                                  0xFF2563EB,
+                                                                ),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(
+                                                            999,
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          isRecording
+                                                              ? 'Stop listening'
+                                                              : 'Start listening',
+                                                          style:
+                                                              const TextStyle(
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                                FontWeight.w800,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 10),
+                                                      Expanded(
+                                                        child: Text(
+                                                          _listeningReadinessHeadline,
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.w800,
+                                                            color: Color(
+                                                              0xFF0F172A,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    _listeningReadinessBody,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF475569),
+                                                      height: 1.4,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 14),
+                                                  Wrap(
+                                                    spacing: 12,
+                                                    runSpacing: 12,
+                                                    children: [
+                                                      FilledButton.icon(
+                                                        onPressed: isRecording ||
+                                                                !_micPermissionGranted
+                                                            ? null
+                                                            : startRecording,
+                                                        style: FilledButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              const Color(
+                                                            0xFF2563EB,
+                                                          ),
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 18,
+                                                            vertical: 16,
+                                                          ),
+                                                          textStyle:
+                                                              const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.w800,
+                                                          ),
+                                                        ),
+                                                        icon: const Icon(
+                                                          Icons.mic_rounded,
+                                                        ),
+                                                        label: Text(
+                                                          _listeningStartButtonLabel,
+                                                        ),
+                                                      ),
+                                                      FilledButton.icon(
+                                                        onPressed: isRecording
+                                                            ? stopRecording
+                                                            : null,
+                                                        style: FilledButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              const Color(
+                                                            0xFFDC2626,
+                                                          ),
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                          disabledBackgroundColor:
+                                                              const Color(
+                                                            0xFFFEE2E2,
+                                                          ),
+                                                          disabledForegroundColor:
+                                                              const Color(
+                                                            0xFFFCA5A5,
+                                                          ),
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 18,
+                                                            vertical: 16,
+                                                          ),
+                                                          textStyle:
+                                                              const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.w800,
+                                                          ),
+                                                        ),
+                                                        icon: const Icon(
+                                                          Icons.stop_rounded,
+                                                        ),
+                                                        label: const Text(
+                                                          'Stop listening',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 14),
+                                          Text(
+                                            isChoiceStep
+                                                ? 'Selected object'
+                                                : 'Learner transcript',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 16,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            transcriptReviewPending
+                                                ? 'Check the learner words here, then confirm before Mallam continues.'
+                                                : (isChoiceStep
+                                                    ? 'The chosen object label appears here. Mallam moves on only after a choice is clear.'
+                                                    : 'Draft transcript or typed learner answer appears right under the prompt.'),
                                             style: const TextStyle(
                                               color: Color(0xFF475569),
                                               height: 1.35,
@@ -7487,12 +7733,32 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           TextField(
                                             controller: responseController,
                                             onChanged: (_) => setState(() {}),
+                                            readOnly: isChoiceStep,
+                                            maxLines: isChoiceStep ? 2 : 3,
                                             decoration: InputDecoration(
-                                              labelText: speechRecognitionActive
-                                                  ? 'Learner answer'
-                                                  : 'Answer',
-                                              hintText:
-                                                  _learnerResponseHintText,
+                                              labelText: isChoiceStep
+                                                  ? 'Chosen object'
+                                                  : (speechRecognitionActive
+                                                      ? 'Learner transcript'
+                                                      : 'Learner response'),
+                                              hintText: isChoiceStep
+                                                  ? 'Tap one object card to continue.'
+                                                  : _learnerResponseHintText,
+                                              filled: true,
+                                              fillColor: const Color(
+                                                0xFFF8FAFC,
+                                              ),
+                                              border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(18),
+                                              ),
+                                              enabledBorder: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(18),
+                                                borderSide: const BorderSide(
+                                                  color: Color(0xFFE2E8F0),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                           if (liveTranscript.isNotEmpty ||
@@ -7500,25 +7766,42 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             const SizedBox(height: 12),
                                             Container(
                                               width: double.infinity,
-                                              padding: const EdgeInsets.all(12),
+                                              padding: const EdgeInsets.all(14),
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFFEEF2FF),
                                                 borderRadius:
-                                                    BorderRadius.circular(16),
+                                                    BorderRadius.circular(18),
                                                 border: Border.all(
-                                                  color:
-                                                      const Color(0xFFC7D2FE),
+                                                  color: const Color(
+                                                    0xFFC7D2FE,
+                                                  ),
                                                 ),
                                               ),
-                                              child: Text(
-                                                liveTranscript.isEmpty
-                                                    ? 'Listening for the learner...'
-                                                    : liveTranscript,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF4338CA),
-                                                  height: 1.4,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Live listen feed',
+                                                    style: TextStyle(
+                                                      color: Color(0xFF1D4ED8),
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    liveTranscript.isEmpty
+                                                        ? 'Listening for the learner...'
+                                                        : liveTranscript,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF4338CA),
+                                                      height: 1.4,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
@@ -7527,51 +7810,41 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             spacing: 12,
                                             runSpacing: 12,
                                             children: [
-                                              FilledButton.icon(
-                                                onPressed: isRecording ||
-                                                        !_micPermissionGranted
-                                                    ? null
-                                                    : startRecording,
-                                                icon: const Icon(
-                                                    Icons.mic_rounded),
-                                                label: Text(
-                                                  _listeningStartButtonLabel,
-                                                ),
-                                              ),
-                                              FilledButton.tonalIcon(
-                                                onPressed: isRecording
-                                                    ? stopRecording
-                                                    : null,
-                                                icon: const Icon(
-                                                  Icons.stop_circle_outlined,
-                                                ),
-                                                label: const Text(
-                                                    'Stop listening'),
-                                              ),
-                                              FilledButton(
-                                                onPressed: responseController
-                                                        .text
-                                                        .trim()
-                                                        .isEmpty
-                                                    ? null
-                                                    : () =>
-                                                        _handleSubmittedResponse(
-                                                          responseController
-                                                              .text,
-                                                        ),
-                                                child: Text(
+                                              if (!isChoiceStep)
+                                                FilledButton(
+                                                  onPressed: hasDraftResponse
+                                                      ? () =>
+                                                          _handleSubmittedResponse(
+                                                            responseController
+                                                                .text,
+                                                          )
+                                                      : null,
+                                                  child: Text(
                                                     transcriptReviewPending
                                                         ? 'Save review'
-                                                        : 'Save answer'),
-                                              ),
-                                              FilledButton(
-                                                onPressed: session
-                                                            .hasLearnerInput &&
-                                                        !transcriptReviewPending
-                                                    ? () async {
-                                                        await _afterCorrectResponse();
-                                                      }
-                                                    : null,
+                                                        : 'Save answer',
+                                                  ),
+                                                ),
+                                              FilledButton.tonal(
+                                                onPressed: isChoiceStep
+                                                    ? (canAdvanceChoiceStep
+                                                        ? () async {
+                                                            await _handleSubmittedResponse(
+                                                              responseController
+                                                                  .text,
+                                                            );
+                                                            if (!mounted) {
+                                                              return;
+                                                            }
+                                                            await _afterCorrectResponse();
+                                                          }
+                                                        : null)
+                                                    : (session.hasLearnerInput &&
+                                                            !transcriptReviewPending
+                                                        ? () async {
+                                                            await _afterCorrectResponse();
+                                                          }
+                                                        : null),
                                                 child: Text(
                                                   session.isLastStep
                                                       ? 'Finish lesson'
