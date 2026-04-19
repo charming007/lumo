@@ -48,10 +48,6 @@ class LearnerAudioPlaybackService {
   }
 
   Source _sourceFor(String path) {
-    if (kIsWeb) {
-      return UrlSource(path);
-    }
-
     final uri = Uri.tryParse(path);
     final scheme = uri?.scheme ?? '';
     final hasScheme = scheme.isNotEmpty;
@@ -63,10 +59,21 @@ class LearnerAudioPlaybackService {
       return UrlSource(path);
     }
 
-    if (File(path).existsSync()) {
+    if (!kIsWeb && File(path).existsSync()) {
       return DeviceFileSource(path);
     }
 
+    if (_looksLikeFlutterAsset(path)) {
+      return AssetSource(path);
+    }
+
     return UrlSource(path);
+  }
+
+  bool _looksLikeFlutterAsset(String path) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty || trimmed.startsWith('/')) return false;
+    final uri = Uri.tryParse(trimmed);
+    return !(uri?.hasScheme ?? false);
   }
 }

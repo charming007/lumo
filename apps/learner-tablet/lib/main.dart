@@ -5765,6 +5765,39 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
   }
 
+  bool _looksLikeBundledAssetPath(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed.startsWith('/')) return false;
+    final uri = Uri.tryParse(trimmed);
+    return !(uri?.hasScheme ?? false);
+  }
+
+  Widget _buildMediaImage(
+    String value, {
+    required double width,
+    required double height,
+    required Widget Function() fallback,
+  }) {
+    final trimmed = value.trim();
+    if (_looksLikeBundledAssetPath(trimmed)) {
+      return Image.asset(
+        trimmed,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    }
+
+    return Image.network(
+      trimmed,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => fallback(),
+    );
+  }
+
   Widget _buildChoicePreview(
       LessonActivityChoice choice, String fallbackEmoji) {
     final imageMedia =
@@ -5774,7 +5807,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         _firstMediaOfKind(choice.mediaItems, const ['audio']) != null;
     final textMedia = _firstMediaOfKind(
       choice.mediaItems,
-      const ['letter-card', 'trace-card', 'tile', 'word-card', 'prompt-card', 'story-card', 'hint', 'transcript'],
+      const [
+        'letter-card',
+        'trace-card',
+        'tile',
+        'word-card',
+        'prompt-card',
+        'story-card',
+        'hint',
+        'transcript'
+      ],
     );
     final textValue = textMedia?.firstValue?.trim();
     final textKind = _normalizeLearnerAssetKind(textMedia?.kind);
@@ -5782,12 +5824,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (imageValue != null && imageValue.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: Image.network(
+        child: _buildMediaImage(
           imageValue,
           width: double.infinity,
           height: 96,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
+          fallback: () => Container(
             height: 96,
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -5884,12 +5925,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             hasValue) {
           return ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: Image.network(
+            child: _buildMediaImage(
               firstValue,
               width: 140,
               height: 110,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              fallback: () => Container(
                 width: 140,
                 height: 110,
                 padding: const EdgeInsets.all(12),
@@ -5934,10 +5974,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         };
         final readinessText = hasValue
             ? switch (kind) {
-                'prompt-card' || 'story-card' => 'Learner sees this card text in runtime.',
+                'prompt-card' ||
+                'story-card' =>
+                  'Learner sees this card text in runtime.',
                 'trace-card' => 'Learner sees a tracing support card.',
                 'letter-card' => 'Learner sees the letter anchor immediately.',
-                'tile' || 'word-card' => 'Learner sees this as a build/read card.',
+                'tile' ||
+                'word-card' =>
+                  'Learner sees this as a build/read card.',
                 'hint' => 'Learner sees extra support text.',
                 'transcript' => 'Learner sees the script text clearly.',
                 _ => 'Learner runtime keeps this asset visible.',

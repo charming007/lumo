@@ -27,8 +27,14 @@ void main() {
       expect(lesson.steps.first.activity?.prompt,
           'Listen to Mallam say hello, then say hello back.');
       expect(lesson.steps[1].activity?.choiceItems.length, 3);
-      expect(lesson.steps[1].activity?.choiceItems.first.mediaValue,
-          'bundle:lf-meet-mallam:mallam-card');
+      expect(
+        lesson.steps[1].activity?.choiceItems.first.mediaValue,
+        'assets/content_packs/lumo-fundamentals/meet_mallam/media/images/mallam-card.png',
+      );
+      expect(
+        lesson.steps[1].activity?.choiceItems.first.mediaItems.last.firstValue,
+        'Mallam',
+      );
     });
   });
 }
