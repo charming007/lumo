@@ -4,6 +4,8 @@ import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashbo
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, WorkboardItem } from '../lib/types';
+import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
+import { filterLessonsForModule } from '../lib/module-lesson-match';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -236,13 +238,15 @@ export default async function HomePage() {
     .slice()
     .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
     .slice(0, 5);
-  const assessmentLinkedModuleIds = new Set(assessments.map((assessment) => assessment.moduleId).filter(Boolean));
+  const moduleHasAssessmentGate = (module: CurriculumModule) => assessments.some(
+    (assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment),
+  );
   const releaseBlockers = modules
     .map((module) => {
-      const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+      const moduleLessons = filterLessonsForModule(lessons, module);
       const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
       const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-      const hasAssessmentGate = assessmentLinkedModuleIds.has(module.id);
+      const hasAssessmentGate = moduleHasAssessmentGate(module);
       const isDraftModule = module.status === 'draft';
       const blockerCount = missingLessons + (hasAssessmentGate ? 0 : 1) + (isDraftModule ? 1 : 0);
 
