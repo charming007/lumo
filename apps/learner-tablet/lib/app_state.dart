@@ -164,8 +164,7 @@ class LumoAppState {
       kReleaseBuild &&
       deploymentBlockerReason != null &&
       !hasUsableOfflineSnapshot &&
-      usingFallbackData &&
-      !acknowledgedOfflineFallbackRisk;
+      usingFallbackData;
 
   String get pendingSyncSummary {
     final latest = latestSyncEvent;
@@ -176,6 +175,15 @@ class LumoAppState {
   }
 
   Future<void> allowLimitedOfflineRecoveryMode() async {
+    if (kReleaseBuild && !hasUsableOfflineSnapshot) {
+      acknowledgedOfflineFallbackRisk = false;
+      deploymentBlockerReason ??= offlineSnapshotTrustProblem ??
+          backendError ??
+          'Learner bootstrap could not reach the production backend.';
+      persistStateSoon();
+      return;
+    }
+
     acknowledgedOfflineFallbackRisk = true;
     deploymentBlockerReason = null;
     usingFallbackData = true;
@@ -343,7 +351,7 @@ class LumoAppState {
           _decodeRegistrationContext(snapshot['registrationContext']);
       usingFallbackData = snapshot['usingFallbackData'] != false;
       acknowledgedOfflineFallbackRisk =
-          snapshot['acknowledgedOfflineFallbackRisk'] == true;
+          !kReleaseBuild && snapshot['acknowledgedOfflineFallbackRisk'] == true;
       backendError = _readNullableString(snapshot['backendError']);
       lastSyncedAt = _parseDate(snapshot['lastSyncedAt']);
       backendGeneratedAt = _parseDate(snapshot['backendGeneratedAt']);
@@ -385,10 +393,9 @@ class LumoAppState {
               ? Map<String, dynamic>.from(activeSessionRaw)
               : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
-      deploymentBlockerReason =
-          hasUsableOfflineSnapshot || acknowledgedOfflineFallbackRisk
-              ? null
-              : offlineSnapshotTrustProblem;
+      deploymentBlockerReason = hasUsableOfflineSnapshot
+          ? null
+          : offlineSnapshotTrustProblem;
       restoredFromPersistence = true;
       persistenceError = null;
     } catch (error) {

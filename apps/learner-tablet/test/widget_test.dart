@@ -417,7 +417,7 @@ void main() {
   });
 
   testWidgets(
-      'deployment blocker page can open limited offline mode from the blocker UI', (
+      'deployment blocker page stays hard-blocked until bootstrap recovers', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -442,22 +442,17 @@ void main() {
       ),
     );
 
-    expect(find.text('Open limited offline mode'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('Open limited offline mode'));
-    await tester.tap(find.text('Open limited offline mode'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 450));
-
-    expect(state.acknowledgedOfflineFallbackRisk, isTrue);
-    expect(state.deploymentBlockerReason, isNull);
-    expect(state.learners, isNotEmpty);
-    expect(state.modules, isNotEmpty);
-    expect(state.assignedLessons, isNotEmpty);
+    expect(find.text('Retry production bootstrap'), findsOneWidget);
+    expect(find.text('Open limited offline mode'), findsNothing);
     expect(
-      find.textContaining('Opened limited offline mode'),
+      find.textContaining('will not open demo learners just to look alive'),
       findsOneWidget,
     );
+    expect(state.acknowledgedOfflineFallbackRisk, isFalse);
+    expect(state.deploymentBlockerReason, 'Bootstrap failed');
+    expect(state.learners, isEmpty);
+    expect(state.modules, isEmpty);
+    expect(state.assignedLessons, isEmpty);
   });
 
   testWidgets('home screen stays usable on portrait tablet widths', (
