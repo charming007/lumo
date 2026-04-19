@@ -201,7 +201,7 @@ export function AssetRegisterForm({ returnPath, subjects, modules, lessons }: { 
   </form>;
 }
 
-export function AssetLibraryFilters({ subjects, modules, lessons, filters, totalCount }: { subjects: Subject[]; modules: CurriculumModule[]; lessons: Lesson[]; filters: Record<string, string>; totalCount: number }) {
+export function AssetLibraryFilters({ subjects, modules, lessons, filters, totalCount, resetHref = '/content/assets' }: { subjects: Subject[]; modules: CurriculumModule[]; lessons: Lesson[]; filters: Record<string, string>; totalCount: number; resetHref?: string }) {
   const [subjectId, setSubjectId] = useState(filters.subjectId || '');
   const [moduleId, setModuleId] = useState(filters.moduleId || '');
   const activeFilters = activeFilterEntries(filters);
@@ -225,7 +225,7 @@ export function AssetLibraryFilters({ subjects, modules, lessons, filters, total
       <Field label="Archived"><select name="includeArchived" defaultValue={filters.includeArchived || ''} style={inputStyle}><option value="">Hide archived</option><option value="true">Show archived too</option></select></Field>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button style={buttonStyle}>Apply filters</button>
-        <a href="/content/assets" style={{ ...mutedButtonStyle, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Reset</a>
+        <a href={resetHref} style={{ ...mutedButtonStyle, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Reset</a>
       </div>
     </form>
 
@@ -235,7 +235,7 @@ export function AssetLibraryFilters({ subjects, modules, lessons, filters, total
           <div style={{ fontWeight: 900, color: '#0f172a' }}>{totalCount} asset{totalCount === 1 ? '' : 's'} matched</div>
           <div style={{ color: '#64748B', fontSize: 13, marginTop: 4 }}>Search, scope, and status filters stack together now, so operators can cut straight to the right file instead of scrolling through the entire damn pile.</div>
         </div>
-        {activeFilters.length ? <a href="/content/assets" style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Clear all filters</a> : null}
+        {activeFilters.length ? <a href={resetHref} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Clear all filters</a> : null}
       </div>
       {activeFilters.length ? (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -14,6 +14,17 @@ function statusCounts(items: Awaited<ReturnType<typeof fetchLessonAssets>>) {
   }, {} as Record<string, number>);
 }
 
+function buildRouteWithQuery(basePath: string, params: Record<string, string>) {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query.set(key, value);
+  }
+
+  const queryString = query.toString();
+  return queryString ? `${basePath}?${queryString}` : basePath;
+}
+
 export default async function AssetLibraryPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
   const query = (await searchParams) || {};
   const filters = {
@@ -26,6 +37,12 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     lessonId: query.lessonId || '',
     includeArchived: query.includeArchived || '',
   };
+  const from = query.from || '';
+  const assetLibraryHref = buildRouteWithQuery('/content/assets', {
+    ...filters,
+    from,
+  });
+  const assetLibraryResetHref = buildRouteWithQuery('/content/assets', { from });
 
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
@@ -154,7 +171,10 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     title="Asset Library"
     subtitle="Upload media, register existing files, search the catalog, and manage trustworthy lesson assets without spreadsheet hell."
     breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Content Library', href: '/content' }]}
-    aside={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}><Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Back to content</Link></div>}
+    aside={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      {from ? <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Back to lesson authoring</Link> : null}
+      <Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Back to content</Link>
+    </div>}
   >
     <FeedbackBanner message={query?.message} />
     {failedSources.length ? (
@@ -178,11 +198,11 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-        <AssetUploadForm returnPath="/content/assets" subjects={subjects} modules={modules} lessons={lessons} />
-        <AssetRegisterForm returnPath="/content/assets" subjects={subjects} modules={modules} lessons={lessons} />
+        <AssetUploadForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
+        <AssetRegisterForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
       </div>
-      <AssetLibraryFilters subjects={subjects} modules={modules} lessons={lessons} filters={filters} totalCount={assets.length} />
-      <AssetLibraryTable items={assets} returnPath="/content/assets" subjects={subjects} modules={modules} lessons={lessons} />
+      <AssetLibraryFilters subjects={subjects} modules={modules} lessons={lessons} filters={filters} totalCount={assets.length} resetHref={assetLibraryResetHref} />
+      <AssetLibraryTable items={assets} returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
     </section>
   </PageShell>;
 }
