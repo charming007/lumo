@@ -33,7 +33,9 @@ export function ProductionConfigBanner() {
     <section style={shellStyle} aria-label="Production configuration warning">
       <div style={{ display: 'grid', gap: 6 }}>
         <strong style={{ color: 'white', fontSize: 18 }}>
-          Deployment blocker: NEXT_PUBLIC_API_BASE_URL is configured, but it is not safe to ship.
+          {API_BASE_DIAGNOSTIC.configuredApiBase
+            ? 'Deployment blocker: NEXT_PUBLIC_API_BASE_URL is configured, but it is not safe to ship.'
+            : 'Deployment blocker: NEXT_PUBLIC_API_BASE_URL is missing in production.'}
         </strong>
         <span style={{ lineHeight: 1.7 }}>{API_BASE_DIAGNOSTIC.blockerDetail}</span>
       </div>

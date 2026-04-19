@@ -16,10 +16,10 @@ function bannerTone(apiSource: ApiBaseSource) {
     };
   }
 
-  if (apiSource === 'default-production-fallback') {
+  if (apiSource === 'missing-production-env') {
     return {
-      background: '#1d4ed8',
-      detail: '#dbeafe',
+      background: '#7c2d12',
+      detail: '#fed7aa',
     };
   }
 
@@ -30,8 +30,8 @@ function bannerTone(apiSource: ApiBaseSource) {
 }
 
 function describeApiSource(apiSource: ApiBaseSource) {
-  if (apiSource === 'default-production-fallback') {
-    return 'Backend is reaching the default Railway production host because NEXT_PUBLIC_API_BASE_URL is unset. That is live wiring, but it should still be an explicit deployment choice instead of mystery config.';
+  if (apiSource === 'missing-production-env') {
+    return 'Production deploy is missing NEXT_PUBLIC_API_BASE_URL. The LMS now treats that as a hard blocker instead of quietly guessing a backend.';
   }
 
   if (apiSource === 'invalid-production-env') {

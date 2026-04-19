@@ -43,10 +43,10 @@ export default async function MallamDetailPage({ params, searchParams }: { param
       <DeploymentBlockerCard
         title="Mallam detail"
         subtitle="Production wiring is incomplete, so mallam-level coaching, roster review, and deployment decisions are blocked instead of pretending one operator profile is safely loaded."
-        blockerHeadline="Deployment blocker: mallam detail API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: mallam detail API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so mallam roster pressure, learner risk spread, assignment timelines, and reassignment controls cannot be trusted. Fix the env var, redeploy, then verify a real mallam record before making coverage decisions.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} mallam roster pressure, learner risk spread, assignment timelines, and reassignment controls cannot be trusted. Fix the env var, redeploy, then verify a real mallam record before making coverage decisions.
           </>
         )}
         whyBlocked={[

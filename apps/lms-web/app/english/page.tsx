@@ -47,10 +47,10 @@ export default async function EnglishCurriculumPage({ searchParams }: { searchPa
       <DeploymentBlockerCard
         title="English Curriculum Studio"
         subtitle="Production wiring is incomplete, so English authoring and release triage are blocked instead of pretending the curriculum lane is live."
-        blockerHeadline="Deployment blocker: English curriculum API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: English curriculum API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so blueprint readiness, quick authoring, lesson duplication, and module gate checks would all degrade into untrustworthy curriculum planning. Fix the env var, redeploy, then verify the live English lane before editing or publishing.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} blueprint readiness, quick authoring, lesson duplication, and module gate checks would all degrade into untrustworthy curriculum planning. Fix the env var, redeploy, then verify the live English lane before editing or publishing.
           </>
         )}
         whyBlocked={[

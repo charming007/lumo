@@ -28,10 +28,10 @@ export default async function StudentDetailPage({ params, searchParams }: { para
       <DeploymentBlockerCard
         title="Learner detail"
         subtitle="Production wiring is incomplete, so learner-level intervention, reassignment, and observation workflows are blocked instead of pretending a specific child record is safely loaded."
-        blockerHeadline="Deployment blocker: learner detail API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: learner detail API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so learner profile detail, progress history, assignment timelines, observation capture, and mallam reassignment cannot be trusted. Fix the env var, redeploy, then verify a real learner record before making intervention decisions.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} learner profile detail, progress history, assignment timelines, observation capture, and mallam reassignment cannot be trusted. Fix the env var, redeploy, then verify a real learner record before making intervention decisions.
           </>
         )}
         whyBlocked={[

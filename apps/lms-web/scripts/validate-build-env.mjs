@@ -9,7 +9,6 @@ const isDev = process.env.NODE_ENV !== 'production' && process.env.npm_lifecycle
 loadEnvConfig(projectDir, isDev);
 
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-const defaultProductionApiBase = 'https://lumo-api-production-303a.up.railway.app';
 const lifecycleEvent = process.env.npm_lifecycle_event;
 const isHostedDeployment =
   process.env.VERCEL === '1' ||
@@ -49,8 +48,10 @@ function invalidProductionApiReason(value) {
   }
 }
 
-const effectiveApiBase = configuredApiBase || defaultProductionApiBase;
-const invalidReason = invalidProductionApiReason(effectiveApiBase);
+const missingApiBaseReason = configuredApiBase
+  ? null
+  : 'NEXT_PUBLIC_API_BASE_URL is missing.';
+const invalidReason = missingApiBaseReason ?? invalidProductionApiReason(configuredApiBase);
 
 if (invalidReason) {
   const lines = [
@@ -58,7 +59,7 @@ if (invalidReason) {
     shouldBlockBuild ? 'Lumo LMS deployment build blocker.' : 'Lumo LMS build warning.',
     invalidReason,
     shouldBlockBuild
-      ? 'Hosted builds must stop here instead of deploying a dashboard that points at an unsafe backend.'
+      ? 'Hosted builds must stop here instead of deploying a dashboard that points at a guessed or unsafe backend.'
       : 'Set it in Vercel or your build environment before shipping to production.',
     '',
   ];

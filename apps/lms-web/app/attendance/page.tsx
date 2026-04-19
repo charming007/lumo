@@ -16,10 +16,10 @@ export default async function AttendancePage({ searchParams }: { searchParams?: 
       <DeploymentBlockerCard
         title="Attendance"
         subtitle="Production wiring is incomplete, so facilitator attendance ops are refusing to fake a calm day with clean zeros."
-        blockerHeadline="Deployment blocker: attendance API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: attendance API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so attendance totals, learner check-in capture, and absence follow-up would collapse into dishonest zero-state output. Fix the env var, redeploy, then verify live attendance traffic.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} attendance totals, learner check-in capture, and absence follow-up would collapse into dishonest zero-state output. Fix the env var, redeploy, then verify live attendance traffic.
           </>
         )}
         whyBlocked={[

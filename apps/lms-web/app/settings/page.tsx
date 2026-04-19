@@ -122,7 +122,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
       <DeploymentBlockerCard
         title="Settings"
         subtitle="Operational controls for persistence, rewards, progression, and storage integrity only matter when the production LMS is wired to a real API."
-        blockerHeadline="Settings is blocked until NEXT_PUBLIC_API_BASE_URL is configured."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Settings is blocked until NEXT_PUBLIC_API_BASE_URL is configured.'}
         blockerDetail={(
           <>
             This page currently renders a very convincing ops cockpit even when its storage, rewards, workboard, and integrity feeds are dead. That is worse than a crash: it can imply production trust, backup visibility, and repair readiness when the app is actually disconnected.

@@ -59,6 +59,16 @@ void main() {
   });
 
   group('LumoApiClient.productionBaseUrlIssue', () {
+    test('rejects missing release config', () {
+      expect(
+        LumoApiClient.productionBaseUrlIssue(
+          'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitConfig: false,
+        ),
+        contains('LUMO_API_BASE_URL is missing'),
+      );
+    });
+
     test('rejects localhost release targets', () {
       expect(
         LumoApiClient.productionBaseUrlIssue('http://localhost:4000'),

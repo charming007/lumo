@@ -129,10 +129,10 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
       <DeploymentBlockerCard
         title="Rewards & Progression"
         subtitle="Production wiring is incomplete, so reward operations and progression cues are blocked instead of pretending the incentive system is trustworthy."
-        blockerHeadline="Deployment blocker: rewards API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: rewards API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so leaderboard ranks, reward queue pressure, manual XP interventions, and progression-linked reward decisions would all degrade into convincing nonsense. Fix the env var, redeploy, then verify live reward and progression data before touching learner incentives.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} leaderboard ranks, reward queue pressure, manual XP interventions, and progression-linked reward decisions would all degrade into convincing nonsense. Fix the env var, redeploy, then verify live reward and progression data before touching learner incentives.
           </>
         )}
         whyBlocked={[

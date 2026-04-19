@@ -26,10 +26,10 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
       <DeploymentBlockerCard
         title="Learners"
         subtitle="Production wiring is incomplete, so the learner roster is blocked instead of pretending ownership, attendance, and progression data are trustworthy."
-        blockerHeadline="Deployment blocker: learner roster API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: learner roster API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so learner roster counts, attendance risk flags, progression readiness, and add/edit/delete learner actions would all degrade into polished nonsense. Fix the env var, redeploy, then verify live learner data before touching roster operations.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} learner roster counts, attendance risk flags, progression readiness, and add/edit/delete learner actions would all degrade into polished nonsense. Fix the env var, redeploy, then verify live learner data before touching roster operations.
           </>
         )}
         whyBlocked={[
@@ -85,6 +85,56 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
     { label: 'pods', result: podsResult },
     { label: 'mallams', result: mallamsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
+  const criticalRosterFailures = [
+    studentsResult.status !== 'fulfilled' ? 'learners' : null,
+    workboardResult.status !== 'fulfilled' ? 'workboard' : null,
+    cohortsResult.status !== 'fulfilled' ? 'cohorts' : null,
+    podsResult.status !== 'fulfilled' ? 'pods' : null,
+    mallamsResult.status !== 'fulfilled' ? 'mallams' : null,
+  ].filter(Boolean) as string[];
+  const hasCriticalRosterGap = criticalRosterFailures.length > 0;
+
+  if (hasCriticalRosterGap) {
+    return (
+      <DeploymentBlockerCard
+        title="Learners"
+        subtitle="The learner roster is blocked until the live roster, workboard, and dependency feeds all load cleanly from production."
+        blockerHeadline="Deployment blocker: learner roster live feeds are degraded."
+        blockerDetail={(
+          <>
+            The learner admin surface is missing <code style={{ color: 'white', fontWeight: 900 }}>{criticalRosterFailures.join(', ')}</code> data right now. Showing an empty roster or partial ownership graph here would invite bad learner moves, fake calm watchlists, and broken intervention decisions.
+          </>
+        )}
+        whyBlocked={[
+          'This route can create, edit, reassign, and delete learners. Partial data here is worse than a crash because it looks trustworthy while key ownership feeds are missing.',
+          'Learner progression follow-up depends on the workboard plus live cohort, pod, and mallam context. If any of those are down, roster decisions become guesswork.',
+          'Deployment review should fail loudly when the roster backbone is degraded instead of letting a blank table masquerade as “no learners need attention.”',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner roster feed',
+            expected: 'Live learners load with cohort, mallam, pod, attendance, and stage context',
+            failure: 'Empty or partial roster that hides missing learner records behind a calm table shell',
+          },
+          {
+            surface: 'Learner support queue',
+            expected: 'Ready/watch learners match the live workboard feed',
+            failure: 'Progression queue disappears or shrinks because the workboard feed is down',
+          },
+          {
+            surface: 'Roster dependencies',
+            expected: 'Cohorts, pods, and mallams all load before learner operations become available',
+            failure: `Missing dependency feeds such as ${criticalRosterFailures.join(', ')}`,
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Attendance blocker', href: '/attendance', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const rosterDependenciesReady = cohorts.length > 0 && pods.length > 0 && mallams.length > 0;
   const flaggedLearners = students.filter((student) => student.attendanceRate < 0.85).length;

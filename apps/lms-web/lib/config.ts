@@ -1,8 +1,7 @@
 const LOCAL_API_BASE = 'http://localhost:4000';
-const DEFAULT_PRODUCTION_API_BASE = 'https://lumo-api-production-303a.up.railway.app';
-const EXPECTED_PRODUCTION_API_BASE = DEFAULT_PRODUCTION_API_BASE;
+const EXPECTED_PRODUCTION_API_BASE = 'https://lumo-api-production-303a.up.railway.app';
 
-export type ApiBaseSource = 'env' | 'local-fallback' | 'default-production-fallback' | 'invalid-production-env';
+export type ApiBaseSource = 'env' | 'local-fallback' | 'missing-production-env' | 'invalid-production-env';
 
 export type ApiBaseDiagnostic = {
   source: ApiBaseSource;
@@ -54,20 +53,24 @@ function invalidProductionApiReason(value: string | null) {
 
 const configuredApiBase = resolveConfiguredApiBaseUrl();
 const isProduction = process.env.NODE_ENV === 'production';
-const effectiveProductionApiBase = configuredApiBase ?? DEFAULT_PRODUCTION_API_BASE;
-const invalidProductionReason = isProduction ? invalidProductionApiReason(effectiveProductionApiBase) : null;
-const productionBlockReason = invalidProductionReason;
+const missingProductionApiBase = isProduction && !configuredApiBase;
+const invalidProductionReason = isProduction && configuredApiBase
+  ? invalidProductionApiReason(configuredApiBase)
+  : null;
+const productionBlockReason = missingProductionApiBase
+  ? 'NEXT_PUBLIC_API_BASE_URL is missing.'
+  : invalidProductionReason;
 
 export const API_BASE = isProduction
-  ? effectiveProductionApiBase
+  ? configuredApiBase ?? LOCAL_API_BASE
   : configuredApiBase ?? LOCAL_API_BASE;
 
-export const API_BASE_SOURCE: ApiBaseSource = productionBlockReason
-  ? 'invalid-production-env'
-  : configuredApiBase
-    ? 'env'
-    : isProduction
-      ? 'default-production-fallback'
+export const API_BASE_SOURCE: ApiBaseSource = missingProductionApiBase
+  ? 'missing-production-env'
+  : productionBlockReason
+    ? 'invalid-production-env'
+    : configuredApiBase
+      ? 'env'
       : 'local-fallback';
 
 export const API_BASE_DIAGNOSTIC: ApiBaseDiagnostic = {
@@ -75,7 +78,9 @@ export const API_BASE_DIAGNOSTIC: ApiBaseDiagnostic = {
   configuredApiBase,
   deploymentBlocked: Boolean(productionBlockReason),
   blockerHeadline: productionBlockReason
-    ? 'Deployment blocker: dashboard API base URL is unsafe for production.'
+    ? missingProductionApiBase
+      ? 'Deployment blocker: dashboard API base URL is missing in production.'
+      : 'Deployment blocker: dashboard API base URL is unsafe for production.'
     : undefined,
   blockerDetail: productionBlockReason ?? undefined,
   expectedFormat: EXPECTED_PRODUCTION_API_BASE,

@@ -42,10 +42,10 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
       <DeploymentBlockerCard
         title="Mallams"
         subtitle="Production wiring is incomplete, so mallam deployment coverage is blocked instead of pretending live operator load and roster controls are trustworthy."
-        blockerHeadline="Deployment blocker: mallam roster API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: mallam roster API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so mallam coverage, learner load, intervention pressure, and add/edit/delete roster controls would degrade into polished fiction. Fix the env var, redeploy, then verify live mallam assignments before touching operator coverage.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} mallam coverage, learner load, intervention pressure, and add/edit/delete roster controls would degrade into polished fiction. Fix the env var, redeploy, then verify live mallam assignments before touching operator coverage.
           </>
         )}
         whyBlocked={[

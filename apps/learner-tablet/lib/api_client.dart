@@ -11,6 +11,8 @@ const String kDefaultProductionApiBaseUrl =
 class LumoApiClient {
   LumoApiClient({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
+        _hasExplicitBaseUrl =
+            baseUrl != null || const bool.hasEnvironment('LUMO_API_BASE_URL'),
         baseUrl = normalizeBaseUrl(
           baseUrl ??
               const String.fromEnvironment(
@@ -20,6 +22,7 @@ class LumoApiClient {
         );
 
   final http.Client _client;
+  final bool _hasExplicitBaseUrl;
   final String baseUrl;
   static const Duration _requestTimeout = Duration(seconds: 12);
 
@@ -48,7 +51,14 @@ class LumoApiClient {
     return rendered.isEmpty ? kDefaultProductionApiBaseUrl : rendered;
   }
 
-  static String? productionBaseUrlIssue(String rawBaseUrl) {
+  static String? productionBaseUrlIssue(
+    String rawBaseUrl, {
+    bool hasExplicitConfig = true,
+  }) {
+    if (!hasExplicitConfig) {
+      return 'LUMO_API_BASE_URL is missing. Set it explicitly for release tablets before shipping.';
+    }
+
     final normalized = normalizeBaseUrl(rawBaseUrl);
     final parsed = Uri.tryParse(normalized);
     if (parsed == null || parsed.host.isEmpty) {
@@ -81,7 +91,7 @@ class LumoApiClient {
   }
 
   String? get invalidProductionBaseUrlReason =>
-      productionBaseUrlIssue(baseUrl);
+      productionBaseUrlIssue(baseUrl, hasExplicitConfig: _hasExplicitBaseUrl);
 
   static List<String> _stripApiSuffix(List<String> segments) {
     if (segments.isEmpty) return const [];

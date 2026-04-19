@@ -170,10 +170,10 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
       <DeploymentBlockerCard
         title="Reports"
         subtitle="Production wiring is incomplete, so executive reporting is refusing to cosplay as trustworthy."
-        blockerHeadline="Deployment blocker: reports API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: reports API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so NGO summaries, operator hotlists, and exportable rollups would collapse into dishonest fallback output. Fix the env var, redeploy, then verify the reporting surfaces against live backend data.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} NGO summaries, operator hotlists, and exportable rollups would collapse into dishonest fallback output. Fix the env var, redeploy, then verify the reporting surfaces against live backend data.
           </>
         )}
         whyBlocked={[

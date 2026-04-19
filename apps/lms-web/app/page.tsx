@@ -118,11 +118,11 @@ function describeGateWarning(moduleCount: number, liveModuleCount: number) {
 }
 
 function dashboardApiSourceDetail() {
-  if (API_BASE_SOURCE === 'default-production-fallback') {
+  if (API_BASE_SOURCE === 'missing-production-env') {
     return {
-      label: 'Default production API',
-      note: `Dashboard is using the fallback production host ${API_BASE_DIAGNOSTIC.expectedFormat} because NEXT_PUBLIC_API_BASE_URL is unset. Good enough for this pilot deploy, but still worth verifying deliberately.`,
-      tone: { background: '#DBEAFE', border: '1px solid #93C5FD', text: '#1D4ED8' },
+      label: 'Missing production API env',
+      note: `Dashboard is intentionally blocked until NEXT_PUBLIC_API_BASE_URL is set to a real HTTPS host such as ${API_BASE_DIAGNOSTIC.expectedFormat}.`,
+      tone: { background: '#FEE2E2', border: '1px solid #FCA5A5', text: '#991B1B' },
     };
   }
 

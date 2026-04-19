@@ -52,10 +52,10 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
       <DeploymentBlockerCard
         title="Assignments"
         subtitle="Production wiring is incomplete, so assignment operations are blocked instead of pretending delivery control still works."
-        blockerHeadline="Deployment blocker: assignments API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: assignments API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the assignments board cannot be trusted for scheduling, reassignment, or due-date triage. Fix the env var, redeploy, then verify live delivery data.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the assignments board cannot be trusted for scheduling, reassignment, or due-date triage. Fix the env var, redeploy, then verify live delivery data.
           </>
         )}
         whyBlocked={[

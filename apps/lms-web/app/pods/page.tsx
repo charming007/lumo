@@ -21,10 +21,10 @@ export default async function PodsPage() {
       <DeploymentBlockerCard
         title="Pods"
         subtitle="Production wiring is incomplete, so pod deployment coverage is blocked instead of pretending center health and learner capacity are live."
-        blockerHeadline="Deployment blocker: pod operations API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: pod operations API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so pod connectivity, utilization, mallam coverage, and center deployment health would degrade into convincingly wrong cards and tables. Fix the env var, redeploy, then verify live pod operations before treating capacity or connectivity as real.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} pod connectivity, utilization, mallam coverage, and center deployment health would degrade into convincingly wrong cards and tables. Fix the env var, redeploy, then verify live pod operations before treating capacity or connectivity as real.
           </>
         )}
         whyBlocked={[

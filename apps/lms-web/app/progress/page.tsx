@@ -27,10 +27,10 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
       <DeploymentBlockerCard
         title="Progress"
         subtitle="Production wiring is incomplete, so progression controls are refusing to fake confidence."
-        blockerHeadline="Deployment blocker: progress API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: progress API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so mastery rows, progression readiness, and override workflows would degrade into misleading empty-state output. Fix the env var, redeploy, then verify live progression data before making learner decisions.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} mastery rows, progression readiness, and override workflows would degrade into misleading empty-state output. Fix the env var, redeploy, then verify live progression data before making learner decisions.
           </>
         )}
         whyBlocked={[

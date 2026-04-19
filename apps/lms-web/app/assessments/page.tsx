@@ -21,10 +21,10 @@ export default async function AssessmentsPage() {
       <DeploymentBlockerCard
         title="Assessments"
         subtitle="Production wiring is incomplete, so progression gates are blocked instead of faking readiness confidence."
-        blockerHeadline="Deployment blocker: assessments API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: assessments API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so assessment gates and learner readiness cannot be trusted. Fix the env var, redeploy, then confirm real progression data is loading.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} assessment gates and learner readiness cannot be trusted. Fix the env var, redeploy, then confirm real progression data is loading.
           </>
         )}
         whyBlocked={[

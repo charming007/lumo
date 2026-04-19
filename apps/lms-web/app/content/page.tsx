@@ -85,10 +85,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       <DeploymentBlockerCard
         title="Content library"
         subtitle="Production wiring is incomplete, so the publishing board is refusing to fake a healthy release pipeline."
-        blockerHeadline="Deployment blocker: content API base URL is missing."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: content API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            This production build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so module blockers, lesson readiness, and assessment-gate coverage would all degrade into misleading fallback states. Fix the env var, redeploy, then verify the real content workflow.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} module blockers, lesson readiness, and assessment-gate coverage would all degrade into misleading fallback states. Fix the env var, redeploy, then verify the real content workflow.
           </>
         )}
         whyBlocked={[
