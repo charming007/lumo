@@ -404,6 +404,7 @@ function getLessonTypeGuide(type: string) {
   return lessonTypeFieldGuide[type] ?? lessonTypeFieldGuide.speak_answer;
 }
 
+
 function buildDraftsFromLesson(lesson?: Lesson | null) {
   if (!lesson) return [makeActivityDraft(0)];
 
