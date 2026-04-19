@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
-import { fetchAssignments, fetchDashboardInsights, fetchDashboardSummary, fetchMallams, fetchWorkboard } from '../lib/api';
+import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchWorkboard } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
-import type { Assignment, DashboardInsight, DashboardSummary, Mallam, WorkboardItem } from '../lib/types';
+import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, WorkboardItem } from '../lib/types';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -84,6 +84,28 @@ function metricDisplay(value: string, available: boolean) {
   return available ? value : '—';
 }
 
+function describeReleaseRisk(blockerCount: number) {
+  if (blockerCount >= 5) return { label: 'Critical release blocker', tone: '#FEE2E2', text: '#991B1B' };
+  if (blockerCount >= 3) return { label: 'High release risk', tone: '#FEF3C7', text: '#92400E' };
+  return { label: 'Moderate release risk', tone: '#E0E7FF', text: '#3730A3' };
+}
+
+function describeNextAction(module: {
+  missingLessons: number;
+  hasAssessmentGate: boolean;
+  isDraftModule: boolean;
+}) {
+  const actions: string[] = [];
+
+  if (module.isDraftModule) actions.push('move the module out of draft');
+  if (module.missingLessons > 0) actions.push(`create ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'}`);
+  if (!module.hasAssessmentGate) actions.push('add the assessment gate');
+
+  if (!actions.length) return 'This lane is structurally clear.';
+
+  return `${actions[0].charAt(0).toUpperCase()}${actions[0].slice(1)}${actions.length > 1 ? `, ${actions.slice(1, -1).join(', ')}${actions.length > 2 ? ',' : ''} and ${actions.at(-1)}` : ''} before publish.`;
+}
+
 function dashboardApiSourceDetail() {
   if (API_BASE_SOURCE === 'default-production-fallback') {
     return {
@@ -153,12 +175,15 @@ export default async function HomePage() {
     );
   }
 
-  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult] = await Promise.allSettled([
+  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
     fetchDashboardSummary(),
     fetchDashboardInsights(),
     fetchWorkboard(),
     fetchMallams(),
     fetchAssignments(),
+    fetchCurriculumModules(),
+    fetchLessons(),
+    fetchAssessments(),
   ]);
 
   const summary: DashboardSummary = summaryResult.status === 'fulfilled' ? summaryResult.value : emptySummary;
@@ -170,6 +195,9 @@ export default async function HomePage() {
   const mallamsAvailable = mallamsResult.status === 'fulfilled';
   const assignments: Assignment[] = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
   const assignmentsAvailable = assignmentsResult.status === 'fulfilled';
+  const modules: CurriculumModule[] = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const lessons: Lesson[] = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const assessments: Assessment[] = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
 
   const failedSources = [
     { label: 'dashboard summary', result: summaryResult },
@@ -177,6 +205,9 @@ export default async function HomePage() {
     { label: 'workboard', result: workboardResult },
     { label: 'mallams', result: mallamsResult },
     { label: 'assignments', result: assignmentsResult },
+    { label: 'modules', result: modulesResult },
+    { label: 'lessons', result: lessonsResult },
+    { label: 'assessments', result: assessmentsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
@@ -196,6 +227,37 @@ export default async function HomePage() {
     .slice()
     .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
     .slice(0, 5);
+  const assessmentLinkedModuleIds = new Set(assessments.map((assessment) => assessment.moduleId).filter(Boolean));
+  const releaseBlockers = modules
+    .map((module) => {
+      const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id || lesson.moduleTitle === module.title);
+      const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+      const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
+      const hasAssessmentGate = assessmentLinkedModuleIds.has(module.id);
+      const isDraftModule = module.status === 'draft';
+      const blockerCount = missingLessons + (hasAssessmentGate ? 0 : 1) + (isDraftModule ? 1 : 0);
+
+      if (!blockerCount) {
+        return null;
+      }
+
+      return {
+        id: module.id,
+        title: module.title,
+        subjectId: module.subjectId ?? '',
+        subjectName: module.subjectName ?? '—',
+        missingLessons,
+        hasAssessmentGate,
+        isDraftModule,
+        blockerCount,
+      };
+    })
+    .filter((module): module is NonNullable<typeof module> => Boolean(module))
+    .sort((left, right) => right.blockerCount - left.blockerCount || right.missingLessons - left.missingLessons || left.title.localeCompare(right.title));
+  const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled';
+  const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
+  const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
+  const topReleaseBlocker = releaseBlockers[0] ?? null;
 
   if (hasCriticalDashboardGap) {
     const blockerDetail = !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
@@ -400,6 +462,88 @@ export default async function HomePage() {
       </section>
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+        <Card title="Content release blockers" eyebrow="Deployment readiness">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Blocked modules</div>
+                <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{releaseFeedsAvailable ? releaseBlockers.length : '—'}</div>
+                <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
+                  {releaseFeedsAvailable
+                    ? releaseBlockers.length
+                      ? `${draftModuleBlockers.length} draft module${draftModuleBlockers.length === 1 ? '' : 's'} are still blocking release alongside lesson and assessment gaps.`
+                      : 'No release blockers are visible in the live curriculum feeds. Miracles happen.'
+                    : 'Curriculum release feeds are unavailable, so blocker counts are intentionally withheld instead of guessed.'}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+                {[
+                  { label: 'Publish-ready modules', value: releaseFeedsAvailable ? String(publishReadyModules) : '—' },
+                  { label: 'Draft modules blocking', value: releaseFeedsAvailable ? String(draftModuleBlockers.length) : '—' },
+                  { label: 'Missing lesson gaps', value: releaseFeedsAvailable ? String(releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0)) : '—' },
+                  { label: 'Missing gates', value: releaseFeedsAvailable ? String(releaseBlockers.filter((module) => !module.hasAssessmentGate).length) : '—' },
+                ].map((item) => (
+                  <div key={item.label} style={{ padding: '12px 14px', borderRadius: 16, background: '#fff', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{item.label}</div>
+                    <div style={{ marginTop: 6, fontSize: 22, fontWeight: 900, color: '#0f172a' }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. The dashboard refuses to fake content-readiness counts while those feeds are blind.', 'warning') : null}
+            {topReleaseBlocker ? (() => {
+              const blockerBoardHref = `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${topReleaseBlocker.subjectId}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`;
+              const createLessonHref = `/content/lessons/new?subjectId=${topReleaseBlocker.subjectId}&moduleId=${topReleaseBlocker.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+              const risk = describeReleaseRisk(topReleaseBlocker.blockerCount);
+
+              return (
+                <div style={{ padding: '16px 18px', borderRadius: 18, background: '#FEFCE8', border: '1px solid #FDE68A', display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      <strong style={{ color: '#713F12' }}>Top blocker: {topReleaseBlocker.title}</strong>
+                      <span style={{ color: '#854D0E', lineHeight: 1.6 }}>{describeNextAction(topReleaseBlocker)}</span>
+                    </div>
+                    <Pill label={risk.label} tone={risk.tone} text={risk.text} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <Link href={blockerBoardHref} style={{ ...quickActionStyle, background: '#92400E', color: 'white', padding: '10px 12px' }}>Open blockers board</Link>
+                    {topReleaseBlocker.missingLessons > 0 ? <Link href={createLessonHref} style={{ ...quickActionStyle, background: '#fff', color: '#92400E', border: '1px solid #FDE68A', padding: '10px 12px' }}>Create missing lesson</Link> : null}
+                  </div>
+                </div>
+              );
+            })() : releaseFeedsAvailable ? sectionAlert('No release blockers are visible from the live curriculum feeds. For once, the dashboard is allowed to be calm.') : null}
+            {releaseBlockers.length ? (
+              <SimpleTable
+                columns={['Module', 'Subject', 'Gaps', 'Next action', 'Risk']}
+                rows={releaseBlockers.slice(0, 5).map((module) => {
+                  const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
+                  const createLessonHref = `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+                  const risk = describeReleaseRisk(module.blockerCount);
+
+                  return [
+                    <Link key={`${module.id}-module`} href={blockerBoardHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>{module.title}</Link>,
+                    module.subjectName,
+                    <div key={`${module.id}-gaps`} style={{ display: 'grid', gap: 6 }}>
+                      <span>{module.missingLessons > 0 ? `${module.missingLessons} lesson gap${module.missingLessons === 1 ? '' : 's'}` : 'Lessons complete'}</span>
+                      <span style={{ color: module.isDraftModule ? '#B45309' : '#64748b', fontSize: 13, fontWeight: module.isDraftModule ? 800 : 600 }}>
+                        {module.isDraftModule ? 'Module is still draft' : 'Module status is release-safe'}
+                      </span>
+                    </div>,
+                    <div key={`${module.id}-next`} style={{ display: 'grid', gap: 6 }}>
+                      <span>{describeNextAction(module)}</span>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <Link href={blockerBoardHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Open blocker board</Link>
+                        {module.missingLessons > 0 ? <Link href={createLessonHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Create lesson</Link> : null}
+                      </div>
+                    </div>,
+                    <Pill key={`${module.id}-risk`} label={risk.label} tone={risk.tone} text={risk.text} />,
+                  ];
+                })}
+              />
+            ) : null}
+          </div>
+        </Card>
+
         <Card title="Priority queue" eyebrow="Immediate intervention">
           {!workboardAvailable ? (
             sectionAlert('The progression workboard is unavailable right now, so this dashboard cannot safely pretend there is no intervention queue.', 'warning')
