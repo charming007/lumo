@@ -400,6 +400,47 @@ function parseActivityMedia(mediaLines: string) {
     });
 }
 
+function getTypeReadinessWarnings(activity: ActivityDraft) {
+  const choices = parseActivityChoices(activity.choiceLines);
+  const media = parseActivityMedia(activity.mediaLines);
+  const expectedAnswerCount = activity.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean).length;
+  const correctChoiceCount = choices.filter((choice) => choice.isCorrect).length;
+  const warnings: string[] = [];
+
+  switch (activity.type) {
+    case 'image_choice':
+      if (choices.length < 2) warnings.push('Image choice needs at least 2 options.');
+      if (correctChoiceCount < 1) warnings.push('Image choice needs a marked correct option.');
+      if (!choices.some((choice) => choice.media?.kind === 'image') && !media.some((item) => item.kind === 'image')) warnings.push('Image choice should include image media on an option or shared cue.');
+      break;
+    case 'tap_choice':
+      if (choices.length < 2) warnings.push('Tap choice needs at least 2 tappable options.');
+      if (correctChoiceCount < 1) warnings.push('Tap choice needs a marked correct option.');
+      break;
+    case 'word_build':
+      if (choices.length < 1 && media.length < 1) warnings.push('Word build needs pieces in options or media.');
+      if (expectedAnswerCount < 1) warnings.push('Word build should name the final target answer.');
+      break;
+    case 'listen_repeat':
+    case 'listen_answer':
+      if (media.length < 1) warnings.push('Listening steps should include at least one media cue or listening asset.');
+      if (expectedAnswerCount < 1) warnings.push('Listening steps should define expected responses.');
+      break;
+    case 'speak_answer':
+    case 'oral_quiz':
+      if (expectedAnswerCount < 1) warnings.push('Spoken response steps should list acceptable answers.');
+      break;
+    case 'letter_intro':
+      if (expectedAnswerCount < 1) warnings.push('Letter intro should name the target sound, letter, or anchor word.');
+      if (!activity.facilitatorNotes.trim()) warnings.push('Letter intro should include one facilitator modelling note.');
+      break;
+    default:
+      break;
+  }
+
+  return warnings;
+}
+
 function getLessonTypeGuide(type: string) {
   return lessonTypeFieldGuide[type] ?? lessonTypeFieldGuide.speak_answer;
 }
