@@ -168,6 +168,64 @@ function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
   }
 }
 
+type UploadLikeFile = {
+  name: string;
+  size: number;
+  type?: string;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+};
+
+function isUploadLikeFile(value: unknown): value is UploadLikeFile {
+  if (!value || typeof value === 'string' || typeof value !== 'object') {
+    return false;
+  }
+
+  return typeof (value as UploadLikeFile).name === 'string'
+    && typeof (value as UploadLikeFile).size === 'number'
+    && typeof (value as UploadLikeFile).arrayBuffer === 'function';
+}
+
+function normalizeCsvField(formData: FormData, key: string) {
+  return String(formData.get(key) || '').split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function buildAssetUploadFallbackPath(returnPath: string, options: {
+  message: string;
+  draftTitle?: string;
+  draftDescription?: string;
+  draftKind?: string;
+  draftTags?: string[];
+  subjectId?: string | null;
+  moduleId?: string | null;
+  lessonId?: string | null;
+  suggestedMode?: 'register';
+}) {
+  const params = new URLSearchParams({ message: options.message });
+
+  if (options.suggestedMode) params.set('assetMode', options.suggestedMode);
+  if (options.draftTitle) params.set('draftTitle', options.draftTitle);
+  if (options.draftDescription) params.set('draftDescription', options.draftDescription);
+  if (options.draftKind) params.set('draftKind', options.draftKind);
+  if (options.draftTags?.length) params.set('draftTags', options.draftTags.join(', '));
+  if (options.subjectId) params.set('subjectId', options.subjectId);
+  if (options.moduleId) params.set('moduleId', options.moduleId);
+  if (options.lessonId) params.set('lessonId', options.lessonId);
+
+  return appendSearchParams(returnPath, Object.fromEntries(params.entries()));
+}
+
+function isStorageAvailabilityError(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes('eacces')
+    || normalized.includes('enospc')
+    || normalized.includes('erofs')
+    || normalized.includes('read-only file system')
+    || normalized.includes('permission denied')
+    || normalized.includes('no space left')
+    || normalized.includes('failed to persist')
+    || normalized.includes('failed to write');
+}
+
 async function updateStudentMallamAssignment(studentId: string, mallamId: string | null) {
   // Keep roster ownership writes on the stable student PATCH route.
   // The specialized mallam assignment endpoints are easier to miss in older deployments and were the source of 404s.
@@ -603,25 +661,56 @@ export async function registerLessonAssetAction(formData: FormData) {
 export async function uploadLessonAssetAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
   const file = formData.get('file');
+  const normalizedKind = String(formData.get('kind') || 'image');
+  const subjectId = String(formData.get('subjectId') || '') || null;
+  const moduleId = String(formData.get('moduleId') || '') || null;
+  const lessonId = String(formData.get('lessonId') || '') || null;
+  const draftDescription = String(formData.get('description') || '');
+  const draftTags = normalizeCsvField(formData, 'tags');
 
   try {
-    if (!(file instanceof File) || file.size === 0) {
-      redirect(appendSearchParams(returnPath, { message: 'Pick a file before uploading' }));
+    if (!isUploadLikeFile(file) || file.size === 0) {
+      redirect(buildAssetUploadFallbackPath(returnPath, {
+        message: 'Pick a real file before uploading. If storage is unavailable, use Register external asset instead.',
+        draftDescription,
+        draftKind: normalizedKind,
+        draftTags,
+        subjectId,
+        moduleId,
+        lessonId,
+        suggestedMode: 'register',
+      }));
     }
 
-    const normalizedKind = String(formData.get('kind') || 'image');
     const normalizedMimeType = String(file.type || 'application/octet-stream').toLowerCase();
     const allowedMimeTypes = LMS_ASSET_KIND_UPLOAD_ALLOWLIST[normalizedKind] || [];
+    const draftTitle = String(formData.get('title') || file.name.replace(/\.[^.]+$/, ''));
 
     if (file.size > LMS_ASSET_UPLOAD_MAX_BYTES) {
-      redirect(appendSearchParams(returnPath, {
+      redirect(buildAssetUploadFallbackPath(returnPath, {
         message: `Upload failed: file exceeds ${Math.round(LMS_ASSET_UPLOAD_MAX_BYTES / (1024 * 1024))} MB limit`,
+        draftTitle,
+        draftDescription,
+        draftKind: normalizedKind,
+        draftTags,
+        subjectId,
+        moduleId,
+        lessonId,
+        suggestedMode: 'register',
       }));
     }
 
     if (allowedMimeTypes.length && !allowedMimeTypes.includes(normalizedMimeType)) {
-      redirect(appendSearchParams(returnPath, {
+      redirect(buildAssetUploadFallbackPath(returnPath, {
         message: `Upload failed: ${normalizedKind} does not accept ${normalizedMimeType || 'this file type'}`,
+        draftTitle,
+        draftDescription,
+        draftKind: normalizedKind,
+        draftTags,
+        subjectId,
+        moduleId,
+        lessonId,
+        suggestedMode: 'register',
       }));
     }
 
@@ -631,12 +720,12 @@ export async function uploadLessonAssetAction(formData: FormData) {
       contentType: normalizedMimeType,
       base64: bytes.toString('base64'),
       kind: normalizedKind,
-      title: String(formData.get('title') || file.name.replace(/\.[^.]+$/, '')),
-      description: String(formData.get('description') || ''),
-      subjectId: String(formData.get('subjectId') || '') || null,
-      moduleId: String(formData.get('moduleId') || '') || null,
-      lessonId: String(formData.get('lessonId') || '') || null,
-      tags: String(formData.get('tags') || '').split(',').map((item) => item.trim()).filter(Boolean),
+      title: draftTitle,
+      description: draftDescription,
+      subjectId,
+      moduleId,
+      lessonId,
+      tags: draftTags,
     };
 
     await runAssetLibraryAction({
@@ -647,8 +736,19 @@ export async function uploadLessonAssetAction(formData: FormData) {
     });
   } catch (error) {
     rethrowRedirectError(error);
-    redirect(appendSearchParams(returnPath, {
-      message: `Upload failed: ${describeActionError(error, 'asset upload could not be completed')}`,
+    const message = describeActionError(error, 'asset upload could not be completed');
+    redirect(buildAssetUploadFallbackPath(returnPath, {
+      message: isStorageAvailabilityError(message)
+        ? `Upload storage is unavailable right now: ${message}. Use Register external asset below with a CDN/runtime URL while storage is repaired.`
+        : `Upload failed: ${message}`,
+      draftTitle: isUploadLikeFile(file) ? String(formData.get('title') || file.name.replace(/\.[^.]+$/, '')) : String(formData.get('title') || ''),
+      draftDescription,
+      draftKind: normalizedKind,
+      draftTags,
+      subjectId,
+      moduleId,
+      lessonId,
+      suggestedMode: 'register',
     }));
   }
 }

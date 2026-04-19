@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getAuthAudit } = require('./auth');
 
@@ -36,6 +38,37 @@ function readPositiveIntEnv(name, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
+function getAssetUploadAudit() {
+  const root = path.resolve(process.env.LUMO_ASSET_UPLOAD_DIR || path.join(__dirname, '..', 'data', 'uploads'));
+
+  try {
+    fs.mkdirSync(root, { recursive: true });
+    fs.accessSync(root, fs.constants.R_OK | fs.constants.W_OK);
+    return {
+      root,
+      ready: true,
+      blocker: null,
+    };
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : null;
+    let blocker = `Asset upload storage is unavailable at ${root}.`;
+
+    if (code === 'EROFS') {
+      blocker = `Asset upload root (${root}) is read-only. Set LUMO_ASSET_UPLOAD_DIR to a writable persistent directory or move uploads to external storage.`;
+    } else if (code === 'EACCES' || code === 'EPERM') {
+      blocker = `Asset upload root (${root}) is not writable by the API process. Fix permissions or set LUMO_ASSET_UPLOAD_DIR to a writable path.`;
+    } else if (code === 'ENOENT') {
+      blocker = `Asset upload root (${root}) could not be created. Verify the parent path for LUMO_ASSET_UPLOAD_DIR exists and is writable.`;
+    }
+
+    return {
+      root,
+      ready: false,
+      blocker,
+    };
+  }
+}
+
 function buildConfigAudit() {
   const mode = getDbMode();
   const dbMeta = getDbModeMeta();
@@ -43,6 +76,7 @@ function buildConfigAudit() {
   const allowAnyOrigin = (process.env.LUMO_CORS_ALLOW_ANY_ORIGIN || '').toLowerCase() === 'true';
   const apiBaseUrl = String(process.env.API_BASE_URL || process.env.LUMO_PUBLIC_API_URL || '').trim() || null;
   const authAudit = getAuthAudit();
+  const assetUploads = getAssetUploadAudit();
   const throttles = {
     jsonBodyLimit: String(process.env.LUMO_JSON_BODY_LIMIT || '1mb'),
     learnerSync: {
@@ -96,6 +130,10 @@ function buildConfigAudit() {
     warnings.push('File-backed storage is running in a production-like environment. Use Postgres for durable multi-instance recovery.');
   }
 
+  if (!assetUploads.ready) {
+    errors.push(assetUploads.blocker);
+  }
+
   if (authAudit.productionLike && !authAudit.roles.admin) {
     errors.push('Protected endpoints are not production-safe without LUMO_ADMIN_API_KEY. Configure API-key auth before exposing admin/teacher/facilitator routes.');
   }
@@ -123,6 +161,7 @@ function buildConfigAudit() {
       productionLike: isProductionLike(),
     },
     storage: dbMeta,
+    assetUploads,
     apiBaseUrl,
     cors: {
       allowAnyOrigin,

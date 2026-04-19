@@ -144,6 +144,37 @@ test('asset upload enforces mime and size limits', async () => {
   assert.match(tooLarge.body.message, /upload limit/);
 });
 
+test('upload endpoint fails with actionable blocker when storage path cannot be created', async () => {
+  const uploadRoot = path.resolve(__dirname, '..', 'data', 'uploads');
+  const datedPath = path.join(uploadRoot, new Date().toISOString().slice(0, 10));
+  fs.mkdirSync(uploadRoot, { recursive: true });
+  fs.rmSync(datedPath, { recursive: true, force: true });
+  fs.writeFileSync(datedPath, 'not-a-directory');
+
+  const response = await request('/api/v1/assets/upload', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Asset Admin',
+      'x-lumo-api-key': 'asset-test-key',
+    },
+    body: JSON.stringify({
+      fileName: 'tiny.png',
+      contentType: 'image/png',
+      base64: Buffer.from('tiny').toString('base64'),
+      kind: 'image',
+      title: 'Tiny image',
+    }),
+  });
+
+  assert.equal(response.status, 503);
+  assert.match(response.body.message, /asset upload root|writable|filesystem access|storage is unavailable/i);
+  assert.equal(response.body.storage?.ready, false);
+  assert.equal(response.body.storage?.root, uploadRoot);
+
+  fs.rmSync(datedPath, { force: true });
+});
+
 test('managed uploaded assets present canonical public file URLs instead of stale internal origins', async () => {
   process.env.LUMO_PUBLIC_API_URL = 'https://api.lumo.example';
 

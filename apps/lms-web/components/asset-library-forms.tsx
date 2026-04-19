@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { archiveLessonAssetAction, deleteLessonAssetAction, registerLessonAssetAction, updateLessonAssetAction, uploadLessonAssetAction } from '../app/actions';
+import { API_BASE } from '../lib/config';
 import type { CurriculumModule, Lesson, LessonAsset, Subject } from '../lib/types';
 import { DeleteConfirmSubmit } from './delete-confirm-submit';
 import { AssetPreview, AssetRuntimeLink } from './asset-preview';
@@ -165,16 +166,26 @@ function AssetReferenceCard({ label, value }: { label: string; value: string }) 
 }
 
 export function AssetUploadForm({ returnPath, subjects, modules, lessons }: { returnPath: string; subjects: Subject[]; modules: CurriculumModule[]; lessons: Lesson[] }) {
+  const uploadHints = useMemo(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search), []);
+  const draftTitle = uploadHints.get('draftTitle') || '';
+  const draftDescription = uploadHints.get('draftDescription') || '';
+  const draftKind = uploadHints.get('draftKind') || 'image';
+  const draftTags = uploadHints.get('draftTags') || '';
+  const suggestedMode = uploadHints.get('assetMode');
+
   return <form action={uploadLessonAssetAction} style={cardStyle}>
     <input type="hidden" name="returnPath" value={returnPath} />
     <h2 style={{ margin: 0 }}>Upload media</h2>
     <div style={{ color: '#64748b', lineHeight: 1.6 }}>Uploads now validate file size, MIME type, and scope wiring before the asset lands in the library.</div>
+    {suggestedMode === 'register' ? <div style={{ padding: 12, borderRadius: 12, background: '#FEF3C7', color: '#92400E', fontSize: 13, lineHeight: 1.6 }}>
+      Storage-backed upload looks shaky right now. If the file already lives on S3, a CDN, Drive, or another managed bucket, skip the upload fight and use <strong>Register external asset</strong> below.
+    </div> : null}
     <div style={scopeGridStyle}>
-      <Field label="Kind"><select name="kind" defaultValue="image" style={inputStyle}>{assetKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}</select></Field>
-      <Field label="Title"><input name="title" placeholder="Nurse card" style={inputStyle} /></Field>
-      <Field label="Tags"><input name="tags" placeholder="english, helpers, card" style={inputStyle} /></Field>
+      <Field label="Kind"><select name="kind" defaultValue={draftKind} style={inputStyle}>{assetKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}</select></Field>
+      <Field label="Title"><input name="title" defaultValue={draftTitle} placeholder="Nurse card" style={inputStyle} /></Field>
+      <Field label="Tags"><input name="tags" defaultValue={draftTags} placeholder="english, helpers, card" style={inputStyle} /></Field>
     </div>
-    <Field label="Description"><input name="description" placeholder="Shown during community helpers picture talk" style={inputStyle} /></Field>
+    <Field label="Description"><input name="description" defaultValue={draftDescription} placeholder="Shown during community helpers picture talk" style={inputStyle} /></Field>
     <Field label="File"><input name="file" type="file" accept="image/*,audio/*,.pdf,.json,.txt" style={inputStyle} /></Field>
     <ScopeFields subjects={subjects} modules={modules} lessons={lessons} />
     <button style={buttonStyle}>Upload asset</button>
@@ -182,16 +193,26 @@ export function AssetUploadForm({ returnPath, subjects, modules, lessons }: { re
 }
 
 export function AssetRegisterForm({ returnPath, subjects, modules, lessons }: { returnPath: string; subjects: Subject[]; modules: CurriculumModule[]; lessons: Lesson[] }) {
+  const uploadHints = useMemo(() => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search), []);
+  const draftTitle = uploadHints.get('draftTitle') || '';
+  const draftDescription = uploadHints.get('draftDescription') || '';
+  const draftKind = uploadHints.get('draftKind') || 'image';
+  const draftTags = uploadHints.get('draftTags') || '';
+  const suggestedMode = uploadHints.get('assetMode');
+
   return <form action={registerLessonAssetAction} style={cardStyle}>
     <input type="hidden" name="returnPath" value={returnPath} />
     <h2 style={{ margin: 0 }}>Register external asset</h2>
     <div style={{ color: '#64748b', lineHeight: 1.6 }}>External links now get URL validation too, so the registry stops accepting nonsense.</div>
+    {suggestedMode === 'register' ? <div style={{ padding: 12, borderRadius: 12, background: '#DCFCE7', color: '#166534', fontSize: 13, lineHeight: 1.6 }}>
+      Safer fallback: register the live runtime URL or storage key here, keep the same scope metadata, and unblock the operator while upload storage gets fixed.
+    </div> : null}
     <div style={scopeGridStyle}>
-      <Field label="Kind"><select name="kind" defaultValue="image" style={inputStyle}>{assetKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}</select></Field>
-      <Field label="Title"><input name="title" placeholder="Short vowel song" style={inputStyle} /></Field>
-      <Field label="Tags"><input name="tags" placeholder="phonics, audio" style={inputStyle} /></Field>
+      <Field label="Kind"><select name="kind" defaultValue={draftKind} style={inputStyle}>{assetKinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}</select></Field>
+      <Field label="Title"><input name="title" defaultValue={draftTitle} placeholder="Short vowel song" style={inputStyle} /></Field>
+      <Field label="Tags"><input name="tags" defaultValue={draftTags} placeholder="phonics, audio" style={inputStyle} /></Field>
     </div>
-    <Field label="Description"><input name="description" placeholder="Existing hosted audio cue" style={inputStyle} /></Field>
+    <Field label="Description"><input name="description" defaultValue={draftDescription} placeholder="Existing hosted audio cue" style={inputStyle} /></Field>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
       <Field label="Runtime URL"><input name="fileUrl" placeholder="https://cdn.example.com/audio/short-vowel-song.mp3" style={inputStyle} /></Field>
       <Field label="Storage path / asset key"><input name="storagePath" placeholder="s3://bucket/audio/short-vowel-song.mp3" style={inputStyle} /></Field>

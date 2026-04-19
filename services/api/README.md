@@ -20,12 +20,15 @@ It now runs a runtime config audit before booting the server and fails fast on u
 
 Non-blocking warnings still print for softer risks like loopback-only CORS, missing canonical API URL, or file-mode storage in production-like environments.
 
+Asset uploads now also fail fast when the configured upload directory is not writable. On hosted deployments, do not assume `services/api/data/uploads` is safely writable forever — set `LUMO_ASSET_UPLOAD_DIR` to a writable persistent path, or use external object storage.
+
 ## Planned env vars
 - `PORT`
 - `DATABASE_URL`
 - `LUMO_DB_MODE` (`file` by default, `postgres` for JSONB snapshot durability on Postgres via the bundled `pg` client)
 - `LUMO_DATA_FILE` (override JSON snapshot location)
 - `LUMO_ADMIN_API_KEY` (required in production/staging for protected admin/teacher/facilitator endpoints)
+- `LUMO_ASSET_UPLOAD_DIR` (optional override for where uploaded asset files are written; must be writable by the API process in production)
 - `LUMO_TEACHER_API_KEY` (optional dedicated teacher key)
 - `LUMO_FACILITATOR_API_KEY` (optional dedicated facilitator key)
 - `LUMO_SYNC_THROTTLE_WINDOW_MS` / `LUMO_SYNC_THROTTLE_MAX_REQUESTS` (learner sync burst control, defaults `60000` / `120`)

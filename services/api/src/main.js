@@ -14,11 +14,52 @@ const { getActor, requireRole, getAuthAudit } = require('./auth');
 
 const app = express();
 app.set('trust proxy', true);
-const assetUploadRoot = path.resolve(__dirname, '..', 'data', 'uploads');
-fs.mkdirSync(assetUploadRoot, { recursive: true });
+const assetUploadRoot = path.resolve(process.env.LUMO_ASSET_UPLOAD_DIR || path.join(__dirname, '..', 'data', 'uploads'));
+
+function ensureAssetUploadRootReady() {
+  fs.mkdirSync(assetUploadRoot, { recursive: true });
+  fs.accessSync(assetUploadRoot, fs.constants.R_OK | fs.constants.W_OK);
+  return assetUploadRoot;
+}
+
+function getAssetUploadRuntimeStatus() {
+  try {
+    return {
+      ready: true,
+      root: ensureAssetUploadRootReady(),
+      blocker: null,
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      root: assetUploadRoot,
+      blocker: describeAssetUploadFsError(error),
+    };
+  }
+}
 
 function sanitizeAssetFileName(value) {
   return String(value || 'asset').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'asset';
+}
+
+function describeAssetUploadFsError(error) {
+  const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : null;
+  const rootLabel = `asset upload root (${assetUploadRoot})`;
+
+  if (code === 'EROFS') {
+    return `${rootLabel} is read-only. Set LUMO_ASSET_UPLOAD_DIR to a writable persistent directory or switch uploads to external object storage before using live asset uploads.`;
+  }
+
+  if (code === 'EACCES' || code === 'EPERM') {
+    return `${rootLabel} is not writable by the API process. Fix directory permissions or set LUMO_ASSET_UPLOAD_DIR to a writable path before retrying uploads.`;
+  }
+
+  if (code === 'ENOENT') {
+    return `${rootLabel} could not be created. Verify the parent path for LUMO_ASSET_UPLOAD_DIR exists and is writable by the API process.`;
+  }
+
+  const detail = error instanceof Error && error.message ? ` (${error.message})` : '';
+  return `Asset upload storage is unavailable at ${assetUploadRoot}. Verify filesystem access or set LUMO_ASSET_UPLOAD_DIR to a writable directory.${detail}`;
 }
 
 function buildAssetFileUrl(req, storagePath) {
@@ -36,12 +77,12 @@ function buildAssetFileUrl(req, storagePath) {
 const ASSET_KIND_MIME_ALLOWLIST = {
   image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
   illustration: ['image/jpeg', 'image/png', 'image/webp'],
-  audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/ogg'],
-  'prompt-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
-  'story-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/aac'],
+  'prompt-card': ['text/plain', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
+  'story-card': ['text/plain', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
   'trace-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
   'letter-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
-  tile: ['image/jpeg', 'image/png', 'image/webp'],
+  tile: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
   'word-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
   hint: ['text/plain', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
   transcript: ['text/plain', 'application/pdf'],
@@ -374,7 +415,19 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: process.env.LUMO_JSON_BODY_LIMIT || '25mb' }));
-app.use('/media', express.static(assetUploadRoot, { fallthrough: false }));
+app.use('/media', (req, res, next) => {
+  const status = getAssetUploadRuntimeStatus();
+  if (!status.ready) {
+    return res.status(503).json({
+      message: status.blocker,
+      storage: {
+        root: status.root,
+        ready: false,
+      },
+    });
+  }
+  return next();
+}, express.static(assetUploadRoot, { fallthrough: false }));
 
 app.use((req, _res, next) => {
   req.actor = getActor(req);
@@ -2233,6 +2286,17 @@ app.delete('/api/v1/assets/:id', ...protectedMutation(['admin']), requireConfirm
 
 app.post('/api/v1/assets/upload', ...protectedMutation(['admin']), (req, res, next) => {
   try {
+    const runtimeStatus = getAssetUploadRuntimeStatus();
+    if (!runtimeStatus.ready) {
+      return res.status(503).json({
+        message: runtimeStatus.blocker,
+        storage: {
+          root: runtimeStatus.root,
+          ready: false,
+        },
+      });
+    }
+
     const { fileName, contentType, base64, kind, title, description, subjectId, moduleId, lessonId } = req.body || {};
     if (!fileName || !base64) {
       return res.status(400).json({ message: 'fileName and base64 are required' });
@@ -2256,10 +2320,30 @@ app.post('/api/v1/assets/upload', ...protectedMutation(['admin']), (req, res, ne
     const ext = path.extname(String(fileName || '')).trim() || '';
     const safeBase = sanitizeAssetFileName(path.basename(String(fileName || 'asset'), ext));
     const datedDir = path.join(assetUploadRoot, new Date().toISOString().slice(0, 10));
-    fs.mkdirSync(datedDir, { recursive: true });
+    try {
+      fs.mkdirSync(datedDir, { recursive: true });
+    } catch (error) {
+      return res.status(503).json({
+        message: describeAssetUploadFsError(error),
+        storage: {
+          root: assetUploadRoot,
+          ready: false,
+        },
+      });
+    }
     const storedFileName = `${assetId}-${safeBase}${ext}`;
     const storagePath = path.join(datedDir, storedFileName);
-    fs.writeFileSync(storagePath, buffer, { flag: 'wx' });
+    try {
+      fs.writeFileSync(storagePath, buffer, { flag: 'wx' });
+    } catch (error) {
+      return res.status(503).json({
+        message: describeAssetUploadFsError(error),
+        storage: {
+          root: assetUploadRoot,
+          ready: false,
+        },
+      });
+    }
 
     const payload = {
       id: assetId,
