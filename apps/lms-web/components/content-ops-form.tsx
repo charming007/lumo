@@ -40,10 +40,12 @@ export function DynamicLessonCreateForm({
   modules,
   subjects,
   action,
+  returnPath = '/content',
 }: {
   modules: CurriculumModule[];
   subjects: Subject[];
   action: (formData: FormData) => void;
+  returnPath?: string;
 }) {
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? 'english');
   const [moduleId, setModuleId] = useState(modules[0]?.id ?? '');
@@ -61,8 +63,10 @@ export function DynamicLessonCreateForm({
 
   return (
     <form action={action} style={cardStyle}>
-      <h2 style={{ margin: 0 }}>Create lesson</h2>
-      <div style={{ color: '#64748b', lineHeight: 1.5 }}>Choose a subject first, then the form narrows modules and shows deployment metadata so content ops can sanity-check what they are publishing.</div>
+      <input type="hidden" name="returnPath" value={returnPath} />
+      <input type="hidden" name="openEditorAfterCreate" value="1" />
+      <h2 style={{ margin: 0 }}>Create lesson shell</h2>
+      <div style={{ color: '#64748b', lineHeight: 1.5 }}>Choose a subject first, then the form narrows modules and shows deployment metadata so content ops can sanity-check what they are publishing. This compact flow creates the lesson shell, then drops you straight into the full typed editor instead of leaving you in a dead-end stub.</div>
       <FieldLabel>
         Subject
         <select name="subjectId" value={subjectId} onChange={(event) => {

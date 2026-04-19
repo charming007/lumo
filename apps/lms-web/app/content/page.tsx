@@ -224,8 +224,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <Link href="/guide#content-library" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
             Open LMS guide
           </Link>
-          <ModalLauncher buttonLabel="Quick create lesson" title="Quick create lesson" description="Need a fast record only? Use the compact form. For actual authoring, use the full lesson studio.">
-            <DynamicLessonCreateForm modules={modules} subjects={subjects} action={createLessonAction} />
+          <ModalLauncher buttonLabel="Quick lesson shell" title="Quick lesson shell" description="Need a fast lesson record in the right module? This compact form creates the shell, then opens the full typed lesson editor immediately.">
+            <DynamicLessonCreateForm modules={modules} subjects={subjects} action={createLessonAction} returnPath={returnPath} />
           </ModalLauncher>
           <ModalLauncher buttonLabel="Create Assessment" title="Create assessment gate" description="Attach a progression gate to a module from the same board.">
             <CreateAssessmentForm modules={modules} subjects={subjects} />

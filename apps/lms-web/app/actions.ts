@@ -439,6 +439,7 @@ export async function updateModuleAction(formData: FormData) {
 
 export async function createLessonAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
+  const openEditorAfterCreate = String(formData.get('openEditorAfterCreate') || '') === '1';
   const payload = {
     subjectId: String(formData.get('subjectId') || ''),
     moduleId: String(formData.get('moduleId') || ''),
@@ -470,6 +471,15 @@ export async function createLessonAction(formData: FormData) {
   const lessonTitle = lesson.title ?? payload.title;
   const moduleId = lesson.moduleId ?? payload.moduleId;
   const subjectId = lesson.subjectId ?? payload.subjectId;
+  if (openEditorAfterCreate) {
+    const editorParams = new URLSearchParams({
+      from: returnPath,
+      message: 'Lesson shell created. Now finish the real authoring pack.',
+    });
+
+    redirect(`/content/lessons/${lesson.id}?${editorParams.toString()}`);
+  }
+
   const successParams = new URLSearchParams({
     createdLessonId: lesson.id,
     createdLessonTitle: lessonTitle,
