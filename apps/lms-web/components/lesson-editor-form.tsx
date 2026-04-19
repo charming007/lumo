@@ -816,6 +816,10 @@ export function LessonEditorForm({
                     type={activity.type}
                     choiceLines={activity.choiceLines}
                     mediaLines={activity.mediaLines}
+                    assets={assets}
+                    subjectId={subjectId}
+                    moduleId={moduleId}
+                    lessonId={lesson.id}
                     onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
                     onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
                     inputStyle={inputStyle}

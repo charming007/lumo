@@ -1,6 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { ModalLauncher } from './modal-launcher';
+import { AssetPreview, AssetRuntimeLink } from './asset-preview';
+import type { LessonAsset } from '../lib/types';
 import {
   getLessonAssetKindLabel,
   getLessonAssetPreviewTone,
@@ -30,6 +33,10 @@ type Props = {
   type: string;
   choiceLines: string;
   mediaLines: string;
+  assets?: LessonAsset[];
+  subjectId?: string;
+  moduleId?: string;
+  lessonId?: string;
   onChoiceLinesChange: (value: string) => void;
   onMediaLinesChange: (value: string) => void;
   inputStyle: StyleObject;
@@ -292,6 +299,55 @@ function getAssetExamples(kind: string) {
   }
 }
 
+function stepSupportsAssetKind(stepType: string, kind: string) {
+  const normalizedKind = kind.toLowerCase();
+  if (stepType === 'image_choice' || stepType === 'tap_choice') {
+    return ['image', 'illustration', 'story-card', 'prompt-card', 'word-card', 'letter-card'].includes(normalizedKind);
+  }
+  if (stepType === 'listen_repeat' || stepType === 'listen_answer') {
+    return ['audio', 'transcript', 'prompt-card', 'story-card', 'image', 'illustration'].includes(normalizedKind);
+  }
+  if (stepType === 'word_build') {
+    return ['tile', 'word-card', 'letter-card', 'trace-card', 'image'].includes(normalizedKind);
+  }
+  if (stepType === 'letter_intro') {
+    return ['trace-card', 'letter-card', 'audio', 'image', 'illustration', 'prompt-card'].includes(normalizedKind);
+  }
+  if (stepType === 'oral_quiz' || stepType === 'speak_answer') {
+    return ['audio', 'prompt-card', 'story-card', 'image', 'illustration', 'transcript'].includes(normalizedKind);
+  }
+  return true;
+}
+
+function getPreferredAssetValue(asset: LessonAsset) {
+  return asset.fileUrl ?? asset.storagePath ?? asset.fileName ?? asset.id;
+}
+
+function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string) {
+  if (lessonId && asset.lessonId === lessonId) return 0;
+  if (moduleId && asset.moduleId === moduleId) return 1;
+  if (subjectId && asset.subjectId === subjectId) return 2;
+  if (!asset.subjectId && !asset.moduleId && !asset.lessonId) return 3;
+  return 4;
+}
+
+function scopeLabelForAsset(asset: LessonAsset, scopeRank: number) {
+  if (scopeRank === 0) return `Lesson · ${asset.lessonTitle ?? asset.title}`;
+  if (scopeRank === 1) return `Module · ${asset.moduleTitle ?? 'Scoped asset'}`;
+  if (scopeRank === 2) return `Subject · ${asset.subjectName ?? 'Scoped asset'}`;
+  if (scopeRank === 3) return 'Shared library';
+  return 'Other scope';
+}
+
+function findAssetByValue(assets: LessonAsset[], value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return assets.find((asset) => {
+    const preferred = getPreferredAssetValue(asset);
+    return asset.id === trimmed || asset.storagePath === trimmed || asset.fileUrl === trimmed || asset.fileName === trimmed || preferred === trimmed;
+  }) ?? null;
+}
+
 function AssetValuePreview({ kind, value }: { kind: string; value: string }) {
   const normalizedKind = normalizeLessonAssetKind(kind);
   const tone = getLessonAssetPreviewTone(normalizedKind);
@@ -329,6 +385,145 @@ function AssetValuePreview({ kind, value }: { kind: string; value: string }) {
   );
 }
 
+function InlineAssetPicker({
+  assets,
+  stepType,
+  subjectId,
+  moduleId,
+  lessonId,
+  selectedKind,
+  selectedValue,
+  title,
+  onPick,
+  onClear,
+}: {
+  assets: LessonAsset[];
+  stepType: string;
+  subjectId?: string;
+  moduleId?: string;
+  lessonId?: string;
+  selectedKind: string;
+  selectedValue: string;
+  title: string;
+  onPick: (asset: LessonAsset) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'scoped' | 'shared'>('all');
+  const [kindFilter, setKindFilter] = useState('all');
+  const currentAsset = useMemo(() => findAssetByValue(assets, selectedValue), [assets, selectedValue]);
+  const visibleAssets = useMemo(() => assets
+    .filter((asset) => Boolean(getPreferredAssetValue(asset)))
+    .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
+    .filter((asset) => scopeFilter === 'all' ? true : scopeFilter === 'shared' ? getScopeRank(asset, lessonId, moduleId, subjectId) === 3 : getScopeRank(asset, lessonId, moduleId, subjectId) <= 2)
+    .filter((asset) => kindFilter === 'all' ? true : normalizeLessonAssetKind(asset.kind) === kindFilter)
+    .filter((asset) => {
+      const haystack = [asset.title, asset.description, asset.kind, asset.subjectName, asset.moduleTitle, asset.lessonTitle, asset.fileName, asset.storagePath, ...(asset.tags ?? [])]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return !query.trim() || haystack.includes(query.trim().toLowerCase());
+    })
+    .sort((left, right) => left.title.localeCompare(right.title)), [assets, kindFilter, query, scopeFilter, stepType]);
+  const supportedKinds = useMemo(() => Array.from(new Set(assets.filter((asset) => stepSupportsAssetKind(stepType, asset.kind)).map((asset) => normalizeLessonAssetKind(asset.kind)))).sort((a, b) => a.localeCompare(b)), [assets, stepType]);
+
+  return (
+    <div style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 14, border: '1px solid #D7DEEA', background: '#fff' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <strong style={{ color: '#0F172A' }}>{title}</strong>
+          <div style={{ fontSize: 12, color: '#64748B' }}>Pick directly from uploaded assets / image library for this exact field.</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => setOpen((value) => !value)} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', fontWeight: 800, color: '#4338CA', background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+            {currentAsset ? 'Replace from library' : 'Pick from library'}
+          </button>
+          {(selectedValue || currentAsset) ? (
+            <button type="button" onClick={onClear} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', fontWeight: 700, color: '#991B1B', background: '#FEF2F2', border: '1px solid #FECACA' }}>
+              Clear asset
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {currentAsset ? (
+        <div style={{ display: 'grid', gap: 10, padding: 10, borderRadius: 14, border: '1px solid #C7D2FE', background: '#F8FAFF' }}>
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '120px minmax(0, 1fr)' }}>
+            <AssetPreview asset={currentAsset} compact />
+            <div style={{ display: 'grid', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <strong style={{ color: '#0F172A' }}>{currentAsset.title}</strong>
+                <span style={helperPillStyle}>{getLessonAssetKindLabel(currentAsset.kind)}</span>
+                <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(currentAsset, getScopeRank(currentAsset, lessonId, moduleId, subjectId))}</span>
+              </div>
+              {currentAsset.description ? <div style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>{currentAsset.description}</div> : null}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: '#64748B' }}>
+                <span>Using: {selectedValue || getPreferredAssetValue(currentAsset)}</span>
+                <AssetRuntimeLink asset={currentAsset} label="Open runtime file" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : selectedValue.trim() ? (
+        <div style={{ padding: 10, borderRadius: 12, border: '1px dashed #CBD5E1', background: '#F8FAFC', color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
+          Current reference: <strong>{selectedValue}</strong>
+        </div>
+      ) : null}
+
+      {open ? (
+        <div style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 14, border: '1px solid #CBD5E1', background: '#F8FAFC' }}>
+          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(180px, 1.3fr) repeat(2, minmax(130px, 0.8fr))' }}>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, tags, file name…" style={miniInputStyle} />
+            <select value={scopeFilter} onChange={(event) => setScopeFilter(event.target.value as 'all' | 'scoped' | 'shared')} style={miniInputStyle}>
+              <option value="all">All scopes</option>
+              <option value="scoped">Lesson/module/subject</option>
+              <option value="shared">Shared library</option>
+            </select>
+            <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value)} style={miniInputStyle}>
+              <option value="all">All asset kinds</option>
+              {supportedKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}
+            </select>
+          </div>
+          <div style={{ maxHeight: 360, overflow: 'auto', display: 'grid', gap: 10 }}>
+            {visibleAssets.length ? visibleAssets.map((asset) => {
+              const preferredValue = getPreferredAssetValue(asset);
+              const selected = selectedValue.trim() === preferredValue || selectedValue.trim() === asset.id;
+              return (
+                <div key={asset.id} style={{ display: 'grid', gap: 10, gridTemplateColumns: '120px minmax(0, 1fr) auto', padding: 10, borderRadius: 14, border: selected ? '1px solid #818CF8' : '1px solid #E2E8F0', background: selected ? '#EEF2FF' : '#fff' }}>
+                  <AssetPreview asset={asset} compact />
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <strong style={{ color: '#0F172A' }}>{asset.title}</strong>
+                      <span style={helperPillStyle}>{getLessonAssetKindLabel(asset.kind)}</span>
+                      <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(asset, getScopeRank(asset, lessonId, moduleId, subjectId))}</span>
+                    </div>
+                    {asset.description ? <div style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>{asset.description}</div> : null}
+                    <div style={{ fontSize: 12, color: '#64748B', wordBreak: 'break-word' }}>{preferredValue}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <button type="button" onClick={() => onPick(asset)} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', fontWeight: 800, background: selected ? '#C7D2FE' : '#E0E7FF', color: '#3730A3', border: '1px solid #A5B4FC' }}>
+                      {selected ? 'Selected' : 'Use asset'}
+                    </button>
+                  </div>
+                </div>
+              );
+            }) : <div style={emptyStateStyle}>No matching assets in the current library filters.</div>}
+          </div>
+        </div>
+      ) : null}
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {selectedKind ? getAssetExamples(selectedKind).map((example) => (
+          <span key={example} style={{ padding: '5px 9px', borderRadius: 999, background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', fontSize: 11, fontWeight: 700 }}>
+            {example}
+          </span>
+        )) : null}
+      </div>
+    </div>
+  );
+}
+
 function ChoiceAttachmentCard({
   row,
   index,
@@ -336,6 +531,7 @@ function ChoiceAttachmentCard({
   onChange,
   onRemove,
   onUseExample,
+  assetPicker,
 }: {
   row: ChoiceRow;
   index: number;
@@ -343,6 +539,7 @@ function ChoiceAttachmentCard({
   onChange: (patch: Partial<ChoiceRow>) => void;
   onRemove: () => void;
   onUseExample: (value: string) => void;
+  assetPicker?: React.ReactNode;
 }) {
   const attached = Boolean(row.mediaKind || row.mediaValue.trim());
   const tone = attached ? '#ECFDF5' : '#F8FAFC';
@@ -394,15 +591,14 @@ function ChoiceAttachmentCard({
             <span>{choiceLabels.mediaValueLabel}</span>
             <input value={row.mediaValue} onChange={(event) => onChange({ mediaValue: event.target.value })} style={miniInputStyle} placeholder={choiceLabels.mediaPlaceholder} />
           </label>
-          {row.mediaKind ? (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {getAssetExamples(row.mediaKind).map((example) => (
-                <button key={example} type="button" onClick={() => onUseExample(example)} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 700, color: '#4338CA', background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-                  Use {example}
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {assetPicker}
+            {row.mediaKind ? getAssetExamples(row.mediaKind).map((example) => (
+              <button key={example} type="button" onClick={() => onUseExample(example)} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 700, color: '#4338CA', background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+                Use {example}
+              </button>
+            )) : null}
+          </div>
         </div>
         <AssetValuePreview kind={row.mediaKind || 'image'} value={row.mediaValue} />
       </div>
@@ -417,6 +613,7 @@ function SharedAssetCard({
   onChange,
   onRemove,
   onUseExample,
+  assetPicker,
 }: {
   row: MediaRow;
   index: number;
@@ -424,6 +621,7 @@ function SharedAssetCard({
   onChange: (patch: Partial<MediaRow>) => void;
   onRemove: () => void;
   onUseExample: (value: string) => void;
+  assetPicker?: React.ReactNode;
 }) {
   return (
     <div style={{ padding: 14, borderRadius: 16, border: '1px solid #CBD5E1', background: '#FFFFFF', display: 'grid', gap: 12 }}>
@@ -448,6 +646,7 @@ function SharedAssetCard({
             <input value={row.value} onChange={(event) => onChange({ value: event.target.value })} style={miniInputStyle} placeholder={mediaLabels.placeholder} />
           </label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {assetPicker}
             {getAssetExamples(row.kind).map((example) => (
               <button key={example} type="button" onClick={() => onUseExample(example)} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 700, color: '#4338CA', background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
                 Use {example}
@@ -474,6 +673,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
   const mediaLabels = getMediaLabels(builderType);
   const attachedChoiceCount = choiceRows.filter((row) => row.mediaKind && row.mediaValue.trim()).length;
   const readyMediaCount = mediaRows.filter((row) => row.value.trim()).length;
+  const pickerAssets = props.assets ?? [];
 
   const updateChoiceRows = (updater: (rows: ChoiceRow[]) => ChoiceRow[]) => {
     props.onChoiceLinesChange(serializeChoiceLines(updater(choiceRows)));
@@ -498,7 +698,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
           </div>
           <div style={compactNoteStyle}>{choiceLabels.hint}</div>
           <div style={{ padding: 12, borderRadius: 14, background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#475569', fontSize: 13, lineHeight: 1.6 }}>
-            Attachment cards now preview what runtime should render. Pick a kind first, then paste a real file path, asset key, URL, or short cue text — no backend media library required.
+            Asset picking now lives inside each option row. Authors can browse the uploaded asset/image library right where they attach the field, then preview, replace, or clear without jumping to a detached panel.
           </div>
           {choiceRows.length ? (
             <div style={stackStyle}>
@@ -511,6 +711,20 @@ export function LessonActivityStructuredBuilders(props: Props) {
                   onChange={(patch) => updateChoiceRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item))}
                   onRemove={() => updateChoiceRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
                   onUseExample={(value) => updateChoiceRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaValue: value } : item))}
+                  assetPicker={pickerAssets.length ? (
+                    <InlineAssetPicker
+                      assets={pickerAssets}
+                      stepType={builderType}
+                      subjectId={props.subjectId}
+                      moduleId={props.moduleId}
+                      lessonId={props.lessonId}
+                      selectedKind={row.mediaKind}
+                      selectedValue={row.mediaValue}
+                      title={`Option ${index + 1} asset picker`}
+                      onPick={(asset) => updateChoiceRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaKind: normalizeLessonAssetKind(asset.kind), mediaValue: getPreferredAssetValue(asset), label: item.label || asset.title } : item))}
+                      onClear={() => updateChoiceRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaValue: '' } : item))}
+                    />
+                  ) : null}
                 />
               ))}
             </div>
@@ -548,6 +762,20 @@ export function LessonActivityStructuredBuilders(props: Props) {
                   onChange={(patch) => updateMediaRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item))}
                   onRemove={() => updateMediaRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
                   onUseExample={(value) => updateMediaRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, value } : item))}
+                  assetPicker={pickerAssets.length ? (
+                    <InlineAssetPicker
+                      assets={pickerAssets}
+                      stepType={builderType}
+                      subjectId={props.subjectId}
+                      moduleId={props.moduleId}
+                      lessonId={props.lessonId}
+                      selectedKind={row.kind}
+                      selectedValue={row.value}
+                      title={`Shared media ${index + 1} asset picker`}
+                      onPick={(asset) => updateMediaRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, kind: normalizeLessonAssetKind(asset.kind), value: getPreferredAssetValue(asset) } : item))}
+                      onClear={() => updateMediaRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, value: '' } : item))}
+                    />
+                  ) : null}
                 />
               ))}
             </div>
