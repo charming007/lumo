@@ -230,6 +230,12 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
                   : 'Restore curriculum scope first, then come back here. Asset actions without real lesson/module context are how orphaned files happen.'}
             </div>
           </div>
+          {assetFeedFailed && assetListingFailureDetail ? (
+            <div style={{ padding: 14, borderRadius: 14, background: '#FFEDD5', border: '1px solid #FDBA74' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9a3412' }}>Registry listing failure</div>
+              <div style={{ marginTop: 8, color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>{assetListingFailureDetail}</div>
+            </div>
+          ) : null}
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -241,10 +247,10 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     <section style={{ display: 'grid', gap: 18 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         {[
-          { label: 'Filtered assets', value: assets.length, tone: { background: '#EEF2FF', color: '#3730A3' } },
-          { label: 'Ready now', value: counts.ready ?? 0, tone: { background: '#ECFDF5', color: '#166534' } },
-          { label: 'Archived', value: counts.archived ?? 0, tone: { background: '#FFF7ED', color: '#9A3412' } },
-          { label: 'Previewable', value: previewableCount, tone: { background: '#F5F3FF', color: '#6D28D9' } },
+          { label: 'Filtered assets', value: assetListingAvailable ? assets.length : '—', tone: { background: '#EEF2FF', color: '#3730A3' } },
+          { label: 'Ready now', value: assetListingAvailable ? (counts.ready ?? 0) : '—', tone: { background: '#ECFDF5', color: '#166534' } },
+          { label: 'Archived', value: assetListingAvailable ? (counts.archived ?? 0) : '—', tone: { background: '#FFF7ED', color: '#9A3412' } },
+          { label: 'Previewable', value: assetListingAvailable ? previewableCount : '—', tone: { background: '#F5F3FF', color: '#6D28D9' } },
         ].map((card) => (
           <div key={card.label} style={{ background: 'white', borderRadius: 18, padding: 18, border: '1px solid #E2E8F0', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>{card.label}</div>
@@ -257,8 +263,8 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
         <AssetUploadForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
         <AssetRegisterForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
       </div>
-      <AssetLibraryFilters subjects={subjects} modules={modules} lessons={lessons} filters={filters} totalCount={assets.length} resetHref={assetLibraryResetHref} />
-      <AssetLibraryTable items={assets} returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
+      <AssetLibraryFilters subjects={subjects} modules={modules} lessons={lessons} filters={filters} totalCount={assetListingAvailable ? assets.length : 0} resetHref={assetLibraryResetHref} />
+      <AssetLibraryTable items={assets} returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} unavailableReason={assetFeedFailed ? (assetListingFailureDetail ?? 'The live asset registry API is unavailable.') : null} />
     </section>
   </PageShell>;
 }

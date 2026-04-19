@@ -273,7 +273,7 @@ export function AssetLibraryFilters({ subjects, modules, lessons, filters, total
   </div>;
 }
 
-export function AssetLibraryTable({ items, returnPath, subjects, modules, lessons }: { items: LessonAsset[]; returnPath: string; subjects: Subject[]; modules: CurriculumModule[]; lessons: Lesson[] }) {
+export function AssetLibraryTable({ items, returnPath, subjects, modules, lessons, unavailableReason }: { items: LessonAsset[]; returnPath: string; subjects: Subject[]; modules: CurriculumModule[]; lessons: Lesson[]; unavailableReason?: string | null }) {
   return <div style={{ background: 'white', borderRadius: 20, padding: 24, border: '1px solid #eef2f7', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
@@ -352,7 +352,15 @@ export function AssetLibraryTable({ items, returnPath, subjects, modules, lesson
               </div>
             </div>
           </div>;
-        }) : <div style={{ color: '#64748b' }}>No assets matched this filter set. Clear the filters or upload/register something real.</div>}
+        }) : unavailableReason ? (
+          <div style={{ padding: 16, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', display: 'grid', gap: 8 }}>
+            <div style={{ fontWeight: 900 }}>Asset registry feed is unavailable</div>
+            <div style={{ lineHeight: 1.6 }}>{unavailableReason}</div>
+            <div style={{ color: '#7C2D12', fontWeight: 700 }}>
+              This is not an empty library. The live asset listing failed to load, so the UI is refusing to fake a clean zero-state.
+            </div>
+          </div>
+        ) : <div style={{ color: '#64748b' }}>No assets matched this filter set. Clear the filters or upload/register something real.</div>}
       </div>
     </div>
   </div>;
