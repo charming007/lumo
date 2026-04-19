@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { findModuleForLesson } from '../lib/module-lesson-match';
+import {
+  getLessonStepTypeGuidance,
+  getLessonStepTypeWarnings,
+  getLessonTypeGuide,
+  lessonStepTypeAccentMap,
+  lessonStepTypeLabelMap,
+} from './lesson-step-authoring';
 import type { CurriculumModule, Lesson, Subject } from '../lib/types';
 
 const cardStyle = {
@@ -67,26 +75,6 @@ const autoFitCompactFields = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
   gap: 10,
 } as const;
-
-const typeLabelMap: Record<string, string> = {
-  listen_repeat: 'Listen & repeat',
-  speak_answer: 'Speak answer',
-  word_build: 'Word build',
-  image_choice: 'Image choice',
-  oral_quiz: 'Oral quiz',
-  listen_answer: 'Listen answer',
-  tap_choice: 'Tap choice',
-  letter_intro: 'Letter intro',
-};
-
-const typeAccentMap: Record<string, { tint: string; border: string; text: string }> = {
-  image_choice: { tint: '#EEF2FF', border: '#C7D2FE', text: '#3730A3' },
-  tap_choice: { tint: '#ECFDF5', border: '#BBF7D0', text: '#166534' },
-  listen_repeat: { tint: '#FFF7ED', border: '#FED7AA', text: '#9A3412' },
-  speak_answer: { tint: '#FDF2F8', border: '#FBCFE8', text: '#9D174D' },
-  word_build: { tint: '#FEFCE8', border: '#FDE68A', text: '#854D0E' },
-  letter_intro: { tint: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
-};
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14, minWidth: 0 }}>{children}</label>;
@@ -194,85 +182,6 @@ function nextActivityDraftId(current: Array<ActivityDraft>) {
 
 function countNonEmptyLines(value: string) {
   return value.split('\n').map((line) => line.trim()).filter(Boolean).length;
-}
-
-function getTypeGuidance(type: string) {
-  switch (type) {
-    case 'image_choice':
-      return {
-        summary: 'Picture-based discrimination. The editor should force a visible image payload and enough options to make the choice meaningful.',
-        checklist: ['Add at least 2 choices', 'Mark at least 1 correct choice', 'Attach image media cues to the choices or step'],
-      };
-    case 'tap_choice':
-      return {
-        summary: 'Fast recognition tap task. Keep labels short, use clean distractors, and make the correct tap unambiguous.',
-        checklist: ['Add at least 2 tap targets', 'Mark the correct answer clearly', 'Use concise option labels learners can scan fast'],
-      };
-    case 'listen_repeat':
-      return {
-        summary: 'Audio-first imitation. Authors should define what learners hear, what they repeat, and what counts as success.',
-        checklist: ['Provide an audio/script cue', 'Set a repeat-focused evidence target', 'Add expected spoken output'],
-      };
-    case 'speak_answer':
-      return {
-        summary: 'Open spoken response. The prompt and evidence need to reward actual speaking, not generic worksheet fluff.',
-        checklist: ['Use a speakable prompt', 'Define expected spoken answer(s)', 'Describe what oral evidence counts'],
-      };
-    case 'word_build':
-      return {
-        summary: 'Assembly task for sounds, letters, or words. Make the target build explicit and give the learner pieces to work with.',
-        checklist: ['State the target word/build outcome', 'Provide build pieces as options or media cues', 'List the finished expected answer'],
-      };
-    case 'letter_intro':
-      return {
-        summary: 'Letter/sound introduction. The form should foreground the symbol, sound, and teaching move instead of generic prose.',
-        checklist: ['Name the target letter or sound', 'Add a modelling cue or example word', 'Keep facilitator notes focused on demonstration'],
-      };
-    default:
-      return {
-        summary: 'General lesson step. Fill in the prompt, evidence, and support cues cleanly.',
-        checklist: ['Prompt is clear', 'Evidence is explicit', 'Support cues are present when needed'],
-      };
-  }
-}
-
-function getTypeWarnings(activity: ActivityDraft) {
-  const choiceCount = countNonEmptyLines(activity.choiceLines);
-  const mediaCount = countNonEmptyLines(activity.mediaLines);
-  const hasExpectedAnswers = activity.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean).length > 0;
-  const hasEvidence = activity.evidence.trim().length > 0;
-  const warnings: string[] = [];
-
-  switch (activity.type) {
-    case 'image_choice':
-      if (choiceCount < 2) warnings.push('Image choice needs at least 2 options or it is not a choice task.');
-      if (mediaCount === 0 && !activity.choiceLines.includes('|image|')) warnings.push('Image choice should reference image media in the step or option lines.');
-      break;
-    case 'tap_choice':
-      if (choiceCount < 2) warnings.push('Tap choice needs multiple tap targets.');
-      if (!activity.choiceLines.toLowerCase().includes('correct')) warnings.push('Tap choice should mark at least one correct option.');
-      break;
-    case 'listen_repeat':
-      if (mediaCount === 0) warnings.push('Listen repeat is stronger with an audio/media cue instead of text alone.');
-      if (!hasExpectedAnswers) warnings.push('Listen repeat should define the repeated target line or phrase.');
-      break;
-    case 'speak_answer':
-      if (!hasExpectedAnswers) warnings.push('Speak answer should include expected spoken answer patterns.');
-      if (!hasEvidence) warnings.push('Speak answer should state what spoken evidence the mallam records.');
-      break;
-    case 'word_build':
-      if (!hasExpectedAnswers) warnings.push('Word build should name the final built word or sound string.');
-      if (choiceCount === 0 && mediaCount === 0) warnings.push('Word build needs source pieces in options or media cues.');
-      break;
-    case 'letter_intro':
-      if (!activity.prompt.trim()) warnings.push('Letter intro should explicitly name the target letter or sound in the prompt.');
-      if (!activity.facilitatorNotes.trim()) warnings.push('Letter intro benefits from facilitator notes for modelling and tracing.');
-      break;
-    default:
-      break;
-  }
-
-  return warnings;
 }
 
 function starterTemplates(mode: string) {
@@ -626,7 +535,7 @@ export function LessonEditorForm({
                       <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes || 0} min</span>
                     </div>
                     <div style={{ color: '#475569', fontSize: 14 }}>{step.detail || step.prompt || 'Add learner-facing guidance for this step.'}</div>
-                    <div style={{ color: '#64748B', fontSize: 12 }}>{typeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
+                    <div style={{ color: '#64748B', fontSize: 12 }}>{lessonStepTypeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
                     {step.choices && step.choices.length > 0 ? <div style={{ color: '#7C3AED', fontSize: 12, fontWeight: 700 }}>{step.choices.length} choice option{step.choices.length === 1 ? '' : 's'}</div> : null}
                     {step.media && step.media.length > 0 ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{step.media.length} media cue{step.media.length === 1 ? '' : 's'}</div> : null}
                   </div>
@@ -741,9 +650,9 @@ export function LessonEditorForm({
 
           <div style={{ display: 'grid', gap: 14 }}>
             {activityDrafts.map((activity, index) => {
-              const typeGuidance = getTypeGuidance(activity.type);
-              const typeWarnings = getTypeWarnings(activity);
-              const accent = typeAccentMap[activity.type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
+              const typeGuidance = getLessonStepTypeGuidance(activity.type);
+              const typeWarnings = getLessonStepTypeWarnings(activity);
+              const accent = lessonStepTypeAccentMap[activity.type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
               const choiceCount = countNonEmptyLines(activity.choiceLines);
               const mediaCount = countNonEmptyLines(activity.mediaLines);
               const noteCount = countNonEmptyLines(activity.facilitatorNotes);
@@ -755,7 +664,7 @@ export function LessonEditorForm({
                       <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <span style={{ padding: '6px 10px', borderRadius: 999, background: accent.tint, border: `1px solid ${accent.border}`, color: accent.text, fontWeight: 800, fontSize: 12 }}>
-                          {typeLabelMap[activity.type] ?? activity.type}
+                          {lessonStepTypeLabelMap[activity.type] ?? activity.type}
                         </span>
                         <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{choiceCount} choices</span>
                         <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{mediaCount} media cues</span>
@@ -771,7 +680,7 @@ export function LessonEditorForm({
                   </div>
 
                   <div style={{ padding: 14, borderRadius: 16, background: accent.tint, border: `1px solid ${accent.border}`, display: 'grid', gap: 10 }}>
-                    <SectionLabel>{typeLabelMap[activity.type] ?? activity.type} authoring guidance</SectionLabel>
+                    <SectionLabel>{lessonStepTypeLabelMap[activity.type] ?? activity.type} authoring guidance</SectionLabel>
                     <div style={{ color: '#334155', lineHeight: 1.6 }}>{typeGuidance.summary}</div>
                     <div style={{ display: 'grid', gap: 6 }}>
                       {typeGuidance.checklist.map((item) => (
@@ -881,38 +790,18 @@ export function LessonEditorForm({
                     </FieldLabel>
                   </div>
 
-                  {(activity.type === 'image_choice' || activity.type === 'tap_choice' || activity.type === 'word_build') ? (
-                    <div style={{ padding: 14, borderRadius: 16, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 12 }}>
-                      <SectionLabel>{activity.type === 'word_build' ? 'Build pieces / options' : 'Choice setup'}</SectionLabel>
-                      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
-                        <FieldLabel>
-                          Choices (id|label|correct/wrong|mediaKind|mediaValue per line)
-                          <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-                          <FieldHint>
-                            {activity.type === 'image_choice' ? 'Example: nurse|Nurse|correct|image|https://…' : activity.type === 'tap_choice' ? 'Keep labels short so tap targets are instantly scannable.' : 'Use options for syllables, letters, or chunks learners must assemble.'}
-                          </FieldHint>
-                        </FieldLabel>
-                        <FieldLabel>
-                          Media cues (kind|value per line)
-                          <textarea value={activity.mediaLines} onChange={(event) => updateActivity(index, { mediaLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-                          <FieldHint>
-                            {activity.type === 'image_choice' ? 'Attach any shared prompt image or visual context here if it is not per-option.' : activity.type === 'word_build' ? 'Attach tiles, cards, or sound cues if the build uses external media.' : 'Use this for shared media outside the individual option lines.'}
-                          </FieldHint>
-                        </FieldLabel>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
-                      <FieldLabel>
-                        Choices (id|label|correct/wrong|mediaKind|mediaValue per line)
-                        <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-                      </FieldLabel>
-                      <FieldLabel>
-                        Media cues (kind|value per line)
-                        <textarea value={activity.mediaLines} onChange={(event) => updateActivity(index, { mediaLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-                      </FieldLabel>
-                    </div>
-                  )}
+                  <LessonActivityStructuredBuilders
+                    type={activity.type}
+                    choiceLines={activity.choiceLines}
+                    mediaLines={activity.mediaLines}
+                    onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
+                    onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
+                    inputStyle={inputStyle}
+                    ghostButtonStyle={ghostButtonStyle}
+                    sectionLabel={<SectionLabel>{activity.type === 'word_build' ? 'Build pieces / options' : activity.type === 'listen_repeat' ? 'Listen support' : activity.type === 'speak_answer' ? 'Speaking support' : activity.type === 'letter_intro' ? 'Letter support' : 'Choice setup'}</SectionLabel>}
+                    fieldHint={(children) => <FieldHint>{children}</FieldHint>}
+                    fieldLabel={(children) => <FieldLabel>{children}</FieldLabel>}
+                  />
                 </div>
               );
             })}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import type { CurriculumModule, Lesson, LessonActivityStep, Subject } from '../lib/types';
 
 const cardStyle = {
@@ -911,21 +912,21 @@ export function LessonCreateForm({
                     </FieldLabel>
                   </div>
                   {supportsChoices || supportsMedia ? (
-                    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
-                      {supportsChoices ? (
-                        <FieldLabel>
-                          {typeGuide.choicesLabel}
-                          <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-                          <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.choicesHint}</span>
-                        </FieldLabel>
-                      ) : null}
-                      {supportsMedia ? (
-                        <FieldLabel>
-                          {typeGuide.mediaLabel}
-                          <textarea value={activity.mediaLines} onChange={(event) => updateActivity(index, { mediaLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-                          <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.mediaHint}</span>
-                        </FieldLabel>
-                      ) : null}
+                    <div style={{ display: 'grid', gap: 14 }}>
+                      <LessonActivityStructuredBuilders
+                        type={activity.type}
+                        choiceLines={activity.choiceLines}
+                        mediaLines={activity.mediaLines}
+                        onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
+                        onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
+                        inputStyle={inputStyle}
+                        ghostButtonStyle={ghostButtonStyle}
+                        sectionLabel={<div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>{supportsChoices ? typeGuide.choicesLabel : typeGuide.mediaLabel}</div>}
+                        fieldHint={(children) => <span style={{ color: '#64748B', fontSize: 12 }}>{children}</span>}
+                        fieldLabel={(children) => <FieldLabel>{children}</FieldLabel>}
+                      />
+                      {supportsChoices ? <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.choicesHint}</span> : null}
+                      {supportsMedia ? <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.mediaHint}</span> : null}
                     </div>
                   ) : null}
                 </div>

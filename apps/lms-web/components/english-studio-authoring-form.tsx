@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import type { Assessment, CurriculumModule, Subject } from '../lib/types';
 import { buildEnglishActivities, buildEnglishObjective, buildReadinessChecks, inferVocabulary } from '../lib/english-curriculum';
 
@@ -117,6 +118,8 @@ type ActivityDraft = {
   expectedAnswers: string;
   tags: string;
   facilitatorNotes: string;
+  choiceLines: string;
+  mediaLines: string;
 };
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -135,8 +138,10 @@ function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}
     expectedAnswers: '',
     tags: 'english',
     facilitatorNotes: '',
+    choiceLines: '',
+    mediaLines: '',
     ...overrides,
-  };
+  } as ActivityDraft;
 }
 
 function nextActivityDraftId(current: ActivityDraft[]) {
@@ -147,6 +152,84 @@ function nextActivityDraftId(current: ActivityDraft[]) {
   }, 0);
 
   return `english-activity-${highestIndex + 1}`;
+}
+
+function parseActivityChoices(choiceLines: string) {
+  return choiceLines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [idRaw, labelRaw, correctnessRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+      const id = idRaw || `choice-${index + 1}`;
+      const label = labelRaw || id;
+      const isCorrect = ['correct', 'true', 'yes', '1'].includes((correctnessRaw || '').toLowerCase());
+      const mediaKind = mediaKindRaw || '';
+      const mediaValue = mediaValueRaw || '';
+      return {
+        id,
+        label,
+        isCorrect,
+        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: mediaValue.includes(',') ? mediaValue.split(',').map((item) => item.trim()).filter(Boolean) : mediaValue } } : {}),
+      };
+    });
+}
+
+function parseActivityMedia(mediaLines: string) {
+  return mediaLines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [kindRaw, valueRaw] = line.split('|').map((part) => part.trim());
+      const kind = kindRaw || 'image';
+      const value = valueRaw || '';
+      return {
+        kind,
+        value: value.includes(',') ? value.split(',').map((item) => item.trim()).filter(Boolean) : value,
+      };
+    });
+}
+
+function getTypeReadinessWarnings(activity: ActivityDraft) {
+  const choiceCount = parseActivityChoices(activity.choiceLines).length;
+  const mediaCount = parseActivityMedia(activity.mediaLines).length;
+  const correctChoiceCount = parseActivityChoices(activity.choiceLines).filter((item) => item.isCorrect).length;
+  const expectedAnswerCount = activity.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean).length;
+  const warnings: string[] = [];
+
+  switch (activity.type) {
+    case 'image_choice':
+      if (choiceCount < 2) warnings.push('Image choice needs at least 2 options.');
+      if (correctChoiceCount < 1) warnings.push('Image choice needs a marked correct option.');
+      if (!activity.choiceLines.includes('|image|') && mediaCount < 1) warnings.push('Image choice should include image media on an option or shared cue.');
+      break;
+    case 'tap_choice':
+      if (choiceCount < 2) warnings.push('Tap choice needs at least 2 tappable options.');
+      if (correctChoiceCount < 1) warnings.push('Tap choice needs a marked correct option.');
+      break;
+    case 'word_build':
+      if (choiceCount < 1 && mediaCount < 1) warnings.push('Word build needs pieces in options or media.');
+      if (expectedAnswerCount < 1) warnings.push('Word build should name the final target answer.');
+      break;
+    case 'listen_repeat':
+    case 'listen_answer':
+      if (mediaCount < 1) warnings.push('Listening steps should include at least one media cue or listening asset.');
+      if (expectedAnswerCount < 1) warnings.push('Listening steps should define expected responses.');
+      break;
+    case 'speak_answer':
+    case 'oral_quiz':
+      if (expectedAnswerCount < 1) warnings.push('Spoken response steps should list acceptable answers.');
+      break;
+    case 'letter_intro':
+      if (expectedAnswerCount < 1) warnings.push('Letter intro should name the target sound, letter, or anchor word.');
+      if (!activity.facilitatorNotes.trim()) warnings.push('Letter intro should include one facilitator modelling note.');
+      break;
+    default:
+      break;
+  }
+
+  return warnings;
 }
 
 function toDraftsFromGeneratedActivities(
@@ -169,6 +252,8 @@ function toDraftsFromGeneratedActivities(
     facilitatorNotes: assessmentTitle
       ? `Keep evidence aligned to ${assessmentTitle}.\nPush for full spoken responses before support.`
       : 'Capture one clear oral evidence point before exit.',
+    choiceLines: '',
+    mediaLines: '',
   }));
 }
 
@@ -269,10 +354,13 @@ export function EnglishStudioAuthoringForm({
     expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
     tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
     facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
+    choices: parseActivityChoices(draft.choiceLines),
+    media: parseActivityMedia(draft.mediaLines),
   })), [activityDrafts]);
 
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, item) => sum + (item.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
+  const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getTypeReadinessWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
   const readinessBlockers = useMemo(() => ([
     title.trim().length >= 8 ? null : 'Give the lesson a specific title with at least 8 characters.',
     (Number(durationMinutes) || 0) >= 8 ? null : 'Set a credible lesson duration of at least 8 minutes.',
@@ -281,7 +369,8 @@ export function EnglishStudioAuthoringForm({
     activitySteps.length >= 3 ? null : 'Keep at least 3 activity steps so the English lesson has a real teaching spine.',
     Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing from English Studio is premature.',
-  ].filter(Boolean) as string[]), [title, durationMinutes, activeAssessment, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
+    ...typeReadinessWarnings,
+  ].filter(Boolean) as string[]), [title, durationMinutes, activeAssessment, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = dependencyBlockers.length > 0 || (publishIntent && readinessBlockers.length > 0);
 
