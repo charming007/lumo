@@ -5,6 +5,9 @@ import 'package:http/http.dart' as http;
 
 import 'models.dart';
 
+const String kDefaultProductionApiBaseUrl =
+    'https://lumo-api-production-303a.up.railway.app';
+
 class LumoApiClient {
   LumoApiClient({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
@@ -12,7 +15,7 @@ class LumoApiClient {
           baseUrl ??
               const String.fromEnvironment(
                 'LUMO_API_BASE_URL',
-                defaultValue: 'https://lumo-api-production-303a.up.railway.app',
+                defaultValue: kDefaultProductionApiBaseUrl,
               ),
         );
 
@@ -23,7 +26,7 @@ class LumoApiClient {
   static String normalizeBaseUrl(String rawBaseUrl) {
     final trimmed = rawBaseUrl.trim();
     if (trimmed.isEmpty) {
-      return 'https://lumo-api-production-303a.up.railway.app';
+      return kDefaultProductionApiBaseUrl;
     }
 
     final withScheme = trimmed.contains('://') ? trimmed : 'https://$trimmed';
@@ -42,10 +45,43 @@ class LumoApiClient {
     final normalized = '${parsed.scheme}://$authority$normalizedPath';
 
     final rendered = normalized.replaceAll(RegExp(r'/+$'), '');
-    return rendered.isEmpty
-        ? 'https://lumo-api-production-303a.up.railway.app'
-        : rendered;
+    return rendered.isEmpty ? kDefaultProductionApiBaseUrl : rendered;
   }
+
+  static String? productionBaseUrlIssue(String rawBaseUrl) {
+    final normalized = normalizeBaseUrl(rawBaseUrl);
+    final parsed = Uri.tryParse(normalized);
+    if (parsed == null || parsed.host.isEmpty) {
+      return 'LUMO_API_BASE_URL is not a valid URL. Current value: $rawBaseUrl';
+    }
+
+    final hostname = parsed.host.toLowerCase();
+    final scheme = parsed.scheme.toLowerCase();
+    final looksPlaceholder =
+        hostname == 'example.com' || hostname.endsWith('.example.com');
+    final looksLocal =
+        hostname == 'localhost' ||
+        hostname == '127.0.0.1' ||
+        hostname == '0.0.0.0' ||
+        hostname.endsWith('.local');
+
+    if (looksLocal) {
+      return 'LUMO_API_BASE_URL points at $hostname, which is only reachable from the local machine. Release tablets would boot into a dead backend.';
+    }
+
+    if (scheme != 'https') {
+      return 'LUMO_API_BASE_URL must use https in release builds. Current value: $normalized';
+    }
+
+    if (looksPlaceholder) {
+      return 'LUMO_API_BASE_URL still points at the placeholder host $hostname. Replace it with the real production learner API before shipping tablets.';
+    }
+
+    return null;
+  }
+
+  String? get invalidProductionBaseUrlReason =>
+      productionBaseUrlIssue(baseUrl);
 
   static List<String> _stripApiSuffix(List<String> segments) {
     if (segments.isEmpty) return const [];
@@ -159,8 +195,11 @@ class LumoApiClient {
 
     _ensureOk(response, 'load module details for $moduleId');
     final decoded = _decodeObject(response.body);
+    final moduleJson = decoded['module'] is Map
+        ? Map<String, dynamic>.from(decoded['module'] as Map)
+        : decoded;
     return LumoModuleBundle(
-      module: LearningModule.fromBackend(decoded),
+      module: LearningModule.fromBackend(moduleJson),
       lessons:
           _asList(decoded['lessons']).map(LessonCardModel.fromBackend).toList(),
     );

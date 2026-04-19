@@ -58,6 +58,86 @@ void main() {
     });
   });
 
+  group('LumoApiClient.productionBaseUrlIssue', () {
+    test('rejects localhost release targets', () {
+      expect(
+        LumoApiClient.productionBaseUrlIssue('http://localhost:4000'),
+        contains('only reachable from the local machine'),
+      );
+    });
+
+    test('rejects non-https release targets', () {
+      expect(
+        LumoApiClient.productionBaseUrlIssue('http://lumo-api.example.org'),
+        contains('must use https'),
+      );
+    });
+
+    test('accepts the production railway host', () {
+      expect(
+        LumoApiClient.productionBaseUrlIssue(
+          'https://lumo-api-production-303a.up.railway.app',
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('LumoApiClient module bundles', () {
+    test('parses nested module payloads without collapsing the subject id', () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/modules/english');
+          return http.Response(
+            jsonEncode({
+              'module': {
+                'id': 'english',
+                'subjectId': 'english',
+                'subjectName': 'Foundational English',
+                'title': 'Foundational English',
+                'badge': '12 lessons',
+              },
+              'lessons': [
+                {
+                  'id': 'english-lesson-1',
+                  'moduleId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Say hello',
+                  'durationMinutes': 8,
+                  'status': 'assigned',
+                  'mascotName': 'Mallam',
+                  'readinessFocus': 'Greetings',
+                  'scenario': 'Warm greeting practice',
+                  'steps': [
+                    {
+                      'id': 'step-1',
+                      'title': 'Say hello',
+                      'instruction': 'Say hello.',
+                      'coachPrompt': 'Say hello.',
+                      'expectedResponse': 'Hello',
+                      'speakerMode': 'guiding',
+                      'type': 'prompt',
+                    },
+                  ],
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+      );
+
+      final bundle = await client.fetchModuleBundle('english');
+
+      expect(bundle.module.id, 'english');
+      expect(bundle.module.title, 'Foundational English');
+      expect(bundle.lessons, hasLength(1));
+      expect(bundle.lessons.first.moduleId, 'english');
+    });
+  });
+
   group('LumoApiClient runtime sessions', () {
     test('parses recent learner runtime sessions', () async {
       final client = LumoApiClient(
