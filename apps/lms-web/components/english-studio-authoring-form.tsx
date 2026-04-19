@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
+import {
+  getLessonStepTypeGuidance,
+  getLessonStepTypeWarnings,
+  getLessonTypeGuide,
+  lessonStepTypeAccentMap,
+  lessonStepTypeLabelMap,
+} from './lesson-step-authoring';
 import type { Assessment, CurriculumModule, Subject } from '../lib/types';
 import { buildEnglishActivities, buildEnglishObjective, buildReadinessChecks, inferVocabulary } from '../lib/english-curriculum';
 
@@ -154,6 +161,10 @@ function nextActivityDraftId(current: ActivityDraft[]) {
   return `english-activity-${highestIndex + 1}`;
 }
 
+function countNonEmptyLines(value: string) {
+  return value.split('\n').map((line) => line.trim()).filter(Boolean).length;
+}
+
 function parseActivityChoices(choiceLines: string) {
   return choiceLines
     .split('\n')
@@ -191,46 +202,7 @@ function parseActivityMedia(mediaLines: string) {
     });
 }
 
-function getTypeReadinessWarnings(activity: ActivityDraft) {
-  const choiceCount = parseActivityChoices(activity.choiceLines).length;
-  const mediaCount = parseActivityMedia(activity.mediaLines).length;
-  const correctChoiceCount = parseActivityChoices(activity.choiceLines).filter((item) => item.isCorrect).length;
-  const expectedAnswerCount = activity.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean).length;
-  const warnings: string[] = [];
 
-  switch (activity.type) {
-    case 'image_choice':
-      if (choiceCount < 2) warnings.push('Image choice needs at least 2 options.');
-      if (correctChoiceCount < 1) warnings.push('Image choice needs a marked correct option.');
-      if (!activity.choiceLines.includes('|image|') && mediaCount < 1) warnings.push('Image choice should include image media on an option or shared cue.');
-      break;
-    case 'tap_choice':
-      if (choiceCount < 2) warnings.push('Tap choice needs at least 2 tappable options.');
-      if (correctChoiceCount < 1) warnings.push('Tap choice needs a marked correct option.');
-      break;
-    case 'word_build':
-      if (choiceCount < 1 && mediaCount < 1) warnings.push('Word build needs pieces in options or media.');
-      if (expectedAnswerCount < 1) warnings.push('Word build should name the final target answer.');
-      break;
-    case 'listen_repeat':
-    case 'listen_answer':
-      if (mediaCount < 1) warnings.push('Listening steps should include at least one media cue or listening asset.');
-      if (expectedAnswerCount < 1) warnings.push('Listening steps should define expected responses.');
-      break;
-    case 'speak_answer':
-    case 'oral_quiz':
-      if (expectedAnswerCount < 1) warnings.push('Spoken response steps should list acceptable answers.');
-      break;
-    case 'letter_intro':
-      if (expectedAnswerCount < 1) warnings.push('Letter intro should name the target sound, letter, or anchor word.');
-      if (!activity.facilitatorNotes.trim()) warnings.push('Letter intro should include one facilitator modelling note.');
-      break;
-    default:
-      break;
-  }
-
-  return warnings;
-}
 
 function toDraftsFromGeneratedActivities(
   activities: ReturnType<typeof buildEnglishActivities>,
@@ -360,7 +332,7 @@ export function EnglishStudioAuthoringForm({
 
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, item) => sum + (item.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
-  const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getTypeReadinessWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
+  const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getLessonStepTypeWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
   const readinessBlockers = useMemo(() => ([
     title.trim().length >= 8 ? null : 'Give the lesson a specific title with at least 8 characters.',
     (Number(durationMinutes) || 0) >= 8 ? null : 'Set a credible lesson duration of at least 8 minutes.',
@@ -651,14 +623,23 @@ export function EnglishStudioAuthoringForm({
 
             <div style={{ display: 'grid', gap: 12 }}>
               {activityDrafts.map((activity, index) => {
-                const stepWarnings = getTypeReadinessWarnings(activity);
+                const stepWarnings = getLessonStepTypeWarnings(activity);
+                const typeGuide = getLessonTypeGuide(activity.type);
+                const typeGuidance = getLessonStepTypeGuidance(activity.type);
+                const accent = lessonStepTypeAccentMap[activity.type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
+                const choiceCount = countNonEmptyLines(activity.choiceLines);
+                const mediaCount = countNonEmptyLines(activity.mediaLines);
+                const noteCount = countNonEmptyLines(activity.facilitatorNotes);
                 return (
                   <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                       <div style={{ display: 'grid', gap: 6 }}>
                         <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ padding: '6px 10px', borderRadius: 999, background: '#EEF2FF', color: '#3730A3', fontWeight: 700, fontSize: 12 }}>{typeOptions.find((option) => option.value === activity.type)?.label ?? activity.type}</span>
+                          <span style={{ padding: '6px 10px', borderRadius: 999, background: accent.tint, border: `1px solid ${accent.border}`, color: accent.text, fontWeight: 800, fontSize: 12 }}>{lessonStepTypeLabelMap[activity.type] ?? activity.type}</span>
+                          <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{choiceCount} choices</span>
+                          <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{mediaCount} media cues</span>
+                          <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{noteCount} coach notes</span>
                           <span style={{ padding: '6px 10px', borderRadius: 999, background: stepWarnings.length ? '#FEF2F2' : '#ECFDF5', color: stepWarnings.length ? '#B91C1C' : '#166534', fontWeight: 700, fontSize: 12 }}>{stepWarnings.length ? `${stepWarnings.length} type warnings` : 'Type checks clear'}</span>
                         </div>
                       </div>
@@ -670,13 +651,25 @@ export function EnglishStudioAuthoringForm({
                       </div>
                     </div>
 
-                    {stepWarnings.length ? (
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        {stepWarnings.map((warning) => (
-                          <div key={warning} style={{ padding: 10, borderRadius: 12, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', lineHeight: 1.5 }}>{warning}</div>
+                    <div style={{ padding: 12, borderRadius: 14, background: accent.tint, border: `1px solid ${accent.border}`, display: 'grid', gap: 8 }}>
+                      <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: accent.text, fontWeight: 800 }}>{lessonStepTypeLabelMap[activity.type] ?? activity.type} authoring guidance</div>
+                      <div style={{ color: '#334155', lineHeight: 1.6 }}>{typeGuidance.summary}</div>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        {typeGuidance.checklist.map((item) => (
+                          <div key={item} style={{ color: accent.text, fontWeight: 700, fontSize: 13 }}>• {item}</div>
                         ))}
                       </div>
-                    ) : null}
+                      {stepWarnings.length ? (
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          {stepWarnings.map((warning) => (
+                            <div key={warning} style={{ padding: 10, borderRadius: 12, background: '#fff', border: '1px solid #FED7AA', color: '#9A3412', lineHeight: 1.5 }}>{warning}</div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ padding: 10, borderRadius: 12, background: '#fff', border: '1px solid #BBF7D0', color: '#166534', lineHeight: 1.5 }}>Type-specific signals look sane for this step.</div>
+                      )}
+                      <div style={{ color: '#475569', lineHeight: 1.6 }}>{typeGuide.summary}</div>
+                    </div>
 
                     <div style={autoFitCompactFields}>
                       <FieldLabel>
@@ -735,7 +728,7 @@ export function EnglishStudioAuthoringForm({
                       onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
                       inputStyle={inputStyle}
                       ghostButtonStyle={ghostButtonStyle}
-                      sectionLabel={<div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>Structured step builders</div>}
+                      sectionLabel={<div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>{typeGuide.choicesLabel ?? typeGuide.mediaLabel ?? 'Structured step builders'}</div>}
                       fieldHint={(children) => <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{children}</div>}
                       fieldLabel={(children) => <FieldLabel>{children}</FieldLabel>}
                     />

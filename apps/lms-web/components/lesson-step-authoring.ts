@@ -1,3 +1,8 @@
+export type LessonStepTypeGuidance = {
+  summary: string;
+  checklist: string[];
+};
+
 export type ActivityDraftLike = {
   prompt: string;
   detail: string;
@@ -190,7 +195,7 @@ function countNonEmptyLines(value: string) {
   return value.split('\n').map((line) => line.trim()).filter(Boolean).length;
 }
 
-export function getLessonStepTypeGuidance(type: string) {
+export function getLessonStepTypeGuidance(type: string): LessonStepTypeGuidance {
   switch (type) {
     case 'image_choice':
       return {
@@ -221,6 +226,16 @@ export function getLessonStepTypeGuidance(type: string) {
       return {
         summary: 'Letter/sound introduction. The form should foreground the symbol, sound, and teaching move instead of generic prose.',
         checklist: ['Name the target letter or sound', 'Add a modelling cue or example word', 'Keep facilitator notes focused on demonstration'],
+      };
+    case 'listen_answer':
+      return {
+        summary: 'Listening comprehension step. Define what learners hear, what detail matters, and what response proves they actually processed it.',
+        checklist: ['Attach a listening cue or script reference', 'State the key detail or answer you expect', 'Use facilitator notes for replay rules or emphasis'],
+      };
+    case 'oral_quiz':
+      return {
+        summary: 'Quick oral checkpoint. Keep the question crisp, the acceptable answers visible, and the success bar easy to judge live.',
+        checklist: ['Write a short quiz question', 'List acceptable answer variants', 'State what counts as success or follow-up evidence'],
       };
     default:
       return {
@@ -261,6 +276,16 @@ export function getLessonStepTypeWarnings(activity: ActivityDraftLike) {
     case 'letter_intro':
       if (!activity.prompt.trim()) warnings.push('Letter intro should explicitly name the target letter or sound in the prompt.');
       if (!activity.facilitatorNotes.trim()) warnings.push('Letter intro benefits from facilitator notes for modelling and tracing.');
+      break;
+    case 'listen_answer':
+      if (mediaCount === 0) warnings.push('Listen answer should include a listening cue, script asset, or shared media reference.');
+      if (!hasExpectedAnswers) warnings.push('Listen answer should list the key details or acceptable responses learners give after listening.');
+      if (!hasEvidence) warnings.push('Listen answer should spell out the observable listening-comprehension evidence.');
+      break;
+    case 'oral_quiz':
+      if (!activity.prompt.trim()) warnings.push('Oral quiz should lead with the exact question the facilitator asks.');
+      if (!hasExpectedAnswers) warnings.push('Oral quiz should list acceptable oral answers or variants.');
+      if (!hasEvidence) warnings.push('Oral quiz should state how success is judged live.');
       break;
     default:
       break;

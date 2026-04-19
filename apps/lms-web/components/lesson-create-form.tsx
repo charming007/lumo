@@ -3,6 +3,13 @@
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
+import {
+  getLessonStepTypeGuidance,
+  getLessonStepTypeWarnings,
+  getLessonTypeGuide,
+  lessonStepTypeAccentMap,
+  lessonStepTypeLabelMap,
+} from './lesson-step-authoring';
 import type { CurriculumModule, Lesson, LessonActivityStep, Subject } from '../lib/types';
 
 const cardStyle = {
@@ -44,167 +51,6 @@ const ghostButtonStyle = {
   cursor: 'pointer',
 } as const;
 
-const typeLabelMap: Record<string, string> = {
-  listen_repeat: 'Listen & repeat',
-  speak_answer: 'Speak answer',
-  word_build: 'Word build',
-  image_choice: 'Image choice',
-  oral_quiz: 'Oral quiz',
-  listen_answer: 'Listen answer',
-  tap_choice: 'Tap choice',
-  letter_intro: 'Letter intro',
-};
-
-const lessonTypeFieldGuide: Record<string, {
-  summary: string;
-  promptLabel: string;
-  promptHint: string;
-  detailLabel: string;
-  detailHint: string;
-  expectedAnswersLabel: string;
-  expectedAnswersHint: string;
-  evidenceLabel: string;
-  evidenceHint: string;
-  facilitatorLabel: string;
-  facilitatorHint: string;
-  tagsHint: string;
-  choicesLabel?: string;
-  choicesHint?: string;
-  mediaLabel?: string;
-  mediaHint?: string;
-}> = {
-  listen_repeat: {
-    summary: 'Model the target language, define exactly what the learner repeats, and attach any audio/image cue the facilitator needs.',
-    promptLabel: 'Model line / learner prompt',
-    promptHint: 'The exact phrase the learner hears and repeats.',
-    detailLabel: 'Delivery notes',
-    detailHint: 'Pacing, gestures, chunking, or repetition rhythm.',
-    expectedAnswersLabel: 'Target utterance(s)',
-    expectedAnswersHint: 'Comma-separated acceptable repetitions or pronunciation variants.',
-    evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'What proves the learner repeated accurately?',
-    facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'How the adult should model, prompt, or correct.',
-    tagsHint: 'Example: modelling, repetition, pronunciation',
-    mediaLabel: 'Media cues (kind|value per line)',
-    mediaHint: 'Optional audio/image prompt such as audio|https://... or image|nurse-card',
-  },
-  speak_answer: {
-    summary: 'Capture the spoken question, the expected response frame, and how the facilitator should support without overfeeding the answer.',
-    promptLabel: 'Spoken question / prompt',
-    promptHint: 'What the learner should answer aloud.',
-    detailLabel: 'Scaffold / response setup',
-    detailHint: 'Sentence frame, turn-taking rule, or support pattern.',
-    expectedAnswersLabel: 'Acceptable spoken answers',
-    expectedAnswersHint: 'Comma-separated phrases or sentence stems.',
-    evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'What counts as a successful spoken response?',
-    facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'Prompt fading, re-tries, or correction rule.',
-    tagsHint: 'Example: oral-language, sentence-frame, fluency',
-  },
-  word_build: {
-    summary: 'Define the target word build, expected blend/segment output, and any tiles, chunks, or distractors needed to run the step.',
-    promptLabel: 'Build task prompt',
-    promptHint: 'What the learner must build, blend, or say.',
-    detailLabel: 'Build sequence / setup',
-    detailHint: 'How sounds, letters, or chunks should be presented.',
-    expectedAnswersLabel: 'Target word(s) or sound chunks',
-    expectedAnswersHint: 'Comma-separated sounds, chunks, or final word outputs.',
-    evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'Correct build, blend, pronunciation, or self-correction.',
-    facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'Blending gestures, finger taps, or correction cues.',
-    tagsHint: 'Example: phonics, blending, encoding',
-    choicesLabel: 'Build options / distractors (id|label|correct/wrong|mediaKind|mediaValue per line)',
-    choicesHint: 'Optional tiles or distractors. Mark the components learners should use as correct.',
-    mediaLabel: 'Media cues (kind|value per line)',
-    mediaHint: 'Optional letter cards, audio, or visual supports.',
-  },
-  image_choice: {
-    summary: 'This step should feel like a proper visual multiple-choice task: prompt, image options, correct option, and support notes.',
-    promptLabel: 'Image-choice prompt',
-    promptHint: 'Question the learner answers by selecting an image.',
-    detailLabel: 'Choice setup / contrast notes',
-    detailHint: 'How the images differ and what distractors test.',
-    expectedAnswersLabel: 'Expected answer labels',
-    expectedAnswersHint: 'Comma-separated correct labels or spoken follow-up answers.',
-    evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'Correct selection, explanation, or spoken extension.',
-    facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'How to name options, repeat prompt, or extend the answer.',
-    tagsHint: 'Example: visual-discrimination, vocabulary, comprehension',
-    choicesLabel: 'Image options (id|label|correct/wrong|mediaKind|mediaValue per line)',
-    choicesHint: 'One line per option. Usually use image as mediaKind and an asset/id/url as mediaValue.',
-    mediaLabel: 'Shared media cues (kind|value per line)',
-    mediaHint: 'Optional shared instruction image/audio shown before the choices.',
-  },
-  oral_quiz: {
-    summary: 'Treat this as a quick oral check: crisp question, acceptable answers, and a clear success criterion.',
-    promptLabel: 'Quiz question',
-    promptHint: 'Short oral question the facilitator asks.',
-    detailLabel: 'Quiz setup / scoring notes',
-    detailHint: 'Replay rules, wait time, or follow-up probe.',
-    expectedAnswersLabel: 'Acceptable oral answers',
-    expectedAnswersHint: 'Comma-separated correct answers or variants.',
-    evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'Correct recall, explanation, or pronunciation.',
-    facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'When to repeat, probe, or move on.',
-    tagsHint: 'Example: check-for-understanding, recall, oral-assessment',
-  },
-  listen_answer: {
-    summary: 'Define the listen-first input, then the response you expect after the learner hears the audio, story, or teacher readout.',
-    promptLabel: 'Listen task prompt',
-    promptHint: 'What the learner must listen for or answer after listening.',
-    detailLabel: 'Listening script / setup',
-    detailHint: 'Story snippet, audio directions, or listening focus.',
-    expectedAnswersLabel: 'Expected listening answers',
-    expectedAnswersHint: 'Comma-separated key details or acceptable responses.',
-    evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'Recall, attention, key-detail identification, or follow-up answer.',
-    facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'Replay rule, pacing, or emphasis cue.',
-    tagsHint: 'Example: listening, recall, comprehension',
-    mediaLabel: 'Listening media (kind|value per line)',
-    mediaHint: 'Optional audio or image cues tied to the listening task.',
-  },
-  tap_choice: {
-    summary: 'Structure this as a tap-select interaction with explicit options, correct tap target, and any shared media the learner sees.',
-    promptLabel: 'Tap-choice prompt',
-    promptHint: 'Instruction the learner follows by tapping one option.',
-    detailLabel: 'Interaction notes',
-    detailHint: 'How distractors work or what the learner should notice before tapping.',
-    expectedAnswersLabel: 'Expected answer labels',
-    expectedAnswersHint: 'Comma-separated correct labels or verbal follow-up answers.',
-    evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'Correct tap, speed, confidence, or verbal justification.',
-    facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'Prompting, retries, or extension question after the tap.',
-    tagsHint: 'Example: interaction, selection, comprehension',
-    choicesLabel: 'Tap options (id|label|correct/wrong|mediaKind|mediaValue per line)',
-    choicesHint: 'One line per tappable option. Add media when the option is visual.',
-    mediaLabel: 'Shared media cues (kind|value per line)',
-    mediaHint: 'Optional shared image/audio shown above the tap choices.',
-  },
-  letter_intro: {
-    summary: 'Call out the grapheme, sound, anchor word, and any tracing or visual support needed for the introduction step.',
-    promptLabel: 'Letter introduction prompt',
-    promptHint: 'What the learner hears about the letter/sound.',
-    detailLabel: 'Teaching move / anchor word',
-    detailHint: 'Letter formation, sound cue, anchor word, or motion.',
-    expectedAnswersLabel: 'Target letter / sound outputs',
-    expectedAnswersHint: 'Comma-separated grapheme, phoneme, or anchor word.',
-    evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'Learner names the letter, says the sound, or traces correctly.',
-    facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'How to trace, point, or reinforce the sound.',
-    tagsHint: 'Example: phonics, letter-intro, sound-awareness',
-    mediaLabel: 'Letter media cues (kind|value per line)',
-    mediaHint: 'Optional image/audio/trace card that supports the letter intro.',
-  },
-};
-
 const autoFitTwoUp = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
@@ -230,6 +76,10 @@ const autoFitCompactFields = {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
+}
+
+function countNonEmptyLines(value: string) {
+  return value.split('\n').map((line) => line.trim()).filter(Boolean).length;
 }
 
 function safeStringify(value: unknown) {
@@ -400,50 +250,8 @@ function parseActivityMedia(mediaLines: string) {
     });
 }
 
-function getTypeReadinessWarnings(activity: ActivityDraft) {
-  const choices = parseActivityChoices(activity.choiceLines);
-  const media = parseActivityMedia(activity.mediaLines);
-  const expectedAnswerCount = activity.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean).length;
-  const correctChoiceCount = choices.filter((choice) => choice.isCorrect).length;
-  const warnings: string[] = [];
 
-  switch (activity.type) {
-    case 'image_choice':
-      if (choices.length < 2) warnings.push('Image choice needs at least 2 options.');
-      if (correctChoiceCount < 1) warnings.push('Image choice needs a marked correct option.');
-      if (!choices.some((choice) => choice.media?.kind === 'image') && !media.some((item) => item.kind === 'image')) warnings.push('Image choice should include image media on an option or shared cue.');
-      break;
-    case 'tap_choice':
-      if (choices.length < 2) warnings.push('Tap choice needs at least 2 tappable options.');
-      if (correctChoiceCount < 1) warnings.push('Tap choice needs a marked correct option.');
-      break;
-    case 'word_build':
-      if (choices.length < 1 && media.length < 1) warnings.push('Word build needs pieces in options or media.');
-      if (expectedAnswerCount < 1) warnings.push('Word build should name the final target answer.');
-      break;
-    case 'listen_repeat':
-    case 'listen_answer':
-      if (media.length < 1) warnings.push('Listening steps should include at least one media cue or listening asset.');
-      if (expectedAnswerCount < 1) warnings.push('Listening steps should define expected responses.');
-      break;
-    case 'speak_answer':
-    case 'oral_quiz':
-      if (expectedAnswerCount < 1) warnings.push('Spoken response steps should list acceptable answers.');
-      break;
-    case 'letter_intro':
-      if (expectedAnswerCount < 1) warnings.push('Letter intro should name the target sound, letter, or anchor word.');
-      if (!activity.facilitatorNotes.trim()) warnings.push('Letter intro should include one facilitator modelling note.');
-      break;
-    default:
-      break;
-  }
 
-  return warnings;
-}
-
-function getLessonTypeGuide(type: string) {
-  return lessonTypeFieldGuide[type] ?? lessonTypeFieldGuide.speak_answer;
-}
 
 
 function buildDraftsFromLesson(lesson?: Lesson | null) {
@@ -559,7 +367,7 @@ export function LessonCreateForm({
   })), [activityDrafts]);
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
-  const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getTypeReadinessWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
+  const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getLessonStepTypeWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
   const readinessCount = useMemo(() => {
     let count = 0;
     if (title.trim().length >= 8) count += 1;
@@ -755,7 +563,7 @@ export function LessonCreateForm({
                       <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes || 0} min</span>
                     </div>
                     <div style={{ color: '#475569', fontSize: 14 }}>{step.detail || step.prompt || 'Add learner-facing guidance for this step.'}</div>
-                    <div style={{ color: '#64748B', fontSize: 12 }}>{typeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
+                    <div style={{ color: '#64748B', fontSize: 12 }}>{lessonStepTypeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
                     {step.choices && step.choices.length > 0 ? <div style={{ color: '#7C3AED', fontSize: 12, fontWeight: 700 }}>{step.choices.length} choice option{step.choices.length === 1 ? '' : 's'}</div> : null}
                     {step.media && step.media.length > 0 ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{step.media.length} media cue{step.media.length === 1 ? '' : 's'}</div> : null}
                   </div>
@@ -873,13 +681,29 @@ export function LessonCreateForm({
           <div style={{ display: 'grid', gap: 14 }}>
             {activityDrafts.map((activity, index) => {
               const typeGuide = getLessonTypeGuide(activity.type);
+              const typeGuidance = getLessonStepTypeGuidance(activity.type);
+              const typeWarnings = getLessonStepTypeWarnings(activity);
               const supportsChoices = Boolean(typeGuide.choicesLabel);
               const supportsMedia = Boolean(typeGuide.mediaLabel);
+              const accent = lessonStepTypeAccentMap[activity.type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
+              const choiceCount = countNonEmptyLines(activity.choiceLines);
+              const mediaCount = countNonEmptyLines(activity.mediaLines);
+              const noteCount = countNonEmptyLines(activity.facilitatorNotes);
 
               return (
                 <div key={activity.id} style={{ padding: 18, borderRadius: 18, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 14, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ padding: '6px 10px', borderRadius: 999, background: accent.tint, border: `1px solid ${accent.border}`, color: accent.text, fontWeight: 800, fontSize: 12 }}>
+                          {lessonStepTypeLabelMap[activity.type] ?? activity.type}
+                        </span>
+                        <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{choiceCount} choices</span>
+                        <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{mediaCount} media cues</span>
+                        <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{noteCount} coach notes</span>
+                      </div>
+                    </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
                       <button type="button" onClick={() => moveActivity(index, 1)} disabled={index === activityDrafts.length - 1} style={{ ...ghostButtonStyle, opacity: index === activityDrafts.length - 1 ? 0.45 : 1 }}>↓ Move</button>
@@ -911,11 +735,26 @@ export function LessonCreateForm({
                     </FieldLabel>
                   </div>
 
-                  <div style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 8 }}>
+                  <div style={{ padding: 14, borderRadius: 16, background: accent.tint, border: `1px solid ${accent.border}`, display: 'grid', gap: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Typed authoring section</div>
-                      <div style={{ padding: '6px 10px', borderRadius: 999, background: '#EEF2FF', color: '#3730A3', fontWeight: 700, fontSize: 12 }}>{typeLabelMap[activity.type] ?? activity.type}</div>
+                      <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>{lessonStepTypeLabelMap[activity.type] ?? activity.type} authoring guidance</div>
+                      <div style={{ padding: '6px 10px', borderRadius: 999, background: '#fff', color: accent.text, fontWeight: 700, fontSize: 12 }}>{typeWarnings.length ? `${typeWarnings.length} type warning${typeWarnings.length === 1 ? '' : 's'}` : 'Type checks clear'}</div>
                     </div>
+                    <div style={{ color: '#334155', lineHeight: 1.6 }}>{typeGuidance.summary}</div>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {typeGuidance.checklist.map((item) => (
+                        <div key={item} style={{ color: accent.text, fontWeight: 700, fontSize: 13 }}>• {item}</div>
+                      ))}
+                    </div>
+                    {typeWarnings.length ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {typeWarnings.map((warning) => (
+                          <div key={warning} style={{ padding: 10, borderRadius: 12, background: '#fff', border: '1px solid #FECACA', color: '#991B1B', lineHeight: 1.5 }}>{warning}</div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ padding: 10, borderRadius: 12, background: '#fff', border: '1px solid #BBF7D0', color: '#166534', lineHeight: 1.5 }}>Type-specific signals look sane for this step.</div>
+                    )}
                     <div style={{ color: '#475569', lineHeight: 1.6 }}>{typeGuide.summary}</div>
                   </div>
 

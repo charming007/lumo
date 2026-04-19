@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-type BuilderType = 'image_choice' | 'tap_choice' | 'word_build' | 'listen_repeat' | 'speak_answer' | 'letter_intro';
+type BuilderType = 'image_choice' | 'tap_choice' | 'word_build' | 'listen_repeat' | 'speak_answer' | 'letter_intro' | 'listen_answer';
 
 type ChoiceRow = {
   id: string;
@@ -163,6 +163,11 @@ function getMediaLabels(type: BuilderType) {
         title: 'Speaking support builder',
         hint: 'Add any prompt card, image cue, or audio support that sets up the spoken response.',
       };
+    case 'listen_answer':
+      return {
+        title: 'Listening support builder',
+        hint: 'Add the audio, story card, or listening prompt learners need before they answer.',
+      };
     case 'letter_intro':
       return {
         title: 'Letter support builder',
@@ -194,7 +199,7 @@ function getMediaLabels(type: BuilderType) {
 export function LessonActivityStructuredBuilders(props: Props) {
   const builderType = props.type as BuilderType;
   const supportsChoices = builderType === 'image_choice' || builderType === 'tap_choice' || builderType === 'word_build';
-  const supportsMedia = supportsChoices || builderType === 'listen_repeat' || builderType === 'speak_answer' || builderType === 'letter_intro';
+  const supportsMedia = supportsChoices || builderType === 'listen_repeat' || builderType === 'listen_answer' || builderType === 'speak_answer' || builderType === 'letter_intro';
 
   if (!supportsChoices && !supportsMedia) return null;
 
