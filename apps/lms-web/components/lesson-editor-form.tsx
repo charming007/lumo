@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
+import { countNonEmptyLines, getDraftAssetIntentSummary, getPreviewAssetSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import { findModuleForLesson } from '../lib/module-lesson-match';
 import {
   getLessonStepTypeGuidance,
@@ -96,43 +97,6 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? value as T[] : [];
 }
 
-function parseActivityChoices(choiceLines: string) {
-  return choiceLines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [idRaw, labelRaw, correctnessRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
-      const id = idRaw || `choice-${index + 1}`;
-      const label = labelRaw || id;
-      const isCorrect = ['correct', 'true', 'yes', '1'].includes((correctnessRaw || '').toLowerCase());
-      const mediaKind = mediaKindRaw || '';
-      const mediaValue = mediaValueRaw || '';
-      return {
-        id,
-        label,
-        isCorrect,
-        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: mediaValue.includes(',') ? mediaValue.split(',').map((item) => item.trim()).filter(Boolean) : mediaValue } } : {}),
-      };
-    });
-}
-
-function parseActivityMedia(mediaLines: string) {
-  return mediaLines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [kindRaw, valueRaw] = line.split('|').map((part) => part.trim());
-      const kind = kindRaw || 'image';
-      const value = valueRaw || '';
-      return {
-        kind,
-        value: value.includes(',') ? value.split(',').map((item) => item.trim()).filter(Boolean) : value,
-      };
-    });
-}
-
 function makeActivityDraft(index: number, overrides: Partial<ReturnType<typeof makeActivityDraftBase>> = {}) {
   return makeActivityDraftBase(index, overrides);
 }
@@ -180,9 +144,6 @@ function nextActivityDraftId(current: Array<ActivityDraft>) {
   return `activity-${highestIndex + 1}`;
 }
 
-function countNonEmptyLines(value: string) {
-  return value.split('\n').map((line) => line.trim()).filter(Boolean).length;
-}
 
 function starterTemplates(mode: string) {
   const normalizedMode = mode || 'guided';
@@ -528,8 +489,10 @@ export function LessonEditorForm({
             <div>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Learner flow</div>
               <div style={{ display: 'grid', gap: 8 }}>
-                {activitySteps.map((step, index) => (
-                  <div key={step.id} style={{ display: 'grid', gap: 4, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0', minWidth: 0 }}>
+                {activitySteps.map((step, index) => {
+                  const assetSummary = getPreviewAssetSummary(step);
+                  return (
+                    <div key={step.id} style={{ display: 'grid', gap: 4, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0', minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                       <strong>{index + 1}. {step.title || step.prompt}</strong>
                       <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes || 0} min</span>
@@ -538,8 +501,12 @@ export function LessonEditorForm({
                     <div style={{ color: '#64748B', fontSize: 12 }}>{lessonStepTypeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
                     {step.choices && step.choices.length > 0 ? <div style={{ color: '#7C3AED', fontSize: 12, fontWeight: 700 }}>{step.choices.length} choice option{step.choices.length === 1 ? '' : 's'}</div> : null}
                     {step.media && step.media.length > 0 ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{step.media.length} media cue{step.media.length === 1 ? '' : 's'}</div> : null}
+                    {assetSummary.assetKinds.length ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{assetSummary.assetKinds.join(' • ')}</div> : null}
+                    <div style={{ color: assetSummary.tone === 'warn' ? '#B45309' : assetSummary.tone === 'good' ? '#166534' : '#64748B', fontSize: 12, lineHeight: 1.5 }}>
+                      <strong>{assetSummary.label}:</strong> {assetSummary.detail}
+                    </div>
                   </div>
-                ))}
+                );})}
               </div>
             </div>
           </div>
@@ -656,6 +623,7 @@ export function LessonEditorForm({
               const choiceCount = countNonEmptyLines(activity.choiceLines);
               const mediaCount = countNonEmptyLines(activity.mediaLines);
               const noteCount = countNonEmptyLines(activity.facilitatorNotes);
+              const assetIntent = getDraftAssetIntentSummary(activity);
 
               return (
                 <div key={activity.id} style={{ padding: 18, borderRadius: 18, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 14, minWidth: 0 }}>
@@ -669,6 +637,7 @@ export function LessonEditorForm({
                         <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{choiceCount} choices</span>
                         <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{mediaCount} media cues</span>
                         <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{noteCount} coach notes</span>
+                        <span style={{ padding: '6px 10px', borderRadius: 999, background: assetIntent.tone === 'warn' ? '#FFF7ED' : assetIntent.tone === 'good' ? '#ECFDF5' : '#F8FAFC', color: assetIntent.tone === 'warn' ? '#9A3412' : assetIntent.tone === 'good' ? '#166534' : '#475569', fontWeight: 700, fontSize: 12 }}>{assetIntent.label}</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>

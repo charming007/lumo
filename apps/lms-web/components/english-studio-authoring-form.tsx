@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
+import { countNonEmptyLines, getDraftAssetIntentSummary, getPreviewAssetSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
@@ -11,6 +12,7 @@ import {
   lessonStepTypeAccentMap,
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
+import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import type { Assessment, CurriculumModule, Subject } from '../lib/types';
 import { buildEnglishActivities, buildEnglishObjective, buildReadinessChecks, inferVocabulary } from '../lib/english-curriculum';
 
@@ -160,48 +162,6 @@ function nextActivityDraftId(current: ActivityDraft[]) {
 
   return `english-activity-${highestIndex + 1}`;
 }
-
-function countNonEmptyLines(value: string) {
-  return value.split('\n').map((line) => line.trim()).filter(Boolean).length;
-}
-
-function parseActivityChoices(choiceLines: string) {
-  return choiceLines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [idRaw, labelRaw, correctnessRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
-      const id = idRaw || `choice-${index + 1}`;
-      const label = labelRaw || id;
-      const isCorrect = ['correct', 'true', 'yes', '1'].includes((correctnessRaw || '').toLowerCase());
-      const mediaKind = mediaKindRaw || '';
-      const mediaValue = mediaValueRaw || '';
-      return {
-        id,
-        label,
-        isCorrect,
-        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: mediaValue.includes(',') ? mediaValue.split(',').map((item) => item.trim()).filter(Boolean) : mediaValue } } : {}),
-      };
-    });
-}
-
-function parseActivityMedia(mediaLines: string) {
-  return mediaLines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [kindRaw, valueRaw] = line.split('|').map((part) => part.trim());
-      const kind = kindRaw || 'image';
-      const value = valueRaw || '';
-      return {
-        kind,
-        value: value.includes(',') ? value.split(',').map((item) => item.trim()).filter(Boolean) : value,
-      };
-    });
-}
-
 
 
 function toDraftsFromGeneratedActivities(
@@ -630,6 +590,8 @@ export function EnglishStudioAuthoringForm({
                 const choiceCount = countNonEmptyLines(activity.choiceLines);
                 const mediaCount = countNonEmptyLines(activity.mediaLines);
                 const noteCount = countNonEmptyLines(activity.facilitatorNotes);
+                const assetIntent = getDraftAssetIntentSummary(activity);
+                const runtimePreview = getStepRuntimePreviewHints(activitySteps[index]);
                 return (
                   <div key={activity.id} style={{ padding: 14, borderRadius: 16, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 10, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -640,6 +602,7 @@ export function EnglishStudioAuthoringForm({
                           <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{choiceCount} choices</span>
                           <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{mediaCount} media cues</span>
                           <span style={{ padding: '6px 10px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{noteCount} coach notes</span>
+                        <span style={{ padding: '6px 10px', borderRadius: 999, background: assetIntent.tone === 'warn' ? '#FFF7ED' : assetIntent.tone === 'good' ? '#ECFDF5' : '#F8FAFC', color: assetIntent.tone === 'warn' ? '#9A3412' : assetIntent.tone === 'good' ? '#166534' : '#475569', fontWeight: 700, fontSize: 12 }}>{assetIntent.label}</span>
                           <span style={{ padding: '6px 10px', borderRadius: 999, background: stepWarnings.length ? '#FEF2F2' : '#ECFDF5', color: stepWarnings.length ? '#B91C1C' : '#166534', fontWeight: 700, fontSize: 12 }}>{stepWarnings.length ? `${stepWarnings.length} type warnings` : 'Type checks clear'}</span>
                         </div>
                       </div>
@@ -668,7 +631,15 @@ export function EnglishStudioAuthoringForm({
                       ) : (
                         <div style={{ padding: 10, borderRadius: 12, background: '#fff', border: '1px solid #BBF7D0', color: '#166534', lineHeight: 1.5 }}>Type-specific signals look sane for this step.</div>
                       )}
-                      <div style={{ color: '#475569', lineHeight: 1.6 }}>{typeGuide.summary}</div>
+                      <div style={{ padding: 10, borderRadius: 12, background: '#fff', border: `1px solid ${assetIntent.tone === 'warn' ? '#FED7AA' : assetIntent.tone === 'good' ? '#BBF7D0' : '#E2E8F0'}`, color: assetIntent.tone === 'warn' ? '#9A3412' : assetIntent.tone === 'good' ? '#166534' : '#475569', lineHeight: 1.5 }}>
+                      <strong>{assetIntent.label}:</strong> {assetIntent.detail}
+                    </div>
+                    <div style={{ color: '#475569', lineHeight: 1.6 }}>{typeGuide.summary}</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {runtimePreview.assetSummary.total > 0 ? <span style={{ padding: '6px 10px', borderRadius: 999, background: '#fff', color: '#0F766E', fontWeight: 700, fontSize: 12 }}>{runtimePreview.assetSummary.labels.join(' • ')}</span> : <span style={{ padding: '6px 10px', borderRadius: 999, background: '#fff7ed', color: '#9A3412', fontWeight: 700, fontSize: 12 }}>No preview assets yet</span>}
+                        <span style={{ padding: '6px 10px', borderRadius: 999, background: runtimePreview.hints.length ? '#FEF3C7' : '#ECFDF5', color: runtimePreview.hints.length ? '#92400E' : '#166534', fontWeight: 700, fontSize: 12 }}>{runtimePreview.hints.length ? 'Needs runtime polish' : 'Preview looks learner-ready'}</span>
+                      </div>
+                      {runtimePreview.hints.length ? <div style={{ color: '#92400E', lineHeight: 1.6 }}>{runtimePreview.hints[0]}</div> : null}
                     </div>
 
                     <div style={autoFitCompactFields}>

@@ -1,3 +1,9 @@
+import {
+  getLessonAssetKindLabel,
+  isKnownLessonAssetKind,
+  normalizeLessonAssetKind,
+} from '../lib/lesson-runtime-preview';
+
 export type LessonStepTypeGuidance = {
   summary: string;
   checklist: string[];
@@ -251,11 +257,32 @@ export function getLessonStepTypeWarnings(activity: ActivityDraftLike) {
   const hasExpectedAnswers = activity.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean).length > 0;
   const hasEvidence = activity.evidence.trim().length > 0;
   const warnings: string[] = [];
+  const assetKindWarnings = [activity.choiceLines, activity.mediaLines]
+    .flatMap((value) => value.split('\n'))
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const parts = line.split('|').map((part) => part.trim());
+      const rawKind = parts.length >= 5 ? parts[3] : parts[0];
+      const rawValue = parts.length >= 5 ? parts[4] : parts[1];
+      const kind = normalizeLessonAssetKind(rawKind);
+      const nextWarnings: string[] = [];
+      if (rawKind && !isKnownLessonAssetKind(rawKind)) {
+        nextWarnings.push(`${getLessonAssetKindLabel(kind)} is a non-standard asset kind. Use a known kind unless runtime explicitly supports the custom one.`);
+      }
+      if (rawKind && !String(rawValue ?? '').trim()) {
+        nextWarnings.push(`${getLessonAssetKindLabel(kind)} asset kind is set but its value is blank.`);
+      }
+      return nextWarnings;
+    });
+
+  warnings.push(...assetKindWarnings);
 
   switch (activity.type) {
     case 'image_choice':
       if (choiceCount < 2) warnings.push('Image choice needs at least 2 options or it is not a choice task.');
       if (mediaCount === 0 && !activity.choiceLines.includes('|image|')) warnings.push('Image choice should reference image media in the step or option lines.');
+      if (!activity.choiceLines.toLowerCase().includes('|image|') && !activity.mediaLines.toLowerCase().includes('image|')) warnings.push('Image choice currently reads like text-only multiple choice. Add actual image-linked assets so preview and runtime match the authoring intent.');
       break;
     case 'tap_choice':
       if (choiceCount < 2) warnings.push('Tap choice needs multiple tap targets.');
@@ -263,6 +290,7 @@ export function getLessonStepTypeWarnings(activity: ActivityDraftLike) {
       break;
     case 'listen_repeat':
       if (mediaCount === 0) warnings.push('Listen repeat is stronger with an audio/media cue instead of text alone.');
+      if (!activity.mediaLines.toLowerCase().includes('audio|')) warnings.push('Listen repeat should carry an explicit audio cue or script asset so the listening intent survives preview and delivery.');
       if (!hasExpectedAnswers) warnings.push('Listen repeat should define the repeated target line or phrase.');
       break;
     case 'speak_answer':
@@ -279,6 +307,7 @@ export function getLessonStepTypeWarnings(activity: ActivityDraftLike) {
       break;
     case 'listen_answer':
       if (mediaCount === 0) warnings.push('Listen answer should include a listening cue, script asset, or shared media reference.');
+      if (!activity.mediaLines.toLowerCase().includes('audio|')) warnings.push('Listen answer should point to an audio/script asset so the learner preview does not fake a listening task with plain text.');
       if (!hasExpectedAnswers) warnings.push('Listen answer should list the key details or acceptable responses learners give after listening.');
       if (!hasEvidence) warnings.push('Listen answer should spell out the observable listening-comprehension evidence.');
       break;
