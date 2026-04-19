@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
-import { countNonEmptyLines, getDraftAssetIntentSummary, getPreviewAssetSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,

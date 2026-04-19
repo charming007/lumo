@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
-import { countNonEmptyLines, getDraftAssetIntentSummary, getPreviewAssetSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { LessonStepPreviewCard } from './lesson-step-preview-card';
+import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
@@ -514,24 +515,9 @@ export function LessonCreateForm({
             <div>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Flow snapshot</div>
               <div style={{ display: 'grid', gap: 8 }}>
-                {activitySteps.map((step, index) => {
-                  const assetSummary = getPreviewAssetSummary(step);
-                  return (
-                    <div key={step.id} style={{ display: 'grid', gap: 4, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0', minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                      <strong>{index + 1}. {step.title || step.prompt}</strong>
-                      <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes || 0} min</span>
-                    </div>
-                    <div style={{ color: '#475569', fontSize: 14 }}>{step.detail || step.prompt || 'Add learner-facing guidance for this step.'}</div>
-                    <div style={{ color: '#64748B', fontSize: 12 }}>{lessonStepTypeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
-                    {step.choices && step.choices.length > 0 ? <div style={{ color: '#7C3AED', fontSize: 12, fontWeight: 700 }}>{step.choices.length} choice option{step.choices.length === 1 ? '' : 's'}</div> : null}
-                    {step.media && step.media.length > 0 ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{step.media.length} media cue{step.media.length === 1 ? '' : 's'}</div> : null}
-                    {assetSummary.assetKinds.length ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{assetSummary.assetKinds.join(' • ')}</div> : null}
-                    <div style={{ color: assetSummary.tone === 'warn' ? '#B45309' : assetSummary.tone === 'good' ? '#166534' : '#64748B', fontSize: 12, lineHeight: 1.5 }}>
-                      <strong>{assetSummary.label}:</strong> {assetSummary.detail}
-                    </div>
-                  </div>
-                );})}
+                {activitySteps.map((step, index) => (
+                  <LessonStepPreviewCard key={step.id} step={step} index={index} />
+                ))}
               </div>
             </div>
           </div>

@@ -155,6 +155,7 @@ export function getPreviewAssetSummary(step: LessonActivityStep) {
     ...(step.media ?? []).filter((item) => Array.isArray(item.value) ? item.value.length === 0 : !String(item.value ?? '').trim()),
     ...(step.choices ?? []).filter((item) => item.media && (Array.isArray(item.media.value) ? item.media.value.length === 0 : !String(item.media.value ?? '').trim())),
   ].length;
+  const totalAssetEntries = assetKinds.length;
   const base = getAssetIntentStatus(step.type, choiceCount, mediaCount, imageCount, audioCount);
   const hint = missingValues > 0
     ? `${missingValues} asset ${missingValues === 1 ? 'entry is' : 'entries are'} missing a value.`
@@ -166,6 +167,10 @@ export function getPreviewAssetSummary(step: LessonActivityStep) {
     assetKinds: labels,
     unknownKinds,
     missingValues,
+    totalAssetEntries,
+    isMediaBacked: totalAssetEntries > 0 && missingValues === 0,
+    readinessLabel: totalAssetEntries > 0 ? (missingValues === 0 ? 'Media-backed' : 'Media incomplete') : 'Text-only',
+    assetFootprint: totalAssetEntries > 0 ? `${totalAssetEntries} asset ${totalAssetEntries === 1 ? 'link' : 'links'}` : 'No linked assets',
     detail: hint,
   };
 }

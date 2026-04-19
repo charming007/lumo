@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
-import { countNonEmptyLines, getDraftAssetIntentSummary, getPreviewAssetSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { LessonStepPreviewCard } from './lesson-step-preview-card';
+import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import { findModuleForLesson } from '../lib/module-lesson-match';
 import {
   getLessonStepTypeGuidance,
@@ -87,6 +88,15 @@ function FieldHint({ children }: { children: React.ReactNode }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>{children}</div>;
+}
+
+function renderLessonTypeBadge(type: string) {
+  const accent = lessonStepTypeAccentMap[type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
+  return (
+    <span key={type} style={{ padding: '7px 11px', borderRadius: 999, background: accent.tint, border: `1px solid ${accent.border}`, color: accent.text, fontWeight: 800, fontSize: 12 }}>
+      {lessonStepTypeLabelMap[type] ?? type}
+    </span>
+  );
 }
 
 function safeStringify(value: unknown) {
@@ -306,6 +316,12 @@ export function LessonEditorForm({
     [activityDrafts],
   );
 
+  const visibleLessonTypes = useMemo(
+    () => Array.from(new Set(activitySteps.map((step) => step.type).filter(Boolean))),
+    [activitySteps],
+  );
+  const primaryLessonType = visibleLessonTypes[0] ?? 'speak_answer';
+  const primaryLessonTypeGuide = getLessonTypeGuide(primaryLessonType);
   const totalActivityMinutes = useMemo(
     () => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0),
     [activitySteps],
@@ -394,6 +410,31 @@ export function LessonEditorForm({
           <div style={{ padding: '10px 12px', borderRadius: 14, background: activityHealthTone.background, color: activityHealthTone.color, fontWeight: 700, fontSize: 13 }}>
             {activityHealthTone.label} {durationGap === 0 ? '• exact runtime match' : `• ${Math.abs(durationGap)} min ${durationGap > 0 ? 'unplanned buffer' : 'over target'}`}
           </div>
+        </div>
+      </div>
+
+      <div style={{ padding: 18, borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, flex: '1 1 320px' }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Visible lesson-type signal</div>
+            <div style={{ color: '#0f172a', fontWeight: 800, marginTop: 4 }}>
+              Primary authoring pattern: {lessonStepTypeLabelMap[primaryLessonType] ?? primaryLessonType}
+            </div>
+            <div style={{ color: '#475569', lineHeight: 1.6, marginTop: 6 }}>{primaryLessonTypeGuide.summary}</div>
+          </div>
+          <div style={{ minWidth: 220, padding: 14, borderRadius: 16, background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#334155' }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Type coverage</div>
+            <div style={{ fontWeight: 800, marginTop: 6 }}>{visibleLessonTypes.length} lesson type{visibleLessonTypes.length === 1 ? '' : 's'} live in this flow</div>
+            <div style={{ color: '#64748B', fontSize: 13, marginTop: 6 }}>Operators can now tell at a glance whether this lesson is a single-pattern drill or a mixed activity build.</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {visibleLessonTypes.map((type) => renderLessonTypeBadge(type))}
+        </div>
+        <div style={{ display: 'grid', gap: 6 }}>
+          {primaryLessonTypeGuide.checklist.slice(0, 3).map((item) => (
+            <div key={item} style={{ color: '#475569', fontSize: 14, lineHeight: 1.6 }}>• {item}</div>
+          ))}
         </div>
       </div>
 
@@ -489,24 +530,9 @@ export function LessonEditorForm({
             <div>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Learner flow</div>
               <div style={{ display: 'grid', gap: 8 }}>
-                {activitySteps.map((step, index) => {
-                  const assetSummary = getPreviewAssetSummary(step);
-                  return (
-                    <div key={step.id} style={{ display: 'grid', gap: 4, padding: 12, borderRadius: 14, background: 'white', border: '1px solid #e2e8f0', minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                      <strong>{index + 1}. {step.title || step.prompt}</strong>
-                      <span style={{ color: '#7C3AED', fontWeight: 700 }}>{step.durationMinutes || 0} min</span>
-                    </div>
-                    <div style={{ color: '#475569', fontSize: 14 }}>{step.detail || step.prompt || 'Add learner-facing guidance for this step.'}</div>
-                    <div style={{ color: '#64748B', fontSize: 12 }}>{lessonStepTypeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
-                    {step.choices && step.choices.length > 0 ? <div style={{ color: '#7C3AED', fontSize: 12, fontWeight: 700 }}>{step.choices.length} choice option{step.choices.length === 1 ? '' : 's'}</div> : null}
-                    {step.media && step.media.length > 0 ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{step.media.length} media cue{step.media.length === 1 ? '' : 's'}</div> : null}
-                    {assetSummary.assetKinds.length ? <div style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{assetSummary.assetKinds.join(' • ')}</div> : null}
-                    <div style={{ color: assetSummary.tone === 'warn' ? '#B45309' : assetSummary.tone === 'good' ? '#166534' : '#64748B', fontSize: 12, lineHeight: 1.5 }}>
-                      <strong>{assetSummary.label}:</strong> {assetSummary.detail}
-                    </div>
-                  </div>
-                );})}
+                {activitySteps.map((step, index) => (
+                  <LessonStepPreviewCard key={step.id} step={step} index={index} />
+                ))}
               </div>
             </div>
           </div>
