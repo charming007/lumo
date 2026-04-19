@@ -54,6 +54,156 @@ const typeLabelMap: Record<string, string> = {
   letter_intro: 'Letter intro',
 };
 
+const lessonTypeFieldGuide: Record<string, {
+  summary: string;
+  promptLabel: string;
+  promptHint: string;
+  detailLabel: string;
+  detailHint: string;
+  expectedAnswersLabel: string;
+  expectedAnswersHint: string;
+  evidenceLabel: string;
+  evidenceHint: string;
+  facilitatorLabel: string;
+  facilitatorHint: string;
+  tagsHint: string;
+  choicesLabel?: string;
+  choicesHint?: string;
+  mediaLabel?: string;
+  mediaHint?: string;
+}> = {
+  listen_repeat: {
+    summary: 'Model the target language, define exactly what the learner repeats, and attach any audio/image cue the facilitator needs.',
+    promptLabel: 'Model line / learner prompt',
+    promptHint: 'The exact phrase the learner hears and repeats.',
+    detailLabel: 'Delivery notes',
+    detailHint: 'Pacing, gestures, chunking, or repetition rhythm.',
+    expectedAnswersLabel: 'Target utterance(s)',
+    expectedAnswersHint: 'Comma-separated acceptable repetitions or pronunciation variants.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'What proves the learner repeated accurately?',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'How the adult should model, prompt, or correct.',
+    tagsHint: 'Example: modelling, repetition, pronunciation',
+    mediaLabel: 'Media cues (kind|value per line)',
+    mediaHint: 'Optional audio/image prompt such as audio|https://... or image|nurse-card',
+  },
+  speak_answer: {
+    summary: 'Capture the spoken question, the expected response frame, and how the facilitator should support without overfeeding the answer.',
+    promptLabel: 'Spoken question / prompt',
+    promptHint: 'What the learner should answer aloud.',
+    detailLabel: 'Scaffold / response setup',
+    detailHint: 'Sentence frame, turn-taking rule, or support pattern.',
+    expectedAnswersLabel: 'Acceptable spoken answers',
+    expectedAnswersHint: 'Comma-separated phrases or sentence stems.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'What counts as a successful spoken response?',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'Prompt fading, re-tries, or correction rule.',
+    tagsHint: 'Example: oral-language, sentence-frame, fluency',
+  },
+  word_build: {
+    summary: 'Define the target word build, expected blend/segment output, and any tiles, chunks, or distractors needed to run the step.',
+    promptLabel: 'Build task prompt',
+    promptHint: 'What the learner must build, blend, or say.',
+    detailLabel: 'Build sequence / setup',
+    detailHint: 'How sounds, letters, or chunks should be presented.',
+    expectedAnswersLabel: 'Target word(s) or sound chunks',
+    expectedAnswersHint: 'Comma-separated sounds, chunks, or final word outputs.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'Correct build, blend, pronunciation, or self-correction.',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'Blending gestures, finger taps, or correction cues.',
+    tagsHint: 'Example: phonics, blending, encoding',
+    choicesLabel: 'Build options / distractors (id|label|correct/wrong|mediaKind|mediaValue per line)',
+    choicesHint: 'Optional tiles or distractors. Mark the components learners should use as correct.',
+    mediaLabel: 'Media cues (kind|value per line)',
+    mediaHint: 'Optional letter cards, audio, or visual supports.',
+  },
+  image_choice: {
+    summary: 'This step should feel like a proper visual multiple-choice task: prompt, image options, correct option, and support notes.',
+    promptLabel: 'Image-choice prompt',
+    promptHint: 'Question the learner answers by selecting an image.',
+    detailLabel: 'Choice setup / contrast notes',
+    detailHint: 'How the images differ and what distractors test.',
+    expectedAnswersLabel: 'Expected answer labels',
+    expectedAnswersHint: 'Comma-separated correct labels or spoken follow-up answers.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'Correct selection, explanation, or spoken extension.',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'How to name options, repeat prompt, or extend the answer.',
+    tagsHint: 'Example: visual-discrimination, vocabulary, comprehension',
+    choicesLabel: 'Image options (id|label|correct/wrong|mediaKind|mediaValue per line)',
+    choicesHint: 'One line per option. Usually use image as mediaKind and an asset/id/url as mediaValue.',
+    mediaLabel: 'Shared media cues (kind|value per line)',
+    mediaHint: 'Optional shared instruction image/audio shown before the choices.',
+  },
+  oral_quiz: {
+    summary: 'Treat this as a quick oral check: crisp question, acceptable answers, and a clear success criterion.',
+    promptLabel: 'Quiz question',
+    promptHint: 'Short oral question the facilitator asks.',
+    detailLabel: 'Quiz setup / scoring notes',
+    detailHint: 'Replay rules, wait time, or follow-up probe.',
+    expectedAnswersLabel: 'Acceptable oral answers',
+    expectedAnswersHint: 'Comma-separated correct answers or variants.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'Correct recall, explanation, or pronunciation.',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'When to repeat, probe, or move on.',
+    tagsHint: 'Example: check-for-understanding, recall, oral-assessment',
+  },
+  listen_answer: {
+    summary: 'Define the listen-first input, then the response you expect after the learner hears the audio, story, or teacher readout.',
+    promptLabel: 'Listen task prompt',
+    promptHint: 'What the learner must listen for or answer after listening.',
+    detailLabel: 'Listening script / setup',
+    detailHint: 'Story snippet, audio directions, or listening focus.',
+    expectedAnswersLabel: 'Expected listening answers',
+    expectedAnswersHint: 'Comma-separated key details or acceptable responses.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'Recall, attention, key-detail identification, or follow-up answer.',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'Replay rule, pacing, or emphasis cue.',
+    tagsHint: 'Example: listening, recall, comprehension',
+    mediaLabel: 'Listening media (kind|value per line)',
+    mediaHint: 'Optional audio or image cues tied to the listening task.',
+  },
+  tap_choice: {
+    summary: 'Structure this as a tap-select interaction with explicit options, correct tap target, and any shared media the learner sees.',
+    promptLabel: 'Tap-choice prompt',
+    promptHint: 'Instruction the learner follows by tapping one option.',
+    detailLabel: 'Interaction notes',
+    detailHint: 'How distractors work or what the learner should notice before tapping.',
+    expectedAnswersLabel: 'Expected answer labels',
+    expectedAnswersHint: 'Comma-separated correct labels or verbal follow-up answers.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'Correct tap, speed, confidence, or verbal justification.',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'Prompting, retries, or extension question after the tap.',
+    tagsHint: 'Example: interaction, selection, comprehension',
+    choicesLabel: 'Tap options (id|label|correct/wrong|mediaKind|mediaValue per line)',
+    choicesHint: 'One line per tappable option. Add media when the option is visual.',
+    mediaLabel: 'Shared media cues (kind|value per line)',
+    mediaHint: 'Optional shared image/audio shown above the tap choices.',
+  },
+  letter_intro: {
+    summary: 'Call out the grapheme, sound, anchor word, and any tracing or visual support needed for the introduction step.',
+    promptLabel: 'Letter introduction prompt',
+    promptHint: 'What the learner hears about the letter/sound.',
+    detailLabel: 'Teaching move / anchor word',
+    detailHint: 'Letter formation, sound cue, anchor word, or motion.',
+    expectedAnswersLabel: 'Target letter / sound outputs',
+    expectedAnswersHint: 'Comma-separated grapheme, phoneme, or anchor word.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'Learner names the letter, says the sound, or traces correctly.',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'How to trace, point, or reinforce the sound.',
+    tagsHint: 'Example: phonics, letter-intro, sound-awareness',
+    mediaLabel: 'Letter media cues (kind|value per line)',
+    mediaHint: 'Optional image/audio/trace card that supports the letter intro.',
+  },
+};
+
 const autoFitTwoUp = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
@@ -247,6 +397,10 @@ function parseActivityMedia(mediaLines: string) {
         value: value.includes(',') ? value.split(',').map((item) => item.trim()).filter(Boolean) : value,
       };
     });
+}
+
+function getLessonTypeGuide(type: string) {
+  return lessonTypeFieldGuide[type] ?? lessonTypeFieldGuide.speak_answer;
 }
 
 function buildDraftsFromLesson(lesson?: Lesson | null) {
@@ -672,82 +826,111 @@ export function LessonCreateForm({
           </div>
 
           <div style={{ display: 'grid', gap: 14 }}>
-            {activityDrafts.map((activity, index) => (
-              <div key={activity.id} style={{ padding: 18, borderRadius: 18, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 14, minWidth: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
-                    <button type="button" onClick={() => moveActivity(index, 1)} disabled={index === activityDrafts.length - 1} style={{ ...ghostButtonStyle, opacity: index === activityDrafts.length - 1 ? 0.45 : 1 }}>↓ Move</button>
-                    <button type="button" onClick={() => duplicateActivity(index)} style={ghostButtonStyle}>Duplicate</button>
-                    <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
+            {activityDrafts.map((activity, index) => {
+              const typeGuide = getLessonTypeGuide(activity.type);
+              const supportsChoices = Boolean(typeGuide.choicesLabel);
+              const supportsMedia = Boolean(typeGuide.mediaLabel);
+
+              return (
+                <div key={activity.id} style={{ padding: 18, borderRadius: 18, border: '1px solid #E5E7EB', background: 'white', display: 'grid', gap: 14, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ fontWeight: 800, color: '#0f172a' }}>Step {index + 1}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0} style={{ ...ghostButtonStyle, opacity: index === 0 ? 0.45 : 1 }}>↑ Move</button>
+                      <button type="button" onClick={() => moveActivity(index, 1)} disabled={index === activityDrafts.length - 1} style={{ ...ghostButtonStyle, opacity: index === activityDrafts.length - 1 ? 0.45 : 1 }}>↓ Move</button>
+                      <button type="button" onClick={() => duplicateActivity(index)} style={ghostButtonStyle}>Duplicate</button>
+                      <button type="button" onClick={() => removeActivity(index)} style={{ ...ghostButtonStyle, background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA' }}>Remove</button>
+                    </div>
                   </div>
+                  <div style={{ ...autoFitCompactFields, gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      Step title
+                      <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
+                    </FieldLabel>
+                    <FieldLabel>
+                      Type
+                      <select value={activity.type} onChange={(event) => updateActivity(index, { type: event.target.value })} style={inputStyle}>
+                        <option value="listen_repeat">Listen repeat</option>
+                        <option value="speak_answer">Speak answer</option>
+                        <option value="word_build">Word build</option>
+                        <option value="image_choice">Image choice</option>
+                        <option value="oral_quiz">Oral quiz</option>
+                        <option value="listen_answer">Listen answer</option>
+                        <option value="tap_choice">Tap choice</option>
+                        <option value="letter_intro">Letter intro</option>
+                      </select>
+                    </FieldLabel>
+                    <FieldLabel>
+                      Minutes
+                      <input value={activity.durationMinutes} onChange={(event) => updateActivity(index, { durationMinutes: event.target.value })} style={inputStyle} />
+                    </FieldLabel>
+                  </div>
+
+                  <div style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B' }}>Typed authoring section</div>
+                      <div style={{ padding: '6px 10px', borderRadius: 999, background: '#EEF2FF', color: '#3730A3', fontWeight: 700, fontSize: 12 }}>{typeLabelMap[activity.type] ?? activity.type}</div>
+                    </div>
+                    <div style={{ color: '#475569', lineHeight: 1.6 }}>{typeGuide.summary}</div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      {typeGuide.promptLabel}
+                      <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 110 }} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.promptHint}</span>
+                    </FieldLabel>
+                    <FieldLabel>
+                      {typeGuide.detailLabel}
+                      <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={4} style={{ ...inputStyle, minHeight: 132 }} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.detailHint}</span>
+                    </FieldLabel>
+                  </div>
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      {typeGuide.evidenceLabel}
+                      <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.evidenceHint}</span>
+                    </FieldLabel>
+                    <FieldLabel>
+                      {typeGuide.expectedAnswersLabel}
+                      <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.expectedAnswersHint}</span>
+                    </FieldLabel>
+                  </div>
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      Tags (comma separated)
+                      <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.tagsHint}</span>
+                    </FieldLabel>
+                    <FieldLabel>
+                      {typeGuide.facilitatorLabel}
+                      <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.facilitatorHint}</span>
+                    </FieldLabel>
+                  </div>
+                  {supportsChoices || supportsMedia ? (
+                    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
+                      {supportsChoices ? (
+                        <FieldLabel>
+                          {typeGuide.choicesLabel}
+                          <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
+                          <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.choicesHint}</span>
+                        </FieldLabel>
+                      ) : null}
+                      {supportsMedia ? (
+                        <FieldLabel>
+                          {typeGuide.mediaLabel}
+                          <textarea value={activity.mediaLines} onChange={(event) => updateActivity(index, { mediaLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
+                          <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.mediaHint}</span>
+                        </FieldLabel>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
-                <div style={{ ...autoFitCompactFields, gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
-                  <FieldLabel>
-                    Step title
-                    <input value={activity.title} onChange={(event) => updateActivity(index, { title: event.target.value })} style={inputStyle} />
-                  </FieldLabel>
-                  <FieldLabel>
-                    Type
-                    <select value={activity.type} onChange={(event) => updateActivity(index, { type: event.target.value })} style={inputStyle}>
-                      <option value="listen_repeat">Listen repeat</option>
-                      <option value="speak_answer">Speak answer</option>
-                      <option value="word_build">Word build</option>
-                      <option value="image_choice">Image choice</option>
-                      <option value="oral_quiz">Oral quiz</option>
-                      <option value="listen_answer">Listen answer</option>
-                      <option value="tap_choice">Tap choice</option>
-                      <option value="letter_intro">Letter intro</option>
-                    </select>
-                  </FieldLabel>
-                  <FieldLabel>
-                    Minutes
-                    <input value={activity.durationMinutes} onChange={(event) => updateActivity(index, { durationMinutes: event.target.value })} style={inputStyle} />
-                  </FieldLabel>
-                </div>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
-                  <FieldLabel>
-                    Learner prompt
-                    <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 110 }} />
-                  </FieldLabel>
-                  <FieldLabel>
-                    Detail
-                    <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={4} style={{ ...inputStyle, minHeight: 132 }} />
-                  </FieldLabel>
-                </div>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
-                  <FieldLabel>
-                    Evidence
-                    <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
-                  </FieldLabel>
-                  <FieldLabel>
-                    Expected answers (comma separated)
-                    <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
-                  </FieldLabel>
-                </div>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
-                  <FieldLabel>
-                    Tags (comma separated)
-                    <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
-                  </FieldLabel>
-                  <FieldLabel>
-                    Facilitator notes (one per line)
-                    <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
-                  </FieldLabel>
-                </div>
-                <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
-                  <FieldLabel>
-                    Choices (id|label|correct/wrong|mediaKind|mediaValue per line)
-                    <textarea value={activity.choiceLines} onChange={(event) => updateActivity(index, { choiceLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-                  </FieldLabel>
-                  <FieldLabel>
-                    Media cues (kind|value per line)
-                    <textarea value={activity.mediaLines} onChange={(event) => updateActivity(index, { mediaLines: event.target.value })} rows={5} style={{ ...inputStyle, minHeight: 148, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} />
-                  </FieldLabel>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
