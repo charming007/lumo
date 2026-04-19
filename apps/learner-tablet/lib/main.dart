@@ -4490,7 +4490,27 @@ class _LessonCountdownPageState extends State<LessonCountdownPage> {
     if (_navigated) return;
     _navigated = true;
     widget.state.selectLearner(widget.learner);
-    widget.state.startLesson(widget.lesson, resumeFrom: widget.resumeFrom);
+
+    try {
+      widget.state.startLesson(widget.lesson, resumeFrom: widget.resumeFrom);
+    } on StateError catch (error) {
+      _navigated = false;
+      final message = error.message.toString().trim();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message.isNotEmpty
+                ? message
+                : 'This lesson is not ready to open yet. Refresh sync and try again.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).maybePop();
+      return;
+    }
+
     widget.onChanged();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
