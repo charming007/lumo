@@ -19,29 +19,73 @@ enum ResponseReview { pending, onTrack, needsSupport }
 
 enum PracticeMode { standard, repeatAfterMe, independentCheck }
 
+class LessonActivityMedia {
+  final String kind;
+  final List<String> values;
+
+  const LessonActivityMedia({
+    required this.kind,
+    this.values = const [],
+  });
+
+  String? get firstValue => values.isEmpty ? null : values.first;
+
+  factory LessonActivityMedia.fromBackend(Map<String, dynamic> json) {
+    final rawValue = json['value'];
+    final values = rawValue is List
+        ? rawValue
+            .map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty)
+            .toList()
+        : [rawValue?.toString().trim() ?? '']
+            .where((item) => item.isNotEmpty)
+            .toList();
+
+    return LessonActivityMedia(
+      kind: json['kind']?.toString().trim().isNotEmpty == true
+          ? json['kind'].toString().trim()
+          : 'image',
+      values: values,
+    );
+  }
+}
+
 class LessonActivityChoice {
   final String id;
   final String label;
   final bool isCorrect;
-  final String? mediaKind;
-  final String? mediaValue;
+  final List<LessonActivityMedia> mediaItems;
 
   const LessonActivityChoice({
     required this.id,
     required this.label,
     this.isCorrect = false,
-    this.mediaKind,
-    this.mediaValue,
+    this.mediaItems = const [],
   });
+
+  String? get mediaKind => mediaItems.isEmpty ? null : mediaItems.first.kind;
+  String? get mediaValue =>
+      mediaItems.isEmpty ? null : mediaItems.first.firstValue;
 
   factory LessonActivityChoice.fromBackend(Map<String, dynamic> json) {
     final media = json['media'];
+    final mediaItems = media is List
+        ? media
+            .whereType<Map>()
+            .map((item) => LessonActivityMedia.fromBackend(
+                Map<String, dynamic>.from(item)))
+            .toList()
+        : media is Map
+            ? [
+                LessonActivityMedia.fromBackend(
+                    Map<String, dynamic>.from(media))
+              ]
+            : const <LessonActivityMedia>[];
     return LessonActivityChoice(
       id: json['id']?.toString() ?? json['label']?.toString() ?? 'choice',
       label: json['label']?.toString() ?? 'Choice',
       isCorrect: json['isCorrect'] == true,
-      mediaKind: media is Map ? media['kind']?.toString() : null,
-      mediaValue: media is Map ? media['value']?.toString() : null,
+      mediaItems: mediaItems,
     );
   }
 }
@@ -57,8 +101,7 @@ class LessonActivity {
   final List<String> expectedAnswers;
   final String? successFeedback;
   final String? retryFeedback;
-  final String? mediaKind;
-  final String? mediaValue;
+  final List<LessonActivityMedia> mediaItems;
   final List<LessonActivityChoice> choiceItems;
 
   const LessonActivity({
@@ -72,10 +115,13 @@ class LessonActivity {
     this.expectedAnswers = const [],
     this.successFeedback,
     this.retryFeedback,
-    this.mediaKind,
-    this.mediaValue,
+    this.mediaItems = const [],
     this.choiceItems = const [],
   });
+
+  String? get mediaKind => mediaItems.isEmpty ? null : mediaItems.first.kind;
+  String? get mediaValue =>
+      mediaItems.isEmpty ? null : mediaItems.first.firstValue;
 }
 
 class RewardBadge {
@@ -1325,9 +1371,13 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
               ))
           .toList() ??
       const <LessonActivityChoice>[];
-  final media = (json['media'] as List?)?.whereType<Map>().toList() ?? const [];
-  final mediaMap =
-      media.isEmpty ? null : Map<String, dynamic>.from(media.first);
+  final mediaItems = (json['media'] as List?)
+          ?.whereType<Map>()
+          .map((item) => LessonActivityMedia.fromBackend(
+                Map<String, dynamic>.from(item),
+              ))
+          .toList() ??
+      const <LessonActivityMedia>[];
   final prompt = json['prompt']?.toString() ?? 'Follow Mallam and answer.';
   final expectedResponse = expectedAnswers.isEmpty
       ? choices
@@ -1342,7 +1392,14 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
   final hint = json['hint']?.toString();
   final successFeedback = json['successFeedback']?.toString();
   final retryFeedback = json['retryFeedback']?.toString();
-  final focusText = mediaMap?['value']?.toString();
+  final focusMedia = mediaItems.cast<LessonActivityMedia?>().firstWhere(
+        (item) =>
+            item?.kind == 'text' ||
+            item?.kind == 'prompt-card' ||
+            item?.kind == 'letter-card',
+        orElse: () => mediaItems.isEmpty ? null : mediaItems.first,
+      );
+  final focusText = focusMedia?.firstValue;
   final supportText = hint ?? successFeedback ?? retryFeedback;
 
   return LessonStep(
@@ -1369,8 +1426,7 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
       expectedAnswers: expectedAnswers,
       successFeedback: successFeedback,
       retryFeedback: retryFeedback,
-      mediaKind: mediaMap?['kind']?.toString(),
-      mediaValue: focusText,
+      mediaItems: mediaItems,
       choiceItems: choices,
     ),
   );

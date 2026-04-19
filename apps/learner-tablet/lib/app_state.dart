@@ -3702,13 +3702,17 @@ class LumoAppState {
                                     'id': choice.id,
                                     'label': choice.label,
                                     'isCorrect': choice.isCorrect,
-                                    'media': choice.mediaKind == null &&
-                                            choice.mediaValue == null
+                                    'media': choice.mediaItems.isEmpty
                                         ? null
-                                        : {
-                                            'kind': choice.mediaKind,
-                                            'value': choice.mediaValue,
-                                          },
+                                        : choice.mediaItems
+                                            .map((media) => {
+                                                  'kind': media.kind,
+                                                  'value':
+                                                      media.values.length <= 1
+                                                          ? media.firstValue
+                                                          : media.values,
+                                                })
+                                            .toList(),
                                   })
                               .toList(),
                       'choiceEmoji': step.activity!.choiceEmoji,
@@ -3716,13 +3720,16 @@ class LumoAppState {
                       'expectedAnswers': step.activity!.expectedAnswers,
                       'successFeedback': step.activity!.successFeedback,
                       'retryFeedback': step.activity!.retryFeedback,
-                      'media': step.activity!.mediaKind == null &&
-                              step.activity!.mediaValue == null
+                      'media': step.activity!.mediaItems.isEmpty
                           ? null
-                          : {
-                              'kind': step.activity!.mediaKind,
-                              'value': step.activity!.mediaValue,
-                            },
+                          : step.activity!.mediaItems
+                              .map((media) => {
+                                    'kind': media.kind,
+                                    'value': media.values.length <= 1
+                                        ? media.firstValue
+                                        : media.values,
+                                  })
+                              .toList(),
                     },
                 })
             .toList(),

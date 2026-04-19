@@ -5385,8 +5385,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (path == null || path.isEmpty) return null;
 
     final duration = session?.latestLearnerAudioDuration;
-    final durationLabel =
-        duration == null ? 'Saved learner voice ready' : formatDuration(duration);
+    final durationLabel = duration == null
+        ? 'Saved learner voice ready'
+        : formatDuration(duration);
     return '$durationLabel clip • ${compactPath(path)}';
   }
 
@@ -5710,14 +5711,26 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
   }
 
+  LessonActivityMedia? _firstMediaOfKind(
+    List<LessonActivityMedia> mediaItems,
+    List<String> kinds,
+  ) {
+    for (final media in mediaItems) {
+      if (kinds.contains(media.kind.trim().toLowerCase()) &&
+          media.values.isNotEmpty) {
+        return media;
+      }
+    }
+    return null;
+  }
+
   Future<void> _playChoiceMedia(LessonActivityChoice choice) async {
-    final mediaKind = choice.mediaKind?.trim().toLowerCase();
-    final mediaValue = choice.mediaValue?.trim();
-    if (mediaValue == null || mediaValue.isEmpty) return;
+    final audioMedia = _firstMediaOfKind(choice.mediaItems, const ['audio']);
+    final audioValue = audioMedia?.firstValue?.trim();
 
     try {
-      if (mediaKind == 'audio') {
-        await learnerAudioPlaybackService.play(mediaValue);
+      if (audioValue != null && audioValue.isNotEmpty) {
+        await learnerAudioPlaybackService.play(audioValue);
         if (!mounted) return;
         setState(() {
           microphoneStatus = 'Mallam replayed the choice audio cue.';
@@ -5736,14 +5749,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   Widget _buildChoicePreview(
       LessonActivityChoice choice, String fallbackEmoji) {
-    final mediaKind = choice.mediaKind?.trim().toLowerCase();
-    final mediaValue = choice.mediaValue?.trim();
+    final imageMedia =
+        _firstMediaOfKind(choice.mediaItems, const ['image', 'photo']);
+    final imageValue = imageMedia?.firstValue?.trim();
+    final hasAudio =
+        _firstMediaOfKind(choice.mediaItems, const ['audio']) != null;
 
-    if (mediaKind == 'image' && mediaValue != null && mediaValue.isNotEmpty) {
+    if (imageValue != null && imageValue.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Image.network(
-          mediaValue,
+          imageValue,
           width: double.infinity,
           height: 96,
           fit: BoxFit.cover,
@@ -5774,7 +5790,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(fallbackEmoji, style: const TextStyle(fontSize: 40)),
-          if (mediaKind == 'audio') ...[
+          if (hasAudio) ...[
             const SizedBox(height: 6),
             const Icon(
               Icons.volume_up_rounded,
@@ -5783,6 +5799,81 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildSharedMediaGallery(LessonActivity activity) {
+    if (activity.mediaItems.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: activity.mediaItems.map((media) {
+        final kind = media.kind.trim().toLowerCase();
+        final firstValue = media.firstValue;
+
+        if ((kind == 'image' || kind == 'photo') && firstValue != null) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.network(
+              firstValue,
+              width: 140,
+              height: 110,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 140,
+                height: 110,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Center(
+                  child: Icon(Icons.image_not_supported_rounded),
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (kind == 'audio' && firstValue != null) {
+          return FilledButton.tonalIcon(
+            onPressed: () => learnerAudioPlaybackService.play(firstValue),
+            icon: const Icon(Icons.play_arrow_rounded),
+            label:
+                Text(media.values.length > 1 ? 'Play audio set' : 'Play audio'),
+          );
+        }
+
+        return Container(
+          constraints: const BoxConstraints(minWidth: 120, maxWidth: 240),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                media.kind,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                media.values.join(', '),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -5847,6 +5938,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 ),
               ],
             ),
+            if (activity.mediaItems.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSharedMediaGallery(activity),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -5901,6 +5996,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 style: const TextStyle(color: Color(0xFF475569)),
               ),
             ],
+            if (activity.mediaItems.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSharedMediaGallery(activity),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 12,
@@ -5934,10 +6033,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
-                        if (choiceItem.mediaKind?.trim().toLowerCase() ==
-                                'audio' &&
-                            (choiceItem.mediaValue?.trim().isNotEmpty ??
-                                false)) ...[
+                        if (_firstMediaOfKind(
+                              choiceItem.mediaItems,
+                              const ['audio'],
+                            ) !=
+                            null) ...[
                           const SizedBox(height: 10),
                           FilledButton.tonalIcon(
                             onPressed: () => _playChoiceMedia(choiceItem),
@@ -5981,6 +6081,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   ),
                 ),
               ),
+            ],
+            if (activity.mediaItems.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSharedMediaGallery(activity),
             ],
             if (supportText != null) ...[
               const SizedBox(height: 8),
@@ -7373,7 +7477,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                               999,
                                                             ),
                                                             border: Border.all(
-                                                              color: const Color(
+                                                              color:
+                                                                  const Color(
                                                                 0xFFFDE68A,
                                                               ),
                                                             ),
@@ -7434,12 +7539,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                           ),
                                                         ),
                                                       FilledButton.icon(
-                                                        onPressed: responseController
-                                                                .text
-                                                                .trim()
-                                                                .isEmpty
-                                                            ? null
-                                                            : _confirmTranscriptAndAdvance,
+                                                        onPressed:
+                                                            responseController
+                                                                    .text
+                                                                    .trim()
+                                                                    .isEmpty
+                                                                ? null
+                                                                : _confirmTranscriptAndAdvance,
                                                         icon: const Icon(
                                                           Icons
                                                               .check_circle_rounded,
