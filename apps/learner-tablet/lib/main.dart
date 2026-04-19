@@ -4657,7 +4657,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   int _consecutiveTranscriptMisses = 0;
   bool _autoPausedByTranscriptFailure = false;
   bool _transcriptStrategyExpanded = false;
-  bool _facilitatorDetailsExpanded = false;
   String? _savedAudioPlaybackError;
   AudioPermissionState _micPermissionState = AudioPermissionState.unknown;
 
