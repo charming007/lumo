@@ -108,6 +108,7 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
+  const assetListingAvailable = assetsResult.status === 'fulfilled';
   const storageStatus = storageStatusResult.status === 'fulfilled' ? storageStatusResult.value : null;
   const configAudit = configAuditResult.status === 'fulfilled' ? configAuditResult.value : null;
   const failedSources = [
@@ -124,6 +125,23 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const assetUploadsReady = configAudit?.assetUploads?.ready ?? null;
   const assetUploadBlocker = configAudit?.assetUploads?.blocker ?? null;
   const assetUploadRoot = configAudit?.assetUploads?.root ?? storageStatus?.path ?? null;
+  const assetListingFailureDetail = assetsResult.status === 'rejected'
+    ? (assetsResult.reason instanceof Error && assetsResult.reason.message.trim()
+      ? assetsResult.reason.message.trim()
+      : 'The live asset registry API rejected the listing request.')
+    : null;
+  const assetFeedFailed = assetsResult.status === 'rejected';
+  const storageUploadsBlocked = assetUploadsReady === false;
+  const degradedActionLabel = storageUploadsBlocked
+    ? 'Use Register external asset for CDN/runtime URLs while upload storage is fixed'
+    : assetFeedFailed
+      ? 'Check the API logs and config audit, then retry the asset registry feed'
+      : 'Core curriculum scope is missing — restore subject/module/lesson feeds first';
+  const degradedActionDetail = storageUploadsBlocked
+    ? `${assetUploadBlocker ?? 'Upload storage is unavailable.'}${assetUploadRoot ? ` Current root: ${assetUploadRoot}.` : ''}`
+    : assetFeedFailed
+      ? 'The registry list itself is down, so the safest next move is to inspect the API/config audit instead of trusting an empty table.'
+      : 'Without live subject, module, and lesson scope, any asset operation risks creating orphaned media records.';
 
   if (missingCoreLibraryFeeds.length) {
     return (
@@ -171,8 +189,10 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     );
   }
 
-  const counts = statusCounts(assets);
-  const previewableCount = assets.filter((asset) => Boolean(asset.fileUrl) && ['image', 'illustration', 'audio'].includes(asset.kind)).length;
+  const counts = assetListingAvailable ? statusCounts(assets) : {};
+  const previewableCount = assetListingAvailable
+    ? assets.filter((asset) => Boolean(asset.fileUrl) && ['image', 'illustration', 'audio'].includes(asset.kind)).length
+    : null;
 
   return <PageShell
     title="Asset Library"
@@ -185,17 +205,37 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   >
     <FeedbackBanner message={query?.message} />
     {failedSources.length ? (
-      <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, display: 'grid', gap: 8 }}>
-        <div>
-          Asset library is running in degraded mode: {failedSources.join(', ')} feed{failedSources.length === 1 ? ' is' : 's are'} unavailable.
-        </div>
-        {assetsResult.status === 'rejected' ? (
-          <div style={{ color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
-            Existing asset rows could not be loaded from the live API. {assetUploadsReady === false && assetUploadBlocker
-              ? <>Storage-backed uploads are also blocked: {assetUploadBlocker}{assetUploadRoot ? <> <code style={{ fontWeight: 900 }}>{assetUploadRoot}</code></> : null}</>
-              : 'The asset registry API itself needs attention — check the API logs and admin config audit before trusting this empty state.'}
+      <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <div>
+            Asset library is running in degraded mode: {failedSources.join(', ')} feed{failedSources.length === 1 ? ' is' : 's are'} unavailable.
           </div>
-        ) : null}
+          <div style={{ color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
+            Next best move: {degradedActionLabel}.
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+          <div style={{ padding: 14, borderRadius: 14, background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(251,146,60,0.28)' }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9a3412' }}>Do this first</div>
+            <div style={{ marginTop: 8, color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>{degradedActionDetail}</div>
+          </div>
+          <div style={{ padding: 14, borderRadius: 14, background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(251,146,60,0.28)' }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9a3412' }}>Operator fallback</div>
+            <div style={{ marginTop: 8, color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
+              {storageUploadsBlocked
+                ? 'Skip storage-backed upload attempts for now. Register the external runtime URL or object-store key so lesson authoring can keep moving.'
+                : assetFeedFailed
+                  ? 'Do not trust an empty asset table as proof the library is clean. Treat it as a registry outage until the feed comes back.'
+                  : 'Restore curriculum scope first, then come back here. Asset actions without real lesson/module context are how orphaned files happen.'}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link href="/settings" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ffffff', color: '#9a3412', border: '1px solid #fdba74' }}>Open settings + config audit</Link>
+          <Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#FEF3C7', color: '#92400E', border: '1px solid #F59E0B' }}>Open content board</Link>
+        </div>
       </div>
     ) : null}
     <section style={{ display: 'grid', gap: 18 }}>

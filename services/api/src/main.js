@@ -62,6 +62,16 @@ function describeAssetUploadFsError(error) {
   return `Asset upload storage is unavailable at ${assetUploadRoot}. Verify filesystem access or set LUMO_ASSET_UPLOAD_DIR to a writable directory.${detail}`;
 }
 
+function resolveAbsoluteHttpUrl(value) {
+  if (!value) return null;
+  try {
+    const parsed = new URL(String(value).trim());
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildAssetFileUrl(req, storagePath) {
   const normalized = String(storagePath || '').replace(/\\/g, '/');
   const marker = '/data/uploads/';
@@ -70,8 +80,13 @@ function buildAssetFileUrl(req, storagePath) {
   const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
   const forwardedHost = String(req.get('x-forwarded-host') || '').split(',')[0].trim();
   const requestOrigin = `${forwardedProto || req.protocol}://${forwardedHost || req.get('host')}`;
-  const origin = publicBase || requestOrigin;
-  return new URL(`/media/${relative}`, origin).toString();
+  const canonicalOrigin = resolveAbsoluteHttpUrl(publicBase)?.toString() || resolveAbsoluteHttpUrl(requestOrigin)?.toString();
+
+  if (!canonicalOrigin) {
+    return `/media/${relative}`;
+  }
+
+  return new URL(`/media/${relative}`, canonicalOrigin).toString();
 }
 
 const ASSET_KIND_MIME_ALLOWLIST = {
@@ -151,6 +166,24 @@ function ensureUploadPathIsManaged(storagePath) {
   const resolved = path.resolve(String(storagePath || ''));
   const relative = path.relative(assetUploadRoot, resolved);
   return relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function assertManagedAssetStorageAvailable(storagePath, source = 'asset registration') {
+  if (!storagePath || !ensureUploadPathIsManaged(storagePath)) return;
+
+  const runtimeStatus = getAssetUploadRuntimeStatus();
+  if (runtimeStatus.ready) return;
+
+  const error = new Error(`${source} cannot point at the managed upload root right now: ${runtimeStatus.blocker} Register a runtime URL or external object-store key until upload storage is repaired.`);
+  error.statusCode = 503;
+  error.details = {
+    storage: {
+      root: runtimeStatus.root,
+      ready: false,
+      blocker: runtimeStatus.blocker,
+    },
+  };
+  throw error;
 }
 
 function buildPresentedAsset(req, item) {
@@ -2234,6 +2267,7 @@ app.post('/api/v1/assets', ...protectedMutation(['admin']), (req, res, next) => 
       status: req.body.status || 'ready',
     };
     ensureAssetScopeHierarchy(payload);
+    assertManagedAssetStorageAvailable(payload.storagePath, 'Asset registration');
     assertAssetMimeAllowed(payload.kind, payload.mimeType);
     validators.validateLessonAsset(payload);
     const created = store.createLessonAsset({
@@ -2261,6 +2295,7 @@ app.patch('/api/v1/assets/:id', ...protectedMutation(['admin']), (req, res, next
     };
     const nextAsset = { ...existing, ...payload };
     ensureAssetScopeHierarchy(nextAsset);
+    assertManagedAssetStorageAvailable(nextAsset.storagePath, 'Asset update');
     assertAssetMimeAllowed(nextAsset.kind, nextAsset.mimeType);
     validators.validateLessonAsset(payload, { partial: true });
     const updated = store.updateLessonAsset(req.params.id, payload);
