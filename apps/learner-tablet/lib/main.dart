@@ -5711,12 +5711,44 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
   }
 
+  String _normalizeLearnerAssetKind(String? value) {
+    return (value ?? '').trim().toLowerCase();
+  }
+
+  List<String> _expandLearnerAssetKinds(List<String> kinds) {
+    final expanded = <String>{};
+    for (final kind in kinds) {
+      final normalized = _normalizeLearnerAssetKind(kind);
+      if (normalized.isEmpty) continue;
+      expanded.add(normalized);
+      switch (normalized) {
+        case 'illustration':
+          expanded.add('image');
+          break;
+        case 'prompt-card':
+        case 'story-card':
+        case 'trace-card':
+        case 'letter-card':
+        case 'tile':
+        case 'word-card':
+        case 'hint':
+        case 'transcript':
+          expanded.add('text');
+          break;
+        default:
+          break;
+      }
+    }
+    return expanded.toList(growable: false);
+  }
+
   LessonActivityMedia? _firstMediaOfKind(
     List<LessonActivityMedia> mediaItems,
     List<String> kinds,
   ) {
+    final expandedKinds = _expandLearnerAssetKinds(kinds);
     for (final media in mediaItems) {
-      if (kinds.contains(media.kind.trim().toLowerCase()) &&
+      if (expandedKinds.contains(_normalizeLearnerAssetKind(media.kind)) &&
           media.values.isNotEmpty) {
         return media;
       }
@@ -5754,6 +5786,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final imageValue = imageMedia?.firstValue?.trim();
     final hasAudio =
         _firstMediaOfKind(choice.mediaItems, const ['audio']) != null;
+    final textMedia = _firstMediaOfKind(
+      choice.mediaItems,
+      const ['letter-card', 'trace-card', 'tile', 'word-card', 'prompt-card', 'story-card', 'hint', 'transcript'],
+    );
+    final textValue = textMedia?.firstValue?.trim();
+    final textKind = _normalizeLearnerAssetKind(textMedia?.kind);
 
     if (imageValue != null && imageValue.isNotEmpty) {
       return ClipRRect(
@@ -5775,6 +5813,49 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               style: const TextStyle(fontSize: 40),
             ),
           ),
+        ),
+      );
+    }
+
+    if (textValue != null && textValue.isNotEmpty) {
+      final accentColor = switch (textKind) {
+        'letter-card' || 'trace-card' => const Color(0xFF6D28D9),
+        'tile' || 'word-card' => const Color(0xFF7C3AED),
+        'hint' || 'transcript' => const Color(0xFF9A3412),
+        _ => const Color(0xFF1D4ED8),
+      };
+
+      return Container(
+        height: 96,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accentColor.withValues(alpha: 0.24)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              textValue,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: textKind == 'letter-card' ? 30 : 18,
+                fontWeight: FontWeight.w800,
+                color: accentColor,
+              ),
+            ),
+            if (hasAudio) ...[
+              const SizedBox(height: 6),
+              const Icon(
+                Icons.volume_up_rounded,
+                color: Color(0xFF4338CA),
+              ),
+            ],
+          ],
         ),
       );
     }
@@ -5809,10 +5890,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       spacing: 10,
       runSpacing: 10,
       children: activity.mediaItems.map((media) {
-        final kind = media.kind.trim().toLowerCase();
-        final firstValue = media.firstValue;
+        final kind = _normalizeLearnerAssetKind(media.kind);
+        final firstValue = media.firstValue?.trim();
+        final hasValue = firstValue != null && firstValue.isNotEmpty;
 
-        if ((kind == 'image' || kind == 'photo') && firstValue != null) {
+        if ((kind == 'image' || kind == 'photo' || kind == 'illustration') &&
+            hasValue) {
           return ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: Image.network(
@@ -5836,7 +5919,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           );
         }
 
-        if (kind == 'audio' && firstValue != null) {
+        if (kind == 'audio' && hasValue) {
           return FilledButton.tonalIcon(
             onPressed: () => learnerAudioPlaybackService.play(firstValue),
             icon: const Icon(Icons.play_arrow_rounded),
@@ -5845,30 +5928,75 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           );
         }
 
+        final accentColor = switch (kind) {
+          'letter-card' || 'trace-card' => const Color(0xFF6D28D9),
+          'tile' || 'word-card' => const Color(0xFF7C3AED),
+          'hint' || 'transcript' => const Color(0xFF9A3412),
+          _ => const Color(0xFF1D4ED8),
+        };
+        final title = switch (kind) {
+          'prompt-card' => 'Prompt card',
+          'story-card' => 'Story card',
+          'trace-card' => 'Trace card',
+          'letter-card' => 'Letter card',
+          'tile' => 'Tile',
+          'word-card' => 'Word card',
+          'hint' => 'Hint',
+          'transcript' => 'Transcript',
+          'illustration' => 'Illustration',
+          _ => media.kind,
+        };
+        final readinessText = hasValue
+            ? switch (kind) {
+                'prompt-card' || 'story-card' => 'Learner sees this card text in runtime.',
+                'trace-card' => 'Learner sees a tracing support card.',
+                'letter-card' => 'Learner sees the letter anchor immediately.',
+                'tile' || 'word-card' => 'Learner sees this as a build/read card.',
+                'hint' => 'Learner sees extra support text.',
+                'transcript' => 'Learner sees the script text clearly.',
+                _ => 'Learner runtime keeps this asset visible.',
+              }
+            : 'Missing value — this asset will not render yet.';
+
         return Container(
-          constraints: const BoxConstraints(minWidth: 120, maxWidth: 240),
+          constraints: const BoxConstraints(minWidth: 140, maxWidth: 240),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
+            color: hasValue
+                ? accentColor.withValues(alpha: 0.08)
+                : const Color(0xFFFFF7ED),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(
+              color: hasValue
+                  ? accentColor.withValues(alpha: 0.22)
+                  : const Color(0xFFFED7AA),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                media.kind,
-                style: const TextStyle(
+                title,
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF475569),
+                  color: hasValue ? accentColor : const Color(0xFF9A3412),
                 ),
               ),
               const SizedBox(height: 6),
               Text(
-                media.values.join(', '),
+                hasValue ? firstValue : 'Value missing',
                 style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                readinessText,
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 12,
+                  height: 1.35,
+                ),
               ),
             ],
           ),
