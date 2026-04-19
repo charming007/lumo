@@ -420,6 +420,17 @@ class LumoAppState {
     isBootstrapping = true;
     backendError = null;
 
+    final invalidProductionBaseUrlReason =
+        kReleaseBuild ? _apiClient.invalidProductionBaseUrlReason : null;
+    if (invalidProductionBaseUrlReason != null) {
+      usingFallbackData = true;
+      backendError = invalidProductionBaseUrlReason;
+      deploymentBlockerReason = invalidProductionBaseUrlReason;
+      isBootstrapping = false;
+      persistStateSoon();
+      return;
+    }
+
     try {
       final data = await _apiClient.fetchBootstrap();
       learners
@@ -553,12 +564,13 @@ class LumoAppState {
       final bundled = await _bundledContentLoader.load();
       if (bundled.isEmpty) return;
 
+      final existingModules = List<LearningModule>.from(modules);
       modules
         ..clear()
         ..addAll(
           _dedupeModules(
             _sanitizeModules([
-              ...modules,
+              ...existingModules,
               ...bundled.modules,
             ]),
           ),
