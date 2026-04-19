@@ -9,6 +9,7 @@ const isDev = process.env.NODE_ENV !== 'production' && process.env.npm_lifecycle
 loadEnvConfig(projectDir, isDev);
 
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+const defaultProductionApiBase = 'https://lumo-api-production-303a.up.railway.app';
 const lifecycleEvent = process.env.npm_lifecycle_event;
 const isHostedDeployment =
   process.env.VERCEL === '1' ||
@@ -23,10 +24,6 @@ const isBuildCommand = lifecycleEvent === 'build';
 const shouldBlockBuild = isHostedDeployment || isProductionDeployment || isBuildCommand;
 
 function invalidProductionApiReason(value) {
-  if (!value) {
-    return 'NEXT_PUBLIC_API_BASE_URL is missing, so live dashboard/admin data will stay intentionally blocked in the shipped UI.';
-  }
-
   try {
     const parsed = new URL(value);
     const hostname = parsed.hostname.toLowerCase();
@@ -52,7 +49,8 @@ function invalidProductionApiReason(value) {
   }
 }
 
-const invalidReason = invalidProductionApiReason(configuredApiBase);
+const effectiveApiBase = configuredApiBase || defaultProductionApiBase;
+const invalidReason = invalidProductionApiReason(effectiveApiBase);
 
 if (invalidReason) {
   const lines = [
@@ -60,7 +58,7 @@ if (invalidReason) {
     shouldBlockBuild ? 'Lumo LMS deployment build blocker.' : 'Lumo LMS build warning.',
     invalidReason,
     shouldBlockBuild
-      ? 'Hosted builds must stop here instead of deploying a dashboard that only renders blocker cards or silently points at a fake backend.'
+      ? 'Hosted builds must stop here instead of deploying a dashboard that points at an unsafe backend.'
       : 'Set it in Vercel or your build environment before shipping to production.',
     '',
   ];

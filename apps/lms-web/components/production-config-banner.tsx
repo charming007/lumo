@@ -33,15 +33,9 @@ export function ProductionConfigBanner() {
     <section style={shellStyle} aria-label="Production configuration warning">
       <div style={{ display: 'grid', gap: 6 }}>
         <strong style={{ color: 'white', fontSize: 18 }}>
-          {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
-            ? 'Deployment blocker: NEXT_PUBLIC_API_BASE_URL is missing in production.'
-            : 'Deployment blocker: NEXT_PUBLIC_API_BASE_URL is configured, but it is not safe to ship.'}
+          Deployment blocker: NEXT_PUBLIC_API_BASE_URL is configured, but it is not safe to ship.
         </strong>
-        <span style={{ lineHeight: 1.7 }}>
-          {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
-            ? 'This LMS is intentionally refusing to fake a backend URL. Until the env var is set, live API-backed screens across dashboard, content, reports, and the rest of the app can only render degraded fallback states.'
-            : API_BASE_DIAGNOSTIC.blockerDetail}
-        </span>
+        <span style={{ lineHeight: 1.7 }}>{API_BASE_DIAGNOSTIC.blockerDetail}</span>
       </div>
 
       <div style={{ display: 'grid', gap: 8 }}>

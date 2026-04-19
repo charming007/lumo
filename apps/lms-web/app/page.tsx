@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 import { fetchAssignments, fetchDashboardInsights, fetchDashboardSummary, fetchMallams, fetchWorkboard } from '../lib/api';
-import { API_BASE_DIAGNOSTIC } from '../lib/config';
+import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, DashboardInsight, DashboardSummary, Mallam, WorkboardItem } from '../lib/types';
 
@@ -84,6 +84,32 @@ function metricDisplay(value: string, available: boolean) {
   return available ? value : '—';
 }
 
+function dashboardApiSourceDetail() {
+  if (API_BASE_SOURCE === 'default-production-fallback') {
+    return {
+      label: 'Default production API',
+      note: `Dashboard is using the fallback production host ${API_BASE_DIAGNOSTIC.expectedFormat} because NEXT_PUBLIC_API_BASE_URL is unset. Good enough for this pilot deploy, but still worth verifying deliberately.`,
+      tone: { background: '#DBEAFE', border: '1px solid #93C5FD', text: '#1D4ED8' },
+    };
+  }
+
+  if (API_BASE_SOURCE === 'env') {
+    return {
+      label: 'Explicit production API',
+      note: API_BASE_DIAGNOSTIC.configuredApiBase
+        ? `Dashboard is pointed at ${API_BASE_DIAGNOSTIC.configuredApiBase}. This is the host deployment review is actually validating.`
+        : 'Dashboard is using an explicitly configured production API host.',
+      tone: { background: '#DCFCE7', border: '1px solid #86EFAC', text: '#166534' },
+    };
+  }
+
+  return {
+    label: 'Local development API',
+    note: 'Dashboard is using the local development API fallback. Fine for local work, not a deployment signal.',
+    tone: { background: '#E5E7EB', border: '1px solid #CBD5E1', text: '#334155' },
+  };
+}
+
 export default async function HomePage() {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
@@ -93,17 +119,7 @@ export default async function HomePage() {
         blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: dashboard API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
-              ? (
-                <>
-                  This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the main admin landing page cannot safely show live learner counts, workboard priority, mallam coverage, or assignment activity. Blocking the dashboard is better than shipping a polished lie.
-                </>
-              )
-              : (
-                <>
-                  <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would let a broken deployment masquerade as a live admin dashboard.
-                </>
-              )}
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would let a broken deployment masquerade as a live admin dashboard.
           </>
         )}
         whyBlocked={[
@@ -174,6 +190,7 @@ export default async function HomePage() {
   const priorityQueue = [...watchLearners, ...readyLearners];
   const activeMallams = mallams.filter((mallam) => mallam.status === 'active');
   const hasCriticalDashboardGap = criticalDashboardFailures.length > 0;
+  const apiSourceDetail = dashboardApiSourceDetail();
   const dueSoonAssignments = assignments
     .filter((assignment) => assignment.status !== 'completed')
     .slice()
@@ -271,7 +288,7 @@ export default async function HomePage() {
       ) : null}
 
       <section style={{ marginBottom: 20 }}>
-        <div style={{ padding: '18px 20px', borderRadius: 20, background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', border: '1px solid #e2e8f0' }}>
+        <div style={{ padding: '18px 20px', borderRadius: 20, background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', border: '1px solid #e2e8f0', display: 'grid', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ display: 'grid', gap: 6 }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 800 }}>Command center</div>
@@ -289,6 +306,14 @@ export default async function HomePage() {
               tone={hasCriticalDashboardGap ? '#FEE2E2' : failedSources.length ? '#FEF3C7' : '#DCFCE7'}
               text={hasCriticalDashboardGap ? '#991B1B' : failedSources.length ? '#92400E' : '#166534'}
             />
+          </div>
+
+          <div style={{ padding: '14px 16px', borderRadius: 18, ...apiSourceDetail.tone, display: 'grid', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <strong style={{ color: apiSourceDetail.tone.text }}>Backend trust</strong>
+              <Pill label={apiSourceDetail.label} tone="#FFFFFF" text={apiSourceDetail.tone.text} />
+            </div>
+            <div style={{ color: apiSourceDetail.tone.text, lineHeight: 1.6 }}>{apiSourceDetail.note}</div>
           </div>
         </div>
       </section>

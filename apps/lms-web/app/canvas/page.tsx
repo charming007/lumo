@@ -296,17 +296,7 @@ export default async function CurriculumCanvasPage({ searchParams }: { searchPar
         blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: curriculum canvas API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
-              ? (
-                <>
-                  This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the curriculum graph cannot honestly render subjects, strands, modules, lesson readiness, or assessment coverage. A rescue lane here would still look deployable while the actual LMS graph is disconnected.
-                </>
-              )
-              : (
-                <>
-                  <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would let a broken curriculum graph masquerade as a usable release surface.
-                </>
-              )}
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would let a broken curriculum graph masquerade as a usable release surface.
           </>
         )}
         whyBlocked={[

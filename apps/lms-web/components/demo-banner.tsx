@@ -7,10 +7,17 @@ type Props = {
 };
 
 function bannerTone(apiSource: ApiBaseSource) {
-  if (apiSource === 'missing-production-env' || apiSource === 'invalid-production-env') {
+  if (apiSource === 'invalid-production-env') {
     return {
       background: '#7c2d12',
       detail: '#fed7aa',
+    };
+  }
+
+  if (apiSource === 'default-production-fallback') {
+    return {
+      background: '#1d4ed8',
+      detail: '#dbeafe',
     };
   }
 
@@ -21,8 +28,8 @@ function bannerTone(apiSource: ApiBaseSource) {
 }
 
 function describeApiSource(apiSource: ApiBaseSource) {
-  if (apiSource === 'missing-production-env') {
-    return 'Production deploy is missing NEXT_PUBLIC_API_BASE_URL. The LMS is still up so operators can see explicit blocker states, but live API-backed screens stay intentionally degraded until the env var is fixed.';
+  if (apiSource === 'default-production-fallback') {
+    return 'Production deploy is using the default Railway API host because NEXT_PUBLIC_API_BASE_URL is unset. That fallback is expected for this pilot build, but set the env var if you want production to point somewhere else explicitly.';
   }
 
   if (apiSource === 'invalid-production-env') {

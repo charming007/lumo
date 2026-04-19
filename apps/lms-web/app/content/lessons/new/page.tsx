@@ -43,17 +43,7 @@ export default async function LessonStudioCreatePage({
         blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson studio API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
-              ? (
-                <>
-                  This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so lesson authoring cannot safely load subjects, modules, or duplicate sources. Blocking this route is better than shipping a lesson studio that faceplants when an operator tries to create content.
-                </>
-              )
-              : (
-                <>
-                  <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would make lesson authoring look live while it is pointed at a dead or unsafe backend.
-                </>
-              )}
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would make lesson authoring look live while it is pointed at a dead or unsafe backend.
           </>
         )}
         whyBlocked={[

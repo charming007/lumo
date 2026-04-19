@@ -44,6 +44,6 @@ If the API is down, key pages now stay usable in degraded mode and call out whic
 
 Deploy to Vercel with root directory set to `apps/lms-web`.
 
-`NEXT_PUBLIC_API_BASE_URL` is mandatory for any hosted deployment.
+Hosted deployments now default to `https://lumo-api-production-303a.up.railway.app` when `NEXT_PUBLIC_API_BASE_URL` is omitted.
 
-Hosted and production builds now fail fast if it is missing, because a dashboard/admin shell that boots without its live API is not a valid release. Set the env var in Vercel (or your build environment) before deploying.
+Set `NEXT_PUBLIC_API_BASE_URL` only when you need to override that production API. Hosted and production builds still fail fast if the value is malformed, non-HTTPS, placeholder, or local-only, because a dashboard/admin shell pointed at a bad backend is still a bad release.

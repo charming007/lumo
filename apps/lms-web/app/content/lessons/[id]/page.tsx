@@ -39,17 +39,7 @@ export default async function LessonStudioEditPage({
         blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson editor API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            {API_BASE_DIAGNOSTIC.source === 'missing-production-env'
-              ? (
-                <>
-                  This build does not have <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>, so the lesson editor cannot safely load the lesson, module context, or assessment links. Blocking here is better than throwing operators into a broken editor route.
-                </>
-              )
-              : (
-                <>
-                  <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would make lesson editing look available while the route is pointed at a dead or unsafe backend.
-                </>
-              )}
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would make lesson editing look available while the route is pointed at a dead or unsafe backend.
           </>
         )}
         whyBlocked={[
