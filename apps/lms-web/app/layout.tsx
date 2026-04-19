@@ -22,11 +22,13 @@ const FALLBACK_META: MetaResponse = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const meta = await fetchMeta().catch(() => FALLBACK_META);
 
+  const seedCount = Object.values(meta.seedSummary ?? {}).reduce((sum, count) => sum + count, 0);
+
   return (
     <html lang="en">
       <body style={{ margin: 0, fontFamily: 'Inter, Arial, sans-serif', background: '#f5f7fb' }}>
         <AppShell>
-          <DemoBanner role={meta.actor.role} mode={meta.mode} apiSource={API_BASE_SOURCE} />
+          <DemoBanner role={meta.actor.role} mode={meta.mode} seedCount={seedCount} apiSource={API_BASE_SOURCE} />
           <ProductionConfigBanner />
           {children}
         </AppShell>

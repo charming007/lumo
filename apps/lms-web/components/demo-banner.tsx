@@ -3,6 +3,7 @@ import type { ApiBaseSource } from '../lib/config';
 type Props = {
   role: string;
   mode: string;
+  seedCount?: number;
   apiSource?: ApiBaseSource;
 };
 
@@ -29,7 +30,7 @@ function bannerTone(apiSource: ApiBaseSource) {
 
 function describeApiSource(apiSource: ApiBaseSource) {
   if (apiSource === 'default-production-fallback') {
-    return 'Production deploy is using the default Railway API host because NEXT_PUBLIC_API_BASE_URL is unset. That fallback is expected for this pilot build, but set the env var if you want production to point somewhere else explicitly.';
+    return 'Backend is reaching the default Railway production host because NEXT_PUBLIC_API_BASE_URL is unset. That is live wiring, but it should still be an explicit deployment choice instead of mystery config.';
   }
 
   if (apiSource === 'invalid-production-env') {
@@ -43,9 +44,23 @@ function describeApiSource(apiSource: ApiBaseSource) {
   return null;
 }
 
-export function DemoBanner({ role, mode, apiSource = 'env' }: Props) {
+function describeDataset(mode: string, seedCount: number) {
+  const normalizedMode = mode.trim().toLowerCase();
+  if (seedCount > 0) {
+    return `Catalog is currently seeded (${seedCount} seeded pack${seedCount === 1 ? '' : 's'} visible). Treat that as sample content state, not proof that every operational metric is fake.`;
+  }
+
+  if (normalizedMode === 'offline' || normalizedMode === 'degraded') {
+    return `Runtime mode is ${mode}. Reads may still be partially degraded even if the backend target is configured.`;
+  }
+
+  return null;
+}
+
+export function DemoBanner({ role, mode, seedCount = 0, apiSource = 'env' }: Props) {
   const tone = bannerTone(apiSource);
   const detail = describeApiSource(apiSource);
+  const datasetDetail = describeDataset(mode, seedCount);
 
   return (
     <div
@@ -63,10 +78,15 @@ export function DemoBanner({ role, mode, apiSource = 'env' }: Props) {
       }}
     >
       <div style={{ minWidth: 0, flex: '1 1 320px' }}>
-        <strong>Lumo pilot demo</strong> — running in {mode} mode
+        <strong>Lumo operator shell</strong> — runtime mode: {mode}
         {detail ? (
           <div style={{ marginTop: 4, fontSize: 13, color: tone.detail, lineHeight: 1.5 }}>
             {detail}
+          </div>
+        ) : null}
+        {datasetDetail ? (
+          <div style={{ marginTop: 4, fontSize: 13, color: tone.detail, lineHeight: 1.5 }}>
+            {datasetDetail}
           </div>
         ) : null}
       </div>

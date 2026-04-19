@@ -194,6 +194,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const averageXp = leaderboard.length ? Math.round(leaderboard.reduce((sum, item) => sum + item.totalXp, 0) / leaderboard.length) : 0;
   const totalBadgesUnlocked = leaderboard.reduce((sum, item) => sum + item.badgesUnlocked, 0);
   const seedEntries = Object.entries(meta.seedSummary ?? {});
+  const seedCount = seedEntries.reduce((sum, [, count]) => sum + count, 0);
   const storagePersistent = storageStatus?.db?.persistent ?? storageStatus?.persistent ?? backups.status?.db?.persistent ?? backups.status?.persistent ?? meta.store?.persistent ?? false;
   const storageMode = storageStatus?.db?.mode ?? storageStatus?.mode ?? backups.status?.db?.mode ?? backups.status?.mode ?? meta.store?.mode ?? meta.mode;
   const storageDriver = storageStatus?.db?.driver ?? backups.status?.db?.driver ?? meta.store?.driver ?? 'unknown';
@@ -202,19 +203,24 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const integrityRewardRequests = integrity.summary.rewardRequestCount ?? integrity.summary.rewardRequests ?? 0;
   const issuePreview = integrity.issues.slice(0, 6);
   const visibleBackups = backups.items.length ? backups.items : (storageStatus?.backups ?? []);
+  const seededCatalogVisible = seedCount > 0;
   const trustState = failedSources.length
     ? 'Operator review required'
     : integrity.summary.issueCount
       ? 'Integrity issues need cleanup'
       : storagePersistent
-        ? 'Production-safe posture visible'
+        ? seededCatalogVisible
+          ? 'Live backend + seeded catalog'
+          : 'Live backend posture visible'
         : 'Volatile mode — do not fake confidence';
   const trustDetail = failedSources.length
     ? `Settings is missing ${failedSources.join(', ')} data, so treat this surface as advisory until the feeds recover.`
     : integrity.summary.issueCount
       ? `${integrity.summary.issueCount} integrity issue${integrity.summary.issueCount === 1 ? '' : 's'} are visible. Fix those before calling the stack healthy.`
       : storagePersistent
-        ? `Storage is running in ${String(storageMode || 'unknown')} mode with persistent backing and ${visibleBackups.length} visible backup${visibleBackups.length === 1 ? '' : 's'}.`
+        ? seededCatalogVisible
+          ? `Backend storage is live in ${String(storageMode || 'unknown')} mode with persistent backing and ${visibleBackups.length} visible backup${visibleBackups.length === 1 ? '' : 's'}. The curriculum/admin dataset still includes ${seedCount} seeded pack${seedCount === 1 ? '' : 's'}, so do not describe this as fully live content.`
+          : `Backend storage is live in ${String(storageMode || 'unknown')} mode with persistent backing and ${visibleBackups.length} visible backup${visibleBackups.length === 1 ? '' : 's'}.`
         : 'This environment is still volatile. Nice-looking controls do not magically make ephemeral storage safe.';
   const settingsDateStamp = new Date().toISOString().slice(0, 10);
   const settingsShareText = [
@@ -282,7 +288,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
             <div style={{ ...responsiveGrid(180), gap: 12 }}>
               <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
                 <div style={{ color: '#64748b', marginBottom: 6 }}>Persistence</div>
-                <strong>{storagePersistent ? 'Durable backing live' : 'Volatile / demo-safe only'}</strong>
+                <strong>{storagePersistent ? 'Durable backing live' : 'Volatile only'}</strong>
               </div>
               <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
                 <div style={{ color: '#64748b', marginBottom: 6 }}>Integrity load</div>
