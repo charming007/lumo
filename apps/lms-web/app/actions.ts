@@ -103,6 +103,33 @@ function rethrowRedirectError(error: unknown) {
   }
 }
 
+const LMS_ASSET_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+const LMS_ASSET_KIND_UPLOAD_ALLOWLIST: Record<string, string[]> = {
+  image: ['image/jpeg', 'image/png', 'image/webp'],
+  illustration: ['image/jpeg', 'image/png', 'image/webp'],
+  audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/aac'],
+  'prompt-card': ['text/plain', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
+  'story-card': ['text/plain', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
+  'trace-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  'letter-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  tile: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  'word-card': ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  hint: ['text/plain', 'application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
+  transcript: ['text/plain', 'application/pdf'],
+};
+
+function describeActionError(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error.trim();
+  }
+
+  return fallback;
+}
+
 function parseJsonField<T>(formData: FormData, key: string, fallback: T): T {
   const rawValue = formData.get(key);
 
@@ -549,27 +576,51 @@ export async function registerLessonAssetAction(formData: FormData) {
 export async function uploadLessonAssetAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content/assets');
   const file = formData.get('file');
-  if (!(file instanceof File) || file.size === 0) {
-    redirect(appendSearchParams(returnPath, { message: 'Pick a file before uploading' }));
+
+  try {
+    if (!(file instanceof File) || file.size === 0) {
+      redirect(appendSearchParams(returnPath, { message: 'Pick a file before uploading' }));
+    }
+
+    const normalizedKind = String(formData.get('kind') || 'image');
+    const normalizedMimeType = String(file.type || 'application/octet-stream').toLowerCase();
+    const allowedMimeTypes = LMS_ASSET_KIND_UPLOAD_ALLOWLIST[normalizedKind] || [];
+
+    if (file.size > LMS_ASSET_UPLOAD_MAX_BYTES) {
+      redirect(appendSearchParams(returnPath, {
+        message: `Upload failed: file exceeds ${Math.round(LMS_ASSET_UPLOAD_MAX_BYTES / (1024 * 1024))} MB limit`,
+      }));
+    }
+
+    if (allowedMimeTypes.length && !allowedMimeTypes.includes(normalizedMimeType)) {
+      redirect(appendSearchParams(returnPath, {
+        message: `Upload failed: ${normalizedKind} does not accept ${normalizedMimeType || 'this file type'}`,
+      }));
+    }
+
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const payload = {
+      fileName: file.name,
+      contentType: normalizedMimeType,
+      base64: bytes.toString('base64'),
+      kind: normalizedKind,
+      title: String(formData.get('title') || file.name.replace(/\.[^.]+$/, '')),
+      description: String(formData.get('description') || ''),
+      subjectId: String(formData.get('subjectId') || '') || null,
+      moduleId: String(formData.get('moduleId') || '') || null,
+      lessonId: String(formData.get('lessonId') || '') || null,
+      tags: String(formData.get('tags') || '').split(',').map((item) => item.trim()).filter(Boolean),
+    };
+
+    await apiWrite('/api/v1/assets/upload', 'POST', payload);
+    revalidatePath('/content/assets');
+    redirect(appendSearchParams(returnPath, { message: 'Asset uploaded and registered' }));
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `Upload failed: ${describeActionError(error, 'asset upload could not be completed')}`,
+    }));
   }
-
-  const bytes = Buffer.from(await file.arrayBuffer());
-  const payload = {
-    fileName: file.name,
-    contentType: file.type || 'application/octet-stream',
-    base64: bytes.toString('base64'),
-    kind: String(formData.get('kind') || 'image'),
-    title: String(formData.get('title') || file.name.replace(/\.[^.]+$/, '')),
-    description: String(formData.get('description') || ''),
-    subjectId: String(formData.get('subjectId') || '') || null,
-    moduleId: String(formData.get('moduleId') || '') || null,
-    lessonId: String(formData.get('lessonId') || '') || null,
-    tags: String(formData.get('tags') || '').split(',').map((item) => item.trim()).filter(Boolean),
-  };
-
-  await apiWrite('/api/v1/assets/upload', 'POST', payload);
-  revalidatePath('/content/assets');
-  redirect(appendSearchParams(returnPath, { message: 'Asset uploaded and registered' }));
 }
 
 export async function updateLessonAssetAction(formData: FormData) {
