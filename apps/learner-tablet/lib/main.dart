@@ -7392,96 +7392,41 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  flex: isStackedLayout ? 1 : 12,
+                  flex: 1,
                   child: buildLessonGuidePane(),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
-                  flex: isStackedLayout ? 1 : 8,
+                  flex: 1,
                   child: DetailCard(
                     child: LayoutBuilder(
                       builder: (context, detailConstraints) {
                         final compactSessionHeader =
                             isStackedLayout || detailConstraints.maxWidth < 560;
-                        final detailContent = Column(
+
+                        final primaryAction = isChoiceStep
+                            ? (canAdvanceChoiceStep
+                                ? () async {
+                                    await _handleSubmittedResponse(
+                                      responseController.text,
+                                    );
+                                    if (!mounted) return;
+                                    await _afterCorrectResponse();
+                                  }
+                                : null)
+                            : (transcriptReviewPending
+                                ? (responseController.text.trim().isEmpty
+                                    ? null
+                                    : _confirmTranscriptAndAdvance)
+                                : (session.hasLearnerInput
+                                    ? () async {
+                                        await _afterCorrectResponse();
+                                      }
+                                    : null));
+
+                        return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: _confirmLeaveLessonSession,
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.arrow_back_rounded),
-                                  label: const Text('Back'),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 12,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF5F3FF),
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: const Color(0xFFD9D6FE),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              '${session.stepIndex + 1}/${widget.lesson.steps.length}',
-                                              style: const TextStyle(
-                                                color: Color(0xFF4338CA),
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 18,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                compactSessionHeader
-                                                    ? 'Keep going, ${learner.name}'
-                                                    : 'Nice work, ${learner.name}',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF4C1D95),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                          child: LinearProgressIndicator(
-                                            value: session.progress,
-                                            minHeight: 8,
-                                            color: LumoTheme.primary,
-                                            backgroundColor:
-                                                const Color(0xFFE9E7FF),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
                             Expanded(
                               child: SingleChildScrollView(
                                 child: Column(
@@ -7489,22 +7434,35 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                   children: [
                                     if (step.activity != null) ...[
                                       _buildActivityPanel(step),
-                                      const SizedBox(height: 14),
+                                      const SizedBox(height: 16),
                                     ],
-                                    SoftPanel(
+                                    Container(
+                                      width: double.infinity,
+                                      padding: EdgeInsets.all(
+                                        compactSessionHeader ? 18 : 22,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
+                                        ),
+                                      ),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            'Try this',
+                                          Text(
+                                            'Prompt',
                                             style: TextStyle(
                                               fontWeight: FontWeight.w800,
-                                              fontSize: 16,
-                                              color: Color(0xFF4338CA),
+                                              fontSize: compactSessionHeader
+                                                  ? 14
+                                                  : 15,
+                                              color: const Color(0xFF4338CA),
                                             ),
                                           ),
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 10),
                                           Text(
                                             step.title,
                                             maxLines:
@@ -7512,139 +7470,132 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               fontSize: compactSessionHeader
-                                                  ? 22
-                                                  : 24,
+                                                  ? 24
+                                                  : 28,
                                               fontWeight: FontWeight.w900,
-                                              color: const Color(0xFF1E1B4B),
-                                              height: 1.1,
+                                              color: const Color(0xFF0F172A),
+                                              height: 1.08,
                                             ),
                                           ),
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 12),
                                           Text(
                                             step.instruction,
                                             style: const TextStyle(
                                               fontSize: 16,
-                                              height: 1.35,
+                                              height: 1.45,
+                                              color: Color(0xFF334155),
                                             ),
                                           ),
-                                          const SizedBox(height: 10),
+                                          const SizedBox(height: 16),
                                           Container(
                                             width: double.infinity,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 14,
-                                              vertical: 12,
-                                            ),
+                                            padding: const EdgeInsets.all(16),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFFFFFFFF),
+                                              color: Colors.white,
                                               borderRadius:
-                                                  BorderRadius.circular(16),
+                                                  BorderRadius.circular(18),
                                               border: Border.all(
                                                 color: const Color(0xFFE2E8F0),
                                               ),
                                             ),
-                                            child: Text(
-                                              expectedResponse,
-                                              maxLines:
-                                                  compactSessionHeader ? 2 : 3,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.w700,
-                                                color: Color(0xFF0F172A),
-                                                height: 1.3,
-                                              ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Target answer',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 13,
+                                                    color: Color(0xFF64748B),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  expectedResponse,
+                                                  maxLines: compactSessionHeader
+                                                      ? 3
+                                                      : 4,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Color(0xFF0F172A),
+                                                    height: 1.35,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(height: 14),
-                                    SoftPanel(
+                                    const SizedBox(height: 16),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
+                                        ),
+                                      ),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.favorite_rounded,
-                                                color: Color(0xFF4338CA),
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  'Session pulse • ${learner.name.split(' ').first}',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 16,
-                                                    color: Color(0xFF1E1B4B),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            _sessionStatusHeadline,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w900,
-                                              color: Color(0xFF0F172A),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
                                             ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            _sessionStatusBody,
-                                            style: const TextStyle(
-                                              color: Color(0xFF475569),
-                                              height: 1.45,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFEFF6FF),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                999,
+                                              ),
+                                              border: Border.all(
+                                                color: const Color(0xFFBFDBFE),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Start',
+                                              style: TextStyle(
+                                                color: Color(0xFF1D4ED8),
+                                                fontWeight: FontWeight.w800,
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(height: 12),
-                                          Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              StatusPill(
-                                                text: _lessonModeLabel,
-                                                color: const Color(0xFF4338CA),
-                                              ),
-                                              StatusPill(
-                                                text:
-                                                    _transcriptSourceOfTruthLabel,
-                                                color: const Color(0xFF0F766E),
-                                              ),
-                                              StatusPill(
-                                                text: _automationSafetyLabel,
-                                                color: const Color(0xFFB45309),
-                                              ),
-                                            ],
+                                          Text(
+                                            isChoiceStep
+                                                ? 'Selection'
+                                                : 'Transcription',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 16,
+                                              color: Color(0xFF0F172A),
+                                            ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    SoftPanel(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
+                                          const SizedBox(height: 8),
                                           Text(
                                             transcriptReviewPending
-                                                ? 'Review this answer, then continue.'
+                                                ? 'Check the learner words here, then confirm before Mallam continues.'
                                                 : (isChoiceStep
-                                                    ? 'Tap one picture, check the label below, then move to the next step.'
+                                                    ? 'Tap one picture, then confirm the selected label here.'
                                                     : (isRecording
                                                         ? 'Listening to the learner now.'
-                                                        : 'Start listening, capture the learner voice, then move on.')),
+                                                        : 'Start listening, capture the learner voice, then review the text here.')),
                                             style: const TextStyle(
                                               color: Color(0xFF475569),
                                               height: 1.35,
                                             ),
                                           ),
                                           if (!isChoiceStep) ...[
-                                            const SizedBox(height: 12),
+                                            const SizedBox(height: 14),
                                             Container(
                                               width: double.infinity,
                                               padding: const EdgeInsets.all(16),
@@ -7685,8 +7636,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                           borderRadius:
                                                               BorderRadius
                                                                   .circular(
-                                                            999,
-                                                          ),
+                                                                      999),
                                                         ),
                                                         child: Text(
                                                           isRecording
@@ -7735,26 +7685,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                                 !_micPermissionGranted
                                                             ? null
                                                             : startRecording,
-                                                        style: FilledButton
-                                                            .styleFrom(
-                                                          backgroundColor:
-                                                              const Color(
-                                                            0xFF2563EB,
-                                                          ),
-                                                          foregroundColor:
-                                                              Colors.white,
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                            horizontal: 18,
-                                                            vertical: 16,
-                                                          ),
-                                                          textStyle:
-                                                              const TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                          ),
-                                                        ),
                                                         icon: const Icon(
                                                           Icons.mic_rounded,
                                                         ),
@@ -7774,25 +7704,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                           ),
                                                           foregroundColor:
                                                               Colors.white,
-                                                          disabledBackgroundColor:
-                                                              const Color(
-                                                            0xFFFEE2E2,
-                                                          ),
-                                                          disabledForegroundColor:
-                                                              const Color(
-                                                            0xFFFCA5A5,
-                                                          ),
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                            horizontal: 18,
-                                                            vertical: 16,
-                                                          ),
-                                                          textStyle:
-                                                              const TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                          ),
                                                         ),
                                                         icon: const Icon(
                                                           Icons.stop_rounded,
@@ -7808,29 +7719,6 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ),
                                           ],
                                           const SizedBox(height: 14),
-                                          Text(
-                                            isChoiceStep
-                                                ? 'Selection label'
-                                                : 'Learner transcript',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 16,
-                                              color: Color(0xFF0F172A),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            transcriptReviewPending
-                                                ? 'Check the learner words here, then confirm before Mallam continues.'
-                                                : (isChoiceStep
-                                                    ? 'The chosen object appears in this confirmation box. The blue Next Step button stays locked until something is selected.'
-                                                    : 'Draft transcript or typed learner answer appears right under the prompt.'),
-                                            style: const TextStyle(
-                                              color: Color(0xFF475569),
-                                              height: 1.35,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
                                           if (isChoiceStep)
                                             Container(
                                               width: double.infinity,
@@ -7903,8 +7791,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                           ),
                                                         ),
                                                         const SizedBox(
-                                                          height: 4,
-                                                        ),
+                                                            height: 4),
                                                         Text(
                                                           hasDraftResponse
                                                               ? 'Selection captured. You can move to the next step now.'
@@ -7927,7 +7814,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             TextField(
                                               controller: responseController,
                                               onChanged: (_) => setState(() {}),
-                                              maxLines: 3,
+                                              maxLines: 4,
                                               decoration: InputDecoration(
                                                 labelText:
                                                     speechRecognitionActive
@@ -7936,9 +7823,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 hintText:
                                                     _learnerResponseHintText,
                                                 filled: true,
-                                                fillColor: const Color(
-                                                  0xFFF8FAFC,
-                                                ),
+                                                fillColor:
+                                                    const Color(0xFFF8FAFC),
                                                 border: OutlineInputBorder(
                                                   borderRadius:
                                                       BorderRadius.circular(18),
@@ -7997,277 +7883,77 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                             ),
                                           ],
-                                          const SizedBox(height: 12),
-                                          Wrap(
-                                            spacing: 12,
-                                            runSpacing: 12,
-                                            children: [
-                                              if (!isChoiceStep)
-                                                FilledButton(
-                                                  onPressed: hasDraftResponse
-                                                      ? () =>
-                                                          _handleSubmittedResponse(
-                                                            responseController
-                                                                .text,
-                                                          )
-                                                      : null,
-                                                  child: Text(
-                                                    transcriptReviewPending
-                                                        ? 'Save review'
-                                                        : 'Save answer',
-                                                  ),
-                                                ),
-                                              FilledButton(
-                                                onPressed: isChoiceStep
-                                                    ? (canAdvanceChoiceStep
-                                                        ? () async {
-                                                            await _handleSubmittedResponse(
-                                                              responseController
-                                                                  .text,
-                                                            );
-                                                            if (!mounted) {
-                                                              return;
-                                                            }
-                                                            await _afterCorrectResponse();
-                                                          }
-                                                        : null)
-                                                    : (session.hasLearnerInput &&
-                                                            !transcriptReviewPending
-                                                        ? () async {
-                                                            await _afterCorrectResponse();
-                                                          }
-                                                        : null),
-                                                style: FilledButton.styleFrom(
-                                                  backgroundColor: isChoiceStep
-                                                      ? const Color(0xFF2563EB)
-                                                      : null,
-                                                  foregroundColor: isChoiceStep
-                                                      ? Colors.white
-                                                      : null,
-                                                  disabledBackgroundColor:
-                                                      isChoiceStep
-                                                          ? const Color(
-                                                              0xFFDBEAFE,
-                                                            )
-                                                          : null,
-                                                  disabledForegroundColor:
-                                                      isChoiceStep
-                                                          ? const Color(
-                                                              0xFF93C5FD,
-                                                            )
-                                                          : null,
-                                                  padding: isChoiceStep
-                                                      ? const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 22,
-                                                          vertical: 16,
-                                                        )
-                                                      : null,
-                                                  textStyle: isChoiceStep
-                                                      ? const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.w800,
-                                                        )
-                                                      : null,
-                                                ),
-                                                child: Text(
-                                                  session.isLastStep
-                                                      ? 'Finish lesson'
-                                                      : 'Next step',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 10),
-                                          Text(
-                                            session.isLastStep
-                                                ? 'Last one — then you are done.'
-                                                : '${widget.lesson.steps.length - session.stepIndex - 1} tiny step${widget.lesson.steps.length - session.stepIndex - 1 == 1 ? '' : 's'} left after this.',
-                                            style: const TextStyle(
-                                              color: Color(0xFF64748B),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          if (transcriptReviewPending) ...[
+                                          if (transcriptReviewPending &&
+                                              session.latestLearnerAudioPath !=
+                                                  null) ...[
                                             const SizedBox(height: 12),
-                                            Container(
-                                              width: double.infinity,
-                                              padding: const EdgeInsets.all(12),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFFFFBEB),
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                border: Border.all(
-                                                  color:
-                                                      const Color(0xFFFCD34D),
-                                                ),
+                                            FilledButton.tonalIcon(
+                                              onPressed:
+                                                  _toggleSavedAudioPlayback,
+                                              icon: Icon(
+                                                learnerAudioPlaybackService
+                                                        .isPlaying
+                                                    ? Icons.pause_circle_rounded
+                                                    : Icons
+                                                        .play_circle_fill_rounded,
                                               ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  if (_savedAudioEvidenceLabel !=
-                                                      null) ...[
-                                                    Wrap(
-                                                      spacing: 8,
-                                                      runSpacing: 8,
-                                                      crossAxisAlignment:
-                                                          WrapCrossAlignment
-                                                              .center,
-                                                      children: [
-                                                        Container(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                            horizontal: 10,
-                                                            vertical: 8,
-                                                          ),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: const Color(
-                                                              0xFFFFFFFF,
-                                                            ),
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                              999,
-                                                            ),
-                                                            border: Border.all(
-                                                              color:
-                                                                  const Color(
-                                                                0xFFFDE68A,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          child: Text(
-                                                            _savedAudioEvidenceLabel!,
-                                                            style:
-                                                                const TextStyle(
-                                                              color: Color(
-                                                                0xFF92400E,
-                                                              ),
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          _isAudioOnlyReviewState
-                                                              ? 'Use the saved clip as the source of truth before Mallam continues.'
-                                                              : 'Quick audio check first, then confirm the text.',
-                                                          style:
-                                                              const TextStyle(
-                                                            color: Color(
-                                                              0xFF92400E,
-                                                            ),
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 10),
-                                                  ],
-                                                  Wrap(
-                                                    spacing: 8,
-                                                    runSpacing: 8,
-                                                    children: [
-                                                      if (session
-                                                              .latestLearnerAudioPath !=
-                                                          null)
-                                                        FilledButton.tonalIcon(
-                                                          onPressed:
-                                                              _toggleSavedAudioPlayback,
-                                                          icon: Icon(
-                                                            learnerAudioPlaybackService
-                                                                    .isPlaying
-                                                                ? Icons
-                                                                    .pause_circle_rounded
-                                                                : Icons
-                                                                    .play_circle_fill_rounded,
-                                                          ),
-                                                          label: Text(
-                                                            learnerAudioPlaybackService
-                                                                    .isPlaying
-                                                                ? 'Pause saved voice'
-                                                                : 'Play saved voice',
-                                                          ),
-                                                        ),
-                                                      FilledButton.icon(
-                                                        onPressed:
-                                                            responseController
-                                                                    .text
-                                                                    .trim()
-                                                                    .isEmpty
-                                                                ? null
-                                                                : _confirmTranscriptAndAdvance,
-                                                        icon: const Icon(
-                                                          Icons
-                                                              .check_circle_rounded,
-                                                        ),
-                                                        label: Text(
-                                                          _reviewPrimaryCtaLabel,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
+                                              label: Text(
+                                                learnerAudioPlaybackService
+                                                        .isPlaying
+                                                    ? 'Pause saved voice'
+                                                    : 'Play saved voice',
                                               ),
                                             ),
                                           ],
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(height: 16),
-                                    Theme(
-                                      data: Theme.of(context).copyWith(
-                                        dividerColor: Colors.transparent,
-                                      ),
-                                      child: ExpansionTile(
-                                        tilePadding: EdgeInsets.zero,
-                                        childrenPadding: EdgeInsets.zero,
-                                        initiallyExpanded:
-                                            _facilitatorDetailsExpanded,
-                                        onExpansionChanged: (expanded) {
-                                          setState(() {
-                                            _facilitatorDetailsExpanded =
-                                                expanded;
-                                          });
-                                        },
-                                        title: const Text(
-                                          'More for grown-ups',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        subtitle: const Text(
-                                          'Open only when you need recovery or device help.',
-                                          style: TextStyle(
-                                            color: Color(0xFF64748B),
-                                          ),
-                                        ),
-                                        children: [
-                                          const SizedBox(height: 12),
-                                          _ResponseReviewBanner(
-                                            review: session.latestReview,
-                                          ),
-                                          if (_showDeviceDiagnosticsPanel) ...[
-                                            const SizedBox(height: 16),
-                                            _buildDeviceDiagnosticsPanel(),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
                                   ],
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: _confirmLeaveLessonSession,
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 18,
+                                        vertical: 18,
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.arrow_back_rounded),
+                                    label: const Text('Back'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: FilledButton(
+                                    onPressed: primaryAction,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 18,
+                                        vertical: 18,
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      transcriptReviewPending
+                                          ? _reviewPrimaryCtaLabel
+                                          : (session.isLastStep
+                                              ? 'Finish lesson'
+                                              : 'Continue'),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         );
-
-                        return detailContent;
                       },
                     ),
                   ),

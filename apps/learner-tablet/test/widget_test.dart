@@ -339,7 +339,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Back'), findsOneWidget);
     expect(find.text('Hear Mallam again'), findsWidgets);
-    expect(find.text('Save answer'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
+    expect(find.byType(FilledButton), findsAtLeastNWidgets(2));
 
     state.dispose();
   });
