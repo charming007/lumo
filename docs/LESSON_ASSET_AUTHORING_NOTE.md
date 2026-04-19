@@ -130,6 +130,10 @@ Until the media system exists, the safest authoring workflow is:
 4. Prefer one clearly meaningful asset per step unless the runtime is known to consume more.
 5. Treat publish approval as blocked if the lesson depends on media that has not been externally verified.
 
+## Next-step implementation spec
+
+For the implementation-ready V1 upload/library design that closes the gap described in this note, see `docs/ASSET_LIBRARY_V1_SPEC.md`.
+
 ## Source files tied to this behavior
 
 - `apps/lms-web/components/lesson-activity-structured-builders.tsx`
