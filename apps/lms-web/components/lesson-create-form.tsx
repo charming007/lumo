@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
@@ -293,6 +294,24 @@ export function LessonCreateForm({
   const [assessmentKind, setAssessmentKind] = useState(String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'));
   const [assessmentItemsText, setAssessmentItemsText] = useState(asArray<{ prompt?: string; evidence?: string }>(duplicateLesson?.lessonAssessment?.items).map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`).join('\n'));
   const [activityDrafts, setActivityDrafts] = useState(buildDraftsFromLesson(duplicateLesson));
+  const initialSnapshot = useMemo(() => JSON.stringify({
+    subjectId: String(fallbackSubjectId ?? subjects[0]?.id ?? ''),
+    moduleId: String(fallbackModuleId),
+    title: duplicateLesson ? `${duplicateLesson.title} copy` : 'New lesson title',
+    durationMinutes: String(duplicateLesson?.durationMinutes ?? 8),
+    mode: duplicateLesson?.mode ?? 'guided',
+    status: 'draft',
+    targetAgeRange: String(duplicateLesson?.targetAgeRange ?? '7-10'),
+    voicePersona: String(duplicateLesson?.voicePersona ?? 'friendly-guide-a'),
+    learningObjectivesText: asArray<string>(duplicateLesson?.learningObjectives).join('\n'),
+    supportLanguage: String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguage ?? 'ha'),
+    supportLanguageLabel: String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguageLabel ?? 'Hausa'),
+    localizationNotesText: asArray<string>((duplicateLesson?.localization as Record<string, unknown> | null)?.notes).join('\n'),
+    assessmentTitle: String(duplicateLesson?.lessonAssessment?.title ?? ''),
+    assessmentKind: String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'),
+    assessmentItemsText: asArray<{ prompt?: string; evidence?: string }>(duplicateLesson?.lessonAssessment?.items).map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`).join('\n'),
+    activityDrafts: buildDraftsFromLesson(duplicateLesson),
+  }), [duplicateLesson, fallbackModuleId, fallbackSubjectId, subjects]);
 
   const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0] ?? modules[0];
   const dependencyBlockers = useMemo(() => ([
@@ -351,6 +370,26 @@ export function LessonCreateForm({
   ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = dependencyBlockers.length > 0 || (publishIntent && readinessBlockers.length > 0);
+  const currentSnapshot = useMemo(() => JSON.stringify({
+    subjectId,
+    moduleId,
+    title,
+    durationMinutes,
+    mode,
+    status,
+    targetAgeRange,
+    voicePersona,
+    learningObjectivesText,
+    supportLanguage,
+    supportLanguageLabel,
+    localizationNotesText,
+    assessmentTitle,
+    assessmentKind,
+    assessmentItemsText,
+    activityDrafts,
+  }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
+  const isDirty = currentSnapshot !== initialSnapshot;
+  const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
   const updateActivity = (index: number, patch: Partial<ActivityDraft>) => {
     setActivityDrafts((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
@@ -394,7 +433,9 @@ export function LessonCreateForm({
   };
 
   return (
-    <form action={action} style={cardStyle}>
+    <>
+      {confirmationDialog}
+      <form action={action} style={cardStyle} onSubmitCapture={() => allowNextNavigation()}>
       <input type="hidden" name="returnPath" value={returnPath} />
       <input type="hidden" name="subjectId" value={subjectId} />
       <input type="hidden" name="learningObjectives" value={safeStringify(learningObjectives)} />
@@ -801,6 +842,7 @@ export function LessonCreateForm({
       </div>
 
       <ActionButton label={dependencyBlockers.length ? 'Load subject and module data first' : blockSubmit ? 'Fix blockers before approval/publish' : 'Create full lesson pack'} pendingLabel="Creating lesson pack…" style={buttonStyle} disabled={blockSubmit} />
-    </form>
+      </form>
+    </>
   );
 }

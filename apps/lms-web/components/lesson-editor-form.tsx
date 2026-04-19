@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
@@ -246,6 +247,45 @@ export function LessonEditorForm({
         }))
       : [makeActivityDraft(0)],
   );
+  const initialSnapshot = useMemo(() => JSON.stringify({
+    subjectId: lesson.subjectId ?? (lesson.subjectName ? subjects.find((item) => item.name === lesson.subjectName)?.id ?? subjects[0]?.id ?? '' : subjects[0]?.id ?? ''),
+    moduleId: lesson.moduleId ?? findModuleForLesson(modules, lesson)?.id ?? modules[0]?.id ?? '',
+    title: lesson.title,
+    durationMinutes: String(lesson.durationMinutes),
+    mode: lesson.mode,
+    status: lesson.status,
+    targetAgeRange: lesson.targetAgeRange ?? '',
+    voicePersona: lesson.voicePersona ?? '',
+    learningObjectivesText: asArray<string>(lesson.learningObjectives).join('\n'),
+    supportLanguage: String(lesson.localization?.supportLanguage ?? 'ha'),
+    supportLanguageLabel: String(lesson.localization?.supportLanguageLabel ?? 'Hausa'),
+    localizationNotesText: asArray<string>(lesson.localization?.notes).join('\n'),
+    assessmentTitle: String(lesson.lessonAssessment?.title ?? ''),
+    assessmentKind: String(lesson.lessonAssessment?.kind ?? 'observational'),
+    assessmentItemsText: asArray<{ prompt?: string; evidence?: string }>(lesson.lessonAssessment?.items).map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`).join('\n'),
+    activityDrafts: asArray<any>(lesson.activitySteps ?? lesson.activities).length > 0
+      ? asArray<any>(lesson.activitySteps ?? lesson.activities).map((step, index) => ({
+          id: step.id || `activity-${index + 1}`,
+          title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
+          prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
+          type: step.type ?? 'speak_answer',
+          durationMinutes: String(step.durationMinutes ?? 2),
+          detail: step.detail ?? '',
+          evidence: step.evidence ?? '',
+          expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
+          tags: asArray<string>(step.tags).join(', '),
+          facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
+          choiceLines: asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: { kind?: unknown; value?: unknown } | null }>(step.choices).map((choice, choiceIndex) => {
+            const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
+            const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
+              ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
+              : '';
+            return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
+          }).join('\n'),
+          mediaLines: asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
+        }))
+      : [makeActivityDraft(0)],
+  }), [lesson, modules, subjects]);
 
   const filteredModules = useMemo(() => {
     const scoped = modules.filter((module) => module.subjectId === subjectId);
@@ -340,6 +380,26 @@ export function LessonEditorForm({
   ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = publishIntent && readinessBlockers.length > 0;
+  const currentSnapshot = useMemo(() => JSON.stringify({
+    subjectId,
+    moduleId,
+    title,
+    durationMinutes,
+    mode,
+    status,
+    targetAgeRange,
+    voicePersona,
+    learningObjectivesText,
+    supportLanguage,
+    supportLanguageLabel,
+    localizationNotesText,
+    assessmentTitle,
+    assessmentKind,
+    assessmentItemsText,
+    activityDrafts,
+  }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
+  const isDirty = currentSnapshot !== initialSnapshot;
+  const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
   const activityHealthTone = durationGap === 0
     ? { background: '#DCFCE7', color: '#166534', label: 'Runtime aligned' }
     : Math.abs(durationGap) <= 2
@@ -388,7 +448,9 @@ export function LessonEditorForm({
   };
 
   return (
-    <form action={action} style={cardStyle}>
+    <>
+      {confirmationDialog}
+      <form action={action} style={cardStyle} onSubmitCapture={() => allowNextNavigation()}>
       <input type="hidden" name="lessonId" value={lesson.id} />
       <input type="hidden" name="returnPath" value={returnPath} />
       <input type="hidden" name="subjectId" value={subjectId} />
@@ -836,6 +898,7 @@ export function LessonEditorForm({
       </div>
 
       <ActionButton label={blockSubmit ? 'Fix blockers before approval/publish' : 'Save full lesson pack'} pendingLabel="Saving lesson pack…" style={buttonStyle} disabled={blockSubmit} />
-    </form>
+      </form>
+    </>
   );
 }

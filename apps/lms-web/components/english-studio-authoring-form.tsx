@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import {
@@ -247,6 +248,31 @@ export function EnglishStudioAuthoringForm({
     null,
     englishModules[0]?.level,
   ));
+  const initialSnapshot = useMemo(() => JSON.stringify({
+    moduleId: englishModules[0]?.id ?? '',
+    title: starterPreset.title,
+    durationMinutes: String(starterPreset.durationMinutes),
+    mode: starterPreset.mode,
+    status: 'draft',
+    supportLanguage: 'ha',
+    supportLanguageLabel: 'Hausa',
+    localizationNotesText: 'Anchor examples in familiar community contexts.\nKeep prompts short and repeatable.',
+    assessmentKind: 'observational',
+    assessmentItemsText: 'Can the learner say one complete sentence about the topic?|spoken-response\nCan the learner use at least one target word correctly?|teacher-check',
+    activityDrafts: toDraftsFromGeneratedActivities(
+      buildEnglishActivities({
+        title: starterPreset.title,
+        durationMinutes: starterPreset.durationMinutes,
+        mode: starterPreset.mode,
+        assessmentTitle: null,
+      }),
+      starterPreset.activityTypes,
+      inferVocabulary(starterPreset.title),
+      starterPreset.mode,
+      null,
+      englishModules[0]?.level,
+    ),
+  }), [englishModules, starterPreset]);
 
   const targetAgeRange = activeModule?.level === 'confident' ? '8-11' : activeModule?.level === 'emerging' ? '7-10' : '6-9';
   const voicePersona = mode === 'group' ? 'discussion-coach-a' : mode === 'independent' ? 'calm-guide-a' : mode === 'practice' ? 'practice-coach-a' : 'friendly-guide-a';
@@ -313,6 +339,21 @@ export function EnglishStudioAuthoringForm({
     if (readiness.readinessScore >= 3) return { bg: '#FEF3C7', border: '#FCD34D', text: '#92400E' };
     return { bg: '#FEE2E2', border: '#FCA5A5', text: '#991B1B' };
   }, [readiness.readinessScore]);
+  const currentSnapshot = useMemo(() => JSON.stringify({
+    moduleId,
+    title,
+    durationMinutes,
+    mode,
+    status,
+    supportLanguage,
+    supportLanguageLabel,
+    localizationNotesText,
+    assessmentKind,
+    assessmentItemsText,
+    activityDrafts,
+  }), [moduleId, title, durationMinutes, mode, status, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentKind, assessmentItemsText, activityDrafts]);
+  const isDirty = currentSnapshot !== initialSnapshot;
+  const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
   const updateActivity = (index: number, patch: Partial<ActivityDraft>) => {
     setActivityDrafts((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
@@ -380,7 +421,9 @@ export function EnglishStudioAuthoringForm({
   };
 
   return (
-    <form action={action} style={cardStyle}>
+    <>
+      {confirmationDialog}
+      <form action={action} onSubmitCapture={() => allowNextNavigation()} style={cardStyle}>
       <input type="hidden" name="subjectId" value={englishSubject?.id ?? ''} />
       <input type="hidden" name="returnPath" value="/english" />
       <input type="hidden" name="targetAgeRange" value={targetAgeRange} />
@@ -395,6 +438,9 @@ export function EnglishStudioAuthoringForm({
           <h2 style={{ margin: 0 }}>Author English lesson</h2>
           <div style={{ color: '#64748b', lineHeight: 1.6, marginTop: 8 }}>
             This is finally a real authoring surface: start from a usable English preset, edit the activity spine, tune assessment and localization, then create the lesson without the usual fake-title nonsense.
+          </div>
+          <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 999, background: isDirty ? '#FEF3C7' : '#ECFDF5', color: isDirty ? '#92400E' : '#166534', fontSize: 12, fontWeight: 800 }}>
+            {isDirty ? 'Unsaved changes' : 'All changes saved'}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -722,6 +768,7 @@ export function EnglishStudioAuthoringForm({
       </div>
 
       <ActionButton label={dependencyBlockers.length ? 'Load English subject and module data first' : blockSubmit ? 'Fix blockers before approval/publish' : 'Create English lesson'} pendingLabel="Creating lesson…" style={buttonStyle} disabled={blockSubmit} />
-    </form>
+      </form>
+    </>
   );
 }
