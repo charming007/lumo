@@ -89,6 +89,18 @@ test('buildConfigAudit flags malformed public api base before managed asset urls
   assert.ok(audit.errors.some((entry) => /not a valid URL/i.test(entry)));
 });
 
+test('buildConfigAudit exposes build fingerprint evidence for deploy debugging', () => {
+  const audit = withEnv({
+    LUMO_BUILD_REVISION: '1234567890abcdef1234567890abcdef12345678',
+  }, () => buildConfigAudit());
+
+  assert.equal(audit.build.version, '0.1.0');
+  assert.equal(audit.build.revision.short, '1234567890ab');
+  assert.equal(audit.build.revision.source, 'LUMO_BUILD_REVISION');
+  assert.ok(audit.build.bootId);
+  assert.ok(audit.build.startedAt);
+});
+
 
 test('buildConfigAudit surfaces asset durability risk when uploads stay on the default workspace path', () => {
   const audit = withEnv({

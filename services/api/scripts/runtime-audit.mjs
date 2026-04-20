@@ -8,6 +8,8 @@ const lines = [
   '',
   `Lumo API runtime audit (${audit.environment.nodeEnv}).`,
   `Ready: ${audit.summary.ready ? 'yes' : 'no'}`,
+  `Build: v${audit.build.version} revision=${audit.build.revision.short || 'unknown'} boot=${audit.build.bootId}`,
+  `Started: ${audit.build.startedAt}`,
   `Storage: ${audit.storage.mode} (${audit.storage.driver})`,
   `Asset uploads: ${audit.assetUploads.ready ? 'ready' : 'blocked'} @ ${audit.assetUploads.root}`,
   `Managed asset public base: ${audit.assetUploads.publicBaseValid ? (audit.assetUploads.publicBase || 'valid') : 'needs attention'}`,

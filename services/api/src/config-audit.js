@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getAuthAudit } = require('./auth');
+const { getBuildInfo } = require('./build-info');
 
 function buildAllowedOrigins() {
   const configured = (process.env.LUMO_CORS_ORIGINS || process.env.CORS_ORIGINS || '')
@@ -184,6 +185,7 @@ function getAssetUploadAudit() {
 function buildConfigAudit() {
   const mode = getDbMode();
   const dbMeta = getDbModeMeta();
+  const build = getBuildInfo();
   const allowedOrigins = buildAllowedOrigins();
   const allowAnyOrigin = (process.env.LUMO_CORS_ALLOW_ANY_ORIGIN || '').toLowerCase() === 'true';
   const canonicalApiBase = getCanonicalApiBaseAudit();
@@ -285,6 +287,7 @@ function buildConfigAudit() {
 
   return {
     checkedAt: new Date().toISOString(),
+    build,
     environment: {
       nodeEnv: process.env.NODE_ENV || 'development',
       productionLike: isProductionLike(),

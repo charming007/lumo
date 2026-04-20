@@ -31,6 +31,9 @@ test('health endpoint returns storage/db metadata instead of crashing', async ()
     assert.equal(body.service, 'lumo-api');
     assert.equal(body.storage.mode, 'file');
     assert.equal(body.storage.driver, 'json-file');
+    assert.equal(typeof body.build.version, 'string');
+    assert.ok(body.build.bootId);
+    assert.equal(body.runtime.bootId, body.build.bootId);
     assert.equal(typeof body.assets.ready, 'boolean');
     assert.equal(typeof body.assets.publicBaseValid, 'boolean');
     assert.equal(typeof body.assets.persistentRisk, 'boolean');
@@ -75,6 +78,8 @@ test('responses carry request tracing and secure default headers, including inva
 
     assert.equal(traced.status, 200);
     assert.equal(traced.headers.get('x-request-id'), 'health-trace-123');
+    assert.ok(traced.headers.get('x-lumo-api-version'));
+    assert.ok(traced.headers.get('x-lumo-api-boot-id'));
     assert.equal(traced.headers.get('x-content-type-options'), 'nosniff');
     assert.equal(traced.headers.get('x-frame-options'), 'DENY');
     assert.equal(traced.headers.get('referrer-policy'), 'no-referrer');

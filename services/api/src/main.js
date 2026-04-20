@@ -11,6 +11,7 @@ const seed = require('./seed');
 const { buildAllowedOrigins, isLoopbackOrigin, isProductionLike, buildConfigAudit } = require('./config-audit');
 const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole, getAuthAudit } = require('./auth');
+const { getBuildInfo } = require('./build-info');
 
 const app = express();
 app.set('trust proxy', true);
@@ -490,8 +491,14 @@ app.use((req, res, next) => {
 });
 app.use((req, res, next) => {
   const requestId = String(req.header('x-request-id') || '').trim() || crypto.randomUUID();
+  const build = getBuildInfo();
   req.requestId = requestId;
   res.setHeader('x-request-id', requestId);
+  res.setHeader('x-lumo-api-version', build.version);
+  res.setHeader('x-lumo-api-boot-id', build.bootId);
+  if (build.revision.short) {
+    res.setHeader('x-lumo-api-revision', build.revision.short);
+  }
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
@@ -1285,11 +1292,13 @@ function getMountedRouteDefinitions() {
     });
 }
 
-function getCriticalAssetRouteEvidence() {
+function getCriticalApiSurfaceEvidence() {
   const expectedRoutes = [
+    { method: 'GET', path: '/api/v1/meta', purpose: 'runtime-meta' },
     { method: 'GET', path: '/api/v1/assets', purpose: 'registry-list' },
     { method: 'POST', path: '/api/v1/assets', purpose: 'registry-create' },
     { method: 'POST', path: '/api/v1/assets/upload', purpose: 'managed-upload' },
+    { method: 'GET', path: '/api/v1/admin/config/audit', purpose: 'config-audit' },
     { method: 'GET', path: '/api/v1/admin/assets/runtime', purpose: 'runtime-report' },
   ];
   const mountedRoutes = getMountedRouteDefinitions();
@@ -1299,22 +1308,31 @@ function getCriticalAssetRouteEvidence() {
     mounted: mountedKeys.has(`${route.method} ${route.path}`),
   }));
 
+  const missingRoutes = checks.filter((route) => !route.mounted).map((route) => `${route.method} ${route.path}`);
+
   return {
-    ready: checks.every((route) => route.mounted),
+    ready: missingRoutes.length === 0,
     checks,
     mountedCount: checks.filter((route) => route.mounted).length,
     expectedCount: checks.length,
+    missingRoutes,
   };
 }
 
 app.get('/health', (_req, res) => {
   const configAudit = buildConfigAudit();
   const storageStatus = store.getStorageStatus();
-  const assetRouteEvidence = getCriticalAssetRouteEvidence();
+  const routeEvidence = getCriticalApiSurfaceEvidence();
 
   res.json({
     status: configAudit.summary.ready ? 'ok' : 'degraded',
     service: 'lumo-api',
+    build: configAudit.build,
+    runtime: {
+      revision: configAudit.build.revision.short,
+      bootId: configAudit.build.bootId,
+      startedAt: configAudit.build.startedAt,
+    },
     storage: {
       mode: storageStatus?.db?.mode || getDbMode(),
       driver: storageStatus?.db?.driver || getDbModeMeta().driver,
@@ -1325,7 +1343,7 @@ app.get('/health', (_req, res) => {
       root: configAudit.assetUploads?.root || null,
       publicBaseValid: Boolean(configAudit.assetUploads?.publicBaseValid),
       persistentRisk: Boolean(configAudit.assetUploads?.persistentRisk),
-      routes: assetRouteEvidence,
+      routes: routeEvidence,
     },
     config: {
       ready: configAudit.summary.ready,
@@ -1344,19 +1362,45 @@ app.get('/api/v1/meta', (req, res) => {
   const storeMeta = store.getStoreMeta();
   const configAudit = buildConfigAudit();
   const mode = configAudit.summary.ready ? 'live' : 'degraded';
+  const routeEvidence = getCriticalApiSurfaceEvidence();
 
   res.json({
     actor: req.actor,
     mode,
+    build: configAudit.build,
+    runtime: {
+      revision: configAudit.build.revision.short,
+      bootId: configAudit.build.bootId,
+      startedAt: configAudit.build.startedAt,
+    },
     seedSummary: seed.getSeedSummary(),
     store: storeMeta,
     configAudit,
-    assetRoutes: getCriticalAssetRouteEvidence(),
+    assetRoutes: routeEvidence,
+    operatorEvidence: {
+      ready: configAudit.summary.ready && routeEvidence.ready,
+      expectedApiSurfaceCount: routeEvidence.expectedCount,
+      mountedApiSurfaceCount: routeEvidence.mountedCount,
+      missingApiSurfaces: routeEvidence.missingRoutes,
+    },
   });
 });
 
 app.get('/api/v1/admin/config/audit', requireRole(['admin']), (_req, res) => {
-  res.json(buildConfigAudit());
+  const audit = buildConfigAudit();
+  const routeEvidence = getCriticalApiSurfaceEvidence();
+
+  res.json({
+    ...audit,
+    routeEvidence,
+    operatorEvidence: {
+      ready: audit.summary.ready && routeEvidence.ready,
+      buildRevision: audit.build.revision.short,
+      buildVersion: audit.build.version,
+      bootId: audit.build.bootId,
+      missingApiSurfaces: routeEvidence.missingRoutes,
+    },
+  });
 });
 
 app.get('/api/v1/learner-app/bootstrap', (_req, res) => {
@@ -3343,7 +3387,8 @@ app.get('/api/v1/admin/assets/runtime', requireRole(['admin']), (req, res) => {
     ...reporting.buildAssetRuntimeReport({
       limit: Number(req.query.limit || 20),
     }),
-    routeEvidence: getCriticalAssetRouteEvidence(),
+    build: getBuildInfo(),
+    routeEvidence: getCriticalApiSurfaceEvidence(),
   });
 });
 
@@ -3663,9 +3708,10 @@ app.use((error, req, res, _next) => {
 function startServer(port = process.env.PORT || 4000) {
   return app.listen(port, () => {
     const audit = buildConfigAudit();
-    const assetRouteEvidence = getCriticalAssetRouteEvidence();
+    const routeEvidence = getCriticalApiSurfaceEvidence();
     console.log(`Lumo API listening on port ${port}`);
-    console.log(`[lumo-api] asset routes: ${assetRouteEvidence.mountedCount}/${assetRouteEvidence.expectedCount} mounted (${assetRouteEvidence.checks.map((route) => `${route.method} ${route.path}=${route.mounted ? 'on' : 'off'}`).join(', ')})`);
+    console.log(`[lumo-api] build: version=${audit.build.version} revision=${audit.build.revision.short || 'unknown'} boot=${audit.build.bootId} started=${audit.build.startedAt}`);
+    console.log(`[lumo-api] critical api surface: ${routeEvidence.mountedCount}/${routeEvidence.expectedCount} mounted (${routeEvidence.checks.map((route) => `${route.method} ${route.path}=${route.mounted ? 'on' : 'off'}`).join(', ')})`);
 
     if (audit.warnings.length) {
       console.warn(`[lumo-api] config warnings: ${audit.warnings.join(' | ')}`);

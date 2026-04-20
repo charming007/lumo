@@ -420,12 +420,16 @@ test('asset runtime report surfaces skipped registry records, upload diagnostics
     assert.ok(response.body.nextActions.length >= 1);
     assert.ok(Array.isArray(response.body.registry.topIssues));
     assert.equal(response.body.routeEvidence?.ready, true);
+    assert.equal(typeof response.body.build?.version, 'string');
+    assert.ok(response.body.build?.bootId);
     assert.deepEqual(
       response.body.routeEvidence?.checks?.map((route) => `${route.method} ${route.path}:${route.mounted}`),
       [
+        'GET /api/v1/meta:true',
         'GET /api/v1/assets:true',
         'POST /api/v1/assets:true',
         'POST /api/v1/assets/upload:true',
+        'GET /api/v1/admin/config/audit:true',
         'GET /api/v1/admin/assets/runtime:true',
       ],
     );
@@ -434,16 +438,21 @@ test('asset runtime report surfaces skipped registry records, upload diagnostics
   }
 });
 
-test('health and meta expose asset route evidence for deploy verification', async () => {
+test('health and meta expose build fingerprints and route evidence for deploy verification', async () => {
   const health = await request('/health');
   assert.equal(health.status, 200);
   assert.equal(health.body.assets?.routes?.ready, true);
+  assert.equal(typeof health.body.build?.version, 'string');
+  assert.ok(health.body.build?.bootId);
+  assert.equal(health.body.runtime?.bootId, health.body.build?.bootId);
   assert.deepEqual(
     health.body.assets?.routes?.checks?.map((route) => `${route.method} ${route.path}:${route.mounted}`),
     [
+      'GET /api/v1/meta:true',
       'GET /api/v1/assets:true',
       'POST /api/v1/assets:true',
       'POST /api/v1/assets/upload:true',
+      'GET /api/v1/admin/config/audit:true',
       'GET /api/v1/admin/assets/runtime:true',
     ],
   );
@@ -451,12 +460,17 @@ test('health and meta expose asset route evidence for deploy verification', asyn
   const meta = await request('/api/v1/meta');
   assert.equal(meta.status, 200);
   assert.equal(meta.body.assetRoutes?.ready, true);
+  assert.equal(meta.body.operatorEvidence?.ready, true);
+  assert.equal(meta.body.runtime?.bootId, health.body.runtime?.bootId);
+  assert.equal(meta.body.build?.version, health.body.build?.version);
   assert.deepEqual(
     meta.body.assetRoutes?.checks?.map((route) => `${route.method} ${route.path}:${route.mounted}`),
     [
+      'GET /api/v1/meta:true',
       'GET /api/v1/assets:true',
       'POST /api/v1/assets:true',
       'POST /api/v1/assets/upload:true',
+      'GET /api/v1/admin/config/audit:true',
       'GET /api/v1/admin/assets/runtime:true',
     ],
   );
