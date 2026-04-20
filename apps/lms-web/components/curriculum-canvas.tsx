@@ -263,23 +263,14 @@ function CanvasCreateStrandForm({
   return (
     <form action={createStrandAction} style={{ display: 'grid', gap: 12 }}>
       <input type="hidden" name="returnPath" value={returnPath} />
-      <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>Create a strand directly from the canvas and set its lifecycle status before modules start piling into the wrong lane.</div>
+      <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>Create a strand directly from the canvas so modules land in the right place from the start.</div>
       <CanvasFieldLabel label="Subject">
         <select name="subjectId" defaultValue={subjectId} style={canvasFieldStyle}>
           {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
         </select>
       </CanvasFieldLabel>
       <CanvasFieldLabel label="Strand name"><input name="name" defaultValue="Speaking & Listening" style={canvasFieldStyle} /></CanvasFieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        <CanvasFieldLabel label="Order"><input name="order" type="number" min="1" defaultValue={String(suggestedOrder)} style={canvasFieldStyle} /></CanvasFieldLabel>
-        <CanvasFieldLabel label="Status">
-          <select name="status" defaultValue="draft" style={canvasFieldStyle}>
-            <option value="draft">Draft</option>
-            <option value="review">In review</option>
-            <option value="published">Published</option>
-          </select>
-        </CanvasFieldLabel>
-      </div>
+      <CanvasFieldLabel label="Order"><input name="order" type="number" min="1" defaultValue={String(suggestedOrder)} style={canvasFieldStyle} /></CanvasFieldLabel>
       <button type="submit" style={{ ...filterButtonStyle, background: '#4F46E5', color: '#f8fafc', width: 'fit-content', padding: '12px 16px' }}>Create strand</button>
     </form>
   );
@@ -300,23 +291,14 @@ function CanvasEditStrandForm({
     <form action={updateStrandAction} style={{ display: 'grid', gap: 12 }}>
       <input type="hidden" name="strandId" value={strand.id} />
       <input type="hidden" name="returnPath" value={returnPath} />
-      <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>This is the missing strand lifecycle control inside the canvas lane itself, so publish state stops disappearing behind another page.</div>
+      <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>Update strand placement and naming here without leaving the canvas.</div>
       <CanvasFieldLabel label="Subject">
         <select name="subjectId" defaultValue={strand.subjectId} style={canvasFieldStyle}>
           {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
         </select>
       </CanvasFieldLabel>
       <CanvasFieldLabel label="Strand name"><input name="name" defaultValue={strand.name} style={canvasFieldStyle} /></CanvasFieldLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        <CanvasFieldLabel label="Order"><input name="order" type="number" min="1" defaultValue={String(strand.order ?? 1)} style={canvasFieldStyle} /></CanvasFieldLabel>
-        <CanvasFieldLabel label="Status">
-          <select name="status" defaultValue={strand.status ?? 'draft'} style={canvasFieldStyle}>
-            <option value="draft">Draft</option>
-            <option value="review">In review</option>
-            <option value="published">Published</option>
-          </select>
-        </CanvasFieldLabel>
-      </div>
+      <CanvasFieldLabel label="Order"><input name="order" type="number" min="1" defaultValue={String(strand.order ?? 1)} style={canvasFieldStyle} /></CanvasFieldLabel>
       <button type="submit" style={{ ...filterButtonStyle, background: '#0f766e', color: '#f8fafc', width: 'fit-content', padding: '12px 16px' }}>Save strand changes</button>
     </form>
   );
@@ -743,7 +725,7 @@ export function CurriculumCanvas({
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
                         <Pill label={`${subject.totals.readyLessons} ready lessons`} tone="#052e16" text="#86efac" />
                         <Pill label={`${subject.totals.gaps} release gaps`} tone={subject.totals.gaps ? '#3b2f0d' : '#1e1b4b'} text={subject.totals.gaps ? '#fcd34d' : '#c4b5fd'} />
-                        <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a strand directly from the canvas and set its lifecycle status before the lane goes live." eyebrow="Create strand" triggerStyle={{ ...filterButtonStyle, background: 'rgba(79,70,229,0.16)', color: '#c7d2fe' }}>
+                        <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a strand directly from the canvas so modules land in the right lane." eyebrow="Create strand" triggerStyle={{ ...filterButtonStyle, background: 'rgba(79,70,229,0.16)', color: '#c7d2fe' }}>
                           <CanvasCreateStrandForm subjects={subjectOptions} subjectId={subject.id} suggestedOrder={subject.strands.length + 1} returnPath={returnPath} createStrandAction={createStrandAction} />
                         </ModalLauncher>
                       </div>
@@ -756,11 +738,10 @@ export function CurriculumCanvas({
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#e2e8f0', fontWeight: 800, flexWrap: 'wrap' }}>
                               <span style={{ width: 10, height: 10, borderRadius: 999, background: accent }} />
                               <span>{strand.name}</span>
-                              <Pill label={strand.status ?? 'draft'} tone={statusTone(strand.status ?? 'draft').tone} text={statusTone(strand.status ?? 'draft').text} />
                               <span style={{ color: '#64748b', fontWeight: 700 }}>→</span>
                               <span style={{ color: '#94a3b8', fontWeight: 600 }}>{strand.modules.length} module nodes</span>
                               {strand.subjectId && !strand.id.startsWith('fallback-') && !strand.id.startsWith('rescue-') ? (
-                                <ModalLauncher buttonLabel="Edit strand" title={`Edit strand · ${strand.name}`} description="Update the strand name, ordering, and lifecycle status without leaving the canvas." eyebrow="Edit strand" triggerStyle={{ ...filterButtonStyle, background: 'rgba(20,184,166,0.16)', color: '#99f6e4' }}>
+                                <ModalLauncher buttonLabel="Edit strand" title={`Edit strand · ${strand.name}`} description="Update the strand name or ordering without leaving the canvas." eyebrow="Edit strand" triggerStyle={{ ...filterButtonStyle, background: 'rgba(20,184,166,0.16)', color: '#99f6e4' }}>
                                   <CanvasEditStrandForm strand={strand} subjects={subjectOptions} returnPath={returnPath} updateStrandAction={updateStrandAction} />
                                 </ModalLauncher>
                               ) : null}

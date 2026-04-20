@@ -18,7 +18,7 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
-import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, updateStrandAction, updateSubjectAction } from '../app/actions';
+import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, updateStrandAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { Card, Pill } from '../lib/ui';
@@ -82,7 +82,7 @@ function LifecycleRail({
           const isActive = status === option.value;
 
           return (
-            <form key={option.value} action={entityLabel === 'Strand' ? updateStrandAction : updateSubjectAction}>
+            <form key={option.value} action={entityLabel === 'Strand' ? updateStrandAction : quickUpdateSubjectStatusAction}>
               {Object.entries({ ...fields, status: option.value }).map(([key, value]) => (
                 <input key={key} type="hidden" name={key} value={value} />
               ))}
@@ -326,20 +326,6 @@ export function ContentSubjectLanes({
                             </ModalLauncher>
                           </div>
                         </div>
-
-                        <LifecycleRail
-                          entityLabel="Strand"
-                          status={strand.status ?? 'draft'}
-                          helper="Strand publish state is now visible and clickable right here on the strand card, not buried behind the edit modal."
-                          forms={lifecycleOptions.map((option) => ({
-                            strandId: strand.id,
-                            subjectId: strand.subjectId,
-                            returnPath,
-                            name: strand.name,
-                            order: String(strand.order ?? 1),
-                            status: option.value,
-                          }))}
-                        />
 
                         <div id={`strand-panel-${strand.id}`} hidden={strandCollapsed} style={{ display: strandCollapsed ? 'none' : 'grid', gap: 12 }}>
                           {strandModules.length > 0 ? strandModules.map((module) => {
