@@ -139,20 +139,22 @@ function clone(value) {
 
 function normalizeLifecycleStatus(collectionKey, parsedItems, seedItems) {
   if (!Array.isArray(parsedItems)) {
-    return clone(seedItems);
+    return { items: clone(seedItems), changed: true };
   }
 
   if (!['subjects', 'strands', 'modules', 'lessons'].includes(collectionKey)) {
-    return parsedItems;
+    return { items: parsedItems, changed: false };
   }
 
   const seedById = new Map((seedItems || []).map((item) => [String(item.id), item]));
+  let changed = false;
 
-  return parsedItems.map((item) => {
+  const items = parsedItems.map((item) => {
     if (!item || typeof item !== 'object' || item.status) {
       return item;
     }
 
+    changed = true;
     const seeded = seedById.get(String(item.id || ''));
     if (seeded?.status) {
       return { ...item, status: seeded.status };
@@ -160,13 +162,23 @@ function normalizeLifecycleStatus(collectionKey, parsedItems, seedItems) {
 
     return { ...item, status: 'draft' };
   });
+
+  return { items, changed };
 }
 
 function hydrate() {
   const parsed = storage.read(seed);
+  let snapshotNeedsUpgrade = false;
+
   Object.keys(seed).forEach((key) => {
-    data[key] = normalizeLifecycleStatus(key, parsed[key], seed[key]);
+    const normalized = normalizeLifecycleStatus(key, parsed[key], seed[key]);
+    data[key] = normalized.items;
+    snapshotNeedsUpgrade = snapshotNeedsUpgrade || normalized.changed;
   });
+
+  if (snapshotNeedsUpgrade) {
+    persist();
+  }
 }
 
 function persist() {

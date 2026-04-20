@@ -90,7 +90,7 @@ test('subject lifecycle status survives API saves and persists in the store snap
   assert.equal(persistedSubject?.status, 'published');
 });
 
-test('legacy curriculum snapshots are hydrated with lifecycle status defaults instead of silently falling back to draft', async () => {
+test('legacy curriculum snapshots are hydrated with lifecycle status defaults and upgraded on disk', async () => {
   const legacySnapshot = JSON.parse(fs.readFileSync(process.env.LUMO_DATA_FILE, 'utf8'));
   legacySnapshot.subjects = legacySnapshot.subjects.map(({ status, ...subject }) => subject);
   legacySnapshot.strands = legacySnapshot.strands.map(({ status, ...strand }) => strand);
@@ -101,8 +101,11 @@ test('legacy curriculum snapshots are hydrated with lifecycle status defaults in
   const english = store.listSubjects().find((item) => item.id === 'english');
   const math = store.listSubjects().find((item) => item.id === 'math');
   const englishSpeaking = store.listStrands().find((item) => item.id === 'strand-1');
+  const upgradedSnapshot = JSON.parse(fs.readFileSync(process.env.LUMO_DATA_FILE, 'utf8'));
 
   assert.equal(english?.status, 'published');
   assert.equal(math?.status, 'published');
   assert.equal(englishSpeaking?.status, 'published');
+  assert.equal(upgradedSnapshot.subjects.find((item) => item.id === 'english')?.status, 'published');
+  assert.equal(upgradedSnapshot.strands.find((item) => item.id === 'strand-1')?.status, 'published');
 });
