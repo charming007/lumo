@@ -2755,7 +2755,8 @@ void main() {
                 headers: {'content-type': 'application/json'},
               );
             }
-            if (request.url.path == '/api/v1/learner-app/module-bundles/english') {
+            if (request.url.path ==
+                '/api/v1/learner-app/module-bundles/english') {
               return http.Response(
                 jsonEncode({
                   'module': {
@@ -3471,6 +3472,61 @@ void main() {
       expect(
         resolvedLesson.scenario,
         'Bundled offline intro lesson.',
+      );
+    });
+
+    test(
+        'bundled Meet Mallam onboarding uses first-name personalization and offline route copy',
+        () {
+      final learner = beginner.copyWith(name: 'Amina Bello');
+      final lesson = LessonCardModel(
+        id: 'fundamentals-meet-mallam.lesson-04',
+        moduleId: 'fundamentals-meet-mallam',
+        title: 'My first learning turn',
+        subject: 'Lumo Fundamentals',
+        durationMinutes: 12,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Offline onboarding',
+        scenario: 'Bundled offline onboarding finale.',
+        steps: const [
+          LessonStep(
+            id: 'bundled-step-1',
+            type: LessonStepType.intro,
+            title: 'Open your first turn',
+            instruction: 'Hello, [learner first name]. Say hello back.',
+            expectedResponse: 'Hello, Mallam.',
+            coachPrompt: 'Hello, [learner first name]. Say hello back.',
+            facilitatorTip: 'Use the first name warmly.',
+            realWorldCheck: 'Learner greets Mallam.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.learners.add(learner);
+      state.currentLearner = learner;
+      state.assignedLessons.add(lesson);
+
+      expect(
+        state.personalizePrompt('Hello, [learner first name].'),
+        'Hello, Amina.',
+      );
+      expect(
+        state.nextLessonRouteSummaryForLearner(learner),
+        'Next up: My first learning turn • continue the offline Meet Mallam onboarding pack.',
+      );
+
+      state.startLesson(lesson);
+
+      expect(
+        state.activeSession?.automationStatus,
+        contains('Offline onboarding is ready for Amina.'),
+      );
+      expect(
+        state.activeSession?.transcript.first.text,
+        'Hello, Amina. Say hello back.',
       );
     });
 

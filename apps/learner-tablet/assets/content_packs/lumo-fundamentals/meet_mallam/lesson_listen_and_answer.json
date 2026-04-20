@@ -1,0 +1,233 @@
+{
+  "packId": "lumo-fundamentals.meet-mallam",
+  "packVersion": "1.2.0",
+  "lesson": {
+    "id": "fundamentals-meet-mallam.lesson-03",
+    "moduleId": "fundamentals-meet-mallam",
+    "title": "I can listen and answer",
+    "subject": "Lumo Fundamentals",
+    "durationMinutes": 10,
+    "status": "published",
+    "mascotName": "Mallam",
+    "readinessFocus": "Short answer confidence, listen cue recognition, and turn-taking entirely from bundled offline prompts.",
+    "scenario": "The learner practices a fuller first learning loop offline: hear the listen cue, pick the right card, answer a simple ready question, and finish by naming the next action with Mallam.",
+    "source": "bundled-pack",
+    "activitySteps": [
+      {
+        "id": "fundamentals-meet-mallam.lesson-03.step-01",
+        "order": 1,
+        "type": "listen_repeat",
+        "title": "Listen and touch",
+        "prompt": "Mallam says, Listen and touch your ear.",
+        "hint": "Model the action once, then pause so the learner can copy it calmly.",
+        "detail": "Reinforces the meaning of Mallam's listen cue before a spoken response.",
+        "evidence": "Learner touches their ear after the prompt.",
+        "expectedAnswers": ["I can listen.", "Listen."],
+        "successFeedback": "Good. The learner is following Mallam's listening cue.",
+        "retryFeedback": "Say it again slowly and tap the ear card together.",
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-03:listen-touch-prompt"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-03:ear-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "Keep the action simple and quiet.",
+          "Accept a clear copy of the motion even without speech."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-03.step-02",
+        "order": 2,
+        "type": "image_choice",
+        "title": "Pick the listening picture",
+        "prompt": "Tap the picture that means listen.",
+        "hint": "Name each picture once: listen, ready, book.",
+        "detail": "Checks that the learner can find the listen symbol from three visual choices.",
+        "evidence": "Learner taps the ear card after one cue.",
+        "expectedAnswers": ["Listen"],
+        "choices": [
+          {
+            "id": "choice-ear",
+            "label": "Listen",
+            "isCorrect": true,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-03:ear-card"
+            }
+          },
+          {
+            "id": "choice-ready",
+            "label": "Ready",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-03:ready-mat-card"
+            }
+          },
+          {
+            "id": "choice-book",
+            "label": "Book",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-03:book-card"
+            }
+          }
+        ],
+        "facilitatorNotes": [
+          "Use one cue only before the learner taps.",
+          "Praise a calm, accurate touch."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-03.step-03",
+        "order": 3,
+        "type": "listen_answer",
+        "title": "Who is ready?",
+        "prompt": "Mallam asks, Who is ready? Say: I am ready.",
+        "hint": "Tap the ready card and model the answer once.",
+        "detail": "Moves the learner from recognition into a short spoken answer.",
+        "evidence": "Learner attempts I am ready.",
+        "expectedAnswers": ["I am ready.", "Ready."],
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-03:ready-question"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-03:ready-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "Accept a close spoken attempt.",
+          "Keep the pace warm and unhurried."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-03.step-04",
+        "order": 4,
+        "type": "tap_choice",
+        "title": "Choose what happens next",
+        "prompt": "Tap the card that says, I can listen.",
+        "hint": "Read both cards aloud once before the learner chooses.",
+        "detail": "The learner matches the spoken next action to the correct text card.",
+        "evidence": "Learner chooses the listen card.",
+        "expectedAnswers": ["I can listen."],
+        "choices": [
+          {
+            "id": "choice-listen",
+            "label": "I can listen.",
+            "isCorrect": true,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-03:listen-card"
+            }
+          },
+          {
+            "id": "choice-wave",
+            "label": "I can wave.",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-03:wave-card"
+            }
+          }
+        ],
+        "facilitatorNotes": [
+          "This is recognition, not reading mastery.",
+          "Repeat both choices once if needed."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-03.step-05",
+        "order": 5,
+        "type": "speak_answer",
+        "title": "Say your next action",
+        "prompt": "Say: I can listen and answer.",
+        "hint": "Point to the ear card first, then ask for the full phrase.",
+        "detail": "The learner closes with a complete short learning phrase.",
+        "evidence": "Learner attempts the full phrase with support if needed.",
+        "expectedAnswers": ["I can listen and answer.", "I can listen.", "I can answer."],
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-03:listen-answer-phrase"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-03:ear-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "Celebrate the effort, even if the learner shortens the phrase.",
+          "Finish by inviting the learner into the next lesson."
+        ]
+      }
+    ]
+  },
+  "offlineMedia": {
+    "basePath": "assets/content_packs/lumo-fundamentals/meet_mallam/media",
+    "items": [
+      {
+        "id": "listen-touch-prompt",
+        "kind": "prompt-card",
+        "text": "Listen and touch your ear.",
+        "label": "Listen touch prompt"
+      },
+      {
+        "id": "ready-question",
+        "kind": "prompt-card",
+        "text": "Who is ready?",
+        "label": "Ready question"
+      },
+      {
+        "id": "listen-card",
+        "kind": "prompt-card",
+        "text": "I can listen.",
+        "label": "Listen phrase"
+      },
+      {
+        "id": "listen-answer-phrase",
+        "kind": "prompt-card",
+        "text": "I can listen and answer.",
+        "label": "Listen and answer phrase"
+      },
+      {
+        "id": "ready-card",
+        "kind": "prompt-card",
+        "text": "I am ready.",
+        "label": "Ready phrase"
+      },
+      {
+        "id": "ear-card",
+        "kind": "image",
+        "relativePath": "images/ear-card.png",
+        "label": "Listening card"
+      },
+      {
+        "id": "ready-mat-card",
+        "kind": "image",
+        "relativePath": "images/ready-mat-card.png",
+        "label": "Ready mat card"
+      },
+      {
+        "id": "book-card",
+        "kind": "image",
+        "relativePath": "images/book-card.png",
+        "label": "Book card"
+      },
+      {
+        "id": "wave-card",
+        "kind": "image",
+        "relativePath": "images/wave-card.png",
+        "label": "Wave card"
+      }
+    ]
+  }
+}

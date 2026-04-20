@@ -1,0 +1,239 @@
+{
+  "packId": "lumo-fundamentals.meet-mallam",
+  "packVersion": "1.2.0",
+  "lesson": {
+    "id": "fundamentals-meet-mallam.lesson-04",
+    "moduleId": "fundamentals-meet-mallam",
+    "title": "My first learning turn",
+    "subject": "Lumo Fundamentals",
+    "durationMinutes": 12,
+    "status": "published",
+    "mascotName": "Mallam",
+    "readinessFocus": "Learner-name confidence, greeting-to-answer continuity, and a complete offline startup ritual.",
+    "scenario": "The learner finishes the bundled onboarding sequence by greeting Mallam, choosing the right starter card, saying their own name, and closing with a full first-turn phrase that the facilitator can reuse offline.",
+    "source": "bundled-pack",
+    "activitySteps": [
+      {
+        "id": "fundamentals-meet-mallam.lesson-04.step-01",
+        "order": 1,
+        "type": "listen_repeat",
+        "title": "Open your first turn",
+        "prompt": "Mallam says, Hello, [learner first name]. Say hello back.",
+        "hint": "Use the learner's first name warmly, then pause before repeating.",
+        "detail": "Makes the greeting personal before the learner speaks.",
+        "evidence": "Learner returns the greeting in any clear form.",
+        "expectedAnswers": ["Hello, Mallam.", "Hello Mallam", "Hello"],
+        "successFeedback": "Good. Mallam and the learner have opened the first full turn.",
+        "retryFeedback": "Wave once and say hello together again.",
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-04:personal-hello"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-04:wave-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "Use the learner's first name naturally.",
+          "Any clear greeting counts."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-04.step-02",
+        "order": 2,
+        "type": "image_choice",
+        "title": "Pick who will speak",
+        "prompt": "Tap the picture of Mallam.",
+        "hint": "Name each choice once: Mallam, listen, smile.",
+        "detail": "Returns to the core character identification before the learner answers.",
+        "evidence": "Learner picks Mallam quickly.",
+        "expectedAnswers": ["Mallam"],
+        "choices": [
+          {
+            "id": "choice-mallam",
+            "label": "Mallam",
+            "isCorrect": true,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-04:mallam-card"
+            }
+          },
+          {
+            "id": "choice-listen",
+            "label": "Listen",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-04:ear-card"
+            }
+          },
+          {
+            "id": "choice-smile",
+            "label": "Smile",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-04:smile-card"
+            }
+          }
+        ],
+        "facilitatorNotes": [
+          "Keep it quick so the learner stays in the dialogue rhythm.",
+          "One correct tap is enough."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-04.step-03",
+        "order": 3,
+        "type": "listen_answer",
+        "title": "Say your name clearly",
+        "prompt": "Mallam asks, What is your name? Say: My name is [learner name].",
+        "hint": "Touch the name card and model only the first two words if needed.",
+        "detail": "Learner gives the personal introduction that anchors the full onboarding flow.",
+        "evidence": "Learner attempts My name is ... with their own name.",
+        "expectedAnswers": ["My name is [learner name].", "[learner name]"],
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-04:name-question"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-04:name-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "Let the learner own the answer.",
+          "A partial self-introduction still counts."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-04.step-04",
+        "order": 4,
+        "type": "tap_choice",
+        "title": "Choose the start signal",
+        "prompt": "Tap the card that says, I am ready to learn.",
+        "hint": "Read both cards aloud once before the learner chooses.",
+        "detail": "Turns the learner's spoken readiness into a visible start signal.",
+        "evidence": "Learner chooses the ready-to-learn card.",
+        "expectedAnswers": ["I am ready to learn."],
+        "choices": [
+          {
+            "id": "choice-ready-learn",
+            "label": "I am ready to learn.",
+            "isCorrect": true,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-04:ready-phrase"
+            }
+          },
+          {
+            "id": "choice-my-name",
+            "label": "My name is [learner first name].",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-04:name-phrase"
+            }
+          }
+        ],
+        "facilitatorNotes": [
+          "Accept a calm, deliberate choice.",
+          "The goal is startup recognition, not reading fluency."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-04.step-05",
+        "order": 5,
+        "type": "speak_answer",
+        "title": "Say the full first-turn phrase",
+        "prompt": "Say: Hello, Mallam. My name is [learner name]. I am ready to learn.",
+        "hint": "Point to the hello card, then the name card, then the ready card while the learner echoes the full line.",
+        "detail": "Learner closes the bundled onboarding pack with one complete, reusable first-turn phrase.",
+        "evidence": "Learner attempts the full phrase with support if needed.",
+        "expectedAnswers": ["Hello, Mallam. My name is [learner name]. I am ready to learn.", "My name is [learner name]. I am ready to learn.", "I am ready to learn."],
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-04:first-turn-phrase"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-04:name-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "This is the closing ritual for the offline onboarding pack.",
+          "Finish with praise and move directly into the next subject only if the learner still has energy."
+        ]
+      }
+    ]
+  },
+  "offlineMedia": {
+    "basePath": "assets/content_packs/lumo-fundamentals/meet_mallam/media",
+    "items": [
+      {
+        "id": "personal-hello",
+        "kind": "prompt-card",
+        "text": "Hello, [learner first name].",
+        "label": "Personal hello"
+      },
+      {
+        "id": "name-question",
+        "kind": "prompt-card",
+        "text": "What is your name?",
+        "label": "Name question"
+      },
+      {
+        "id": "name-phrase",
+        "kind": "prompt-card",
+        "text": "My name is [learner first name].",
+        "label": "Name phrase"
+      },
+      {
+        "id": "ready-phrase",
+        "kind": "prompt-card",
+        "text": "I am ready to learn.",
+        "label": "Ready to learn phrase"
+      },
+      {
+        "id": "first-turn-phrase",
+        "kind": "prompt-card",
+        "text": "Hello, Mallam. My name is [learner name]. I am ready to learn.",
+        "label": "Full first turn phrase"
+      },
+      {
+        "id": "mallam-card",
+        "kind": "image",
+        "relativePath": "images/mallam-card.png",
+        "label": "Mallam portrait"
+      },
+      {
+        "id": "ear-card",
+        "kind": "image",
+        "relativePath": "images/ear-card.png",
+        "label": "Listening card"
+      },
+      {
+        "id": "smile-card",
+        "kind": "image",
+        "relativePath": "images/smile-card.png",
+        "label": "Smile card"
+      },
+      {
+        "id": "wave-card",
+        "kind": "image",
+        "relativePath": "images/wave-card.png",
+        "label": "Wave card"
+      },
+      {
+        "id": "name-card",
+        "kind": "image",
+        "relativePath": "images/name-card.png",
+        "label": "Name card"
+      }
+    ]
+  }
+}

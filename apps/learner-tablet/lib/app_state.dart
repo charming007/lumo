@@ -438,12 +438,12 @@ class LumoAppState {
       };
       final existingLearnersByCode = {
         for (final learner in learners)
-          if (learner.learnerCode.trim().isNotEmpty) learner.learnerCode: learner,
+          if (learner.learnerCode.trim().isNotEmpty)
+            learner.learnerCode: learner,
       };
-      final bootstrapLearners =
-          data.learners.isEmpty && _includeSeedDemoContent
-              ? learnerProfilesSeed
-              : data.learners;
+      final bootstrapLearners = data.learners.isEmpty && _includeSeedDemoContent
+          ? learnerProfilesSeed
+          : data.learners;
       learners
         ..clear()
         ..addAll(
@@ -1146,6 +1146,10 @@ class LumoAppState {
       return 'No next lesson is ready yet. Open ${recommendedModuleForLearner(learner).title} to keep going.';
     }
 
+    if (_isBundledFundamentalsLesson(nextLesson)) {
+      return 'Next up: ${nextLesson.title} • continue the offline Meet Mallam onboarding pack.';
+    }
+
     final routeSource = nextAssignmentPackForLearner(learner);
     final viaLabel =
         routeSource != null && routeSource.lessonId == nextLesson.id
@@ -1361,10 +1365,12 @@ class LumoAppState {
     final sessionId =
         resumeFrom?.sessionId ?? 'session-${now.millisecondsSinceEpoch}';
     final startedAt = resumeFrom?.startedAt ?? now;
-    final learnerName = currentLearner?.name ?? 'the learner';
-    final resumePrompt = isResuming
-        ? 'Mallam is resuming ${lesson.title} with $learnerName from ${resumeFrom.progressLabel.toLowerCase()}.'
-        : 'Mallam is opening the lesson and preparing the first voice prompt.';
+    final openingStatus = _offlineOnboardingStatus(
+      lesson: lesson,
+      step: openingStep,
+      isResuming: isResuming,
+      resumeFrom: resumeFrom,
+    );
 
     activeSession = LessonSessionState(
       sessionId: sessionId,
@@ -1381,11 +1387,7 @@ class LumoAppState {
         resumeFrom?.facilitatorObservations ?? 0,
         'Backend observation logged',
       ),
-      automationStatus: isResuming
-          ? (resumeFrom.automationStatus.trim().isEmpty
-              ? resumePrompt
-              : '${resumeFrom.automationStatus} Resume from ${resumeFrom.progressLabel.toLowerCase()}.')
-          : resumePrompt,
+      automationStatus: openingStatus,
       transcript: [
         SessionTurn(
           speaker: 'Mallam',
@@ -2279,8 +2281,9 @@ class LumoAppState {
       latestReview: ResponseReview.pending,
       attemptsThisStep: 0,
       lastSupportType: 'Prompt replay',
-      automationStatus:
-          'Mallam moved to the next step and is preparing the next prompt.',
+      automationStatus: _isBundledFundamentalsLesson(session.lesson)
+          ? 'Offline onboarding continues with ${nextStep.title.toLowerCase()}. Mallam is ready with the next guided prompt.'
+          : 'Mallam moved to the next step and is preparing the next prompt.',
       transcript: [
         ...session.transcript,
         SessionTurn(
@@ -2449,7 +2452,8 @@ class LumoAppState {
     return incomingLearner.copyWith(
       rewards: incomingLearner.rewards == null
           ? existingLearner.rewards
-          : _mergeRewardSnapshot(existingLearner.rewards, incomingLearner.rewards!),
+          : _mergeRewardSnapshot(
+              existingLearner.rewards, incomingLearner.rewards!),
     );
   }
 
@@ -3116,8 +3120,11 @@ class LumoAppState {
   String personalizePrompt(String text) {
     final learner = currentLearner;
     if (learner == null) return text;
+    final firstName = _learnerFirstName(learner);
     return text
         .replaceAll('[learner name]', learner.name)
+        .replaceAll('[learner first name]', firstName)
+        .replaceAll('[first name]', firstName)
         .replaceAll('____', learner.name)
         .replaceAll('Aisha', learner.name)
         .replaceAll('Abdullahi', learner.name);
@@ -3126,11 +3133,51 @@ class LumoAppState {
   String personalizeExpectedResponse(String text) {
     final learner = currentLearner;
     if (learner == null) return text;
+    final firstName = _learnerFirstName(learner);
     return text
         .replaceAll('[learner name]', learner.name)
+        .replaceAll('[learner first name]', firstName)
+        .replaceAll('[first name]', firstName)
         .replaceAll('____', learner.name)
         .replaceAll('Aisha', learner.name)
         .replaceAll('Abdullahi', learner.name);
+  }
+
+  String _learnerFirstName(LearnerProfile learner) {
+    final parts = learner.name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    return parts.isEmpty ? learner.name.trim() : parts.first;
+  }
+
+  String _offlineOnboardingStatus({
+    required LessonCardModel lesson,
+    required LessonStep step,
+    required bool isResuming,
+    BackendLessonSession? resumeFrom,
+  }) {
+    if (!_isBundledFundamentalsLesson(lesson)) {
+      final learnerName = currentLearner?.name ?? 'the learner';
+      return isResuming
+          ? (resumeFrom?.automationStatus.trim().isNotEmpty == true
+              ? '${resumeFrom!.automationStatus} Resume from ${resumeFrom.progressLabel.toLowerCase()}.'
+              : 'Mallam is resuming ${lesson.title} with $learnerName from ${resumeFrom?.progressLabel.toLowerCase() ?? 'the saved step'}.')
+          : 'Mallam is opening the lesson and preparing the first voice prompt.';
+    }
+
+    final learner = currentLearner;
+    final firstName =
+        learner == null ? 'my friend' : _learnerFirstName(learner);
+    final stepPrompt = personalizePrompt(step.coachPrompt);
+    if (isResuming) {
+      final base = resumeFrom?.automationStatus.trim().isNotEmpty == true
+          ? resumeFrom!.automationStatus
+          : 'Offline onboarding resumed for $firstName.';
+      return '$base ${step.title} is ready from ${resumeFrom?.progressLabel.toLowerCase() ?? 'the saved step'}.';
+    }
+    return 'Offline onboarding is ready for $firstName. ${step.title} starts now: $stepPrompt';
   }
 
   void _applySyncedRuntimeSessions(Map<String, dynamic> raw) {
