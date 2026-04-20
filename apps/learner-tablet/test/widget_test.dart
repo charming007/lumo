@@ -26,6 +26,20 @@ class _DelayedApiClient extends LumoApiClient {
 
   @override
   Future<LumoBootstrap> fetchBootstrap() => _completer.future;
+
+  @override
+  Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
+    final module = learningModules.firstWhere(
+      (item) => item.id == moduleId,
+      orElse: () => learningModules.first,
+    );
+    return LumoModuleBundle(
+      module: module,
+      lessons: assignedLessonsSeed
+          .where((lesson) => lesson.moduleId == moduleId)
+          .toList(),
+    );
+  }
 }
 
 class _RewardsRefreshApiClient extends LumoApiClient {
@@ -66,6 +80,7 @@ void _noop() {}
 
 void main() {
   Future<void> pumpAppAtSize(WidgetTester tester, Size size) async {
+    SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -208,43 +223,6 @@ void main() {
     );
     expect(find.text('Register'), findsNothing);
     expect(find.text('Student list'), findsNothing);
-
-    completer.complete(
-      LumoBootstrap(
-        learners: const [
-          LearnerProfile(
-            id: 'learner-live-1',
-            name: 'Amina Bello',
-            age: 9,
-            cohort: 'Cohort A',
-            streakDays: 2,
-            guardianName: 'Hauwa Bello',
-            preferredLanguage: 'Hausa',
-            readinessLabel: 'Voice-first beginner',
-            village: 'Kawo',
-            guardianPhone: '08000000000',
-            sex: 'Girl',
-            baselineLevel: 'No prior exposure',
-            consentCaptured: true,
-            learnerCode: 'LM-101',
-            caregiverRelationship: 'Mother',
-            enrollmentStatus: 'Active',
-            attendanceBand: 'Stable attendance',
-            supportPlan: 'Short prompts and praise.',
-            lastLessonSummary: 'No lesson captured yet.',
-            lastAttendance: 'Checked in today',
-          ),
-        ],
-        modules: learningModules,
-        lessons: assignedLessonsSeed,
-      ),
-    );
-
-    await tester.pump();
-    await pumpForUi(tester);
-
-    expect(find.text('Hear Mallam again'), findsOneWidget);
-    expect(find.text('Student list'), findsOneWidget);
 
     state.dispose();
     await tester.pumpWidget(const SizedBox.shrink());

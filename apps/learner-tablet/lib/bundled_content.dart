@@ -30,7 +30,9 @@ class BundledContentLoader {
         const <Map<String, dynamic>>[];
 
     final modules = <LearningModule>[];
+    final seenModuleIds = <String>{};
     final lessons = <LessonCardModel>[];
+    final seenLessonIds = <String>{};
 
     for (final packEntry in packEntries) {
       final packManifestPath = packEntry['manifest']?.toString().trim();
@@ -46,9 +48,12 @@ class BundledContentLoader {
       for (final lessonEntry in lessonEntries) {
         final moduleJson = lessonEntry['module'];
         if (moduleJson is Map) {
-          modules.add(
-            LearningModule.fromBackend(Map<String, dynamic>.from(moduleJson)),
+          final module = LearningModule.fromBackend(
+            Map<String, dynamic>.from(moduleJson),
           );
+          if (seenModuleIds.add(module.id)) {
+            modules.add(module);
+          }
         }
 
         final lessonManifestPath = lessonEntry['manifest']?.toString().trim();
@@ -61,7 +66,10 @@ class BundledContentLoader {
           lessonJson: Map<String, dynamic>.from(lessonJson),
           lessonManifest: lessonManifest,
         );
-        lessons.add(LessonCardModel.fromBackend(resolvedLessonJson));
+        final lesson = LessonCardModel.fromBackend(resolvedLessonJson);
+        if (seenLessonIds.add(lesson.id)) {
+          lessons.add(lesson);
+        }
       }
     }
 

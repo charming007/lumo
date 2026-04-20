@@ -3,7 +3,7 @@
   "slug": "meet-mallam",
   "title": "Lumo Fundamentals: Meet Mallam",
   "description": "Bundled offline-first fundamentals pack for the first Mallam-led learner exchange.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "schemaVersion": "lumo-offline-pack.v1",
   "deliveryMode": "bundled-offline",
   "curriculumFamilyId": "lumo-fundamentals",
@@ -17,9 +17,22 @@
         "description": "A calm, offline-first starter module that teaches the learner how Mallam greets, asks, and waits for a response.",
         "voicePrompt": "Meet Mallam. Listen, repeat, point, and answer one step at a time.",
         "readinessGoal": "Ready to greet Mallam, follow a simple prompt, and finish the first guided exchange.",
-        "badge": "Fundamentals · 1 lesson"
+        "badge": "Fundamentals · 2 lessons"
       },
       "manifest": "assets/content_packs/lumo-fundamentals/meet_mallam/lesson.json"
+    },
+    {
+      "id": "fundamentals-meet-mallam.lesson-02",
+      "title": "My name and I am ready",
+      "module": {
+        "id": "fundamentals-meet-mallam",
+        "title": "Meet Mallam",
+        "description": "A calm, offline-first starter module that teaches the learner how Mallam greets, asks, and waits for a response.",
+        "voicePrompt": "Meet Mallam. Listen, repeat, point, and answer one step at a time.",
+        "readinessGoal": "Ready to greet Mallam, follow a simple prompt, and finish the first guided exchange.",
+        "badge": "Fundamentals · 2 lessons"
+      },
+      "manifest": "assets/content_packs/lumo-fundamentals/meet_mallam/lesson_name_and_ready.json"
     }
   ]
 }

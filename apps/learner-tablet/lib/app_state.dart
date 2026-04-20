@@ -3088,6 +3088,8 @@ class LumoAppState {
     final learner = currentLearner;
     if (learner == null) return text;
     return text
+        .replaceAll('[learner name]', learner.name)
+        .replaceAll('____', learner.name)
         .replaceAll('Aisha', learner.name)
         .replaceAll('Abdullahi', learner.name);
   }
@@ -3096,6 +3098,7 @@ class LumoAppState {
     final learner = currentLearner;
     if (learner == null) return text;
     return text
+        .replaceAll('[learner name]', learner.name)
         .replaceAll('____', learner.name)
         .replaceAll('Aisha', learner.name)
         .replaceAll('Abdullahi', learner.name);

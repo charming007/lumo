@@ -1,0 +1,239 @@
+{
+  "packId": "lumo-fundamentals.meet-mallam",
+  "packVersion": "1.1.0",
+  "lesson": {
+    "id": "fundamentals-meet-mallam.lesson-02",
+    "moduleId": "fundamentals-meet-mallam",
+    "title": "My name and I am ready",
+    "subject": "Lumo Fundamentals",
+    "durationMinutes": 10,
+    "status": "published",
+    "mascotName": "Mallam",
+    "readinessFocus": "Name response, listening cue recognition, and a confident offline start ritual.",
+    "scenario": "The learner settles into the second offline exchange with Mallam, identifies the listening cue, says a short self-introduction, and finishes by choosing the ready mat and speaking the launch phrase.",
+    "source": "bundled-pack",
+    "activitySteps": [
+      {
+        "id": "fundamentals-meet-mallam.lesson-02.step-01",
+        "order": 1,
+        "type": "listen_repeat",
+        "title": "Listen to Mallam",
+        "prompt": "Mallam says, Listen first. Then touch the listening card.",
+        "hint": "Tap the ear card once and pause. Give the learner time to copy the action.",
+        "detail": "The learner connects Mallam's spoken cue to the listening visual.",
+        "evidence": "Learner points to the listening card after hearing the cue.",
+        "expectedAnswers": ["Listen", "I can listen"],
+        "successFeedback": "Good. The learner noticed the listening cue.",
+        "retryFeedback": "Show the listening card again and say, Listen.",
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-02:listen-cue"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-02:ear-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "Start with a calm pause before repeating the cue.",
+          "Reward the first clear point or touch."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-02.step-02",
+        "order": 2,
+        "type": "image_choice",
+        "title": "Touch the listening card",
+        "prompt": "Tap the picture that means listen.",
+        "hint": "Name each card once: listen, smile, book.",
+        "detail": "The learner discriminates the listening symbol from two distractors.",
+        "evidence": "Learner selects the ear card after one spoken cue.",
+        "expectedAnswers": ["Listen"],
+        "choices": [
+          {
+            "id": "choice-ear",
+            "label": "Listen",
+            "isCorrect": true,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-02:ear-card"
+            }
+          },
+          {
+            "id": "choice-smile",
+            "label": "Smile",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-02:smile-card"
+            }
+          },
+          {
+            "id": "choice-book",
+            "label": "Book",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-02:book-card"
+            }
+          }
+        ],
+        "facilitatorNotes": [
+          "Avoid extra talking after the first cue.",
+          "Celebrate a correct touch right away."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-02.step-03",
+        "order": 3,
+        "type": "listen_answer",
+        "title": "Say your name",
+        "prompt": "Mallam asks, What is your name? Say: My name is [learner name].",
+        "hint": "Touch the name card, then model the first part of the sentence only once.",
+        "detail": "The learner uses a short self-introduction with support.",
+        "evidence": "Learner attempts My name is... with their own name.",
+        "expectedAnswers": ["My name is [learner name].", "[learner name]"],
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-02:name-question"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-02:name-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "Any close self-introduction counts.",
+          "Keep the learner's own name natural and personal."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-02.step-04",
+        "order": 4,
+        "type": "tap_choice",
+        "title": "Choose the ready mat",
+        "prompt": "Tap the card that means we are ready to begin.",
+        "hint": "Read the two cards aloud: Ready mat. Wave hand.",
+        "detail": "The learner links the start ritual to the ready visual.",
+        "evidence": "Learner taps the ready mat card.",
+        "expectedAnswers": ["Ready mat"],
+        "choices": [
+          {
+            "id": "choice-ready-mat",
+            "label": "Ready mat",
+            "isCorrect": true,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-02:ready-mat-card"
+            }
+          },
+          {
+            "id": "choice-wave",
+            "label": "Wave hand",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-02:wave-card"
+            }
+          }
+        ],
+        "facilitatorNotes": [
+          "Keep the distinction visual and quick.",
+          "If needed, point to the floor or mat area once."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-02.step-05",
+        "order": 5,
+        "type": "speak_answer",
+        "title": "Say the launch phrase",
+        "prompt": "Say: My name is [learner name]. I am ready.",
+        "hint": "Point to the name card, then the ready card, and let the learner echo the full phrase.",
+        "detail": "The learner closes with a complete intro-and-ready phrase.",
+        "evidence": "Learner attempts the full phrase with calm support.",
+        "expectedAnswers": ["My name is [learner name]. I am ready.", "I am ready.", "My name is [learner name]."],
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-02:launch-phrase"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-02:ready-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "A close attempt is enough; do not over-correct.",
+          "Finish with praise so the learner wants the next lesson."
+        ]
+      }
+    ]
+  },
+  "offlineMedia": {
+    "basePath": "assets/content_packs/lumo-fundamentals/meet_mallam/media",
+    "items": [
+      {
+        "id": "listen-cue",
+        "kind": "prompt-card",
+        "text": "Listen first.",
+        "label": "Listening cue"
+      },
+      {
+        "id": "name-question",
+        "kind": "prompt-card",
+        "text": "What is your name?",
+        "label": "Name question"
+      },
+      {
+        "id": "launch-phrase",
+        "kind": "prompt-card",
+        "text": "My name is [learner name]. I am ready.",
+        "label": "Launch phrase"
+      },
+      {
+        "id": "ready-card",
+        "kind": "prompt-card",
+        "text": "I am ready.",
+        "label": "Ready phrase"
+      },
+      {
+        "id": "ear-card",
+        "kind": "image",
+        "relativePath": "images/ear-card.png",
+        "label": "Listening card"
+      },
+      {
+        "id": "smile-card",
+        "kind": "image",
+        "relativePath": "images/smile-card.png",
+        "label": "Smile card"
+      },
+      {
+        "id": "name-card",
+        "kind": "image",
+        "relativePath": "images/name-card.png",
+        "label": "Name card"
+      },
+      {
+        "id": "ready-mat-card",
+        "kind": "image",
+        "relativePath": "images/ready-mat-card.png",
+        "label": "Ready mat card"
+      },
+      {
+        "id": "book-card",
+        "kind": "image",
+        "relativePath": "images/book-card.png",
+        "label": "Book card"
+      },
+      {
+        "id": "wave-card",
+        "kind": "image",
+        "relativePath": "images/wave-card.png",
+        "label": "Wave card"
+      }
+    ]
+  }
+}

@@ -3,12 +3,18 @@
 This folder is the starter offline asset/content shell for the `lumo-fundamentals` pack.
 
 What is here:
-- `lesson.json` — learner runtime lesson payload + offline media manifest
-- `media/` — reserved local media directory for future bundled files
+- `lesson.json` — lesson 1 (`Hello, Mallam`) runtime payload + offline media manifest
+- `lesson_name_and_ready.json` — lesson 2 (`My name and I am ready`) runtime payload + offline media manifest
+- `media/` — bundled starter card art used by the offline pack today
 
 What is intentionally *not* here:
-- invented final artwork
-- invented final narration audio
-- any fake file pretending to be production-ready media
+- final production narration audio
+- polished field photography pretending to be approved curriculum media
+- any fake file masquerading as a backend sync artifact
 
-When real media is ready, place it under `media/` using the manifest paths already declared in `lesson.json`.
+Current offline goal:
+- usable first-contact lesson sequence even with no network
+- enough local card media for pointing, recognition, and short spoken responses
+- manifests that can later swap in approved production assets without changing lesson ids
+
+When real media is ready, place it under `media/` using the manifest paths already declared in the lesson manifests.
