@@ -30,6 +30,23 @@ function statusTone(status: string) {
   return { tone: '#FEF3C7', text: '#92400E' };
 }
 
+function dueTone(value: string, status: string) {
+  if (status === 'completed') return { label: 'Completed', tone: '#E5E7EB', text: '#334155' };
+
+  const dueDate = startOfDay(new Date(value));
+  if (Number.isNaN(dueDate.getTime())) return { label: 'Date unverified', tone: '#E5E7EB', text: '#475569' };
+
+  const today = startOfDay(new Date());
+  const dayMs = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((dueDate.getTime() - today.getTime()) / dayMs);
+
+  if (diffDays < 0) return { label: `${Math.abs(diffDays)}d overdue`, tone: '#FEE2E2', text: '#991B1B' };
+  if (diffDays === 0) return { label: 'Due today', tone: '#FEF3C7', text: '#92400E' };
+  if (diffDays === 1) return { label: 'Due tomorrow', tone: '#FEF3C7', text: '#92400E' };
+  if (diffDays <= 7) return { label: `Due in ${diffDays}d`, tone: '#E0E7FF', text: '#3730A3' };
+  return { label: 'Upcoming', tone: '#F8FAFC', text: '#334155' };
+}
+
 function formatDueLabel(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -166,6 +183,32 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const mallamOptions = mallams
     .filter((mallam) => assignments.some((item) => item.teacherName === mallam.displayName || item.teacherName === mallam.name))
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const overdueAssignments = filteredAssignments
+    .filter((item) => {
+      const dueDate = startOfDay(new Date(item.dueDate));
+      return !Number.isNaN(dueDate.getTime()) && dueDate < today && item.status !== 'completed';
+    })
+    .slice()
+    .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
+    .slice(0, 4);
+  const dueTodayAssignments = filteredAssignments
+    .filter((item) => {
+      const dueDate = startOfDay(new Date(item.dueDate));
+      return !Number.isNaN(dueDate.getTime()) && dueDate.getTime() === today.getTime() && item.status !== 'completed';
+    })
+    .slice(0, 4);
+  const loadByMallam = mallams.map((mallam) => {
+    const scopedAssignments = filteredAssignments.filter((item) => item.teacherName === mallam.displayName || item.teacherName === mallam.name);
+    const overdue = scopedAssignments.filter((item) => dueTone(item.dueDate, item.status).label.includes('overdue')).length;
+    return {
+      id: mallam.id,
+      displayName: mallam.displayName,
+      assignmentCount: scopedAssignments.length,
+      overdue,
+    };
+  }).filter((entry) => entry.assignmentCount > 0)
+    .sort((left, right) => right.assignmentCount - left.assignmentCount || right.overdue - left.overdue)
+    .slice(0, 4);
 
   return (
     <PageShell
@@ -227,6 +270,29 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
         </div>
       ) : null}
 
+      {filtersActive && filteredAssignments.length === 0 ? (
+        <section style={{ marginBottom: 20 }}>
+          <Card title="No assignments matched this delivery scope" eyebrow="Route-safe empty state">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>
+                This filter combo returned nothing useful. Reset the board or jump to the next operational surface instead of treating an empty table like proof the delivery queue is clean.
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Link href="/assignments" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+                  Reset delivery scope
+                </Link>
+                <Link href="/mallams" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none' }}>
+                  Check mallam load
+                </Link>
+                <Link href="/content?view=blocked" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none', border: '1px solid #FED7AA' }}>
+                  Review content blockers
+                </Link>
+              </div>
+            </div>
+          </Card>
+        </section>
+      ) : null}
+
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         <Card title="Delivery pulse" eyebrow="Current scope">
           <MetricList
@@ -247,6 +313,48 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
               { label: 'Busiest owner', value: busiestOwnerLabel },
             ]}
           />
+        </Card>
+        <Card title="Delivery hotspots" eyebrow="Act here before the board lies to you">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ padding: 14, borderRadius: 16, background: overdueCount ? '#FEF2F2' : '#F8FAFC', border: `1px solid ${overdueCount ? '#FECACA' : '#E2E8F0'}` }}>
+              <div style={{ fontWeight: 800, marginBottom: 6, color: overdueCount ? '#991B1B' : '#0F172A' }}>
+                {overdueCount ? `${overdueCount} overdue assignment${overdueCount === 1 ? '' : 's'} need intervention now` : 'No overdue assignments in this scope'}
+              </div>
+              <div style={{ color: overdueCount ? '#991B1B' : '#64748B', lineHeight: 1.6 }}>
+                {overdueCount
+                  ? 'Reassign, reschedule, or escalate the overdue windows before they quietly rot into fake “active” work.'
+                  : 'Good. Keep the due-date discipline from slipping.'}
+              </div>
+            </div>
+            {overdueAssignments.length ? overdueAssignments.map((item) => (
+              <div key={`overdue-${item.id}`} style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <strong style={{ color: '#0F172A' }}>{item.lessonTitle}</strong>
+                  <Pill label={dueTone(item.dueDate, item.status).label} tone={dueTone(item.dueDate, item.status).tone} text={dueTone(item.dueDate, item.status).text} />
+                </div>
+                <div style={{ color: '#64748B', lineHeight: 1.6 }}>{item.cohortName} • {item.podLabel ?? 'No pod'} • {item.teacherName}</div>
+              </div>
+            )) : null}
+            {!overdueAssignments.length && dueTodayAssignments.length ? dueTodayAssignments.map((item) => (
+              <div key={`today-${item.id}`} style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FDE68A', display: 'grid', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <strong style={{ color: '#0F172A' }}>{item.lessonTitle}</strong>
+                  <Pill label={dueTone(item.dueDate, item.status).label} tone={dueTone(item.dueDate, item.status).tone} text={dueTone(item.dueDate, item.status).text} />
+                </div>
+                <div style={{ color: '#64748B', lineHeight: 1.6 }}>{item.cohortName} • {item.podLabel ?? 'No pod'} • {item.teacherName}</div>
+              </div>
+            )) : null}
+            {loadByMallam.length ? (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {loadByMallam.map((entry) => (
+                  <Link key={entry.id} href={`/assignments?mallam=${encodeURIComponent(entry.id)}`} style={{ padding: 12, borderRadius: 14, background: '#F8FAFC', border: '1px solid #E2E8F0', textDecoration: 'none', color: '#334155', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                    <span style={{ fontWeight: 800 }}>{entry.displayName}</span>
+                    <span>{entry.assignmentCount} live • {entry.overdue} overdue</span>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </Card>
         <Card title="Operator guidance" eyebrow="Use some taste">
           <div style={{ display: 'grid', gap: 10 }}>
@@ -270,13 +378,17 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
             columns={['Lesson', 'Cohort', 'Pod', 'Assessment', 'Mallam', 'Due date', 'Status']}
             rows={filteredAssignments.length ? filteredAssignments.map((item) => {
               const tone = statusTone(item.status);
+              const due = dueTone(item.dueDate, item.status);
               return [
                 item.lessonTitle,
                 item.cohortName,
                 item.podLabel ?? '—',
                 item.assessmentTitle ?? '—',
                 item.teacherName,
-                formatDueLabel(item.dueDate),
+                <div key={`${item.id}-due`} style={{ display: 'grid', gap: 6 }}>
+                  <span>{formatDueLabel(item.dueDate)}</span>
+                  <Pill label={due.label} tone={due.tone} text={due.text} />
+                </div>,
                 <Pill key={item.id} label={item.status} tone={tone.tone} text={tone.text} />,
               ];
             }) : emptyAssignmentRows(filtersActive ? 'No assignments match the current filters.' : 'Assignments are unavailable right now.')}
