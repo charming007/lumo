@@ -33,7 +33,11 @@ export type CurriculumCanvasModule = {
 
 export type CurriculumCanvasStrand = {
   id: string;
+  subjectId?: string;
+  subjectName?: string;
   name: string;
+  order?: number | null;
+  status?: string;
   modules: CurriculumCanvasModule[];
 };
 
@@ -439,7 +443,11 @@ export function buildCurriculumCanvasData({
 
         return {
           id: strand.id,
+          subjectId: subject.id,
+          subjectName: subject.name,
           name: strand.name,
+          order: strand.order ?? null,
+          status: strand.status ?? 'draft',
           modules: moduleNodes,
         } satisfies CurriculumCanvasStrand;
       }).filter((strand) => strand.modules.length > 0);
@@ -473,7 +481,11 @@ export function buildCurriculumCanvasData({
           .forEach(([name, groupedModules], index) => {
             strandNodes.push({
               id: `fallback-${subject.id}-${index}`,
+              subjectId: subject.id,
+              subjectName: subject.name,
               name,
+              order: null,
+              status: 'draft',
               modules: groupedModules,
             } satisfies CurriculumCanvasStrand);
           });
@@ -529,7 +541,11 @@ export function buildCurriculumCanvasDataFromTree(tree: CurriculumCanvasApiTree 
 
         return {
           id: strandNode.id,
+          subjectId: subjectNode.id,
+          subjectName: subjectNode.name ?? subjectNode.title ?? 'Untitled subject',
           name: strandNode.name ?? strandNode.title ?? 'Untitled strand',
+          order: strandNode.order ?? null,
+          status: strandNode.status ?? 'draft',
           modules,
         } satisfies CurriculumCanvasStrand;
       })

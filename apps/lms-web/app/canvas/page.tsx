@@ -10,12 +10,14 @@ import {
   bulkUpdateCanvasModuleLessonsAction,
   createCanvasAssessmentQuickAction,
   createCanvasModuleLessonShellsAction,
+  createStrandAction,
   quickUpdateAssessmentStatusAction,
   quickLinkCanvasLessonAssessmentAction,
   quickUpdateCanvasAssessmentAction,
   quickUpdateCanvasLessonAction,
   quickUpdateCanvasModuleAction,
   quickUpdateLessonStatusAction,
+  updateStrandAction,
 } from '../actions';
 
 function buildHardRescueCanvasData(reason: string) {
@@ -478,6 +480,10 @@ export default async function CurriculumCanvasPage({ searchParams }: { searchPar
       ) : null}
 
       <CurriculumCanvas
+        subjectOptions={subjects.map((subject) => ({ id: subject.id, name: subject.name }))}
+        createStrandAction={createStrandAction}
+        updateStrandAction={updateStrandAction}
+        returnPath="/canvas"
         data={data}
         failedSources={failedSources}
         generatedAt={canvasTree?.meta?.generatedAt ?? null}
