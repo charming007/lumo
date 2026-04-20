@@ -433,12 +433,29 @@ class LumoAppState {
 
     try {
       final data = await _apiClient.fetchBootstrap();
+      final existingLearnersById = {
+        for (final learner in learners) learner.id: learner,
+      };
+      final existingLearnersByCode = {
+        for (final learner in learners)
+          if (learner.learnerCode.trim().isNotEmpty) learner.learnerCode: learner,
+      };
+      final bootstrapLearners =
+          data.learners.isEmpty && _includeSeedDemoContent
+              ? learnerProfilesSeed
+              : data.learners;
       learners
         ..clear()
         ..addAll(
-          data.learners.isEmpty && _includeSeedDemoContent
-              ? learnerProfilesSeed
-              : data.learners,
+          bootstrapLearners
+              .map(
+                (learner) => _mergeLearnerProfile(
+                  existingLearner: existingLearnersById[learner.id] ??
+                      existingLearnersByCode[learner.learnerCode],
+                  incomingLearner: learner,
+                ),
+              )
+              .toList(growable: false),
         );
 
       final mergedModules = _dedupeModules(
@@ -2424,6 +2441,18 @@ class LumoAppState {
         _mergeRuntimeSessions(existing, [projected]);
   }
 
+  LearnerProfile _mergeLearnerProfile({
+    required LearnerProfile? existingLearner,
+    required LearnerProfile incomingLearner,
+  }) {
+    if (existingLearner == null) return incomingLearner;
+    return incomingLearner.copyWith(
+      rewards: incomingLearner.rewards == null
+          ? existingLearner.rewards
+          : _mergeRewardSnapshot(existingLearner.rewards, incomingLearner.rewards!),
+    );
+  }
+
   RewardSnapshot _mergeRewardSnapshot(
     RewardSnapshot? local,
     RewardSnapshot incoming,
@@ -3185,7 +3214,9 @@ class LumoAppState {
           ? RewardSnapshot.fromJson(Map<String, dynamic>.from(rewardsJson))
           : existingLearner.rewards;
       final updatedLearner = existingLearner.copyWith(
-        rewards: rewardSnapshot,
+        rewards: rewardSnapshot == null
+            ? existingLearner.rewards
+            : _mergeRewardSnapshot(existingLearner.rewards, rewardSnapshot),
         backendRecommendedModuleId:
             _readRecommendedModuleIdFromProgress(progressJson) ??
                 existingLearner.backendRecommendedModuleId,

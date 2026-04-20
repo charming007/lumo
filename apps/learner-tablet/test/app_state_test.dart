@@ -2584,6 +2584,239 @@ void main() {
       state.dispose();
     });
 
+    test('bootstrap keeps stronger local reward snapshots when backend lags',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final localRewards = const RewardSnapshot(
+        learnerId: 'learner-1',
+        totalXp: 160,
+        points: 160,
+        level: 3,
+        levelLabel: 'Bright Reader',
+        nextLevel: 4,
+        nextLevelLabel: 'Story Scout',
+        xpIntoLevel: 0,
+        xpForNextLevel: 80,
+        progressToNextLevel: 0,
+        badgesUnlocked: 1,
+        badges: [
+          RewardBadge(
+            id: 'voice-starter',
+            title: 'Voice Starter',
+            description: 'First lesson completed with Mallam.',
+            icon: 'record_voice_over',
+            category: 'lesson',
+            earned: true,
+            progress: 1,
+            target: 1,
+          ),
+        ],
+      );
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'savedAt': '2026-04-20T09:00:00.000Z',
+          'learners': [
+            {
+              'id': beginner.id,
+              'name': beginner.name,
+              'age': beginner.age,
+              'cohort': beginner.cohort,
+              'streakDays': beginner.streakDays,
+              'guardianName': beginner.guardianName,
+              'preferredLanguage': beginner.preferredLanguage,
+              'readinessLabel': beginner.readinessLabel,
+              'village': beginner.village,
+              'guardianPhone': beginner.guardianPhone,
+              'sex': beginner.sex,
+              'baselineLevel': beginner.baselineLevel,
+              'consentCaptured': beginner.consentCaptured,
+              'learnerCode': beginner.learnerCode,
+              'caregiverRelationship': beginner.caregiverRelationship,
+              'enrollmentStatus': beginner.enrollmentStatus,
+              'attendanceBand': beginner.attendanceBand,
+              'supportPlan': beginner.supportPlan,
+              'profilePhotoBase64': null,
+              'lastLessonSummary': beginner.lastLessonSummary,
+              'lastAttendance': beginner.lastAttendance,
+              'backendRecommendedModuleId': null,
+              'rewards': {
+                'learnerId': localRewards.learnerId,
+                'totalXp': localRewards.totalXp,
+                'points': localRewards.points,
+                'level': localRewards.level,
+                'levelLabel': localRewards.levelLabel,
+                'nextLevel': localRewards.nextLevel,
+                'nextLevelLabel': localRewards.nextLevelLabel,
+                'xpIntoLevel': localRewards.xpIntoLevel,
+                'xpForNextLevel': localRewards.xpForNextLevel,
+                'progressToNextLevel': localRewards.progressToNextLevel,
+                'badgesUnlocked': localRewards.badgesUnlocked,
+                'badges': [
+                  {
+                    'id': 'voice-starter',
+                    'title': 'Voice Starter',
+                    'description': 'First lesson completed with Mallam.',
+                    'icon': 'record_voice_over',
+                    'category': 'lesson',
+                    'earned': true,
+                    'progress': 1,
+                    'target': 1,
+                  },
+                ],
+              },
+            },
+          ],
+          'modules': const [],
+          'assignedLessons': const [],
+          'assignmentPacks': const [],
+          'pendingSyncEvents': const [],
+          'recentRuntimeSessionsByLearnerId': const {},
+          'rewardRedemptionHistoryByLearnerId': const {},
+          'usingFallbackData': false,
+          'acknowledgedOfflineFallbackRisk': false,
+        }),
+      });
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'generatedAt': '2026-04-20T10:00:00.000Z',
+                  'contractVersion': '2026-04-13-runtime-persist',
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'gender': 'female',
+                      'level': 'beginner',
+                      'cohortName': beginner.cohort,
+                      'podLabel': beginner.village,
+                      'attendanceRate': 0.9,
+                      'recommendedModuleId': 'english',
+                      'rewards': {
+                        'learnerId': beginner.id,
+                        'totalXp': 0,
+                        'points': 0,
+                        'level': 1,
+                        'levelLabel': 'Starter',
+                        'nextLevel': 2,
+                        'nextLevelLabel': 'Rising Voice',
+                        'xpIntoLevel': 0,
+                        'xpForNextLevel': 40,
+                        'progressToNextLevel': 0,
+                        'badgesUnlocked': 0,
+                        'badges': const [],
+                      },
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'id': 'english',
+                      'title': 'English',
+                      'description': 'English module',
+                      'voicePrompt': 'Open English.',
+                      'readinessGoal': 'Greeting flow',
+                      'badge': '1 lesson',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'english-lesson-1',
+                      'moduleId': 'english',
+                      'title': 'Hello there',
+                      'subject': 'English',
+                      'durationMinutes': 8,
+                      'status': 'published',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greeting flow',
+                      'scenario': 'Say hello.',
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'type': 'practice',
+                          'title': 'Say hello',
+                          'instruction': 'Say hello.',
+                          'expectedResponse': 'Hello',
+                          'coachPrompt': 'Say hello.',
+                          'facilitatorTip': 'Keep it short.',
+                          'realWorldCheck': 'Learner greets',
+                          'speakerMode': 'guiding',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path == '/api/v1/learner-app/module-bundles/english') {
+              return http.Response(
+                jsonEncode({
+                  'module': {
+                    'id': 'english',
+                    'title': 'English',
+                    'description': 'English module',
+                    'voicePrompt': 'Open English.',
+                    'readinessGoal': 'Greeting flow',
+                    'badge': '1 lesson',
+                  },
+                  'lessons': [
+                    {
+                      'id': 'english-lesson-1',
+                      'moduleId': 'english',
+                      'title': 'Hello there',
+                      'subject': 'English',
+                      'durationMinutes': 8,
+                      'status': 'published',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greeting flow',
+                      'scenario': 'Say hello.',
+                      'steps': [
+                        {
+                          'id': 'step-1',
+                          'type': 'practice',
+                          'title': 'Say hello',
+                          'instruction': 'Say hello.',
+                          'expectedResponse': 'Hello',
+                          'coachPrompt': 'Say hello.',
+                          'facilitatorTip': 'Keep it short.',
+                          'realWorldCheck': 'Learner greets',
+                          'speakerMode': 'guiding',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      addTearDown(state.dispose);
+
+      await state.restorePersistedState();
+      await state.bootstrap();
+
+      final rewards = state.learners.first.rewards!;
+      expect(rewards.totalXp, 160);
+      expect(rewards.levelLabel, 'Bright Reader');
+      expect(
+        rewards.badges
+            .any((badge) => badge.id == 'voice-starter' && badge.earned),
+        isTrue,
+      );
+    });
+
     test('lesson completion projects a completed runtime session locally',
         () async {
       late final LumoAppState state;
