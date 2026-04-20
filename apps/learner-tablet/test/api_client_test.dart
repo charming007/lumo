@@ -59,10 +59,20 @@ void main() {
   });
 
   group('LumoApiClient.productionBaseUrlIssue', () {
-    test('rejects missing release config', () {
+    test('allows the bundled production default when explicit release config is absent', () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitConfig: false,
+        ),
+        isNull,
+      );
+    });
+
+    test('still rejects missing release config when the implicit target is not the bundled production default', () {
+      expect(
+        LumoApiClient.productionBaseUrlIssue(
+          'https://staging-lumo-api.example.org',
           hasExplicitConfig: false,
         ),
         contains('LUMO_API_BASE_URL is missing'),

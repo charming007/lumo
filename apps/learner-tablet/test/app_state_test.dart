@@ -2862,7 +2862,8 @@ void main() {
       expect(state.suggestedLearnerForHome, isNotNull);
     });
 
-    test('bootstrap merges bundled Meet Mallam content without overriding live lessons',
+    test(
+        'bootstrap merges bundled Meet Mallam content without overriding live lessons',
         () async {
       final liveLesson = LessonCardModel(
         id: 'live-lesson-1',
@@ -3054,6 +3055,189 @@ void main() {
       expect(
         state.assignedLessons.any((lesson) => lesson.id == bundledLesson.id),
         isTrue,
+      );
+    });
+
+    test(
+        'bundled fundamentals lesson wins over live lesson body with same stable id',
+        () async {
+      final bundledLesson = LessonCardModel(
+        id: 'fundamentals-meet-mallam.lesson-01',
+        moduleId: 'fundamentals-meet-mallam',
+        title: 'Hello, Mallam',
+        subject: 'Lumo Fundamentals',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Offline starter',
+        scenario: 'Bundled offline intro lesson.',
+        steps: const [
+          LessonStep(
+            id: 'bundled-step-1',
+            type: LessonStepType.intro,
+            title: 'Meet Mallam',
+            instruction: 'Say hello to Mallam.',
+            expectedResponse: 'Hello Mallam',
+            coachPrompt: 'Say hello to Mallam.',
+            facilitatorTip: 'Model the phrase once.',
+            realWorldCheck: 'Learner greets Mallam.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+          LessonStep(
+            id: 'bundled-step-2',
+            type: LessonStepType.practice,
+            title: 'Find Mallam',
+            instruction: 'Tap Mallam.',
+            expectedResponse: 'Mallam',
+            coachPrompt: 'Tap Mallam.',
+            facilitatorTip: 'One cue is enough.',
+            realWorldCheck: 'Learner identifies Mallam.',
+            speakerMode: SpeakerMode.listening,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        bundledContentLoader: _FakeBundledContentLoader(
+          BundledContentLibrary(
+            modules: const [
+              LearningModule(
+                id: 'fundamentals-meet-mallam',
+                title: 'Meet Mallam',
+                description: 'Offline starter pack',
+                voicePrompt: 'Meet Mallam offline.',
+                readinessGoal: 'Ready for offline startup.',
+                badge: 'Bundled pack',
+              ),
+            ],
+            lessons: [bundledLesson],
+          ),
+        ),
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'id': 'fundamentals-meet-mallam',
+                      'subjectId': 'english',
+                      'subjectName': 'English',
+                      'title': 'Meet Mallam',
+                      'level': 'beginner',
+                      'status': 'published',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': bundledLesson.id,
+                      'moduleId': bundledLesson.moduleId,
+                      'title': bundledLesson.title,
+                      'subject': bundledLesson.subject,
+                      'durationMinutes': bundledLesson.durationMinutes,
+                      'status': bundledLesson.status,
+                      'mascotName': bundledLesson.mascotName,
+                      'readinessFocus': bundledLesson.readinessFocus,
+                      'scenario':
+                          'Live server variant that should not replace the bundled body.',
+                      'activitySteps': [
+                        {
+                          'id': 'live-step-1',
+                          'order': 1,
+                          'type': 'listen_repeat',
+                          'title': 'Live hello',
+                          'prompt': 'Say hello.',
+                          'detail': 'Greeting step',
+                          'evidence': 'Learner greets',
+                        },
+                      ],
+                    },
+                  ],
+                  'assignments': [],
+                  'registrationContext': {
+                    'cohorts': [],
+                    'mallams': [],
+                  },
+                  'meta': {
+                    'generatedAt': '2026-04-19T10:00:00.000Z',
+                    'contractVersion': 'learner-app.v2',
+                    'assignmentCount': 0,
+                  },
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path ==
+                '/api/v1/learner-app/modules/fundamentals-meet-mallam') {
+              return http.Response(
+                jsonEncode({
+                  'module': {
+                    'id': 'fundamentals-meet-mallam',
+                    'subjectId': 'english',
+                    'subjectName': 'English',
+                    'title': 'Meet Mallam',
+                    'level': 'beginner',
+                    'status': 'published',
+                  },
+                  'lessons': [
+                    {
+                      'id': bundledLesson.id,
+                      'moduleId': bundledLesson.moduleId,
+                      'title': bundledLesson.title,
+                      'subject': bundledLesson.subject,
+                      'durationMinutes': bundledLesson.durationMinutes,
+                      'status': bundledLesson.status,
+                      'mascotName': bundledLesson.mascotName,
+                      'readinessFocus': bundledLesson.readinessFocus,
+                      'scenario':
+                          'Live hydrated variant that should not replace the bundled body.',
+                      'activitySteps': [
+                        {
+                          'id': 'live-step-1',
+                          'order': 1,
+                          'type': 'listen_repeat',
+                          'title': 'Live hello',
+                          'prompt': 'Say hello.',
+                          'detail': 'Greeting step',
+                          'evidence': 'Learner greets',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      final resolvedLesson = state.assignedLessons.firstWhere(
+        (lesson) => lesson.id == bundledLesson.id,
+      );
+      expect(resolvedLesson.steps.length, 2);
+      expect(resolvedLesson.steps.first.id, 'bundled-step-1');
+      expect(
+        resolvedLesson.scenario,
+        'Bundled offline intro lesson.',
       );
     });
 

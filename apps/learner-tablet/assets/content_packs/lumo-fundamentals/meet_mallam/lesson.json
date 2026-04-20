@@ -1,44 +1,53 @@
 {
-  "packId": "lumo-fundamentals",
-  "packVersion": "0.1.0",
+  "packId": "lumo-fundamentals.meet-mallam",
+  "packVersion": "1.0.0",
   "lesson": {
-    "id": "lf-meet-mallam",
-    "moduleId": "lumo-fundamentals",
-    "title": "Meet Mallam",
+    "id": "fundamentals-meet-mallam.lesson-01",
+    "moduleId": "fundamentals-meet-mallam",
+    "title": "Hello, Mallam",
     "subject": "Lumo Fundamentals",
-    "durationMinutes": 6,
-    "status": "Bundled offline starter",
+    "durationMinutes": 8,
+    "status": "published",
     "mascotName": "Mallam",
-    "readinessFocus": "Learn who Mallam is, how the tablet speaks, and how to answer one short guided prompt.",
-    "scenario": "The learner meets Mallam for the first time and practices listening, pointing, and repeating in a calm offline session.",
+    "readinessFocus": "Guided greeting, pointing, and short spoken answers.",
+    "scenario": "The learner meets Mallam, learns the greeting ritual, points to the right card, and answers one calm readiness question entirely from bundled offline content.",
+    "source": "bundled-pack",
     "activitySteps": [
       {
-        "id": "meet-mallam-1",
+        "id": "fundamentals-meet-mallam.lesson-01.step-01",
         "order": 1,
         "type": "listen_repeat",
         "title": "Mallam says hello",
-        "prompt": "Listen to Mallam say hello, then say hello back.",
-        "detail": "Starter introduction step for first-run tablet orientation.",
-        "evidence": "Learner listens, stays engaged, and attempts a spoken hello.",
+        "prompt": "Mallam says, Hello. Listen first, then say hello back.",
+        "hint": "Use a wave and model the greeting once before asking the learner to repeat it.",
+        "detail": "First contact with the tutor voice and the hello routine.",
+        "evidence": "Learner attempts a greeting in any clear form.",
         "expectedAnswers": ["Hello, Mallam.", "Hello Mallam", "Hello"],
+        "successFeedback": "Mallam heard a greeting. Keep the lesson moving.",
+        "retryFeedback": "Say hello once more with the learner.",
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-01:hello-prompt"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-01:wave-card"
+          }
+        ],
         "facilitatorNotes": [
           "Keep the pace slow and friendly.",
           "Accept a close spoken greeting."
-        ],
-        "media": [
-          {
-            "kind": "text",
-            "value": "Meet Mallam"
-          }
         ]
       },
       {
-        "id": "meet-mallam-2",
+        "id": "fundamentals-meet-mallam.lesson-01.step-02",
         "order": 2,
         "type": "image_choice",
         "title": "Find Mallam",
         "prompt": "Tap the picture that shows Mallam.",
-        "detail": "Uses local bundled image support when final media is present; currently prepared with manifest-backed placeholders only.",
+        "hint": "If the learner hesitates, name each card once without rushing.",
+        "detail": "The learner identifies Mallam from a simple three-card set.",
         "evidence": "Learner can pick the guided character card with one cue.",
         "expectedAnswers": ["Mallam"],
         "choices": [
@@ -48,7 +57,7 @@
             "isCorrect": true,
             "media": {
               "kind": "asset-ref",
-              "value": "bundle:lf-meet-mallam:mallam-card"
+              "value": "bundle:fundamentals-meet-mallam.lesson-01:mallam-card"
             }
           },
           {
@@ -57,7 +66,7 @@
             "isCorrect": false,
             "media": {
               "kind": "asset-ref",
-              "value": "bundle:lf-meet-mallam:book-card"
+              "value": "bundle:fundamentals-meet-mallam.lesson-01:book-card"
             }
           },
           {
@@ -66,33 +75,94 @@
             "isCorrect": false,
             "media": {
               "kind": "asset-ref",
-              "value": "bundle:lf-meet-mallam:wave-card"
+              "value": "bundle:fundamentals-meet-mallam.lesson-01:wave-card"
             }
           }
         ],
         "facilitatorNotes": [
-          "If local image cards are not installed yet, read the labels aloud and point physically.",
-          "Do not block lesson completion if media is still pending."
+          "One cue is enough. Do not turn it into a test.",
+          "Praise the learner for pointing clearly."
         ]
       },
       {
-        "id": "meet-mallam-3",
+        "id": "fundamentals-meet-mallam.lesson-01.step-03",
         "order": 3,
+        "type": "listen_answer",
+        "title": "Who are you meeting?",
+        "prompt": "Mallam asks, Who are you meeting? Say: Mallam.",
+        "hint": "Tap the wave card if the learner needs a visual reminder.",
+        "detail": "Short one-word answer after a spoken prompt.",
+        "evidence": "Learner says Mallam with or without final prompting.",
+        "expectedAnswers": ["Mallam", "I am meeting Mallam"],
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-01:meet-question"
+          },
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-01:mallam-card"
+          }
+        ],
+        "facilitatorNotes": [
+          "Accept the one-word answer.",
+          "If needed, gesture to yourself and then to Mallam."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-01.step-04",
+        "order": 4,
+        "type": "tap_choice",
+        "title": "Choose the ready card",
+        "prompt": "Tap the card that says, I am ready.",
+        "hint": "Read the two cards aloud before the learner chooses.",
+        "detail": "Pairs a short text choice with the readiness ritual.",
+        "evidence": "Learner can match the spoken phrase to the right prompt card.",
+        "expectedAnswers": ["I am ready."],
+        "choices": [
+          {
+            "id": "choice-ready",
+            "label": "I am ready.",
+            "isCorrect": true,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-01:ready-card"
+            }
+          },
+          {
+            "id": "choice-listen",
+            "label": "I can listen.",
+            "isCorrect": false,
+            "media": {
+              "kind": "asset-ref",
+              "value": "bundle:fundamentals-meet-mallam.lesson-01:listen-card"
+            }
+          }
+        ],
+        "facilitatorNotes": [
+          "Keep this light. The goal is recognition, not spelling.",
+          "Repeat the two phrases once if needed."
+        ]
+      },
+      {
+        "id": "fundamentals-meet-mallam.lesson-01.step-05",
+        "order": 5,
         "type": "speak_answer",
         "title": "Say your ready phrase",
         "prompt": "Say: I am ready to learn.",
-        "detail": "Simple spoken confidence close for the first bundled lesson.",
+        "hint": "Point to each word slowly and let the learner echo it back.",
+        "detail": "The learner closes with the first full confidence phrase.",
         "evidence": "Learner attempts the full readiness phrase with support if needed.",
-        "expectedAnswers": ["I am ready to learn.", "I am ready", "Ready to learn"],
+        "expectedAnswers": ["I am ready to learn.", "I am ready to learn", "I am ready", "Ready to learn"],
+        "media": [
+          {
+            "kind": "asset-ref",
+            "value": "bundle:fundamentals-meet-mallam.lesson-01:ready-phrase"
+          }
+        ],
         "facilitatorNotes": [
           "Praise effort, not perfect pronunciation.",
           "Replay the phrase once before prompting a second try."
-        ],
-        "media": [
-          {
-            "kind": "text",
-            "value": "I am ready to learn."
-          }
         ]
       }
     ]
@@ -101,36 +171,52 @@
     "basePath": "assets/content_packs/lumo-fundamentals/meet_mallam/media",
     "items": [
       {
+        "id": "hello-prompt",
+        "kind": "prompt-card",
+        "text": "Hello, Mallam.",
+        "label": "Greeting prompt"
+      },
+      {
+        "id": "meet-question",
+        "kind": "prompt-card",
+        "text": "Who are you meeting?",
+        "label": "Question prompt"
+      },
+      {
+        "id": "ready-card",
+        "kind": "prompt-card",
+        "text": "I am ready.",
+        "label": "Ready choice"
+      },
+      {
+        "id": "listen-card",
+        "kind": "prompt-card",
+        "text": "I can listen.",
+        "label": "Listen choice"
+      },
+      {
+        "id": "ready-phrase",
+        "kind": "prompt-card",
+        "text": "I am ready to learn.",
+        "label": "Closing phrase"
+      },
+      {
         "id": "mallam-card",
         "kind": "image",
         "relativePath": "images/mallam-card.png",
-        "status": "placeholder",
-        "required": false,
-        "notes": "Final learner-facing art not added yet. Keep manifest stable so the runtime can resolve it once supplied."
+        "label": "Mallam portrait"
       },
       {
         "id": "book-card",
         "kind": "image",
         "relativePath": "images/book-card.png",
-        "status": "placeholder",
-        "required": false,
-        "notes": "Starter non-final choice asset slot."
+        "label": "Book card"
       },
       {
         "id": "wave-card",
         "kind": "image",
         "relativePath": "images/wave-card.png",
-        "status": "placeholder",
-        "required": false,
-        "notes": "Starter non-final choice asset slot."
-      },
-      {
-        "id": "intro-hello",
-        "kind": "audio",
-        "relativePath": "audio/intro-hello.mp3",
-        "status": "placeholder",
-        "required": false,
-        "notes": "Reserved slot for future local greeting audio."
+        "label": "Wave card"
       }
     ]
   }

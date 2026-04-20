@@ -294,6 +294,11 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
     final blockerReason = state.deploymentBlockerReason ??
         state.backendError ??
         'Learner bootstrap could not reach the production backend.';
+    final configuredBackend = state.backendBaseUrl;
+    final backendHost = Uri.tryParse(configuredBackend)?.host;
+    final backendLabel = backendHost != null && backendHost.isNotEmpty
+        ? '$backendHost · $configuredBackend'
+        : configuredBackend;
 
     return Scaffold(
       body: SafeArea(
@@ -403,6 +408,47 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                               'If the tablet must work offline, preload a real synced snapshot first instead of shipping demo seed content.',
                           failure:
                               'Operators see fake learners or empty live flows on a production tablet.',
+                        ),
+                        const SizedBox(height: 18),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Live backend target',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                backendLabel,
+                                style: const TextStyle(
+                                  color: Color(0xFF0F172A),
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                blockerReason.contains('LUMO_API_BASE_URL')
+                                    ? 'This build is blocked on release config, not learner content. Fix the API host, redeploy, then retry on the tablet.'
+                                    : 'This is the production host the tablet is trying to reach right now. If it looks wrong, fix the release config before blaming the learner roster.',
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.45,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 18),
                         Wrap(
@@ -831,11 +877,11 @@ class HomePage extends StatelessWidget {
                                 child: SizedBox(
                                   width: centeredGridWidth,
                                   child: GridView.builder(
-                                    padding: EdgeInsets.zero,
+                                    padding: const EdgeInsets.only(bottom: 8),
                                     itemCount: state.modules.length,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    shrinkWrap: true,
+                                    primary: false,
+                                    physics: const BouncingScrollPhysics(),
+                                    shrinkWrap: false,
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: crossAxisCount,
@@ -5202,11 +5248,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               : 'Review transcript before advancing';
 
   String get _reviewBannerBody => _isAudioOnlyReviewState
-      ? 'This take was captured in audio-first mode, so Lumo kept the learner recording but could not safely fill the response box automatically on this device.'
+      ? 'Use the saved clip as the source of truth before Mallam continues.'
       : _hasTranscriptSafetyBlock
           ? _transcriptAutoAdvanceSafetyReason!
           : _draftTranscriptNeedsVoiceCheck
-              ? 'Lumo saved both the learner audio and this draft transcript. Use the saved voice as the source of truth, then edit or confirm the text before Mallam continues.'
+              ? 'Quick audio check first, then confirm the text.'
               : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
 
   String get _transcriptSourceOfTruthLabel {
@@ -5432,7 +5478,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   String get _sessionStatusBody {
     if (_isAudioOnlyReviewState) {
-      return 'Use the saved voice note as the source of truth, then type a short note or accept the audio to continue.';
+      return 'Use the saved clip as the source of truth before Mallam continues.';
     }
     if (_hasTranscriptSafetyBlock) {
       return _transcriptAutoAdvanceSafetyReason!;
@@ -8069,6 +8115,29 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                     : 'Play saved voice',
                                               ),
                                             ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              _isAudioOnlyReviewState
+                                                  ? 'Use the saved clip as the source of truth before Mallam continues.'
+                                                  : 'Quick audio check first, then confirm the text.',
+                                              style: const TextStyle(
+                                                color: Color(0xFF475569),
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                            if (_savedAudioEvidenceLabel !=
+                                                null) ...[
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                _savedAudioEvidenceLabel!,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF64748B),
+                                                  fontWeight: FontWeight.w600,
+                                                  height: 1.35,
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ],
                                       ),

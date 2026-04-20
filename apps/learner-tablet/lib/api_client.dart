@@ -55,11 +55,11 @@ class LumoApiClient {
     String rawBaseUrl, {
     bool hasExplicitConfig = true,
   }) {
-    if (!hasExplicitConfig) {
+    final normalized = normalizeBaseUrl(rawBaseUrl);
+    if (!hasExplicitConfig && normalized != kDefaultProductionApiBaseUrl) {
       return 'LUMO_API_BASE_URL is missing. Set it explicitly for release tablets before shipping.';
     }
 
-    final normalized = normalizeBaseUrl(rawBaseUrl);
     final parsed = Uri.tryParse(normalized);
     if (parsed == null || parsed.host.isEmpty) {
       return 'LUMO_API_BASE_URL is not a valid URL. Current value: $rawBaseUrl';

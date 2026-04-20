@@ -414,7 +414,6 @@ void main() {
       apiClient: _FailingApiClient(),
       includeSeedDemoContent: false,
     );
-    addTearDown(state.dispose);
 
     await state.bootstrap();
     await tester.pump(const Duration(milliseconds: 450));
@@ -425,6 +424,10 @@ void main() {
     expect(state.modules, isNotEmpty);
     expect(state.assignedLessons, isNotEmpty);
     expect(state.suggestedLearnerForHome, isNotNull);
+
+    state.dispose();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets(
@@ -455,6 +458,11 @@ void main() {
 
     expect(find.text('Retry production bootstrap'), findsOneWidget);
     expect(find.text('Open limited offline mode'), findsNothing);
+    expect(find.text('Live backend target'), findsOneWidget);
+    expect(
+      find.textContaining('lumo-api-production-303a.up.railway.app'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('will not open demo learners just to look alive'),
       findsOneWidget,
@@ -640,6 +648,91 @@ void main() {
     final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
 
     expect(firstSubjectTop, lessThan(450));
+  });
+
+  testWidgets('home subject grid becomes scrollable when live subject count exceeds one tablet view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 520);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.modules.addAll(const [
+      LearningModule(
+        id: 'science',
+        title: 'Science',
+        description: 'Simple science lessons.',
+        voicePrompt: 'Let us explore science.',
+        readinessGoal: 'Observe and explain basic patterns.',
+        badge: 'Observe',
+      ),
+      LearningModule(
+        id: 'social-studies',
+        title: 'Social Studies',
+        description: 'Community and everyday life.',
+        voicePrompt: 'Let us learn about our community.',
+        readinessGoal: 'Talk about people and places.',
+        badge: 'Community',
+      ),
+      LearningModule(
+        id: 'creative-arts',
+        title: 'Creative Arts',
+        description: 'Art, rhythm, and expression.',
+        voicePrompt: 'Let us make something together.',
+        readinessGoal: 'Create and describe simple work.',
+        badge: 'Create',
+      ),
+      LearningModule(
+        id: 'science-2',
+        title: 'Science Lab',
+        description: 'More science lessons.',
+        voicePrompt: 'Let us observe together.',
+        readinessGoal: 'Notice and explain details.',
+        badge: 'Lab',
+      ),
+      LearningModule(
+        id: 'social-2',
+        title: 'Community Life',
+        description: 'Everyday life and places.',
+        voicePrompt: 'Let us talk about places.',
+        readinessGoal: 'Describe familiar routines.',
+        badge: 'Places',
+      ),
+      LearningModule(
+        id: 'arts-2',
+        title: 'Creative Studio',
+        description: 'More art and expression.',
+        voicePrompt: 'Let us create together.',
+        readinessGoal: 'Make and explain simple work.',
+        badge: 'Studio',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final subjectGrid = tester.widget<GridView>(find.byType(GridView).first);
+    expect(subjectGrid.physics, isA<BouncingScrollPhysics>());
+
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    expect(scrollable.position.pixels, 0);
+
+    await tester.drag(find.byType(GridView).first, const Offset(0, -300));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(scrollable.position.pixels, greaterThan(0));
+
+    state.dispose();
   });
 
   testWidgets('student list stays usable on portrait tablet widths', (

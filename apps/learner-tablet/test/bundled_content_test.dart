@@ -5,7 +5,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('BundledContentLoader', () {
-    test('loads the Meet Mallam bundled starter lesson', () async {
+    test('loads the richer Meet Mallam bundled fundamentals lesson', () async {
       const loader = BundledContentLoader();
 
       final library = await loader.load();
@@ -14,26 +14,32 @@ void main() {
       expect(library.lessons, isNotEmpty);
 
       final module = library.modules.firstWhere(
-        (item) => item.id == 'lumo-fundamentals',
+        (item) => item.id == 'fundamentals-meet-mallam',
       );
       final lesson = library.lessons.firstWhere(
-        (item) => item.id == 'lf-meet-mallam',
+        (item) => item.id == 'fundamentals-meet-mallam.lesson-01',
       );
 
-      expect(module.title, 'Lumo Fundamentals');
-      expect(lesson.title, 'Meet Mallam');
-      expect(lesson.moduleId, 'lumo-fundamentals');
-      expect(lesson.steps.length, 3);
-      expect(lesson.steps.first.activity?.prompt,
-          'Listen to Mallam say hello, then say hello back.');
-      expect(lesson.steps[1].activity?.choiceItems.length, 3);
+      expect(module.title, 'Meet Mallam');
+      expect(module.badge, contains('1 lesson'));
+      expect(lesson.title, 'Hello, Mallam');
+      expect(lesson.moduleId, 'fundamentals-meet-mallam');
+      expect(lesson.steps.length, 5);
+      expect(
+        lesson.steps.first.activity?.mediaItems.first.firstValue,
+        'Hello, Mallam.',
+      );
       expect(
         lesson.steps[1].activity?.choiceItems.first.mediaValue,
         'assets/content_packs/lumo-fundamentals/meet_mallam/media/images/mallam-card.png',
       );
       expect(
-        lesson.steps[1].activity?.choiceItems.first.mediaItems.last.firstValue,
-        'Mallam',
+        lesson.steps[3].activity?.choiceItems.first.mediaItems.first.firstValue,
+        'I am ready.',
+      );
+      expect(
+        lesson.steps.last.activity?.targetResponse,
+        'I am ready to learn.',
       );
     });
   });

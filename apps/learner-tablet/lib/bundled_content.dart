@@ -114,10 +114,25 @@ class BundledContentLoader {
       final id = item['id']?.toString().trim();
       final kind = item['kind']?.toString().trim();
       final relativePath = item['relativePath']?.toString().trim();
+      final text = item['text']?.toString().trim();
+      final label = item['label']?.toString().trim();
       if (id == null || id.isEmpty || kind == null || kind.isEmpty) continue;
 
       final assetPath = _joinAssetPath(basePath, relativePath);
-      lookup[id] = _BundledMediaItem(id: id, kind: kind, assetPath: assetPath);
+      final normalizedKind = kind.toLowerCase();
+      final inlineText = text != null && text.isNotEmpty
+          ? text
+          : (normalizedKind == 'prompt-card' || normalizedKind == 'text') &&
+                  label != null &&
+                  label.isNotEmpty
+              ? label
+              : null;
+      lookup[id] = _BundledMediaItem(
+        id: id,
+        kind: kind,
+        assetPath: assetPath,
+        textValue: inlineText,
+      );
     }
 
     return lookup;
@@ -198,14 +213,18 @@ class BundledContentLoader {
           mediaLookup: mediaLookup,
         );
         if (bundled != null) {
-          if (bundled.assetPath != null && bundled.assetPath!.isNotEmpty) {
+          final resolvedValue = bundled.resolvedValue;
+          if (resolvedValue != null && resolvedValue.isNotEmpty) {
             resolved.add({
               ...media,
               'kind': bundled.kind,
-              'value': bundled.assetPath,
+              'value': resolvedValue,
             });
           }
-          if (fallbackLabel != null && fallbackLabel.isNotEmpty) {
+          if (fallbackLabel != null &&
+              fallbackLabel.isNotEmpty &&
+              bundled.kind != 'prompt-card' &&
+              bundled.kind != 'text') {
             resolved.add({
               'kind': 'prompt-card',
               'value': fallbackLabel,
@@ -270,10 +289,14 @@ class _BundledMediaItem {
   final String id;
   final String kind;
   final String? assetPath;
+  final String? textValue;
 
   const _BundledMediaItem({
     required this.id,
     required this.kind,
     required this.assetPath,
+    this.textValue,
   });
+
+  String? get resolvedValue => textValue ?? assetPath;
 }
