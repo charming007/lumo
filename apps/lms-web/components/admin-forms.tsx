@@ -262,7 +262,7 @@ export function UpdateSubjectForm({ subject, embedded = false, returnPath }: { s
           <FieldLabel>Icon<input name="icon" defaultValue={subject.icon ?? ''} style={inputStyle} /></FieldLabel>
           <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(subject.order ?? 1)} style={inputStyle} /></FieldLabel>
         </div>
-        <FieldLabel>Status<select name="status" defaultValue={subject.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="published">Published</option></select></FieldLabel>
+        <FieldLabel>Status<select name="status" defaultValue={subject.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
         <ActionButton label="Save subject changes" pendingLabel="Saving subject…" style={buttonStyle} />
       </form>
     </div>
@@ -295,7 +295,7 @@ export function CreateStrandForm({ subjects, initialSubjectId, initialName, init
       <FieldLabel>Strand name<input name="name" defaultValue={initialName ?? 'Speaking & Listening'} style={inputStyle} /></FieldLabel>
       <div style={twoColumnGrid}>
         <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(initialOrder ?? 2)} style={inputStyle} /></FieldLabel>
-        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="published">Published</option></select></FieldLabel>
+        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
       </div>
       <ActionButton label="Create strand" pendingLabel="Creating strand…" style={buttonStyle} />
     </form>
@@ -314,7 +314,7 @@ export function UpdateStrandForm({ strand, subjects, embedded = false, returnPat
         <FieldLabel>Strand name<input name="name" defaultValue={strand.name} style={inputStyle} /></FieldLabel>
         <div style={twoColumnGrid}>
           <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(strand.order ?? 1)} style={inputStyle} /></FieldLabel>
-          <FieldLabel>Status<select name="status" defaultValue={strand.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="published">Published</option></select></FieldLabel>
+          <FieldLabel>Status<select name="status" defaultValue={strand.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
         </div>
         <ActionButton label="Save strand changes" pendingLabel="Saving strand…" style={buttonStyle} />
       </form>

@@ -228,6 +228,8 @@ function validateTeacher(body, { partial = false } = {}) {
   assertAllowed('role', body.role, ['mallam-lead', 'facilitator', 'coach']);
 }
 
+const CURRICULUM_LANE_STATUSES = ['draft', 'review', 'published'];
+
 function validateSubject(body, { partial = false } = {}) {
   if (!partial) {
     requireFields(body, ['id', 'name']);
@@ -239,7 +241,7 @@ function validateSubject(body, { partial = false } = {}) {
     throw error;
   }
 
-  assertAllowed('status', body.status, ['draft', 'published']);
+  assertAllowed('status', body.status, CURRICULUM_LANE_STATUSES);
 }
 
 function validateStrand(body, { partial = false } = {}) {
@@ -248,7 +250,7 @@ function validateStrand(body, { partial = false } = {}) {
   }
 
   assertExists('subjectId', body.subjectId, repository.findSubjectById);
-  assertAllowed('status', body.status, ['draft', 'published']);
+  assertAllowed('status', body.status, CURRICULUM_LANE_STATUSES);
 }
 
 function validateModule(body, { partial = false } = {}) {

@@ -60,6 +60,54 @@ test('curriculum canvas tree exposes real nested subject/strand/module graph', a
 }
 );
 
+test('subject endpoints accept full lifecycle transitions', async () => {
+  const created = await request('/api/v1/subjects', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Canvas Admin',
+    },
+    body: JSON.stringify({
+      id: 'status-parity-subject',
+      name: 'Status Parity Subject',
+      status: 'review',
+      initialStrandName: 'Launch lane',
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.status, 'review');
+
+  const published = await request('/api/v1/subjects/status-parity-subject', {
+    method: 'PATCH',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Canvas Admin',
+    },
+    body: JSON.stringify({
+      status: 'published',
+    }),
+  });
+
+  assert.equal(published.status, 200, JSON.stringify(published.body));
+  assert.equal(published.body.status, 'published');
+
+  const reverted = await request('/api/v1/subjects/status-parity-subject', {
+    method: 'PATCH',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Canvas Admin',
+    },
+    body: JSON.stringify({
+      status: 'draft',
+    }),
+  });
+
+  assert.equal(reverted.status, 200, JSON.stringify(reverted.body));
+  assert.equal(reverted.body.status, 'draft');
+  assert.equal(store.listSubjects().find((item) => item.id === 'status-parity-subject').status, 'draft');
+});
+
 test('strand endpoints persist lifecycle status like subjects do', async () => {
   const subject = store.listSubjects()[0];
   const created = await request('/api/v1/strands', {
@@ -107,11 +155,12 @@ test('canvas mutation endpoints create, update, reorder, and move curriculum nod
       parentId: subject.id,
       childType: 'strand',
       name: 'Storytelling',
+      status: 'published',
     }),
   });
 
   assert.equal(createStrand.status, 201, JSON.stringify(createStrand.body));
-  assert.equal(createStrand.body.created.status, 'draft');
+  assert.equal(createStrand.body.created.status, 'published');
   const createdStrandId = createStrand.body.created.id;
 
   const publishStrand = await request(`/api/v1/curriculum/canvas/nodes/strand/${createdStrandId}`, {
