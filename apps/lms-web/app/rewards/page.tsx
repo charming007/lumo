@@ -211,6 +211,7 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
   const analyticsAvailable = rewardsReportResult.status === 'fulfilled';
   const leaderboardAvailable = leaderboardResult.status === 'fulfilled';
   const rosterAvailable = studentsResult.status === 'fulfilled';
+  const catalogAvailable = catalogResult.status === 'fulfilled';
 
   const failedSources = [
     catalogResult.status === 'rejected' ? 'reward catalog' : null,
@@ -639,16 +640,18 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
           </Card>
         )}
 
-        {rosterAvailable && filteredStudents.length ? (
+        {rosterAvailable && catalogAvailable && filteredStudents.length ? (
           <RewardsAdminForm students={filteredStudents} catalog={catalog} leaderboard={filteredLeaderboard} />
         ) : (
           <Card title="Reward adjustments" eyebrow="Unavailable right now">
-            <div style={{ color: rosterAvailable ? '#64748b' : '#9a3412', lineHeight: 1.6 }}>
+            <div style={{ color: !rosterAvailable || !catalogAvailable ? '#9a3412' : '#64748b', lineHeight: 1.6 }}>
               {!rosterAvailable
                 ? 'Learner roster feed is unavailable, so manual reward writes stay disabled instead of guessing who gets changed.'
-                : filtersActive
-                  ? 'No learners match the current scope, so manual reward writes stay disabled instead of guessing.'
-                  : 'Reward write controls are paused until the learner roster loads again. No roster, no safe manual award.'}
+                : !catalogAvailable
+                  ? 'Reward catalog feed is unavailable, so manual reward writes stay hidden until costs, levels, and badge rules are trustworthy again.'
+                  : filtersActive
+                    ? 'No learners match the current scope, so manual reward writes stay disabled instead of guessing.'
+                    : 'Reward write controls are paused until the learner roster loads again. No roster, no safe manual award.'}
             </div>
           </Card>
         )}
