@@ -185,8 +185,8 @@ export default async function HomePage() {
           },
         ]}
         docs={[
-          { label: 'Learners blocker', href: '/students', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'Reports blocker', href: '/reports', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Content blocker', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Assignments blocker', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
           { label: 'Settings blocker', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
         ]}
       />
@@ -386,13 +386,13 @@ export default async function HomePage() {
         docs={hasCriticalDashboardGap
           ? [
               { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-              { label: 'Cross-check learners', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-              { label: 'Verify reports', href: '/reports', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+              { label: 'Open content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+              { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
             ]
           : [
               { label: 'Check content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
-              { label: 'Check curriculum canvas', href: '/canvas', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
-              { label: 'Cross-check reports', href: '/reports', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+              { label: 'Open assignments', href: '/assignments', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+              { label: 'Cross-check progress', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
             ]}
       />
     );
@@ -404,17 +404,17 @@ export default async function HomePage() {
       subtitle="The live admin landing page for learner risk, progression readiness, mallam coverage, and assignment flow."
       aside={(
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href="/students" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>
-            Open learners
+          <Link href="/settings" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>
+            Open settings
           </Link>
           <Link href="/content" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Open content
           </Link>
-          <Link href="/reports" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>
-            Open reports
+          <Link href="/assignments" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
+            Open assignments
           </Link>
-          <Link href="/canvas" style={{ ...quickActionStyle, background: '#ECFEFF', color: '#155E75', border: '1px solid #A5F3FC' }}>
-            Open canvas
+          <Link href="/progress" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
+            Open progress
           </Link>
         </div>
       )}
@@ -508,128 +508,45 @@ export default async function HomePage() {
       </section>
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
-        <Card title="Content release blockers" eyebrow="Deployment readiness">
+        <Card title="Content release snapshot" eyebrow="Deployment handoff">
           <div style={{ display: 'grid', gap: 12 }}>
-            <div style={{ display: 'grid', gap: 10 }}>
-              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Blocked modules</div>
-                <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{releaseFeedsAvailable ? releaseBlockers.length : '—'}</div>
-                <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
-                  {releaseFeedsAvailable
-                    ? releaseBlockers.length
-                      ? `${draftModuleBlockers.length} draft module${draftModuleBlockers.length === 1 ? '' : 's'} are still blocking release alongside lesson and assessment gaps.`
-                      : 'No release blockers are visible in the live curriculum feeds. Miracles happen.'
-                    : 'Curriculum release feeds are unavailable, so blocker counts are intentionally withheld instead of guessed.'}
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
-                {[
-                  { label: 'Publish-ready modules', value: releaseFeedsAvailable ? String(publishReadyModules) : '—' },
-                  { label: 'Draft modules blocking', value: releaseFeedsAvailable ? String(draftModuleBlockers.length) : '—' },
-                  { label: 'Missing lesson gaps', value: releaseFeedsAvailable ? String(releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0)) : '—' },
-                  { label: 'Missing gates', value: releaseFeedsAvailable ? String(releaseBlockers.filter((module) => !module.hasAssessmentGate).length) : '—' },
-                ].map((item) => (
-                  <div key={item.label} style={{ padding: '12px 14px', borderRadius: 16, background: '#fff', border: '1px solid #E2E8F0' }}>
-                    <div style={{ fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{item.label}</div>
-                    <div style={{ marginTop: 6, fontSize: 22, fontWeight: 900, color: '#0f172a' }}>{item.value}</div>
-                  </div>
-                ))}
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Blocked modules</div>
+              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{releaseFeedsAvailable ? releaseBlockers.length : '—'}</div>
+              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
+                {releaseFeedsAvailable
+                  ? releaseBlockers.length
+                    ? `${draftModuleBlockers.length} draft module${draftModuleBlockers.length === 1 ? '' : 's'} still need authoring follow-up. Open Content Library for the real blocker workflow.`
+                    : 'No release blockers are visible in the live curriculum feeds. Open Content Library if you want the detailed board.'
+                  : 'Curriculum release feeds are unavailable, so the dashboard is intentionally showing only a handoff summary.'}
               </div>
             </div>
-            {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. The dashboard refuses to fake content-readiness counts while those feeds are blind.', 'warning') : null}
-            {releaseFeedsAvailable && missingGateBlockers.length ? (
-              <div style={{ padding: '16px 18px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <strong style={{ color: '#991B1B' }}>Assessment gate warning</strong>
-                    <span style={{ color: '#991B1B', lineHeight: 1.6 }}>{describeGateWarning(missingGateBlockers.length, liveMissingGateBlockers.length)}</span>
-                  </div>
-                  <Pill
-                    label={liveMissingGateBlockers.length ? 'Assignment freeze recommended' : 'Gate backlog'}
-                    tone={liveMissingGateBlockers.length ? '#FEE2E2' : '#FEF3C7'}
-                    text={liveMissingGateBlockers.length ? '#991B1B' : '#92400E'}
-                  />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+              {[
+                { label: 'Publish-ready modules', value: releaseFeedsAvailable ? String(publishReadyModules) : '—' },
+                { label: 'Draft modules blocking', value: releaseFeedsAvailable ? String(draftModuleBlockers.length) : '—' },
+                { label: 'Missing lesson gaps', value: releaseFeedsAvailable ? String(releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0)) : '—' },
+                { label: 'Missing gates', value: releaseFeedsAvailable ? String(releaseBlockers.filter((module) => !module.hasAssessmentGate).length) : '—' },
+              ].map((item) => (
+                <div key={item.label} style={{ padding: '12px 14px', borderRadius: 16, background: '#fff', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{item.label}</div>
+                  <div style={{ marginTop: 6, fontSize: 22, fontWeight: 900, color: '#0f172a' }}>{item.value}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <Link href="/content?view=blocked" style={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' }}>Review gate blockers</Link>
-                  <Link href="/assignments" style={{ ...quickActionStyle, background: '#fff', color: '#991B1B', border: '1px solid #FECACA', padding: '10px 12px' }}>Cross-check assignment board</Link>
-                </div>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {missingGateBlockers.slice(0, 3).map((module) => {
-                    const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
-                    return (
-                      <div key={`${module.id}-gate-warning`} style={{ padding: '12px 14px', borderRadius: 14, background: '#fff', border: '1px solid #FECACA', display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <div style={{ display: 'grid', gap: 4 }}>
-                          <strong style={{ color: '#7F1D1D' }}>{module.title}</strong>
-                          <span style={{ color: '#991B1B', lineHeight: 1.5 }}>{module.isDraftModule ? 'Still draft and missing its gate.' : 'Looks assignable at a glance, but the progression gate is still missing.'}</span>
-                        </div>
-                        <Link href={blockerBoardHref} style={{ color: '#991B1B', fontWeight: 800, textDecoration: 'none' }}>Open blocker board</Link>
-                      </div>
-                    );
-                  })}
-                </div>
+              ))}
+            </div>
+            {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. Open Content Library after the feeds recover; the dashboard will not pretend to be the blocker board.', 'warning') : null}
+            <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 10 }}>
+              <div style={{ display: 'grid', gap: 6 }}>
+                <strong style={{ color: '#3730A3' }}>Curriculum action lives in Content Library</strong>
+                <span style={{ color: '#4338CA', lineHeight: 1.6 }}>
+                  The dashboard stays a pilot front door: scan the numbers here, then use Content Library for blocker triage, lesson creation, and release cleanup.
+                </span>
               </div>
-            ) : null}
-            {topReleaseBlocker ? (() => {
-              const blockerBoardHref = `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${topReleaseBlocker.subjectId}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`;
-              const createLessonHref = topReleaseBlocker.hasAuthoringContext
-                ? `/content/lessons/new?subjectId=${topReleaseBlocker.subjectId}&moduleId=${topReleaseBlocker.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`
-                : null;
-              const risk = describeReleaseRisk(topReleaseBlocker.blockerCount);
-
-              return (
-                <div style={{ padding: '16px 18px', borderRadius: 18, background: '#FEFCE8', border: '1px solid #FDE68A', display: 'grid', gap: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      <strong style={{ color: '#713F12' }}>Top blocker: {topReleaseBlocker.title}</strong>
-                      <span style={{ color: '#854D0E', lineHeight: 1.6 }}>{describeNextAction(topReleaseBlocker)}</span>
-                    </div>
-                    <Pill label={risk.label} tone={risk.tone} text={risk.text} />
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <Link href={blockerBoardHref} style={{ ...quickActionStyle, background: '#92400E', color: 'white', padding: '10px 12px' }}>Open blockers board</Link>
-                    {topReleaseBlocker.missingLessons > 0 ? (createLessonHref ? <Link href={createLessonHref} style={{ ...quickActionStyle, background: '#fff', color: '#92400E', border: '1px solid #FDE68A', padding: '10px 12px' }}>Create missing lesson</Link> : null) : null}
-                  </div>
-                  {topReleaseBlocker.missingLessons > 0 && !createLessonHref ? (
-                    <div style={{ color: '#854D0E', lineHeight: 1.6 }}>
-                      Lesson creation is intentionally withheld here until this module has a recoverable subject context. Open the blockers board first instead of dropping authors into a dead-end create flow.
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })() : releaseFeedsAvailable ? sectionAlert('No release blockers are visible from the live curriculum feeds. For once, the dashboard is allowed to be calm.') : null}
-            {releaseBlockers.length ? (
-              <SimpleTable
-                columns={['Module', 'Subject', 'Gaps', 'Next action', 'Risk']}
-                rows={releaseBlockers.slice(0, 5).map((module) => {
-                  const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
-                  const createLessonHref = module.hasAuthoringContext
-                    ? `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`
-                    : null;
-                  const risk = describeReleaseRisk(module.blockerCount);
-
-                  return [
-                    <Link key={`${module.id}-module`} href={blockerBoardHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>{module.title}</Link>,
-                    module.subjectName,
-                    <div key={`${module.id}-gaps`} style={{ display: 'grid', gap: 6 }}>
-                      <span>{module.missingLessons > 0 ? `${module.missingLessons} lesson gap${module.missingLessons === 1 ? '' : 's'}` : 'Lessons complete'}</span>
-                      <span style={{ color: module.isDraftModule ? '#B45309' : '#64748b', fontSize: 13, fontWeight: module.isDraftModule ? 800 : 600 }}>
-                        {module.isDraftModule ? 'Module is still draft' : 'Module status is release-safe'}
-                      </span>
-                    </div>,
-                    <div key={`${module.id}-next`} style={{ display: 'grid', gap: 6 }}>
-                      <span>{describeNextAction(module)}</span>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <Link href={blockerBoardHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Open blocker board</Link>
-                        {module.missingLessons > 0 ? (createLessonHref ? <Link href={createLessonHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Create lesson</Link> : null) : null}
-                        {module.missingLessons > 0 && !createLessonHref ? <span style={{ color: '#92400E', fontWeight: 800 }}>Recover subject context first</span> : null}
-                      </div>
-                    </div>,
-                    <Pill key={`${module.id}-risk`} label={risk.label} tone={risk.tone} text={risk.text} />,
-                  ];
-                })}
-              />
-            ) : null}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Link href="/content" style={{ ...quickActionStyle, background: '#3730A3', color: 'white', padding: '10px 12px' }}>Open Content Library</Link>
+                <Link href="/assignments" style={{ ...quickActionStyle, background: '#fff', color: '#3730A3', border: '1px solid #C7D2FE', padding: '10px 12px' }}>Cross-check assignments</Link>
+              </div>
+            </div>
           </div>
         </Card>
 

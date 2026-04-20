@@ -114,7 +114,7 @@ export default async function LessonStudioCreatePage({
         ]}
         docs={[
           { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Curriculum canvas', href: '/canvas', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Blocked modules', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
         ]}
       />
     );
@@ -197,8 +197,8 @@ export default async function LessonStudioCreatePage({
           <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
             Back to board
           </Link>
-          <Link href="/canvas" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
-            Open canvas
+          <Link href="/content?view=blocked" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+            Review blockers
           </Link>
         </div>
       )}

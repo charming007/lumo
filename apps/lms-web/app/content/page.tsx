@@ -113,8 +113,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         ]}
         docs={[
           { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
-          { label: 'Curriculum canvas', href: '/canvas', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
-          { label: 'Reports blocker', href: '/reports', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Assignments blocker', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Settings blocker', href: '/settings', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
         ]}
       />
     );
@@ -220,8 +220,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <Link href="/content/assets" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none', border: '1px solid #BBF7D0' }}>
             Asset library
           </Link>
-          <Link href="/guide#content-library" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
-            Open LMS guide
+          <Link href="/settings" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', border: '1px solid #E2E8F0' }}>
+            Open settings
           </Link>
           <ModalLauncher buttonLabel="Quick lesson shell" title="Quick lesson shell" description="Need a fast lesson record in the right module? This compact form creates the shell, then opens the full typed lesson editor immediately.">
             <DynamicLessonCreateForm modules={modules} subjects={subjects} action={createLessonAction} returnPath={returnPath} />
