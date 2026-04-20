@@ -149,6 +149,37 @@ void main() {
     expect(find.text('Subjects'), findsNothing);
   });
 
+  testWidgets('home screen shows operator source status chips at the top', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = true
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(hours: 8))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(hours: 2))
+      ..pendingSyncEvents.add(
+        const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+      );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Offline pack active'), findsOneWidget);
+    expect(find.text('Sync stale'), findsOneWidget);
+  });
+
   testWidgets(
     'home subject cards stay in a single 3-card row on the learner tablet layout',
     (tester) async {
@@ -451,11 +482,14 @@ void main() {
     state.dispose();
   });
 
-  test('trusted offline snapshot age survives ordinary local persistence', () async {
+  test('trusted offline snapshot age survives ordinary local persistence',
+      () async {
     SharedPreferences.setMockInitialValues({});
 
-    final originalSnapshotTime = DateTime.now().subtract(const Duration(days: 2));
-    final originalSyncTime = originalSnapshotTime.add(const Duration(minutes: 5));
+    final originalSnapshotTime =
+        DateTime.now().subtract(const Duration(days: 2));
+    final originalSyncTime =
+        originalSnapshotTime.add(const Duration(minutes: 5));
 
     final state = LumoAppState(includeSeedDemoContent: false)
       ..usingFallbackData = true
@@ -475,7 +509,8 @@ void main() {
       ..clear()
       ..addAll(assignedLessonsSeed);
 
-    expect(state.offlineSnapshotTrustProblem, contains('beyond the 24-hour trust window'));
+    expect(state.offlineSnapshotTrustProblem,
+        contains('beyond the 24-hour trust window'));
 
     state.persistStateSoon();
     await Future<void>.delayed(const Duration(milliseconds: 500));
@@ -483,9 +518,12 @@ void main() {
     final restored = LumoAppState(includeSeedDemoContent: false);
     await restored.restorePersistedState();
 
-    expect(restored.snapshotSavedAt?.toIso8601String(), originalSnapshotTime.toIso8601String());
-    expect(restored.lastSyncedAt?.toIso8601String(), originalSyncTime.toIso8601String());
-    expect(restored.offlineSnapshotTrustProblem, contains('beyond the 24-hour trust window'));
+    expect(restored.snapshotSavedAt?.toIso8601String(),
+        originalSnapshotTime.toIso8601String());
+    expect(restored.lastSyncedAt?.toIso8601String(),
+        originalSyncTime.toIso8601String());
+    expect(restored.offlineSnapshotTrustProblem,
+        contains('beyond the 24-hour trust window'));
 
     state.dispose();
     restored.dispose();
@@ -708,7 +746,7 @@ void main() {
 
     final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
 
-    expect(firstSubjectTop, lessThan(450));
+    expect(firstSubjectTop, lessThan(480));
   });
 
   testWidgets(

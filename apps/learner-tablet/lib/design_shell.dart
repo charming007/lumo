@@ -9,8 +9,13 @@ import 'theme.dart';
 
 class LumoTopBar extends StatelessWidget {
   final VoidCallback onLogoTap;
+  final List<Widget> extraChips;
 
-  const LumoTopBar({super.key, required this.onLogoTap});
+  const LumoTopBar({
+    super.key,
+    required this.onLogoTap,
+    this.extraChips = const <Widget>[],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,15 +23,16 @@ class LumoTopBar extends StatelessWidget {
         northernLocations[DateTime.now().day % northernLocations.length];
     final date = DateTime.now();
     final formattedDate = '${date.day}/${date.month}/${date.year}';
-    final chips = [
+    final chips = <Widget>[
       _TopChip(text: item['city']!),
       _TopChip(text: item['lga']!),
       _TopChip(text: formattedDate),
+      ...extraChips,
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 620;
+        final compact = constraints.maxWidth < 900 || extraChips.isNotEmpty;
 
         if (compact) {
           return Column(

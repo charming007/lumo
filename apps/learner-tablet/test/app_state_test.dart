@@ -2953,6 +2953,44 @@ void main() {
       expect(state.rosterFreshnessDetail, contains('current enough to trust'));
     });
 
+    test('operator status shows live backend when roster is current', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.usingFallbackData = false;
+      state.lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4));
+      state.lastSyncAttemptAt =
+          DateTime.now().subtract(const Duration(minutes: 2));
+
+      expect(state.operatorSourceLabel, 'Live backend connected');
+      expect(state.operatorHealthLabel, 'Backend healthy');
+    });
+
+    test(
+        'operator status shows offline pack and stale sync when fallback lingers',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.usingFallbackData = true;
+      state.lastSyncedAt = DateTime.now().subtract(const Duration(hours: 8));
+      state.lastSyncAttemptAt =
+          DateTime.now().subtract(const Duration(hours: 2));
+      state.pendingSyncEvents.add(
+        const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+      );
+
+      expect(state.operatorSourceLabel, 'Offline pack active');
+      expect(state.operatorHealthLabel, 'Sync stale');
+    });
+
+    test('operator status shows backend unavailable without fallback payload',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.usingFallbackData = true;
+      state.backendError = 'timeout';
+
+      expect(state.hasOfflineSnapshotPayload, isFalse);
+      expect(state.operatorSourceLabel, 'Backend unavailable');
+      expect(state.operatorHealthLabel, 'Backend unavailable');
+    });
+
     test('degraded mode actions recommend audio-first recovery steps', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.usingFallbackData = true;
@@ -3668,6 +3706,127 @@ void main() {
         ]),
       );
       state.dispose();
+    });
+
+    test(
+        'content source status tracks live, bundled, and persisted lesson paths',
+        () async {
+      final bundledLesson = LessonCardModel(
+        id: 'lf-meet-mallam',
+        moduleId: 'lumo-fundamentals',
+        title: 'Meet Mallam',
+        subject: 'Lumo Fundamentals',
+        durationMinutes: 6,
+        status: 'bundled',
+        mascotName: 'Mallam',
+        readinessFocus: 'Offline starter',
+        scenario: 'Bundled offline intro lesson.',
+        steps: const [
+          LessonStep(
+            id: 'bundled-step-1',
+            type: LessonStepType.practice,
+            title: 'Meet Mallam',
+            instruction: 'Say hello to Mallam.',
+            expectedResponse: 'Hello Mallam',
+            coachPrompt: 'Say hello to Mallam.',
+            facilitatorTip: 'Model the phrase once.',
+            realWorldCheck: 'Learner greets Mallam.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        bundledContentLoader: _FakeBundledContentLoader(
+          BundledContentLibrary(
+            modules: const [
+              LearningModule(
+                id: 'lumo-fundamentals',
+                title: 'Lumo Fundamentals',
+                description: 'Offline starter pack',
+                voicePrompt: 'Meet Mallam offline.',
+                readinessGoal: 'Ready for offline startup.',
+                badge: 'Bundled pack',
+              ),
+            ],
+            lessons: [bundledLesson],
+          ),
+        ),
+        apiClient: _BootstrapWithBundledFundamentalsApiClient(),
+      );
+
+      await state.bootstrap();
+
+      final liveLesson = state.assignedLessons
+          .firstWhere((lesson) => lesson.id == 'english-live-1');
+      final bundledResolvedLesson = state.assignedLessons
+          .firstWhere((lesson) => lesson.id == 'lf-meet-mallam');
+      final liveModule =
+          state.modules.firstWhere((module) => module.id == 'english');
+      final bundledModule = state.modules
+          .firstWhere((module) => module.id == 'lumo-fundamentals');
+
+      expect(state.sourceStatusForLesson(liveLesson).origin,
+          ContentOrigin.liveBackend);
+      expect(state.sourceStatusForLesson(bundledResolvedLesson).origin,
+          ContentOrigin.bundledOfflinePack);
+      expect(state.sourceStatusForModule(liveModule).origin,
+          ContentOrigin.liveBackend);
+      expect(state.sourceStatusForModule(bundledModule).origin,
+          ContentOrigin.bundledOfflinePack);
+      state.dispose();
+    });
+
+    test('restored lesson and module content report local cache origin',
+        () async {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      final module = const LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'Cached module',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Cached goal',
+        badge: '1 lesson',
+      );
+      final lesson = const LessonCardModel(
+        id: 'english-cached-1',
+        moduleId: 'english',
+        title: 'Cached hello',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Cached practice',
+        scenario: 'Cached local lesson.',
+        steps: [
+          LessonStep(
+            id: 'cached-step-1',
+            type: LessonStepType.intro,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Keep it short.',
+            realWorldCheck: 'Learner says hello.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      state.modules
+        ..clear()
+        ..add(module);
+      state.assignedLessons
+        ..clear()
+        ..add(lesson);
+      state.usingFallbackData = true;
+      state.restoredFromPersistence = true;
+
+      expect(
+          state.sourceStatusForModule(module).origin, ContentOrigin.localCache);
+      expect(
+          state.sourceStatusForLesson(lesson).origin, ContentOrigin.localCache);
     });
   });
 }

@@ -22,6 +22,57 @@ const bool kReleaseBuild = bool.fromEnvironment('dart.vm.product');
 const String _kPersistenceStorageKey = 'lumo_learner_tablet_state_v1';
 const String _kPersistenceSchemaVersion = '2026-04-13-runtime-persist';
 const Duration _kTrustedOfflineSnapshotMaxAge = Duration(hours: 24);
+const Duration _kOperatorSyncStaleThreshold = Duration(minutes: 30);
+const Duration _kOperatorRosterStaleThreshold = Duration(hours: 6);
+
+enum ContentOrigin {
+  liveBackend,
+  localCache,
+  bundledOfflinePack,
+  seedDemoFallback,
+}
+
+extension ContentOriginX on ContentOrigin {
+  String get label {
+    switch (this) {
+      case ContentOrigin.liveBackend:
+        return 'Live backend';
+      case ContentOrigin.localCache:
+        return 'Local cache';
+      case ContentOrigin.bundledOfflinePack:
+        return 'Bundled pack';
+      case ContentOrigin.seedDemoFallback:
+        return 'Seed demo';
+    }
+  }
+
+  String get detail {
+    switch (this) {
+      case ContentOrigin.liveBackend:
+        return 'Fetched from the live learner backend in this session.';
+      case ContentOrigin.localCache:
+        return 'Recovered from state already cached on this device.';
+      case ContentOrigin.bundledOfflinePack:
+        return 'Loaded from the offline pack bundled inside the learner app.';
+      case ContentOrigin.seedDemoFallback:
+        return 'Loaded from built-in demo seed content.';
+    }
+  }
+}
+
+class ContentSourceStatus {
+  final ContentOrigin origin;
+  final String scopeLabel;
+  final String detail;
+
+  const ContentSourceStatus({
+    required this.origin,
+    required this.scopeLabel,
+    required this.detail,
+  });
+
+  String get label => origin.label;
+}
 
 class LumoAppState {
   LumoAppState({
@@ -31,7 +82,9 @@ class LumoAppState {
   })  : _apiClient = apiClient ?? LumoApiClient(),
         _bundledContentLoader =
             bundledContentLoader ?? const BundledContentLoader(),
-        _includeSeedDemoContent = includeSeedDemoContent;
+        _includeSeedDemoContent = includeSeedDemoContent {
+    _primeInitialContentOrigins();
+  }
 
   final LumoApiClient _apiClient;
   final BundledContentLoader _bundledContentLoader;
@@ -65,6 +118,8 @@ class LumoAppState {
       recentRuntimeSessionsByLearnerId = {};
   final Map<String, List<RewardRedemptionRecord>>
       rewardRedemptionHistoryByLearnerId = {};
+  final Map<String, ContentOrigin> _moduleContentOrigins = {};
+  final Map<String, ContentOrigin> _lessonContentOrigins = {};
 
   bool isBootstrapping = false;
   bool isRegisteringLearner = false;
@@ -196,6 +251,143 @@ class LumoAppState {
     persistStateSoon();
   }
 
+  void _primeInitialContentOrigins() {
+    final seedOrigin = _includeSeedDemoContent
+        ? ContentOrigin.seedDemoFallback
+        : ContentOrigin.localCache;
+    _setModuleOrigins(modules, seedOrigin);
+    _setLessonOrigins(assignedLessons, seedOrigin);
+  }
+
+  void _setModuleOrigins(
+    Iterable<LearningModule> modules,
+    ContentOrigin origin,
+  ) {
+    for (final module in modules) {
+      final key = module.id.trim();
+      if (key.isEmpty) continue;
+      _moduleContentOrigins[key] = origin;
+    }
+  }
+
+  void _setLessonOrigins(
+    Iterable<LessonCardModel> lessons,
+    ContentOrigin origin,
+  ) {
+    for (final lesson in lessons) {
+      final key = lesson.id.trim();
+      if (key.isEmpty) continue;
+      _lessonContentOrigins[key] = origin;
+    }
+  }
+
+  ContentOrigin lessonOriginFor(LessonCardModel lesson) {
+    return _lessonContentOrigins[lesson.id.trim()] ??
+        (_isBundledFundamentalsLesson(lesson)
+            ? ContentOrigin.bundledOfflinePack
+            : usingFallbackData && restoredFromPersistence
+                ? ContentOrigin.localCache
+                : ContentOrigin.seedDemoFallback);
+  }
+
+  ContentOrigin moduleOriginFor(LearningModule module) {
+    return _moduleContentOrigins[module.id.trim()] ??
+        (restoredFromPersistence && usingFallbackData
+            ? ContentOrigin.localCache
+            : module.badge.toLowerCase().contains('bundled')
+                ? ContentOrigin.bundledOfflinePack
+                : ContentOrigin.seedDemoFallback);
+  }
+
+  ContentSourceStatus sourceStatusForLesson(LessonCardModel lesson) {
+    final origin = lessonOriginFor(lesson);
+    return ContentSourceStatus(
+      origin: origin,
+      scopeLabel: lesson.title,
+      detail:
+          '${origin.detail} ${lesson.steps.length} step(s) are available for this lesson on the tablet.',
+    );
+  }
+
+  ContentSourceStatus sourceStatusForModule(LearningModule module) {
+    final origin = moduleOriginFor(module);
+    return ContentSourceStatus(
+      origin: origin,
+      scopeLabel: module.title,
+      detail:
+          '${origin.detail} This module currently opens from the ${origin.label.toLowerCase()} path.',
+    );
+  }
+
+  bool get hasBundledOfflinePack {
+    final hasBundledLessons = assignedLessons.any(_isBundledFundamentalsLesson);
+    if (hasBundledLessons) return true;
+    if (_moduleContentOrigins.values.any((origin) =>
+        origin == ContentOrigin.bundledOfflinePack ||
+        origin == ContentOrigin.seedDemoFallback)) {
+      return true;
+    }
+    if (_lessonContentOrigins.values.any((origin) =>
+        origin == ContentOrigin.bundledOfflinePack ||
+        origin == ContentOrigin.seedDemoFallback)) {
+      return true;
+    }
+    return modules.any((module) {
+      final badge = module.badge.trim().toLowerCase();
+      return badge.contains('bundled') || badge.contains('offline');
+    });
+  }
+
+  bool get isOperatorSyncStale {
+    if (pendingSyncEvents.isEmpty) return false;
+    if (isSyncingEvents) return false;
+    if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) return true;
+    if (lastSyncAttemptAt == null) return true;
+    return DateTime.now().difference(lastSyncAttemptAt!).abs() >
+        _kOperatorSyncStaleThreshold;
+  }
+
+  bool get isOperatorRosterStale {
+    if (lastSyncedAt == null) return false;
+    return DateTime.now().difference(lastSyncedAt!).abs() >
+        _kOperatorRosterStaleThreshold;
+  }
+
+  String get operatorSourceLabel {
+    if (!usingFallbackData && lastSyncedAt != null) {
+      return 'Live backend connected';
+    }
+    if (usingFallbackData && hasBundledOfflinePack) {
+      return 'Offline pack active';
+    }
+    if (usingFallbackData && hasOfflineSnapshotPayload) {
+      return 'Cached content active';
+    }
+    if (backendError != null) {
+      return 'Backend unavailable';
+    }
+    if (isBootstrapping) return 'Checking backend';
+    return 'Content source unknown';
+  }
+
+  String get operatorHealthLabel {
+    if (isBootstrapping) return 'Checking backend';
+    if (isSyncingEvents) return 'Sync in progress';
+    if (backendError != null &&
+        usingFallbackData &&
+        !hasOfflineSnapshotPayload) {
+      return 'Backend unavailable';
+    }
+    if (isOperatorSyncStale || isOperatorRosterStale) {
+      return 'Sync stale';
+    }
+    if (!usingFallbackData && lastSyncedAt != null && backendError == null) {
+      return 'Backend healthy';
+    }
+    if (backendError != null) return 'Backend unavailable';
+    return 'Health unknown';
+  }
+
   String get backendStatusLabel {
     if (isBootstrapping) return 'Connecting to backend…';
     if (isSyncingEvents) return 'Syncing learner activity…';
@@ -292,6 +484,24 @@ class LumoAppState {
             ),
           ),
         );
+      _moduleContentOrigins
+        ..clear()
+        ..addAll(((snapshot['moduleContentOrigins'] as Map?) ?? const {})
+            .map((key, value) => MapEntry(
+                  key.toString(),
+                  ContentOrigin.values.firstWhere(
+                    (item) => item.name == value?.toString(),
+                    orElse: () => ContentOrigin.localCache,
+                  ),
+                )));
+      if (_moduleContentOrigins.isEmpty) {
+        _setModuleOrigins(
+          modules,
+          restoredModules.isEmpty && _includeSeedDemoContent
+              ? ContentOrigin.seedDemoFallback
+              : ContentOrigin.localCache,
+        );
+      }
       assignedLessons
         ..clear()
         ..addAll(
@@ -301,6 +511,24 @@ class LumoAppState {
                 : restoredLessons,
           ),
         );
+      _lessonContentOrigins
+        ..clear()
+        ..addAll(((snapshot['lessonContentOrigins'] as Map?) ?? const {})
+            .map((key, value) => MapEntry(
+                  key.toString(),
+                  ContentOrigin.values.firstWhere(
+                    (item) => item.name == value?.toString(),
+                    orElse: () => ContentOrigin.localCache,
+                  ),
+                )));
+      if (_lessonContentOrigins.isEmpty) {
+        _setLessonOrigins(
+          assignedLessons,
+          restoredLessons.isEmpty && _includeSeedDemoContent
+              ? ContentOrigin.seedDemoFallback
+              : ContentOrigin.localCache,
+        );
+      }
       assignmentPacks
         ..clear()
         ..addAll(restoredAssignmentPacks);
@@ -382,7 +610,8 @@ class LumoAppState {
       lastSyncError = _readNullableString(snapshot['lastSyncError']);
       learnerRuntimeError =
           _readNullableString(snapshot['learnerRuntimeError']);
-      snapshotSavedAt = _parseDate(snapshot['snapshotSavedAt']) ?? snapshotSavedAt;
+      snapshotSavedAt =
+          _parseDate(snapshot['snapshotSavedAt']) ?? snapshotSavedAt;
 
       final activeSessionRaw = snapshot['activeSession'];
       final learnerId = _readNullableString(snapshot['currentLearnerId']) ??
@@ -474,6 +703,13 @@ class LumoAppState {
       modules
         ..clear()
         ..addAll(mergedModules);
+      _moduleContentOrigins.clear();
+      _setModuleOrigins(
+        mergedModules,
+        data.modules.isEmpty && _includeSeedDemoContent
+            ? ContentOrigin.seedDemoFallback
+            : ContentOrigin.liveBackend,
+      );
 
       assignedLessons
         ..clear()
@@ -484,6 +720,13 @@ class LumoAppState {
                 : data.lessons,
           ),
         );
+      _lessonContentOrigins.clear();
+      _setLessonOrigins(
+        assignedLessons,
+        data.lessons.isEmpty && _includeSeedDemoContent
+            ? ContentOrigin.seedDemoFallback
+            : ContentOrigin.liveBackend,
+      );
 
       registrationContext = data.registrationContext;
       assignmentPacks
@@ -565,12 +808,14 @@ class LumoAppState {
       modules
         ..clear()
         ..addAll(_dedupeModules(_sanitizeModules(learningModules)));
+      _setModuleOrigins(modules, ContentOrigin.seedDemoFallback);
     }
 
     if (assignedLessons.isEmpty) {
       assignedLessons
         ..clear()
         ..addAll(_sanitizeLessons(assignedLessonsSeed));
+      _setLessonOrigins(assignedLessons, ContentOrigin.seedDemoFallback);
     }
 
     selectedModule ??= modules.isNotEmpty ? modules.first : null;
@@ -593,6 +838,15 @@ class LumoAppState {
             ]),
           ),
         );
+      for (final module in bundled.modules) {
+        final key = module.id.trim();
+        if (key.isEmpty) continue;
+        final existingOrigin = _moduleContentOrigins[key];
+        if (existingOrigin == null ||
+            existingOrigin != ContentOrigin.liveBackend) {
+          _moduleContentOrigins[key] = ContentOrigin.bundledOfflinePack;
+        }
+      }
 
       final mergedLessonMap = <String, LessonCardModel>{
         for (final lesson in assignedLessons) lesson.id.trim(): lesson,
@@ -602,6 +856,7 @@ class LumoAppState {
         final existing = mergedLessonMap[key];
         if (existing == null || _shouldPreferBundledLesson(lesson, existing)) {
           mergedLessonMap[key] = lesson;
+          _lessonContentOrigins[key] = ContentOrigin.bundledOfflinePack;
         }
       }
 
@@ -635,16 +890,31 @@ class LumoAppState {
       try {
         final bundle = await _apiClient.fetchModuleBundle(module.id);
         hydratedModules.add(bundle.module);
+        _moduleContentOrigins[bundle.module.id.trim()] =
+            ContentOrigin.liveBackend;
         final hydratedLessons = _sanitizeLessons(bundle.lessons);
         final preservedBaselineLessons = List<LessonCardModel>.from(
           lessonsByModule[bundle.module.id] ??
               lessonsByModule[module.id] ??
               const <LessonCardModel>[],
         );
-        lessonsByModule[bundle.module.id] = _mergeHydratedLessons(
+        final mergedLessons = _mergeHydratedLessons(
           hydratedLessons: hydratedLessons,
           baselineLessons: preservedBaselineLessons,
         );
+        lessonsByModule[bundle.module.id] = mergedLessons;
+        final hydratedLessonIds = hydratedLessons
+            .map((lesson) => lesson.id.trim())
+            .where((id) => id.isNotEmpty)
+            .toSet();
+        for (final lesson in mergedLessons) {
+          final key = lesson.id.trim();
+          if (key.isEmpty) continue;
+          if (hydratedLessonIds.contains(key) &&
+              !_isBundledFundamentalsLesson(lesson)) {
+            _lessonContentOrigins[key] = ContentOrigin.liveBackend;
+          }
+        }
       } catch (_) {
         hydratedModules.add(module);
       }
@@ -3415,6 +3685,10 @@ class LumoAppState {
       'modules': modules.map(_encodeModule).toList(),
       'assignedLessons': assignedLessons.map(_encodeLesson).toList(),
       'assignmentPacks': assignmentPacks.map(_encodeAssignmentPack).toList(),
+      'moduleContentOrigins':
+          _moduleContentOrigins.map((key, value) => MapEntry(key, value.name)),
+      'lessonContentOrigins':
+          _lessonContentOrigins.map((key, value) => MapEntry(key, value.name)),
       'registrationDraft': _encodeRegistrationDraft(registrationDraft),
       'registrationContext': _encodeRegistrationContext(registrationContext),
       'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),

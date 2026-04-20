@@ -208,7 +208,10 @@ class LearnerBootstrapLoadingPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  LumoTopBar(onLogoTap: () {}),
+                  LumoTopBar(
+                    onLogoTap: () {},
+                    extraChips: _buildOperatorStatusChips(state),
+                  ),
                   const SizedBox(height: 24),
                   Container(
                     width: double.infinity,
@@ -310,7 +313,10 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  LumoTopBar(onLogoTap: () {}),
+                  LumoTopBar(
+                    onLogoTap: () {},
+                    extraChips: _buildOperatorStatusChips(state),
+                  ),
                   const SizedBox(height: 24),
                   Container(
                     width: double.infinity,
@@ -702,6 +708,91 @@ void launchLessonFlow({
   );
 }
 
+List<Widget> _buildOperatorStatusChips(LumoAppState state) {
+  return [
+    _OperatorStatusChip(
+      label: state.operatorSourceLabel,
+      color: _operatorStatusColor(state.operatorSourceLabel),
+      icon: _operatorStatusIcon(state.operatorSourceLabel),
+    ),
+    if (state.operatorHealthLabel != state.operatorSourceLabel)
+      _OperatorStatusChip(
+        label: state.operatorHealthLabel,
+        color: _operatorStatusColor(state.operatorHealthLabel),
+        icon: _operatorStatusIcon(state.operatorHealthLabel),
+      ),
+  ];
+}
+
+Color _operatorStatusColor(String label) {
+  switch (label) {
+    case 'Live backend connected':
+    case 'Backend healthy':
+      return LumoTheme.accentGreen;
+    case 'Offline pack active':
+    case 'Cached content active':
+    case 'Sync stale':
+      return LumoTheme.accentOrange;
+    case 'Backend unavailable':
+      return const Color(0xFFB91C1C);
+    default:
+      return LumoTheme.primary;
+  }
+}
+
+IconData _operatorStatusIcon(String label) {
+  switch (label) {
+    case 'Live backend connected':
+    case 'Backend healthy':
+      return Icons.cloud_done_rounded;
+    case 'Offline pack active':
+      return Icons.inventory_2_rounded;
+    case 'Cached content active':
+      return Icons.save_rounded;
+    case 'Sync stale':
+      return Icons.sync_problem_rounded;
+    case 'Backend unavailable':
+      return Icons.cloud_off_rounded;
+    default:
+      return Icons.radar_rounded;
+  }
+}
+
+class _OperatorStatusChip extends StatelessWidget {
+  const _OperatorStatusChip({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class HomePage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
@@ -717,7 +808,10 @@ class HomePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              LumoTopBar(onLogoTap: () {}),
+              LumoTopBar(
+                onLogoTap: () {},
+                extraChips: _buildOperatorStatusChips(state),
+              ),
               if (state.hasPendingRecoveredSession) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -1310,6 +1404,7 @@ class AllStudentsPage extends StatelessWidget {
                   LumoTopBar(
                     onLogoTap: () => Navigator.of(context)
                         .popUntil((route) => route.isFirst),
+                    extraChips: _buildOperatorStatusChips(state),
                   ),
                   const SizedBox(height: 20),
                   Wrap(
@@ -2512,7 +2607,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                       messenger.showSnackBar(
                         const SnackBar(
                           content: Text(
-                              'Learner data copied. Hook file export next if needed.'),
+                            'Learner data copied. Hook file export next if needed.',
+                          ),
                         ),
                       );
                     },
@@ -9927,6 +10023,249 @@ class _HomeQuickAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class LearnerSourceStatusSignal {
+  final String id;
+  final String label;
+  final String detail;
+  final IconData icon;
+  final Color color;
+  final Color backgroundColor;
+  final Color borderColor;
+
+  const LearnerSourceStatusSignal({
+    required this.id,
+    required this.label,
+    required this.detail,
+    required this.icon,
+    required this.color,
+    required this.backgroundColor,
+    required this.borderColor,
+  });
+}
+
+LearnerSourceStatusSignal buildLearnerSourceStatusSignal(
+  LumoAppState state, {
+  bool? transcriptAvailable,
+  bool browserOffline = false,
+  bool runtimeDevicesChanged = false,
+  bool autoPaused = false,
+}) {
+  if (runtimeDevicesChanged) {
+    return const LearnerSourceStatusSignal(
+      id: 'runtime-device-change',
+      label: 'Audio route changed',
+      detail: 'Reopen the mic deliberately so Mallam uses the right device.',
+      icon: Icons.headset_mic_rounded,
+      color: Color(0xFF9A3412),
+      backgroundColor: Color(0xFFFFF7ED),
+      borderColor: Color(0xFFFED7AA),
+    );
+  }
+  if (browserOffline || state.lastSyncError != null) {
+    return const LearnerSourceStatusSignal(
+      id: 'runtime-local-save',
+      label: 'Runtime saved locally',
+      detail: 'Learner evidence stays on this tablet until sync settles.',
+      icon: Icons.cloud_off_rounded,
+      color: Color(0xFF9A3412),
+      backgroundColor: Color(0xFFFFF7ED),
+      borderColor: Color(0xFFFED7AA),
+    );
+  }
+  if (autoPaused) {
+    return const LearnerSourceStatusSignal(
+      id: 'runtime-auto-paused',
+      label: 'Hands-free paused safely',
+      detail: 'Confirm this step, then resume when transcript help is steady.',
+      icon: Icons.pause_circle_rounded,
+      color: Color(0xFF1D4ED8),
+      backgroundColor: Color(0xFFEFF6FF),
+      borderColor: Color(0xFFBFDBFE),
+    );
+  }
+  if (transcriptAvailable == false) {
+    return const LearnerSourceStatusSignal(
+      id: 'runtime-audio-first',
+      label: 'Audio-first mode',
+      detail:
+          'Transcript help is soft right now, but voice capture is still safe.',
+      icon: Icons.graphic_eq_rounded,
+      color: Color(0xFF7C3AED),
+      backgroundColor: Color(0xFFF5F3FF),
+      borderColor: Color(0xFFDDD6FE),
+    );
+  }
+  if (state.pendingSyncEvents.isNotEmpty) {
+    return LearnerSourceStatusSignal(
+      id: 'runtime-queue-${state.pendingSyncEvents.length}',
+      label: state.pendingSyncEvents.length == 1
+          ? '1 update queued'
+          : '${state.pendingSyncEvents.length} updates queued',
+      detail: 'The queue is protected locally and will flush on the next sync.',
+      icon: Icons.schedule_send_rounded,
+      color: const Color(0xFF92400E),
+      backgroundColor: const Color(0xFFFFFBEB),
+      borderColor: const Color(0xFFFDE68A),
+    );
+  }
+  if (state.usingFallbackData) {
+    return const LearnerSourceStatusSignal(
+      id: 'source-offline-fallback',
+      label: 'Offline roster in use',
+      detail: 'Lessons are coming from trusted local fallback state for now.',
+      icon: Icons.inventory_2_rounded,
+      color: Color(0xFF0F766E),
+      backgroundColor: Color(0xFFF0FDFA),
+      borderColor: Color(0xFF99F6E4),
+    );
+  }
+  if (state.hasLiveBackendConnection) {
+    return const LearnerSourceStatusSignal(
+      id: 'source-live-runtime-ready',
+      label: 'Live source connected',
+      detail: 'Roster, lesson routing, and runtime sync look ready.',
+      icon: Icons.cloud_done_rounded,
+      color: Color(0xFF166534),
+      backgroundColor: Color(0xFFF0FDF4),
+      borderColor: Color(0xFFBBF7D0),
+    );
+  }
+  return const LearnerSourceStatusSignal(
+    id: 'source-waiting',
+    label: 'Source check pending',
+    detail: 'Lumo is still confirming roster and runtime readiness.',
+    icon: Icons.hourglass_top_rounded,
+    color: Color(0xFF475569),
+    backgroundColor: Color(0xFFF8FAFC),
+    borderColor: Color(0xFFE2E8F0),
+  );
+}
+
+class LearnerSourceStatusNotice extends StatefulWidget {
+  final LearnerSourceStatusSignal signal;
+  final Duration visibleFor;
+
+  const LearnerSourceStatusNotice({
+    super.key,
+    required this.signal,
+    this.visibleFor = const Duration(seconds: 5),
+  });
+
+  @override
+  State<LearnerSourceStatusNotice> createState() =>
+      _LearnerSourceStatusNoticeState();
+}
+
+class _LearnerSourceStatusNoticeState extends State<LearnerSourceStatusNotice> {
+  Timer? _dismissTimer;
+  late String _visibleSignalId;
+  bool _isVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _visibleSignalId = widget.signal.id;
+    _armDismissTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant LearnerSourceStatusNotice oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.signal.id == widget.signal.id) return;
+    setState(() {
+      _visibleSignalId = widget.signal.id;
+      _isVisible = true;
+    });
+    _armDismissTimer();
+  }
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    super.dispose();
+  }
+
+  void _armDismissTimer() {
+    _dismissTimer?.cancel();
+    _dismissTimer = Timer(widget.visibleFor, () {
+      if (!mounted) return;
+      setState(() => _isVisible = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final signal = widget.signal;
+    final show = _isVisible && _visibleSignalId == signal.id;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: !show
+          ? const SizedBox.shrink()
+          : Container(
+              key: ValueKey(signal.id),
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: signal.backgroundColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: signal.borderColor),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x120F172A),
+                    blurRadius: 16,
+                    offset: Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Icon(signal.icon, size: 18, color: signal.color),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          signal.label,
+                          style: TextStyle(
+                            color: signal.color,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          signal.detail,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF334155),
+                            height: 1.25,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }
