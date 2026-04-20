@@ -180,6 +180,7 @@ export type Subject = {
   name: string;
   icon?: string;
   order?: number;
+  status?: string;
 };
 
 export type Strand = {

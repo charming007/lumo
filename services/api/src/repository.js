@@ -259,6 +259,7 @@ function createSubject(input) {
     name: input.name,
     icon: input.icon || 'menu_book',
     order: Number(input.order || data.subjects.length + 1),
+    status: input.status || 'draft',
   };
 
   data.subjects.push(subject);
@@ -286,6 +287,7 @@ function updateSubject(id, input) {
     name: input.name ?? subject.name,
     icon: input.icon ?? subject.icon,
     order: input.order !== undefined ? Number(input.order) : subject.order,
+    status: input.status ?? subject.status ?? 'draft',
   });
 
   return commit(subject);

@@ -238,6 +238,8 @@ function validateSubject(body, { partial = false } = {}) {
     error.statusCode = 409;
     throw error;
   }
+
+  assertAllowed('status', body.status, ['draft', 'published']);
 }
 
 function validateStrand(body, { partial = false } = {}) {

@@ -85,9 +85,9 @@ const seed = {
     },
   ],
   subjects: [
-    { id: 'english', name: 'Foundational English', icon: 'record_voice_over', order: 1 },
-    { id: 'math', name: 'Basic Numeracy', icon: 'calculate', order: 2 },
-    { id: 'life-skills', name: 'Life Skills', icon: 'favorite', order: 3 },
+    { id: 'english', name: 'Foundational English', icon: 'record_voice_over', order: 1, status: 'published' },
+    { id: 'math', name: 'Basic Numeracy', icon: 'calculate', order: 2, status: 'published' },
+    { id: 'life-skills', name: 'Life Skills', icon: 'favorite', order: 3, status: 'draft' },
   ],
   strands: [
     { id: 'strand-1', subjectId: 'english', name: 'Listening & Speaking', order: 1 },

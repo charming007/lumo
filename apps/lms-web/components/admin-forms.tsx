@@ -242,6 +242,7 @@ export function CreateSubjectForm({ returnPath }: { returnPath?: string }) {
         <FieldLabel>Icon<input name="icon" defaultValue="biotech" style={inputStyle} /></FieldLabel>
         <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="4" style={inputStyle} /></FieldLabel>
       </div>
+      <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="published">Published</option></select></FieldLabel>
       <FieldLabel>Initial strand name<input name="initialStrandName" defaultValue="Observation & Discovery" style={inputStyle} /></FieldLabel>
       <ActionButton label="Create subject" pendingLabel="Creating subject…" style={buttonStyle} />
     </form>
@@ -255,11 +256,13 @@ export function UpdateSubjectForm({ subject, embedded = false, returnPath }: { s
         <input type="hidden" name="subjectId" value={subject.id} />
         <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
         <h2 style={{ margin: 0 }}>Update subject</h2>
+        <SectionHint>Move the subject lane between draft and published here instead of pretending the release state only lives on modules.</SectionHint>
         <FieldLabel>Subject name<input name="name" defaultValue={subject.name} style={inputStyle} /></FieldLabel>
         <div style={twoColumnGrid}>
           <FieldLabel>Icon<input name="icon" defaultValue={subject.icon ?? ''} style={inputStyle} /></FieldLabel>
           <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(subject.order ?? 1)} style={inputStyle} /></FieldLabel>
         </div>
+        <FieldLabel>Status<select name="status" defaultValue={subject.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="published">Published</option></select></FieldLabel>
         <ActionButton label="Save subject changes" pendingLabel="Saving subject…" style={buttonStyle} />
       </form>
     </div>
