@@ -506,6 +506,140 @@ void main() {
       state.dispose();
     });
 
+    test(
+        'filters unpublished backend modules and lessons from learner bootstrap',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': const [],
+                  'modules': [
+                    {
+                      'subjectId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Foundational English',
+                      'level': 'foundation-a',
+                      'status': 'published',
+                    },
+                    {
+                      'subjectId': 'science',
+                      'subjectName': 'Science Lab',
+                      'title': 'Science Lab',
+                      'level': 'foundation-a',
+                      'status': 'review',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'english-live',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Live lesson',
+                      'durationMinutes': 8,
+                      'status': 'published',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greeting',
+                      'scenario': 'This lesson should remain.',
+                      'activitySteps': [
+                        {
+                          'id': 'step-1',
+                          'type': 'intro',
+                          'title': 'Say hello',
+                          'instruction': 'Welcome the learner.',
+                          'expectedResponse': 'Hello',
+                          'coachPrompt': 'Say hello.',
+                          'facilitatorTip': 'Keep it short.',
+                          'speakerMode': 'guiding',
+                        },
+                      ],
+                    },
+                    {
+                      'id': 'science-draft',
+                      'moduleId': 'science',
+                      'subjectName': 'Science Lab',
+                      'title': 'Draft lesson',
+                      'durationMinutes': 8,
+                      'status': 'draft',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Observe',
+                      'scenario': 'This lesson should stay hidden.',
+                      'activitySteps': [
+                        {
+                          'id': 'step-1',
+                          'type': 'intro',
+                          'title': 'Look closely',
+                          'instruction': 'Observe the cup.',
+                          'expectedResponse': 'Cup',
+                          'coachPrompt': 'Observe the cup.',
+                          'facilitatorTip': 'Keep it short.',
+                          'speakerMode': 'guiding',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            if (request.url.path == '/api/v1/learner-app/modules/english') {
+              return http.Response(
+                jsonEncode({
+                  'subjectId': 'english',
+                  'subjectName': 'Foundational English',
+                  'title': 'Foundational English',
+                  'level': 'foundation-a',
+                  'status': 'published',
+                  'lessons': [
+                    {
+                      'id': 'english-live',
+                      'moduleId': 'english',
+                      'subjectName': 'Foundational English',
+                      'title': 'Live lesson',
+                      'durationMinutes': 8,
+                      'status': 'published',
+                      'mascotName': 'Mallam',
+                      'readinessFocus': 'Greeting',
+                      'scenario': 'This lesson should remain.',
+                      'activitySteps': [
+                        {
+                          'id': 'step-1',
+                          'type': 'intro',
+                          'title': 'Say hello',
+                          'instruction': 'Welcome the learner.',
+                          'expectedResponse': 'Hello',
+                          'coachPrompt': 'Say hello.',
+                          'facilitatorTip': 'Keep it short.',
+                          'speakerMode': 'guiding',
+                        },
+                      ],
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.bootstrap();
+
+      expect(state.modules.map((module) => module.id), equals(['english']));
+      expect(state.assignedLessons.map((lesson) => lesson.id),
+          equals(['english-live']));
+      state.dispose();
+    });
+
     test('drops backend lessons that have no activity steps', () async {
       final state = LumoAppState(
         includeSeedDemoContent: false,
@@ -2960,7 +3094,7 @@ void main() {
       state.lastSyncAttemptAt =
           DateTime.now().subtract(const Duration(minutes: 2));
 
-      expect(state.operatorSourceLabel, 'Live backend connected');
+      expect(state.operatorSourceLabel, 'Backend link live');
       expect(state.operatorHealthLabel, 'Backend healthy');
     });
 
@@ -2976,7 +3110,8 @@ void main() {
         const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
       );
 
-      expect(state.operatorSourceLabel, 'Offline pack active');
+      expect(state.operatorSourceLabel, 'Backend offline');
+      expect(state.curriculumSourceLabel, 'Offline pack curriculum');
       expect(state.operatorHealthLabel, 'Sync stale');
     });
 

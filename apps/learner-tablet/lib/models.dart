@@ -753,6 +753,7 @@ class LearningModule {
   final String voicePrompt;
   final String readinessGoal;
   final String badge;
+  final String status;
 
   const LearningModule({
     required this.id,
@@ -761,6 +762,7 @@ class LearningModule {
     required this.voicePrompt,
     required this.readinessGoal,
     required this.badge,
+    this.status = 'published',
   });
 
   factory LearningModule.fromBackend(Map<String, dynamic> json) {
@@ -801,6 +803,9 @@ class LearningModule {
           ? readinessGoal
           : _moduleGoal(level, resolvedSubjectId),
       badge: badge != null && badge.isNotEmpty ? badge : 'Live backend',
+      status: json['status']?.toString() ??
+          json['releaseStatus']?.toString() ??
+          'published',
     );
   }
 }

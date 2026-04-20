@@ -353,21 +353,78 @@ class LumoAppState {
         _kOperatorRosterStaleThreshold;
   }
 
+  bool get hasAssignmentPayloadGaps =>
+      assignedLessons.any((lesson) => lesson.isAssignmentPlaceholder);
+
+  Set<ContentOrigin> get visibleCurriculumOrigins => assignedLessons
+      .map(lessonOriginFor)
+      .where((origin) => origin != ContentOrigin.seedDemoFallback)
+      .toSet();
+
+  bool get curriculumHasMixedOrigins {
+    final origins = visibleCurriculumOrigins;
+    if (origins.length > 1) return true;
+    return !usingFallbackData &&
+        origins.isNotEmpty &&
+        origins.single != ContentOrigin.liveBackend;
+  }
+
   String get operatorSourceLabel {
     if (!usingFallbackData && lastSyncedAt != null) {
-      return 'Live backend connected';
-    }
-    if (usingFallbackData && hasBundledOfflinePack) {
-      return 'Offline pack active';
-    }
-    if (usingFallbackData && hasOfflineSnapshotPayload) {
-      return 'Cached content active';
+      return 'Backend link live';
     }
     if (backendError != null) {
       return 'Backend unavailable';
     }
     if (isBootstrapping) return 'Checking backend';
-    return 'Content source unknown';
+    if (usingFallbackData) {
+      return 'Backend offline';
+    }
+    return 'Connection unknown';
+  }
+
+  String get curriculumSourceLabel {
+    if (hasAssignmentPayloadGaps) {
+      return 'Assignments incomplete';
+    }
+    if (usingFallbackData && hasBundledOfflinePack) {
+      return 'Offline pack curriculum';
+    }
+    if (usingFallbackData && hasOfflineSnapshotPayload) {
+      return 'Cached curriculum';
+    }
+
+    final origins = visibleCurriculumOrigins;
+    if (!usingFallbackData && origins.isNotEmpty) {
+      if (origins.length == 1 && origins.single == ContentOrigin.liveBackend) {
+        return 'Curriculum live';
+      }
+      return 'Curriculum mixed';
+    }
+
+    if (backendError != null && assignedLessons.isEmpty) {
+      return 'Curriculum unavailable';
+    }
+    if (assignedLessons.isNotEmpty) {
+      return 'Curriculum local';
+    }
+    return 'Curriculum unknown';
+  }
+
+  String? get curriculumTruthWarning {
+    if (hasAssignmentPayloadGaps) {
+      return 'Some live assignments reached the tablet before the full lesson payload, so routing may be right while lesson content is still incomplete.';
+    }
+    if (!usingFallbackData && curriculumHasMixedOrigins) {
+      return 'Backend connectivity is healthy, but the visible curriculum still mixes live lessons with cached or bundled content.';
+    }
+    if (usingFallbackData && hasOfflineSnapshotPayload) {
+      return 'The tablet is teaching from local cached curriculum, not a fresh live backend fetch.';
+    }
+    if (usingFallbackData && hasBundledOfflinePack) {
+      return 'The visible curriculum is coming from the offline pack, not the current backend publication state.';
+    }
+    return null;
   }
 
   String get operatorHealthLabel {
@@ -939,7 +996,8 @@ class LumoAppState {
       final title = module.title.trim();
       return id.isNotEmpty &&
           title.isNotEmpty &&
-          !_isDeprecatedDemoModule(moduleId: id, title: title);
+          !_isDeprecatedDemoModule(moduleId: id, title: title) &&
+          _isLearnerVisibleModule(module);
     }).toList();
   }
 
@@ -989,9 +1047,49 @@ class LumoAppState {
                 title: lesson.title,
                 subject: lesson.subject,
                 readinessFocus: lesson.readinessFocus,
-              ),
+              ) &&
+              _isLearnerVisibleLesson(lesson),
         )
         .toList();
+  }
+
+  bool _isLearnerVisibleModule(LearningModule module) {
+    final normalizedStatus = module.status.trim().toLowerCase();
+    if (normalizedStatus.isEmpty) return true;
+    if (_looksBlockedPublicationState(normalizedStatus)) {
+      return _moduleLooksBundledOffline(module);
+    }
+    return true;
+  }
+
+  bool _isLearnerVisibleLesson(LessonCardModel lesson) {
+    if (_isBundledFundamentalsLesson(lesson)) return true;
+    final normalizedStatus = lesson.status.trim().toLowerCase();
+    if (normalizedStatus.isEmpty) return true;
+    return !_looksBlockedPublicationState(normalizedStatus);
+  }
+
+  bool _looksBlockedPublicationState(String status) {
+    return status == 'draft' ||
+        status == 'review' ||
+        status == 'approved' ||
+        status == 'unpublished' ||
+        status == 'archived' ||
+        status == 'retired' ||
+        status == 'deleted' ||
+        status == 'hidden';
+  }
+
+  bool _moduleLooksBundledOffline(LearningModule module) {
+    final normalizedId = module.id.trim().toLowerCase();
+    final normalizedTitle = module.title.trim().toLowerCase();
+    final normalizedBadge = module.badge.trim().toLowerCase();
+    final normalizedStatus = module.status.trim().toLowerCase();
+    return normalizedId.startsWith('fundamentals-') ||
+        normalizedTitle.contains('fundamentals') ||
+        normalizedBadge.contains('bundled') ||
+        normalizedBadge.contains('offline') ||
+        normalizedStatus.contains('bundled');
   }
 
   bool _shouldPreferBundledLesson(
@@ -4115,6 +4213,7 @@ class LumoAppState {
         'voicePrompt': module.voicePrompt,
         'readinessGoal': module.readinessGoal,
         'badge': module.badge,
+        'status': module.status,
       };
 
   LearningModule _decodeModule(Map<String, dynamic> raw) =>
