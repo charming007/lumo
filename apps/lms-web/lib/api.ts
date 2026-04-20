@@ -36,15 +36,72 @@ import { API_BASE } from './config';
 import type { RewardCatalog } from './rewards';
 import type { CurriculumCanvasApiTree } from './curriculum-canvas';
 
+type ApiResponseDiagnostic = {
+  apiBase: string;
+  requestUrl: string;
+  contentType: string | null;
+  bodySnippet: string | null;
+  looksLikeHtml: boolean;
+  routeMismatchLikely: boolean;
+  backendMessage: string | null;
+};
+
+function snippet(value: string, maxLength = 180) {
+  const compact = value.replace(/\s+/g, ' ').trim();
+  return compact.length <= maxLength ? compact : `${compact.slice(0, maxLength)}…`;
+}
+
+async function buildResponseDiagnostic(response: Response, requestUrl: string): Promise<ApiResponseDiagnostic> {
+  const contentType = response.headers.get('content-type');
+  const rawBody = await response.text();
+  const trimmedBody = rawBody.trim();
+  const bodySnippet = trimmedBody ? snippet(trimmedBody) : null;
+  const looksLikeHtml = /text\/html|application\/xhtml\+xml/i.test(contentType || '') || /^<!doctype html/i.test(trimmedBody) || /^<html/i.test(trimmedBody);
+
+  let backendMessage: string | null = null;
+  if (trimmedBody && !looksLikeHtml) {
+    try {
+      const decoded = JSON.parse(trimmedBody) as { message?: unknown };
+      if (typeof decoded?.message === 'string' && decoded.message.trim()) {
+        backendMessage = decoded.message.trim();
+      }
+    } catch {
+      // ignore non-JSON bodies here; the snippet is still useful evidence.
+    }
+  }
+
+  const routeMismatchLikely = response.status === 404 && (looksLikeHtml || /Cannot (GET|POST|PATCH|DELETE|PUT|OPTIONS)\b/i.test(trimmedBody));
+
+  return {
+    apiBase: API_BASE,
+    requestUrl,
+    contentType,
+    bodySnippet,
+    looksLikeHtml,
+    routeMismatchLikely,
+    backendMessage,
+  };
+}
+
 export class ApiRequestError extends Error {
   status: number;
   path: string;
+  diagnostic: ApiResponseDiagnostic;
 
-  constructor(path: string, status: number) {
-    super(`Request failed (${status}): ${path}`);
+  constructor(path: string, status: number, diagnostic: ApiResponseDiagnostic) {
+    const routeHint = diagnostic.routeMismatchLikely
+      ? ` Route mismatch likely: ${diagnostic.requestUrl} answered ${status}${diagnostic.looksLikeHtml ? ' with HTML' : ''}.`
+      : '';
+    const backendHint = diagnostic.backendMessage
+      ? ` Backend said: ${diagnostic.backendMessage}.`
+      : diagnostic.bodySnippet
+        ? ` Response evidence: ${diagnostic.bodySnippet}`
+        : '';
+    super(`Request failed (${status}): ${path}. API base: ${diagnostic.apiBase}.${routeHint}${backendHint}`.trim());
     this.name = 'ApiRequestError';
     this.status = status;
     this.path = path;
+    this.diagnostic = diagnostic;
   }
 }
 
@@ -63,8 +120,10 @@ export class ApiRequestTimeoutError extends Error {
 const API_REQUEST_TIMEOUT_MS = 8000;
 
 async function getJson<T>(path: string): Promise<T> {
+  const requestUrl = `${API_BASE}${path}`;
+
   try {
-    const response = await fetch(`${API_BASE}${path}`, {
+    const response = await fetch(requestUrl, {
       cache: 'no-store',
       headers: {
         'x-lumo-role': 'admin',
@@ -74,10 +133,28 @@ async function getJson<T>(path: string): Promise<T> {
     });
 
     if (!response.ok) {
-      throw new ApiRequestError(path, response.status);
+      const diagnostic = await buildResponseDiagnostic(response, requestUrl);
+      throw new ApiRequestError(path, response.status, diagnostic);
     }
 
-    return response.json();
+    const contentType = response.headers.get('content-type') || '';
+    const rawBody = await response.text();
+    const trimmedBody = rawBody.trim();
+    const looksLikeHtml = /text\/html|application\/xhtml\+xml/i.test(contentType) || /^<!doctype html/i.test(trimmedBody) || /^<html/i.test(trimmedBody);
+
+    if (looksLikeHtml) {
+      throw new ApiRequestError(path, response.status, {
+        apiBase: API_BASE,
+        requestUrl,
+        contentType: contentType || null,
+        bodySnippet: trimmedBody ? snippet(trimmedBody) : null,
+        looksLikeHtml: true,
+        routeMismatchLikely: true,
+        backendMessage: null,
+      });
+    }
+
+    return JSON.parse(rawBody) as T;
   } catch (error) {
     if (error instanceof ApiRequestError) {
       throw error;

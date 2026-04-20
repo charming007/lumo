@@ -61,8 +61,13 @@ function describeAssetRegistryFailure(error: unknown) {
   const assetEndpoint = `${API_BASE}/api/v1/assets`;
 
   if (error instanceof ApiRequestError && error.path === '/api/v1/assets' && error.status === 404) {
+    const evidence = error.diagnostic.bodySnippet ? ` Response evidence: ${error.diagnostic.bodySnippet}` : '';
+    const routeLabel = error.diagnostic.routeMismatchLikely
+      ? 'The response looks like a wrong-backend or missing-route 404, not an empty library.'
+      : 'The deployed backend answered 404 for /api/v1/assets.';
+
     return {
-      summary: `Live asset registry route missing: the LMS reached ${assetEndpoint}, but the deployed backend answered 404 for /api/v1/assets. This is a deployment mismatch, not an empty library.`,
+      summary: `Live asset registry route missing: the LMS reached ${error.diagnostic.requestUrl}, and ${routeLabel}${evidence}`,
       operatorGuidance: `Most likely causes: (1) the live API deployment is outdated and does not ship the /api/v1/assets route yet, (2) NEXT_PUBLIC_API_BASE_URL points the LMS at the wrong backend/base URL, or (3) a proxy/rewrite is stripping the /api/v1 prefix before the request reaches the API. Verify the exact deployed API behind NEXT_PUBLIC_API_BASE_URL, then hit ${assetEndpoint} directly and confirm it serves the assets route before trusting this page again.`,
       shortLabel: 'Live backend route missing or LMS is pointed at the wrong API base',
       rootCauseChecklist: [
@@ -74,8 +79,9 @@ function describeAssetRegistryFailure(error: unknown) {
   }
 
   if (error instanceof ApiRequestError) {
+    const evidence = error.diagnostic.backendMessage ?? error.diagnostic.bodySnippet;
     return {
-      summary: `Live asset registry request failed: ${assetEndpoint} returned HTTP ${error.status}. This is a live backend/API-base problem, not proof that the library is empty.`,
+      summary: `Live asset registry request failed: ${error.diagnostic.requestUrl} returned HTTP ${error.status}.${evidence ? ` Evidence: ${evidence}` : ''} This is a live backend/API-base problem, not proof that the library is empty.`,
       operatorGuidance: `Verify NEXT_PUBLIC_API_BASE_URL, then hit ${assetEndpoint} directly and inspect the deployed API logs/config audit before trusting asset operations again.`,
       shortLabel: `Live asset registry request failed with HTTP ${error.status}`,
       rootCauseChecklist: [

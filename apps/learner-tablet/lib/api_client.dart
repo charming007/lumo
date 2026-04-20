@@ -69,8 +69,7 @@ class LumoApiClient {
     final scheme = parsed.scheme.toLowerCase();
     final looksPlaceholder =
         hostname == 'example.com' || hostname.endsWith('.example.com');
-    final looksLocal =
-        hostname == 'localhost' ||
+    final looksLocal = hostname == 'localhost' ||
         hostname == '127.0.0.1' ||
         hostname == '0.0.0.0' ||
         hostname.endsWith('.local');
@@ -127,17 +126,20 @@ class LumoApiClient {
       };
 
   Future<LumoBootstrap> fetchBootstrap() async {
+    final uri = Uri.parse('$baseUrl/api/v1/learner-app/bootstrap');
     final response = await _send(
       () => _client.get(
-        Uri.parse('$baseUrl/api/v1/learner-app/bootstrap'),
+        uri,
         headers: _jsonHeaders,
       ),
       action: 'load learner app bootstrap',
+      uri: uri,
     );
 
-    _ensureOk(response, 'load learner app bootstrap');
+    _ensureOk(response, 'load learner app bootstrap', uri);
 
-    final decoded = _decodeObject(response.body);
+    final decoded = _decodeObject(response.body,
+        action: 'load learner app bootstrap', uri: uri);
     final learnersJson = _asList(decoded['learners']);
     final modulesJson = _asList(decoded['modules']);
     final lessonsJson = _asList(decoded['lessons']);
@@ -181,30 +183,37 @@ class LumoApiClient {
       },
     };
 
+    final uri = Uri.parse('$baseUrl/api/v1/learner-app/learners');
     final response = await _send(
       () => _client.post(
-        Uri.parse('$baseUrl/api/v1/learner-app/learners'),
+        uri,
         headers: _jsonHeaders,
         body: jsonEncode(payload),
       ),
       action: 'register learner',
+      uri: uri,
     );
 
-    _ensureOk(response, 'register learner');
-    return LearnerProfile.fromBackend(_decodeObject(response.body));
+    _ensureOk(response, 'register learner', uri);
+    return LearnerProfile.fromBackend(
+      _decodeObject(response.body, action: 'register learner', uri: uri),
+    );
   }
 
   Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
+    final uri = Uri.parse('$baseUrl/api/v1/learner-app/modules/$moduleId');
     final response = await _send(
       () => _client.get(
-        Uri.parse('$baseUrl/api/v1/learner-app/modules/$moduleId'),
+        uri,
         headers: _jsonHeaders,
       ),
       action: 'load module details for $moduleId',
+      uri: uri,
     );
 
-    _ensureOk(response, 'load module details for $moduleId');
-    final decoded = _decodeObject(response.body);
+    _ensureOk(response, 'load module details for $moduleId', uri);
+    final decoded = _decodeObject(response.body,
+        action: 'load module details for $moduleId', uri: uri);
     final moduleJson = decoded['module'] is Map
         ? Map<String, dynamic>.from(decoded['module'] as Map)
         : decoded;
@@ -220,27 +229,31 @@ class LumoApiClient {
     int limit = 5,
   }) async {
     final encodedLearnerCode = Uri.encodeQueryComponent(learnerCode);
+    final uri = Uri.parse(
+      '$baseUrl/api/v1/learner-app/sessions?learnerCode=$encodedLearnerCode&limit=$limit',
+    );
     final response = await _send(
       () => _client.get(
-        Uri.parse(
-          '$baseUrl/api/v1/learner-app/sessions?learnerCode=$encodedLearnerCode&limit=$limit',
-        ),
+        uri,
         headers: _jsonHeaders,
       ),
       action: 'load learner runtime sessions',
+      uri: uri,
     );
 
-    _ensureOk(response, 'load learner runtime sessions');
-    final decoded = _decodeObject(response.body);
+    _ensureOk(response, 'load learner runtime sessions', uri);
+    final decoded = _decodeObject(response.body,
+        action: 'load learner runtime sessions', uri: uri);
     return _asList(decoded['sessions'])
         .map(BackendLessonSession.fromJson)
         .toList();
   }
 
   Future<LumoSyncResult> syncEvents(List<SyncEvent> events) async {
+    final uri = Uri.parse('$baseUrl/api/v1/learner-app/sync');
     final response = await _send(
       () => _client.post(
-        Uri.parse('$baseUrl/api/v1/learner-app/sync'),
+        uri,
         headers: _jsonHeaders,
         body: jsonEncode({
           'events': events
@@ -255,10 +268,12 @@ class LumoApiClient {
         }),
       ),
       action: 'sync learner events',
+      uri: uri,
     );
 
-    _ensureOk(response, 'sync learner events');
-    final decoded = _decodeObject(response.body);
+    _ensureOk(response, 'sync learner events', uri);
+    final decoded =
+        _decodeObject(response.body, action: 'sync learner events', uri: uri);
     return LumoSyncResult(
       accepted: _asInt(decoded['accepted']) ?? 0,
       ignored: _asInt(decoded['ignored']) ?? 0,
@@ -284,10 +299,13 @@ class LumoApiClient {
     final response = await _send(
       () => _client.get(uri, headers: _jsonHeaders),
       action: 'load learner rewards',
+      uri: uri,
     );
 
-    _ensureOk(response, 'load learner rewards');
-    return RewardSnapshot.fromJson(_decodeObject(response.body));
+    _ensureOk(response, 'load learner rewards', uri);
+    return RewardSnapshot.fromJson(
+      _decodeObject(response.body, action: 'load learner rewards', uri: uri),
+    );
   }
 
   List<Map<String, dynamic>> _asList(Object? value) {
@@ -295,10 +313,23 @@ class LumoApiClient {
     return value.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
-  Map<String, dynamic> _decodeObject(String body) {
+  Map<String, dynamic> _decodeObject(
+    String body, {
+    required String action,
+    required Uri uri,
+  }) {
+    final trimmed = body.trim();
+    if (_looksLikeHtml(trimmed)) {
+      throw Exception(
+        'Unable to $action: expected JSON from ${uri.toString()}, but got HTML instead. This usually means the tablet is pointed at the wrong backend target or a proxy is serving a web page instead of /api/v1/learner-app. API base: $baseUrl. Response evidence: ${_bodySnippet(trimmed)}',
+      );
+    }
+
     final decoded = jsonDecode(body);
     if (decoded is! Map) {
-      throw Exception('Expected an object response from API.');
+      throw Exception(
+        'Unable to $action: expected an object response from ${uri.toString()}, but got ${decoded.runtimeType}. API base: $baseUrl.',
+      );
     }
     return Map<String, dynamic>.from(decoded);
   }
@@ -306,33 +337,74 @@ class LumoApiClient {
   Future<http.Response> _send(
     Future<http.Response> Function() request, {
     required String action,
+    required Uri uri,
   }) async {
     try {
       return await request().timeout(_requestTimeout);
     } on Exception catch (error) {
       if (error is http.ClientException) {
-        throw Exception('Unable to $action: ${error.message}');
+        throw Exception(
+          'Unable to $action from ${uri.toString()} (API base: $baseUrl): ${error.message}',
+        );
       }
       if (error is FormatException) {
-        throw Exception('Unable to $action: invalid backend response.');
+        throw Exception(
+          'Unable to $action from ${uri.toString()}: invalid backend response. API base: $baseUrl.',
+        );
       }
       if (error is! TimeoutException) rethrow;
       throw Exception(
-          'Unable to $action: request timed out after ${_requestTimeout.inSeconds}s.');
+          'Unable to $action from ${uri.toString()}: request timed out after ${_requestTimeout.inSeconds}s. API base: $baseUrl.');
     }
   }
 
-  void _ensureOk(http.Response response, String action) {
+  void _ensureOk(http.Response response, String action, Uri uri) {
     if (response.statusCode >= 200 && response.statusCode < 300) return;
 
-    String message = 'Failed to $action (${response.statusCode}).';
+    final responseBody = response.body.trim();
+    final contentType = response.headers['content-type'] ?? '';
+    final looksLikeHtml = _looksLikeHtml(responseBody) ||
+        contentType.toLowerCase().contains('text/html');
+    final routeMismatchLikely = response.statusCode == 404 &&
+        (looksLikeHtml ||
+            RegExp(r'Cannot (GET|POST|PATCH|DELETE|PUT|OPTIONS)\b',
+                    caseSensitive: false)
+                .hasMatch(responseBody));
+
+    String message =
+        'Failed to $action (${response.statusCode}) from ${uri.toString()}. API base: $baseUrl.';
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is Map && decoded['message'] != null) {
-        message = decoded['message'].toString();
+        message =
+            '${decoded['message']} (while trying to $action via ${uri.toString()}, API base: $baseUrl).';
       }
     } catch (_) {}
+
+    if (routeMismatchLikely) {
+      message =
+          'Failed to $action: ${uri.toString()} returned ${response.statusCode} with what looks like a route-level backend miss, not learner JSON. This usually means the tablet is pointed at the wrong backend, the deployed API is stale, or a proxy stripped /api/v1/learner-app. API base: $baseUrl. Response evidence: ${_bodySnippet(responseBody)}';
+    } else if (looksLikeHtml) {
+      message =
+          'Failed to $action: ${uri.toString()} returned HTML instead of learner JSON. This usually means the tablet is hitting the wrong backend target or a proxy/web app shell. API base: $baseUrl. Response evidence: ${_bodySnippet(responseBody)}';
+    }
+
     throw Exception(message);
+  }
+
+  bool _looksLikeHtml(String body) {
+    final trimmed = body.trimLeft();
+    return trimmed.startsWith('<!DOCTYPE html') ||
+        trimmed.startsWith('<!doctype html') ||
+        trimmed.startsWith('<html');
+  }
+
+  String _bodySnippet(String body, {int maxLength = 180}) {
+    final compact = body.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (compact.isEmpty) return 'empty response body';
+    return compact.length <= maxLength
+        ? compact
+        : '${compact.substring(0, maxLength)}…';
   }
 }
 

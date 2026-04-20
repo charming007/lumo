@@ -59,7 +59,9 @@ void main() {
   });
 
   group('LumoApiClient.productionBaseUrlIssue', () {
-    test('allows the bundled production default when explicit release config is absent', () {
+    test(
+        'allows the bundled production default when explicit release config is absent',
+        () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://lumo-api-production-303a.up.railway.app',
@@ -69,7 +71,9 @@ void main() {
       );
     });
 
-    test('still rejects missing release config when the implicit target is not the bundled production default', () {
+    test(
+        'still rejects missing release config when the implicit target is not the bundled production default',
+        () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://staging-lumo-api.example.org',
@@ -104,7 +108,8 @@ void main() {
   });
 
   group('LumoApiClient module bundles', () {
-    test('parses nested module payloads without collapsing the subject id', () async {
+    test('parses nested module payloads without collapsing the subject id',
+        () async {
       final client = LumoApiClient(
         client: MockClient((request) async {
           expect(request.url.path, '/api/v1/learner-app/modules/english');
@@ -258,6 +263,63 @@ void main() {
       expect(snapshot.totalXp, 44);
       expect(snapshot.levelLabel, 'Explorer');
       expect(snapshot.badgesUnlocked, 1);
+    });
+  });
+
+  group('LumoApiClient backend target diagnostics', () {
+    test('surfaces route mismatch evidence when bootstrap hits an HTML 404',
+        () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/bootstrap');
+          return http.Response(
+            '<html><body>Cannot GET /api/v1/learner-app/bootstrap</body></html>',
+            404,
+            headers: {'content-type': 'text/html; charset=utf-8'},
+          );
+        }),
+        baseUrl: 'https://wrong-backend.example.com',
+      );
+
+      await expectLater(
+        client.fetchBootstrap(),
+        throwsA(
+          isA<Exception>().having(
+            (error) => error.toString(),
+            'message',
+            allOf(
+              contains('wrong backend'),
+              contains('API base: https://wrong-backend.example.com'),
+              contains('/api/v1/learner-app/bootstrap'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('surfaces HTML success responses as wrong backend evidence', () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async => http.Response(
+              '<!doctype html><html><body>frontend shell</body></html>',
+              200,
+              headers: {'content-type': 'text/html'},
+            )),
+        baseUrl: 'https://frontend-shell.example.com',
+      );
+
+      await expectLater(
+        client.fetchBootstrap(),
+        throwsA(
+          isA<Exception>().having(
+            (error) => error.toString(),
+            'message',
+            allOf(
+              contains('got HTML instead'),
+              contains('API base: https://frontend-shell.example.com'),
+            ),
+          ),
+        ),
+      );
     });
   });
 
