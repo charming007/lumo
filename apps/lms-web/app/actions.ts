@@ -426,6 +426,7 @@ export async function createSubjectAction(formData: FormData) {
     name: String(formData.get('name') || ''),
     icon: String(formData.get('icon') || 'menu_book'),
     order: Number(formData.get('order') || 0),
+    status: String(formData.get('status') || 'draft'),
     initialStrandName: String(formData.get('initialStrandName') || ''),
   };
 
@@ -444,6 +445,7 @@ export async function updateSubjectAction(formData: FormData) {
     name: String(formData.get('name') || ''),
     icon: String(formData.get('icon') || ''),
     order: Number(formData.get('order') || 0),
+    status: String(formData.get('status') || 'draft'),
   };
 
   await apiWrite(`/api/v1/subjects/${subjectId}`, 'PATCH', payload);

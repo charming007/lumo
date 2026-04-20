@@ -18,6 +18,7 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
+import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { Card, Pill } from '../lib/ui';
@@ -170,7 +171,7 @@ export function ContentSubjectLanes({
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <ModalLauncher buttonLabel="✏️" title={`Edit subject · ${subject.name}`} description="Update the subject label, icon, or sort order." eyebrow="Edit subject" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                    <ModalLauncher buttonLabel="✏️" title={`Edit subject · ${subject.name}`} description="Update the subject label, icon, sort order, or publish status." eyebrow="Edit subject" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                       <UpdateSubjectForm subject={subject} embedded returnPath={returnPath} />
                     </ModalLauncher>
                     <ModalLauncher buttonLabel="🗑" title={`Delete subject · ${subject.name}`} description="Remove the full subject lane only if it should disappear from the content library." eyebrow="Delete subject" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
@@ -181,6 +182,7 @@ export function ContentSubjectLanes({
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <Pill label={collapsed ? 'Collapsed' : 'Expanded'} tone={collapsed ? '#E2E8F0' : '#EEF2FF'} text={collapsed ? '#334155' : '#3730A3'} />
+                  <Pill label={subject.status ?? 'draft'} tone={statusPill(subject.status ?? 'draft').tone} text={statusPill(subject.status ?? 'draft').text} />
                   <Pill label={`${subjectStrands.filter((strand) => collapsedStrands[strand.id]).length}/${subjectStrands.length} strands collapsed`} tone="#F8FAFC" text="#334155" />
                   <Pill label={`${publishedModules} published`} tone={palette.tone} text={palette.text} />
                   <Pill label={`${readyLessons} ready lessons`} tone="#F8FAFC" text="#334155" />
@@ -266,6 +268,28 @@ export function ContentSubjectLanes({
                                   </div>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                     <Pill label={module.status} tone={pill.tone} text={pill.text} />
+                                    <form action={quickUpdateCanvasModuleAction}>
+                                      <input type="hidden" name="moduleId" value={module.id} />
+                                      <input type="hidden" name="returnPath" value={returnPath} />
+                                      <input type="hidden" name="title" value={module.title} />
+                                      <input type="hidden" name="level" value={module.level} />
+                                      <input type="hidden" name="lessonCount" value={String(module.lessonCount)} />
+                                      <input type="hidden" name="status" value="draft" />
+                                      <button type="submit" style={{ ...actionButtonStyle, background: module.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1' }}>
+                                        Draft
+                                      </button>
+                                    </form>
+                                    <form action={quickUpdateCanvasModuleAction}>
+                                      <input type="hidden" name="moduleId" value={module.id} />
+                                      <input type="hidden" name="returnPath" value={returnPath} />
+                                      <input type="hidden" name="title" value={module.title} />
+                                      <input type="hidden" name="level" value={module.level} />
+                                      <input type="hidden" name="lessonCount" value={String(module.lessonCount)} />
+                                      <input type="hidden" name="status" value="published" />
+                                      <button type="submit" style={{ ...actionButtonStyle, background: module.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '1px solid #86EFAC' }}>
+                                        Publish
+                                      </button>
+                                    </form>
                                     <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
                                       Open lesson studio →
                                     </Link>
@@ -340,6 +364,22 @@ export function ContentSubjectLanes({
                                           </div>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                             <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
+                                            <form action={quickUpdateLessonStatusAction}>
+                                              <input type="hidden" name="lessonId" value={lesson.id} />
+                                              <input type="hidden" name="returnPath" value={returnPath} />
+                                              <input type="hidden" name="status" value="draft" />
+                                              <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1' }}>
+                                                Draft
+                                              </button>
+                                            </form>
+                                            <form action={quickUpdateLessonStatusAction}>
+                                              <input type="hidden" name="lessonId" value={lesson.id} />
+                                              <input type="hidden" name="returnPath" value={returnPath} />
+                                              <input type="hidden" name="status" value="published" />
+                                              <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '1px solid #86EFAC' }}>
+                                                Publish
+                                              </button>
+                                            </form>
                                             <ModalLauncher buttonLabel="✏️" title={`Edit lesson · ${lesson.title}`} description="Update the lesson state, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                                               <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
                                             </ModalLauncher>
