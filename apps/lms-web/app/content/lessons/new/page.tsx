@@ -3,6 +3,7 @@ import { DeploymentBlockerCard } from '../../../../components/deployment-blocker
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { normalizeLessonAssetsForAuthoring } from '../../../../lib/lesson-authoring-normalize';
 import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import type { Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
@@ -41,12 +42,13 @@ export default async function LessonStudioCreatePage({
   const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
-  const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
+  const { assets, issues: assetPayloadIssues } = normalizeLessonAssetsForAuthoring(assetsResult.status === 'fulfilled' ? assetsResult.value : []);
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
+    assetPayloadIssues.length ? 'asset payload' : null,
   ].filter(Boolean) as string[];
 
   const derivedSubjects = modules.reduce<Subject[]>((acc, module) => {
@@ -154,7 +156,7 @@ export default async function LessonStudioCreatePage({
 
       {failedSources.length ? (
         <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          Lesson Studio recovered with degraded feeds: {failedSources.join(', ')}. Draft creation stays live because a usable curriculum context is still available.
+          Lesson Studio recovered with degraded feeds: {failedSources.join(', ')}. Draft creation stays live because a usable curriculum context is still available.{assetPayloadIssues.length ? ` Sanitized asset issues: ${assetPayloadIssues.join(' ')}` : ''}
         </div>
       ) : null}
 

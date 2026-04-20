@@ -3,7 +3,7 @@ import { DeploymentBlockerCard } from '../../../../components/deployment-blocker
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
-import { normalizeLessonForAuthoring } from '../../../../lib/lesson-authoring-normalize';
+import { normalizeLessonAssetsForAuthoring, normalizeLessonForAuthoring } from '../../../../lib/lesson-authoring-normalize';
 import { sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import type { CurriculumModule, Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
@@ -78,6 +78,10 @@ export default async function LessonStudioEditPage({
   const { lesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(rawLesson);
   const lessonFeedRecoveredFromInventory = lessonResult.status === 'rejected' && Boolean(fallbackInventoryLesson);
 
+  const loadedModules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const { assets, issues: assetPayloadIssues } = normalizeLessonAssetsForAuthoring(assetsResult.status === 'fulfilled' ? assetsResult.value : []);
   const failedSources = [
     lessonResult.status === 'rejected' && !fallbackInventoryLesson ? 'lesson' : null,
     lessonFeedRecoveredFromInventory ? 'lesson (direct feed degraded, inventory fallback used)' : null,
@@ -87,11 +91,8 @@ export default async function LessonStudioEditPage({
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
+    assetPayloadIssues.length ? 'asset payload' : null,
   ].filter(Boolean) as string[];
-  const loadedModules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
-  const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
-  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
-  const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
 
   const fallbackSubject = lesson ? buildFallbackSubject(loadedSubjects, lesson) : null;
   const fallbackModule = lesson ? buildFallbackModule(loadedModules, lesson) : null;
@@ -183,7 +184,7 @@ export default async function LessonStudioEditPage({
 
       {failedSources.length ? (
         <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          Editor recovered with degraded feeds: {failedSources.join(', ')}. Lesson editing stays live because the lesson payload and curriculum context are still usable.{lessonPayloadIssues.length ? ` Sanitized payload issues: ${lessonPayloadIssues.join(' ')}` : ''}
+          Editor recovered with degraded feeds: {failedSources.join(', ')}. Lesson editing stays live because the lesson payload and curriculum context are still usable.{lessonPayloadIssues.length ? ` Sanitized payload issues: ${lessonPayloadIssues.join(' ')}` : ''}{assetPayloadIssues.length ? ` Sanitized asset issues: ${assetPayloadIssues.join(' ')}` : ''}
         </div>
       ) : null}
 

@@ -1,4 +1,4 @@
-import type { Lesson, LessonActivityChoice, LessonActivityMedia, LessonActivityStep, LessonAssessmentItem } from './types';
+import type { Lesson, LessonActivityChoice, LessonActivityMedia, LessonActivityStep, LessonAssessmentItem, LessonAsset } from './types';
 
 type LessonAuthoringNormalization = {
   lesson: Lesson | null;
@@ -80,6 +80,54 @@ function normalizeAssessmentItem(value: unknown, index: number): LessonAssessmen
     prompt: asString(item.prompt),
     evidence: asString(item.evidence),
   };
+}
+
+export function normalizeLessonAssetsForAuthoring(payload: unknown) {
+  if (!Array.isArray(payload)) {
+    return { assets: [] as LessonAsset[], issues: payload == null ? [] : ['Asset feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const assets = payload.flatMap((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      issues.push(`Asset row ${index + 1} is malformed.`);
+      return [];
+    }
+
+    const asset = entry as Record<string, unknown>;
+    const id = asString(asset.id).trim();
+    if (!id) {
+      issues.push(`Asset row ${index + 1} is missing an id.`);
+      return [];
+    }
+
+    return [{
+      id,
+      kind: asString(asset.kind, 'image'),
+      title: asString(asset.title, id),
+      description: typeof asset.description === 'string' ? asset.description : undefined,
+      tags: Array.isArray(asset.tags) ? asset.tags.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : undefined,
+      subjectId: asNullableString(asset.subjectId),
+      subjectName: asNullableString(asset.subjectName),
+      moduleId: asNullableString(asset.moduleId),
+      moduleTitle: asNullableString(asset.moduleTitle),
+      lessonId: asNullableString(asset.lessonId),
+      lessonTitle: asNullableString(asset.lessonTitle),
+      mimeType: asNullableString(asset.mimeType),
+      fileName: asNullableString(asset.fileName),
+      originalFileName: asNullableString(asset.originalFileName),
+      sizeBytes: typeof asset.sizeBytes === 'number' && Number.isFinite(asset.sizeBytes) ? asset.sizeBytes : null,
+      storagePath: asNullableString(asset.storagePath),
+      fileUrl: asNullableString(asset.fileUrl),
+      status: typeof asset.status === 'string' ? asset.status : undefined,
+      source: asNullableString(asset.source),
+      createdBy: asNullableString(asset.createdBy),
+      createdAt: asNullableString(asset.createdAt),
+      updatedAt: asNullableString(asset.updatedAt),
+    } satisfies LessonAsset];
+  });
+
+  return { assets, issues };
 }
 
 export function normalizeLessonForAuthoring(payload: unknown): LessonAuthoringNormalization {
