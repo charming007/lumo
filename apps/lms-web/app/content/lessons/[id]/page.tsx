@@ -24,17 +24,20 @@ const LESSON_EDITOR_BUILD_SIGNATURE = [
   process.env.npm_package_version,
 ].filter(Boolean).join(' · ') || 'local-dev-signature';
 
-function buildFallbackSubject(subjects: Subject[], lesson: { subjectId?: string | null; subjectName?: string | null }, module?: { subjectId?: string | null; subjectName?: string | null } | null) {
+function buildFallbackSubject(
+  subjects: Subject[],
+  lesson: { id: string; title: string; subjectId?: string | null; subjectName?: string | null },
+  module?: { subjectId?: string | null; subjectName?: string | null } | null,
+) {
   const subjectId = lesson.subjectId?.trim() || module?.subjectId?.trim();
   const subjectName = lesson.subjectName?.trim() || module?.subjectName?.trim();
   const matched = subjects.find((subject) => subject.id === subjectId || (subjectName && subject.name === subjectName));
 
   if (matched) return matched;
-  if (!subjectId && !subjectName) return null;
 
   return {
-    id: subjectId ?? `__lesson-subject-${lesson.subjectId?.trim() || 'recovered'}`,
-    name: subjectName ?? 'Recovered subject context',
+    id: subjectId ?? `__lesson-subject-${lesson.id}`,
+    name: subjectName ?? `Recovered subject context for ${lesson.title.trim() || 'current lesson'}`,
     status: 'recovered-fallback',
   } satisfies Subject;
 }
@@ -121,11 +124,17 @@ export default async function LessonStudioEditPage({
   const modules = fallbackModule && !loadedModules.some((module) => module.id === fallbackModule.id)
     ? [...loadedModules, fallbackModule]
     : loadedModules;
-  const hasUsableCurriculumContext = Boolean(lesson && subjects.length > 0 && modules.length > 0);
+  const hasUsableCurriculumContext = Boolean(lesson && fallbackSubject && fallbackModule && subjects.length > 0 && modules.length > 0);
   const emergencyContextRecovered = Boolean(
     lesson
     && ((fallbackSubject && !loadedSubjects.some((subject) => subject.id === fallbackSubject.id))
       || (fallbackModule && !loadedModules.some((module) => module.id === fallbackModule.id))),
+  );
+  const contextRecoveredFromLessonOnly = Boolean(
+    lesson
+    && fallbackSubject
+    && fallbackModule
+    && (loadedSubjects.length === 0 || loadedModules.length === 0),
   );
 
   if (!lesson || !hasUsableCurriculumContext) {
@@ -136,7 +145,7 @@ export default async function LessonStudioEditPage({
         blockerHeadline="Deployment blocker: lesson editor context could not be recovered."
         blockerDetail={(
           <>
-            The editor cannot safely load this lesson because the lesson payload is missing core identity or even the emergency curriculum fallback could not be constructed. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ') || 'unknown'}. {lessonPayloadIssues.length ? `Payload issues: ${lessonPayloadIssues.join(' ')}` : ''} Build signature: {LESSON_EDITOR_BUILD_SIGNATURE}.
+            The editor cannot safely load this lesson because the lesson payload is missing core identity or even the emergency curriculum fallback could not be constructed. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ') || 'unknown'}. {lessonPayloadIssues.length ? `Payload issues: ${lessonPayloadIssues.join(' ')}` : ''} Lesson editor recovery build: {LESSON_EDITOR_BUILD_SIGNATURE}. If the deployed page still shows the old broader blocker copy after this ships, that frontend is stale.
           </>
         )}
         whyBlocked={[
@@ -174,8 +183,8 @@ export default async function LessonStudioEditPage({
     );
   }
 
-  const selectedModule = modules.find((module) => module.id === lesson.moduleId) ?? modules[0] ?? null;
-  const selectedSubject = subjects.find((subject) => subject.id === (lesson.subjectId ?? selectedModule?.subjectId)) ?? subjects[0] ?? null;
+  const selectedModule = modules.find((module) => module.id === lesson.moduleId || (lesson.moduleTitle && module.title === lesson.moduleTitle)) ?? fallbackModule ?? modules[0] ?? null;
+  const selectedSubject = subjects.find((subject) => subject.id === (lesson.subjectId ?? selectedModule?.subjectId) || (lesson.subjectName && subject.name === lesson.subjectName)) ?? fallbackSubject ?? subjects[0] ?? null;
   const moduleAssessments = assessments.filter((assessment) => assessment.moduleId === selectedModule?.id);
   const linkedAssessmentTitle = typeof lesson.lessonAssessment?.title === 'string' ? lesson.lessonAssessment.title : null;
   const linkedAssessment = linkedAssessmentTitle
@@ -206,23 +215,23 @@ export default async function LessonStudioEditPage({
     >
       <FeedbackBanner message={query?.message} />
 
-      {failedSources.length || emergencyContextRecovered ? (
+      {failedSources.length || emergencyContextRecovered || contextRecoveredFromLessonOnly ? (
         <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, display: 'grid', gap: 8 }}>
           <div>
             Editor recovered with degraded feeds: {failedSources.join(', ') || 'live feed mismatch only'}. Lesson editing stays live because the lesson payload is usable and the route now accepts recovered curriculum context.{lessonPayloadIssues.length ? ` Sanitized payload issues: ${lessonPayloadIssues.join(' ')}` : ''}{assetPayloadIssues.length ? ` Sanitized asset issues: ${assetPayloadIssues.join(' ')}` : ''}
           </div>
-          {emergencyContextRecovered ? (
+          {emergencyContextRecovered || contextRecoveredFromLessonOnly ? (
             <div>
-              Emergency context fallback is active. Subject/module selectors may include recovered placeholders until the live curriculum feeds catch up.
+              Emergency context fallback is active. Subject/module selectors may include recovered placeholders until the live curriculum feeds catch up. If production still shows the old hard blocker after this deploy, you are looking at a stale frontend bundle.
             </div>
           ) : null}
           <div style={{ fontSize: 12, letterSpacing: 0.3, color: '#7c2d12' }}>
-            Lesson editor build signature: <strong>{LESSON_EDITOR_BUILD_SIGNATURE}</strong>
+            Lesson editor recovery build: <strong>{LESSON_EDITOR_BUILD_SIGNATURE}</strong>
           </div>
         </div>
       ) : (
         <div style={{ marginBottom: 18, padding: '10px 14px', borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', fontSize: 13 }}>
-          Lesson editor build signature: <strong>{LESSON_EDITOR_BUILD_SIGNATURE}</strong>
+          Lesson editor recovery build: <strong>{LESSON_EDITOR_BUILD_SIGNATURE}</strong>
         </div>
       )}
 
