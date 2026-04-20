@@ -5976,37 +5976,47 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(color: const Color(0xFFBFDBFE), width: 1.5),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0xFF93C5FD)),
-            ),
-            child: Center(
-              child: Text(fallbackEmoji, style: const TextStyle(fontSize: 30)),
-            ),
-          ),
-          if (hasAudio) ...[
-            const SizedBox(height: 10),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.86),
-                borderRadius: BorderRadius.circular(999),
+                color: Colors.white.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFF93C5FD)),
               ),
-              child: const Icon(
-                Icons.volume_up_rounded,
-                color: Color(0xFF4338CA),
-                size: 18,
+              child: Center(
+                child: Text(
+                  fallbackEmoji,
+                  style: const TextStyle(fontSize: 30),
+                ),
               ),
             ),
+            if (hasAudio) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.86),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Icon(
+                  Icons.volume_up_rounded,
+                  color: Color(0xFF4338CA),
+                  size: 18,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -8027,6 +8037,61 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                             ],
                                             const SizedBox(height: 14),
+                                            Wrap(
+                                              spacing: 10,
+                                              runSpacing: 10,
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(
+                                                      0xFFF1F5F9,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      999,
+                                                    ),
+                                                  ),
+                                                  child: const Text(
+                                                    'Learner transcript',
+                                                    style: TextStyle(
+                                                      color: Color(0xFF334155),
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 8,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(
+                                                      0xFFEFF6FF,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      999,
+                                                    ),
+                                                  ),
+                                                  child: const Text(
+                                                    'Learner response',
+                                                    style: TextStyle(
+                                                      color: Color(0xFF1D4ED8),
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
                                             TextField(
                                               controller: responseController,
                                               onChanged: (_) => setState(() {}),
@@ -8111,6 +8176,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
                                                   children: [
+                                                    Text(
+                                                      'Session pulse • ${widget.state.currentLearner?.name.split(' ').first ?? 'Learner'}',
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF64748B),
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 10),
                                                     Container(
                                                       padding: const EdgeInsets
                                                           .symmetric(
@@ -8157,6 +8232,74 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                         fontWeight:
                                                             FontWeight.w600,
                                                       ),
+                                                    ),
+                                                    const SizedBox(height: 10),
+                                                    Wrap(
+                                                      spacing: 8,
+                                                      runSpacing: 8,
+                                                      children: [
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 6,
+                                                          ),
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(
+                                                              0xFFEFF6FF,
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                              999,
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            _transcriptSourceOfTruthLabel,
+                                                            style: const TextStyle(
+                                                              color: Color(
+                                                                0xFF1D4ED8,
+                                                              ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 6,
+                                                          ),
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(
+                                                              0xFFF8FAFC,
+                                                            ),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                              999,
+                                                            ),
+                                                            border: Border.all(
+                                                              color: const Color(
+                                                                0xFFE2E8F0,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            _automationSafetyLabel,
+                                                            style: const TextStyle(
+                                                              color: Color(
+                                                                0xFF334155,
+                                                              ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ],
                                                 ),

@@ -67,6 +67,31 @@ class _PlaceholderRecoveryApiClient extends LumoApiClient {
   }
 }
 
+class _SeedApiClient extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap() async {
+    return LumoBootstrap(
+      learners: learnerProfilesSeed,
+      modules: learningModules,
+      lessons: assignedLessonsSeed,
+    );
+  }
+
+  @override
+  Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
+    final module = learningModules.firstWhere(
+      (item) => item.id == moduleId,
+      orElse: () => learningModules.first,
+    );
+    return LumoModuleBundle(
+      module: module,
+      lessons: assignedLessonsSeed
+          .where((lesson) => lesson.moduleId == moduleId)
+          .toList(),
+    );
+  }
+}
+
 class _FakeBundledContentLoader extends BundledContentLoader {
   const _FakeBundledContentLoader(this.library);
 
@@ -85,7 +110,24 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const LumoApp(includeSeedDemoContent: true));
+    final state = LumoAppState(
+      apiClient: _SeedApiClient(),
+      bundledContentLoader: _FakeBundledContentLoader(
+        BundledContentLibrary(
+          modules: learningModules,
+          lessons: assignedLessonsSeed,
+        ),
+      ),
+      includeSeedDemoContent: false,
+    );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      LumoApp(
+        stateOverride: state,
+        includeSeedDemoContent: false,
+      ),
+    );
     await tester.pump(const Duration(seconds: 3));
     await tester.pump(const Duration(milliseconds: 300));
   }
@@ -388,6 +430,12 @@ void main() {
 
     final state = LumoAppState(
       apiClient: _FailingApiClient(),
+      bundledContentLoader: _FakeBundledContentLoader(
+        BundledContentLibrary(
+          modules: learningModules,
+          lessons: assignedLessonsSeed,
+        ),
+      ),
       includeSeedDemoContent: false,
     );
 
