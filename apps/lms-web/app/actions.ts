@@ -5,6 +5,7 @@ import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { redirect } from 'next/navigation';
 
 import { API_BASE } from '../lib/config';
+import { buildSubjectMutationPayload } from '../lib/subject-lifecycle';
 
 function buildApiHeaders(role = 'admin', includeJson = false) {
   const headers: Record<string, string> = {
@@ -422,12 +423,8 @@ export async function deleteMallamAction(formData: FormData) {
 export async function createSubjectAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
-    id: String(formData.get('id') || ''),
-    name: String(formData.get('name') || ''),
+    ...buildSubjectMutationPayload(formData, { includeId: true, includeInitialStrandName: true }),
     icon: String(formData.get('icon') || 'menu_book'),
-    order: Number(formData.get('order') || 0),
-    status: String(formData.get('status') || 'draft'),
-    initialStrandName: String(formData.get('initialStrandName') || ''),
   };
 
   await apiWrite('/api/v1/subjects', 'POST', payload);
@@ -441,12 +438,7 @@ export async function createSubjectAction(formData: FormData) {
 export async function updateSubjectAction(formData: FormData) {
   const subjectId = String(formData.get('subjectId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
-  const payload = {
-    name: String(formData.get('name') || ''),
-    icon: String(formData.get('icon') || ''),
-    order: Number(formData.get('order') || 0),
-    status: String(formData.get('status') || 'draft'),
-  };
+  const payload = buildSubjectMutationPayload(formData);
 
   await apiWrite(`/api/v1/subjects/${subjectId}`, 'PATCH', payload);
   revalidatePath('/content');
