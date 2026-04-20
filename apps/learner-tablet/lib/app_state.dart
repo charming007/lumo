@@ -29,7 +29,8 @@ class LumoAppState {
     BundledContentLoader? bundledContentLoader,
     bool includeSeedDemoContent = kEnableSeedDemoContent,
   })  : _apiClient = apiClient ?? LumoApiClient(),
-        _bundledContentLoader = bundledContentLoader ?? const BundledContentLoader(),
+        _bundledContentLoader =
+            bundledContentLoader ?? const BundledContentLoader(),
         _includeSeedDemoContent = includeSeedDemoContent;
 
   final LumoApiClient _apiClient;
@@ -397,9 +398,8 @@ class LumoAppState {
               ? Map<String, dynamic>.from(activeSessionRaw)
               : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
-      deploymentBlockerReason = hasUsableOfflineSnapshot
-          ? null
-          : offlineSnapshotTrustProblem;
+      deploymentBlockerReason =
+          hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
       restoredFromPersistence = true;
       persistenceError = null;
     } catch (error) {
@@ -580,7 +580,11 @@ class LumoAppState {
         for (final lesson in assignedLessons) lesson.id.trim(): lesson,
       };
       for (final lesson in bundled.lessons) {
-        mergedLessonMap.putIfAbsent(lesson.id.trim(), () => lesson);
+        final key = lesson.id.trim();
+        final existing = mergedLessonMap[key];
+        if (existing == null || _shouldPreferBundledLesson(lesson, existing)) {
+          mergedLessonMap[key] = lesson;
+        }
       }
 
       assignedLessons
@@ -659,19 +663,31 @@ class LumoAppState {
       return baselineLessons;
     }
 
+    final baselineById = {
+      for (final lesson in baselineLessons) lesson.id.trim(): lesson,
+    };
+    final mergedHydrated = hydratedLessons.map((lesson) {
+      final baselineMatch = baselineById[lesson.id.trim()];
+      if (baselineMatch != null &&
+          _shouldPreferBundledLesson(baselineMatch, lesson)) {
+        return baselineMatch;
+      }
+      return lesson;
+    }).toList();
+
     if (hydratedLessons.length >= baselineLessons.length) {
-      return hydratedLessons;
+      return mergedHydrated;
     }
 
     final hydratedIds =
-        hydratedLessons.map((lesson) => lesson.id.trim()).toSet();
+        mergedHydrated.map((lesson) => lesson.id.trim()).toSet();
     final preservedBaseline = baselineLessons
         .where((lesson) => !hydratedIds.contains(lesson.id.trim()))
         .toList();
 
     return [
       ...preservedBaseline.reversed,
-      ...hydratedLessons,
+      ...mergedHydrated,
     ];
   }
 
@@ -688,6 +704,28 @@ class LumoAppState {
               ),
         )
         .toList();
+  }
+
+  bool _shouldPreferBundledLesson(
+    LessonCardModel candidate,
+    LessonCardModel existing,
+  ) {
+    if (!_isBundledFundamentalsLesson(candidate)) return false;
+    if (_isBundledFundamentalsLesson(existing)) {
+      return candidate.steps.length >= existing.steps.length;
+    }
+    return true;
+  }
+
+  bool _isBundledFundamentalsLesson(LessonCardModel lesson) {
+    final normalizedId = lesson.id.trim().toLowerCase();
+    final normalizedModuleId = lesson.moduleId.trim().toLowerCase();
+    final normalizedSubject = lesson.subject.trim().toLowerCase();
+    final normalizedStatus = lesson.status.trim().toLowerCase();
+    return normalizedId.startsWith('fundamentals-') ||
+        normalizedModuleId.startsWith('fundamentals-') ||
+        normalizedSubject.contains('fundamentals') ||
+        normalizedStatus.contains('bundled');
   }
 
   bool _isDeprecatedDemoModule({
