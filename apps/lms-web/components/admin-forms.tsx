@@ -311,13 +311,13 @@ export function CreateSubjectForm({ returnPath }: { returnPath?: string }) {
       <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
       <h2 style={{ margin: 0 }}>Create subject</h2>
       <SectionHint>Create the subject lane first, and optionally seed its first strand so the module flow is immediately usable.</SectionHint>
+      <LifecycleStatusField name="status" value="draft" options={[...SUBJECT_STRAND_LIFECYCLE_OPTIONS]} entityLabel="subject lane" />
       <FieldLabel>Subject ID<input name="id" defaultValue="science" style={inputStyle} /></FieldLabel>
       <FieldLabel>Subject name<input name="name" defaultValue="Foundational Science" style={inputStyle} /></FieldLabel>
       <div style={twoColumnGrid}>
         <FieldLabel>Icon<input name="icon" defaultValue="biotech" style={inputStyle} /></FieldLabel>
         <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="4" style={inputStyle} /></FieldLabel>
       </div>
-      <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
       <FieldLabel>Initial strand name<input name="initialStrandName" defaultValue="Observation & Discovery" style={inputStyle} /></FieldLabel>
       <ActionButton label="Create subject" pendingLabel="Creating subject…" style={buttonStyle} />
     </form>

@@ -18,7 +18,7 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
-import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction } from '../app/actions';
+import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, updateSubjectAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { Card, Pill } from '../lib/ui';
@@ -180,13 +180,36 @@ export function ContentSubjectLanes({
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <Pill label={collapsed ? 'Collapsed' : 'Expanded'} tone={collapsed ? '#E2E8F0' : '#EEF2FF'} text={collapsed ? '#334155' : '#3730A3'} />
-                  <Pill label={subject.status ?? 'draft'} tone={statusPill(subject.status ?? 'draft').tone} text={statusPill(subject.status ?? 'draft').text} />
-                  <Pill label={`${subjectStrands.filter((strand) => collapsedStrands[strand.id]).length}/${subjectStrands.length} strands collapsed`} tone="#F8FAFC" text="#334155" />
-                  <Pill label={`${publishedModules} published`} tone={palette.tone} text={palette.text} />
-                  <Pill label={`${readyLessons} ready lessons`} tone="#F8FAFC" text="#334155" />
-                  <Pill label={`${subjectAssignments.length} learner-facing assignment${subjectAssignments.length === 1 ? '' : 's'}`} tone="#FFF7ED" text="#9A3412" />
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Pill label={collapsed ? 'Collapsed' : 'Expanded'} tone={collapsed ? '#E2E8F0' : '#EEF2FF'} text={collapsed ? '#334155' : '#3730A3'} />
+                    <Pill label={subject.status ?? 'draft'} tone={statusPill(subject.status ?? 'draft').tone} text={statusPill(subject.status ?? 'draft').text} />
+                    <Pill label={`${subjectStrands.filter((strand) => collapsedStrands[strand.id]).length}/${subjectStrands.length} strands collapsed`} tone="#F8FAFC" text="#334155" />
+                    <Pill label={`${publishedModules} published`} tone={palette.tone} text={palette.text} />
+                    <Pill label={`${readyLessons} ready lessons`} tone="#F8FAFC" text="#334155" />
+                    <Pill label={`${subjectAssignments.length} learner-facing assignment${subjectAssignments.length === 1 ? '' : 's'}`} tone="#FFF7ED" text="#9A3412" />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.1, textTransform: 'uppercase', color: '#64748b' }}>Lifecycle</span>
+                    {[
+                      { value: 'draft', label: 'Draft', background: subject.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '#CBD5E1' },
+                      { value: 'review', label: 'Review', background: subject.status === 'review' ? '#FDE68A' : '#FFFBEB', color: '#92400E', border: '#FCD34D' },
+                      { value: 'published', label: 'Publish', background: subject.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '#86EFAC' },
+                    ].map((option) => (
+                      <form key={option.value} action={updateSubjectAction}>
+                        <input type="hidden" name="subjectId" value={subject.id} />
+                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <input type="hidden" name="name" value={subject.name} />
+                        <input type="hidden" name="icon" value={subject.icon ?? ''} />
+                        <input type="hidden" name="order" value={String(subject.order ?? 1)} />
+                        <input type="hidden" name="status" value={option.value} />
+                        <button type="submit" style={{ ...actionButtonStyle, background: option.background, color: option.color, border: `1px solid ${option.border}` }}>
+                          {option.label}
+                        </button>
+                      </form>
+                    ))}
+                    <span style={{ color: '#64748b', fontSize: 13 }}>Same lifecycle controls also live inside the edit modal.</span>
+                  </div>
                 </div>
 
                 <div id={`subject-panel-${subject.id}`} hidden={collapsed} style={{ display: collapsed ? 'none' : 'grid', gap: 12 }}>
