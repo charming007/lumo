@@ -10,6 +10,7 @@ process.env.LUMO_DB_MODE = 'file';
 process.env.PORT = '0';
 
 const store = require('../src/store');
+const data = require('../src/data');
 const { startServer } = require('../src/main');
 
 let server;
@@ -87,4 +88,21 @@ test('subject lifecycle status survives API saves and persists in the store snap
   const persistedSnapshot = JSON.parse(fs.readFileSync(process.env.LUMO_DATA_FILE, 'utf8'));
   const persistedSubject = persistedSnapshot.subjects.find((item) => item.id === 'lifecycle-regression-subject');
   assert.equal(persistedSubject?.status, 'published');
+});
+
+test('legacy curriculum snapshots are hydrated with lifecycle status defaults instead of silently falling back to draft', async () => {
+  const legacySnapshot = JSON.parse(fs.readFileSync(process.env.LUMO_DATA_FILE, 'utf8'));
+  legacySnapshot.subjects = legacySnapshot.subjects.map(({ status, ...subject }) => subject);
+  legacySnapshot.strands = legacySnapshot.strands.map(({ status, ...strand }) => strand);
+  fs.writeFileSync(process.env.LUMO_DATA_FILE, JSON.stringify(legacySnapshot, null, 2));
+
+  data.reload();
+
+  const english = store.listSubjects().find((item) => item.id === 'english');
+  const math = store.listSubjects().find((item) => item.id === 'math');
+  const englishSpeaking = store.listStrands().find((item) => item.id === 'strand-1');
+
+  assert.equal(english?.status, 'published');
+  assert.equal(math?.status, 'published');
+  assert.equal(englishSpeaking?.status, 'published');
 });

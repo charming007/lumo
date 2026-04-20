@@ -137,10 +137,35 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function normalizeLifecycleStatus(collectionKey, parsedItems, seedItems) {
+  if (!Array.isArray(parsedItems)) {
+    return clone(seedItems);
+  }
+
+  if (!['subjects', 'strands', 'modules', 'lessons'].includes(collectionKey)) {
+    return parsedItems;
+  }
+
+  const seedById = new Map((seedItems || []).map((item) => [String(item.id), item]));
+
+  return parsedItems.map((item) => {
+    if (!item || typeof item !== 'object' || item.status) {
+      return item;
+    }
+
+    const seeded = seedById.get(String(item.id || ''));
+    if (seeded?.status) {
+      return { ...item, status: seeded.status };
+    }
+
+    return { ...item, status: 'draft' };
+  });
+}
+
 function hydrate() {
   const parsed = storage.read(seed);
   Object.keys(seed).forEach((key) => {
-    data[key] = Array.isArray(parsed[key]) ? parsed[key] : clone(seed[key]);
+    data[key] = normalizeLifecycleStatus(key, parsed[key], seed[key]);
   });
 }
 
