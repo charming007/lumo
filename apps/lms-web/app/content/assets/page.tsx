@@ -3,7 +3,7 @@ import { AssetLibraryFilters, AssetLibraryTable, AssetRegisterForm, AssetUploadF
 import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { ApiRequestError, fetchAssetRuntime, fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus } from '../../../lib/api';
-import { API_BASE, API_BASE_DIAGNOSTIC } from '../../../lib/config';
+import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../../../lib/config';
 import { sanitizeInternalReturnPath } from '../../../lib/safe-return-path';
 import { PageShell } from '../../../lib/ui';
 
@@ -40,6 +40,21 @@ function runtimeReadinessTone(readiness?: 'ready' | 'degraded' | 'blocked') {
 
 function isExactAssetRegistry404(error: unknown) {
   return error instanceof ApiRequestError && error.status === 404 && error.path === '/api/v1/assets';
+}
+
+function describeApiSource(source: typeof API_BASE_SOURCE) {
+  switch (source) {
+    case 'env':
+      return 'NEXT_PUBLIC_API_BASE_URL';
+    case 'local-fallback':
+      return 'local fallback (env missing outside production)';
+    case 'missing-production-env':
+      return 'missing production env';
+    case 'invalid-production-env':
+      return 'invalid production env';
+    default:
+      return source;
+  }
 }
 
 function describeAssetRegistryFailure(error: unknown) {
@@ -198,10 +213,13 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const assetEndpoint = `${API_BASE}/api/v1/assets`;
   const assetRuntimeEndpoint = `${API_BASE}/api/v1/admin/assets/runtime`;
   const configAuditEndpoint = `${API_BASE}/api/v1/admin/config/audit`;
+  const storageStatusEndpoint = `${API_BASE}/api/v1/admin/storage/status`;
+  const apiTargetSourceLabel = describeApiSource(API_BASE_SOURCE);
   const storageUploadsBlocked = assetUploadsReady === false;
   const configAuditReady = configAudit?.summary?.ready ?? null;
   const configAuditStatusLabel = configAuditReady === null ? 'Config audit unavailable' : configAuditReady ? 'Config audit passed' : 'Config audit degraded';
   const runtimeOnlyRegistryOutage = assetFeedFailed && !missingCoreLibraryFeeds.length;
+  const apiTargetMismatchLikely = runtimeOnlyRegistryOutage && assetRuntime?.routeEvidence?.ready;
   const degradedActionLabel = storageUploadsBlocked
     ? 'Check asset upload env + storage, then use Register external asset until it is fixed'
     : runtimeOnlyRegistryOutage
@@ -310,12 +328,20 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
             </div>
           ) : null}
           {runtimeOnlyRegistryOutage ? (
-            <div style={{ padding: 14, borderRadius: 14, background: '#FFF7ED', border: '1px solid #FDBA74' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9a3412' }}>Runtime signal</div>
-              <div style={{ marginTop: 8, color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
-                Subject/module/lesson feeds are alive, but <code>/api/v1/assets</code> is not. If that request is returning 404, the live backend does not have the route, the LMS is pointed at the wrong deployed API base, or a proxy/rewrite is stripping <code>/api/v1</code>. {configAuditStatusLabel}. Upload storage is {assetUploadsReady === null ? 'unknown' : assetUploadsReady ? 'ready' : 'blocked'}{assetUploadRoot ? ` at ${assetUploadRoot}` : ''}. Treat this as a deployed backend mismatch until the registry endpoint recovers.
+            <>
+              <div style={{ padding: 14, borderRadius: 14, background: '#FFF7ED', border: '1px solid #FDBA74' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9a3412' }}>Runtime signal</div>
+                <div style={{ marginTop: 8, color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
+                  Subject/module/lesson feeds are alive, but <code>/api/v1/assets</code> is not. If that request is returning 404, the live backend does not have the route, the LMS is pointed at the wrong deployed API base, or a proxy/rewrite is stripping <code>/api/v1</code>. {configAuditStatusLabel}. Upload storage is {assetUploadsReady === null ? 'unknown' : assetUploadsReady ? 'ready' : 'blocked'}{assetUploadRoot ? ` at ${assetUploadRoot}` : ''}. Treat this as a deployed backend mismatch until the registry endpoint recovers.
+                </div>
               </div>
-            </div>
+              <div style={{ padding: 14, borderRadius: 14, background: apiTargetMismatchLikely ? '#FEE2E2' : '#FFF7ED', border: apiTargetMismatchLikely ? '1px solid #FCA5A5' : '1px solid #FDBA74' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: apiTargetMismatchLikely ? '#991B1B' : '#9a3412' }}>Backend target evidence</div>
+                <div style={{ marginTop: 8, color: apiTargetMismatchLikely ? '#7F1D1D' : '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
+                  LMS target: <code>{API_BASE}</code> ({apiTargetSourceLabel}). Asset runtime endpoint: <code>{assetRuntimeEndpoint}</code>. Config audit endpoint: <code>{configAuditEndpoint}</code>.{apiTargetMismatchLikely ? ' The runtime endpoint says this API build has the asset routes mounted, so a live 404 from the library almost certainly means the LMS is pointed at the wrong/stale backend or a proxy is mangling the path — not that the frontend randomly broke.' : ''}
+                </div>
+              </div>
+            </>
           ) : null}
         </div>
 
@@ -459,6 +485,23 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
             </div>
           ) : null}
 
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 8 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>Next operator steps</div>
+              <div style={{ color: '#7F1D1D', lineHeight: 1.6 }}>
+                1. Confirm the LMS target host above is the deployment you intended.<br />
+                2. Hit <code>{assetEndpoint}</code>, <code>{assetRuntimeEndpoint}</code>, <code>{configAuditEndpoint}</code>, and <code>{storageStatusEndpoint}</code> directly against that same host.<br />
+                3. If runtime/config endpoints are healthy but <code>/api/v1/assets</code> is 404, redeploy or repoint the backend. That is a backend target mismatch until proven otherwise.
+              </div>
+            </div>
+            <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 8 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>Do not confuse this with storage-only degradation</div>
+              <div style={{ color: '#7F1D1D', lineHeight: 1.6 }}>
+                Storage trouble means uploads or managed file reads degrade while the registry endpoints still answer. A dead or 404 asset listing endpoint means the LMS cannot trust writes or reads against the current backend target.
+              </div>
+            </div>
+          </div>
+
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Link href="/settings" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#991B1B', color: '#fff', border: '1px solid #991B1B' }}>Open settings + config audit</Link>
             <Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#fff', color: '#991B1B', border: '1px solid #FCA5A5' }}>Back to content board</Link>
@@ -471,7 +514,17 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
         </div>
       )}
       <AssetLibraryFilters subjects={subjects} modules={modules} lessons={lessons} filters={filters} totalCount={assetListingAvailable ? assets.length : 0} resetHref={assetLibraryResetHref} />
-      <AssetLibraryTable items={assets} returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} unavailableReason={assetFeedFailed ? (assetListingFailureDetail ?? 'The live asset registry API is unavailable.') : null} />
+      <AssetLibraryTable
+        items={assets}
+        returnPath={assetLibraryHref}
+        subjects={subjects}
+        modules={modules}
+        lessons={lessons}
+        unavailableReason={assetFeedFailed ? (assetListingFailureDetail ?? 'The live asset registry API is unavailable.') : null}
+        unavailableTarget={assetFeedFailed ? API_BASE : null}
+        unavailableTargetSource={assetFeedFailed ? apiTargetSourceLabel : null}
+        unavailableEndpoints={assetFeedFailed ? [assetEndpoint, assetRuntimeEndpoint, configAuditEndpoint, storageStatusEndpoint] : undefined}
+      />
     </section>
   </PageShell>;
 }

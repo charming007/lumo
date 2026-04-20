@@ -5,7 +5,7 @@ import { DeploymentBlockerCard } from '../../components/deployment-blocker-card'
 import { ExportShareCard } from '../../components/export-share-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAssetRuntime, fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
-import { API_BASE_DIAGNOSTIC } from '../../lib/config';
+import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { describeCatalogState, describeLiveBackendWithCatalog } from '../../lib/trust-copy';
 import type { AssetRuntimeReport, MetaResponse, OperationsReport, RewardSnapshot, RewardsReport, StorageBackupList, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
@@ -18,6 +18,21 @@ const EMPTY_META: MetaResponse = {
   mode: 'offline',
   seedSummary: {},
 };
+
+function describeApiSource(source: typeof API_BASE_SOURCE) {
+  switch (source) {
+    case 'env':
+      return 'NEXT_PUBLIC_API_BASE_URL';
+    case 'local-fallback':
+      return 'local fallback (env missing outside production)';
+    case 'missing-production-env':
+      return 'missing production env';
+    case 'invalid-production-env':
+      return 'invalid production env';
+    default:
+      return source;
+  }
+}
 
 const EMPTY_REWARDS_REPORT: RewardsReport = {
   scope: { learnerCount: 0 },
@@ -218,6 +233,11 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const backups = backupsResult.status === 'fulfilled' ? backupsResult.value : EMPTY_STORAGE_BACKUPS;
   const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : EMPTY_OPERATIONS_REPORT;
   const assetRuntime = assetRuntimeResult.status === 'fulfilled' ? assetRuntimeResult.value : EMPTY_ASSET_RUNTIME;
+  const apiTargetSourceLabel = describeApiSource(API_BASE_SOURCE);
+  const assetEndpoint = `${API_BASE}/api/v1/assets`;
+  const assetRuntimeEndpoint = `${API_BASE}/api/v1/admin/assets/runtime`;
+  const configAuditEndpoint = `${API_BASE}/api/v1/admin/config/audit`;
+  const storageStatusEndpoint = `${API_BASE}/api/v1/admin/storage/status`;
 
   const failedSources = [
     metaResult.status === 'rejected' ? 'platform metadata' : null,
@@ -617,6 +637,32 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                 {assetRuntime.uploads.ready
                   ? `Uploads are writable at ${assetRuntime.uploads.root ?? 'the configured path'}.`
                   : assetRuntime.uploads.blocker ?? 'Upload storage diagnostics are unavailable right now.'}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0', display: 'grid', gap: 8 }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>LMS backend target</div>
+                <div style={{ color: '#0f172a', fontWeight: 800, wordBreak: 'break-all' }}>{API_BASE}</div>
+                <div style={{ color: '#475569', lineHeight: 1.6 }}>Source: {apiTargetSourceLabel}. This is the host the LMS is actually testing, not a guessed environment.</div>
+              </div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0', display: 'grid', gap: 8 }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Cross-check endpoints</div>
+                {[assetEndpoint, assetRuntimeEndpoint, configAuditEndpoint, storageStatusEndpoint].map((endpoint) => (
+                  <code key={endpoint} style={{ color: '#334155', wordBreak: 'break-all' }}>{endpoint}</code>
+                ))}
+              </div>
+              <div style={{ padding: 14, borderRadius: 16, background: assetRuntime.routeEvidence?.ready ? '#FEF2F2' : '#FFF7ED', border: assetRuntime.routeEvidence?.ready ? '1px solid #FECACA' : '1px solid #FDBA74', display: 'grid', gap: 8 }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: assetRuntime.routeEvidence?.ready ? '#991B1B' : '#9A3412', fontWeight: 800 }}>Mismatch test</div>
+                <div style={{ color: '#0f172a', fontWeight: 800 }}>
+                  {assetRuntime.routeEvidence?.ready
+                    ? `${assetRuntime.routeEvidence.mountedCount}/${assetRuntime.routeEvidence.expectedCount} critical asset routes are mounted in this API build`
+                    : 'Route evidence is degraded or missing'}
+                </div>
+                <div style={{ color: assetRuntime.routeEvidence?.ready ? '#7F1D1D' : '#7C2D12', lineHeight: 1.6 }}>
+                  {assetRuntime.routeEvidence?.ready
+                    ? 'If the settings/runtime lane says the routes exist here but the asset library gets a live 404, assume wrong/stale backend target or proxy rewrite damage before blaming the frontend.'
+                    : 'If route evidence itself is missing, verify the backend build before drawing conclusions from LMS pages.'}
+                </div>
               </div>
             </div>
             <SimpleTable

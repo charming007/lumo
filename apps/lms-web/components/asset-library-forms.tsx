@@ -273,7 +273,27 @@ export function AssetLibraryFilters({ subjects, modules, lessons, filters, total
   </div>;
 }
 
-export function AssetLibraryTable({ items, returnPath, subjects, modules, lessons, unavailableReason }: { items: LessonAsset[]; returnPath: string; subjects: Subject[]; modules: CurriculumModule[]; lessons: Lesson[]; unavailableReason?: string | null }) {
+export function AssetLibraryTable({
+  items,
+  returnPath,
+  subjects,
+  modules,
+  lessons,
+  unavailableReason,
+  unavailableTarget,
+  unavailableTargetSource,
+  unavailableEndpoints,
+}: {
+  items: LessonAsset[];
+  returnPath: string;
+  subjects: Subject[];
+  modules: CurriculumModule[];
+  lessons: Lesson[];
+  unavailableReason?: string | null;
+  unavailableTarget?: string | null;
+  unavailableTargetSource?: string | null;
+  unavailableEndpoints?: string[];
+}) {
   return <div style={{ background: 'white', borderRadius: 20, padding: 24, border: '1px solid #eef2f7', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
     <div style={{ display: 'grid', gap: 14 }}>
       <div>
@@ -353,12 +373,29 @@ export function AssetLibraryTable({ items, returnPath, subjects, modules, lesson
             </div>
           </div>;
         }) : unavailableReason ? (
-          <div style={{ padding: 16, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', display: 'grid', gap: 8 }}>
+          <div style={{ padding: 16, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', display: 'grid', gap: 12 }}>
             <div style={{ fontWeight: 900 }}>Asset registry feed is unavailable</div>
             <div style={{ lineHeight: 1.6 }}>{unavailableReason}</div>
             <div style={{ color: '#7C2D12', fontWeight: 700 }}>
               This is not an empty library. The live asset listing failed to load, so the UI is refusing to fake a clean zero-state.
             </div>
+            {(unavailableTarget || unavailableEndpoints?.length) ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                {unavailableTarget ? (
+                  <div style={{ padding: 12, borderRadius: 12, background: '#fff', border: '1px solid #FED7AA', display: 'grid', gap: 6 }}>
+                    <strong>LMS target</strong>
+                    <div style={{ color: '#7C2D12', wordBreak: 'break-all' }}>{unavailableTarget}</div>
+                    {unavailableTargetSource ? <div style={{ color: '#9A3412', fontSize: 12 }}>Source: {unavailableTargetSource}</div> : null}
+                  </div>
+                ) : null}
+                {unavailableEndpoints?.length ? (
+                  <div style={{ padding: 12, borderRadius: 12, background: '#fff', border: '1px solid #FED7AA', display: 'grid', gap: 6 }}>
+                    <strong>Cross-check this same host</strong>
+                    {unavailableEndpoints.map((endpoint) => <code key={endpoint} style={{ color: '#7C2D12', wordBreak: 'break-all' }}>{endpoint}</code>)}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : <div style={{ color: '#64748b' }}>No assets matched this filter set. Clear the filters or upload/register something real.</div>}
       </div>
