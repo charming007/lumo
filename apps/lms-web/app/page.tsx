@@ -233,6 +233,11 @@ export default async function HomePage() {
     !mallamsAvailable ? 'mallams' : null,
     !assignmentsAvailable ? 'assignments' : null,
   ].filter(Boolean) as string[];
+  const criticalReleaseFailures = [
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+  ].filter(Boolean) as string[];
 
   const readyLearners = workboard.filter((item) => item.progressionStatus === 'ready');
   const watchLearners = workboard.filter((item) => item.progressionStatus === 'watch');
@@ -284,26 +289,36 @@ export default async function HomePage() {
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
 
-  if (hasCriticalDashboardGap) {
-    const blockerDetail = !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
-      ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
-      : !summaryAvailable && !workboardAvailable
-        ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
-        : !summaryAvailable
-          ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
-          : !workboardAvailable
-            ? 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.'
-            : !mallamsAvailable && !assignmentsAvailable
-              ? 'Mallam coverage and assignment pressure both failed to load from the live API. That strips out the facilitator and delivery checks operators use before trusting this dashboard.'
-              : !mallamsAvailable
-                ? 'The mallam coverage feed failed to load from the live API. Without the live roster, this dashboard cannot honestly represent facilitator coverage.'
-                : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.';
+  if (hasCriticalDashboardGap || criticalReleaseFailures.length) {
+    const blockerDetail = hasCriticalDashboardGap
+      ? !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
+        ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+        : !summaryAvailable && !workboardAvailable
+          ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+          : !summaryAvailable
+            ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
+            : !workboardAvailable
+              ? 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.'
+              : !mallamsAvailable && !assignmentsAvailable
+                ? 'Mallam coverage and assignment pressure both failed to load from the live API. That strips out the facilitator and delivery checks operators use before trusting this dashboard.'
+                : !mallamsAvailable
+                  ? 'The mallam coverage feed failed to load from the live API. Without the live roster, this dashboard cannot honestly represent facilitator coverage.'
+                  : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.'
+      : !modules.length && !lessons.length && !assessments.length
+        ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
+        : criticalReleaseFailures.length === 1
+          ? `The ${criticalReleaseFailures[0]} feed failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`
+          : `The ${criticalReleaseFailures.join(', ')} feeds failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`;
 
     return (
       <DeploymentBlockerCard
         title="Dashboard"
-        subtitle="The admin landing page stays blocked when the critical live dashboard feeds are down."
-        blockerHeadline="Deployment blocker: dashboard live feeds are degraded."
+        subtitle={hasCriticalDashboardGap
+          ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
+          : 'The admin landing page also blocks when release-readiness feeds are blind.'}
+        blockerHeadline={hasCriticalDashboardGap
+          ? 'Deployment blocker: dashboard live feeds are degraded.'
+          : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length
@@ -311,38 +326,74 @@ export default async function HomePage() {
               : 'The dashboard refused to guess.'}
           </>
         )}
-        whyBlocked={[
-          'The root route is the deployment reviewer’s first trust check. If summary, progression, mallam coverage, or assignment pressure is missing, the page should not cosplay as a healthy command center.',
-          'Operators use this screen to decide who needs intervention now, whether facilitators are actually covered, and whether delivery load is under control. Missing any of those turns this into vibes-based operations.',
-          'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
-        ]}
-        verificationItems={[
-          {
-            surface: 'Dashboard summary',
-            expected: 'Active learners, assignments, pods, assessments, and readiness counts load from the live API',
-            failure: 'Zeroed or missing metrics on the root route',
-          },
-          {
-            surface: 'Progression queue',
-            expected: 'Ready/watch learners and next-module recommendations load from the live workboard',
-            failure: 'No intervention queue or only empty-state fallback copy',
-          },
-          {
-            surface: 'Coverage + flow readout',
-            expected: 'Mallam coverage and due-soon assignment pressure reflect live roster + assignment feeds',
-            failure: 'Dashboard still looks deployable even though facilitator coverage or delivery pressure is unknown',
-          },
-        ]}
-        fixItems={[
-          { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
-          { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
-          { label: 'Cross-check', value: 'Verify /progress, /students, /mallams, and /assignments after the upstream fix lands' },
-        ]}
-        docs={[
-          { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'Cross-check learners', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Verify reports', href: '/reports', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
-        ]}
+        whyBlocked={hasCriticalDashboardGap
+          ? [
+              'The root route is the deployment reviewer’s first trust check. If summary, progression, mallam coverage, or assignment pressure is missing, the page should not cosplay as a healthy command center.',
+              'Operators use this screen to decide who needs intervention now, whether facilitators are actually covered, and whether delivery load is under control. Missing any of those turns this into vibes-based operations.',
+              'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
+            ]
+          : [
+              'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, or assessment gates are blind, the route should not imply anyone can trust the release board.',
+              'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Leaving it up with degraded data invites a false green light.',
+              'A blocker is safer than a dashboard that looks live while the release gate inputs are missing.',
+            ]}
+        verificationItems={hasCriticalDashboardGap
+          ? [
+              {
+                surface: 'Dashboard summary',
+                expected: 'Active learners, assignments, pods, assessments, and readiness counts load from the live API',
+                failure: 'Zeroed or missing metrics on the root route',
+              },
+              {
+                surface: 'Progression queue',
+                expected: 'Ready/watch learners and next-module recommendations load from the live workboard',
+                failure: 'No intervention queue or only empty-state fallback copy',
+              },
+              {
+                surface: 'Coverage + flow readout',
+                expected: 'Mallam coverage and due-soon assignment pressure reflect live roster + assignment feeds',
+                failure: 'Dashboard still looks deployable even though facilitator coverage or delivery pressure is unknown',
+              },
+            ]
+          : [
+              {
+                surface: 'Content release blockers',
+                expected: 'Blocked-module counts, missing lesson gaps, and assessment-gate warnings load from live curriculum feeds',
+                failure: 'Release-readiness card renders with warnings or partial counts while modules / lessons / assessments are unavailable',
+              },
+              {
+                surface: 'Top blocker lane',
+                expected: 'Open blockers board and create-missing-lesson actions are based on real module + lesson + gate data',
+                failure: 'A module appears release-safe or actionable while one of the release feeds is blind',
+              },
+              {
+                surface: 'Cross-check routes',
+                expected: '/content and /canvas agree with the root release-readiness board after recovery',
+                failure: 'Dashboard says release is reviewable while content routes still show degraded curriculum data',
+              },
+            ]}
+        fixItems={hasCriticalDashboardGap
+          ? [
+              { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
+              { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
+              { label: 'Cross-check', value: 'Verify /progress, /students, /mallams, and /assignments after the upstream fix lands' },
+            ]
+          : [
+              { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
+              { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
+              { label: 'Cross-check', value: 'Verify /content and /canvas after the upstream fix lands' },
+            ]}
+        docs={hasCriticalDashboardGap
+          ? [
+              { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+              { label: 'Cross-check learners', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+              { label: 'Verify reports', href: '/reports', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+            ]
+          : [
+              { label: 'Check content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+              { label: 'Check curriculum canvas', href: '/canvas', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+              { label: 'Cross-check reports', href: '/reports', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+            ]}
       />
     );
   }
