@@ -478,7 +478,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   String(module.lessonCount),
                   <Pill key={`${module.id}-status`} label={module.status} tone={statusPill(module.status).tone} text={statusPill(module.status).text} />,
                   <div key={`${module.id}-actions`} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <ModalLauncher buttonLabel="Edit module" title={`Edit module · ${module.title}`} description="Update the selected module without leaving the tracker." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                    <ModalLauncher buttonLabel="Edit module" title={`Edit module lifecycle · ${module.title}`} description="Update the selected module and its lifecycle state without leaving the tracker." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                       <UpdateModuleForm modules={[module]} returnPath={returnPath} />
                     </ModalLauncher>
                     <ModalLauncher buttonLabel="Delete module" title={`Delete module · ${module.title}`} description="Remove this module from the release tracker." eyebrow="Delete module" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
@@ -506,7 +506,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     <Link href={`/content/lessons/new?duplicate=${lesson.id}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
                       Duplicate as new
                     </Link>
-                    <ModalLauncher buttonLabel="Quick edit" title={`Quick edit · ${lesson.title}`} description="Use the compact editor for status/mode/duration only. For actual authoring, open the full lesson editor." eyebrow="Quick edit" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                    <ModalLauncher buttonLabel="Edit lifecycle" title={`Edit lesson lifecycle · ${lesson.title}`} description="Use the compact editor for lifecycle, mode, and duration. For actual authoring, open the full lesson editor." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                       <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
                     </ModalLauncher>
                     <ModalLauncher buttonLabel="Delete lesson" title={`Delete lesson · ${lesson.title}`} description="Remove this lesson from the inventory if it no longer belongs here." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>

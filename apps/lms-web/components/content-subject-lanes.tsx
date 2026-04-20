@@ -171,7 +171,7 @@ export function ContentSubjectLanes({
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <ModalLauncher buttonLabel="✏️" title={`Edit subject · ${subject.name}`} description="Update the subject label, icon, sort order, or publish status." eyebrow="Edit subject" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                    <ModalLauncher buttonLabel="✏️" title={`Edit subject lifecycle · ${subject.name}`} description="Update the subject label, icon, sort order, and lifecycle state from the same modal." eyebrow="Edit subject" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                       <UpdateSubjectForm subject={subject} embedded returnPath={returnPath} />
                     </ModalLauncher>
                     <ModalLauncher buttonLabel="🗑" title={`Delete subject · ${subject.name}`} description="Remove the full subject lane only if it should disappear from the content library." eyebrow="Delete subject" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
@@ -243,7 +243,7 @@ export function ContentSubjectLanes({
                             <ModalLauncher buttonLabel="＋ Module" title={`Create module in ${strand.name}`} description="Create a real module directly from this strand lane so the canvas writes back into the live curriculum spine." eyebrow="Create module" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
                               <CreateModuleForm strands={strands} initialStrandId={strand.id} initialTitle={`${strand.name} Module`} initialOrder={strandModules.length + 1} returnPath={returnPath} />
                             </ModalLauncher>
-                            <ModalLauncher buttonLabel="✏️" title={`Edit strand · ${strand.name}`} description="Rename or reorder this strand without leaving the subject lane." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                            <ModalLauncher buttonLabel="✏️" title={`Edit strand lifecycle · ${strand.name}`} description="Rename, reorder, and move this strand through its lifecycle without leaving the subject lane." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                               <UpdateStrandForm strand={strand} subjects={subjects} embedded returnPath={returnPath} />
                             </ModalLauncher>
                             <ModalLauncher buttonLabel="🗑" title={`Delete strand · ${strand.name}`} description="Remove this strand and everything nested under it if it no longer belongs in the curriculum map." eyebrow="Delete strand" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
@@ -302,7 +302,7 @@ export function ContentSubjectLanes({
                                         </Link>
                                       </div>
                                     </ModalLauncher>
-                                    <ModalLauncher buttonLabel="✏️ Edit module" title={`Edit module · ${module.title}`} description="Update module metadata from the same content lane." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                                    <ModalLauncher buttonLabel="✏️ Edit module" title={`Edit module lifecycle · ${module.title}`} description="Update module metadata and lifecycle state from the same content lane." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                                       <UpdateModuleForm modules={[module]} returnPath={returnPath} />
                                     </ModalLauncher>
                                     <ModalLauncher buttonLabel="🗑 Delete module" title={`Delete module · ${module.title}`} description="Remove this module and its linked content if it should no longer exist." eyebrow="Delete module" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
@@ -381,7 +381,7 @@ export function ContentSubjectLanes({
                                                 Publish
                                               </button>
                                             </form>
-                                            <ModalLauncher buttonLabel="✏️" title={`Edit lesson · ${lesson.title}`} description="Update the lesson state, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                                            <ModalLauncher buttonLabel="✏️" title={`Edit lesson lifecycle · ${lesson.title}`} description="Update the lesson lifecycle, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                                               <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
                                             </ModalLauncher>
                                             <ModalLauncher buttonLabel="🗑" title={`Delete lesson · ${lesson.title}`} description="Delete this lesson if it should no longer be in the module lane." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>

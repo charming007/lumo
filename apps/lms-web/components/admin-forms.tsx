@@ -70,6 +70,30 @@ const responsiveGrid = (minWidth: number) => ({
 const twoColumnGrid = responsiveGrid(220);
 const threeColumnGrid = responsiveGrid(180);
 
+const subjectStatusCardMeta: Record<string, { label: string; description: string; background: string; border: string; accent: string }> = {
+  draft: {
+    label: 'Draft',
+    description: 'Still being shaped. Safe for rough edits, not release.',
+    background: '#EEF2FF',
+    border: '#C7D2FE',
+    accent: '#4338CA',
+  },
+  review: {
+    label: 'In review',
+    description: 'Visible for content review and release checks.',
+    background: '#FFFBEB',
+    border: '#FCD34D',
+    accent: '#B45309',
+  },
+  published: {
+    label: 'Published',
+    description: 'Release-ready and meant to show up in the live curriculum lane.',
+    background: '#ECFDF5',
+    border: '#86EFAC',
+    accent: '#166534',
+  },
+};
+
 function FieldLabel({ children }: { children: ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
 }
@@ -77,6 +101,68 @@ function FieldLabel({ children }: { children: ReactNode }) {
 function SectionHint({ children }: { children: ReactNode }) {
   return <div style={{ color: '#64748b', lineHeight: 1.6, fontSize: 14 }}>{children}</div>;
 }
+
+function LifecycleStatusField({
+  name,
+  value,
+  options,
+  entityLabel,
+}: {
+  name: string;
+  value: string;
+  options: Array<{ value: string; label: string; hint: string; tone: string; text: string; border: string }>;
+  entityLabel: string;
+}) {
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      <div style={{ display: 'grid', gap: 4 }}>
+        <div style={{ color: '#0f172a', fontSize: 14, fontWeight: 800 }}>Lifecycle status</div>
+        <SectionHint>Make the {entityLabel} state explicit here instead of burying release control in a tiny select box.</SectionHint>
+      </div>
+      <div style={{ ...responsiveGrid(180), gap: 10 }}>
+        {options.map((option) => {
+          const checked = value === option.value;
+          return (
+            <label
+              key={option.value}
+              style={{
+                display: 'grid',
+                gap: 6,
+                padding: '14px 16px',
+                borderRadius: 16,
+                border: `1px solid ${checked ? option.border : '#e2e8f0'}`,
+                background: checked ? option.tone : 'white',
+                color: '#0f172a',
+                cursor: 'pointer',
+                boxShadow: checked ? `0 0 0 2px ${option.border}22` : 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="radio" name={name} value={option.value} defaultChecked={checked} />
+                <strong style={{ color: option.text }}>{option.label}</strong>
+              </div>
+              <span style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>{option.hint}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const SUBJECT_STRAND_LIFECYCLE_OPTIONS = [
+  { value: 'draft', label: 'Draft', hint: 'Still being shaped. Visible to ops, not ready to ship as the live curriculum lane.', tone: '#F8FAFC', text: '#334155', border: '#CBD5E1' },
+  { value: 'review', label: 'In review', hint: 'Structure is there, but it still needs editorial or ops sign-off before release.', tone: '#FFFBEB', text: '#92400E', border: '#FCD34D' },
+  { value: 'published', label: 'Published', hint: 'This lane is considered release-visible and can anchor downstream content safely.', tone: '#ECFDF5', text: '#166534', border: '#86EFAC' },
+] as const;
+
+const MODULE_LESSON_LIFECYCLE_OPTIONS = [
+  { value: 'draft', label: 'Draft', hint: 'Work-in-progress only. Safe for internal editing, not for learner-facing release.', tone: '#F8FAFC', text: '#334155', border: '#CBD5E1' },
+  { value: 'review', label: 'In review', hint: 'Structured enough for QA or editorial checks, but still blocked from release.', tone: '#FFFBEB', text: '#92400E', border: '#FCD34D' },
+  { value: 'approved', label: 'Approved', hint: 'Content quality is accepted, but it is not live until you explicitly publish it.', tone: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' },
+  { value: 'published', label: 'Published', hint: 'Live release state. This is the learner-ready lane.', tone: '#ECFDF5', text: '#166534', border: '#86EFAC' },
+  { value: 'active', label: 'Active', hint: 'Legacy live state kept for compatibility with older module records.', tone: '#F5F3FF', text: '#6D28D9', border: '#C4B5FD' },
+] as const;
 
 function PodSelector({ pods, selectedPodIds }: { pods: Pod[]; selectedPodIds: string[] }) {
   return (
@@ -257,12 +343,12 @@ export function UpdateSubjectForm({ subject, embedded = false, returnPath }: { s
         <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
         <h2 style={{ margin: 0 }}>Update subject</h2>
         <SectionHint>Move the subject lane between draft and published here instead of pretending the release state only lives on modules.</SectionHint>
+        <LifecycleStatusField name="status" value={subject.status ?? 'draft'} options={[...SUBJECT_STRAND_LIFECYCLE_OPTIONS]} entityLabel="subject lane" />
         <FieldLabel>Subject name<input name="name" defaultValue={subject.name} style={inputStyle} /></FieldLabel>
         <div style={twoColumnGrid}>
           <FieldLabel>Icon<input name="icon" defaultValue={subject.icon ?? ''} style={inputStyle} /></FieldLabel>
           <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(subject.order ?? 1)} style={inputStyle} /></FieldLabel>
         </div>
-        <FieldLabel>Status<select name="status" defaultValue={subject.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
         <ActionButton label="Save subject changes" pendingLabel="Saving subject…" style={buttonStyle} />
       </form>
     </div>
@@ -312,10 +398,8 @@ export function UpdateStrandForm({ strand, subjects, embedded = false, returnPat
         <FieldLabel>Subject<select name="subjectId" defaultValue={strand.subjectId} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
         <SectionHint>Give strands the same publish control subjects already have so release state does not vanish one level down the curriculum spine.</SectionHint>
         <FieldLabel>Strand name<input name="name" defaultValue={strand.name} style={inputStyle} /></FieldLabel>
-        <div style={twoColumnGrid}>
-          <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(strand.order ?? 1)} style={inputStyle} /></FieldLabel>
-          <FieldLabel>Status<select name="status" defaultValue={strand.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
-        </div>
+        <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(strand.order ?? 1)} style={inputStyle} /></FieldLabel>
+        <LifecycleStatusField name="status" value={strand.status ?? 'draft'} options={[...SUBJECT_STRAND_LIFECYCLE_OPTIONS]} entityLabel="strand" />
         <ActionButton label="Save strand changes" pendingLabel="Saving strand…" style={buttonStyle} />
       </form>
     </div>
@@ -369,7 +453,7 @@ export function UpdateModuleForm({ modules, returnPath }: { modules: CurriculumM
       <SectionHint>Pick the exact module to edit. No more “first row wins” nonsense.</SectionHint>
       <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
       <FieldLabel>Title<input name="title" defaultValue={module?.title ?? ''} style={inputStyle} /></FieldLabel>
-      <FieldLabel>Status<select name="status" defaultValue={module?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="approved">Approved</option><option value="published">Published</option><option value="active">Active</option></select></FieldLabel>
+      <LifecycleStatusField name="status" value={module?.status ?? 'draft'} options={[...MODULE_LESSON_LIFECYCLE_OPTIONS]} entityLabel="module" />
       <div style={twoColumnGrid}>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(module?.lessonCount ?? 1)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Level<select name="level" defaultValue={module?.level ?? 'beginner'} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
@@ -419,7 +503,7 @@ export function UpdateLessonForm({ lessons, returnPath }: { lessons: Lesson[]; r
       <h2 style={{ margin: 0 }}>Update lesson</h2>
       <SectionHint>Pick the exact lesson to move through draft, review, approved, or published states.</SectionHint>
       <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
-      <FieldLabel>Status<select name="status" defaultValue={lesson?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
+      <LifecycleStatusField name="status" value={lesson?.status ?? 'draft'} options={MODULE_LESSON_LIFECYCLE_OPTIONS.filter((option) => option.value !== 'active')} entityLabel="lesson" />
       <div style={twoColumnGrid}>
         <FieldLabel>Mode<select name="mode" defaultValue={lesson?.mode ?? 'guided'} style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option><option value="practice">Practice</option></select></FieldLabel>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue={String(lesson?.durationMinutes ?? 8)} style={inputStyle} /></FieldLabel>
