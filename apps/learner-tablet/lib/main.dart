@@ -4708,6 +4708,77 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   static const Duration _kMinimumUsefulRecording = Duration(milliseconds: 900);
 
+  String _bestVisibleLearnerText(LessonSessionState? session) {
+    if (session == null) return '';
+    final explicit = session.latestLearnerResponse?.trim() ?? '';
+    if (explicit.isNotEmpty) return explicit;
+
+    final learnerNames = <String>{
+      'learner',
+      if (widget.state.currentLearner?.name.trim().isNotEmpty ?? false)
+        widget.state.currentLearner!.name.trim().toLowerCase(),
+      if (widget.state.currentLearner?.name.trim().isNotEmpty ?? false)
+        widget.state.currentLearner!.name
+            .trim()
+            .toLowerCase()
+            .split(RegExp(r'\s+'))
+            .first,
+    };
+
+    for (final turn in session.transcript.reversed) {
+      final text = turn.text.trim();
+      if (text.isEmpty) continue;
+      final normalizedText = text.toLowerCase();
+      if (normalizedText.startsWith('voice captured locally')) {
+        continue;
+      }
+      final speaker = turn.speaker.trim().toLowerCase();
+      if (learnerNames.contains(speaker)) {
+        return text;
+      }
+    }
+    return '';
+  }
+
+  void _rebindVisibleLearnerEvidence({bool preserveManualEdits = true}) {
+    final session = widget.state.activeSession;
+    if (session == null) return;
+
+    final visibleLearnerText = _bestVisibleLearnerText(session);
+    final hasDraftResponse = visibleLearnerText.isNotEmpty;
+    final hasSavedAudio =
+        session.latestLearnerAudioPath?.trim().isNotEmpty ?? false;
+    final currentDraft = responseController.text.trim();
+    final canReplaceDraft = !preserveManualEdits ||
+        currentDraft.isEmpty ||
+        currentDraft == _latestFinalTranscript.trim() ||
+        currentDraft == liveTranscript.trim();
+
+    if (hasDraftResponse && canReplaceDraft && currentDraft != visibleLearnerText) {
+      responseController.value = TextEditingValue(
+        text: visibleLearnerText,
+        selection: TextSelection.collapsed(offset: visibleLearnerText.length),
+      );
+    }
+
+    _lastPersistedResponseDraft = responseController.text;
+    _latestFinalTranscript = hasDraftResponse ? visibleLearnerText : '';
+    liveTranscript = hasDraftResponse ? visibleLearnerText : '';
+    _resumedSession = session.totalResponses > 0 || session.stepIndex > 0;
+    transcriptReviewPending = hasDraftResponse || hasSavedAudio;
+    if (hasSavedAudio) {
+      isAutoMode = false;
+      _latestTranscriptNeedsManualReview = hasDraftResponse;
+    }
+    microphoneStatus = hasSavedAudio
+        ? 'We picked up ${widget.lesson.title} with the learner voice saved. Listen once, then keep going from here.'
+        : hasDraftResponse
+            ? 'We picked up ${widget.lesson.title} with a draft answer ready. Check it once, then keep going.'
+            : _resumedSession
+                ? 'Back in ${widget.lesson.title}, step ${session.stepIndex + 1}. ${session.automationStatus}'
+                : session.automationStatus;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -4719,31 +4790,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     speechTranscriptionService = SpeechTranscriptionService();
     browserRuntimeObserver = createBrowserRuntimeObserver();
 
-    final session = widget.state.activeSession;
-    if (session != null) {
-      responseController.text = session.latestLearnerResponse ?? '';
-      _lastPersistedResponseDraft = responseController.text;
-      _latestFinalTranscript = session.latestLearnerResponse ?? '';
-      _resumedSession = session.totalResponses > 0 || session.stepIndex > 0;
-      final hasDraftResponse =
-          session.latestLearnerResponse?.trim().isNotEmpty ?? false;
-      final hasSavedAudio =
-          session.latestLearnerAudioPath?.trim().isNotEmpty ?? false;
-      transcriptReviewPending = hasDraftResponse || hasSavedAudio;
-      if (hasSavedAudio) {
-        isAutoMode = false;
-      }
-      if (hasDraftResponse) {
-        liveTranscript = session.latestLearnerResponse!.trim();
-        _latestTranscriptNeedsManualReview = hasSavedAudio;
-      }
-      microphoneStatus = hasSavedAudio
-          ? 'We picked up ${widget.lesson.title} with the learner voice saved. Listen once, then keep going from here.'
-          : hasDraftResponse
-              ? 'We picked up ${widget.lesson.title} with a draft answer ready. Check it once, then keep going.'
-              : _resumedSession
-                  ? 'Back in ${widget.lesson.title}, step ${session.stepIndex + 1}. ${session.automationStatus}'
-                  : session.automationStatus;
+    if (widget.state.activeSession != null) {
+      _rebindVisibleLearnerEvidence(preserveManualEdits: false);
     }
     _transcriptStrategyExpanded = _shouldExpandTranscriptStrategyByDefault;
 
@@ -4756,6 +4804,24 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       if (_hasRecoveredLearnerEvidence) return;
       _speakCurrentStepIfNeeded(force: true);
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant LessonSessionPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final session = widget.state.activeSession;
+    if (session == null) return;
+
+    final visibleLearnerText = _bestVisibleLearnerText(session);
+    final currentDraft = responseController.text.trim();
+    final sessionIdChanged = oldWidget.state.activeSession?.sessionId != session.sessionId;
+    final staleVisibleDraft = currentDraft.isEmpty ||
+        currentDraft == _latestFinalTranscript.trim() ||
+        currentDraft == liveTranscript.trim();
+    if (sessionIdChanged ||
+        (visibleLearnerText.isNotEmpty && staleVisibleDraft && currentDraft != visibleLearnerText)) {
+      _rebindVisibleLearnerEvidence();
+    }
   }
 
   void _persistActiveResponseDraft() {
@@ -7409,6 +7475,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final isChoiceStep = _isChoiceActivityType(currentActivity?.type);
     final isListenRepeatStep =
         currentActivity?.type == LessonActivityType.listenRepeat;
+    final isSimplifiedSpokenStep =
+        isListenRepeatStep ||
+        currentActivity?.type == LessonActivityType.listenAnswer ||
+        currentActivity?.type == LessonActivityType.speakAnswer;
     final hasDraftResponse = responseController.text.trim().isNotEmpty;
     final canAdvanceChoiceStep =
         isChoiceStep && hasDraftResponse && !transcriptReviewPending;
@@ -7812,7 +7882,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     if (!isChoiceStep &&
-                                        !isListenRepeatStep) ...[
+                                        !isSimplifiedSpokenStep) ...[
                                       Container(
                                         width: double.infinity,
                                         padding: EdgeInsets.all(
@@ -7861,7 +7931,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                     if (step.activity != null) ...[
                                       isChoiceStep
                                           ? buildChoiceSelectionPanel()
-                                          : (isListenRepeatStep
+                                          : (isSimplifiedSpokenStep
                                               ? buildListenRepeatPromptPanel()
                                               : _buildActivityPanel(step)),
                                       const SizedBox(height: 16),
@@ -7882,7 +7952,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            if (!isListenRepeatStep) ...[
+                                            if (!isSimplifiedSpokenStep) ...[
                                               const Text(
                                                 'Transcription',
                                                 style: TextStyle(
@@ -7904,7 +7974,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 ),
                                               ),
                                             ],
-                                            if (!isListenRepeatStep) ...[
+                                            if (!isSimplifiedSpokenStep) ...[
                                               const SizedBox(height: 14),
                                               Container(
                                                 width: double.infinity,
@@ -8037,60 +8107,84 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                             ],
                                             const SizedBox(height: 14),
-                                            Wrap(
-                                              spacing: 10,
-                                              runSpacing: 10,
-                                              children: [
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 8,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFFF1F5F9,
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      999,
-                                                    ),
-                                                  ),
-                                                  child: const Text(
-                                                    'Learner transcript',
-                                                    style: TextStyle(
-                                                      color: Color(0xFF334155),
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                    ),
-                                                  ),
+                                            if (isSimplifiedSpokenStep) ...[
+                                              const Text(
+                                                'Learner transcript',
+                                                style: TextStyle(
+                                                  color: Color(0xFF0F172A),
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 16,
                                                 ),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 8,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFFEFF6FF,
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      999,
-                                                    ),
-                                                  ),
-                                                  child: const Text(
-                                                    'Learner response',
-                                                    style: TextStyle(
-                                                      color: Color(0xFF1D4ED8),
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                    ),
-                                                  ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                transcriptReviewPending
+                                                    ? 'Check the learner words here, then confirm before Mallam continues.'
+                                                    : (isRecording
+                                                        ? 'Listening to the learner now.'
+                                                        : 'Capture the learner answer, then confirm the transcript here.'),
+                                                style: const TextStyle(
+                                                  color: Color(0xFF475569),
+                                                  height: 1.35,
                                                 ),
-                                              ],
-                                            ),
+                                              ),
+                                            ] else
+                                              Wrap(
+                                                spacing: 10,
+                                                runSpacing: 10,
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                        0xFFF1F5F9,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                    ),
+                                                    child: const Text(
+                                                      'Learner transcript',
+                                                      style: TextStyle(
+                                                        color:
+                                                            Color(0xFF334155),
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                        0xFFEFF6FF,
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                    ),
+                                                    child: const Text(
+                                                      'Learner response',
+                                                      style: TextStyle(
+                                                        color:
+                                                            Color(0xFF1D4ED8),
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             const SizedBox(height: 10),
                                             TextField(
                                               controller: responseController,
@@ -8116,7 +8210,71 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 ),
                                               ),
                                             ),
-                                            if (isListenRepeatStep) ...[
+                                            if (isSimplifiedSpokenStep &&
+                                                (liveTranscript.isNotEmpty ||
+                                                    responseController.text
+                                                        .trim()
+                                                        .isNotEmpty ||
+                                                    speechRecognitionActive ||
+                                                    transcriptReviewPending)) ...[
+                                              const SizedBox(height: 12),
+                                              Container(
+                                                width: double.infinity,
+                                                padding:
+                                                    const EdgeInsets.all(14),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFEEF2FF),
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                  border: Border.all(
+                                                    color: const Color(
+                                                      0xFFC7D2FE,
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      speechRecognitionActive
+                                                          ? 'Live listen feed'
+                                                          : 'Captured transcript',
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF1D4ED8),
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      liveTranscript.isNotEmpty
+                                                          ? liveTranscript
+                                                          : responseController
+                                                                  .text
+                                                                  .trim()
+                                                                  .isNotEmpty
+                                                              ? responseController
+                                                                  .text
+                                                                  .trim()
+                                                              : speechRecognitionActive
+                                                                  ? 'Listening for the learner...'
+                                                                  : 'Learner audio was captured. Confirm or edit the transcript here before Mallam continues.',
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF4338CA),
+                                                        height: 1.4,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                            if (isSimplifiedSpokenStep) ...[
                                               const SizedBox(height: 12),
                                               Wrap(
                                                 spacing: 12,
@@ -8157,7 +8315,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                             ],
                                             const SizedBox(height: 12),
-                                            if (!isListenRepeatStep)
+                                            if (!isSimplifiedSpokenStep)
                                               Container(
                                                 width: double.infinity,
                                                 padding:
@@ -8304,7 +8462,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                   ],
                                                 ),
                                               ),
-                                            if (!isListenRepeatStep &&
+                                            if (!isSimplifiedSpokenStep &&
                                                 (liveTranscript.isNotEmpty ||
                                                     speechRecognitionActive)) ...[
                                               const SizedBox(height: 12),

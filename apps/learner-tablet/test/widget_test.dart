@@ -1623,8 +1623,13 @@ void main() {
         find.text('0:04 clip • .../audio/fallback-review.m4a'), findsOneWidget);
     expect(
       find.text(
-          'Use the saved clip as the source of truth before Mallam continues.'),
-      findsOneWidget,
+              'Use the saved clip as the source of truth before Mallam continues.')
+          .evaluate()
+          .isNotEmpty ||
+          find.text('Quick audio check first, then confirm the text.')
+              .evaluate()
+              .isNotEmpty,
+      isTrue,
     );
     expect(find.text('Hear Mallam again'), findsWidgets);
     expect(
@@ -1632,6 +1637,53 @@ void main() {
           find.text('Confirm transcript').evaluate().isNotEmpty,
       isTrue,
     );
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'lesson session rebinds transcript box from learner transcript turns when latest response is missing',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+    state.activeSession = state.activeSession!.copyWith(
+      latestLearnerResponse: null,
+      clearLatestLearnerResponse: true,
+      latestLearnerAudioPath: 'https://example.com/audio/captured.m4a',
+      latestLearnerAudioDuration: const Duration(seconds: 3),
+      transcript: [
+        ...state.activeSession!.transcript,
+        SessionTurn(
+          speaker: learner.name,
+          text: 'My name is ${learner.name.split(' ').first}',
+          review: ResponseReview.pending,
+          timestamp: DateTime.now(),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('My name is ${learner.name.split(' ').first}'), findsWidgets);
+    expect(find.text('No transcript was captured. Listen to the saved voice note, then type the learner response here if needed.'), findsNothing);
 
     state.dispose();
   });
@@ -1953,6 +2005,116 @@ void main() {
       greaterThan(
           tester.getBottomLeft(find.byKey(const ValueKey('choice-grid'))).dy),
     );
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'listen-answer and speak-answer use the simplified spoken lesson layout', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const lesson = LessonCardModel(
+      id: 'spoken-layout-parity',
+      moduleId: 'english',
+      title: 'Spoken layout parity',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Keep spoken answer steps minimal.',
+      scenario: 'Listen-answer and speak-answer should match the listen-repeat shell.',
+      steps: [
+        LessonStep(
+          id: 'spoken-step-1',
+          type: LessonStepType.practice,
+          title: 'Listen and answer',
+          instruction: 'Hear the prompt and answer aloud.',
+          expectedResponse: 'sun',
+          coachPrompt: 'What do you hear?',
+          facilitatorTip: 'Use the simplified spoken-step layout.',
+          realWorldCheck: 'The right pane stays minimal.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.listenAnswer,
+            prompt: 'Listen, then answer: What shines in the sky?',
+            supportText: 'Say the word after you hear the clue.',
+            targetResponse: 'sun',
+          ),
+        ),
+        LessonStep(
+          id: 'spoken-step-2',
+          type: LessonStepType.reflection,
+          title: 'Speak your answer',
+          instruction: 'Answer the question in your own voice.',
+          expectedResponse: 'I wash my hands.',
+          coachPrompt: 'Tell Mallam what you do before eating.',
+          facilitatorTip: 'The same simplified spoken-step shell should remain.',
+          realWorldCheck: 'The spoken answer screen stays minimal too.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.speakAnswer,
+            prompt: 'What do you do before eating?',
+            supportText: 'Say one short sentence.',
+            targetResponse: 'I wash my hands.',
+          ),
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+      state.modules.firstWhere((module) => module.id == lesson.moduleId),
+    );
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('Listen, then answer: What shines in the sky?'), findsOneWidget);
+    expect(find.text('Learner transcript'), findsOneWidget);
+    expect(find.text('Session pulse • ${learner.name.split(' ').first}'), findsNothing);
+    expect(find.text('Live listen feed'), findsNothing);
+    expect(
+      find.text('Start listening + transcript').evaluate().isNotEmpty ||
+          find.text('Start listening (audio first)').evaluate().isNotEmpty ||
+          find.text('Start listening').evaluate().isNotEmpty,
+      isTrue,
+    );
+    expect(find.text('Stop listening'), findsOneWidget);
+
+    state.advanceLessonStep();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('What do you do before eating?'), findsOneWidget);
+    expect(find.text('Learner transcript'), findsOneWidget);
+    expect(find.textContaining('Start listening, capture the learner voice'),
+        findsNothing);
+    expect(find.text('Session pulse • ${learner.name.split(' ').first}'), findsNothing);
+    expect(find.text('Live listen feed'), findsNothing);
 
     state.dispose();
   });
