@@ -38,6 +38,10 @@ function runtimeReadinessTone(readiness?: 'ready' | 'degraded' | 'blocked') {
   return { background: '#FFF7ED', border: '1px solid #FDBA74', accent: '#9A3412', chipBackground: '#FFEDD5', chipColor: '#9A3412' };
 }
 
+function isExactAssetRegistry404(error: unknown) {
+  return error instanceof ApiRequestError && error.status === 404 && error.path === '/api/v1/assets';
+}
+
 function describeAssetRegistryFailure(error: unknown) {
   const assetEndpoint = `${API_BASE}/api/v1/assets`;
 
@@ -343,6 +347,19 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>Runtime issue load</div>
               <div style={{ marginTop: 8, color: '#0F172A', fontWeight: 800 }}>{assetRuntime.summary.lessonsWithIssues} lessons, {assetRuntime.registry.issueCount} surfaced issue{assetRuntime.registry.issueCount === 1 ? '' : 's'}</div>
               <div style={{ marginTop: 6, color: '#475569', lineHeight: 1.6 }}>{assetRuntime.summary.unresolvedReferenceCount} unresolved refs • {assetRuntime.summary.brokenManagedReferenceCount} broken managed refs • {assetRuntime.summary.orphanedAssetCount} orphaned assets</div>
+            </div>
+            <div style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>Mounted asset routes</div>
+              <div style={{ marginTop: 8, color: '#0F172A', fontWeight: 800 }}>
+                {assetRuntime.routeEvidence?.ready
+                  ? `${assetRuntime.routeEvidence.mountedCount}/${assetRuntime.routeEvidence.expectedCount} critical asset routes mounted in this API build`
+                  : 'Critical asset routes missing from this API build'}
+              </div>
+              <div style={{ marginTop: 6, color: '#475569', lineHeight: 1.6 }}>
+                {assetRuntime.routeEvidence?.ready
+                  ? 'Repo/runtime route evidence says the asset handlers are mounted here. A live 404 from the LMS points to the wrong deployed backend, stale API build, or a proxy rewrite stripping /api/v1 before requests arrive.'
+                  : 'This API process itself is missing one of the required asset routes. Redeploy the backend that includes the asset registry handlers before trusting the LMS asset screens.'}
+              </div>
             </div>
           </div>
 
