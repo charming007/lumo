@@ -7,6 +7,7 @@ import { LessonActivityStructuredBuilders } from './lesson-activity-structured-b
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
@@ -349,6 +350,12 @@ export function LessonCreateForm({
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
   const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getLessonStepTypeWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
+  const assetRuntimeBlockers = useMemo(() => activitySteps.flatMap((step, index) => {
+    const runtime = getStepRuntimePreviewHints(step, assets);
+    return runtime.hints
+      .filter((hint) => /asset registry|managed asset|archived media|legacy URL\/path alias/i.test(hint))
+      .map((hint) => `Step ${index + 1}: ${hint}`);
+  }), [activitySteps, assets]);
   const readinessCount = useMemo(() => {
     let count = 0;
     if (title.trim().length >= 8) count += 1;
@@ -367,7 +374,8 @@ export function LessonCreateForm({
     Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing the lesson is bullshit until the lane is release-safe.',
     ...typeReadinessWarnings,
-  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings]);
+    ...assetRuntimeBlockers,
+  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings, assetRuntimeBlockers]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = dependencyBlockers.length > 0 || (publishIntent && readinessBlockers.length > 0);
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -562,7 +570,7 @@ export function LessonCreateForm({
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Flow snapshot</div>
               <div style={{ display: 'grid', gap: 8 }}>
                 {activitySteps.map((step, index) => (
-                  <LessonStepPreviewCard key={step.id} step={step} index={index} showRuntimeHints />
+                  <LessonStepPreviewCard key={step.id} step={step} index={index} showRuntimeHints assets={assets} />
                 ))}
               </div>
             </div>

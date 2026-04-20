@@ -1,4 +1,4 @@
-import type { LessonActivityChoice, LessonActivityMedia, LessonActivityStep } from './types';
+import type { LessonActivityChoice, LessonActivityMedia, LessonActivityStep, LessonAsset } from './types';
 
 export const knownLessonAssetKinds = [
   'image',
@@ -75,7 +75,68 @@ export function getLessonAssetPreviewTone(kind: string | null | undefined) {
   }
 }
 
-export function getLessonAssetRuntimeReadiness(kind: string | null | undefined, value: LessonActivityMedia['value']) {
+function findRegistryAsset(assets: LessonAsset[], value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return assets.find((asset) => {
+    const aliases = [
+      asset.id,
+      `asset:${asset.id}`,
+      asset.storagePath,
+      asset.fileUrl,
+      asset.fileName,
+      asset.originalFileName,
+    ].filter(Boolean);
+    return aliases.includes(trimmed);
+  }) ?? null;
+}
+
+function getRegistryBackedReadinessDetail(assets: LessonAsset[] | undefined, values: string[]) {
+  if (!assets?.length || values.length === 0) return null;
+
+  const matched = values.map((value) => findRegistryAsset(assets, value)).filter(Boolean) as LessonAsset[];
+  if (matched.length === 0) {
+    return {
+      ready: false,
+      label: 'Registry match missing',
+      detail: 'Reference is filled, but it does not resolve to a known asset registry row yet. Publish should wait until asset ops can see it.',
+      issue: 'missing',
+    };
+  }
+
+  const brokenManaged = matched.find((asset) => asset.storagePath && !asset.fileUrl);
+  if (brokenManaged) {
+    return {
+      ready: false,
+      label: 'Managed file not publicly resolvable',
+      detail: `${brokenManaged.title || brokenManaged.id} is registered, but its managed file/link is not healthy enough to trust in the live runtime.`,
+      issue: 'broken',
+    };
+  }
+
+  const archived = matched.find((asset) => asset.status === 'archived');
+  if (archived) {
+    return {
+      ready: false,
+      label: 'Archived asset linked',
+      detail: `${archived.title || archived.id} is archived, so this lesson is leaning on media that ops already retired.`,
+      issue: 'archived',
+    };
+  }
+
+  const canonicalMatches = matched.filter((asset) => values.some((value) => value.trim() === `asset:${asset.id}`));
+  const preferred = canonicalMatches[0] ?? matched[0];
+  return {
+    ready: true,
+    label: canonicalMatches.length > 0 ? 'Registry-backed asset' : 'Legacy asset alias',
+    detail: canonicalMatches.length > 0
+      ? `${preferred.title || preferred.id} resolves through the live asset registry.`
+      : `${preferred.title || preferred.id} resolves in the registry, but migrate this value to asset:${preferred.id} for cleaner runtime confidence.`,
+    issue: canonicalMatches.length > 0 ? null : 'legacy',
+  };
+}
+
+export function getLessonAssetRuntimeReadiness(kind: string | null | undefined, value: LessonActivityMedia['value'], assets?: LessonAsset[]) {
   const normalized = normalizeLessonAssetKind(kind);
   const values = getLessonAssetValues(value);
   const hasValue = values.length > 0;
@@ -85,71 +146,83 @@ export function getLessonAssetRuntimeReadiness(kind: string | null | undefined, 
       ready: false,
       label: 'Missing asset value',
       detail: `${getLessonAssetKindLabel(normalized)} will not render in learner runtime until it has a real value.`,
+      issue: 'missing-value',
     };
   }
+
+  const registryReadiness = getRegistryBackedReadinessDetail(assets, values);
 
   switch (normalized) {
     case 'audio':
       return {
-        ready: true,
-        label: 'Learner hears playback',
-        detail: `Runtime will expose ${values.length > 1 ? 'an audio set' : 'an audio cue'} for playback in the learner app.`,
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Learner hears playback',
+        detail: registryReadiness?.detail ?? `Runtime will expose ${values.length > 1 ? 'an audio set' : 'an audio cue'} for playback in the learner app.`,
+        issue: registryReadiness?.issue ?? null,
       };
     case 'image':
     case 'illustration':
       return {
-        ready: true,
-        label: 'Learner sees artwork',
-        detail: `Runtime will render ${values.length > 1 ? 'image variants' : 'an image card'} for this step.`,
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Learner sees artwork',
+        detail: registryReadiness?.detail ?? `Runtime will render ${values.length > 1 ? 'image variants' : 'an image card'} for this step.`,
+        issue: registryReadiness?.issue ?? null,
       };
     case 'prompt-card':
     case 'story-card':
       return {
-        ready: true,
-        label: 'Learner sees a text card',
-        detail: 'Runtime will show this as a prompt/story card, not hide it behind a generic asset badge.',
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Learner sees a text card',
+        detail: registryReadiness?.detail ?? 'Runtime will show this as a prompt/story card, not hide it behind a generic asset badge.',
+        issue: registryReadiness?.issue ?? null,
       };
     case 'trace-card':
       return {
-        ready: true,
-        label: 'Learner sees a tracing card',
-        detail: 'Runtime will surface this as tracing support so the activity still looks like handwriting practice.',
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Learner sees a tracing card',
+        detail: registryReadiness?.detail ?? 'Runtime will surface this as tracing support so the activity still looks like handwriting practice.',
+        issue: registryReadiness?.issue ?? null,
       };
     case 'letter-card':
       return {
-        ready: true,
-        label: 'Learner sees the letter focus',
-        detail: 'Runtime will treat this as the visible letter anchor for the step.',
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Learner sees the letter focus',
+        detail: registryReadiness?.detail ?? 'Runtime will treat this as the visible letter anchor for the step.',
+        issue: registryReadiness?.issue ?? null,
       };
     case 'tile':
     case 'word-card':
       return {
-        ready: true,
-        label: 'Learner sees build pieces',
-        detail: 'Runtime will show this as a buildable or readable card rather than plain body text.',
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Learner sees build pieces',
+        detail: registryReadiness?.detail ?? 'Runtime will show this as a buildable or readable card rather than plain body text.',
+        issue: registryReadiness?.issue ?? null,
       };
     case 'hint':
       return {
-        ready: true,
-        label: 'Learner/facilitator sees a hint',
-        detail: 'Runtime will show the hint as support text when the step opens.',
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Learner/facilitator sees a hint',
+        detail: registryReadiness?.detail ?? 'Runtime will show the hint as support text when the step opens.',
+        issue: registryReadiness?.issue ?? null,
       };
     case 'transcript':
       return {
-        ready: true,
-        label: 'Learner sees script text',
-        detail: 'Runtime will show the transcript/script text as a visible reading or listening cue.',
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Learner sees script text',
+        detail: registryReadiness?.detail ?? 'Runtime will show the transcript/script text as a visible reading or listening cue.',
+        issue: registryReadiness?.issue ?? null,
       };
     default:
       return {
-        ready: true,
-        label: 'Custom asset attached',
-        detail: 'Runtime will keep the asset visible, but verify the learner app understands this custom kind the way you expect.',
+        ready: registryReadiness?.ready ?? true,
+        label: registryReadiness?.label ?? 'Custom asset attached',
+        detail: registryReadiness?.detail ?? 'Runtime will keep the asset visible, but verify the learner app understands this custom kind the way you expect.',
+        issue: registryReadiness?.issue ?? null,
       };
   }
 }
 
-export function buildLessonAssetPreviewItems(step: Pick<LessonActivityStep, 'media' | 'choices'>) {
+export function buildLessonAssetPreviewItems(step: Pick<LessonActivityStep, 'media' | 'choices'>, assets?: LessonAsset[]) {
   const shared = (Array.isArray(step.media) ? step.media : []).map((media, index) => ({
     scope: 'shared' as const,
     key: `shared-${index}`,
@@ -173,7 +246,7 @@ export function buildLessonAssetPreviewItems(step: Pick<LessonActivityStep, 'med
   return [...shared, ...choices].map((item) => ({
     ...item,
     tone: getLessonAssetPreviewTone(item.kind),
-    readiness: getLessonAssetRuntimeReadiness(item.kind, item.values),
+    readiness: getLessonAssetRuntimeReadiness(item.kind, item.values, assets),
     previewValue: item.values[0] ?? '',
   }));
 }
@@ -248,14 +321,24 @@ export function summarizeLessonAssets(step: Pick<LessonActivityStep, 'choices' |
   };
 }
 
-export function getStepRuntimePreviewHints(step: Pick<LessonActivityStep, 'type' | 'choices' | 'media' | 'prompt' | 'detail' | 'expectedAnswers' | 'evidence'>) {
+export function getStepRuntimePreviewHints(step: Pick<LessonActivityStep, 'type' | 'choices' | 'media' | 'prompt' | 'detail' | 'expectedAnswers' | 'evidence'>, assets?: LessonAsset[]) {
   const assetSummary = summarizeLessonAssets(step);
-  const previewItems = buildLessonAssetPreviewItems(step);
+  const previewItems = buildLessonAssetPreviewItems(step, assets);
   const hints: string[] = [];
 
   if (assetSummary.total === 0) hints.push('No learner-facing assets attached yet.');
   if (assetSummary.missingValueCount > 0) hints.push(`${assetSummary.missingValueCount} asset ${assetSummary.missingValueCount === 1 ? 'entry is' : 'entries are'} missing a value.`);
   if (assetSummary.unknownKindCount > 0) hints.push(`${assetSummary.unknownKindCount} asset ${assetSummary.unknownKindCount === 1 ? 'uses' : 'use'} a non-standard kind.`);
+
+  const missingRegistryCount = previewItems.filter((item) => item.readiness.issue === 'missing').length;
+  const brokenRegistryCount = previewItems.filter((item) => item.readiness.issue === 'broken').length;
+  const archivedRegistryCount = previewItems.filter((item) => item.readiness.issue === 'archived').length;
+  const legacyRegistryCount = previewItems.filter((item) => item.readiness.issue === 'legacy').length;
+
+  if (missingRegistryCount > 0) hints.push(`${missingRegistryCount} asset ${missingRegistryCount === 1 ? 'reference does' : 'references do'} not resolve through the live asset registry yet.`);
+  if (brokenRegistryCount > 0) hints.push(`${brokenRegistryCount} managed asset ${brokenRegistryCount === 1 ? 'file looks unhealthy' : 'files look unhealthy'} for live runtime delivery.`);
+  if (archivedRegistryCount > 0) hints.push(`${archivedRegistryCount} asset ${archivedRegistryCount === 1 ? 'reference points' : 'references point'} at archived media.`);
+  if (legacyRegistryCount > 0) hints.push(`${legacyRegistryCount} asset ${legacyRegistryCount === 1 ? 'reference still uses' : 'references still use'} a legacy URL/path alias instead of asset:<id>.`);
 
   switch (step.type) {
     case 'listen_repeat':

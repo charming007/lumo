@@ -8,6 +8,7 @@ import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import { findModuleForLesson } from '../lib/module-lesson-match';
+import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
@@ -370,6 +371,12 @@ export function LessonEditorForm({
     [activitySteps],
   );
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
+  const assetRuntimeBlockers = useMemo(() => activitySteps.flatMap((step, index) => {
+    const runtime = getStepRuntimePreviewHints(step, assets);
+    return runtime.hints
+      .filter((hint) => /asset registry|managed asset|archived media|legacy URL\/path alias/i.test(hint))
+      .map((hint) => `Step ${index + 1}: ${hint}`);
+  }), [activitySteps, assets]);
   const readinessBlockers = useMemo(() => ([
     title.trim().length >= 8 ? null : 'Give the lesson a specific title with at least 8 characters.',
     (Number(durationMinutes) || 0) >= 8 ? null : 'Set a credible lesson duration of at least 8 minutes.',
@@ -378,7 +385,8 @@ export function LessonEditorForm({
     activitySteps.length >= 3 ? null : 'Build at least 3 activity steps so the lesson has a real learner flow.',
     Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing the lesson is bullshit until the lane is release-safe.',
-  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status]);
+    ...assetRuntimeBlockers,
+  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, assetRuntimeBlockers]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = publishIntent && readinessBlockers.length > 0;
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -598,7 +606,7 @@ export function LessonEditorForm({
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748B', marginBottom: 8 }}>Learner flow</div>
               <div style={{ display: 'grid', gap: 8 }}>
                 {activitySteps.map((step, index) => (
-                  <LessonStepPreviewCard key={step.id} step={step} index={index} showRuntimeHints />
+                  <LessonStepPreviewCard key={step.id} step={step} index={index} showRuntimeHints assets={assets} />
                 ))}
               </div>
             </div>

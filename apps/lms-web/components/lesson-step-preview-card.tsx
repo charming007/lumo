@@ -3,7 +3,7 @@
 import { getPreviewAssetSummary } from './lesson-authoring-shared';
 import { lessonStepTypeLabelMap } from './lesson-step-authoring';
 import { buildLessonAssetPreviewItems, getLessonAssetKindLabel, getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
-import type { LessonActivityStep } from '../lib/types';
+import type { LessonActivityStep, LessonAsset } from '../lib/types';
 
 function AssetPreviewChip({ item }: { item: ReturnType<typeof buildLessonAssetPreviewItems>[number] }) {
   const isImageLike = ['image', 'illustration'].includes(item.kind) && /^https?:\/\//i.test(item.previewValue);
@@ -35,14 +35,16 @@ export function LessonStepPreviewCard({
   step,
   index,
   showRuntimeHints = false,
+  assets = [],
 }: {
   step: LessonActivityStep;
   index: number;
   showRuntimeHints?: boolean;
+  assets?: LessonAsset[];
 }) {
   const assetSummary = getPreviewAssetSummary(step);
-  const runtimePreview = showRuntimeHints ? getStepRuntimePreviewHints(step) : null;
-  const previewItems = runtimePreview?.previewItems ?? buildLessonAssetPreviewItems(step);
+  const runtimePreview = showRuntimeHints ? getStepRuntimePreviewHints(step, assets) : null;
+  const previewItems = runtimePreview?.previewItems ?? buildLessonAssetPreviewItems(step, assets);
   const readinessTone = assetSummary.isMediaBacked ? { bg: '#ECFDF5', text: '#166534', border: '#BBF7D0' } : { bg: '#F8FAFC', text: '#475569', border: '#E2E8F0' };
 
   return (
