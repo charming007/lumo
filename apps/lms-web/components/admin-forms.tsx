@@ -78,6 +78,26 @@ function SectionHint({ children }: { children: ReactNode }) {
   return <div style={{ color: '#64748b', lineHeight: 1.6, fontSize: 14 }}>{children}</div>;
 }
 
+function PodSelector({ pods, selectedPodIds }: { pods: Pod[]; selectedPodIds: string[] }) {
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      <div style={{ color: '#475569', fontSize: 14, fontWeight: 700 }}>Pod coverage</div>
+      <div style={{ ...responsiveGrid(180), gap: 10 }}>
+        {pods.map((pod) => (
+          <label key={pod.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155' }}>
+            <input type="checkbox" name="podIds" value={pod.id} defaultChecked={selectedPodIds.includes(pod.id)} style={{ marginTop: 3 }} />
+            <span>
+              <strong style={{ display: 'block' }}>{pod.label}</strong>
+              <span style={{ color: '#64748b', fontSize: 13 }}>ID: {pod.id}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <SectionHint>Pick the actual pod coverage here instead of typing raw IDs and hoping nobody fat-fingers them.</SectionHint>
+    </div>
+  );
+}
+
 export function CreateStudentForm({ cohorts, pods, mallams }: { cohorts: Cohort[]; pods: Pod[]; mallams: Mallam[] }) {
   return (
     <form action={createStudentAction} style={cardStyle}>
@@ -153,7 +173,7 @@ export function CreateMallamForm({ centers, pods }: { centers: Center[]; pods: P
       <FieldLabel>Name<input name="name" defaultValue="Fatima Ali" style={inputStyle} /></FieldLabel>
       <FieldLabel>Display name<input name="displayName" defaultValue="Mallama Fatima Ali" style={inputStyle} /></FieldLabel>
       <FieldLabel>Center<select name="centerId" defaultValue={centers[0]?.id} style={inputStyle}>{centers.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></FieldLabel>
-      <FieldLabel>Pod IDs (comma separated)<input name="podIds" defaultValue={pods[0]?.id ?? ''} style={inputStyle} /></FieldLabel>
+      <PodSelector pods={pods} selectedPodIds={pods[0]?.id ? [pods[0].id] : []} />
       <FieldLabel>Languages<input name="languages" defaultValue="Hausa, English" style={inputStyle} /></FieldLabel>
       <div style={twoColumnGrid}>
         <FieldLabel>Role<select name="role" defaultValue="mallam-lead" style={inputStyle}><option value="mallam-lead">Mallam lead</option><option value="facilitator">Facilitator</option><option value="coach">Coach</option></select></FieldLabel>
@@ -168,7 +188,7 @@ export function CreateMallamForm({ centers, pods }: { centers: Center[]; pods: P
   );
 }
 
-export function UpdateMallamForm({ mallam, centers, embedded = false }: { mallam: Mallam; centers: Center[]; embedded?: boolean }) {
+export function UpdateMallamForm({ mallam, centers, pods, embedded = false }: { mallam: Mallam; centers: Center[]; pods: Pod[]; embedded?: boolean }) {
   return (
     <div style={embedded ? embeddedCardStyle : cardStyle}>
       <form action={updateMallamAction} style={{ display: 'grid', gap: 12 }}>
@@ -177,7 +197,7 @@ export function UpdateMallamForm({ mallam, centers, embedded = false }: { mallam
         <FieldLabel>Name<input name="name" defaultValue={mallam.name} style={inputStyle} /></FieldLabel>
         <FieldLabel>Display name<input name="displayName" defaultValue={mallam.displayName} style={inputStyle} /></FieldLabel>
         <FieldLabel>Center<select name="centerId" defaultValue={mallam.centerId} style={inputStyle}>{centers.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></FieldLabel>
-        <FieldLabel>Pod IDs (comma separated)<input name="podIds" defaultValue={(mallam.podIds ?? []).join(', ')} style={inputStyle} /></FieldLabel>
+        <PodSelector pods={pods} selectedPodIds={mallam.podIds ?? []} />
         <FieldLabel>Languages<input name="languages" defaultValue={(mallam.languages ?? []).join(', ')} style={inputStyle} /></FieldLabel>
         <div style={twoColumnGrid}>
           <FieldLabel>Role<select name="role" defaultValue={mallam.role} style={inputStyle}><option value="mallam-lead">Mallam lead</option><option value="facilitator">Facilitator</option><option value="coach">Coach</option></select></FieldLabel>

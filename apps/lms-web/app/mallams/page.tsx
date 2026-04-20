@@ -319,7 +319,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
                         eyebrow="Edit mallam"
                         triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
                       >
-                        <UpdateMallamForm mallam={mallam} centers={centers} embedded />
+                        <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} embedded />
                       </ModalLauncher>
                     ) : null}
                     <ModalLauncher
@@ -364,7 +364,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
                     eyebrow="Edit mallam"
                     triggerStyle={{ ...actionButtonStyle, background: '#e6fffb', color: '#0f766e' }}
                   >
-                    <UpdateMallamForm mallam={mallam} centers={centers} embedded />
+                    <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} embedded />
                   </ModalLauncher>
                 ) : null}
                 <ModalLauncher

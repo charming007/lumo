@@ -368,7 +368,7 @@ export async function assignLearnerToMallamAction(formData: FormData) {
 }
 
 export async function createMallamAction(formData: FormData) {
-  const podIdsRaw = String(formData.get('podIds') || '');
+  const podIds = Array.from(formData.getAll('podIds')).map((item) => String(item || '').trim()).filter(Boolean);
   const payload = {
     name: String(formData.get('name') || ''),
     displayName: String(formData.get('displayName') || ''),
@@ -377,7 +377,7 @@ export async function createMallamAction(formData: FormData) {
     status: String(formData.get('status') || 'active'),
     learnerCount: Number(formData.get('learnerCount') || 0),
     certificationLevel: String(formData.get('certificationLevel') || 'Level 1'),
-    podIds: podIdsRaw.split(',').map((item) => item.trim()).filter(Boolean),
+    podIds,
     languages: String(formData.get('languages') || 'Hausa, English').split(',').map((item) => item.trim()).filter(Boolean),
   };
 
@@ -389,7 +389,7 @@ export async function createMallamAction(formData: FormData) {
 
 export async function updateMallamAction(formData: FormData) {
   const mallamId = String(formData.get('mallamId') || '');
-  const podIdsRaw = String(formData.get('podIds') || '');
+  const podIds = Array.from(formData.getAll('podIds')).map((item) => String(item || '').trim()).filter(Boolean);
   const payload = {
     name: String(formData.get('name') || ''),
     displayName: String(formData.get('displayName') || ''),
@@ -398,7 +398,7 @@ export async function updateMallamAction(formData: FormData) {
     status: String(formData.get('status') || ''),
     learnerCount: Number(formData.get('learnerCount') || 0),
     certificationLevel: String(formData.get('certificationLevel') || ''),
-    podIds: podIdsRaw.split(',').map((item) => item.trim()).filter(Boolean),
+    podIds,
     languages: String(formData.get('languages') || '').split(',').map((item) => item.trim()).filter(Boolean),
   };
 
