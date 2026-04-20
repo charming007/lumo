@@ -50,6 +50,11 @@ function describeAssetRegistryFailure(error: unknown) {
       summary: `Live asset registry route missing: the LMS reached ${assetEndpoint}, but the deployed backend answered 404 for /api/v1/assets. This is a deployment mismatch, not an empty library.`,
       operatorGuidance: `Most likely causes: (1) the live API deployment is outdated and does not ship the /api/v1/assets route yet, (2) NEXT_PUBLIC_API_BASE_URL points the LMS at the wrong backend/base URL, or (3) a proxy/rewrite is stripping the /api/v1 prefix before the request reaches the API. Verify the exact deployed API behind NEXT_PUBLIC_API_BASE_URL, then hit ${assetEndpoint} directly and confirm it serves the assets route before trusting this page again.`,
       shortLabel: 'Live backend route missing or LMS is pointed at the wrong API base',
+      rootCauseChecklist: [
+        'Stale API deployment: the running backend predates the asset registry routes that exist in this repo.',
+        'Wrong API base: NEXT_PUBLIC_API_BASE_URL points the LMS at a different backend than the one you think is live.',
+        'Proxy/rewrite damage: /api/v1 is being stripped or rewritten before the request reaches the API.',
+      ],
     };
   }
 
@@ -58,6 +63,11 @@ function describeAssetRegistryFailure(error: unknown) {
       summary: `Live asset registry request failed: ${assetEndpoint} returned HTTP ${error.status}. This is a live backend/API-base problem, not proof that the library is empty.`,
       operatorGuidance: `Verify NEXT_PUBLIC_API_BASE_URL, then hit ${assetEndpoint} directly and inspect the deployed API logs/config audit before trusting asset operations again.`,
       shortLabel: `Live asset registry request failed with HTTP ${error.status}`,
+      rootCauseChecklist: [
+        'Wrong or stale API deployment behind NEXT_PUBLIC_API_BASE_URL.',
+        'Auth, proxy, or platform issue returning HTTP errors before the asset handler responds normally.',
+        'Backend regression that is breaking the live asset registry endpoint even though the route exists in source.',
+      ],
     };
   }
 
@@ -69,6 +79,11 @@ function describeAssetRegistryFailure(error: unknown) {
     summary: `Live asset registry request failed for ${assetEndpoint}. This is a backend/API wiring issue, not an empty library. ${message}`,
     operatorGuidance: `Verify NEXT_PUBLIC_API_BASE_URL, then hit ${assetEndpoint} directly and inspect the deployed API logs/config audit before trusting asset operations again.`,
     shortLabel: 'Live asset registry request failed',
+    rootCauseChecklist: [
+      'Wrong or unreachable API base URL in the LMS deployment.',
+      'Backend runtime or platform failure preventing the asset handler from answering normally.',
+      'Proxy/rewrite mismatch between the LMS and the deployed API edge.',
+    ],
   };
 }
 
@@ -180,6 +195,9 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     : null;
   const assetListingFailureDetail = assetListingFailure?.summary ?? null;
   const assetFeedFailed = assetsResult.status === 'rejected';
+  const assetEndpoint = `${API_BASE}/api/v1/assets`;
+  const assetRuntimeEndpoint = `${API_BASE}/api/v1/admin/assets/runtime`;
+  const configAuditEndpoint = `${API_BASE}/api/v1/admin/config/audit`;
   const storageUploadsBlocked = assetUploadsReady === false;
   const configAuditReady = configAudit?.summary?.ready ?? null;
   const configAuditStatusLabel = configAuditReady === null ? 'Config audit unavailable' : configAuditReady ? 'Config audit passed' : 'Config audit degraded';
@@ -394,10 +412,64 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
         </div>
       ) : null}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-        <AssetUploadForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
-        <AssetRegisterForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
-      </div>
+      {assetFeedFailed ? (
+        <div style={{ display: 'grid', gap: 16, padding: 18, borderRadius: 20, background: '#FEF2F2', border: '1px solid #FECACA' }}>
+          <div style={{ display: 'grid', gap: 6 }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#B91C1C', fontWeight: 800 }}>Asset writes intentionally disabled</div>
+            <div style={{ color: '#0F172A', fontSize: 22, fontWeight: 900 }}>This page will not let operators upload, register, or edit assets while the live registry feed is failing.</div>
+            <div style={{ color: '#7F1D1D', lineHeight: 1.7 }}>
+              {assetListingFailureDetail ?? 'The live asset registry API is unavailable.'} If the listing request itself is broken, write flows against the same backend are not trustworthy either.
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 8 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>LMS target</div>
+              <div style={{ color: '#111827', fontWeight: 800, wordBreak: 'break-all' }}>{API_BASE}</div>
+              <div style={{ color: '#7F1D1D', lineHeight: 1.6 }}>
+                Asset list endpoint: <code>{assetEndpoint}</code>
+              </div>
+            </div>
+            <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 8 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>Cross-check endpoints</div>
+              <div style={{ color: '#7F1D1D', lineHeight: 1.6, wordBreak: 'break-all' }}><code>{assetRuntimeEndpoint}</code></div>
+              <div style={{ color: '#7F1D1D', lineHeight: 1.6, wordBreak: 'break-all' }}><code>{configAuditEndpoint}</code></div>
+            </div>
+            <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 8 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>Repo/runtime evidence</div>
+              <div style={{ color: '#111827', fontWeight: 800 }}>
+                {assetRuntime?.routeEvidence?.ready
+                  ? `${assetRuntime.routeEvidence.mountedCount}/${assetRuntime.routeEvidence.expectedCount} critical asset routes mounted in this API build`
+                  : 'Runtime route evidence unavailable or degraded'}
+              </div>
+              <div style={{ color: '#7F1D1D', lineHeight: 1.6 }}>
+                Repo source already includes the asset routes. A live 404 here means stale deploy, wrong API target, or proxy damage until proven otherwise.
+              </div>
+            </div>
+          </div>
+
+          {assetListingFailure?.rootCauseChecklist?.length ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>Most likely causes</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {assetListingFailure.rootCauseChecklist.map((item) => (
+                  <div key={item} style={{ padding: 12, borderRadius: 14, background: '#fff', border: '1px solid #FECACA', color: '#7F1D1D', lineHeight: 1.6 }}>{item}</div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link href="/settings" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#991B1B', color: '#fff', border: '1px solid #991B1B' }}>Open settings + config audit</Link>
+            <Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#fff', color: '#991B1B', border: '1px solid #FCA5A5' }}>Back to content board</Link>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+          <AssetUploadForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
+          <AssetRegisterForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
+        </div>
+      )}
       <AssetLibraryFilters subjects={subjects} modules={modules} lessons={lessons} filters={filters} totalCount={assetListingAvailable ? assets.length : 0} resetHref={assetLibraryResetHref} />
       <AssetLibraryTable items={assets} returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} unavailableReason={assetFeedFailed ? (assetListingFailureDetail ?? 'The live asset registry API is unavailable.') : null} />
     </section>
