@@ -1256,9 +1256,47 @@ function syncLearnerAppEvents(events = [], options = {}) {
   };
 }
 
+function getMountedRouteDefinitions() {
+  const rootStack = app?._router?.stack;
+  if (!Array.isArray(rootStack)) return [];
+
+  return rootStack
+    .filter((layer) => layer?.route?.path)
+    .flatMap((layer) => {
+      const methods = Object.entries(layer.route.methods || {})
+        .filter(([, enabled]) => Boolean(enabled))
+        .map(([method]) => method.toUpperCase())
+        .sort();
+      return methods.map((method) => ({ method, path: layer.route.path }));
+    });
+}
+
+function getCriticalAssetRouteEvidence() {
+  const expectedRoutes = [
+    { method: 'GET', path: '/api/v1/assets', purpose: 'registry-list' },
+    { method: 'POST', path: '/api/v1/assets', purpose: 'registry-create' },
+    { method: 'POST', path: '/api/v1/assets/upload', purpose: 'managed-upload' },
+    { method: 'GET', path: '/api/v1/admin/assets/runtime', purpose: 'runtime-report' },
+  ];
+  const mountedRoutes = getMountedRouteDefinitions();
+  const mountedKeys = new Set(mountedRoutes.map((route) => `${route.method} ${route.path}`));
+  const checks = expectedRoutes.map((route) => ({
+    ...route,
+    mounted: mountedKeys.has(`${route.method} ${route.path}`),
+  }));
+
+  return {
+    ready: checks.every((route) => route.mounted),
+    checks,
+    mountedCount: checks.filter((route) => route.mounted).length,
+    expectedCount: checks.length,
+  };
+}
+
 app.get('/health', (_req, res) => {
   const configAudit = buildConfigAudit();
   const storageStatus = store.getStorageStatus();
+  const assetRouteEvidence = getCriticalAssetRouteEvidence();
 
   res.json({
     status: configAudit.summary.ready ? 'ok' : 'degraded',
@@ -1273,6 +1311,7 @@ app.get('/health', (_req, res) => {
       root: configAudit.assetUploads?.root || null,
       publicBaseValid: Boolean(configAudit.assetUploads?.publicBaseValid),
       persistentRisk: Boolean(configAudit.assetUploads?.persistentRisk),
+      routes: assetRouteEvidence,
     },
     config: {
       ready: configAudit.summary.ready,
@@ -1298,6 +1337,7 @@ app.get('/api/v1/meta', (req, res) => {
     seedSummary: seed.getSeedSummary(),
     store: storeMeta,
     configAudit,
+    assetRoutes: getCriticalAssetRouteEvidence(),
   });
 });
 
@@ -3285,9 +3325,12 @@ app.get('/api/v1/reports/assets', requireRole(['admin']), (req, res) => {
 });
 
 app.get('/api/v1/admin/assets/runtime', requireRole(['admin']), (req, res) => {
-  res.json(reporting.buildAssetRuntimeReport({
-    limit: Number(req.query.limit || 20),
-  }));
+  res.json({
+    ...reporting.buildAssetRuntimeReport({
+      limit: Number(req.query.limit || 20),
+    }),
+    routeEvidence: getCriticalAssetRouteEvidence(),
+  });
 });
 
 app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
@@ -3606,7 +3649,9 @@ app.use((error, req, res, _next) => {
 function startServer(port = process.env.PORT || 4000) {
   return app.listen(port, () => {
     const audit = buildConfigAudit();
+    const assetRouteEvidence = getCriticalAssetRouteEvidence();
     console.log(`Lumo API listening on port ${port}`);
+    console.log(`[lumo-api] asset routes: ${assetRouteEvidence.mountedCount}/${assetRouteEvidence.expectedCount} mounted (${assetRouteEvidence.checks.map((route) => `${route.method} ${route.path}=${route.mounted ? 'on' : 'off'}`).join(', ')})`);
 
     if (audit.warnings.length) {
       console.warn(`[lumo-api] config warnings: ${audit.warnings.join(' | ')}`);

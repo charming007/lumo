@@ -387,7 +387,7 @@ test('asset coverage report endpoint exposes operator-facing integrity signals',
 });
 
 
-test('asset runtime report surfaces skipped registry records and upload diagnostics', async () => {
+test('asset runtime report surfaces skipped registry records, upload diagnostics, and mounted route evidence', async () => {
   const assets = store.listLessonAssets();
   const originalLength = assets.length;
 
@@ -419,7 +419,45 @@ test('asset runtime report surfaces skipped registry records and upload diagnost
     assert.ok(Array.isArray(response.body.nextActions));
     assert.ok(response.body.nextActions.length >= 1);
     assert.ok(Array.isArray(response.body.registry.topIssues));
+    assert.equal(response.body.routeEvidence?.ready, true);
+    assert.deepEqual(
+      response.body.routeEvidence?.checks?.map((route) => `${route.method} ${route.path}:${route.mounted}`),
+      [
+        'GET /api/v1/assets:true',
+        'POST /api/v1/assets:true',
+        'POST /api/v1/assets/upload:true',
+        'GET /api/v1/admin/assets/runtime:true',
+      ],
+    );
   } finally {
     assets.splice(originalLength);
   }
+});
+
+test('health and meta expose asset route evidence for deploy verification', async () => {
+  const health = await request('/health');
+  assert.equal(health.status, 200);
+  assert.equal(health.body.assets?.routes?.ready, true);
+  assert.deepEqual(
+    health.body.assets?.routes?.checks?.map((route) => `${route.method} ${route.path}:${route.mounted}`),
+    [
+      'GET /api/v1/assets:true',
+      'POST /api/v1/assets:true',
+      'POST /api/v1/assets/upload:true',
+      'GET /api/v1/admin/assets/runtime:true',
+    ],
+  );
+
+  const meta = await request('/api/v1/meta');
+  assert.equal(meta.status, 200);
+  assert.equal(meta.body.assetRoutes?.ready, true);
+  assert.deepEqual(
+    meta.body.assetRoutes?.checks?.map((route) => `${route.method} ${route.path}:${route.mounted}`),
+    [
+      'GET /api/v1/assets:true',
+      'POST /api/v1/assets:true',
+      'POST /api/v1/assets/upload:true',
+      'GET /api/v1/admin/assets/runtime:true',
+    ],
+  );
 });
