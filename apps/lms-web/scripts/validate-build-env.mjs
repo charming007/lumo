@@ -4,7 +4,10 @@ import { fileURLToPath } from 'node:url';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(currentDir, '..');
-const nodeEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+const lifecycleEvent = process.env.npm_lifecycle_event;
+const nodeEnv = process.env.NODE_ENV === 'production' || lifecycleEvent === 'build'
+  ? 'production'
+  : 'development';
 
 function parseEnvFile(contents) {
   const parsed = {};
@@ -65,7 +68,6 @@ function loadProjectEnvFiles() {
 loadProjectEnvFiles();
 
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-const lifecycleEvent = process.env.npm_lifecycle_event;
 const isHostedDeployment =
   process.env.VERCEL === '1' ||
   Boolean(process.env.VERCEL_ENV) ||
