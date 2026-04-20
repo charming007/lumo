@@ -48,20 +48,47 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    cache: 'no-store',
-    headers: {
-      'x-lumo-role': 'admin',
-      'x-lumo-user': 'Pilot Admin',
-    },
-  });
+export class ApiRequestTimeoutError extends Error {
+  path: string;
+  timeoutMs: number;
 
-  if (!response.ok) {
-    throw new ApiRequestError(path, response.status);
+  constructor(path: string, timeoutMs: number) {
+    super(`Request timed out after ${timeoutMs}ms: ${path}`);
+    this.name = 'ApiRequestTimeoutError';
+    this.path = path;
+    this.timeoutMs = timeoutMs;
   }
+}
 
-  return response.json();
+const API_REQUEST_TIMEOUT_MS = 8000;
+
+async function getJson<T>(path: string): Promise<T> {
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      cache: 'no-store',
+      headers: {
+        'x-lumo-role': 'admin',
+        'x-lumo-user': 'Pilot Admin',
+      },
+      signal: AbortSignal.timeout(API_REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      throw new ApiRequestError(path, response.status);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      throw new ApiRequestTimeoutError(path, API_REQUEST_TIMEOUT_MS);
+    }
+
+    throw error;
+  }
 }
 
 export function fetchMeta() {

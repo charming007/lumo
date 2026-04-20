@@ -96,11 +96,18 @@ function describeNextAction(module: {
   missingLessons: number;
   hasAssessmentGate: boolean;
   isDraftModule: boolean;
+  hasAuthoringContext: boolean;
 }) {
   const actions: string[] = [];
 
   if (module.isDraftModule) actions.push('move the module out of draft');
-  if (module.missingLessons > 0) actions.push(`create ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'}`);
+  if (module.missingLessons > 0) {
+    actions.push(
+      module.hasAuthoringContext
+        ? `create ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'}`
+        : `recover the subject context before creating ${module.missingLessons} missing lesson${module.missingLessons === 1 ? '' : 's'}`,
+    );
+  }
   if (!module.hasAssessmentGate) actions.push('add the assessment gate');
 
   if (!actions.length) return 'This lane is structurally clear.';
@@ -262,6 +269,7 @@ export default async function HomePage() {
         missingLessons,
         hasAssessmentGate,
         isDraftModule,
+        hasAuthoringContext: Boolean(module.subjectId?.trim()),
         blockerCount,
       };
     })
@@ -541,7 +549,9 @@ export default async function HomePage() {
             ) : null}
             {topReleaseBlocker ? (() => {
               const blockerBoardHref = `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${topReleaseBlocker.subjectId}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`;
-              const createLessonHref = `/content/lessons/new?subjectId=${topReleaseBlocker.subjectId}&moduleId=${topReleaseBlocker.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+              const createLessonHref = topReleaseBlocker.hasAuthoringContext
+                ? `/content/lessons/new?subjectId=${topReleaseBlocker.subjectId}&moduleId=${topReleaseBlocker.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`
+                : null;
               const risk = describeReleaseRisk(topReleaseBlocker.blockerCount);
 
               return (
@@ -555,8 +565,13 @@ export default async function HomePage() {
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <Link href={blockerBoardHref} style={{ ...quickActionStyle, background: '#92400E', color: 'white', padding: '10px 12px' }}>Open blockers board</Link>
-                    {topReleaseBlocker.missingLessons > 0 ? <Link href={createLessonHref} style={{ ...quickActionStyle, background: '#fff', color: '#92400E', border: '1px solid #FDE68A', padding: '10px 12px' }}>Create missing lesson</Link> : null}
+                    {topReleaseBlocker.missingLessons > 0 ? (createLessonHref ? <Link href={createLessonHref} style={{ ...quickActionStyle, background: '#fff', color: '#92400E', border: '1px solid #FDE68A', padding: '10px 12px' }}>Create missing lesson</Link> : null) : null}
                   </div>
+                  {topReleaseBlocker.missingLessons > 0 && !createLessonHref ? (
+                    <div style={{ color: '#854D0E', lineHeight: 1.6 }}>
+                      Lesson creation is intentionally withheld here until this module has a recoverable subject context. Open the blockers board first instead of dropping authors into a dead-end create flow.
+                    </div>
+                  ) : null}
                 </div>
               );
             })() : releaseFeedsAvailable ? sectionAlert('No release blockers are visible from the live curriculum feeds. For once, the dashboard is allowed to be calm.') : null}
@@ -565,7 +580,9 @@ export default async function HomePage() {
                 columns={['Module', 'Subject', 'Gaps', 'Next action', 'Risk']}
                 rows={releaseBlockers.slice(0, 5).map((module) => {
                   const blockerBoardHref = `/content?view=blocked${module.subjectId ? `&subject=${module.subjectId}` : ''}&q=${encodeURIComponent(module.title)}`;
-                  const createLessonHref = `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`;
+                  const createLessonHref = module.hasAuthoringContext
+                    ? `/content/lessons/new?subjectId=${module.subjectId}&moduleId=${module.id}&from=${encodeURIComponent(blockerBoardHref)}&focus=blockers`
+                    : null;
                   const risk = describeReleaseRisk(module.blockerCount);
 
                   return [
@@ -581,7 +598,8 @@ export default async function HomePage() {
                       <span>{describeNextAction(module)}</span>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <Link href={blockerBoardHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Open blocker board</Link>
-                        {module.missingLessons > 0 ? <Link href={createLessonHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Create lesson</Link> : null}
+                        {module.missingLessons > 0 ? (createLessonHref ? <Link href={createLessonHref} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Create lesson</Link> : null) : null}
+                        {module.missingLessons > 0 && !createLessonHref ? <span style={{ color: '#92400E', fontWeight: 800 }}>Recover subject context first</span> : null}
                       </div>
                     </div>,
                     <Pill key={`${module.id}-risk`} label={risk.label} tone={risk.tone} text={risk.text} />,
