@@ -187,8 +187,12 @@ export function fetchRewardsCatalog() {
   return getJson<RewardCatalog>('/api/v1/rewards/catalog');
 }
 
-export function fetchRewardsLeaderboard(limit = 10) {
-  return getJson<RewardSnapshot[]>(`/api/v1/rewards/leaderboard?limit=${limit}`);
+export function fetchRewardsLeaderboard(limit = 10, params?: { cohortId?: string; podId?: string; mallamId?: string }) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (params?.cohortId) query.set('cohortId', params.cohortId);
+  if (params?.podId) query.set('podId', params.podId);
+  if (params?.mallamId) query.set('mallamId', params.mallamId);
+  return getJson<RewardSnapshot[]>(`/api/v1/rewards/leaderboard?${query.toString()}`);
 }
 
 export function fetchRewardRequests(limit = 20, params?: { cohortId?: string; podId?: string; mallamId?: string; status?: string }) {
