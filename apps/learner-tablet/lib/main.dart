@@ -5848,16 +5848,26 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
   }
 
+  int _normalizedChoiceCount(int choiceCount) {
+    return choiceCount.clamp(2, 6);
+  }
+
   int _imageChoiceColumnCount({
     required double maxWidth,
     required int choiceCount,
   }) {
-    if (choiceCount <= 1) return 1;
+    final normalizedChoiceCount = _normalizedChoiceCount(choiceCount);
 
-    if (choiceCount >= 4 && maxWidth >= 4 * 96 + 3 * 16) return 4;
-    if (choiceCount >= 3 && maxWidth >= 3 * 112 + 2 * 16) return 3;
-    if (choiceCount >= 2 && maxWidth >= 2 * 140 + 16) return 2;
-    return 1;
+    if (normalizedChoiceCount >= 6) {
+      return maxWidth >= 3 * 180 + 2 * 16 ? 3 : 2;
+    }
+    if (normalizedChoiceCount >= 4) {
+      return maxWidth >= 3 * 160 + 2 * 16 ? 3 : 2;
+    }
+    if (normalizedChoiceCount >= 3) {
+      return maxWidth >= 3 * 150 + 2 * 16 ? 3 : 2;
+    }
+    return maxWidth >= 2 * 140 + 16 ? 2 : 1;
   }
 
   Widget _buildChoicePreview(
@@ -7387,6 +7397,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         isStackedLayout || MediaQuery.sizeOf(context).height < 900;
     final currentActivity = step.activity;
     final isChoiceStep = _isChoiceActivityType(currentActivity?.type);
+    final isListenRepeatStep =
+        currentActivity?.type == LessonActivityType.listenRepeat;
     final hasDraftResponse = responseController.text.trim().isNotEmpty;
     final canAdvanceChoiceStep =
         isChoiceStep && hasDraftResponse && !transcriptReviewPending;
@@ -7394,7 +7406,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     Widget buildChoiceSelectionPanel() {
       final activity = step.activity;
       if (activity == null) return const SizedBox.shrink();
-      final choiceItems = activity.choiceItems.isNotEmpty
+      final rawChoiceItems = activity.choiceItems.isNotEmpty
           ? activity.choiceItems
           : List.generate(activity.choices.length, (index) {
               final choice = activity.choices[index];
@@ -7404,8 +7416,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 isCorrect: choice == activity.targetResponse,
               );
             });
+      final choiceItems = rawChoiceItems.take(6).toList();
       final selectedChoiceLabel = responseController.text.trim();
-      final choiceCount = choiceItems.length.clamp(1, 4);
+      final choiceCount = _normalizedChoiceCount(choiceItems.length);
 
       return Container(
         width: double.infinity,
@@ -7415,57 +7428,47 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: const Color(0xFFD7E3FF)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Choose the matching object',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E3A8A),
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Tap one card. The selected card stays highlighted so the learner can see the choice clearly.',
-              style: TextStyle(color: Color(0xFF475569), height: 1.35),
-            ),
-            const SizedBox(height: 18),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = switch (choiceCount) {
-                  <= 1 => 1,
-                  2 => constraints.maxWidth >= 540 ? 2 : 1,
-                  3 => constraints.maxWidth >= 760 ? 3 : 2,
-                  _ => constraints.maxWidth >= 860 ? 4 : 2,
-                };
-                final childAspectRatio = choiceCount <= 2
-                    ? (columns == 1 ? 1.55 : 1.18)
-                    : (columns >= 3 ? 0.86 : 0.96);
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+                final columns = _imageChoiceColumnCount(
+                  maxWidth: constraints.maxWidth,
+                  choiceCount: choiceItems.length,
+                );
+                const spacing = 16.0;
+                final totalSpacing = spacing * (columns - 1);
+                final cardWidth =
+                    (constraints.maxWidth - totalSpacing) / columns;
+                final previewHeight = choiceCount <= 2
+                    ? 190.0
+                    : choiceCount >= 6
+                        ? 132.0
+                        : 148.0;
 
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: choiceItems.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: childAspectRatio,
-                  ),
-                  itemBuilder: (context, index) {
+                return Wrap(
+                  key: const ValueKey('choice-grid'),
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: List.generate(choiceItems.length, (index) {
                     final choiceItem = choiceItems[index];
                     final emoji = index < activity.choiceEmoji.length
                         ? activity.choiceEmoji[index]
                         : '🖼️';
                     final isSelected = selectedChoiceLabel.toLowerCase() ==
                         choiceItem.label.trim().toLowerCase();
+                    final hasAudio = _firstMediaOfKind(
+                          choiceItem.mediaItems,
+                          const ['audio'],
+                        ) !=
+                        null;
                     return InkWell(
                       onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
                       borderRadius: BorderRadius.circular(28),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
+                        width: cardWidth,
+                        constraints: BoxConstraints(
+                          minHeight: choiceCount >= 6 ? 220 : 250,
+                        ),
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           color: isSelected
@@ -7498,7 +7501,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                     child: _buildChoicePreview(
                                       choiceItem,
                                       emoji,
-                                      imageHeight: choiceCount <= 2 ? 190 : 148,
+                                      imageHeight: previewHeight,
                                       borderRadius: 22,
                                     ),
                                   ),
@@ -7549,14 +7552,90 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 color: Color(0xFF0F172A),
                               ),
                             ),
+                            if (hasAudio) ...[
+                              const SizedBox(height: 12),
+                              FilledButton.tonalIcon(
+                                onPressed: () => _playChoiceMedia(choiceItem),
+                                icon: const Icon(Icons.play_arrow_rounded),
+                                label: const Text('Hear choice'),
+                              ),
+                            ],
                           ],
                         ),
                       ),
                     );
-                  },
+                  }),
                 );
               },
             ),
+      );
+    }
+
+    Widget buildListenRepeatPromptPanel() {
+      final activity = step.activity;
+      if (activity == null) return const SizedBox.shrink();
+      final prompt = widget.state.personalizePrompt(activity.prompt);
+      final focusText = activity.focusText == null
+          ? null
+          : widget.state.personalizeExpectedResponse(activity.focusText!);
+      final supportText = activity.supportText == null
+          ? null
+          : widget.state.personalizeExpectedResponse(activity.supportText!);
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFF),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFD7E3FF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              prompt,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+                height: 1.35,
+              ),
+            ),
+            if (focusText != null || activity.mediaValue != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFFED7AA)),
+                ),
+                child: Text(
+                  focusText ?? activity.mediaValue!,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF9A3412),
+                  ),
+                ),
+              ),
+            ],
+            if (supportText != null && supportText.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                supportText,
+                style: const TextStyle(
+                  color: Color(0xFF475569),
+                  height: 1.4,
+                ),
+              ),
+            ],
+            if (activity.mediaItems.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSharedMediaGallery(activity),
+            ],
           ],
         ),
       );
@@ -7718,94 +7797,97 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Container(
-                                      width: double.infinity,
-                                      padding: EdgeInsets.all(
-                                        compactSessionHeader ? 18 : 22,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF8FAFC),
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(
-                                          color: const Color(0xFFE2E8F0),
+                                    if (!isChoiceStep && !isListenRepeatStep) ...[
+                                      Container(
+                                        width: double.infinity,
+                                        padding: EdgeInsets.all(
+                                          compactSessionHeader ? 18 : 22,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(24),
+                                          border: Border.all(
+                                            color: const Color(0xFFE2E8F0),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              step.title,
+                                              maxLines:
+                                                  compactSessionHeader ? 2 : 3,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: compactSessionHeader
+                                                    ? 24
+                                                    : 28,
+                                                fontWeight: FontWeight.w900,
+                                                color: const Color(0xFF0F172A),
+                                                height: 1.08,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              step.instruction,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                height: 1.45,
+                                                color: Color(0xFF334155),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            step.title,
-                                            maxLines:
-                                                compactSessionHeader ? 2 : 3,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: compactSessionHeader
-                                                  ? 24
-                                                  : 28,
-                                              fontWeight: FontWeight.w900,
-                                              color: const Color(0xFF0F172A),
-                                              height: 1.08,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            step.instruction,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              height: 1.45,
-                                              color: Color(0xFF334155),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
+                                      const SizedBox(height: 16),
+                                    ],
                                     if (step.activity != null) ...[
                                       isChoiceStep
                                           ? buildChoiceSelectionPanel()
-                                          : _buildActivityPanel(step),
+                                          : (isListenRepeatStep
+                                              ? buildListenRepeatPromptPanel()
+                                              : _buildActivityPanel(step)),
                                       const SizedBox(height: 16),
                                     ],
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(
-                                          color: const Color(0xFFE2E8F0),
+                                    if (!isChoiceStep)
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(24),
+                                          border: Border.all(
+                                            color: const Color(0xFFE2E8F0),
+                                          ),
                                         ),
-                                      ),
-                                      child: Column(
+                                        child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            isChoiceStep
-                                                ? 'Selected object'
-                                                : 'Transcription',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 16,
-                                              color: Color(0xFF0F172A),
+                                          if (!isListenRepeatStep) ...[
+                                            const Text(
+                                              'Transcription',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 16,
+                                                color: Color(0xFF0F172A),
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            transcriptReviewPending
-                                                ? 'Check the learner words here, then confirm before Mallam continues.'
-                                                : (isChoiceStep
-                                                    ? 'Keep the chosen object label visible here before moving on.'
-                                                    : (isRecording
-                                                        ? 'Listening to the learner now.'
-                                                        : 'Start listening, capture the learner voice, then review the text here.')),
-                                            style: const TextStyle(
-                                              color: Color(0xFF475569),
-                                              height: 1.35,
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              transcriptReviewPending
+                                                  ? 'Check the learner words here, then confirm before Mallam continues.'
+                                                  : (isRecording
+                                                      ? 'Listening to the learner now.'
+                                                      : 'Start listening, capture the learner voice, then review the text here.'),
+                                              style: const TextStyle(
+                                                color: Color(0xFF475569),
+                                                height: 1.35,
+                                              ),
                                             ),
-                                          ),
-                                          if (!isChoiceStep) ...[
+                                          ],
+                                          if (!isListenRepeatStep) ...[
                                             const SizedBox(height: 14),
                                             Container(
                                               width: double.infinity,
@@ -7930,105 +8012,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ),
                                           ],
                                           const SizedBox(height: 14),
-                                          if (isChoiceStep)
-                                            Container(
-                                              width: double.infinity,
-                                              padding: const EdgeInsets.all(18),
-                                              decoration: BoxDecoration(
-                                                color: hasDraftResponse
-                                                    ? const Color(0xFFEFF6FF)
-                                                    : const Color(0xFFF8FAFC),
-                                                borderRadius:
-                                                    BorderRadius.circular(22),
-                                                border: Border.all(
-                                                  color: hasDraftResponse
-                                                      ? const Color(0xFF93C5FD)
-                                                      : const Color(0xFFE2E8F0),
-                                                  width: hasDraftResponse
-                                                      ? 2
-                                                      : 1.4,
-                                                ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  Container(
-                                                    width: 44,
-                                                    height: 44,
-                                                    decoration: BoxDecoration(
-                                                      color: hasDraftResponse
-                                                          ? const Color(
-                                                              0xFF2563EB,
-                                                            )
-                                                          : const Color(
-                                                              0xFFE2E8F0,
-                                                            ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                        14,
-                                                      ),
-                                                    ),
-                                                    child: Icon(
-                                                      hasDraftResponse
-                                                          ? Icons.check_rounded
-                                                          : Icons
-                                                              .touch_app_rounded,
-                                                      color: hasDraftResponse
-                                                          ? Colors.white
-                                                          : const Color(
-                                                              0xFF64748B,
-                                                            ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 14),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          hasDraftResponse
-                                                              ? responseController
-                                                                  .text
-                                                              : 'No object selected yet',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 18,
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color: Color(
-                                                              0xFF0F172A,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 4),
-                                                        Text(
-                                                          hasDraftResponse
-                                                              ? 'Selection captured. You can move to the next step now.'
-                                                              : 'Tap one image/object card to unlock the next action.',
-                                                          style:
-                                                              const TextStyle(
-                                                            color: Color(
-                                                              0xFF475569,
-                                                            ),
-                                                            height: 1.35,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            )
-                                          else
-                                            TextField(
+                                          TextField(
                                               controller: responseController,
                                               onChanged: (_) => setState(() {}),
                                               maxLines: 4,
                                               decoration: InputDecoration(
-                                                labelText:
-                                                    'Learner transcript',
                                                 hintText:
                                                     _learnerResponseHintText,
                                                 filled: true,
@@ -8048,8 +8036,48 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 ),
                                               ),
                                             ),
+                                          if (isListenRepeatStep) ...[
+                                            const SizedBox(height: 12),
+                                            Wrap(
+                                              spacing: 12,
+                                              runSpacing: 12,
+                                              children: [
+                                                FilledButton.icon(
+                                                  onPressed: isRecording ||
+                                                          !_micPermissionGranted
+                                                      ? null
+                                                      : startRecording,
+                                                  icon: const Icon(
+                                                    Icons.mic_rounded,
+                                                  ),
+                                                  label: Text(
+                                                    _listeningStartButtonLabel,
+                                                  ),
+                                                ),
+                                                FilledButton.icon(
+                                                  onPressed: isRecording
+                                                      ? stopRecording
+                                                      : null,
+                                                  style:
+                                                      FilledButton.styleFrom(
+                                                    backgroundColor:
+                                                        const Color(0xFFDC2626),
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                  ),
+                                                  icon: const Icon(
+                                                    Icons.stop_rounded,
+                                                  ),
+                                                  label: const Text(
+                                                    'Stop listening',
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                           const SizedBox(height: 12),
-                                          Container(
+                                          if (!isListenRepeatStep)
+                                            Container(
                                             width: double.infinity,
                                             padding: const EdgeInsets.all(14),
                                             decoration: BoxDecoration(
@@ -8064,6 +8092,31 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(
+                                                      0xFFEFF6FF,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      999,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    _lessonModeLabel,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF1D4ED8),
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 10),
                                                 Text(
                                                   _sessionStatusHeadline,
                                                   style: const TextStyle(
@@ -8083,8 +8136,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ],
                                             ),
                                           ),
-                                          if (liveTranscript.isNotEmpty ||
-                                              speechRecognitionActive) ...[
+                                          if (!isListenRepeatStep &&
+                                              (liveTranscript.isNotEmpty ||
+                                              speechRecognitionActive)) ...[
                                             const SizedBox(height: 12),
                                             Container(
                                               width: double.infinity,
@@ -8181,7 +8235,25 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                             ),
                             const SizedBox(height: 16),
                             Row(
+                              key: isChoiceStep
+                                  ? const ValueKey('choice-cta-row')
+                                  : null,
                               children: [
+                                if (isChoiceStep)
+                                  Expanded(
+                                    child: Text(
+                                      hasDraftResponse
+                                          ? responseController.text
+                                          : 'Choose one object to continue',
+                                      style: TextStyle(
+                                        color: hasDraftResponse
+                                            ? const Color(0xFF0F172A)
+                                            : const Color(0xFF64748B),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                if (isChoiceStep) const SizedBox(width: 12),
                                 Expanded(
                                   child: FilledButton(
                                     onPressed: primaryAction,
