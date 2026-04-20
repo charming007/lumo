@@ -538,6 +538,9 @@ export type ConfigAudit = {
 export type AssetRuntimeReport = {
   checkedAt: string;
   summary: {
+    readiness: 'ready' | 'degraded' | 'blocked';
+    headline: string;
+    operatorAction: string;
     registryHealthy: boolean;
     assetCount: number;
     readyCount: number;
@@ -567,6 +570,7 @@ export type AssetRuntimeReport = {
     topIssues: Array<{ type: string; severity: string; assetId?: string | null; assetTitle?: string | null; note?: string | null; lessonTitle?: string; value?: string }>;
     orphanedAssets: Array<{ assetId: string; title: string; kind: string; status?: string; updatedAt?: string | null }>;
   };
+  nextActions: string[];
 };
 
 export type StorageIntegrityReport = {

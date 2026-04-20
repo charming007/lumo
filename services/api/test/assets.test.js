@@ -413,6 +413,11 @@ test('asset runtime report surfaces skipped registry records and upload diagnost
     assert.equal(response.body.registry.totalRecords, assets.length);
     assert.equal(response.body.registry.usableRecords < response.body.registry.totalRecords, true);
     assert.equal(typeof response.body.uploads.ready, 'boolean');
+    assert.equal(response.body.summary.readiness, 'blocked');
+    assert.equal(typeof response.body.summary.headline, 'string');
+    assert.equal(typeof response.body.summary.operatorAction, 'string');
+    assert.ok(Array.isArray(response.body.nextActions));
+    assert.ok(response.body.nextActions.length >= 1);
     assert.ok(Array.isArray(response.body.registry.topIssues));
   } finally {
     assets.splice(originalLength);

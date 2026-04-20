@@ -61,6 +61,9 @@ const EMPTY_STORAGE_BACKUPS: StorageBackupList = {
 const EMPTY_ASSET_RUNTIME: AssetRuntimeReport = {
   checkedAt: '',
   summary: {
+    readiness: 'blocked',
+    headline: 'Asset runtime report unavailable.',
+    operatorAction: 'Check the API runtime report before trusting asset readiness.',
     registryHealthy: false,
     assetCount: 0,
     readyCount: 0,
@@ -90,6 +93,7 @@ const EMPTY_ASSET_RUNTIME: AssetRuntimeReport = {
     topIssues: [],
     orphanedAssets: [],
   },
+  nextActions: [],
 };
 
 const EMPTY_OPERATIONS_REPORT: OperationsReport = {

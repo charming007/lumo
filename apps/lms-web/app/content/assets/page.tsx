@@ -4,6 +4,7 @@ import { DeploymentBlockerCard } from '../../../components/deployment-blocker-ca
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { fetchAssetRuntime, fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus } from '../../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../../lib/config';
+import { sanitizeInternalReturnPath } from '../../../lib/safe-return-path';
 import { PageShell } from '../../../lib/ui';
 
 function statusCounts(items: Awaited<ReturnType<typeof fetchLessonAssets>>) {
@@ -25,6 +26,18 @@ function buildRouteWithQuery(basePath: string, params: Record<string, string>) {
   return queryString ? `${basePath}?${queryString}` : basePath;
 }
 
+function runtimeReadinessTone(readiness?: 'ready' | 'degraded' | 'blocked') {
+  if (readiness === 'ready') {
+    return { background: '#ECFDF5', border: '1px solid #BBF7D0', accent: '#166534', chipBackground: '#DCFCE7', chipColor: '#166534' };
+  }
+
+  if (readiness === 'blocked') {
+    return { background: '#FEF2F2', border: '1px solid #FECACA', accent: '#B91C1C', chipBackground: '#FEE2E2', chipColor: '#B91C1C' };
+  }
+
+  return { background: '#FFF7ED', border: '1px solid #FDBA74', accent: '#9A3412', chipBackground: '#FFEDD5', chipColor: '#9A3412' };
+}
+
 export default async function AssetLibraryPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
   const query = (await searchParams) || {};
   const filters = {
@@ -37,7 +50,7 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     lessonId: query.lessonId || '',
     includeArchived: query.includeArchived || '',
   };
-  const from = query.from || '';
+  const from = sanitizeInternalReturnPath(query.from, '');
   const assetLibraryHref = buildRouteWithQuery('/content/assets', {
     ...filters,
     from,
@@ -201,6 +214,7 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     : null;
   const skippedRegistryRecords = assetRuntime?.summary?.skippedRecordCount ?? null;
   const brokenManagedRefs = assetRuntime?.summary?.brokenManagedReferenceCount ?? null;
+  const runtimeTone = runtimeReadinessTone(assetRuntime?.summary?.readiness);
 
   return <PageShell
     title="Asset Library"
@@ -276,6 +290,63 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
           </div>
         ))}
       </div>
+
+      {assetRuntime ? (
+        <div style={{ display: 'grid', gap: 14, padding: 18, borderRadius: 20, background: runtimeTone.background, border: runtimeTone.border }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: runtimeTone.accent, fontWeight: 800 }}>Live runtime readiness</div>
+              <div style={{ color: '#0F172A', fontSize: 22, fontWeight: 900 }}>{assetRuntime.summary.headline}</div>
+              <div style={{ color: '#475569', lineHeight: 1.6, maxWidth: 880 }}>{assetRuntime.summary.operatorAction}</div>
+            </div>
+            <div style={{ display: 'inline-flex', padding: '8px 12px', borderRadius: 999, fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, background: runtimeTone.chipBackground, color: runtimeTone.chipColor }}>
+              {assetRuntime.summary.readiness}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <div style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>Uploads</div>
+              <div style={{ marginTop: 8, color: '#0F172A', fontWeight: 800 }}>{assetRuntime.uploads.ready ? 'Managed uploads ready' : 'Managed uploads blocked'}</div>
+              <div style={{ marginTop: 6, color: '#475569', lineHeight: 1.6 }}>{assetRuntime.uploads.blocker ?? `Root: ${assetRuntime.uploads.root ?? 'unknown'}`}</div>
+            </div>
+            <div style={{ padding: 14, borderRadius: 16, background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>Runtime issue load</div>
+              <div style={{ marginTop: 8, color: '#0F172A', fontWeight: 800 }}>{assetRuntime.summary.lessonsWithIssues} lessons, {assetRuntime.registry.issueCount} surfaced issue{assetRuntime.registry.issueCount === 1 ? '' : 's'}</div>
+              <div style={{ marginTop: 6, color: '#475569', lineHeight: 1.6 }}>{assetRuntime.summary.unresolvedReferenceCount} unresolved refs • {assetRuntime.summary.brokenManagedReferenceCount} broken managed refs • {assetRuntime.summary.orphanedAssetCount} orphaned assets</div>
+            </div>
+          </div>
+
+          {assetRuntime.nextActions.length ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>Do this next</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {assetRuntime.nextActions.map((action) => (
+                  <div key={action} style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(148, 163, 184, 0.22)', color: '#334155', lineHeight: 1.6 }}>{action}</div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {assetRuntime.registry.topIssues.length ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>Top runtime issues</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {assetRuntime.registry.topIssues.slice(0, 4).map((issue, index) => (
+                  <div key={`${issue.type}-${issue.assetId ?? issue.value ?? index}`} style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(148, 163, 184, 0.22)', display: 'grid', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <div style={{ color: '#0F172A', fontWeight: 800 }}>{issue.lessonTitle ?? issue.assetTitle ?? issue.type}</div>
+                      <div style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: 999, background: issue.severity === 'error' ? '#FEE2E2' : '#FEF3C7', color: issue.severity === 'error' ? '#B91C1C' : '#92400E', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' }}>{issue.severity}</div>
+                    </div>
+                    <div style={{ color: '#475569', lineHeight: 1.6 }}>{issue.note ?? issue.type}</div>
+                    <div style={{ color: '#64748B', fontSize: 12 }}>{issue.value ? `Reference: ${issue.value}` : issue.assetId ? `Asset: ${issue.assetId}` : issue.type}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <AssetUploadForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />

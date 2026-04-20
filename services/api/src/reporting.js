@@ -1180,10 +1180,53 @@ function buildAssetRuntimeReport({ limit = 20 } = {}) {
   const archivedAssets = usableAssets.filter((asset) => asset.status === 'archived').length;
   const readyAssets = usableAssets.filter((asset) => (asset.status || 'ready') === 'ready').length;
   const registryHealthy = skippedAssets === 0 && coverage.summary.missingCount === 0 && coverage.summary.brokenManagedCount === 0;
+  const uploadsReady = Boolean(configAudit.assetUploads?.ready);
+  const publicBaseValid = Boolean(configAudit.assetUploads?.publicBaseValid);
+  const persistentRisk = Boolean(configAudit.assetUploads?.persistentRisk);
+  const hasBlockingIssues = !uploadsReady || skippedAssets > 0 || coverage.summary.missingCount > 0 || coverage.summary.brokenManagedCount > 0;
+  const hasDegradedSignals = coverage.summary.legacyCount > 0 || coverage.summary.archivedCount > 0 || coverage.summary.orphanedAssetCount > 0 || persistentRisk || !publicBaseValid;
+  const readiness = hasBlockingIssues ? 'blocked' : hasDegradedSignals ? 'degraded' : 'ready';
+  const nextActions = [];
+
+  if (!uploadsReady) {
+    nextActions.push(configAudit.assetUploads?.blocker || 'Fix upload storage before trusting managed asset uploads.');
+  }
+  if (!publicBaseValid) {
+    nextActions.push('Fix API_BASE_URL/LUMO_PUBLIC_API_URL so managed asset links resolve to the real public API host.');
+  }
+  if (skippedAssets > 0) {
+    nextActions.push(`Clean ${skippedAssets} malformed asset registry record${skippedAssets === 1 ? '' : 's'} so runtime checks stop skipping poisoned rows.`);
+  }
+  if (coverage.summary.missingCount > 0) {
+    nextActions.push(`Repair ${coverage.summary.missingCount} unresolved lesson asset reference${coverage.summary.missingCount === 1 ? '' : 's'} before operators trust lesson readiness.`);
+  }
+  if (coverage.summary.brokenManagedCount > 0) {
+    nextActions.push(`Restore ${coverage.summary.brokenManagedCount} managed file reference${coverage.summary.brokenManagedCount === 1 ? '' : 's'} whose registry record exists but file is missing from disk.`);
+  }
+  if (coverage.summary.legacyCount > 0) {
+    nextActions.push(`Migrate ${coverage.summary.legacyCount} legacy lesson asset reference${coverage.summary.legacyCount === 1 ? '' : 's'} to canonical asset:<id> values.`);
+  }
+  if (coverage.summary.orphanedAssetCount > 0) {
+    nextActions.push(`Review ${coverage.summary.orphanedAssetCount} orphaned asset${coverage.summary.orphanedAssetCount === 1 ? '' : 's'} that are not referenced by any lesson.`);
+  }
+  if (persistentRisk) {
+    nextActions.push('Move LUMO_ASSET_UPLOAD_DIR onto persistent storage before a redeploy eats managed uploads.');
+  }
+
+  const dedupedNextActions = Array.from(new Set(nextActions)).slice(0, 6);
+  const headline = readiness === 'ready'
+    ? 'Asset runtime is release-safe.'
+    : readiness === 'blocked'
+      ? 'Asset runtime has blocking issues.'
+      : 'Asset runtime is usable but not clean.';
+  const operatorAction = dedupedNextActions[0] || 'No immediate operator action required.';
 
   return {
     checkedAt: new Date().toISOString(),
     summary: {
+      readiness,
+      headline,
+      operatorAction,
       registryHealthy,
       assetCount: usableAssets.length,
       readyCount: readyAssets,
@@ -1198,11 +1241,11 @@ function buildAssetRuntimeReport({ limit = 20 } = {}) {
       orphanedAssetCount: coverage.summary.orphanedAssetCount,
     },
     uploads: {
-      ready: Boolean(configAudit.assetUploads?.ready),
+      ready: uploadsReady,
       blocker: configAudit.assetUploads?.blocker || null,
       root: configAudit.assetUploads?.root || null,
-      publicBaseValid: Boolean(configAudit.assetUploads?.publicBaseValid),
-      persistentRisk: Boolean(configAudit.assetUploads?.persistentRisk),
+      publicBaseValid,
+      persistentRisk,
       recommendations: Array.isArray(configAudit.assetUploads?.recommendations) ? configAudit.assetUploads.recommendations : [],
     },
     registry: {
@@ -1213,6 +1256,7 @@ function buildAssetRuntimeReport({ limit = 20 } = {}) {
       topIssues: coverage.issues.slice(0, Math.max(1, Math.min(Number(limit || 20), 20))),
       orphanedAssets: coverage.orphanedAssets.slice(0, Math.max(1, Math.min(Number(limit || 20), 20))),
     },
+    nextActions: dedupedNextActions,
     coverage,
   };
 }
