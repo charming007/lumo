@@ -111,7 +111,7 @@ export default async function LessonStudioEditPage({
         blockerHeadline="Deployment blocker: lesson editor context could not be recovered."
         blockerDetail={(
           <>
-            The editor cannot safely load this lesson because the minimum authoring context is still incomplete. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ') || 'unknown'}.
+            The editor cannot safely load this lesson because the minimum authoring context is still incomplete or the lesson payload is malformed. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ') || 'unknown'}. {lessonPayloadIssues.length ? `Payload issues: ${lessonPayloadIssues.join(' ')}` : ''}
           </>
         )}
         whyBlocked={[
@@ -122,8 +122,8 @@ export default async function LessonStudioEditPage({
         verificationItems={[
           {
             surface: 'Lesson payload',
-            expected: 'The requested lesson record loads successfully',
-            failure: 'The lesson feed is down or this lesson no longer exists',
+            expected: 'The requested lesson record loads successfully with an authorable id/title plus sane activity + assessment collections',
+            failure: 'The lesson feed is down, the record is missing core identity, or malformed nested rows poison the editor form',
           },
           {
             surface: 'Curriculum context',
@@ -138,7 +138,7 @@ export default async function LessonStudioEditPage({
         ]}
         fixItems={[
           { label: 'Failing feeds', value: failedSources.join(', ') || 'unknown' },
-          { label: 'Must be restored', value: !lesson ? 'Lesson payload' : 'Lesson subject/module context' },
+          { label: 'Must be restored', value: !lesson ? 'Lesson payload integrity' : 'Lesson subject/module context' },
           { label: 'Still optional', value: assessmentsResult.status === 'rejected' || assetsResult.status === 'rejected' ? 'Assessment and asset side panels' : 'Assessment and asset side panels are healthy' },
         ]}
         docs={[
@@ -183,7 +183,7 @@ export default async function LessonStudioEditPage({
 
       {failedSources.length ? (
         <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          Editor recovered with degraded feeds: {failedSources.join(', ')}. Lesson editing stays live because the lesson payload and curriculum context are still intact.
+          Editor recovered with degraded feeds: {failedSources.join(', ')}. Lesson editing stays live because the lesson payload and curriculum context are still usable.{lessonPayloadIssues.length ? ` Sanitized payload issues: ${lessonPayloadIssues.join(' ')}` : ''}
         </div>
       ) : null}
 

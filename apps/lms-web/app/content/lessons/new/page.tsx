@@ -3,14 +3,10 @@ import { DeploymentBlockerCard } from '../../../../components/deployment-blocker
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
-import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
+import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
+import type { Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
 import { createLessonAction } from '../../../actions';
-
-function normalizeParam(value: string | string[] | undefined) {
-  if (Array.isArray(value)) return value[0] ?? '';
-  return value ?? '';
-}
 
 const cardStyle = {
   padding: 20,
@@ -35,48 +31,6 @@ export default async function LessonStudioCreatePage({
 }) {
   const query = await searchParams;
 
-  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
-    return (
-      <DeploymentBlockerCard
-        title="Lesson Studio"
-        subtitle="Production wiring is incomplete, so lesson authoring is blocked instead of crashing behind a broken API dependency."
-        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson studio API base URL is unsafe for production.'}
-        blockerDetail={(
-          <>
-            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would make lesson authoring look live while it is pointed at a dead or unsafe backend.
-          </>
-        )}
-        whyBlocked={[
-          'Lesson Studio depends on live subject, module, and lesson inventory data. Without a valid production API base, this route can only lie or crash.',
-          'Content authors should see one honest blocker state, not a Next.js error page that looks like random breakage.',
-          'Blocking here keeps deployment review consistent with the rest of the LMS surfaces already enforcing the production API guard.',
-        ]}
-        verificationItems={[
-          {
-            surface: 'Lesson create route',
-            expected: 'Loads subject/module inventory or shows the blocker card before any fetch explodes',
-            failure: 'Server error or broken form shell when production API env is missing or invalid',
-          },
-          {
-            surface: 'Duplicate lesson flow',
-            expected: 'Existing lessons load for duplication when the API is healthy',
-            failure: 'Empty duplicate source or route crash while the deployment pretends authoring is available',
-          },
-          {
-            surface: 'Configured API base URL',
-            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
-            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
-          },
-        ]}
-        docs={[
-          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'Content blocker', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Canvas blocker', href: '/canvas', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
-        ]}
-      />
-    );
-  }
-
   const [subjectsResult, modulesResult, lessonsResult, assetsResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchCurriculumModules(),
@@ -84,7 +38,7 @@ export default async function LessonStudioCreatePage({
     fetchLessonAssets(),
   ]);
 
-  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
@@ -94,48 +48,67 @@ export default async function LessonStudioCreatePage({
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
   ].filter(Boolean) as string[];
-  const missingCoreAuthoringFeeds = [
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
-    modulesResult.status === 'rejected' ? 'modules' : null,
-  ].filter(Boolean) as string[];
 
-  if (missingCoreAuthoringFeeds.length) {
+  const derivedSubjects = modules.reduce<Subject[]>((acc, module) => {
+    const subjectId = module.subjectId?.trim();
+    const subjectName = module.subjectName?.trim();
+    if (!subjectId && !subjectName) return acc;
+
+    const derived = {
+      id: subjectId ?? `derived-${subjectName?.toLowerCase().replace(/[^a-z0-9]+/g, '-') ?? acc.length + 1}`,
+      name: subjectName ?? 'Recovered subject',
+    } satisfies Subject;
+
+    if (acc.some((subject) => subject.id === derived.id || subject.name === derived.name)) {
+      return acc;
+    }
+
+    acc.push(derived);
+    return acc;
+  }, []);
+
+  const subjects = loadedSubjects.length
+    ? loadedSubjects
+    : derivedSubjects;
+  const hasUsableAuthoringContext = modules.length > 0 && subjects.length > 0;
+
+  if (!hasUsableAuthoringContext) {
     return (
       <DeploymentBlockerCard
         title="Lesson Studio"
         subtitle="Critical authoring feeds are degraded, so lesson creation is blocked instead of crashing into a Next.js error page."
-        blockerHeadline="Deployment blocker: lesson authoring dependencies are down."
+        blockerHeadline="Deployment blocker: lesson authoring context could not be recovered."
         blockerDetail={(
           <>
-            Lesson Studio cannot safely create a lesson when the core curriculum feeds are missing. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ')}.
+            Lesson Studio cannot safely create a lesson because it still lacks a usable module + subject authoring context. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ') || 'unknown'}.
           </>
         )}
         whyBlocked={[
-          'Creating a lesson without live subject and module inventory risks producing an orphaned or mis-scoped lesson record.',
-          'A server error page on a core admin authoring route is a deployment blocker, not a tolerable degraded state.',
-          'Blocking loudly here keeps content operations honest while the upstream feed failure is fixed.',
+          'Lesson creation should stay live when module inventory still gives us a trustworthy curriculum lane, even if the dedicated subjects feed hiccups. That recovery was not possible here.',
+          'The exact blocker is the missing authoring context, not a vague “deployment is bad” scare card.',
+          'Blocking here is still correct when Lesson Studio would otherwise create an orphan lesson with no real module attachment.',
         ]}
         verificationItems={[
           {
-            surface: 'Lesson create route',
-            expected: 'Loads subject and module inventory or shows this blocker card when those feeds are down',
-            failure: 'Next.js error page or a form that pretends authoring is available without curriculum context',
+            surface: 'Module inventory',
+            expected: 'At least one real module loads for authoring',
+            failure: 'The create route cannot attach a new lesson to a curriculum lane',
           },
           {
-            surface: 'Duplicate lesson picker',
-            expected: 'Existing lessons load when the lessons feed is healthy, but the route still boots without it',
-            failure: 'The whole route crashes because an optional duplicate source feed failed',
+            surface: 'Subject context',
+            expected: 'Subjects load directly or can be reconstructed from the module feed',
+            failure: 'The route has no trustworthy subject scope for the new lesson',
           },
           {
-            surface: 'Return path after recovery',
-            expected: 'Operators can create a lesson and hand straight into the editor once feeds recover',
-            failure: 'Authoring stays blocked after subjects/modules recover',
+            surface: 'Optional feeds',
+            expected: 'Duplicate source lessons and asset panels can degrade without blocking draft creation',
+            failure: 'Optional feed loss incorrectly blocks the full authoring route',
           },
         ]}
         fixItems={[
-          { label: 'Failing feeds', value: missingCoreAuthoringFeeds.join(', ') },
-          { label: 'Operator action', value: 'Restore subject/module inventory before using Lesson Studio' },
-          { label: 'Optional feed', value: lessonsResult.status === 'rejected' ? 'Duplicate lesson source list is currently unavailable' : 'Duplicate lesson source list is healthy' },
+          { label: 'Failing feeds', value: failedSources.join(', ') || 'unknown' },
+          { label: 'Must be restored', value: modules.length === 0 ? 'Module inventory' : 'Subject context for loaded modules' },
+          { label: 'Still optional', value: lessonsResult.status === 'rejected' ? 'Duplicate lesson source list is currently unavailable' : 'Duplicate lesson source list is healthy' },
         ]}
         docs={[
           { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
@@ -145,12 +118,12 @@ export default async function LessonStudioCreatePage({
     );
   }
 
-  const from = normalizeParam(query?.from) || '/content';
-  const subjectId = normalizeParam(query?.subjectId) || subjects[0]?.id || '';
-  const moduleId = normalizeParam(query?.moduleId) || modules.find((module) => module.subjectId === subjectId)?.id || modules[0]?.id || '';
-  const duplicateLessonId = normalizeParam(query?.duplicate);
-  const createdLessonId = normalizeParam(query?.createdLessonId);
-  const createdLessonTitle = normalizeParam(query?.createdLessonTitle);
+  const from = sanitizeInternalReturnPath(query?.from, '/content');
+  const subjectId = normalizeRouteParam(query?.subjectId) || subjects[0]?.id || '';
+  const moduleId = normalizeRouteParam(query?.moduleId) || modules.find((module) => module.subjectId === subjectId)?.id || modules[0]?.id || '';
+  const duplicateLessonId = normalizeRouteParam(query?.duplicate);
+  const createdLessonId = normalizeRouteParam(query?.createdLessonId);
+  const createdLessonTitle = normalizeRouteParam(query?.createdLessonTitle);
 
   const selectedModule = modules.find((module) => module.id === moduleId) ?? modules[0] ?? null;
   const selectedSubject = subjects.find((subject) => subject.id === subjectId) ?? subjects.find((subject) => subject.id === selectedModule?.subjectId) ?? subjects[0] ?? null;
@@ -178,6 +151,12 @@ export default async function LessonStudioCreatePage({
       )}
     >
       <FeedbackBanner message={query?.message} />
+
+      {failedSources.length ? (
+        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Lesson Studio recovered with degraded feeds: {failedSources.join(', ')}. Draft creation stays live because a usable curriculum context is still available.
+        </div>
+      ) : null}
 
       {createdLessonId ? (
         <section style={{ ...cardStyle, marginBottom: 18, background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)', border: '1px solid #c7d2fe' }}>
