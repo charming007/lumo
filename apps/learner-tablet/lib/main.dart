@@ -5478,7 +5478,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   String get _sessionStatusBody {
     if (_isAudioOnlyReviewState) {
-      return 'Use the saved clip as the source of truth before Mallam continues.';
+      return 'Audio-only review is active, so Mallam will wait for a quick facilitator check before moving on.';
     }
     if (_hasTranscriptSafetyBlock) {
       return _transcriptAutoAdvanceSafetyReason!;
@@ -8028,9 +8028,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               maxLines: 4,
                                               decoration: InputDecoration(
                                                 labelText:
-                                                    speechRecognitionActive
-                                                        ? 'Learner transcript'
-                                                        : 'Learner response',
+                                                    'Learner transcript',
                                                 hintText:
                                                     _learnerResponseHintText,
                                                 filled: true,
@@ -8050,6 +8048,41 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 ),
                                               ),
                                             ),
+                                          const SizedBox(height: 12),
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(14),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF8FAFC),
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                              border: Border.all(
+                                                color: const Color(0xFFE2E8F0),
+                                              ),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _sessionStatusHeadline,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF0F172A),
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  _sessionStatusBody,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF475569),
+                                                    height: 1.35,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                           if (liveTranscript.isNotEmpty ||
                                               speechRecognitionActive) ...[
                                             const SizedBox(height: 12),

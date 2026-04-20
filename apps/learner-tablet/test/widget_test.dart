@@ -405,9 +405,7 @@ void main() {
     );
   });
 
-  testWidgets('bootstrap failure restores guaranteed offline lesson pack', (
-    tester,
-  ) async {
+  test('bootstrap failure restores guaranteed offline lesson pack', () async {
     SharedPreferences.setMockInitialValues({});
 
     final state = LumoAppState(
@@ -416,7 +414,6 @@ void main() {
     );
 
     await state.bootstrap();
-    await tester.pump(const Duration(milliseconds: 450));
 
     expect(state.usingFallbackData, isTrue);
     expect(state.backendError, 'backend offline');
@@ -426,8 +423,6 @@ void main() {
     expect(state.suggestedLearnerForHome, isNotNull);
 
     state.dispose();
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
   });
 
   testWidgets(
