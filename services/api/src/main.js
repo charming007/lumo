@@ -3284,6 +3284,12 @@ app.get('/api/v1/reports/assets', requireRole(['admin']), (req, res) => {
   }));
 });
 
+app.get('/api/v1/admin/assets/runtime', requireRole(['admin']), (req, res) => {
+  res.json(reporting.buildAssetRuntimeReport({
+    limit: Number(req.query.limit || 20),
+  }));
+});
+
 app.get('/api/v1/admin/storage/status', requireRole(['admin']), (_req, res) => {
   res.json(store.getStorageStatus());
 });

@@ -385,3 +385,36 @@ test('asset coverage report endpoint exposes operator-facing integrity signals',
   assert.ok(response.body.issues.some((issue) => issue.type === 'broken-managed-asset-file' && issue.assetId === 'asset-report-broken'));
   assert.ok(response.body.orphanedAssets.some((asset) => asset.assetId === 'asset-report-orphan'));
 });
+
+
+test('asset runtime report surfaces skipped registry records and upload diagnostics', async () => {
+  const assets = store.listLessonAssets();
+  const originalLength = assets.length;
+
+  assets.push({
+    id: 'asset-runtime-poison',
+    kind: 'image',
+    title: 'Broken runtime record',
+    storagePath: { bad: 'shape' },
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+
+  try {
+    const response = await request('/api/v1/admin/assets/runtime?limit=5', {
+      headers: {
+        'x-lumo-role': 'admin',
+        'x-lumo-actor': 'Asset Ops',
+        'x-lumo-api-key': 'asset-test-key',
+      },
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.body.summary.skippedRecordCount >= 1, true);
+    assert.equal(response.body.registry.totalRecords, assets.length);
+    assert.equal(response.body.registry.usableRecords < response.body.registry.totalRecords, true);
+    assert.equal(typeof response.body.uploads.ready, 'boolean');
+    assert.ok(Array.isArray(response.body.registry.topIssues));
+  } finally {
+    assets.splice(originalLength);
+  }
+});

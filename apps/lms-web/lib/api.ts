@@ -25,6 +25,7 @@ import type {
   StorageIntegrityReport,
   StorageStatus,
   ConfigAudit,
+  AssetRuntimeReport,
   Strand,
   Subject,
   WorkboardItem,
@@ -199,6 +200,10 @@ export function fetchStorageStatus() {
 
 export function fetchConfigAudit() {
   return getJson<ConfigAudit>('/api/v1/admin/config/audit');
+}
+
+export function fetchAssetRuntime(limit = 20) {
+  return getJson<AssetRuntimeReport>(`/api/v1/admin/assets/runtime?limit=${limit}`);
 }
 
 export function fetchStorageIntegrity() {

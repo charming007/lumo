@@ -2,6 +2,7 @@ const fs = require('fs');
 const repository = require('./repository');
 const presenters = require('./presenters');
 const rewards = require('./rewards');
+const { buildConfigAudit } = require('./config-audit');
 
 function parseDate(value) {
   if (!value) return null;
@@ -1156,6 +1157,66 @@ function buildAssetReferenceContext({ lesson, step, referenceType, choice = null
   };
 }
 
+
+function isAssetRecordUsable(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+  if (!item.id || typeof item.id !== 'string') return false;
+  if (!item.kind || typeof item.kind !== 'string') return false;
+  if (!item.title || typeof item.title !== 'string') return false;
+  if (item.tags !== undefined && item.tags !== null && !Array.isArray(item.tags)) return false;
+  if (item.storagePath !== undefined && item.storagePath !== null && typeof item.storagePath !== 'string') return false;
+  if (item.fileUrl !== undefined && item.fileUrl !== null && typeof item.fileUrl !== 'string') return false;
+  return true;
+}
+
+function buildAssetRuntimeReport({ limit = 20 } = {}) {
+  const configAudit = buildConfigAudit();
+  const rawAssets = repository.listLessonAssets();
+  const usableAssets = rawAssets.filter(isAssetRecordUsable);
+  const skippedAssets = rawAssets.length - usableAssets.length;
+  const coverage = buildAssetCoverageReport({ includeArchived: true, limit: Math.max(10, Math.min(Number(limit || 20), 200)) });
+  const managedAssets = usableAssets.filter((asset) => Boolean(asset.storagePath));
+  const missingManagedAssets = managedAssets.filter((asset) => !fs.existsSync(asset.storagePath));
+  const archivedAssets = usableAssets.filter((asset) => asset.status === 'archived').length;
+  const readyAssets = usableAssets.filter((asset) => (asset.status || 'ready') === 'ready').length;
+  const registryHealthy = skippedAssets === 0 && coverage.summary.missingCount === 0 && coverage.summary.brokenManagedCount === 0;
+
+  return {
+    checkedAt: new Date().toISOString(),
+    summary: {
+      registryHealthy,
+      assetCount: usableAssets.length,
+      readyCount: readyAssets,
+      archivedCount: archivedAssets,
+      managedCount: managedAssets.length,
+      missingManagedCount: missingManagedAssets.length,
+      skippedRecordCount: skippedAssets,
+      lessonsWithIssues: coverage.summary.lessonsWithIssues,
+      unresolvedReferenceCount: coverage.summary.missingCount,
+      legacyReferenceCount: coverage.summary.legacyCount,
+      brokenManagedReferenceCount: coverage.summary.brokenManagedCount,
+      orphanedAssetCount: coverage.summary.orphanedAssetCount,
+    },
+    uploads: {
+      ready: Boolean(configAudit.assetUploads?.ready),
+      blocker: configAudit.assetUploads?.blocker || null,
+      root: configAudit.assetUploads?.root || null,
+      publicBaseValid: Boolean(configAudit.assetUploads?.publicBaseValid),
+      persistentRisk: Boolean(configAudit.assetUploads?.persistentRisk),
+      recommendations: Array.isArray(configAudit.assetUploads?.recommendations) ? configAudit.assetUploads.recommendations : [],
+    },
+    registry: {
+      totalRecords: rawAssets.length,
+      usableRecords: usableAssets.length,
+      skippedRecords: skippedAssets,
+      issueCount: coverage.issues.length,
+      topIssues: coverage.issues.slice(0, Math.max(1, Math.min(Number(limit || 20), 20))),
+      orphanedAssets: coverage.orphanedAssets.slice(0, Math.max(1, Math.min(Number(limit || 20), 20))),
+    },
+    coverage,
+  };
+}
+
 function buildAssetCoverageReport({ subjectId = null, moduleId = null, lessonId = null, includeArchived = false, limit = 50 } = {}) {
   const assets = repository.listLessonAssets().filter((asset) => includeArchived || asset.status !== 'archived');
   const lessons = repository.listLessons().filter((lesson) => (!subjectId || lesson.subjectId === subjectId) && (!moduleId || lesson.moduleId === moduleId) && (!lessonId || lesson.id === lessonId));
@@ -1333,4 +1394,5 @@ module.exports = {
   buildOperationsReport,
   buildRewardsReport,
   buildAssetCoverageReport,
+  buildAssetRuntimeReport,
 };

@@ -4,11 +4,11 @@ import { ActionButton } from '../../components/action-button';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { ExportShareCard } from '../../components/export-share-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
-import { fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
+import { fetchAssetRuntime, fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { describeCatalogState, describeLiveBackendWithCatalog } from '../../lib/trust-copy';
-import type { MetaResponse, OperationsReport, RewardSnapshot, RewardsReport, StorageBackupList, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
+import type { AssetRuntimeReport, MetaResponse, OperationsReport, RewardSnapshot, RewardsReport, StorageBackupList, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
 
 const EMPTY_META: MetaResponse = {
   actor: {
@@ -56,6 +56,40 @@ const EMPTY_STORAGE_INTEGRITY: StorageIntegrityReport = {
 const EMPTY_STORAGE_BACKUPS: StorageBackupList = {
   items: [],
   status: null,
+};
+
+const EMPTY_ASSET_RUNTIME: AssetRuntimeReport = {
+  checkedAt: '',
+  summary: {
+    registryHealthy: false,
+    assetCount: 0,
+    readyCount: 0,
+    archivedCount: 0,
+    managedCount: 0,
+    missingManagedCount: 0,
+    skippedRecordCount: 0,
+    lessonsWithIssues: 0,
+    unresolvedReferenceCount: 0,
+    legacyReferenceCount: 0,
+    brokenManagedReferenceCount: 0,
+    orphanedAssetCount: 0,
+  },
+  uploads: {
+    ready: false,
+    blocker: null,
+    root: null,
+    publicBaseValid: false,
+    persistentRisk: false,
+    recommendations: [],
+  },
+  registry: {
+    totalRecords: 0,
+    usableRecords: 0,
+    skippedRecords: 0,
+    issueCount: 0,
+    topIssues: [],
+    orphanedAssets: [],
+  },
 };
 
 const EMPTY_OPERATIONS_REPORT: OperationsReport = {
@@ -159,7 +193,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     );
   }
 
-  const [metaResult, leaderboardResult, workboardResult, rewardsReportResult, storageStatusResult, integrityResult, backupsResult, operationsResult] = await Promise.allSettled([
+  const [metaResult, leaderboardResult, workboardResult, rewardsReportResult, storageStatusResult, integrityResult, backupsResult, operationsResult, assetRuntimeResult] = await Promise.allSettled([
     fetchMeta(),
     fetchRewardsLeaderboard(8),
     fetchWorkboard(),
@@ -168,6 +202,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     fetchStorageIntegrity(),
     fetchStorageBackups(8),
     fetchOperationsReport(8),
+    fetchAssetRuntime(8),
   ]);
 
   const meta = metaResult.status === 'fulfilled' ? metaResult.value : EMPTY_META;
@@ -178,6 +213,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const integrity = integrityResult.status === 'fulfilled' ? integrityResult.value : EMPTY_STORAGE_INTEGRITY;
   const backups = backupsResult.status === 'fulfilled' ? backupsResult.value : EMPTY_STORAGE_BACKUPS;
   const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : EMPTY_OPERATIONS_REPORT;
+  const assetRuntime = assetRuntimeResult.status === 'fulfilled' ? assetRuntimeResult.value : EMPTY_ASSET_RUNTIME;
 
   const failedSources = [
     metaResult.status === 'rejected' ? 'platform metadata' : null,
@@ -188,6 +224,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     integrityResult.status === 'rejected' ? 'storage integrity' : null,
     backupsResult.status === 'rejected' ? 'storage backups' : null,
     operationsResult.status === 'rejected' ? 'operations report' : null,
+    assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
   ].filter(Boolean);
 
   const ready = workboard.filter((item) => item.progressionStatus === 'ready').length;
@@ -357,6 +394,17 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
               { label: 'Persistence', value: storagePersistent ? 'Durable' : 'Volatile' },
               { label: 'Driver', value: storageDriver },
               { label: 'Integrity issues', value: String(integrity.summary.issueCount) },
+            ]}
+          />
+        </Card>
+
+        <Card title="Asset runtime" eyebrow="Registry + upload health">
+          <MetricList
+            items={[
+              { label: 'Registry status', value: assetRuntime.summary.registryHealthy ? 'Healthy' : 'Needs attention' },
+              { label: 'Skipped registry records', value: String(assetRuntime.summary.skippedRecordCount) },
+              { label: 'Broken managed refs', value: String(assetRuntime.summary.brokenManagedReferenceCount) },
+              { label: 'Uploads', value: assetRuntime.uploads.ready ? 'Writable' : 'Blocked' },
             ]}
           />
         </Card>
@@ -550,6 +598,42 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                 asText(entry.lastActivityAt ?? entry.completedAt ?? entry.createdAt),
               ])) : [[<span key="session-none" style={{ color: '#64748b' }}>No recent runtime sessions reported.</span>, '', '']]}
             />
+          </div>
+        </Card>
+      </section>
+
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Card title="Asset registry health" eyebrow="Live asset runtime lane">
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div style={{ padding: 16, borderRadius: 18, background: assetRuntime.summary.registryHealthy && assetRuntime.uploads.ready ? '#ECFDF5' : '#FFF7ED', border: `1px solid ${assetRuntime.summary.registryHealthy && assetRuntime.uploads.ready ? '#BBF7D0' : '#FDBA74'}` }}>
+              <strong style={{ display: 'block', color: '#0f172a', marginBottom: 6 }}>
+                {assetRuntime.summary.registryHealthy ? 'Registry feed is answering with usable records.' : 'Registry feed needs operator attention.'}
+              </strong>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>
+                {assetRuntime.uploads.ready
+                  ? `Uploads are writable at ${assetRuntime.uploads.root ?? 'the configured path'}.`
+                  : assetRuntime.uploads.blocker ?? 'Upload storage diagnostics are unavailable right now.'}
+              </div>
+            </div>
+            <SimpleTable
+              columns={['Signal', 'Value', 'Why it matters']}
+              rows={[
+                ['Usable registry rows', String(assetRuntime.registry.usableRecords), 'How many assets can actually survive the live feed serializer.'],
+                ['Skipped rows', String(assetRuntime.summary.skippedRecordCount), 'Malformed asset records are being filtered instead of blowing up the whole registry feed.'],
+                ['Missing managed files', String(assetRuntime.summary.missingManagedCount), 'Managed uploads with missing files mean the registry says a file exists but disk disagrees.'],
+                ['Legacy lesson refs', String(assetRuntime.summary.legacyReferenceCount), 'Lessons still pointing at raw URLs/paths are more fragile than canonical asset:id refs.'],
+              ]}
+            />
+            {assetRuntime.registry.topIssues.length ? (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {assetRuntime.registry.topIssues.slice(0, 3).map((issue, index) => (
+                  <div key={`${issue.type}-${issue.assetId ?? index}`} style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontWeight: 800, color: '#0f172a' }}>{issue.type}</div>
+                    <div style={{ color: '#64748b', lineHeight: 1.6, marginTop: 6 }}>{issue.note ?? issue.value ?? 'No extra detail provided.'}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </Card>
       </section>

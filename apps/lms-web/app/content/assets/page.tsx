@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { AssetLibraryFilters, AssetLibraryTable, AssetRegisterForm, AssetUploadForm } from '../../../components/asset-library-forms';
 import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../components/feedback-banner';
-import { fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus } from '../../../lib/api';
+import { fetchAssetRuntime, fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus } from '../../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../../lib/config';
 import { PageShell } from '../../../lib/ui';
 
@@ -86,7 +86,7 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     );
   }
 
-  const [subjectsResult, modulesResult, lessonsResult, assetsResult, storageStatusResult, configAuditResult] = await Promise.allSettled([
+  const [subjectsResult, modulesResult, lessonsResult, assetsResult, storageStatusResult, configAuditResult, assetRuntimeResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchCurriculumModules(),
     fetchLessons(),
@@ -102,6 +102,7 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
     }),
     fetchStorageStatus(),
     fetchConfigAudit(),
+    fetchAssetRuntime(8),
   ]);
 
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
@@ -111,11 +112,13 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const assetListingAvailable = assetsResult.status === 'fulfilled';
   const storageStatus = storageStatusResult.status === 'fulfilled' ? storageStatusResult.value : null;
   const configAudit = configAuditResult.status === 'fulfilled' ? configAuditResult.value : null;
+  const assetRuntime = assetRuntimeResult.status === 'fulfilled' ? assetRuntimeResult.value : null;
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
+    assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const missingCoreLibraryFeeds = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
@@ -196,6 +199,8 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const previewableCount = assetListingAvailable
     ? assets.filter((asset) => Boolean(asset.fileUrl) && ['image', 'illustration', 'audio'].includes(asset.kind)).length
     : null;
+  const skippedRegistryRecords = assetRuntime?.summary?.skippedRecordCount ?? null;
+  const brokenManagedRefs = assetRuntime?.summary?.brokenManagedReferenceCount ?? null;
 
   return <PageShell
     title="Asset Library"
@@ -262,6 +267,8 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
           { label: 'Ready now', value: assetListingAvailable ? (counts.ready ?? 0) : '—', tone: { background: '#ECFDF5', color: '#166534' } },
           { label: 'Archived', value: assetListingAvailable ? (counts.archived ?? 0) : '—', tone: { background: '#FFF7ED', color: '#9A3412' } },
           { label: 'Previewable', value: assetListingAvailable ? previewableCount : '—', tone: { background: '#F5F3FF', color: '#6D28D9' } },
+          { label: 'Skipped registry rows', value: skippedRegistryRecords ?? '—', tone: { background: '#FFF7ED', color: '#9A3412' } },
+          { label: 'Broken managed refs', value: brokenManagedRefs ?? '—', tone: { background: '#FEE2E2', color: '#B91C1C' } },
         ].map((card) => (
           <div key={card.label} style={{ background: 'white', borderRadius: 18, padding: 18, border: '1px solid #E2E8F0', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748B', fontWeight: 800 }}>{card.label}</div>

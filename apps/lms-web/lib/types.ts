@@ -534,6 +534,41 @@ export type ConfigAudit = {
   };
 };
 
+
+export type AssetRuntimeReport = {
+  checkedAt: string;
+  summary: {
+    registryHealthy: boolean;
+    assetCount: number;
+    readyCount: number;
+    archivedCount: number;
+    managedCount: number;
+    missingManagedCount: number;
+    skippedRecordCount: number;
+    lessonsWithIssues: number;
+    unresolvedReferenceCount: number;
+    legacyReferenceCount: number;
+    brokenManagedReferenceCount: number;
+    orphanedAssetCount: number;
+  };
+  uploads: {
+    ready: boolean;
+    blocker?: string | null;
+    root?: string | null;
+    publicBaseValid?: boolean;
+    persistentRisk?: boolean;
+    recommendations?: string[];
+  };
+  registry: {
+    totalRecords: number;
+    usableRecords: number;
+    skippedRecords: number;
+    issueCount: number;
+    topIssues: Array<{ type: string; severity: string; assetId?: string | null; assetTitle?: string | null; note?: string | null; lessonTitle?: string; value?: string }>;
+    orphanedAssets: Array<{ assetId: string; title: string; kind: string; status?: string; updatedAt?: string | null }>;
+  };
+};
+
 export type StorageIntegrityReport = {
   checkedAt: string;
   summary: {
