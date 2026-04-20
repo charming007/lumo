@@ -745,6 +745,15 @@ export function LessonCreateForm({
                       <div style={{ padding: '6px 10px', borderRadius: 999, background: '#fff', color: accent.text, fontWeight: 700, fontSize: 12 }}>{typeWarnings.length ? `${typeWarnings.length} type warning${typeWarnings.length === 1 ? '' : 's'}` : 'Type checks clear'}</div>
                     </div>
                     <div style={{ color: '#334155', lineHeight: 1.6 }}>{typeGuidance.summary}</div>
+                    {typeGuidance.learnerTemplate ? (
+                      <div style={{ display: 'grid', gap: 8, padding: 12, borderRadius: 12, background: '#fff', border: `1px solid ${accent.border}` }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ padding: '5px 9px', borderRadius: 999, background: accent.tint, color: accent.text, fontWeight: 800, fontSize: 12 }}>{typeGuidance.learnerTemplate.label}</span>
+                          <span style={{ padding: '5px 9px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{typeGuidance.learnerTemplate.structure}</span>
+                        </div>
+                        <div style={{ color: '#475569', lineHeight: 1.6 }}>{typeGuidance.learnerTemplate.operatorTip}</div>
+                      </div>
+                    ) : null}
                     <div style={{ display: 'grid', gap: 6 }}>
                       {typeGuidance.checklist.map((item) => (
                         <div key={item} style={{ color: accent.text, fontWeight: 700, fontSize: 13 }}>• {item}</div>

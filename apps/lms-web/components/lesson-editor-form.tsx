@@ -11,6 +11,7 @@ import { findModuleForLesson } from '../lib/module-lesson-match';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
+  getLessonTypeGuide,
   lessonStepTypeAccentMap,
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
@@ -710,6 +711,7 @@ export function LessonEditorForm({
           <div style={{ display: 'grid', gap: 14 }}>
             {activityDrafts.map((activity, index) => {
               const typeGuidance = getLessonStepTypeGuidance(activity.type);
+              const typeGuide = getLessonTypeGuide(activity.type);
               const typeWarnings = getLessonStepTypeWarnings(activity);
               const accent = lessonStepTypeAccentMap[activity.type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
               const choiceCount = countNonEmptyLines(activity.choiceLines);
@@ -749,6 +751,15 @@ export function LessonEditorForm({
                   <div style={{ padding: 14, borderRadius: 16, background: accent.tint, border: `1px solid ${accent.border}`, display: 'grid', gap: 10 }}>
                     <SectionLabel>{lessonStepTypeLabelMap[activity.type] ?? activity.type} authoring guidance</SectionLabel>
                     <div style={{ color: '#334155', lineHeight: 1.6 }}>{typeGuidance.summary}</div>
+                    {typeGuidance.learnerTemplate ? (
+                      <div style={{ display: 'grid', gap: 8, padding: 12, borderRadius: 12, background: '#fff', border: `1px solid ${accent.border}` }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ padding: '5px 9px', borderRadius: 999, background: accent.tint, color: accent.text, fontWeight: 800, fontSize: 12 }}>{typeGuidance.learnerTemplate.label}</span>
+                          <span style={{ padding: '5px 9px', borderRadius: 999, background: '#F8FAFC', color: '#475569', fontWeight: 700, fontSize: 12 }}>{typeGuidance.learnerTemplate.structure}</span>
+                        </div>
+                        <div style={{ color: '#475569', lineHeight: 1.6 }}>{typeGuidance.learnerTemplate.operatorTip}</div>
+                      </div>
+                    ) : null}
                     <div style={{ display: 'grid', gap: 6 }}>
                       {typeGuidance.checklist.map((item) => (
                         <div key={item} style={{ color: accent.text, fontWeight: 700, fontSize: 13 }}>• {item}</div>
@@ -795,65 +806,40 @@ export function LessonEditorForm({
 
                   <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
                     <FieldLabel>
-                      Learner prompt
+                      {typeGuide.promptLabel}
                       <textarea value={activity.prompt} onChange={(event) => updateActivity(index, { prompt: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 110 }} />
-                      <FieldHint>
-                        {activity.type === 'listen_repeat' ? 'Use the exact line learners should hear and repeat.' : activity.type === 'speak_answer' ? 'Write the spoken question or sentence frame the learner answers aloud.' : activity.type === 'letter_intro' ? 'Name the target letter or sound directly in the prompt.' : 'Keep the learner-facing instruction short and obvious.'}
-                      </FieldHint>
+                      <FieldHint>{typeGuide.promptHint}</FieldHint>
                     </FieldLabel>
                     <FieldLabel>
-                      Detail
+                      {typeGuide.detailLabel}
                       <textarea value={activity.detail} onChange={(event) => updateActivity(index, { detail: event.target.value })} rows={4} style={{ ...inputStyle, minHeight: 132 }} />
-                      <FieldHint>
-                        {activity.type === 'word_build' ? 'Describe the build mechanic: arrange letters, blend sounds, or assemble the target word.' : activity.type === 'image_choice' ? 'Describe what the learner sees and how distractors differ.' : 'Use this for the learner flow or scene-setting, not duplicated metadata.'}
-                      </FieldHint>
+                      <FieldHint>{typeGuide.detailHint}</FieldHint>
                     </FieldLabel>
                   </div>
 
-                  {(activity.type === 'listen_repeat' || activity.type === 'speak_answer' || activity.type === 'word_build' || activity.type === 'letter_intro') ? (
-                    <div style={{ padding: 14, borderRadius: 16, background: '#FFF7ED', border: '1px solid #FED7AA', display: 'grid', gap: 12 }}>
-                      <SectionLabel>Speech / build expectations</SectionLabel>
-                      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
-                        <FieldLabel>
-                          Evidence
-                          <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
-                          <FieldHint>
-                            {activity.type === 'listen_repeat' ? 'Example: learner repeats the full line with correct rhythm.' : activity.type === 'speak_answer' ? 'Example: learner gives a complete oral response independently.' : activity.type === 'word_build' ? 'Example: learner builds and reads the target word correctly.' : 'State what oral or demonstration evidence the teacher should observe.'}
-                          </FieldHint>
-                        </FieldLabel>
-                        <FieldLabel>
-                          Expected answers (comma separated)
-                          <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
-                          <FieldHint>
-                            {activity.type === 'letter_intro' ? 'List the target letter, sound, or example word.' : 'List accepted spoken targets or final build outcomes.'}
-                          </FieldHint>
-                        </FieldLabel>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
-                      <FieldLabel>
-                        Evidence
-                        <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
-                      </FieldLabel>
-                      <FieldLabel>
-                        Expected answers (comma separated)
-                        <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
-                      </FieldLabel>
-                    </div>
-                  )}
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      {typeGuide.evidenceLabel}
+                      <input value={activity.evidence} onChange={(event) => updateActivity(index, { evidence: event.target.value })} style={inputStyle} />
+                      <FieldHint>{typeGuide.evidenceHint}</FieldHint>
+                    </FieldLabel>
+                    <FieldLabel>
+                      {typeGuide.expectedAnswersLabel}
+                      <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
+                      <FieldHint>{typeGuide.expectedAnswersHint}</FieldHint>
+                    </FieldLabel>
+                  </div>
 
                   <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
                     <FieldLabel>
                       Tags (comma separated)
                       <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
+                      <FieldHint>{typeGuide.tagsHint}</FieldHint>
                     </FieldLabel>
                     <FieldLabel>
-                      Facilitator notes (one per line)
+                      {typeGuide.facilitatorLabel}
                       <textarea value={activity.facilitatorNotes} onChange={(event) => updateActivity(index, { facilitatorNotes: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
-                      <FieldHint>
-                        {activity.type === 'letter_intro' ? 'Use notes for tracing, modelling, mouth shape, or board moves.' : activity.type === 'image_choice' ? 'Use notes for reveal order or distractor coaching.' : 'Reserve notes for teacher actions, not learner-facing text.'}
-                      </FieldHint>
+                      <FieldHint>{typeGuide.facilitatorHint}</FieldHint>
                     </FieldLabel>
                   </div>
 

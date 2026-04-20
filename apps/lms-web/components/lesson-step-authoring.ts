@@ -7,6 +7,11 @@ import {
 export type LessonStepTypeGuidance = {
   summary: string;
   checklist: string[];
+  learnerTemplate?: {
+    label: string;
+    structure: string;
+    operatorTip: string;
+  };
 };
 
 export type ActivityDraftLike = {
@@ -62,20 +67,20 @@ export const lessonTypeFieldGuide: Record<string, {
   mediaHint?: string;
 }> = {
   listen_repeat: {
-    summary: 'Model the target language, define exactly what the learner repeats, and attach any audio/image cue the facilitator needs.',
-    promptLabel: 'Model line / learner prompt',
-    promptHint: 'The exact phrase the learner hears and repeats.',
-    detailLabel: 'Delivery notes',
-    detailHint: 'Pacing, gestures, chunking, or repetition rhythm.',
-    expectedAnswersLabel: 'Target utterance(s)',
-    expectedAnswersHint: 'Comma-separated acceptable repetitions or pronunciation variants.',
+    summary: 'Model the target language, define exactly what the learner repeats, and attach the cue learners hear before they echo it back.',
+    promptLabel: 'Coach line learners repeat',
+    promptHint: 'Write the exact model line the learner hears first, then repeats back word-for-word or chunk-by-chunk.',
+    detailLabel: 'Repeat pattern / delivery move',
+    detailHint: 'Spell out the rhythm: full-line echo, two chunks, gesture support, slow-fast repeat, or call-and-response.',
+    expectedAnswersLabel: 'Expected repeated line(s)',
+    expectedAnswersHint: 'Comma-separated acceptable repeats, chunks, or pronunciation variants the learner can say back.',
     evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'What proves the learner repeated accurately?',
+    evidenceHint: 'What proves the learner actually echoed the model accurately enough to move on?',
     facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'How the adult should model, prompt, or correct.',
-    tagsHint: 'Example: modelling, repetition, pronunciation',
-    mediaLabel: 'Media cues (kind|value per line)',
-    mediaHint: 'Optional audio/image prompt such as audio|https://... or image|nurse-card',
+    facilitatorHint: 'How the adult models, replays, points, gestures, chunks, or corrects without turning this into a different task.',
+    tagsHint: 'Example: modelling, repetition, pronunciation, echo-line',
+    mediaLabel: 'Model cues learners hear/see (kind|value per line)',
+    mediaHint: 'Usually add the actual playback or script cue here, for example audio|https://... , transcript|Say the full line once., or image|nurse-card.',
   },
   speak_answer: {
     summary: 'Capture the spoken question, the expected response frame, and how the facilitator should support without overfeeding the answer.',
@@ -110,22 +115,22 @@ export const lessonTypeFieldGuide: Record<string, {
     mediaHint: 'Optional letter cards, audio, or visual supports.',
   },
   image_choice: {
-    summary: 'This step should feel like a proper visual multiple-choice task: prompt, image options, correct option, and support notes.',
-    promptLabel: 'Image-choice prompt',
-    promptHint: 'Question the learner answers by selecting an image.',
-    detailLabel: 'Choice setup / contrast notes',
-    detailHint: 'How the images differ and what distractors test.',
-    expectedAnswersLabel: 'Expected answer labels',
-    expectedAnswersHint: 'Comma-separated correct labels or spoken follow-up answers.',
+    summary: 'This step should read like a picture-pick template: one learner prompt, a visible set of answer cards, one correct image, and clear distractors.',
+    promptLabel: 'Learner pick-the-picture prompt',
+    promptHint: 'Write the exact instruction or question the learner answers by choosing one picture card.',
+    detailLabel: 'What makes the pictures different',
+    detailHint: 'Describe the contrast between the correct image and distractors so operators know what the learner is meant to notice.',
+    expectedAnswersLabel: 'Correct image label(s) / spoken follow-up',
+    expectedAnswersHint: 'List the right card label plus any short follow-up language the learner may say after choosing it.',
     evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'Correct selection, explanation, or spoken extension.',
+    evidenceHint: 'What proves the learner picked the right picture — correct tap, named answer, quick explanation, or both?',
     facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'How to name options, repeat prompt, or extend the answer.',
-    tagsHint: 'Example: visual-discrimination, vocabulary, comprehension',
-    choicesLabel: 'Image options (id|label|correct/wrong|mediaKind|mediaValue per line)',
-    choicesHint: 'One line per option. Usually use image as mediaKind and an asset/id/url as mediaValue.',
-    mediaLabel: 'Shared media cues (kind|value per line)',
-    mediaHint: 'Optional shared instruction image/audio shown before the choices.',
+    facilitatorHint: 'How the adult presents the card set, repeats the prompt, reveals distractors, or extends after the selection.',
+    tagsHint: 'Example: picture-pick, visual-discrimination, vocabulary, comprehension',
+    choicesLabel: 'Picture answer cards (id|label|correct/wrong|mediaKind|mediaValue per line)',
+    choicesHint: 'Build the real learner card set here. Each row should be one visible answer card, and the correct card must be marked clearly.',
+    mediaLabel: 'Shared prompt cue above the cards (kind|value per line)',
+    mediaHint: 'Optional scene image or spoken instruction shown once before the learner chooses. Skip it if the answer cards already carry the full task.',
   },
   oral_quiz: {
     summary: 'Treat this as a quick oral check: crisp question, acceptable answers, and a clear success criterion.',
@@ -158,22 +163,22 @@ export const lessonTypeFieldGuide: Record<string, {
     mediaHint: 'Optional audio or image cues tied to the listening task.',
   },
   tap_choice: {
-    summary: 'Structure this as a tap-select interaction with explicit options, correct tap target, and any shared media the learner sees.',
-    promptLabel: 'Tap-choice prompt',
-    promptHint: 'Instruction the learner follows by tapping one option.',
-    detailLabel: 'Interaction notes',
-    detailHint: 'How distractors work or what the learner should notice before tapping.',
-    expectedAnswersLabel: 'Expected answer labels',
-    expectedAnswersHint: 'Comma-separated correct labels or verbal follow-up answers.',
+    summary: 'Structure this as a tap-the-right-target template: short instruction, fast-scanning options, one correct target, and clean distractors.',
+    promptLabel: 'Learner tap instruction',
+    promptHint: 'Write the short instruction the learner follows before tapping one target.',
+    detailLabel: 'Tap logic / distractor notes',
+    detailHint: 'Explain what the learner notices before tapping and how the distractors create a real decision instead of random buttons.',
+    expectedAnswersLabel: 'Correct tap label(s) / spoken follow-up',
+    expectedAnswersHint: 'List the correct target label plus any follow-up words the learner may say after the tap.',
     evidenceLabel: 'Evidence to capture',
-    evidenceHint: 'Correct tap, speed, confidence, or verbal justification.',
+    evidenceHint: 'What counts as success here: correct tap, quick recognition, no prompt, verbal confirmation, or a retry rule?',
     facilitatorLabel: 'Facilitator coaching notes',
-    facilitatorHint: 'Prompting, retries, or extension question after the tap.',
-    tagsHint: 'Example: interaction, selection, comprehension',
-    choicesLabel: 'Tap options (id|label|correct/wrong|mediaKind|mediaValue per line)',
-    choicesHint: 'One line per tappable option. Add media when the option is visual.',
-    mediaLabel: 'Shared media cues (kind|value per line)',
-    mediaHint: 'Optional shared image/audio shown above the tap choices.',
+    facilitatorHint: 'Prompting, retries, pacing, or the extension question asked after the learner taps.',
+    tagsHint: 'Example: tap-target, quick-recognition, interaction, comprehension',
+    choicesLabel: 'Tap targets (id|label|correct/wrong|mediaKind|mediaValue per line)',
+    choicesHint: 'Create the actual tappable targets here. Keep labels short so learners can scan and choose fast. Add media only when the target itself needs it.',
+    mediaLabel: 'Shared cue before the tap (kind|value per line)',
+    mediaHint: 'Optional shared image, audio, or prompt card shown before the learner taps a target.',
   },
   letter_intro: {
     summary: 'Call out the grapheme, sound, anchor word, and any tracing or visual support needed for the introduction step.',
@@ -205,18 +210,33 @@ export function getLessonStepTypeGuidance(type: string): LessonStepTypeGuidance 
   switch (type) {
     case 'image_choice':
       return {
-        summary: 'Picture-based discrimination. The editor should force a visible image payload and enough options to make the choice meaningful.',
-        checklist: ['Add at least 2 choices', 'Mark at least 1 correct choice', 'Attach image media cues to the choices or step'],
+        summary: 'Picture-based discrimination. The editor should show a real learner card set, not abstract metadata pretending to be a template.',
+        checklist: ['Add at least 2 picture cards', 'Mark the one correct card clearly', 'Attach image media to the cards or shared prompt cue'],
+        learnerTemplate: {
+          label: 'Learner sees: prompt + picture cards',
+          structure: '1 prompt → 2-4 visible picture answers → learner picks 1 correct card',
+          operatorTip: 'If an operator cannot point to the exact correct card in two seconds, the step is still too vague.',
+        },
       };
     case 'tap_choice':
       return {
-        summary: 'Fast recognition tap task. Keep labels short, use clean distractors, and make the correct tap unambiguous.',
-        checklist: ['Add at least 2 tap targets', 'Mark the correct answer clearly', 'Use concise option labels learners can scan fast'],
+        summary: 'Fast recognition tap task. Keep the target list short, scannable, and obviously interactive.',
+        checklist: ['Add at least 2 tap targets', 'Mark the correct target clearly', 'Keep target labels short enough to scan fast'],
+        learnerTemplate: {
+          label: 'Learner sees: instruction + tap targets',
+          structure: '1 short instruction → 2-4 tappable targets → learner taps 1 correct target',
+          operatorTip: 'Use this when speed and recognition matter; if the learner needs long reading time, it is probably the wrong type.',
+        },
       };
     case 'listen_repeat':
       return {
-        summary: 'Audio-first imitation. Authors should define what learners hear, what they repeat, and what counts as success.',
-        checklist: ['Provide an audio/script cue', 'Set a repeat-focused evidence target', 'Add expected spoken output'],
+        summary: 'Audio-first imitation. Make the model line, repeat pattern, and success bar painfully clear so the authoring view matches classroom reality.',
+        checklist: ['Provide the model line learners hear first', 'Attach an audio/script cue', 'State the exact repeated output or chunk'],
+        learnerTemplate: {
+          label: 'Learner hears: model → echo',
+          structure: '1 model cue plays or is read → learner repeats the same line or chunk back',
+          operatorTip: 'This is not a comprehension question. If the learner is supposed to choose or explain, use a different step type.',
+        },
       };
     case 'speak_answer':
       return {

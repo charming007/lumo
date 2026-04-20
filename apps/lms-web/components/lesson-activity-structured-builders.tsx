@@ -149,23 +149,23 @@ function getChoiceLabels(type: BuilderType) {
   switch (type) {
     case 'image_choice':
       return {
-        title: 'Visual option builder',
-        hint: 'Build the learner-facing answer cards here. Add the option label, mark the right answer, then attach the image or prompt asset that makes the choice real.',
-        labelName: 'Option label',
-        mediaTypeLabel: 'Visual asset type',
-        mediaValueLabel: 'Image file, URL, or asset key',
+        title: 'Picture card builder',
+        hint: 'Build the exact learner answer cards here: one row = one picture card the learner can inspect and choose. Keep the right card obvious in authoring, not just in your head.',
+        labelName: 'Picture card label',
+        mediaTypeLabel: 'Card asset type',
+        mediaValueLabel: 'Picture card file, URL, or asset key',
         mediaPlaceholder: 'For example: nurse-card, https://..., or storage/path/image.webp',
-        emptyState: 'No visual options yet. Add at least two cards so this stops pretending to be an image task and starts acting like one.',
+        emptyState: 'No picture cards yet. Add at least two cards so the learner actually has a visual choice to make.',
       };
     case 'tap_choice':
       return {
         title: 'Tap target builder',
-        hint: 'Create the tappable learner targets instead of editing raw transport strings. Keep labels short, then attach an optional support asset when the target is visual or audio-led.',
+        hint: 'Create the actual targets the learner taps. One row = one tappable target. Keep labels short and scannable, then attach support media only if the target itself needs it.',
         labelName: 'Tap target label',
-        mediaTypeLabel: 'Support asset type',
-        mediaValueLabel: 'Support asset file, URL, or key',
-        mediaPlaceholder: 'Optional image/audio reference for this tap target',
-        emptyState: 'No tap targets yet. Add at least two targets so the learner has an actual decision to make.',
+        mediaTypeLabel: 'Target support asset type',
+        mediaValueLabel: 'Target support file, URL, or key',
+        mediaPlaceholder: 'Optional image/audio reference tied to this tap target',
+        emptyState: 'No tap targets yet. Add at least two targets so the learner has a real decision instead of a dead-end button.',
       };
     case 'word_build':
       return {
@@ -194,12 +194,12 @@ function getMediaLabels(type: BuilderType) {
   switch (type) {
     case 'listen_repeat':
       return {
-        title: 'Listening asset builder',
-        hint: 'Attach the model audio, prompt card, or support cue learners hear or see before they repeat.',
-        typeLabel: 'Listening asset type',
-        valueLabel: 'Listening asset file, URL, or key',
+        title: 'Model cue builder',
+        hint: 'Attach the exact cue learners hear or see before they echo it back. One row = one model cue, usually audio first, with transcript/prompt support only when it helps delivery.',
+        typeLabel: 'Model cue type',
+        valueLabel: 'Model cue file, URL, or key',
         placeholder: 'Audio file, transcript card key, or support image reference',
-        emptyState: 'No listening asset attached yet. Add the cue learners repeat from so the step is not doing audio theatre with plain text.',
+        emptyState: 'No model cue attached yet. Add the line learners repeat from so this does not fake a listen-and-repeat task with plain text alone.',
       };
     case 'speak_answer':
       return {
