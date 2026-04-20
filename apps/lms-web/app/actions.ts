@@ -448,6 +448,20 @@ export async function updateSubjectAction(formData: FormData) {
   }));
 }
 
+export async function quickUpdateSubjectStatusAction(formData: FormData) {
+  const subjectId = String(formData.get('subjectId') || '');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
+  const status = String(formData.get('status') || 'draft');
+
+  await apiWrite(`/api/v1/subjects/${subjectId}`, 'PATCH', { status });
+  revalidatePath('/content');
+  revalidatePath('/canvas');
+  revalidatePath(returnPath);
+  redirect(appendSearchParams(returnPath, {
+    message: `Subject moved to ${status}`,
+  }));
+}
+
 export async function deleteSubjectAction(formData: FormData) {
   const subjectId = String(formData.get('subjectId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
