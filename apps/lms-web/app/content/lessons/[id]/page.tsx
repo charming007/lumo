@@ -2,15 +2,12 @@ import Link from 'next/link';
 import { DeploymentBlockerCard } from '../../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
-import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessonAssets, fetchSubjects } from '../../../../lib/api';
-import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
+import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { normalizeLessonForAuthoring } from '../../../../lib/lesson-authoring-normalize';
+import { sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
+import type { CurriculumModule, Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
-
-function normalizeParam(value: string | string[] | undefined) {
-  if (Array.isArray(value)) return value[0] ?? '';
-  return value ?? '';
-}
 
 const cardStyle = {
   padding: 20,
@@ -19,6 +16,40 @@ const cardStyle = {
   border: '1px solid #e5e7eb',
   boxShadow: '0 12px 30px rgba(15,23,42,0.06)',
 } as const;
+
+function buildFallbackSubject(subjects: Subject[], lesson: { subjectId?: string | null; subjectName?: string | null }) {
+  const subjectId = lesson.subjectId?.trim();
+  const subjectName = lesson.subjectName?.trim();
+  const matched = subjects.find((subject) => subject.id === subjectId || (subjectName && subject.name === subjectName));
+
+  if (matched) return matched;
+  if (!subjectId && !subjectName) return null;
+
+  return {
+    id: subjectId ?? '__lesson-subject',
+    name: subjectName ?? 'Current subject',
+  } satisfies Subject;
+}
+
+function buildFallbackModule(modules: CurriculumModule[], lesson: { moduleId?: string | null; moduleTitle?: string | null; subjectId?: string | null; subjectName?: string | null }) {
+  const moduleId = lesson.moduleId?.trim();
+  const moduleTitle = lesson.moduleTitle?.trim();
+  const matched = modules.find((module) => module.id === moduleId || (moduleTitle && module.title === moduleTitle));
+
+  if (matched) return matched;
+  if (!moduleId && !moduleTitle) return null;
+
+  return {
+    id: moduleId ?? '__lesson-module',
+    title: moduleTitle ?? 'Current module',
+    subjectId: lesson.subjectId?.trim() || null,
+    subjectName: lesson.subjectName?.trim() ?? 'Current subject',
+    level: 'Current lane',
+    lessonCount: 1,
+    status: 'unknown',
+    strandName: 'Current strand',
+  } satisfies CurriculumModule;
+}
 
 export default async function LessonStudioEditPage({
   params,
@@ -29,108 +60,86 @@ export default async function LessonStudioEditPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const from = normalizeParam(query?.from) || '/content';
+  const from = sanitizeInternalReturnPath(query?.from, '/content');
 
-  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
-    return (
-      <DeploymentBlockerCard
-        title="Lesson Editor"
-        subtitle="Production wiring is incomplete, so lesson editing is blocked instead of pretending a live lesson pack can be loaded."
-        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson editor API base URL is unsafe for production.'}
-        blockerDetail={(
-          <>
-            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would make lesson editing look available while the route is pointed at a dead or unsafe backend.
-          </>
-        )}
-        whyBlocked={[
-          'Lesson editing depends on live lesson payloads, subject/module context, and assessment links. If the API base is wrong, this route should stop loudly instead of crashing mid-load.',
-          'Operators use this route for real curriculum fixes. A broken editor is a deployment blocker, not a cosmetic bug.',
-          'This keeps lesson routes aligned with the rest of the LMS production blocker behavior instead of leaving a hidden hole in content ops.',
-        ]}
-        verificationItems={[
-          {
-            surface: 'Lesson edit route',
-            expected: 'Loads the live lesson payload or shows the blocker card before any fetch explodes',
-            failure: 'Server error page when production API env is missing or invalid',
-          },
-          {
-            surface: 'Assessment context panel',
-            expected: 'Shows the linked gate only when lesson + module data load from the API',
-            failure: 'Editor shell breaks before operators can even see why the route is unavailable',
-          },
-          {
-            surface: 'Configured API base URL',
-            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
-            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
-          },
-        ]}
-        docs={[
-          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'Content blocker', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Assessments blocker', href: '/assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
-        ]}
-      />
-    );
-  }
-
-  const [lessonResult, modulesResult, subjectsResult, assessmentsResult, assetsResult] = await Promise.allSettled([
+  const [lessonResult, lessonsResult, modulesResult, subjectsResult, assessmentsResult, assetsResult] = await Promise.allSettled([
     fetchLesson(id),
+    fetchLessons(),
     fetchCurriculumModules(),
     fetchSubjects(),
     fetchAssessments(),
     fetchLessonAssets(),
   ]);
 
+  const fallbackInventoryLesson = lessonsResult.status === 'fulfilled'
+    ? lessonsResult.value.find((entry) => entry.id === id) ?? null
+    : null;
+  const rawLesson = lessonResult.status === 'fulfilled' ? lessonResult.value : fallbackInventoryLesson;
+  const { lesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(rawLesson);
+  const lessonFeedRecoveredFromInventory = lessonResult.status === 'rejected' && Boolean(fallbackInventoryLesson);
+
   const failedSources = [
-    lessonResult.status === 'rejected' ? 'lesson' : null,
+    lessonResult.status === 'rejected' && !fallbackInventoryLesson ? 'lesson' : null,
+    lessonFeedRecoveredFromInventory ? 'lesson (direct feed degraded, inventory fallback used)' : null,
+    lessonPayloadIssues.length ? 'lesson payload' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
   ].filter(Boolean) as string[];
-  const missingCoreEditorFeeds = [
-    lessonResult.status === 'rejected' ? 'lesson' : null,
-    modulesResult.status === 'rejected' ? 'modules' : null,
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
-  ].filter(Boolean) as string[];
+  const loadedModules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
 
-  if (missingCoreEditorFeeds.length) {
+  const fallbackSubject = lesson ? buildFallbackSubject(loadedSubjects, lesson) : null;
+  const fallbackModule = lesson ? buildFallbackModule(loadedModules, lesson) : null;
+  const subjects = fallbackSubject && !loadedSubjects.some((subject) => subject.id === fallbackSubject.id)
+    ? [...loadedSubjects, fallbackSubject]
+    : loadedSubjects;
+  const modules = fallbackModule && !loadedModules.some((module) => module.id === fallbackModule.id)
+    ? [...loadedModules, fallbackModule]
+    : loadedModules;
+  const hasUsableCurriculumContext = Boolean(lesson && (subjects.length > 0 || fallbackSubject) && (modules.length > 0 || fallbackModule));
+
+  if (!lesson || !hasUsableCurriculumContext) {
     return (
       <DeploymentBlockerCard
         title="Lesson Editor"
         subtitle="Critical editor feeds are degraded, so lesson editing is blocked instead of crashing into a server error page."
-        blockerHeadline="Deployment blocker: lesson editor dependencies are down."
+        blockerHeadline="Deployment blocker: lesson editor context could not be recovered."
         blockerDetail={(
           <>
-            The editor cannot safely load this lesson pack while core authoring data is missing. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ')}.
+            The editor cannot safely load this lesson because the minimum authoring context is still incomplete. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ') || 'unknown'}.
           </>
         )}
         whyBlocked={[
-          'The lesson payload plus subject/module context are the minimum required to edit safely. Without them, save actions become guesswork or outright impossible.',
-          'A production admin route that faceplants on one failed feed is a release blocker because operators lose the ability to fix live curriculum issues.',
-          'Blocking loudly here is safer than rendering a broken editor shell that hides which dependency actually failed.',
+          'Editing stays available when the lesson payload and enough curriculum context can be recovered. That recovery failed here.',
+          'The exact blocker is not “the whole LMS is broken”; it is that this lesson cannot be attached to a real lesson record plus module/subject context right now.',
+          'Blocking loudly here is still safer than rendering a broken editor shell that saves against a ghost lesson or an orphan module.',
         ]}
         verificationItems={[
           {
-            surface: 'Lesson editor route',
-            expected: 'Loads the lesson plus subject/module context or shows this blocker card when those core feeds fail',
-            failure: 'Next.js error page on /content/lessons/[id]',
+            surface: 'Lesson payload',
+            expected: 'The requested lesson record loads successfully',
+            failure: 'The lesson feed is down or this lesson no longer exists',
           },
           {
-            surface: 'Assessment context panel',
-            expected: 'Assessment link details appear when the assessments feed is healthy, but the editor still loads without it',
-            failure: 'The entire route crashes because assessment metadata is temporarily unavailable',
+            surface: 'Curriculum context',
+            expected: 'At least one usable subject and module context is available, either from live feeds or from the lesson record itself',
+            failure: 'The editor cannot determine where this lesson belongs',
           },
           {
-            surface: 'Save path after recovery',
-            expected: 'Operators can reopen the editor and save once lesson/modules/subjects recover',
-            failure: 'Content editing remains blocked after upstream recovery',
+            surface: 'Optional metadata feeds',
+            expected: 'Assessment and asset panels can degrade without blocking editing',
+            failure: 'Optional feed loss incorrectly blocks the whole editor',
           },
         ]}
         fixItems={[
-          { label: 'Failing feeds', value: missingCoreEditorFeeds.join(', ') },
-          { label: 'Operator action', value: 'Restore lesson + curriculum context before editing this pack' },
-          { label: 'Optional feed', value: assessmentsResult.status === 'rejected' ? 'Assessment context is temporarily unavailable' : 'Assessment context is healthy' },
+          { label: 'Failing feeds', value: failedSources.join(', ') || 'unknown' },
+          { label: 'Must be restored', value: !lesson ? 'Lesson payload' : 'Lesson subject/module context' },
+          { label: 'Still optional', value: assessmentsResult.status === 'rejected' || assetsResult.status === 'rejected' ? 'Assessment and asset side panels' : 'Assessment and asset side panels are healthy' },
         ]}
         docs={[
           { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
@@ -138,16 +147,6 @@ export default async function LessonStudioEditPage({
         ]}
       />
     );
-  }
-
-  const lesson = lessonResult.status === 'fulfilled' ? lessonResult.value : null;
-  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
-  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
-  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
-  const assets = assetsResult.status === 'fulfilled' ? assetsResult.value : [];
-
-  if (!lesson) {
-    return null;
   }
 
   const selectedModule = modules.find((module) => module.id === lesson.moduleId) ?? modules[0] ?? null;
@@ -181,6 +180,12 @@ export default async function LessonStudioEditPage({
       )}
     >
       <FeedbackBanner message={query?.message} />
+
+      {failedSources.length ? (
+        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Editor recovered with degraded feeds: {failedSources.join(', ')}. Lesson editing stays live because the lesson payload and curriculum context are still intact.
+        </div>
+      ) : null}
 
       <section style={{ display: 'grid', gap: 18 }}>
         <LessonEditorForm
