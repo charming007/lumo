@@ -69,7 +69,7 @@ export function DeploymentBlockerCard({
       ) : undefined}
     >
       <section style={{ display: 'grid', gap: 20 }}>
-        <div style={{ padding: '22px 24px', borderRadius: 24, background: 'linear-gradient(135deg, #7c2d12 0%, #9a3412 100%)', border: '1px solid #ea580c', color: '#ffedd5', boxShadow: '0 24px 60px rgba(124, 45, 18, 0.24)' }}>
+        <div style={{ padding: 'clamp(18px, 4vw, 24px)', borderRadius: 24, background: 'linear-gradient(135deg, #7c2d12 0%, #9a3412 100%)', border: '1px solid #ea580c', color: '#ffedd5', boxShadow: '0 24px 60px rgba(124, 45, 18, 0.24)', overflowWrap: 'anywhere' }}>
           <div style={{ display: 'grid', gap: 10 }}>
             <strong style={{ fontSize: 24, color: 'white' }}>{blockerHeadline}</strong>
             <div style={{ lineHeight: 1.7 }}>

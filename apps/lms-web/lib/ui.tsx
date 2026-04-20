@@ -23,30 +23,42 @@ export function PageShell({
   return (
     <main style={{ padding: 'clamp(18px, 4vw, 32px)', minWidth: 0 }}>
       <Breadcrumbs items={breadcrumbs} currentLabel={title} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div>
+      <div className="page-shell__header" style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div className="page-shell__copy" style={{ minWidth: 0, flex: '1 1 320px' }}>
           <h1 style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 34px)', letterSpacing: -1, color: '#0f172a' }}>{title}</h1>
           <p style={{ margin: '10px 0 0', color: '#556070', maxWidth: 760, lineHeight: 1.6 }}>{subtitle}</p>
         </div>
-        {aside}
+        {aside ? <div className="page-shell__aside" style={{ minWidth: 0, flex: '1 1 280px' }}>{aside}</div> : null}
       </div>
       {children}
+      <style>{`
+        @media (max-width: 720px) {
+          .page-shell__header {
+            gap: 16px;
+            margin-bottom: 20px;
+          }
+
+          .page-shell__aside {
+            width: 100%;
+          }
+        }
+      `}</style>
     </main>
   );
 }
 
 export function Card({ title, children, eyebrow }: { title: string; children: React.ReactNode; eyebrow?: string }) {
   return (
-    <div style={{ background: 'white', borderRadius: 24, padding: 24, boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)', border: '1px solid #eef2f7' }}>
+    <div style={{ background: 'white', borderRadius: 24, padding: 'clamp(18px, 4vw, 24px)', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)', border: '1px solid #eef2f7', minWidth: 0 }}>
       {eyebrow ? <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', marginBottom: 8 }}>{eyebrow}</div> : null}
-      <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 20, color: '#0f172a' }}>{title}</h2>
+      <h2 style={{ marginTop: 0, marginBottom: 16, fontSize: 20, color: '#0f172a', overflowWrap: 'anywhere' }}>{title}</h2>
       {children}
     </div>
   );
 }
 
 export function Pill({ label, tone = '#EEF2FF', text = '#3730A3' }: { label: string; tone?: string; text?: string }) {
-  return <span style={{ display: 'inline-flex', padding: '7px 12px', borderRadius: 999, background: tone, color: text, fontSize: 12, fontWeight: 800 }}>{label}</span>;
+  return <span style={{ display: 'inline-flex', padding: '7px 12px', borderRadius: 999, background: tone, color: text, fontSize: 12, fontWeight: 800, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center', justifyContent: 'center' }}>{label}</span>;
 }
 
 export function MetricList({ items }: { items: { label: string; value: string }[] }) {
@@ -65,11 +77,11 @@ export function MetricList({ items }: { items: { label: string; value: string }[
 export function SimpleTable({ columns, rows }: { columns: string[]; rows: React.ReactNode[][] }) {
   return (
     <div className="simple-table-shell" style={{ overflowX: 'auto', background: 'white', borderRadius: 24, padding: 12, border: '1px solid #eef2f7', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
-      <table className="simple-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table className="simple-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column} style={{ textAlign: 'left', padding: 14, borderBottom: '1px solid #e5e7eb', color: '#6b7280', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 }}>{column}</th>
+              <th key={column} style={{ textAlign: 'left', padding: 14, borderBottom: '1px solid #e5e7eb', color: '#6b7280', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6, overflowWrap: 'anywhere' }}>{column}</th>
             ))}
           </tr>
         </thead>
@@ -77,14 +89,14 @@ export function SimpleTable({ columns, rows }: { columns: string[]; rows: React.
           {rows.map((row, index) => (
             <tr key={index}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} data-label={columns[cellIndex] ?? `Column ${cellIndex + 1}`} style={{ padding: 14, borderBottom: '1px solid #f1f5f9', verticalAlign: 'top', color: '#0f172a' }}>{cell}</td>
+                <td key={cellIndex} data-label={columns[cellIndex] ?? `Column ${cellIndex + 1}`} style={{ padding: 14, borderBottom: '1px solid #f1f5f9', verticalAlign: 'top', color: '#0f172a', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{cell}</td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
       <style>{`
-        @media (max-width: 720px) {
+        @media (max-width: 960px) {
           .simple-table-shell {
             overflow: visible;
             padding: 0;
@@ -130,7 +142,7 @@ export function SimpleTable({ columns, rows }: { columns: string[]; rows: React.
 
           .simple-table td {
             display: grid;
-            grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 96px) minmax(0, 1fr);
             gap: 10px;
             align-items: start;
             padding: 12px 14px;
@@ -148,6 +160,13 @@ export function SimpleTable({ columns, rows }: { columns: string[]; rows: React.
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.06em;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .simple-table td {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 6px;
           }
         }
       `}</style>

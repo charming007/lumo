@@ -25,7 +25,7 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seed
       style={{
         background: 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
         borderRadius: 28,
-        padding: '18px 22px',
+        padding: 'clamp(16px, 4vw, 22px)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -36,7 +36,7 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seed
         boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minWidth: 0, flex: '1 1 280px' }}>
         <button
           type="button"
           className="topbar__sidebar-toggle"
@@ -48,15 +48,15 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seed
         >
           {sidebarCollapsed ? '⇥ Expand nav' : '⇤ Collapse nav'}
         </button>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>Welcome back</div>
-          <div style={{ fontSize: 'clamp(22px, 3vw, 28px)', fontWeight: 900, color: '#0f172a' }}>Lumo command center</div>
+          <div style={{ fontSize: 'clamp(22px, 3vw, 28px)', fontWeight: 900, color: '#0f172a', overflowWrap: 'anywhere' }}>Lumo command center</div>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        <div style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>Northern Nigeria pilot</div>
-        <div style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{dashboardStatus}</div>
-        <div style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Admin</div>
+      <div className="topbar__meta" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0, flex: '1 1 280px' }}>
+        <div className="topbar__meta-chip" style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>Northern Nigeria pilot</div>
+        <div className="topbar__meta-chip" style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{dashboardStatus}</div>
+        <div className="topbar__meta-chip" style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Admin</div>
       </div>
 
       <style>{`
@@ -67,9 +67,26 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seed
           gap: 8px;
         }
 
+        .topbar__meta-chip {
+          max-width: 100%;
+          overflow-wrap: anywhere;
+          text-align: center;
+        }
+
         @media (max-width: 960px) {
           .topbar__sidebar-toggle {
             display: none;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .topbar__meta {
+            width: 100%;
+            justify-content: stretch;
+          }
+
+          .topbar__meta-chip {
+            flex: 1 1 100%;
           }
         }
       `}</style>
