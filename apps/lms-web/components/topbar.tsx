@@ -1,9 +1,13 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
 import { describeDashboardStatus } from '../lib/trust-copy';
 
 type TopbarProps = {
   sidebarCollapsed?: boolean;
   onToggleSidebarCollapse?: () => void;
   seedCount?: number;
+  buildSignature: string;
 };
 
 const desktopSidebarToggleStyle: React.CSSProperties = {
@@ -17,8 +21,14 @@ const desktopSidebarToggleStyle: React.CSSProperties = {
   boxShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
 };
 
-export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seedCount = 0 }: TopbarProps) {
+export function Topbar({
+  sidebarCollapsed = false,
+  onToggleSidebarCollapse,
+  seedCount = 0,
+  buildSignature,
+}: TopbarProps) {
   const dashboardStatus = describeDashboardStatus(seedCount);
+  const pathname = usePathname() || '/';
 
   return (
     <div
@@ -56,6 +66,8 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seed
       <div className="topbar__meta" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0, flex: '1 1 280px' }}>
         <div className="topbar__meta-chip" style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>Northern Nigeria pilot</div>
         <div className="topbar__meta-chip" style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{dashboardStatus}</div>
+        <div className="topbar__meta-chip" style={{ background: '#ede9fe', color: '#5b21b6', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }} title={`Route signature ${pathname}`}>route {pathname}</div>
+        <div className="topbar__meta-chip topbar__meta-chip--build" style={{ background: '#111827', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }} title={buildSignature}>{buildSignature}</div>
         <div className="topbar__meta-chip" style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Admin</div>
       </div>
 
@@ -73,6 +85,12 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seed
           text-align: center;
         }
 
+        .topbar__meta-chip--build {
+          max-width: min(100%, 420px);
+          font-size: 12px;
+          line-height: 1.35;
+        }
+
         @media (max-width: 960px) {
           .topbar__sidebar-toggle {
             display: none;
@@ -87,6 +105,10 @@ export function Topbar({ sidebarCollapsed = false, onToggleSidebarCollapse, seed
 
           .topbar__meta-chip {
             flex: 1 1 100%;
+          }
+
+          .topbar__meta-chip--build {
+            max-width: 100%;
           }
         }
       `}</style>
