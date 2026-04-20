@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { AssetLibraryFilters, AssetLibraryTable, AssetRegisterForm, AssetUploadForm } from '../../../components/asset-library-forms';
 import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../components/feedback-banner';
-import { fetchAssetRuntime, fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus } from '../../../lib/api';
-import { API_BASE_DIAGNOSTIC } from '../../../lib/config';
+import { ApiRequestError, fetchAssetRuntime, fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus } from '../../../lib/api';
+import { API_BASE, API_BASE_DIAGNOSTIC } from '../../../lib/config';
 import { sanitizeInternalReturnPath } from '../../../lib/safe-return-path';
 import { PageShell } from '../../../lib/ui';
 
@@ -36,6 +36,36 @@ function runtimeReadinessTone(readiness?: 'ready' | 'degraded' | 'blocked') {
   }
 
   return { background: '#FFF7ED', border: '1px solid #FDBA74', accent: '#9A3412', chipBackground: '#FFEDD5', chipColor: '#9A3412' };
+}
+
+function describeAssetRegistryFailure(error: unknown) {
+  const assetEndpoint = `${API_BASE}/api/v1/assets`;
+
+  if (error instanceof ApiRequestError && error.path === '/api/v1/assets' && error.status === 404) {
+    return {
+      summary: `Live asset registry route missing: the LMS reached ${assetEndpoint}, but the deployed backend answered 404 for /api/v1/assets. This is a deployment mismatch, not an empty library.`,
+      operatorGuidance: `Most likely causes: (1) the live API deployment is outdated and does not ship the /api/v1/assets route yet, (2) NEXT_PUBLIC_API_BASE_URL points the LMS at the wrong backend/base URL, or (3) a proxy/rewrite is stripping the /api/v1 prefix before the request reaches the API. Verify the exact deployed API behind NEXT_PUBLIC_API_BASE_URL, then hit ${assetEndpoint} directly and confirm it serves the assets route before trusting this page again.`,
+      shortLabel: 'Live backend route missing or LMS is pointed at the wrong API base',
+    };
+  }
+
+  if (error instanceof ApiRequestError) {
+    return {
+      summary: `Live asset registry request failed: ${assetEndpoint} returned HTTP ${error.status}. This is a live backend/API-base problem, not proof that the library is empty.`,
+      operatorGuidance: `Verify NEXT_PUBLIC_API_BASE_URL, then hit ${assetEndpoint} directly and inspect the deployed API logs/config audit before trusting asset operations again.`,
+      shortLabel: `Live asset registry request failed with HTTP ${error.status}`,
+    };
+  }
+
+  const message = error instanceof Error && error.message.trim()
+    ? error.message.trim()
+    : 'The live asset registry API rejected the listing request.';
+
+  return {
+    summary: `Live asset registry request failed for ${assetEndpoint}. This is a backend/API wiring issue, not an empty library. ${message}`,
+    operatorGuidance: `Verify NEXT_PUBLIC_API_BASE_URL, then hit ${assetEndpoint} directly and inspect the deployed API logs/config audit before trusting asset operations again.`,
+    shortLabel: 'Live asset registry request failed',
+  };
 }
 
 export default async function AssetLibraryPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
@@ -141,11 +171,10 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const assetUploadsReady = configAudit?.assetUploads?.ready ?? null;
   const assetUploadBlocker = configAudit?.assetUploads?.blocker ?? null;
   const assetUploadRoot = configAudit?.assetUploads?.root ?? storageStatus?.path ?? null;
-  const assetListingFailureDetail = assetsResult.status === 'rejected'
-    ? (assetsResult.reason instanceof Error && assetsResult.reason.message.trim()
-      ? assetsResult.reason.message.trim()
-      : 'The live asset registry API rejected the listing request.')
+  const assetListingFailure = assetsResult.status === 'rejected'
+    ? describeAssetRegistryFailure(assetsResult.reason)
     : null;
+  const assetListingFailureDetail = assetListingFailure?.summary ?? null;
   const assetFeedFailed = assetsResult.status === 'rejected';
   const storageUploadsBlocked = assetUploadsReady === false;
   const configAuditReady = configAudit?.summary?.ready ?? null;
@@ -154,12 +183,12 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const degradedActionLabel = storageUploadsBlocked
     ? 'Check asset upload env + storage, then use Register external asset until it is fixed'
     : runtimeOnlyRegistryOutage
-      ? 'Treat this as a live API/runtime outage on the asset registry endpoint, not an empty-library result'
+      ? (assetListingFailure?.shortLabel ?? 'Treat this as a live API/runtime outage on the asset registry endpoint, not an empty-library result')
       : 'Core curriculum scope is missing — restore subject/module/lesson feeds first';
   const degradedActionDetail = storageUploadsBlocked
     ? `${assetUploadBlocker ?? 'Upload storage is unavailable.'}${assetUploadRoot ? ` Current root: ${assetUploadRoot}.` : ''} Inspect LUMO_ASSET_UPLOAD_DIR on the API service, then verify /api/v1/admin/config/audit, /api/v1/admin/storage/status, and /api/v1/admin/storage/integrity before retrying uploads.`
     : runtimeOnlyRegistryOutage
-      ? 'Subjects, modules, and lessons still loaded, so this is not just the page shell collapsing. The failing piece is the live asset registry feed itself. Check NEXT_PUBLIC_API_BASE_URL in the LMS, API_BASE_URL/LUMO_PUBLIC_API_URL on the API if runtime file links look wrong, then hit /api/v1/assets and /api/v1/admin/config/audit on the deployed API before trusting this route again.'
+      ? (assetListingFailure?.operatorGuidance ?? 'Subjects, modules, and lessons still loaded, so this is not just the page shell collapsing. The failing piece is the live asset registry feed itself. Check NEXT_PUBLIC_API_BASE_URL in the LMS, API_BASE_URL/LUMO_PUBLIC_API_URL on the API if runtime file links look wrong, then hit /api/v1/assets and /api/v1/admin/config/audit on the deployed API before trusting this route again.')
       : 'Without live subject, module, and lesson scope, any asset operation risks creating orphaned media records.';
 
   if (missingCoreLibraryFeeds.length) {
@@ -248,7 +277,7 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
               {storageUploadsBlocked
                 ? 'Skip storage-backed uploads for now. Register the external runtime URL or object-store key, then fix LUMO_ASSET_UPLOAD_DIR permissions/path on the API service before coming back.'
                 : assetFeedFailed
-                  ? 'Do not trust an empty asset table as proof the library is clean. Treat it as a registry outage until /api/v1/assets responds again and NEXT_PUBLIC_API_BASE_URL is confirmed correct.'
+                  ? 'Do not trust an empty asset table as proof the library is clean. If /api/v1/assets is 404, that means the live backend route is missing, the LMS is pointed at the wrong deployed API base, or a proxy/rewrite is mangling the path.'
                   : 'Restore curriculum scope first, then come back here. Asset actions without real lesson/module context are how orphaned files happen.'}
             </div>
           </div>
@@ -262,7 +291,7 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
             <div style={{ padding: 14, borderRadius: 14, background: '#FFF7ED', border: '1px solid #FDBA74' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9a3412' }}>Runtime signal</div>
               <div style={{ marginTop: 8, color: '#7c2d12', lineHeight: 1.6, fontWeight: 600 }}>
-                Subject/module/lesson feeds are alive, but <code>/api/v1/assets</code> is not. {configAuditStatusLabel}. Upload storage is {assetUploadsReady === null ? 'unknown' : assetUploadsReady ? 'ready' : 'blocked'}{assetUploadRoot ? ` at ${assetUploadRoot}` : ''}. Treat this as a deployed API/runtime problem until the registry endpoint recovers.
+                Subject/module/lesson feeds are alive, but <code>/api/v1/assets</code> is not. If that request is returning 404, the live backend does not have the route, the LMS is pointed at the wrong deployed API base, or a proxy/rewrite is stripping <code>/api/v1</code>. {configAuditStatusLabel}. Upload storage is {assetUploadsReady === null ? 'unknown' : assetUploadsReady ? 'ready' : 'blocked'}{assetUploadRoot ? ` at ${assetUploadRoot}` : ''}. Treat this as a deployed backend mismatch until the registry endpoint recovers.
               </div>
             </div>
           ) : null}
