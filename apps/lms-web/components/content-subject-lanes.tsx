@@ -18,7 +18,7 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
-import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, updateSubjectAction } from '../app/actions';
+import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, updateStrandAction, updateSubjectAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { Card, Pill } from '../lib/ui';
@@ -46,6 +46,66 @@ function statusPill(status: string) {
   if (status === 'published' || status === 'approved' || status === 'active') return { tone: '#DCFCE7', text: '#166534' };
   if (status === 'review' || status === 'scheduled') return { tone: '#FEF3C7', text: '#92400E' };
   return { tone: '#E0E7FF', text: '#3730A3' };
+}
+
+const lifecycleOptions = [
+  { value: 'draft', label: 'Draft', activeBackground: '#E2E8F0', idleBackground: '#FFFFFF', color: '#334155', border: '#CBD5E1' },
+  { value: 'review', label: 'Review', activeBackground: '#FDE68A', idleBackground: '#FFFBEB', color: '#92400E', border: '#FCD34D' },
+  { value: 'published', label: 'Publish', activeBackground: '#BBF7D0', idleBackground: '#ECFDF5', color: '#166534', border: '#86EFAC' },
+] as const;
+
+function LifecycleRail({
+  entityLabel,
+  status,
+  helper,
+  forms,
+}: {
+  entityLabel: string;
+  status: string;
+  helper: string;
+  forms: Array<Record<string, string>>;
+}) {
+  const pill = statusPill(status);
+
+  return (
+    <div style={{ padding: 14, borderRadius: 18, border: '1px solid #dbe4ee', background: '#f8fafc', display: 'grid', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.2, textTransform: 'uppercase', color: '#475569', marginBottom: 4 }}>{entityLabel} lifecycle</div>
+          <div style={{ color: '#475569', lineHeight: 1.5 }}>{helper}</div>
+        </div>
+        <Pill label={`Now ${status}`} tone={pill.tone} text={pill.text} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+        {lifecycleOptions.map((option) => {
+          const fields = forms.find((entry) => entry.status === option.value) ?? forms[0] ?? {};
+          const isActive = status === option.value;
+
+          return (
+            <form key={option.value} action={entityLabel === 'Strand' ? updateStrandAction : updateSubjectAction}>
+              {Object.entries({ ...fields, status: option.value }).map(([key, value]) => (
+                <input key={key} type="hidden" name={key} value={value} />
+              ))}
+              <button
+                type="submit"
+                style={{
+                  ...actionButtonStyle,
+                  width: '100%',
+                  padding: '14px 12px',
+                  border: `1px solid ${option.border}`,
+                  background: isActive ? option.activeBackground : option.idleBackground,
+                  color: option.color,
+                  boxShadow: isActive ? `0 0 0 2px ${option.border}33` : 'none',
+                }}
+              >
+                {isActive ? `✓ ${option.label}` : option.label}
+              </button>
+            </form>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export function ContentSubjectLanes({
@@ -189,27 +249,19 @@ export function ContentSubjectLanes({
                     <Pill label={`${readyLessons} ready lessons`} tone="#F8FAFC" text="#334155" />
                     <Pill label={`${subjectAssignments.length} learner-facing assignment${subjectAssignments.length === 1 ? '' : 's'}`} tone="#FFF7ED" text="#9A3412" />
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.1, textTransform: 'uppercase', color: '#64748b' }}>Lifecycle</span>
-                    {[
-                      { value: 'draft', label: 'Draft', background: subject.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '#CBD5E1' },
-                      { value: 'review', label: 'Review', background: subject.status === 'review' ? '#FDE68A' : '#FFFBEB', color: '#92400E', border: '#FCD34D' },
-                      { value: 'published', label: 'Publish', background: subject.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '#86EFAC' },
-                    ].map((option) => (
-                      <form key={option.value} action={updateSubjectAction}>
-                        <input type="hidden" name="subjectId" value={subject.id} />
-                        <input type="hidden" name="returnPath" value={returnPath} />
-                        <input type="hidden" name="name" value={subject.name} />
-                        <input type="hidden" name="icon" value={subject.icon ?? ''} />
-                        <input type="hidden" name="order" value={String(subject.order ?? 1)} />
-                        <input type="hidden" name="status" value={option.value} />
-                        <button type="submit" style={{ ...actionButtonStyle, background: option.background, color: option.color, border: `1px solid ${option.border}` }}>
-                          {option.label}
-                        </button>
-                      </form>
-                    ))}
-                    <span style={{ color: '#64748b', fontSize: 13 }}>Same lifecycle controls also live inside the edit modal.</span>
-                  </div>
+                  <LifecycleRail
+                    entityLabel="Subject"
+                    status={subject.status ?? 'draft'}
+                    helper="These controls now sit directly on the lane surface, so nobody has to hunt inside a modal just to move the subject between draft, review, and published."
+                    forms={lifecycleOptions.map((option) => ({
+                      subjectId: subject.id,
+                      returnPath,
+                      name: subject.name,
+                      icon: subject.icon ?? '',
+                      order: String(subject.order ?? 1),
+                      status: option.value,
+                    }))}
+                  />
                 </div>
 
                 <div id={`subject-panel-${subject.id}`} hidden={collapsed} style={{ display: collapsed ? 'none' : 'grid', gap: 12 }}>
@@ -274,6 +326,20 @@ export function ContentSubjectLanes({
                             </ModalLauncher>
                           </div>
                         </div>
+
+                        <LifecycleRail
+                          entityLabel="Strand"
+                          status={strand.status ?? 'draft'}
+                          helper="Strand publish state is now visible and clickable right here on the strand card, not buried behind the edit modal."
+                          forms={lifecycleOptions.map((option) => ({
+                            strandId: strand.id,
+                            subjectId: strand.subjectId,
+                            returnPath,
+                            name: strand.name,
+                            order: String(strand.order ?? 1),
+                            status: option.value,
+                          }))}
+                        />
 
                         <div id={`strand-panel-${strand.id}`} hidden={strandCollapsed} style={{ display: strandCollapsed ? 'none' : 'grid', gap: 12 }}>
                           {strandModules.length > 0 ? strandModules.map((module) => {
