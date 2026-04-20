@@ -715,7 +715,14 @@ List<Widget> _buildOperatorStatusChips(LumoAppState state) {
       color: _operatorStatusColor(state.operatorSourceLabel),
       icon: _operatorStatusIcon(state.operatorSourceLabel),
     ),
-    if (state.operatorHealthLabel != state.operatorSourceLabel)
+    if (state.curriculumSourceLabel != state.operatorSourceLabel)
+      _OperatorStatusChip(
+        label: state.curriculumSourceLabel,
+        color: _operatorStatusColor(state.curriculumSourceLabel),
+        icon: _operatorStatusIcon(state.curriculumSourceLabel),
+      ),
+    if (state.operatorHealthLabel != state.operatorSourceLabel &&
+        state.operatorHealthLabel != state.curriculumSourceLabel)
       _OperatorStatusChip(
         label: state.operatorHealthLabel,
         color: _operatorStatusColor(state.operatorHealthLabel),
@@ -726,14 +733,19 @@ List<Widget> _buildOperatorStatusChips(LumoAppState state) {
 
 Color _operatorStatusColor(String label) {
   switch (label) {
-    case 'Live backend connected':
+    case 'Backend link live':
+    case 'Curriculum live':
     case 'Backend healthy':
       return LumoTheme.accentGreen;
-    case 'Offline pack active':
-    case 'Cached content active':
+    case 'Offline pack curriculum':
+    case 'Cached curriculum':
+    case 'Curriculum mixed':
+    case 'Assignments incomplete':
     case 'Sync stale':
       return LumoTheme.accentOrange;
+    case 'Backend offline':
     case 'Backend unavailable':
+    case 'Curriculum unavailable':
       return const Color(0xFFB91C1C);
     default:
       return LumoTheme.primary;
@@ -742,16 +754,24 @@ Color _operatorStatusColor(String label) {
 
 IconData _operatorStatusIcon(String label) {
   switch (label) {
-    case 'Live backend connected':
+    case 'Backend link live':
     case 'Backend healthy':
       return Icons.cloud_done_rounded;
-    case 'Offline pack active':
+    case 'Curriculum live':
+      return Icons.verified_rounded;
+    case 'Offline pack curriculum':
       return Icons.inventory_2_rounded;
-    case 'Cached content active':
+    case 'Cached curriculum':
       return Icons.save_rounded;
+    case 'Curriculum mixed':
+      return Icons.layers_rounded;
+    case 'Assignments incomplete':
+      return Icons.rule_folder_rounded;
     case 'Sync stale':
       return Icons.sync_problem_rounded;
+    case 'Backend offline':
     case 'Backend unavailable':
+    case 'Curriculum unavailable':
       return Icons.cloud_off_rounded;
     default:
       return Icons.radar_rounded;
@@ -10112,22 +10132,36 @@ LearnerSourceStatusSignal buildLearnerSourceStatusSignal(
       borderColor: const Color(0xFFFDE68A),
     );
   }
+  final curriculumTruthWarning = state.curriculumTruthWarning;
+  if (curriculumTruthWarning != null) {
+    return LearnerSourceStatusSignal(
+      id: 'source-truth-warning-${state.curriculumSourceLabel}',
+      label: state.curriculumSourceLabel,
+      detail: curriculumTruthWarning,
+      icon: state.hasAssignmentPayloadGaps
+          ? Icons.rule_folder_rounded
+          : Icons.fact_check_rounded,
+      color: const Color(0xFF92400E),
+      backgroundColor: const Color(0xFFFFFBEB),
+      borderColor: const Color(0xFFFDE68A),
+    );
+  }
   if (state.usingFallbackData) {
-    return const LearnerSourceStatusSignal(
+    return LearnerSourceStatusSignal(
       id: 'source-offline-fallback',
-      label: 'Offline roster in use',
-      detail: 'Lessons are coming from trusted local fallback state for now.',
+      label: state.curriculumSourceLabel,
+      detail: 'Lessons are coming from local fallback state, not a fresh live backend fetch.',
       icon: Icons.inventory_2_rounded,
-      color: Color(0xFF0F766E),
-      backgroundColor: Color(0xFFF0FDFA),
-      borderColor: Color(0xFF99F6E4),
+      color: const Color(0xFF0F766E),
+      backgroundColor: const Color(0xFFF0FDFA),
+      borderColor: const Color(0xFF99F6E4),
     );
   }
   if (state.hasLiveBackendConnection) {
     return const LearnerSourceStatusSignal(
       id: 'source-live-runtime-ready',
-      label: 'Live source connected',
-      detail: 'Roster, lesson routing, and runtime sync look ready.',
+      label: 'Backend link live',
+      detail: 'Backend connectivity and runtime sync look healthy. Curriculum truth is shown separately so a live link does not overclaim the lesson source.',
       icon: Icons.cloud_done_rounded,
       color: Color(0xFF166534),
       backgroundColor: Color(0xFFF0FDF4),

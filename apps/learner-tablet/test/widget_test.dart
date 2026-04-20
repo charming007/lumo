@@ -176,7 +176,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Offline pack active'), findsOneWidget);
+    expect(find.text('Offline pack curriculum'), findsOneWidget);
     expect(find.text('Sync stale'), findsOneWidget);
   });
 
@@ -746,7 +746,7 @@ void main() {
 
     final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
 
-    expect(firstSubjectTop, lessThan(480));
+    expect(firstSubjectTop, lessThan(540));
   });
 
   testWidgets(

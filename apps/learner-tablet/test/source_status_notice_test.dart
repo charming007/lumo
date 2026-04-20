@@ -14,7 +14,8 @@ void main() {
       ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
       ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 2));
 
-    expect(state.operatorSourceLabel, 'Live backend connected');
+    expect(state.operatorSourceLabel, 'Backend link live');
+    expect(state.curriculumSourceLabel, 'Curriculum unknown');
     expect(state.operatorHealthLabel, 'Backend healthy');
   });
 
@@ -27,7 +28,8 @@ void main() {
         const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
       );
 
-    expect(state.operatorSourceLabel, 'Offline pack active');
+    expect(state.operatorSourceLabel, 'Backend offline');
+    expect(state.curriculumSourceLabel, 'Offline pack curriculum');
     expect(state.operatorHealthLabel, 'Sync stale');
   });
 
@@ -56,7 +58,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Offline pack active'), findsOneWidget);
+    expect(find.text('Offline pack curriculum'), findsOneWidget);
     expect(find.text('Sync stale'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
