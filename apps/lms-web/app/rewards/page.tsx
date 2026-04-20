@@ -511,6 +511,10 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
                 <strong>{scopeLabel}</strong>
               </div>
               <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
+                <div style={{ color: '#64748b', marginBottom: 6 }}>Feed coverage</div>
+                <strong>{healthyFeeds}/{totalFeeds} live</strong>
+              </div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #e2e8f0' }}>
                 <div style={{ color: '#64748b', marginBottom: 6 }}>Queue pressure</div>
                 <strong>{queueAvailable ? `${filteredQueue.length} in scope · ${scopedQueue.summary.urgentCount} urgent` : 'Queue feed unavailable'}</strong>
               </div>
@@ -519,6 +523,24 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
                 <strong>{readyLearners} ready · {watchLearners} watch</strong>
               </div>
             </div>
+            {failedSources.length ? (
+              <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #fed7aa' }}>
+                <div>
+                  <div style={{ color: '#9a3412', fontWeight: 800, marginBottom: 4 }}>Feeds down now</div>
+                  <div style={{ color: '#7c2d12', lineHeight: 1.6 }}>{failedSources.join(', ')}.</div>
+                </div>
+                <div>
+                  <div style={{ color: '#166534', fontWeight: 800, marginBottom: 4 }}>What still works</div>
+                  <div style={{ color: '#475569', lineHeight: 1.6 }}>{availableSurfaces.length ? availableSurfaces.join(', ') : 'Nothing operator-safe yet.'}</div>
+                </div>
+                {unavailableCapabilities.length ? (
+                  <div>
+                    <div style={{ color: '#991b1b', fontWeight: 800, marginBottom: 4 }}>Use caution</div>
+                    <div style={{ color: '#64748b', lineHeight: 1.6 }}>{unavailableCapabilities.join(', ')} are not trustworthy until those feeds recover.</div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {activeFilterChips.length ? (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {activeFilterChips.map((chip) => (
@@ -652,19 +674,19 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
         <Card title="Reward demand" eyebrow="What learners actually want">
           <SimpleTable
             columns={['Reward', 'Requests', 'Pending', 'Fulfilled']}
-            rows={filteredDemand.length ? filteredDemand.map((item) => [
+            rows={analyticsAvailable && filteredDemand.length ? filteredDemand.map((item) => [
               item.rewardTitle,
               String(item.requests),
               String(item.pending),
               String(item.fulfilled),
-            ]) : [[<span key="empty" style={{ color: '#64748b' }}>{filtersActive ? 'No reward demand records match the current scope.' : 'Reward demand analytics unavailable.'}</span>, '', '', '']]}
+            ]) : [[<span key="empty" style={{ color: analyticsAvailable ? '#64748b' : '#9a3412' }}>{analyticsAvailable ? (filtersActive ? 'No reward demand records match the current scope.' : 'Reward demand analytics unavailable.') : 'Reward analytics feed is unavailable, so demand trends are hidden instead of shown as fake zeros.'}</span>, '', '', '']]}
           />
         </Card>
 
         <Card title="Recent reward adjustments" eyebrow="Audit trail with teeth">
           <SimpleTable
             columns={['When', 'Reason', 'Learner', 'Signal']}
-            rows={filteredAdjustments.length ? filteredAdjustments.map((entry, index) => {
+            rows={analyticsAvailable && filteredAdjustments.length ? filteredAdjustments.map((entry, index) => {
               const record = asRecord(entry) ?? {};
               const reason = typeof record.reason === 'string' ? record.reason : typeof record.kind === 'string' ? record.kind : 'adjustment';
               const learnerName = typeof record.learnerName === 'string'
@@ -684,7 +706,7 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
                 learnerName,
                 <Pill key={`pill-${index}`} label={reason.replace(/_/g, ' ')} tone="#EEF2FF" text="#3730A3" />,
               ];
-            }) : [[<span key="empty" style={{ color: '#64748b' }}>{filtersActive ? 'No reward adjustment records match the current scope.' : 'No reward adjustments have been logged yet.'}</span>, '', '', '']]}
+            }) : [[<span key="empty" style={{ color: analyticsAvailable ? '#64748b' : '#9a3412' }}>{analyticsAvailable ? (filtersActive ? 'No reward adjustment records match the current scope.' : 'No reward adjustments have been logged yet.') : 'Reward analytics feed is unavailable, so the adjustment audit trail is hidden instead of shown as empty.'}</span>, '', '', '']]}
           />
         </Card>
       </section>
