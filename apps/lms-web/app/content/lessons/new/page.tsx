@@ -121,14 +121,65 @@ export default async function LessonStudioCreatePage({
   }
 
   const from = sanitizeInternalReturnPath(query?.from, '/content');
-  const subjectId = normalizeRouteParam(query?.subjectId) || subjects[0]?.id || '';
-  const moduleId = normalizeRouteParam(query?.moduleId) || modules.find((module) => module.subjectId === subjectId)?.id || modules[0]?.id || '';
+  const requestedSubjectId = normalizeRouteParam(query?.subjectId);
+  const requestedModuleId = normalizeRouteParam(query?.moduleId);
   const duplicateLessonId = normalizeRouteParam(query?.duplicate);
   const createdLessonId = normalizeRouteParam(query?.createdLessonId);
   const createdLessonTitle = normalizeRouteParam(query?.createdLessonTitle);
 
-  const selectedModule = modules.find((module) => module.id === moduleId) ?? modules[0] ?? null;
-  const selectedSubject = subjects.find((subject) => subject.id === subjectId) ?? subjects.find((subject) => subject.id === selectedModule?.subjectId) ?? subjects[0] ?? null;
+  const requestedModule = requestedModuleId ? modules.find((module) => module.id === requestedModuleId) ?? null : null;
+  const requestedSubject = requestedSubjectId ? subjects.find((subject) => subject.id === requestedSubjectId) ?? null : null;
+  const requestedModuleSubjectId = requestedModule?.subjectId?.trim() ?? '';
+  const requestedModuleHasRecoverableSubject = Boolean(
+    requestedModule && requestedModuleSubjectId && subjects.some((subject) => subject.id === requestedModuleSubjectId),
+  );
+
+  if (requestedModule && !requestedModuleHasRecoverableSubject) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Studio"
+        subtitle="Lesson creation stays blocked when the requested module does not have a recoverable subject context."
+        blockerHeadline="Deployment blocker: requested lesson lane cannot be trusted."
+        blockerDetail={(
+          <>
+            The requested module <code style={{ color: 'white', fontWeight: 900 }}>{requestedModule.title}</code> does not have a recoverable subject mapping, so Lesson Studio refused to silently reroute this authoring session into a different curriculum lane.
+          </>
+        )}
+        whyBlocked={[
+          'Silently falling back to the first valid subject/module would let operators think they are fixing one blocked module while actually creating content somewhere else.',
+          'This is a release-safety problem, not a cosmetic empty state. Wrong-lane authoring is data corruption with nicer typography.',
+          'The fix is to recover the module subject context first, then reopen Lesson Studio from the blocker board.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Requested module',
+            expected: 'Has a real subjectId that resolves to a loaded subject lane',
+            failure: 'Lesson Studio would otherwise attach the draft to an unrelated fallback subject or module',
+          },
+          {
+            surface: 'Lesson create launch context',
+            expected: 'subjectId and moduleId agree on the same curriculum lane',
+            failure: 'Lesson Studio opens, but the selected lane no longer matches the blocker row that launched it',
+          },
+        ]}
+        fixItems={[
+          { label: 'Blocked module', value: requestedModule.title },
+          { label: 'Missing context', value: requestedModuleSubjectId ? `Subject ${requestedModuleSubjectId} is not available in authoring context` : 'Module subjectId is missing' },
+          { label: 'Operator action', value: 'Recover subject context on the content blockers board before creating the lesson pack' },
+        ]}
+        docs={[
+          { label: 'Back to blocker board', href: from, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Content library', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+        ]}
+      />
+    );
+  }
+
+  const subjectId = requestedSubjectId || (requestedModuleHasRecoverableSubject ? requestedModuleSubjectId : undefined) || subjects[0]?.id || '';
+  const moduleId = requestedModuleId || modules.find((module) => module.subjectId === subjectId)?.id || modules[0]?.id || '';
+
+  const selectedModule = modules.find((module) => module.id === moduleId) ?? modules.find((module) => module.subjectId === subjectId) ?? modules[0] ?? null;
+  const selectedSubject = requestedSubject ?? subjects.find((subject) => subject.id === requestedModuleSubjectId) ?? subjects.find((subject) => subject.id === selectedModule?.subjectId) ?? subjects[0] ?? null;
 
   return (
     <PageShell
@@ -154,9 +205,12 @@ export default async function LessonStudioCreatePage({
     >
       <FeedbackBanner message={query?.message} />
 
-      {failedSources.length ? (
+      {failedSources.length || (requestedSubjectId && selectedSubject && requestedSubjectId !== selectedSubject.id) ? (
         <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          Lesson Studio recovered with degraded feeds: {failedSources.join(', ')}. Draft creation stays live because a usable curriculum context is still available.{assetPayloadIssues.length ? ` Sanitized asset issues: ${assetPayloadIssues.join(' ')}` : ''}
+          {failedSources.length
+            ? `Lesson Studio recovered with degraded feeds: ${failedSources.join(', ')}. Draft creation stays live because a usable curriculum context is still available.`
+            : 'Lesson Studio recovered the requested launch context to the module’s actual subject lane before opening the authoring form.'}
+          {assetPayloadIssues.length ? ` Sanitized asset issues: ${assetPayloadIssues.join(' ')}` : ''}
         </div>
       ) : null}
 
