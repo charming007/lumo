@@ -5966,7 +5966,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     return Container(
       height: imageHeight,
       alignment: Alignment.center,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
@@ -5980,15 +5980,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: const Color(0xFF93C5FD)),
             ),
             child: Center(
-              child: Text(fallbackEmoji, style: const TextStyle(fontSize: 36)),
+              child: Text(fallbackEmoji, style: const TextStyle(fontSize: 30)),
             ),
           ),
           if (hasAudio) ...[
@@ -7430,144 +7430,148 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-                final columns = _imageChoiceColumnCount(
-                  maxWidth: constraints.maxWidth,
-                  choiceCount: choiceItems.length,
-                );
-                const spacing = 16.0;
-                final totalSpacing = spacing * (columns - 1);
-                final cardWidth =
-                    (constraints.maxWidth - totalSpacing) / columns;
-                final previewHeight = choiceCount <= 2
-                    ? 190.0
-                    : choiceCount >= 6
-                        ? 132.0
-                        : 148.0;
+            final columns = _imageChoiceColumnCount(
+              maxWidth: constraints.maxWidth,
+              choiceCount: choiceItems.length,
+            );
+            final previewHeight = choiceCount <= 2
+                ? 190.0
+                : choiceCount >= 6
+                    ? 132.0
+                    : 148.0;
+            final childAspectRatio = choiceCount <= 2
+                ? (columns == 1 ? 1.55 : 1.18)
+                : choiceCount >= 6
+                    ? 0.86
+                    : columns >= 3
+                        ? 0.86
+                        : 0.96;
 
-                return Wrap(
-                  key: const ValueKey('choice-grid'),
-                  spacing: spacing,
-                  runSpacing: spacing,
-                  children: List.generate(choiceItems.length, (index) {
-                    final choiceItem = choiceItems[index];
-                    final emoji = index < activity.choiceEmoji.length
-                        ? activity.choiceEmoji[index]
-                        : '🖼️';
-                    final isSelected = selectedChoiceLabel.toLowerCase() ==
-                        choiceItem.label.trim().toLowerCase();
-                    final hasAudio = _firstMediaOfKind(
-                          choiceItem.mediaItems,
-                          const ['audio'],
-                        ) !=
-                        null;
-                    return InkWell(
-                      onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
+            return GridView.builder(
+              key: const ValueKey('choice-grid'),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: choiceItems.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: childAspectRatio,
+              ),
+              itemBuilder: (context, index) {
+                final choiceItem = choiceItems[index];
+                final emoji = index < activity.choiceEmoji.length
+                    ? activity.choiceEmoji[index]
+                    : '🖼️';
+                final isSelected = selectedChoiceLabel.toLowerCase() ==
+                    choiceItem.label.trim().toLowerCase();
+                final hasAudio = _firstMediaOfKind(
+                      choiceItem.mediaItems,
+                      const ['audio'],
+                    ) !=
+                    null;
+                return InkWell(
+                  onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
+                  borderRadius: BorderRadius.circular(28),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color:
+                          isSelected ? const Color(0xFFEFF6FF) : Colors.white,
                       borderRadius: BorderRadius.circular(28),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: cardWidth,
-                        constraints: BoxConstraints(
-                          minHeight: choiceCount >= 6 ? 220 : 250,
-                        ),
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF2563EB)
+                            : const Color(0xFFD7E3FF),
+                        width: isSelected ? 3 : 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
                           color: isSelected
-                              ? const Color(0xFFEFF6FF)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF2563EB)
-                                : const Color(0xFFD7E3FF),
-                            width: isSelected ? 3 : 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: isSelected
-                                  ? const Color(0x1A2563EB)
-                                  : const Color(0x0D0F172A),
-                              blurRadius: isSelected ? 24 : 12,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+                              ? const Color(0x1A2563EB)
+                              : const Color(0x0D0F172A),
+                          blurRadius: isSelected ? 24 : 12,
+                          offset: const Offset(0, 10),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: Stack(
-                                children: [
-                                  Positioned.fill(
-                                    child: _buildChoicePreview(
-                                      choiceItem,
-                                      emoji,
-                                      imageHeight: previewHeight,
-                                      borderRadius: 22,
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: _buildChoicePreview(
+                                  choiceItem,
+                                  emoji,
+                                  imageHeight: previewHeight,
+                                  borderRadius: 22,
+                                ),
+                              ),
+                              if (isSelected)
+                                Positioned(
+                                  top: 12,
+                                  right: 12,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2563EB),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.check_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Selected',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  if (isSelected)
-                                    Positioned(
-                                      top: 12,
-                                      right: 12,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF2563EB),
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                        ),
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.check_rounded,
-                                              color: Colors.white,
-                                              size: 16,
-                                            ),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              'Selected',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              choiceItem.label,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 20,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                            if (hasAudio) ...[
-                              const SizedBox(height: 12),
-                              FilledButton.tonalIcon(
-                                onPressed: () => _playChoiceMedia(choiceItem),
-                                icon: const Icon(Icons.play_arrow_rounded),
-                                label: const Text('Hear choice'),
-                              ),
+                                ),
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                        const SizedBox(height: 14),
+                        Text(
+                          choiceItem.label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 20,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        if (hasAudio) ...[
+                          const SizedBox(height: 12),
+                          FilledButton.tonalIcon(
+                            onPressed: () => _playChoiceMedia(choiceItem),
+                            icon: const Icon(Icons.play_arrow_rounded),
+                            label: const Text('Hear choice'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 );
               },
-            ),
+            );
+          },
+        ),
       );
     }
 
@@ -7797,7 +7801,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (!isChoiceStep && !isListenRepeatStep) ...[
+                                    if (!isChoiceStep &&
+                                        !isListenRepeatStep) ...[
                                       Container(
                                         width: double.infinity,
                                         padding: EdgeInsets.all(
@@ -7805,7 +7810,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF8FAFC),
-                                          borderRadius: BorderRadius.circular(24),
+                                          borderRadius:
+                                              BorderRadius.circular(24),
                                           border: Border.all(
                                             color: const Color(0xFFE2E8F0),
                                           ),
@@ -7856,163 +7862,172 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                         padding: const EdgeInsets.all(20),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius: BorderRadius.circular(24),
+                                          borderRadius:
+                                              BorderRadius.circular(24),
                                           border: Border.all(
                                             color: const Color(0xFFE2E8F0),
                                           ),
                                         ),
                                         child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          if (!isListenRepeatStep) ...[
-                                            const Text(
-                                              'Transcription',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 16,
-                                                color: Color(0xFF0F172A),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              transcriptReviewPending
-                                                  ? 'Check the learner words here, then confirm before Mallam continues.'
-                                                  : (isRecording
-                                                      ? 'Listening to the learner now.'
-                                                      : 'Start listening, capture the learner voice, then review the text here.'),
-                                              style: const TextStyle(
-                                                color: Color(0xFF475569),
-                                                height: 1.35,
-                                              ),
-                                            ),
-                                          ],
-                                          if (!isListenRepeatStep) ...[
-                                            const SizedBox(height: 14),
-                                            Container(
-                                              width: double.infinity,
-                                              padding: const EdgeInsets.all(16),
-                                              decoration: BoxDecoration(
-                                                color: isRecording
-                                                    ? const Color(0xFFFEF2F2)
-                                                    : const Color(0xFFEFF6FF),
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                border: Border.all(
-                                                  color: isRecording
-                                                      ? const Color(0xFFFCA5A5)
-                                                      : const Color(0xFF93C5FD),
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (!isListenRepeatStep) ...[
+                                              const Text(
+                                                'Transcription',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 16,
+                                                  color: Color(0xFF0F172A),
                                                 ),
                                               ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 8,
-                                                        ),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: isRecording
-                                                              ? const Color(
-                                                                  0xFFDC2626,
-                                                                )
-                                                              : const Color(
-                                                                  0xFF2563EB,
-                                                                ),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(
-                                                                      999),
-                                                        ),
-                                                        child: Text(
-                                                          isRecording
-                                                              ? 'Stop listening'
-                                                              : 'Start listening',
-                                                          style:
-                                                              const TextStyle(
-                                                            color: Colors.white,
-                                                            fontWeight:
-                                                                FontWeight.w800,
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                transcriptReviewPending
+                                                    ? 'Check the learner words here, then confirm before Mallam continues.'
+                                                    : (isRecording
+                                                        ? 'Listening to the learner now.'
+                                                        : 'Start listening, capture the learner voice, then review the text here.'),
+                                                style: const TextStyle(
+                                                  color: Color(0xFF475569),
+                                                  height: 1.35,
+                                                ),
+                                              ),
+                                            ],
+                                            if (!isListenRepeatStep) ...[
+                                              const SizedBox(height: 14),
+                                              Container(
+                                                width: double.infinity,
+                                                padding:
+                                                    const EdgeInsets.all(16),
+                                                decoration: BoxDecoration(
+                                                  color: isRecording
+                                                      ? const Color(0xFFFEF2F2)
+                                                      : const Color(0xFFEFF6FF),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                  border: Border.all(
+                                                    color: isRecording
+                                                        ? const Color(
+                                                            0xFFFCA5A5)
+                                                        : const Color(
+                                                            0xFF93C5FD),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 12,
+                                                            vertical: 8,
                                                           ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 10),
-                                                      Expanded(
-                                                        child: Text(
-                                                          _listeningReadinessHeadline,
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color: Color(
-                                                              0xFF0F172A,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: isRecording
+                                                                ? const Color(
+                                                                    0xFFDC2626,
+                                                                  )
+                                                                : const Color(
+                                                                    0xFF2563EB,
+                                                                  ),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        999),
+                                                          ),
+                                                          child: Text(
+                                                            isRecording
+                                                                ? 'Stop listening'
+                                                                : 'Start listening',
+                                                            style:
+                                                                const TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
                                                             ),
                                                           ),
                                                         ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    _listeningReadinessBody,
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF475569),
-                                                      height: 1.4,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 14),
-                                                  Wrap(
-                                                    spacing: 12,
-                                                    runSpacing: 12,
-                                                    children: [
-                                                      FilledButton.icon(
-                                                        onPressed: isRecording ||
-                                                                !_micPermissionGranted
-                                                            ? null
-                                                            : startRecording,
-                                                        icon: const Icon(
-                                                          Icons.mic_rounded,
-                                                        ),
-                                                        label: Text(
-                                                          _listeningStartButtonLabel,
-                                                        ),
-                                                      ),
-                                                      FilledButton.icon(
-                                                        onPressed: isRecording
-                                                            ? stopRecording
-                                                            : null,
-                                                        style: FilledButton
-                                                            .styleFrom(
-                                                          backgroundColor:
-                                                              const Color(
-                                                            0xFFDC2626,
+                                                        const SizedBox(
+                                                            width: 10),
+                                                        Expanded(
+                                                          child: Text(
+                                                            _listeningReadinessHeadline,
+                                                            style:
+                                                                const TextStyle(
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                              color: Color(
+                                                                0xFF0F172A,
+                                                              ),
+                                                            ),
                                                           ),
-                                                          foregroundColor:
-                                                              Colors.white,
                                                         ),
-                                                        icon: const Icon(
-                                                          Icons.stop_rounded,
-                                                        ),
-                                                        label: const Text(
-                                                          'Stop listening',
-                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                      _listeningReadinessBody,
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF475569),
+                                                        height: 1.4,
                                                       ),
-                                                    ],
-                                                  ),
-                                                ],
+                                                    ),
+                                                    const SizedBox(height: 14),
+                                                    Wrap(
+                                                      spacing: 12,
+                                                      runSpacing: 12,
+                                                      children: [
+                                                        FilledButton.icon(
+                                                          onPressed: isRecording ||
+                                                                  !_micPermissionGranted
+                                                              ? null
+                                                              : startRecording,
+                                                          icon: const Icon(
+                                                            Icons.mic_rounded,
+                                                          ),
+                                                          label: Text(
+                                                            _listeningStartButtonLabel,
+                                                          ),
+                                                        ),
+                                                        FilledButton.icon(
+                                                          onPressed: isRecording
+                                                              ? stopRecording
+                                                              : null,
+                                                          style: FilledButton
+                                                              .styleFrom(
+                                                            backgroundColor:
+                                                                const Color(
+                                                              0xFFDC2626,
+                                                            ),
+                                                            foregroundColor:
+                                                                Colors.white,
+                                                          ),
+                                                          icon: const Icon(
+                                                            Icons.stop_rounded,
+                                                          ),
+                                                          label: const Text(
+                                                            'Stop listening',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                          const SizedBox(height: 14),
-                                          TextField(
+                                            ],
+                                            const SizedBox(height: 14),
+                                            TextField(
                                               controller: responseController,
                                               onChanged: (_) => setState(() {}),
                                               maxLines: 4,
@@ -8036,199 +8051,214 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 ),
                                               ),
                                             ),
-                                          if (isListenRepeatStep) ...[
-                                            const SizedBox(height: 12),
-                                            Wrap(
-                                              spacing: 12,
-                                              runSpacing: 12,
-                                              children: [
-                                                FilledButton.icon(
-                                                  onPressed: isRecording ||
-                                                          !_micPermissionGranted
-                                                      ? null
-                                                      : startRecording,
-                                                  icon: const Icon(
-                                                    Icons.mic_rounded,
-                                                  ),
-                                                  label: Text(
-                                                    _listeningStartButtonLabel,
-                                                  ),
-                                                ),
-                                                FilledButton.icon(
-                                                  onPressed: isRecording
-                                                      ? stopRecording
-                                                      : null,
-                                                  style:
-                                                      FilledButton.styleFrom(
-                                                    backgroundColor:
-                                                        const Color(0xFFDC2626),
-                                                    foregroundColor:
-                                                        Colors.white,
-                                                  ),
-                                                  icon: const Icon(
-                                                    Icons.stop_rounded,
-                                                  ),
-                                                  label: const Text(
-                                                    'Stop listening',
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                          const SizedBox(height: 12),
-                                          if (!isListenRepeatStep)
-                                            Container(
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.all(14),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFF8FAFC),
-                                              borderRadius:
-                                                  BorderRadius.circular(18),
-                                              border: Border.all(
-                                                color: const Color(0xFFE2E8F0),
-                                              ),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 6,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFFEFF6FF,
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      999,
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    _lessonModeLabel,
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF1D4ED8),
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 10),
-                                                Text(
-                                                  _sessionStatusHeadline,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF0F172A),
-                                                    fontWeight: FontWeight.w800,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Text(
-                                                  _sessionStatusBody,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF475569),
-                                                    height: 1.35,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          if (!isListenRepeatStep &&
-                                              (liveTranscript.isNotEmpty ||
-                                              speechRecognitionActive)) ...[
-                                            const SizedBox(height: 12),
-                                            Container(
-                                              width: double.infinity,
-                                              padding: const EdgeInsets.all(14),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFEEF2FF),
-                                                borderRadius:
-                                                    BorderRadius.circular(18),
-                                                border: Border.all(
-                                                  color: const Color(
-                                                    0xFFC7D2FE,
-                                                  ),
-                                                ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
+                                            if (isListenRepeatStep) ...[
+                                              const SizedBox(height: 12),
+                                              Wrap(
+                                                spacing: 12,
+                                                runSpacing: 12,
                                                 children: [
-                                                  const Text(
-                                                    'Live listen feed',
-                                                    style: TextStyle(
-                                                      color: Color(0xFF1D4ED8),
-                                                      fontWeight:
-                                                          FontWeight.w800,
+                                                  FilledButton.icon(
+                                                    onPressed: isRecording ||
+                                                            !_micPermissionGranted
+                                                        ? null
+                                                        : startRecording,
+                                                    icon: const Icon(
+                                                      Icons.mic_rounded,
+                                                    ),
+                                                    label: Text(
+                                                      _listeningStartButtonLabel,
                                                     ),
                                                   ),
-                                                  const SizedBox(height: 6),
-                                                  Text(
-                                                    liveTranscript.isEmpty
-                                                        ? 'Listening for the learner...'
-                                                        : liveTranscript,
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF4338CA),
-                                                      height: 1.4,
-                                                      fontWeight:
-                                                          FontWeight.w600,
+                                                  FilledButton.icon(
+                                                    onPressed: isRecording
+                                                        ? stopRecording
+                                                        : null,
+                                                    style:
+                                                        FilledButton.styleFrom(
+                                                      backgroundColor:
+                                                          const Color(
+                                                              0xFFDC2626),
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                    ),
+                                                    icon: const Icon(
+                                                      Icons.stop_rounded,
+                                                    ),
+                                                    label: const Text(
+                                                      'Stop listening',
                                                     ),
                                                   ),
                                                 ],
                                               ),
-                                            ),
-                                          ],
-                                          if (transcriptReviewPending &&
-                                              session.latestLearnerAudioPath !=
-                                                  null) ...[
+                                            ],
                                             const SizedBox(height: 12),
-                                            FilledButton.tonalIcon(
-                                              onPressed:
-                                                  _toggleSavedAudioPlayback,
-                                              icon: Icon(
-                                                learnerAudioPlaybackService
-                                                        .isPlaying
-                                                    ? Icons.pause_circle_rounded
-                                                    : Icons
-                                                        .play_circle_fill_rounded,
+                                            if (!isListenRepeatStep)
+                                              Container(
+                                                width: double.infinity,
+                                                padding:
+                                                    const EdgeInsets.all(14),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFF8FAFC),
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                  border: Border.all(
+                                                    color:
+                                                        const Color(0xFFE2E8F0),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 6,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                          0xFFEFF6FF,
+                                                        ),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          999,
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        _lessonModeLabel,
+                                                        style: const TextStyle(
+                                                          color:
+                                                              Color(0xFF1D4ED8),
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 10),
+                                                    Text(
+                                                      _sessionStatusHeadline,
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF0F172A),
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      _sessionStatusBody,
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF475569),
+                                                        height: 1.35,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                              label: Text(
-                                                learnerAudioPlaybackService
-                                                        .isPlaying
-                                                    ? 'Pause saved voice'
-                                                    : 'Play saved voice',
+                                            if (!isListenRepeatStep &&
+                                                (liveTranscript.isNotEmpty ||
+                                                    speechRecognitionActive)) ...[
+                                              const SizedBox(height: 12),
+                                              Container(
+                                                width: double.infinity,
+                                                padding:
+                                                    const EdgeInsets.all(14),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFEEF2FF),
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                  border: Border.all(
+                                                    color: const Color(
+                                                      0xFFC7D2FE,
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Live listen feed',
+                                                      style: TextStyle(
+                                                        color:
+                                                            Color(0xFF1D4ED8),
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      liveTranscript.isEmpty
+                                                          ? 'Listening for the learner...'
+                                                          : liveTranscript,
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF4338CA),
+                                                        height: 1.4,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              _isAudioOnlyReviewState
-                                                  ? 'Use the saved clip as the source of truth before Mallam continues.'
-                                                  : 'Quick audio check first, then confirm the text.',
-                                              style: const TextStyle(
-                                                color: Color(0xFF475569),
-                                                fontWeight: FontWeight.w600,
-                                                height: 1.35,
+                                            ],
+                                            if (transcriptReviewPending &&
+                                                session.latestLearnerAudioPath !=
+                                                    null) ...[
+                                              const SizedBox(height: 12),
+                                              FilledButton.tonalIcon(
+                                                onPressed:
+                                                    _toggleSavedAudioPlayback,
+                                                icon: Icon(
+                                                  learnerAudioPlaybackService
+                                                          .isPlaying
+                                                      ? Icons
+                                                          .pause_circle_rounded
+                                                      : Icons
+                                                          .play_circle_fill_rounded,
+                                                ),
+                                                label: Text(
+                                                  learnerAudioPlaybackService
+                                                          .isPlaying
+                                                      ? 'Pause saved voice'
+                                                      : 'Play saved voice',
+                                                ),
                                               ),
-                                            ),
-                                            if (_savedAudioEvidenceLabel !=
-                                                null) ...[
                                               const SizedBox(height: 8),
                                               Text(
-                                                _savedAudioEvidenceLabel!,
+                                                _isAudioOnlyReviewState
+                                                    ? 'Use the saved clip as the source of truth before Mallam continues.'
+                                                    : 'Quick audio check first, then confirm the text.',
                                                 style: const TextStyle(
-                                                  color: Color(0xFF64748B),
+                                                  color: Color(0xFF475569),
                                                   fontWeight: FontWeight.w600,
                                                   height: 1.35,
                                                 ),
                                               ),
+                                              if (_savedAudioEvidenceLabel !=
+                                                  null) ...[
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  _savedAudioEvidenceLabel!,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF64748B),
+                                                    fontWeight: FontWeight.w600,
+                                                    height: 1.35,
+                                                  ),
+                                                ),
+                                              ],
                                             ],
                                           ],
-                                        ],
+                                        ),
                                       ),
-                                    ),
                                   ],
                                 ),
                               ),

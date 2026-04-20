@@ -645,7 +645,9 @@ void main() {
     expect(firstSubjectTop, lessThan(450));
   });
 
-  testWidgets('home subject grid becomes scrollable when live subject count exceeds one tablet view', (
+  testWidgets(
+      'home subject grid becomes scrollable when live subject count exceeds one tablet view',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 520);
@@ -718,7 +720,8 @@ void main() {
     final subjectGrid = tester.widget<GridView>(find.byType(GridView).first);
     expect(subjectGrid.physics, isA<BouncingScrollPhysics>());
 
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    final scrollable =
+        tester.state<ScrollableState>(find.byType(Scrollable).first);
     expect(scrollable.position.pixels, 0);
 
     await tester.drag(find.byType(GridView).first, const Offset(0, -300));
@@ -1713,9 +1716,13 @@ void main() {
     );
     await pumpForUi(tester);
 
-    expect(find.text('Selected object'), findsOneWidget);
-    expect(find.text('Choose the matching object'), findsOneWidget);
-    expect(find.text('No object selected yet'), findsOneWidget);
+    expect(find.text('Selected object'), findsNothing);
+    expect(find.text('Choose the matching object'), findsNothing);
+    expect(find.text('No object selected yet'), findsNothing);
+    expect(find.text('Pick the ant'), findsNothing);
+    expect(find.byKey(const ValueKey('choice-grid')), findsOneWidget);
+    expect(find.byKey(const ValueKey('choice-cta-row')), findsOneWidget);
+    expect(find.text('Choose one object to continue'), findsOneWidget);
 
     final continueButton = find.widgetWithText(FilledButton, 'Continue');
     expect(continueButton, findsOneWidget);
@@ -1732,6 +1739,11 @@ void main() {
 
     expect(find.text('ant'), findsWidgets);
     expect(find.text('Selected'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('choice-cta-row'))).dy,
+      greaterThan(
+          tester.getBottomLeft(find.byKey(const ValueKey('choice-grid'))).dy),
+    );
     expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
 
     state.dispose();
@@ -1822,6 +1834,102 @@ void main() {
       state.dispose();
     },
   );
+
+  testWidgets(
+      'choice lessons keep six options in two rows of three with CTA below', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 1024);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const lesson = LessonCardModel(
+      id: 'tap-choice-grid',
+      moduleId: 'english',
+      title: 'Six choice grid',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Check six-choice layout.',
+      scenario: 'Six choice cards should stay in two rows with the CTA below.',
+      steps: [
+        LessonStep(
+          id: 'grid-step-6',
+          type: LessonStepType.practice,
+          title: 'Pick mango',
+          instruction: 'Tap the matching object card.',
+          expectedResponse: 'mango',
+          coachPrompt: 'Tap mango.',
+          facilitatorTip: 'Watch whether the learner can scan all six options.',
+          realWorldCheck: 'Six cards stay visible in two rows of three.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.tapChoice,
+            prompt: 'Tap mango.',
+            targetResponse: 'mango',
+            choices: ['mango', 'leaf', 'hat', 'cup', 'drum', 'book'],
+          ),
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+      state.modules.firstWhere((module) => module.id == lesson.moduleId),
+    );
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    final topLeft = tester.getTopLeft(
+      find.ancestor(of: find.text('mango'), matching: find.byType(InkWell)),
+    );
+    final topMiddle = tester.getTopLeft(
+      find.ancestor(of: find.text('leaf'), matching: find.byType(InkWell)),
+    );
+    final topRight = tester.getTopLeft(
+      find.ancestor(of: find.text('hat'), matching: find.byType(InkWell)),
+    );
+    final bottomLeft = tester.getTopLeft(
+      find.ancestor(of: find.text('cup'), matching: find.byType(InkWell)),
+    );
+    final bottomMiddle = tester.getTopLeft(
+      find.ancestor(of: find.text('drum'), matching: find.byType(InkWell)),
+    );
+    final bottomRight = tester.getTopLeft(
+      find.ancestor(of: find.text('book'), matching: find.byType(InkWell)),
+    );
+
+    expect((topLeft.dy - topMiddle.dy).abs(), lessThan(8));
+    expect((topMiddle.dy - topRight.dy).abs(), lessThan(8));
+    expect((bottomLeft.dy - bottomMiddle.dy).abs(), lessThan(8));
+    expect((bottomMiddle.dy - bottomRight.dy).abs(), lessThan(8));
+    expect(bottomLeft.dy, greaterThan(topLeft.dy + 40));
+    expect(topLeft.dx, lessThan(topMiddle.dx));
+    expect(topMiddle.dx, lessThan(topRight.dx));
+    expect(bottomLeft.dx, lessThan(bottomMiddle.dx));
+    expect(bottomMiddle.dx, lessThan(bottomRight.dx));
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('choice-cta-row'))).dy,
+      greaterThan(
+          tester.getBottomLeft(find.byKey(const ValueKey('choice-grid'))).dy),
+    );
+
+    state.dispose();
+  });
 
   testWidgets('lesson session shows a preflight listening readiness card', (
     tester,
