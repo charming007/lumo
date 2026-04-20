@@ -861,6 +861,109 @@ void main() {
   });
 
   testWidgets(
+      'learner profile exposes quick lesson actions and honest lesson counts', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final module = state.modules.firstWhere((item) => item.id == 'english');
+    final baseLesson = state.assignedLessons.firstWhere(
+      (item) => item.moduleId == module.id,
+    );
+    state.currentLearner = learner;
+    state.assignedLessons.addAll([
+      LessonCardModel(
+        id: 'english-profile-4',
+        moduleId: module.id,
+        title: 'Story sounds',
+        subject: module.title,
+        durationMinutes: 8,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Hear a new story sound.',
+        scenario: 'Extra assigned lesson for profile overflow.',
+        steps: baseLesson.steps,
+      ),
+      LessonCardModel(
+        id: 'english-profile-5',
+        moduleId: module.id,
+        title: 'Word match',
+        subject: module.title,
+        durationMinutes: 8,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Match new words.',
+        scenario: 'Another extra assigned lesson for profile overflow.',
+        steps: baseLesson.steps,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorObservers: [lumoRouteObserver],
+        home: LearnerProfilePage(
+          state: state,
+          learner: learner,
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('3 of 5 shown'), findsOneWidget);
+    expect(find.text('Open lesson'), findsNWidgets(3));
+    expect(
+        find.text(
+            '2 more assigned lessons still available after these quick picks.'),
+        findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'learner profile can launch a lesson directly from the assigned lesson list',
+      (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    state.currentLearner = learner;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorObservers: [lumoRouteObserver],
+        home: LearnerProfilePage(
+          state: state,
+          learner: learner,
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    await tester.dragUntilVisible(
+      find.text('Open lesson').last,
+      find.byType(Scrollable).first,
+      const Offset(0, -250),
+    );
+    await tester.tap(find.text('Open lesson').last);
+    await pumpForUi(tester);
+
+    expect(find.byType(LessonLaunchSetupPage), findsOneWidget);
+    expect(find.text('Choose learner'), findsOneWidget);
+    expect(
+        find.textContaining('${learner.name} is selected for'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets(
       'learner profile refreshes while an async reward reconciliation lands', (
     tester,
   ) async {
@@ -1622,11 +1725,13 @@ void main() {
     expect(
         find.text('0:04 clip • .../audio/fallback-review.m4a'), findsOneWidget);
     expect(
-      find.text(
-              'Use the saved clip as the source of truth before Mallam continues.')
-          .evaluate()
-          .isNotEmpty ||
-          find.text('Quick audio check first, then confirm the text.')
+      find
+              .text(
+                  'Use the saved clip as the source of truth before Mallam continues.')
+              .evaluate()
+              .isNotEmpty ||
+          find
+              .text('Quick audio check first, then confirm the text.')
               .evaluate()
               .isNotEmpty,
       isTrue,
@@ -1682,8 +1787,12 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('My name is ${learner.name.split(' ').first}'), findsWidgets);
-    expect(find.text('No transcript was captured. Listen to the saved voice note, then type the learner response here if needed.'), findsNothing);
+    expect(
+        find.text('My name is ${learner.name.split(' ').first}'), findsWidgets);
+    expect(
+        find.text(
+            'No transcript was captured. Listen to the saved voice note, then type the learner response here if needed.'),
+        findsNothing);
 
     state.dispose();
   });
@@ -2010,7 +2119,8 @@ void main() {
   });
 
   testWidgets(
-      'listen-answer and speak-answer use the simplified spoken lesson layout', (
+      'listen-answer and speak-answer use the simplified spoken lesson layout',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1280, 900);
@@ -2026,7 +2136,8 @@ void main() {
       status: 'Assigned',
       mascotName: 'Mallam',
       readinessFocus: 'Keep spoken answer steps minimal.',
-      scenario: 'Listen-answer and speak-answer should match the listen-repeat shell.',
+      scenario:
+          'Listen-answer and speak-answer should match the listen-repeat shell.',
       steps: [
         LessonStep(
           id: 'spoken-step-1',
@@ -2052,7 +2163,8 @@ void main() {
           instruction: 'Answer the question in your own voice.',
           expectedResponse: 'I wash my hands.',
           coachPrompt: 'Tell Mallam what you do before eating.',
-          facilitatorTip: 'The same simplified spoken-step shell should remain.',
+          facilitatorTip:
+              'The same simplified spoken-step shell should remain.',
           realWorldCheck: 'The spoken answer screen stays minimal too.',
           speakerMode: SpeakerMode.listening,
           activity: LessonActivity(
@@ -2085,9 +2197,11 @@ void main() {
     );
     await pumpForUi(tester);
 
-    expect(find.text('Listen, then answer: What shines in the sky?'), findsOneWidget);
+    expect(find.text('Listen, then answer: What shines in the sky?'),
+        findsOneWidget);
     expect(find.text('Learner transcript'), findsOneWidget);
-    expect(find.text('Session pulse • ${learner.name.split(' ').first}'), findsNothing);
+    expect(find.text('Session pulse • ${learner.name.split(' ').first}'),
+        findsNothing);
     expect(find.text('Live listen feed'), findsNothing);
     expect(
       find.text('Start listening + transcript').evaluate().isNotEmpty ||
@@ -2113,7 +2227,8 @@ void main() {
     expect(find.text('Learner transcript'), findsOneWidget);
     expect(find.textContaining('Start listening, capture the learner voice'),
         findsNothing);
-    expect(find.text('Session pulse • ${learner.name.split(' ').first}'), findsNothing);
+    expect(find.text('Session pulse • ${learner.name.split(' ').first}'),
+        findsNothing);
     expect(find.text('Live listen feed'), findsNothing);
 
     state.dispose();

@@ -1810,7 +1810,10 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final totalXp = learner.totalXp;
     final totalMinutes = learner.estimatedTotalMinutes;
     final totalPoints = learnerMotivationPoints(learner);
-    final assignedLessons = state.lessonsForLearner(learner).take(3).toList();
+    final allAssignedLessons = state.lessonsForLearner(learner);
+    final assignedLessons = allAssignedLessons.take(3).toList();
+    final hiddenAssignedLessonCount =
+        (allAssignedLessons.length - assignedLessons.length).clamp(0, 999);
     final nextLesson = state.nextAssignedLessonForLearner(learner);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
     final recommendedModule = state.recommendedModuleForLearner(learner);
@@ -2292,8 +2295,14 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           style: TextStyle(
                                               fontWeight: FontWeight.w800))),
                                   StatusPill(
-                                      text: '${assignedLessons.length} shown',
-                                      color: LumoTheme.accentOrange),
+                                      text: assignedLessons.isEmpty
+                                          ? 'None yet'
+                                          : hiddenAssignedLessonCount > 0
+                                              ? '${assignedLessons.length} of ${allAssignedLessons.length} shown'
+                                              : '${assignedLessons.length} shown',
+                                      color: assignedLessons.isEmpty
+                                          ? const Color(0xFF94A3B8)
+                                          : LumoTheme.accentOrange),
                                 ],
                               ),
                               const SizedBox(height: 10),
@@ -2362,37 +2371,111 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                               if (assignedLessons.isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 ...assignedLessons.map(
-                                  (lesson) => Container(
-                                    width: double.infinity,
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                          color: const Color(0xFFE2E8F0)),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(lesson.title,
+                                  (lesson) {
+                                    final matchesResumableSession =
+                                        resumableSession?.lessonId == lesson.id;
+                                    return Container(
+                                      width: double.infinity,
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                            color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child: Text(lesson.title,
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w800)),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              StatusPill(
+                                                text: lesson
+                                                        .isAssignmentPlaceholder
+                                                    ? 'Sync first'
+                                                    : matchesResumableSession
+                                                        ? 'Resume ready'
+                                                        : 'Ready',
+                                                color: lesson
+                                                        .isAssignmentPlaceholder
+                                                    ? LumoTheme.accentOrange
+                                                    : matchesResumableSession
+                                                        ? LumoTheme.primary
+                                                        : LumoTheme.accentGreen,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${lesson.subject} • ${lesson.durationMinutes} min',
                                             style: const TextStyle(
-                                                fontWeight: FontWeight.w800)),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${lesson.subject} • ${lesson.durationMinutes} min',
-                                          style: const TextStyle(
-                                              color: Color(0xFF64748B)),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(lesson.scenario,
-                                            style:
-                                                const TextStyle(height: 1.35)),
-                                      ],
+                                                color: Color(0xFF64748B)),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(lesson.scenario,
+                                              style: const TextStyle(
+                                                  height: 1.35)),
+                                          const SizedBox(height: 12),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: FilledButton.tonalIcon(
+                                              onPressed: () {
+                                                state.selectLearner(learner);
+                                                launchLessonFlow(
+                                                  context: context,
+                                                  state: state,
+                                                  onChanged: () {},
+                                                  lesson: lesson,
+                                                  resumeFrom:
+                                                      matchesResumableSession
+                                                          ? resumableSession
+                                                          : null,
+                                                );
+                                              },
+                                              icon: Icon(
+                                                lesson.isAssignmentPlaceholder
+                                                    ? Icons.sync_rounded
+                                                    : matchesResumableSession
+                                                        ? Icons
+                                                            .play_circle_fill_rounded
+                                                        : Icons
+                                                            .open_in_new_rounded,
+                                              ),
+                                              label: Text(
+                                                lesson.isAssignmentPlaceholder
+                                                    ? 'Refresh sync before starting'
+                                                    : matchesResumableSession
+                                                        ? 'Resume lesson'
+                                                        : 'Open lesson',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                                if (hiddenAssignedLessonCount > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      '$hiddenAssignedLessonCount more assigned lesson${hiddenAssignedLessonCount == 1 ? '' : 's'} still available after these quick picks.',
+                                      style: const TextStyle(
+                                        color: Color(0xFF64748B),
+                                        height: 1.35,
+                                      ),
                                     ),
                                   ),
-                                ),
                               ],
                             ],
                           ),
@@ -4754,7 +4837,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         currentDraft == _latestFinalTranscript.trim() ||
         currentDraft == liveTranscript.trim();
 
-    if (hasDraftResponse && canReplaceDraft && currentDraft != visibleLearnerText) {
+    if (hasDraftResponse &&
+        canReplaceDraft &&
+        currentDraft != visibleLearnerText) {
       responseController.value = TextEditingValue(
         text: visibleLearnerText,
         selection: TextSelection.collapsed(offset: visibleLearnerText.length),
@@ -4814,12 +4899,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
     final visibleLearnerText = _bestVisibleLearnerText(session);
     final currentDraft = responseController.text.trim();
-    final sessionIdChanged = oldWidget.state.activeSession?.sessionId != session.sessionId;
+    final sessionIdChanged =
+        oldWidget.state.activeSession?.sessionId != session.sessionId;
     final staleVisibleDraft = currentDraft.isEmpty ||
         currentDraft == _latestFinalTranscript.trim() ||
         currentDraft == liveTranscript.trim();
     if (sessionIdChanged ||
-        (visibleLearnerText.isNotEmpty && staleVisibleDraft && currentDraft != visibleLearnerText)) {
+        (visibleLearnerText.isNotEmpty &&
+            staleVisibleDraft &&
+            currentDraft != visibleLearnerText)) {
       _rebindVisibleLearnerEvidence();
     }
   }
@@ -7475,8 +7563,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final isChoiceStep = _isChoiceActivityType(currentActivity?.type);
     final isListenRepeatStep =
         currentActivity?.type == LessonActivityType.listenRepeat;
-    final isSimplifiedSpokenStep =
-        isListenRepeatStep ||
+    final isSimplifiedSpokenStep = isListenRepeatStep ||
         currentActivity?.type == LessonActivityType.listenAnswer ||
         currentActivity?.type == LessonActivityType.speakAnswer;
     final hasDraftResponse = responseController.text.trim().isNotEmpty;
@@ -8134,8 +8221,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 runSpacing: 10,
                                                 children: [
                                                   Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
                                                       horizontal: 12,
                                                       vertical: 8,
                                                     ),
@@ -8159,8 +8246,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                     ),
                                                   ),
                                                   Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
                                                       horizontal: 12,
                                                       vertical: 8,
                                                     ),
@@ -8398,11 +8485,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                       children: [
                                                         Container(
                                                           padding:
-                                                              const EdgeInsets.symmetric(
+                                                              const EdgeInsets
+                                                                  .symmetric(
                                                             horizontal: 10,
                                                             vertical: 6,
                                                           ),
-                                                          decoration: BoxDecoration(
+                                                          decoration:
+                                                              BoxDecoration(
                                                             color: const Color(
                                                               0xFFEFF6FF,
                                                             ),
@@ -8414,7 +8503,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                           ),
                                                           child: Text(
                                                             _transcriptSourceOfTruthLabel,
-                                                            style: const TextStyle(
+                                                            style:
+                                                                const TextStyle(
                                                               color: Color(
                                                                 0xFF1D4ED8,
                                                               ),
@@ -8426,11 +8516,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                         ),
                                                         Container(
                                                           padding:
-                                                              const EdgeInsets.symmetric(
+                                                              const EdgeInsets
+                                                                  .symmetric(
                                                             horizontal: 10,
                                                             vertical: 6,
                                                           ),
-                                                          decoration: BoxDecoration(
+                                                          decoration:
+                                                              BoxDecoration(
                                                             color: const Color(
                                                               0xFFF8FAFC,
                                                             ),
@@ -8440,14 +8532,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                               999,
                                                             ),
                                                             border: Border.all(
-                                                              color: const Color(
+                                                              color:
+                                                                  const Color(
                                                                 0xFFE2E8F0,
                                                               ),
                                                             ),
                                                           ),
                                                           child: Text(
                                                             _automationSafetyLabel,
-                                                            style: const TextStyle(
+                                                            style:
+                                                                const TextStyle(
                                                               color: Color(
                                                                 0xFF334155,
                                                               ),
