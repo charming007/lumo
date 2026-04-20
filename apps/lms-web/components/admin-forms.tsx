@@ -70,30 +70,6 @@ const responsiveGrid = (minWidth: number) => ({
 const twoColumnGrid = responsiveGrid(220);
 const threeColumnGrid = responsiveGrid(180);
 
-const subjectStatusCardMeta: Record<string, { label: string; description: string; background: string; border: string; accent: string }> = {
-  draft: {
-    label: 'Draft',
-    description: 'Still being shaped. Safe for rough edits, not release.',
-    background: '#EEF2FF',
-    border: '#C7D2FE',
-    accent: '#4338CA',
-  },
-  review: {
-    label: 'In review',
-    description: 'Visible for content review and release checks.',
-    background: '#FFFBEB',
-    border: '#FCD34D',
-    accent: '#B45309',
-  },
-  published: {
-    label: 'Published',
-    description: 'Release-ready and meant to show up in the live curriculum lane.',
-    background: '#ECFDF5',
-    border: '#86EFAC',
-    accent: '#166534',
-  },
-};
-
 function FieldLabel({ children }: { children: ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
 }
@@ -113,11 +89,18 @@ function LifecycleStatusField({
   options: Array<{ value: string; label: string; hint: string; tone: string; text: string; border: string }>;
   entityLabel: string;
 }) {
+  const currentOption = options.find((option) => option.value === value) ?? options[0];
+
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
-      <div style={{ display: 'grid', gap: 4 }}>
-        <div style={{ color: '#0f172a', fontSize: 14, fontWeight: 800 }}>Lifecycle status</div>
-        <SectionHint>Make the {entityLabel} state explicit here instead of burying release control in a tiny select box.</SectionHint>
+    <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, border: '1px solid #E2E8F0', background: '#F8FAFC' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ color: '#0f172a', fontSize: 14, fontWeight: 800 }}>Lifecycle status</div>
+          <SectionHint>Make the {entityLabel} state explicit here instead of burying release control in a tiny select box.</SectionHint>
+        </div>
+        <div style={{ padding: '8px 12px', borderRadius: 999, background: currentOption.tone, color: currentOption.text, fontSize: 12, fontWeight: 800, border: `1px solid ${currentOption.border}` }}>
+          Current: {currentOption.label}
+        </div>
       </div>
       <div style={{ ...responsiveGrid(180), gap: 10 }}>
         {options.map((option) => {
@@ -146,6 +129,12 @@ function LifecycleStatusField({
           );
         })}
       </div>
+      <FieldLabel>
+        Status dropdown fallback
+        <select defaultValue={value} style={inputStyle} disabled>
+          {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+      </FieldLabel>
     </div>
   );
 }
