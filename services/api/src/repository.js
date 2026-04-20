@@ -270,6 +270,7 @@ function createSubject(input) {
       subjectId: subject.id,
       name: input.initialStrandName,
       order: 1,
+      status: subject.status || 'draft',
     });
   }
 
@@ -334,6 +335,7 @@ function createStrand(input) {
     subjectId: input.subjectId,
     name: input.name,
     order: Number(input.order || data.strands.filter((item) => item.subjectId === input.subjectId).length + 1),
+    status: input.status || 'draft',
   };
 
   data.strands.push(strand);
@@ -351,6 +353,7 @@ function updateStrand(id, input) {
     subjectId: input.subjectId ?? strand.subjectId,
     name: input.name ?? strand.name,
     order: input.order !== undefined ? Number(input.order) : strand.order,
+    status: input.status ?? strand.status ?? 'draft',
   });
 
   return commit(strand);

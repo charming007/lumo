@@ -90,11 +90,11 @@ const seed = {
     { id: 'life-skills', name: 'Life Skills', icon: 'favorite', order: 3, status: 'draft' },
   ],
   strands: [
-    { id: 'strand-1', subjectId: 'english', name: 'Listening & Speaking', order: 1 },
-    { id: 'strand-4', subjectId: 'english', name: 'Phonics & Word Building', order: 2 },
-    { id: 'strand-2', subjectId: 'math', name: 'Number Sense', order: 1 },
-    { id: 'strand-5', subjectId: 'math', name: 'Operations & Problem Solving', order: 2 },
-    { id: 'strand-3', subjectId: 'life-skills', name: 'Health & Hygiene', order: 1 },
+    { id: 'strand-1', subjectId: 'english', name: 'Listening & Speaking', order: 1, status: 'published' },
+    { id: 'strand-4', subjectId: 'english', name: 'Phonics & Word Building', order: 2, status: 'draft' },
+    { id: 'strand-2', subjectId: 'math', name: 'Number Sense', order: 1, status: 'published' },
+    { id: 'strand-5', subjectId: 'math', name: 'Operations & Problem Solving', order: 2, status: 'draft' },
+    { id: 'strand-3', subjectId: 'life-skills', name: 'Health & Hygiene', order: 1, status: 'draft' },
   ],
   modules: [
     { id: 'module-1', strandId: 'strand-1', level: 'beginner', title: 'Greetings & Identity', lessonCount: 4, order: 1, status: 'published' },

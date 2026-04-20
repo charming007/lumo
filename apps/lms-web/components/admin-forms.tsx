@@ -242,7 +242,7 @@ export function CreateSubjectForm({ returnPath }: { returnPath?: string }) {
         <FieldLabel>Icon<input name="icon" defaultValue="biotech" style={inputStyle} /></FieldLabel>
         <FieldLabel>Order<input name="order" type="number" min="1" defaultValue="4" style={inputStyle} /></FieldLabel>
       </div>
-      <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="published">Published</option></select></FieldLabel>
+      <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="published">Published</option></select></FieldLabel>
       <FieldLabel>Initial strand name<input name="initialStrandName" defaultValue="Observation & Discovery" style={inputStyle} /></FieldLabel>
       <ActionButton label="Create subject" pendingLabel="Creating subject…" style={buttonStyle} />
     </form>
@@ -293,7 +293,10 @@ export function CreateStrandForm({ subjects, initialSubjectId, initialName, init
       <SectionHint>Give each subject a real planning lane before you start dumping modules into it.</SectionHint>
       <FieldLabel>Subject<select name="subjectId" defaultValue={initialSubjectId ?? subjects[0]?.id} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
       <FieldLabel>Strand name<input name="name" defaultValue={initialName ?? 'Speaking & Listening'} style={inputStyle} /></FieldLabel>
-      <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(initialOrder ?? 2)} style={inputStyle} /></FieldLabel>
+      <div style={twoColumnGrid}>
+        <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(initialOrder ?? 2)} style={inputStyle} /></FieldLabel>
+        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="published">Published</option></select></FieldLabel>
+      </div>
       <ActionButton label="Create strand" pendingLabel="Creating strand…" style={buttonStyle} />
     </form>
   );
@@ -307,8 +310,12 @@ export function UpdateStrandForm({ strand, subjects, embedded = false, returnPat
         <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
         <h2 style={{ margin: 0 }}>Update strand</h2>
         <FieldLabel>Subject<select name="subjectId" defaultValue={strand.subjectId} style={inputStyle}>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></FieldLabel>
+        <SectionHint>Give strands the same publish control subjects already have so release state does not vanish one level down the curriculum spine.</SectionHint>
         <FieldLabel>Strand name<input name="name" defaultValue={strand.name} style={inputStyle} /></FieldLabel>
-        <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(strand.order ?? 1)} style={inputStyle} /></FieldLabel>
+        <div style={twoColumnGrid}>
+          <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(strand.order ?? 1)} style={inputStyle} /></FieldLabel>
+          <FieldLabel>Status<select name="status" defaultValue={strand.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="published">Published</option></select></FieldLabel>
+        </div>
         <ActionButton label="Save strand changes" pendingLabel="Saving strand…" style={buttonStyle} />
       </form>
     </div>

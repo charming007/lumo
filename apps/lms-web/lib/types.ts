@@ -189,6 +189,7 @@ export type Strand = {
   subjectName: string;
   name: string;
   order: number;
+  status?: string;
 };
 
 export type Cohort = {
@@ -570,6 +571,12 @@ export type AssetRuntimeReport = {
     issueCount: number;
     topIssues: Array<{ type: string; severity: string; assetId?: string | null; assetTitle?: string | null; note?: string | null; lessonTitle?: string; value?: string }>;
     orphanedAssets: Array<{ assetId: string; title: string; kind: string; status?: string; updatedAt?: string | null }>;
+  };
+  routeEvidence?: {
+    ready: boolean;
+    mountedCount: number;
+    expectedCount: number;
+    checks: Array<{ method: string; path: string; purpose: string; mounted: boolean }>;
   };
   nextActions: string[];
 };

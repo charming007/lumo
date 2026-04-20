@@ -474,6 +474,7 @@ export async function createStrandAction(formData: FormData) {
     subjectId: String(formData.get('subjectId') || ''),
     name: String(formData.get('name') || ''),
     order: Number(formData.get('order') || 0),
+    status: String(formData.get('status') || 'draft'),
   };
 
   await apiWrite('/api/v1/strands', 'POST', payload);
@@ -491,6 +492,7 @@ export async function updateStrandAction(formData: FormData) {
     subjectId: String(formData.get('subjectId') || ''),
     name: String(formData.get('name') || ''),
     order: Number(formData.get('order') || 0),
+    status: String(formData.get('status') || 'draft'),
   };
 
   await apiWrite(`/api/v1/strands/${strandId}`, 'PATCH', payload);

@@ -248,6 +248,7 @@ function validateStrand(body, { partial = false } = {}) {
   }
 
   assertExists('subjectId', body.subjectId, repository.findSubjectById);
+  assertAllowed('status', body.status, ['draft', 'published']);
 }
 
 function validateModule(body, { partial = false } = {}) {

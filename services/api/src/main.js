@@ -760,6 +760,7 @@ function presentCurriculumCanvasNode(nodeType, node) {
       name: node.name,
       icon: node.icon || null,
       order: Number(node.order || 0),
+      status: node.status || 'draft',
       parentId: null,
       parentType: 'root',
       stats: {
@@ -781,6 +782,7 @@ function presentCurriculumCanvasNode(nodeType, node) {
       nodeType,
       title: node.name,
       name: node.name,
+      status: node.status || 'draft',
       order: Number(node.order || 0),
       parentId: node.subjectId,
       parentType: 'subject',
@@ -905,6 +907,10 @@ function normalizeCanvasNodePatch(nodeType, body = {}) {
     patch.title = patch.name;
   }
 
+  if (nodeType === 'strand' && patch.status === '') {
+    delete patch.status;
+  }
+
   if ((nodeType === 'lesson' || nodeType === 'assessment') && patch.moduleId && !patch.subjectId) {
     const targetModule = requireCurriculumNode('module', patch.moduleId);
     const targetStrand = requireCurriculumNode('strand', targetModule.strandId);
@@ -916,7 +922,7 @@ function normalizeCanvasNodePatch(nodeType, body = {}) {
 
 function inferCanvasChildPayload(parentType, parentNode, childType, body = {}) {
   if (childType === 'strand') {
-    return { subjectId: parentNode.id, name: body.name, order: body.order };
+    return { subjectId: parentNode.id, name: body.name, order: body.order, status: body.status || 'draft' };
   }
   if (childType === 'module') {
     return { strandId: parentNode.id, title: body.title || body.name, level: body.level || 'beginner', status: body.status || 'draft', order: body.order };
@@ -930,7 +936,15 @@ function inferCanvasChildPayload(parentType, parentNode, childType, body = {}) {
     return { subjectId: body.subjectId || strand.subjectId, moduleId: parentNode.id, title: body.title || body.name, kind: body.kind || 'automatic', trigger: body.trigger || 'module-complete', triggerLabel: body.triggerLabel || 'After module completion', progressionGate: body.progressionGate || 'foundation-a', passingScore: body.passingScore !== undefined ? body.passingScore : 0.6, status: body.status || 'draft', items: body.items, order: body.order };
   }
   if (childType === 'subject') {
-    return { id: body.id, name: body.name, icon: body.icon, order: body.order, initialStrandName: body.initialStrandName };
+    return {
+      id: body.id,
+      name: body.name,
+      icon: body.icon,
+      order: body.order,
+      status: body.status || 'draft',
+      initialStrandName: body.initialStrandName,
+      initialStrandStatus: body.initialStrandStatus || body.status || 'draft',
+    };
   }
   return body;
 }
