@@ -17,37 +17,53 @@ const cardStyle = {
   boxShadow: '0 12px 30px rgba(15,23,42,0.06)',
 } as const;
 
-function buildFallbackSubject(subjects: Subject[], lesson: { subjectId?: string | null; subjectName?: string | null }) {
-  const subjectId = lesson.subjectId?.trim();
-  const subjectName = lesson.subjectName?.trim();
+const LESSON_EDITOR_BUILD_SIGNATURE = [
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12),
+  process.env.VERCEL_DEPLOYMENT_ID,
+  process.env.NEXT_PUBLIC_VERCEL_ENV,
+  process.env.npm_package_version,
+].filter(Boolean).join(' · ') || 'local-dev-signature';
+
+function buildFallbackSubject(subjects: Subject[], lesson: { subjectId?: string | null; subjectName?: string | null }, module?: { subjectId?: string | null; subjectName?: string | null } | null) {
+  const subjectId = lesson.subjectId?.trim() || module?.subjectId?.trim();
+  const subjectName = lesson.subjectName?.trim() || module?.subjectName?.trim();
   const matched = subjects.find((subject) => subject.id === subjectId || (subjectName && subject.name === subjectName));
 
   if (matched) return matched;
   if (!subjectId && !subjectName) return null;
 
   return {
-    id: subjectId ?? '__lesson-subject',
-    name: subjectName ?? 'Current subject',
+    id: subjectId ?? `__lesson-subject-${lesson.subjectId?.trim() || 'recovered'}`,
+    name: subjectName ?? 'Recovered subject context',
+    status: 'recovered-fallback',
   } satisfies Subject;
 }
 
-function buildFallbackModule(modules: CurriculumModule[], lesson: { moduleId?: string | null; moduleTitle?: string | null; subjectId?: string | null; subjectName?: string | null }) {
+function buildFallbackModule(
+  modules: CurriculumModule[],
+  lesson: { id: string; title: string; moduleId?: string | null; moduleTitle?: string | null; subjectId?: string | null; subjectName?: string | null },
+  subject?: Subject | null,
+) {
   const moduleId = lesson.moduleId?.trim();
   const moduleTitle = lesson.moduleTitle?.trim();
   const matched = modules.find((module) => module.id === moduleId || (moduleTitle && module.title === moduleTitle));
 
   if (matched) return matched;
-  if (!moduleId && !moduleTitle) return null;
+
+  const recoveredSubjectId = subject?.id ?? lesson.subjectId?.trim() ?? null;
+  const recoveredSubjectName = subject?.name ?? lesson.subjectName?.trim() ?? 'Recovered subject context';
+
+  if (!moduleId && !moduleTitle && !recoveredSubjectId && !recoveredSubjectName) return null;
 
   return {
-    id: moduleId ?? '__lesson-module',
-    title: moduleTitle ?? 'Current module',
-    subjectId: lesson.subjectId?.trim() || null,
-    subjectName: lesson.subjectName?.trim() ?? 'Current subject',
-    level: 'Current lane',
+    id: moduleId ?? `__lesson-module-${lesson.id}`,
+    title: moduleTitle ?? `Recovered module for ${lesson.title.trim() || 'current lesson'}`,
+    subjectId: recoveredSubjectId,
+    subjectName: recoveredSubjectName,
+    level: 'Recovered lane',
     lessonCount: 1,
-    status: 'unknown',
-    strandName: 'Current strand',
+    status: 'recovered-fallback',
+    strandName: 'Recovered strand',
   } satisfies CurriculumModule;
 }
 
@@ -94,15 +110,23 @@ export default async function LessonStudioEditPage({
     assetPayloadIssues.length ? 'asset payload' : null,
   ].filter(Boolean) as string[];
 
-  const fallbackSubject = lesson ? buildFallbackSubject(loadedSubjects, lesson) : null;
-  const fallbackModule = lesson ? buildFallbackModule(loadedModules, lesson) : null;
+  const matchedModuleFromLesson = lesson
+    ? loadedModules.find((module) => module.id === lesson.moduleId || (lesson.moduleTitle && module.title === lesson.moduleTitle)) ?? null
+    : null;
+  const fallbackSubject = lesson ? buildFallbackSubject(loadedSubjects, lesson, matchedModuleFromLesson) : null;
+  const fallbackModule = lesson ? buildFallbackModule(loadedModules, lesson, fallbackSubject) : null;
   const subjects = fallbackSubject && !loadedSubjects.some((subject) => subject.id === fallbackSubject.id)
     ? [...loadedSubjects, fallbackSubject]
     : loadedSubjects;
   const modules = fallbackModule && !loadedModules.some((module) => module.id === fallbackModule.id)
     ? [...loadedModules, fallbackModule]
     : loadedModules;
-  const hasUsableCurriculumContext = Boolean(lesson && (subjects.length > 0 || fallbackSubject) && (modules.length > 0 || fallbackModule));
+  const hasUsableCurriculumContext = Boolean(lesson && subjects.length > 0 && modules.length > 0);
+  const emergencyContextRecovered = Boolean(
+    lesson
+    && ((fallbackSubject && !loadedSubjects.some((subject) => subject.id === fallbackSubject.id))
+      || (fallbackModule && !loadedModules.some((module) => module.id === fallbackModule.id))),
+  );
 
   if (!lesson || !hasUsableCurriculumContext) {
     return (
@@ -112,7 +136,7 @@ export default async function LessonStudioEditPage({
         blockerHeadline="Deployment blocker: lesson editor context could not be recovered."
         blockerDetail={(
           <>
-            The editor cannot safely load this lesson because the minimum authoring context is still incomplete or the lesson payload is malformed. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ') || 'unknown'}. {lessonPayloadIssues.length ? `Payload issues: ${lessonPayloadIssues.join(' ')}` : ''}
+            The editor cannot safely load this lesson because the lesson payload is missing core identity or even the emergency curriculum fallback could not be constructed. Failed feed{failedSources.length === 1 ? '' : 's'}: {failedSources.join(', ') || 'unknown'}. {lessonPayloadIssues.length ? `Payload issues: ${lessonPayloadIssues.join(' ')}` : ''} Build signature: {LESSON_EDITOR_BUILD_SIGNATURE}.
           </>
         )}
         whyBlocked={[
@@ -182,11 +206,25 @@ export default async function LessonStudioEditPage({
     >
       <FeedbackBanner message={query?.message} />
 
-      {failedSources.length ? (
-        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          Editor recovered with degraded feeds: {failedSources.join(', ')}. Lesson editing stays live because the lesson payload and curriculum context are still usable.{lessonPayloadIssues.length ? ` Sanitized payload issues: ${lessonPayloadIssues.join(' ')}` : ''}{assetPayloadIssues.length ? ` Sanitized asset issues: ${assetPayloadIssues.join(' ')}` : ''}
+      {failedSources.length || emergencyContextRecovered ? (
+        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, display: 'grid', gap: 8 }}>
+          <div>
+            Editor recovered with degraded feeds: {failedSources.join(', ') || 'live feed mismatch only'}. Lesson editing stays live because the lesson payload is usable and the route now accepts recovered curriculum context.{lessonPayloadIssues.length ? ` Sanitized payload issues: ${lessonPayloadIssues.join(' ')}` : ''}{assetPayloadIssues.length ? ` Sanitized asset issues: ${assetPayloadIssues.join(' ')}` : ''}
+          </div>
+          {emergencyContextRecovered ? (
+            <div>
+              Emergency context fallback is active. Subject/module selectors may include recovered placeholders until the live curriculum feeds catch up.
+            </div>
+          ) : null}
+          <div style={{ fontSize: 12, letterSpacing: 0.3, color: '#7c2d12' }}>
+            Lesson editor build signature: <strong>{LESSON_EDITOR_BUILD_SIGNATURE}</strong>
+          </div>
         </div>
-      ) : null}
+      ) : (
+        <div style={{ marginBottom: 18, padding: '10px 14px', borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', fontSize: 13 }}>
+          Lesson editor build signature: <strong>{LESSON_EDITOR_BUILD_SIGNATURE}</strong>
+        </div>
+      )}
 
       <section style={{ display: 'grid', gap: 18 }}>
         <LessonEditorForm
