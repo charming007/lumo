@@ -382,6 +382,7 @@ class LumoAppState {
       lastSyncError = _readNullableString(snapshot['lastSyncError']);
       learnerRuntimeError =
           _readNullableString(snapshot['learnerRuntimeError']);
+      snapshotSavedAt = _parseDate(snapshot['snapshotSavedAt']) ?? snapshotSavedAt;
 
       final activeSessionRaw = snapshot['activeSession'];
       final learnerId = _readNullableString(snapshot['currentLearnerId']) ??
@@ -3437,6 +3438,7 @@ class LumoAppState {
       'lastSyncedAt': lastSyncedAt?.toIso8601String(),
       'backendGeneratedAt': backendGeneratedAt?.toIso8601String(),
       'lastSyncAttemptAt': lastSyncAttemptAt?.toIso8601String(),
+      'snapshotSavedAt': snapshotSavedAt?.toIso8601String(),
       'sourceBaseUrl': snapshotSourceBaseUrl,
       'snapshotContractVersion': snapshotContractVersion,
       'snapshotTrustedFromLiveBootstrap': snapshotTrustedFromLiveBootstrap,

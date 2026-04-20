@@ -451,6 +451,46 @@ void main() {
     state.dispose();
   });
 
+  test('trusted offline snapshot age survives ordinary local persistence', () async {
+    SharedPreferences.setMockInitialValues({});
+
+    final originalSnapshotTime = DateTime.now().subtract(const Duration(days: 2));
+    final originalSyncTime = originalSnapshotTime.add(const Duration(minutes: 5));
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = true
+      ..snapshotTrustedFromLiveBootstrap = true
+      ..backendContractVersion = 'contract-v1'
+      ..snapshotContractVersion = 'contract-v1'
+      ..snapshotSavedAt = originalSnapshotTime
+      ..lastSyncedAt = originalSyncTime;
+    state.snapshotSourceBaseUrl = state.backendBaseUrl;
+    state.learners
+      ..clear()
+      ..addAll(learnerProfilesSeed);
+    state.modules
+      ..clear()
+      ..addAll(learningModules);
+    state.assignedLessons
+      ..clear()
+      ..addAll(assignedLessonsSeed);
+
+    expect(state.offlineSnapshotTrustProblem, contains('beyond the 24-hour trust window'));
+
+    state.persistStateSoon();
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    final restored = LumoAppState(includeSeedDemoContent: false);
+    await restored.restorePersistedState();
+
+    expect(restored.snapshotSavedAt?.toIso8601String(), originalSnapshotTime.toIso8601String());
+    expect(restored.lastSyncedAt?.toIso8601String(), originalSyncTime.toIso8601String());
+    expect(restored.offlineSnapshotTrustProblem, contains('beyond the 24-hour trust window'));
+
+    state.dispose();
+    restored.dispose();
+  });
+
   testWidgets(
       'deployment blocker page stays hard-blocked until bootstrap recovers', (
     tester,

@@ -261,15 +261,17 @@ export default async function HomePage() {
         return null;
       }
 
+      const subjectId = module.subjectId?.trim() ?? '';
+
       return {
         id: module.id,
         title: module.title,
-        subjectId: module.subjectId ?? '',
+        subjectId,
         subjectName: module.subjectName ?? '—',
         missingLessons,
         hasAssessmentGate,
         isDraftModule,
-        hasAuthoringContext: Boolean(module.subjectId?.trim()),
+        hasAuthoringContext: Boolean(subjectId),
         blockerCount,
       };
     })
