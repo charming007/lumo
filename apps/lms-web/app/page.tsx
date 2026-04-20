@@ -405,36 +405,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {hasCriticalDashboardGap ? (
-        <section style={{ marginBottom: 20 }}>
-          <div style={{ padding: '18px 20px', borderRadius: 20, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 14 }}>
-            <div style={{ display: 'grid', gap: 6 }}>
-              <strong style={{ fontSize: 20, color: '#9a3412' }}>Stop treating this dashboard as a release signal.</strong>
-              <div style={{ color: '#9a3412', lineHeight: 1.7 }}>
-                {!summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
-                  ? 'Summary, progression, facilitator coverage, and assignment pressure are all down, so this route is intentionally calling the outage out instead of faking calm zeros.'
-                  : !summaryAvailable && !workboardAvailable
-                    ? 'Both the summary and progression queue are unavailable, so this route is intentionally calling the outage out instead of faking calm zeros.'
-                    : !summaryAvailable
-                      ? 'The summary feed is missing, so the top-line deployment counts are unavailable and sign-off would be fiction.'
-                      : !workboardAvailable
-                        ? 'The progression queue is missing, so the dashboard cannot honestly show who is blocked, ready, or quietly slipping.'
-                        : !mallamsAvailable && !assignmentsAvailable
-                          ? 'Both facilitator coverage and assignment pressure are missing, so the dashboard cannot honestly represent staffing or delivery load.'
-                          : !mallamsAvailable
-                            ? 'Facilitator coverage is missing, so the dashboard cannot honestly represent who is available to support delivery.'
-                            : 'Assignment pressure is missing, so the dashboard cannot honestly represent delivery load or due-soon risk.'}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link href="/progress" style={{ ...quickActionStyle, background: '#9a3412', color: 'white' }}>Check progress feed</Link>
-              <Link href="/students" style={{ ...quickActionStyle, background: '#fff', color: '#9a3412', border: '1px solid #fdba74' }}>Cross-check learner roster</Link>
-              <Link href="/reports" style={{ ...quickActionStyle, background: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74' }}>Verify reports before sign-off</Link>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
           {
