@@ -263,6 +263,7 @@ function CanvasCreateStrandForm({
   return (
     <form action={createStrandAction} style={{ display: 'grid', gap: 12 }}>
       <input type="hidden" name="returnPath" value={returnPath} />
+      <input type="hidden" name="status" value="draft" />
       <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>Create a strand directly from the canvas so modules land in the right place from the start.</div>
       <CanvasFieldLabel label="Subject">
         <select name="subjectId" defaultValue={subjectId} style={canvasFieldStyle}>
@@ -291,6 +292,7 @@ function CanvasEditStrandForm({
     <form action={updateStrandAction} style={{ display: 'grid', gap: 12 }}>
       <input type="hidden" name="strandId" value={strand.id} />
       <input type="hidden" name="returnPath" value={returnPath} />
+      <input type="hidden" name="status" value={strand.status ?? 'draft'} />
       <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>Update strand placement and naming here without leaving the canvas.</div>
       <CanvasFieldLabel label="Subject">
         <select name="subjectId" defaultValue={strand.subjectId} style={canvasFieldStyle}>

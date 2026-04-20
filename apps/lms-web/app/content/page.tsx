@@ -2,7 +2,6 @@ import Link from 'next/link';
 import {
   CreateAssessmentForm,
   CreateModuleForm,
-  CreateStrandForm,
   CreateSubjectForm,
   DeleteAssessmentForm,
   DeleteLessonForm,
@@ -206,14 +205,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   return (
     <PageShell
       title="Content Library"
-      subtitle="Subject lanes, strands, modules, lessons, and assessment gates with the same cleaner modal-driven admin UX used on learners and mallams."
+      subtitle="Subject lifecycle stays obvious here, while strand structure stays in the background so operators can focus on modules, lessons, and gates."
       aside={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <ModalLauncher buttonLabel="Create Subject" title="Create subject" description="Add a new subject lane and optionally seed its first strand.">
             <CreateSubjectForm returnPath={returnPath} />
-          </ModalLauncher>
-          <ModalLauncher buttonLabel="Create Strand" title="Create strand" description="Add a planning lane inside the right subject before you drop modules into it.">
-            <CreateStrandForm subjects={subjects} returnPath={returnPath} />
           </ModalLauncher>
           <ModalLauncher buttonLabel="Create Module" title="Create module" description="Add a module to the right strand without leaving the content board.">
             <CreateModuleForm strands={strands} returnPath={returnPath} />
@@ -250,7 +246,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             <div>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Library filters</div>
               <div style={{ color: '#475569', lineHeight: 1.6, maxWidth: 700 }}>
-                Search across modules, lessons, assessments, and blockers without scrolling like a maniac. Filter by subject, publish state, or board view when ops needs a real answer fast.
+                Search across modules, lessons, assessments, and blockers without scrolling like a maniac. Subject lifecycle stays visible on the lane cards; strand lifecycle stays out of the way.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -314,8 +310,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
-          { label: 'Subjects', value: String(subjects.length), note: 'Visible lanes with edit and delete controls.' },
-          { label: 'Modules', value: String(modules.length), note: 'Structured by strand, not dumped into a fake flat list.' },
+          { label: 'Subjects', value: String(subjects.length), note: 'Visible lanes with direct lifecycle controls you can trust.' },
+          { label: 'Modules', value: String(modules.length), note: 'Structured under strands, without making strand lifecycle another noisy operator job.' },
           { label: 'Lessons ready', value: String(lessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length), note: 'Approved or published lessons live in the release lane.' },
           { label: 'Assessment gates', value: String(assessments.length), note: 'Every progression checkpoint stays visible and editable.' },
           { label: 'Live assignments', value: String(assignments.length), note: 'This curriculum board now points at learner-facing delivery, not placeholder curriculum rows.' },

@@ -309,16 +309,15 @@ export function ContentSubjectLanes({
                             </button>
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 700 }}>{strand.name}</div>
-                              <div style={{ color: '#64748b', fontSize: 13 }}>{strandModules.length} module{strandModules.length === 1 ? '' : 's'}</div>
+                              <div style={{ color: '#64748b', fontSize: 13 }}>{strandModules.length} module{strandModules.length === 1 ? '' : 's'} in this planning lane</div>
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             <Pill label={strandCollapsed ? 'Hidden' : 'Visible'} tone={strandCollapsed ? '#E2E8F0' : '#ECFDF5'} text={strandCollapsed ? '#334155' : '#166534'} />
-                            <Pill label={strand.status ?? 'draft'} tone={statusPill(strand.status ?? 'draft').tone} text={statusPill(strand.status ?? 'draft').text} />
                             <ModalLauncher buttonLabel="＋ Module" title={`Create module in ${strand.name}`} description="Create a real module directly from this strand lane so the canvas writes back into the live curriculum spine." eyebrow="Create module" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
                               <CreateModuleForm strands={strands} initialStrandId={strand.id} initialTitle={`${strand.name} Module`} initialOrder={strandModules.length + 1} returnPath={returnPath} />
                             </ModalLauncher>
-                            <ModalLauncher buttonLabel="✏️" title={`Edit strand lifecycle · ${strand.name}`} description="Rename, reorder, and move this strand through its lifecycle without leaving the subject lane." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                            <ModalLauncher buttonLabel="✏️" title={`Edit strand · ${strand.name}`} description="Rename or reorder this strand without turning strand lifecycle into another operator chore." eyebrow="Edit strand" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                               <UpdateStrandForm strand={strand} subjects={subjects} embedded returnPath={returnPath} />
                             </ModalLauncher>
                             <ModalLauncher buttonLabel="🗑" title={`Delete strand · ${strand.name}`} description="Remove this strand and everything nested under it if it no longer belongs in the curriculum map." eyebrow="Delete strand" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
