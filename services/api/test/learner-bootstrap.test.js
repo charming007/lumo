@@ -46,6 +46,18 @@ test.after(async () => {
   }
 });
 
+test('legacy learner bootstrap alias returns the same contract as learner-app bootstrap', async () => {
+  const canonical = await request('/api/v1/learner-app/bootstrap');
+  const legacy = await request('/api/v1/learner/bootstrap');
+
+  assert.equal(canonical.status, 200);
+  assert.equal(legacy.status, 200);
+  assert.deepEqual(
+    { ...legacy.body, meta: { ...legacy.body.meta, generatedAt: null } },
+    { ...canonical.body, meta: { ...canonical.body.meta, generatedAt: null } },
+  );
+});
+
 test('learner bootstrap keeps distinct curriculum modules instead of collapsing them to subject buckets', async () => {
   const lessonA = repository.createLesson({
     subjectId: 'english',

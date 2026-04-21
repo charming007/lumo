@@ -1403,9 +1403,12 @@ app.get('/api/v1/admin/config/audit', requireRole(['admin']), (_req, res) => {
   });
 });
 
-app.get('/api/v1/learner-app/bootstrap', (_req, res) => {
+const sendLearnerBootstrap = (_req, res) => {
   res.json(buildLearnerAppBootstrap());
-});
+};
+
+app.get('/api/v1/learner-app/bootstrap', sendLearnerBootstrap);
+app.get('/api/v1/learner/bootstrap', sendLearnerBootstrap);
 
 app.get('/api/v1/learner-app/context', (_req, res) => {
   res.json(buildLearnerAppBootstrap());
