@@ -6113,6 +6113,31 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       ? 'Stay in audio-only review'
       : 'Use audio only for this take';
 
+  bool _looksLikeRemoteMediaReference(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.startsWith('http://') ||
+        normalized.startsWith('https://') ||
+        normalized.startsWith('gs://');
+  }
+
+  String? _learnerFacingCueText(String? primary, String? fallback) {
+    final primaryValue = primary?.trim();
+    if (primaryValue != null &&
+        primaryValue.isNotEmpty &&
+        !_looksLikeRemoteMediaReference(primaryValue)) {
+      return primaryValue;
+    }
+
+    final fallbackValue = fallback?.trim();
+    if (fallbackValue != null &&
+        fallbackValue.isNotEmpty &&
+        !_looksLikeRemoteMediaReference(fallbackValue)) {
+      return fallbackValue;
+    }
+
+    return null;
+  }
+
   String? get _savedAudioEvidenceLabel {
     final session = widget.state.activeSession;
     final path = session?.latestLearnerAudioPath?.trim();
@@ -6122,7 +6147,41 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final durationLabel = duration == null
         ? 'Saved learner voice ready'
         : formatDuration(duration);
-    return '$durationLabel clip • ${compactPath(path)}';
+    return '$durationLabel clip saved for review';
+  }
+
+  bool get _spokenStepReadyToContinue {
+    final session = widget.state.activeSession;
+    if (session == null) return false;
+    if (transcriptReviewPending || isRecording) return false;
+
+    final candidate = responseController.text.trim().isNotEmpty
+        ? responseController.text.trim()
+        : session.latestLearnerResponse?.trim() ?? '';
+    if (candidate.isEmpty) return false;
+
+    final evaluation = widget.state.evaluateLearnerResponse(candidate);
+    return evaluation.review == ResponseReview.onTrack;
+  }
+
+  String get _spokenStepBlockedFeedback {
+    final expected = widget.state.personalizeExpectedResponse(
+      widget.lesson.steps[widget.state.activeSession?.stepIndex ?? 0]
+          .expectedResponse,
+    );
+    if ((widget.state.activeSession?.latestLearnerAudioPath
+                ?.trim()
+                .isNotEmpty ??
+            false) &&
+        responseController.text.trim().isEmpty) {
+      return 'Mallam is waiting for a clear learner answer. Listen to the saved voice once, then type or confirm what the learner said before continuing.';
+    }
+    if (responseController.text.trim().isEmpty) {
+      return 'Mallam needs to hear the learner answer before moving on.';
+    }
+    return expected.trim().isEmpty
+        ? 'That answer still needs a quick check, so Mallam is keeping this step open for another try.'
+        : 'Mallam is not ready to move on yet. Coach the learner toward "$expected" or record one clearer answer.';
   }
 
   bool get _shouldExpandTranscriptStrategyByDefault =>
@@ -6922,8 +6981,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 FilledButton.tonalIcon(
                   onPressed: focusText == null && activity.mediaValue == null
                       ? null
-                      : () =>
-                          _speakActivityText(focusText ?? activity.mediaValue!),
+                      : () => _speakActivityText(_learnerFacingCueText(
+                              focusText, activity.mediaValue) ??
+                          'Audio cue ready'),
                   icon: const Icon(Icons.volume_up_rounded),
                   label: const Text('Hear letter'),
                 ),
@@ -7200,7 +7260,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
-                  focusText ?? activity.mediaValue!,
+                  _learnerFacingCueText(focusText, activity.mediaValue) ??
+                      'Audio cue ready',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -7963,7 +8024,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        'Stored at ${compactPath(latestAudioPath)}',
+                        'Saved securely for this step review.',
                         style: const TextStyle(
                           color: Color(0xFF475569),
                           height: 1.35,
@@ -8333,7 +8394,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   border: Border.all(color: const Color(0xFFFED7AA)),
                 ),
                 child: Text(
-                  focusText ?? activity.mediaValue!,
+                  _learnerFacingCueText(focusText, activity.mediaValue) ??
+                      'Audio cue ready',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -8503,11 +8565,39 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                 ? (responseController.text.trim().isEmpty
                                     ? null
                                     : _confirmTranscriptAndAdvance)
-                                : (session.hasLearnerInput
-                                    ? () async {
-                                        await _afterCorrectResponse();
-                                      }
-                                    : null));
+                                : (isSimplifiedSpokenStep
+                                    ? (_spokenStepReadyToContinue
+                                        ? () async {
+                                            final candidate = responseController
+                                                    .text
+                                                    .trim()
+                                                    .isNotEmpty
+                                                ? responseController.text.trim()
+                                                : session.latestLearnerResponse
+                                                        ?.trim() ??
+                                                    '';
+                                            final latestAccepted = session
+                                                    .latestLearnerResponse
+                                                    ?.trim() ??
+                                                '';
+                                            if (candidate.isNotEmpty &&
+                                                candidate != latestAccepted) {
+                                              await _handleSubmittedResponse(
+                                                candidate,
+                                              );
+                                              if (!mounted ||
+                                                  !_spokenStepReadyToContinue) {
+                                                return;
+                                              }
+                                            }
+                                            await _afterCorrectResponse();
+                                          }
+                                        : null)
+                                    : (session.hasLearnerInput
+                                        ? () async {
+                                            await _afterCorrectResponse();
+                                          }
+                                        : null)));
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -8907,6 +8997,35 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                       ),
                                                     ),
                                                   ],
+                                                ),
+                                              ),
+                                            ],
+                                            if (isSimplifiedSpokenStep &&
+                                                !transcriptReviewPending &&
+                                                !_spokenStepReadyToContinue) ...[
+                                              const SizedBox(height: 12),
+                                              Container(
+                                                width: double.infinity,
+                                                padding:
+                                                    const EdgeInsets.all(14),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFFFF7ED),
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                  border: Border.all(
+                                                    color: const Color(
+                                                      0xFFFED7AA,
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  _spokenStepBlockedFeedback,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF9A3412),
+                                                    height: 1.4,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
                                                 ),
                                               ),
                                             ],

@@ -1140,7 +1140,8 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('registration page blocks local-only learner saves while backend is offline',
+  testWidgets(
+      'registration page blocks local-only learner saves while backend is offline',
       (
     tester,
   ) async {
@@ -1550,7 +1551,9 @@ void main() {
     );
 
     expect(
-      state.lessonsForLearnerAndModule(null, module.id).map((lesson) => lesson.id),
+      state
+          .lessonsForLearnerAndModule(null, module.id)
+          .map((lesson) => lesson.id),
       containsAll([seedLesson.id, 'english-home-alias-lesson']),
     );
 
@@ -1581,7 +1584,9 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('subject modules page shows all learner-facing lessons for the selected module', (
+  testWidgets(
+      'subject modules page shows all learner-facing lessons for the selected module',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 1280);
@@ -1611,7 +1616,8 @@ void main() {
     );
 
     expect(
-      state.lessonsForLearnerAndModule(learner, module.id)
+      state
+          .lessonsForLearnerAndModule(learner, module.id)
           .map((lesson) => lesson.id),
       containsAll([seedLesson.id, 'english-extension-lesson']),
     );
@@ -1628,7 +1634,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text(seedLesson.title), findsOneWidget);
-    expect(find.textContaining('Current learner: ${learner.name}'), findsOneWidget);
+    expect(find.textContaining('Current learner: ${learner.name}'),
+        findsOneWidget);
 
     await tester.dragUntilVisible(
       find.text('English extension'),
@@ -1746,7 +1753,8 @@ void main() {
   });
 
   testWidgets(
-      'sync-pending placeholder refresh refuses to swap into the wrong lesson when a module has multiple lessons', (
+      'sync-pending placeholder refresh refuses to swap into the wrong lesson when a module has multiple lessons',
+      (
     tester,
   ) async {
     final state = LumoAppState(
@@ -2022,8 +2030,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Play saved voice'), findsWidgets);
-    expect(
-        find.text('0:04 clip • .../audio/fallback-review.m4a'), findsOneWidget);
+    expect(find.text('0:04 clip saved for review'), findsOneWidget);
     expect(
       find
               .text(
@@ -2130,14 +2137,127 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Play saved voice'), findsWidgets);
-    expect(
-        find.text('0:05 clip • .../audio/fallback-draft.m4a'), findsOneWidget);
+    expect(find.text('0:05 clip saved for review'), findsOneWidget);
+    expect(find.textContaining('fallback-draft.m4a'), findsNothing);
     expect(
       find.text('Quick audio check first, then confirm the text.'),
       findsOneWidget,
     );
     expect(find.text('Confirm transcript'), findsOneWidget);
     expect(find.text('Hear Mallam again'), findsWidgets);
+
+    state.dispose();
+  });
+
+  testWidgets('spoken cue hides raw remote audio urls from learner view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    const lesson = LessonCardModel(
+      id: 'audio-cue-hidden',
+      moduleId: 'english',
+      title: 'Audio cue privacy',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Hide backend asset urls from learners.',
+      scenario: 'Learners should see a clean cue card, not a storage url.',
+      steps: [
+        LessonStep(
+          id: 'audio-cue-step',
+          type: LessonStepType.practice,
+          title: 'Listen and repeat',
+          instruction: 'Listen and repeat the greeting.',
+          expectedResponse: 'Good morning',
+          coachPrompt: 'Say: Good morning.',
+          facilitatorTip: 'The cue should stay learner-friendly.',
+          realWorldCheck: 'No raw storage link shows on screen.',
+          speakerMode: SpeakerMode.guiding,
+          activity: LessonActivity(
+            type: LessonActivityType.listenRepeat,
+            prompt: 'Listen and repeat.',
+            mediaItems: [
+              LessonActivityMedia(
+                kind: 'audio',
+                values: ['https://cdn.example.com/cues/good-morning.mp3'],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('Audio cue ready'), findsOneWidget);
+    expect(find.textContaining('cdn.example.com'), findsNothing);
+    expect(find.textContaining('good-morning.mp3'), findsNothing);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'spoken step keeps continue locked when only saved audio exists without a confirmed answer',
+      (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final lesson = state.assignedLessons.first;
+    state.selectLearner(learner);
+    state.selectModule(state.modules.first);
+    state.startLesson(lesson);
+    state.attachLearnerAudioCapture(
+      path: 'https://example.com/audio/just-recorded.m4a',
+      duration: const Duration(seconds: 2),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('0:02 clip saved for review'), findsOneWidget);
+    expect(find.textContaining('just-recorded.m4a'), findsNothing);
+    expect(
+      find.text(
+          'Use the saved clip as the source of truth before Mallam continues.'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(FilledButton, 'Continue'), findsNothing);
+    expect(
+      find.text('Save note + resume hands-free').evaluate().isNotEmpty ||
+          find.text('Save note and continue').evaluate().isNotEmpty,
+      isTrue,
+    );
 
     state.dispose();
   });
