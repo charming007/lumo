@@ -372,8 +372,8 @@ export default async function HomePage() {
               },
               {
                 surface: 'Cross-check routes',
-                expected: '/content and /canvas agree with the root release-readiness board after recovery',
-                failure: 'Dashboard says release is reviewable while content routes still show degraded curriculum data',
+                expected: '/content and /assignments agree with the root release-readiness board after recovery',
+                failure: 'Dashboard says release is reviewable while the pilot content and delivery routes still show degraded curriculum or assignment data',
               },
             ]}
         fixItems={hasCriticalDashboardGap
@@ -385,7 +385,7 @@ export default async function HomePage() {
           : [
               { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
               { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
-              { label: 'Cross-check', value: 'Verify /content and /canvas after the upstream fix lands' },
+              { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
             ]}
         docs={hasCriticalDashboardGap
           ? [
@@ -633,7 +633,7 @@ export default async function HomePage() {
       <section style={{ ...responsiveGrid(340), marginBottom: 20 }}>
         <Card title="Executive signals" eyebrow="Narrative from the dashboard feed">
           {insightsResult.status !== 'fulfilled' ? (
-            sectionAlert('Dashboard insights did not load, so use reports and progress before making any “looks fine to me” call.', 'warning')
+            sectionAlert('Dashboard insights did not load, so use progress, assignments, and settings before making any “looks fine to me” call.', 'warning')
           ) : insights.length ? (
             <div style={{ display: 'grid', gap: 12 }}>
               {insights.map((item, index) => (
@@ -648,7 +648,7 @@ export default async function HomePage() {
               ))}
             </div>
           ) : (
-            sectionAlert('The dashboard insights feed is live, but there are no narrative callouts right now. Cross-check reports if you want extra color, not because the page is lying.')
+            sectionAlert('The dashboard insights feed is live, but there are no narrative callouts right now. Cross-check progress or assignments if you want extra color, not because the page is lying.')
           )}
         </Card>
 

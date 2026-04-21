@@ -56,7 +56,7 @@ export function ProductionConfigBanner() {
           </div>
         ) : null}
         <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
-          Fix the production env, redeploy, then verify the three pages that expose the most obvious live data paths.
+          Fix the production env, redeploy, then verify the pilot control plane routes that actually matter for launch readiness.
         </div>
       </div>
 
@@ -67,8 +67,8 @@ export function ProductionConfigBanner() {
         <Link href="/content" style={{ ...actionStyle, background: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74' }}>
           Verify content
         </Link>
-        <Link href="/reports" style={{ ...actionStyle, background: 'rgba(255,255,255,0.12)', color: 'white', border: '1px solid rgba(255,255,255,0.24)' }}>
-          Verify reports
+        <Link href="/settings" style={{ ...actionStyle, background: 'rgba(255,255,255,0.12)', color: 'white', border: '1px solid rgba(255,255,255,0.24)' }}>
+          Verify settings
         </Link>
       </div>
     </section>
