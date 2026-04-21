@@ -62,4 +62,36 @@ void main() {
     expect(find.text('Sync stale'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+      'backend banner escalates unknown learner sync failures into a pilot blocker',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..lastSyncError = 'Unknown learner for sync event';
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegisterPage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Pilot trust blocker'), findsOneWidget);
+    expect(
+      find.textContaining(
+          'backend rejected at least one learner event as unknown'),
+      findsOneWidget,
+    );
+  });
 }

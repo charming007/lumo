@@ -233,7 +233,8 @@ class LumoAppState {
     final hasLiveAssignments = data.assignmentPacks.isNotEmpty;
     if (hasLiveLessons || hasLiveAssignments) return null;
 
-    final hasVisibleCurriculumShell = data.modules.isNotEmpty || data.learners.isNotEmpty;
+    final hasVisibleCurriculumShell =
+        data.modules.isNotEmpty || data.learners.isNotEmpty;
     if (!hasVisibleCurriculumShell) return null;
 
     return 'Production bootstrap returned the learner roster and curriculum shell, but zero live lessons and zero assignments. That tablet would open into a dead-end learner experience.';
@@ -3411,6 +3412,47 @@ class LumoAppState {
     if (lastSyncWarnings.isEmpty) return 'No sync warnings';
     if (lastSyncWarnings.length == 1) return lastSyncWarnings.first;
     return '${lastSyncWarnings.length} sync warnings';
+  }
+
+  bool get hasCriticalSyncTrustBlocker {
+    final error = lastSyncError?.toLowerCase() ?? '';
+    if (error.contains('unknown learner for sync event') ||
+        error.contains('unknown learner')) {
+      return true;
+    }
+
+    return lastSyncWarnings.any((warning) {
+      final normalized = warning.toLowerCase();
+      return normalized.contains('unsupported_event_type') ||
+          normalized.contains('backend could not apply') ||
+          normalized.contains('unknown learner');
+    });
+  }
+
+  String? get criticalSyncTrustBlockerReason {
+    final error = lastSyncError?.trim();
+    if (error != null && error.isNotEmpty) {
+      final normalized = error.toLowerCase();
+      if (normalized.contains('unknown learner for sync event') ||
+          normalized.contains('unknown learner')) {
+        return 'Runtime sync is blocked because the backend rejected at least one learner event as unknown. Do not trust queued progress until that learner record is reconciled.';
+      }
+    }
+
+    for (final warning in lastSyncWarnings) {
+      final normalized = warning.toLowerCase();
+      if (normalized.contains('unsupported_event_type')) {
+        return 'Runtime sync receipts show unsupported learner events. That means the tablet captured activity the backend does not currently honor, so pilot trust is broken until the contract is fixed.';
+      }
+      if (normalized.contains('backend could not apply')) {
+        return 'Runtime sync receipts show learner events the backend could not apply. Keep teaching if needed, but do not treat backend progress as trustworthy until ops clears the bad receipt.';
+      }
+      if (normalized.contains('unknown learner')) {
+        return 'Runtime sync receipts show an unknown learner mismatch. Reconcile the learner record before trusting new backend progress from this tablet.';
+      }
+    }
+
+    return null;
   }
 
   String get runtimeSyncFeedbackLabel {

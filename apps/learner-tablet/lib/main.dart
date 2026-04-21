@@ -987,7 +987,8 @@ class HomePage extends StatelessWidget {
                                       state.modules.isNotEmpty
                                   ? state.modules.length
                                   : 0;
-                              final singleRowTileWidth = compact ? 210.0 : 220.0;
+                              final singleRowTileWidth =
+                                  compact ? 210.0 : 220.0;
                               final shouldForceSingleRowSubjectStrip =
                                   preferredSingleRowCount > 0 &&
                                       subjectConstraints.maxWidth >=
@@ -10238,9 +10239,15 @@ class _BackendStatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLive = !state.usingFallbackData && state.lastSyncedAt != null;
-    final color = isLive
-        ? LumoTheme.accentGreen
-        : (state.isBootstrapping ? LumoTheme.primary : LumoTheme.accentOrange);
+    final hasCriticalSyncBlocker = state.hasCriticalSyncTrustBlocker;
+    final blockerReason = state.criticalSyncTrustBlockerReason;
+    final color = hasCriticalSyncBlocker
+        ? const Color(0xFFB91C1C)
+        : isLive
+            ? LumoTheme.accentGreen
+            : (state.isBootstrapping
+                ? LumoTheme.primary
+                : LumoTheme.accentOrange);
 
     return Container(
       width: double.infinity,
@@ -10302,6 +10309,38 @@ class _BackendStatusBanner extends StatelessWidget {
               ),
             ],
           ),
+          if (blockerReason != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFECACA)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Pilot trust blocker',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF991B1B),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    blockerReason,
+                    style: const TextStyle(
+                      color: Color(0xFF7F1D1D),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Container(
             width: double.infinity,
