@@ -1960,14 +1960,36 @@ class LumoAppState {
       );
     }
 
-    final similarity = allTargets.isEmpty
-        ? 0.0
-        : allTargets
-            .map((target) => _tokenSimilarity(normalizedResponse, target))
-            .reduce(max);
-    final wordCount = normalizedResponse.isEmpty
+    final responseTokens = _comparisonTokens(normalizedResponse);
+    final responseWordCount = normalizedResponse.isEmpty
         ? 0
         : normalizedResponse.split(' ').where((word) => word.isNotEmpty).length;
+    final responseHasEnoughSignal =
+        responseTokens.isNotEmpty || responseWordCount > 0;
+
+    double bestSimilarity = 0;
+    double bestCoverage = 0;
+    double bestOrderedCoverage = 0;
+    var matchedAlias = false;
+
+    for (final target in allTargets) {
+      final targetTokens = _comparisonTokens(target);
+      final similarity = _tokenSimilarity(normalizedResponse, target);
+      final coverage = _tokenCoverage(responseTokens, targetTokens);
+      final orderedCoverage =
+          _orderedTokenCoverage(responseTokens, targetTokens);
+
+      if (coverage > bestCoverage ||
+          (coverage == bestCoverage && orderedCoverage > bestOrderedCoverage) ||
+          (coverage == bestCoverage &&
+              orderedCoverage == bestOrderedCoverage &&
+              similarity > bestSimilarity)) {
+        bestCoverage = coverage;
+        bestOrderedCoverage = orderedCoverage;
+        bestSimilarity = similarity;
+        matchedAlias = aliases.contains(target);
+      }
+    }
 
     final requiredSimilarity = switch (practiceMode) {
       PracticeMode.repeatAfterMe => 0.88,
@@ -1979,15 +2001,25 @@ class LumoAppState {
       PracticeMode.independentCheck => 2,
       PracticeMode.standard => 3,
     };
-    final passedBySimilarity =
-        wordCount >= requiredWords && similarity >= requiredSimilarity;
+
+    final activityType = activity?.type;
+    final acceptByCoverage = responseHasEnoughSignal &&
+        _passesCoverageGate(
+          practiceMode: practiceMode,
+          activityType: activityType,
+          responseWordCount: responseWordCount,
+          coverage: bestCoverage,
+          orderedCoverage: bestOrderedCoverage,
+        );
+    final passedBySimilarity = responseWordCount >= requiredWords &&
+        bestSimilarity >= requiredSimilarity;
 
     return ResponseEvaluation(
-      review: passedBySimilarity
+      review: (acceptByCoverage || passedBySimilarity)
           ? ResponseReview.onTrack
           : ResponseReview.needsSupport,
-      similarityScore: similarity,
-      usedAlias: false,
+      similarityScore: max(bestSimilarity, bestCoverage),
+      usedAlias: matchedAlias,
     );
   }
 
@@ -2013,6 +2045,85 @@ class LumoAppState {
         .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
+  }
+
+  List<String> _comparisonTokens(String text) {
+    const ignoredTokens = <String>{
+      'a',
+      'an',
+      'the',
+      'is',
+      'are',
+      'am',
+      'i',
+      'it',
+      'to',
+      'for',
+      'of',
+      'my',
+      'your',
+      'me',
+    };
+    final tokens = text.split(' ').where((item) => item.isNotEmpty).toList();
+    final meaningful = tokens
+        .where((item) => item.length > 1 && !ignoredTokens.contains(item))
+        .toList();
+    return meaningful.isNotEmpty ? meaningful : tokens;
+  }
+
+  double _tokenCoverage(
+      List<String> responseTokens, List<String> targetTokens) {
+    if (responseTokens.isEmpty || targetTokens.isEmpty) return 0;
+    final responseSet = responseTokens.toSet();
+    final targetSet = targetTokens.toSet();
+    final overlap = responseSet.intersection(targetSet).length;
+    return targetSet.isEmpty ? 0 : overlap / targetSet.length;
+  }
+
+  double _orderedTokenCoverage(
+    List<String> responseTokens,
+    List<String> targetTokens,
+  ) {
+    if (responseTokens.isEmpty || targetTokens.isEmpty) return 0;
+    var responseIndex = 0;
+    var matched = 0;
+    for (final token in targetTokens) {
+      while (responseIndex < responseTokens.length &&
+          responseTokens[responseIndex] != token) {
+        responseIndex += 1;
+      }
+      if (responseIndex >= responseTokens.length) {
+        break;
+      }
+      matched += 1;
+      responseIndex += 1;
+    }
+    return targetTokens.isEmpty ? 0 : matched / targetTokens.length;
+  }
+
+  bool _passesCoverageGate({
+    required PracticeMode practiceMode,
+    required LessonActivityType? activityType,
+    required int responseWordCount,
+    required double coverage,
+    required double orderedCoverage,
+  }) {
+    switch (activityType) {
+      case LessonActivityType.listenRepeat:
+        return responseWordCount >= 1 && orderedCoverage >= 0.9;
+      case LessonActivityType.listenAnswer:
+      case LessonActivityType.speakAnswer:
+      case LessonActivityType.oralQuiz:
+        if (practiceMode == PracticeMode.repeatAfterMe) {
+          return responseWordCount >= 1 && orderedCoverage >= 0.85;
+        }
+        return responseWordCount >= 1 && coverage >= 0.7;
+      default:
+        if (practiceMode == PracticeMode.repeatAfterMe) {
+          return responseWordCount >= 1 && orderedCoverage >= 0.9;
+        }
+        return false;
+    }
   }
 
   double _tokenSimilarity(String left, String right) {
