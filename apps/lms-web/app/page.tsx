@@ -561,7 +561,6 @@ export default async function HomePage() {
             <div style={{ display: 'grid', gap: 12 }}>
               {priorityQueue.slice(0, 6).map((item) => {
                 const tone = statusTone(item.progressionStatus);
-                const learnerHref = item.studentId ? `/students/${item.studentId}` : null;
                 return (
                   <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: 18, padding: '14px 16px', display: 'grid', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -582,17 +581,11 @@ export default async function HomePage() {
                       Next module: {item.recommendedNextModuleTitle ?? 'No recommendation yet'}
                     </div>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      {learnerHref ? (
-                        <Link href={learnerHref} style={{ ...quickActionStyle, background: '#111827', color: 'white', padding: '10px 12px' }}>
-                          Open learner
-                        </Link>
-                      ) : (
-                        <span style={{ ...quickActionStyle, background: '#E5E7EB', color: '#64748B', padding: '10px 12px', cursor: 'not-allowed' }}>
-                          Learner link unavailable
-                        </span>
-                      )}
-                      <Link href="/progress" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE', padding: '10px 12px' }}>
+                      <Link href="/progress" style={{ ...quickActionStyle, background: '#111827', color: 'white', padding: '10px 12px' }}>
                         Open progress board
+                      </Link>
+                      <Link href="/assignments" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE', padding: '10px 12px' }}>
+                        Cross-check assignments
                       </Link>
                     </div>
                   </div>
@@ -604,32 +597,34 @@ export default async function HomePage() {
           )}
         </Card>
 
-        <Card title="Operational readout" eyebrow="Coverage + flow">
+        <Card title="Pilot route discipline" eyebrow="Scope freeze">
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Mallam coverage</div>
-              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{mallamsAvailable ? activeMallams.length : '—'}</div>
-              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
-                {mallamsAvailable
-                  ? `${activeMallams.length} of ${mallams.length} facilitators are active in the live roster.`
-                  : 'Mallam feed is unavailable right now, so facilitator coverage needs a route-level cross-check.'}
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Allowed pilot control plane</div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['Dashboard', 'Content', 'Assignments', 'Progress', 'Settings'].map((label) => (
+                  <Pill key={label} label={label} tone="#DCFCE7" text="#166534" />
+                ))}
+              </div>
+              <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
+                Pilot ops should stay inside these five routes. Everything else is extra surface area, not launch-critical truth.
               </div>
             </div>
-            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Assignment pressure</div>
-              <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{assignmentsAvailable ? dueSoonAssignments.length : '—'}</div>
-              <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
-                {assignmentsAvailable
-                  ? dueSoonAssignments.length
-                    ? 'Incomplete assignments sorted by nearest due date so operators can triage delivery first.'
-                    : 'No incomplete assignments are visible from the live feed.'
-                  : 'Assignment feed is unavailable, so delivery pressure cannot be cleared from this card.'}
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Deferred from pilot navigation</div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['Canvas', 'English', 'Reports', 'Rewards', 'Guide', 'Attendance', 'Mallams', 'Pods'].map((label) => (
+                  <Pill key={label} label={label} tone="#FFEDD5" text="#9A3412" />
+                ))}
+              </div>
+              <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
+                If staff need one of these to do basic daily work, the pilot scope is still too wide. Keep the front door disciplined instead of training around avoidable complexity.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link href="/progress" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open progress</Link>
+              <Link href="/content" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open content</Link>
               <Link href="/assignments" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open assignments</Link>
-              <Link href="/mallams" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Open mallams</Link>
+              <Link href="/settings" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Open settings</Link>
             </div>
           </div>
         </Card>
