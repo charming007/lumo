@@ -33,9 +33,13 @@ function isReleaseReadyLesson(lesson: Lesson) {
 }
 
 export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }: { cohorts: Cohort[]; lessons: Lesson[]; mallams: Mallam[]; assessments: Assessment[] }) {
+  const activeAssessments = useMemo(
+    () => assessments.filter((assessment) => assessment.status !== 'retired'),
+    [assessments],
+  );
   const eligibleLessons = useMemo(
-    () => lessons.filter((lesson) => isReleaseReadyLesson(lesson) && lesson.moduleId && assessments.some((assessment) => assessment.moduleId === lesson.moduleId && assessment.status !== 'retired')),
-    [lessons, assessments],
+    () => lessons.filter((lesson) => isReleaseReadyLesson(lesson)),
+    [lessons],
   );
 
   const [lessonId, setLessonId] = useState(eligibleLessons[0]?.id ?? '');
@@ -48,8 +52,8 @@ export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }:
 
   const selectedLesson = eligibleLessons.find((lesson) => lesson.id === lessonId) ?? null;
   const matchingAssessments = useMemo(
-    () => assessments.filter((assessment) => assessment.moduleId && assessment.moduleId === selectedLesson?.moduleId && assessment.status !== 'retired'),
-    [assessments, selectedLesson?.moduleId],
+    () => activeAssessments.filter((assessment) => assessment.moduleId && assessment.moduleId === selectedLesson?.moduleId),
+    [activeAssessments, selectedLesson?.moduleId],
   );
   const blockedLessons = lessons.filter((lesson) => !eligibleLessons.some((eligible) => eligible.id === lesson.id));
   const [assessmentId, setAssessmentId] = useState(matchingAssessments[0]?.id ?? '');
@@ -60,7 +64,7 @@ export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }:
     }
   }, [matchingAssessments, assessmentId]);
 
-  const formLocked = !eligibleLessons.length || !matchingAssessments.length;
+  const formLocked = !eligibleLessons.length;
 
   return (
     <form action={createAssignmentAction} style={{ background: 'white', borderRadius: 20, padding: 24, display: 'grid', gap: 12, border: '1px solid #eef2f7' }}>
@@ -73,8 +77,10 @@ export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }:
 
       <div style={{ padding: 14, borderRadius: 16, background: formLocked ? '#fff7ed' : '#eff6ff', border: `1px solid ${formLocked ? '#fed7aa' : '#bfdbfe'}`, color: formLocked ? '#9a3412' : '#1d4ed8', lineHeight: 1.6 }}>
         {formLocked
-          ? 'Assignment publishing is paused because there is no release-ready lesson with a real assessment gate. Approve the lesson and wire the module gate first.'
-          : `Only release-ready lessons are available here. ${blockedLessons.length} draft or un-gated lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`}
+          ? 'Assignment publishing is paused because there is no release-ready lesson yet. Approve or publish the lesson first.'
+          : activeAssessments.length
+            ? `Only release-ready lessons are available here. ${blockedLessons.length} draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`
+            : `Assessment gate data is unavailable right now, but assignment publishing is still live. ${blockedLessons.length} draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`}
       </div>
 
       <select name="cohortId" defaultValue={cohorts[0]?.id} style={inputStyle}>
@@ -93,18 +99,17 @@ export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }:
         {mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName}</option>)}
       </select>
 
-      <select name="assessmentId" value={assessmentId} onChange={(event) => setAssessmentId(event.target.value)} style={inputStyle} disabled={!matchingAssessments.length}>
-        {matchingAssessments.length
-          ? matchingAssessments.map((assessment) => (
-              <option key={assessment.id} value={assessment.id}>{assessment.title} · {assessment.triggerLabel}</option>
-            ))
-          : <option value="">No active assessment gate for this lesson module</option>}
+      <select name="assessmentId" value={assessmentId} onChange={(event) => setAssessmentId(event.target.value)} style={inputStyle}>
+        <option value="">No assessment gate linked yet</option>
+        {matchingAssessments.map((assessment) => (
+          <option key={assessment.id} value={assessment.id}>{assessment.title} · {assessment.triggerLabel}</option>
+        ))}
       </select>
 
       <input name="dueDate" defaultValue={nextWeekDate()} placeholder="Due date (YYYY-MM-DD)" style={inputStyle} />
       <select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="scheduled">Scheduled</option><option value="completed">Completed</option></select>
       <ActionButton label="Save assignment" pendingLabel="Saving assignment…" style={buttonStyle} disabled={formLocked} />
-      <small style={{ color: '#6b7280', lineHeight: 1.6 }}>Posts to the live API, links the lesson to a real delivery owner, and revalidates assignments, students, mallams, and dashboard views.</small>
+      <small style={{ color: '#6b7280', lineHeight: 1.6 }}>Posts to the live API, links the lesson to a real delivery owner, and revalidates assignments, students, mallams, and dashboard views. Assessment linkage is optional when that feed is missing or the lesson has not been gated yet.</small>
     </form>
   );
 }

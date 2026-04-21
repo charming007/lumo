@@ -127,7 +127,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
   ].filter(Boolean);
-  const canCreateAssignment = cohorts.length > 0 && lessons.length > 0 && mallams.length > 0 && assessments.length > 0;
+  const canCreateAssignment = cohorts.length > 0 && lessons.length > 0 && mallams.length > 0;
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
   const statusFilter = normalizeFilterValue(query?.status).trim();
@@ -401,7 +401,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
           ) : (
             <Card title="Create assignment" eyebrow="Unavailable right now">
               <div style={{ color: '#64748b', lineHeight: 1.6 }}>
-                The reference data needed to create assignments did not load cleanly yet, so the form is paused instead of letting someone publish broken delivery data.
+                The minimum reference data for assignment creation is still missing. Load cohorts, release-ready lessons, and mallams first, then retry.
               </div>
             </Card>
           )}
