@@ -226,6 +226,19 @@ class LumoAppState {
       !hasUsableOfflineSnapshot &&
       usingFallbackData;
 
+  String? _liveBootstrapRuntimeBlockerReason(LumoBootstrap data) {
+    if (_includeSeedDemoContent) return null;
+
+    final hasLiveLessons = data.lessons.isNotEmpty;
+    final hasLiveAssignments = data.assignmentPacks.isNotEmpty;
+    if (hasLiveLessons || hasLiveAssignments) return null;
+
+    final hasVisibleCurriculumShell = data.modules.isNotEmpty || data.learners.isNotEmpty;
+    if (!hasVisibleCurriculumShell) return null;
+
+    return 'Production bootstrap returned the learner roster and curriculum shell, but zero live lessons and zero assignments. That tablet would open into a dead-end learner experience.';
+  }
+
   String get pendingSyncSummary {
     final latest = latestSyncEvent;
     if (latest == null) return 'No pending sync events.';
@@ -789,9 +802,12 @@ class LumoAppState {
       assignmentPacks
         ..clear()
         ..addAll(data.assignmentPacks);
-      usingFallbackData = false;
+      final liveBootstrapRuntimeBlocker =
+          _liveBootstrapRuntimeBlockerReason(data);
+      usingFallbackData = liveBootstrapRuntimeBlocker != null;
       acknowledgedOfflineFallbackRisk = false;
-      deploymentBlockerReason = null;
+      deploymentBlockerReason = liveBootstrapRuntimeBlocker;
+      backendError = liveBootstrapRuntimeBlocker;
       lastSyncedAt = DateTime.now();
       snapshotSavedAt = lastSyncedAt;
       snapshotSourceBaseUrl = backendBaseUrl;
@@ -805,7 +821,9 @@ class LumoAppState {
       lastSyncError = null;
 
       await _hydrateModuleBundles(mergedModules);
-      await _mergeBundledOfflineContent();
+      if (liveBootstrapRuntimeBlocker == null) {
+        await _mergeBundledOfflineContent();
+      }
 
       if (learners.isNotEmpty) {
         final existingLearnerId = currentLearner?.id;

@@ -3513,6 +3513,78 @@ void main() {
     });
 
     test(
+        'production-like bootstrap hard-blocks when live backend returns no lessons or assignments',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'id': 'english',
+                      'subjectId': 'english',
+                      'subjectName': 'English',
+                      'title': 'English',
+                      'level': 'beginner',
+                      'status': 'published',
+                    },
+                  ],
+                  'lessons': [],
+                  'assignments': [],
+                  'registrationContext': {
+                    'cohorts': [],
+                    'mallams': [],
+                  },
+                  'meta': {
+                    'generatedAt': '2026-04-21T06:30:09.634Z',
+                    'contractVersion': 'learner-app-v2.3',
+                    'assignmentCount': 0,
+                  },
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      addTearDown(state.dispose);
+
+      await state.bootstrap();
+
+      expect(state.learners, isNotEmpty);
+      expect(state.modules, isNotEmpty);
+      expect(state.assignedLessons, isEmpty);
+      expect(state.assignmentPacks, isEmpty);
+      expect(state.usingFallbackData, isTrue);
+      expect(
+        state.deploymentBlockerReason,
+        contains('zero live lessons and zero assignments'),
+      );
+      expect(state.backendError, state.deploymentBlockerReason);
+      expect(
+        state.registrationBlockerReason,
+        contains('dead-end learner experience'),
+      );
+    });
+
+    test(
         'bundled fundamentals lesson wins over live lesson body with same stable id',
         () async {
       final bundledLesson = LessonCardModel(
