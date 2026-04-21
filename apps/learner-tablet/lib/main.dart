@@ -821,6 +821,9 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final showTrustBanner = viewportHeight > 840;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -832,8 +835,14 @@ class HomePage extends StatelessWidget {
                 onLogoTap: () {},
                 extraChips: _buildOperatorStatusChips(state),
               ),
-              const SizedBox(height: 12),
-              _HomeTrustBanner(state: state, onChanged: onChanged),
+              if (showTrustBanner) ...[
+                const SizedBox(height: 12),
+                _HomeTrustBanner(
+                  state: state,
+                  onChanged: onChanged,
+                  compact: true,
+                ),
+              ],
               if (state.hasPendingRecoveredSession) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -1121,10 +1130,12 @@ class _HomeTrustBanner extends StatelessWidget {
   const _HomeTrustBanner({
     required this.state,
     required this.onChanged,
+    this.compact = false,
   });
 
   final LumoAppState state;
   final VoidCallback onChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -1140,9 +1151,26 @@ class _HomeTrustBanner extends StatelessWidget {
       onChanged();
     }
 
+    void openRoster() {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AllStudentsPage(
+            state: state,
+            onChanged: onChanged,
+          ),
+        ),
+      );
+    }
+
+    final compactWarning = registrationBlocked != null
+        ? '$registrationBlocked Fix backend reachability first.'
+        : assignmentGapCount == 1
+            ? '1 assigned lesson is still a placeholder. Refresh sync before launch.'
+            : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync before launch.';
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(compact ? 14 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -1158,80 +1186,109 @@ class _HomeTrustBanner extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.verified_user_rounded, color: LumoTheme.primary),
-              SizedBox(width: 10),
+              const Icon(Icons.verified_user_rounded, color: LumoTheme.primary),
+              const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  'Tablet trust check',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F172A),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tablet trust check',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      hasPriorityWarning
+                          ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
+                          : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            hasPriorityWarning
-                ? 'Do the boring safety check first: confirm backend status, roster freshness, and assignment payload health before Mallam starts a live lesson.'
-                : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
-            style: const TextStyle(
-              color: Color(0xFF475569),
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _BackendStatusBanner(state: state),
           const SizedBox(height: 12),
-          _RosterFreshnessBanner(state: state),
-          if (hasPriorityWarning) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF7ED),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFFED7AA)),
+          if (compact) ...[
+            if (hasPriorityWarning) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFED7AA)),
+                ),
+                child: Text(
+                  compactWarning,
+                  style: const TextStyle(
+                    color: Color(0xFF9A3412),
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.sync_problem_rounded,
-                          color: Color(0xFF9A3412)),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Pilot blocker to clear on this tablet',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF9A3412),
+            ],
+          ] else ...[
+            _BackendStatusBanner(state: state),
+            const SizedBox(height: 12),
+            _RosterFreshnessBanner(state: state),
+            if (hasPriorityWarning) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFFED7AA)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.sync_problem_rounded,
+                            color: Color(0xFF9A3412)),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Pilot blocker to clear on this tablet',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF9A3412),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    registrationBlocked != null
-                        ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
-                        : assignmentGapCount == 1
-                            ? '1 assigned lesson is still only a placeholder on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
-                            : '$assignmentGapCount assigned lessons are still placeholders on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
-                    style: const TextStyle(
-                      color: Color(0xFF7C2D12),
-                      height: 1.4,
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      registrationBlocked != null
+                          ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
+                          : assignmentGapCount == 1
+                              ? '1 assigned lesson is still only a placeholder on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                              : '$assignmentGapCount assigned lessons are still placeholders on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
+                      style: const TextStyle(
+                        color: Color(0xFF7C2D12),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
           const SizedBox(height: 14),
           Wrap(
@@ -1243,19 +1300,10 @@ class _HomeTrustBanner extends StatelessWidget {
                   await refreshTabletSync();
                 },
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Refresh live sync'),
+                label: Text(compact ? 'Refresh sync' : 'Refresh live sync'),
               ),
               FilledButton.tonalIcon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => AllStudentsPage(
-                        state: state,
-                        onChanged: onChanged,
-                      ),
-                    ),
-                  );
-                },
+                onPressed: openRoster,
                 icon: const Icon(Icons.groups_rounded),
                 label: const Text('Review learner roster'),
               ),
