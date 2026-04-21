@@ -205,8 +205,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
         ]}
         docs={[
           { label: 'Verify dashboard', href: '/', background: '#fff7ed', color: '#9a3412' },
-          { label: 'Verify reports', href: '/reports', background: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74' },
-          { label: 'Open guide', href: '/guide#guardrails', background: '#0f172a', color: 'white' },
+          { label: 'Verify progress', href: '/progress', background: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74' },
+          { label: 'Open content', href: '/content', background: '#0f172a', color: 'white' },
         ]}
       />
     );
@@ -323,11 +323,11 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
       subtitle="Operational controls for reward logic, persistence hygiene, progression policy, voice defaults, and the visual rules that keep the LMS from drifting back into placeholder-land."
       aside={
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href="/rewards" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
-            Open rewards board
+          <Link href="/progress" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+            Open progress board
           </Link>
-          <Link href="/guide#guardrails" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
-            Open LMS guide
+          <Link href="/content" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
+            Open content library
           </Link>
         </div>
       }
@@ -438,9 +438,9 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
         <Card title="Route handoff" eyebrow="Use the right surface next">
           <div style={{ display: 'grid', gap: 12 }}>
             {[
-              { label: 'Rewards board', href: '/rewards', detail: 'Adjust transactions, queue decisions, and live learner reward state.' },
-              { label: 'Reports', href: '/reports', detail: 'Check whether reward, progression, or integrity changes actually improved the operating picture.' },
-              { label: 'LMS guide', href: '/guide#guardrails', detail: 'Use the guardrails section when someone wants to “just tweak the UI” into a regression.' },
+              { label: 'Dashboard', href: '/', detail: 'Return to the pilot front door and re-check deployment trust, readiness counts, and blocker visibility.' },
+              { label: 'Progress', href: '/progress', detail: 'Cross-check whether progression readiness, watchlist learners, and override pressure match the trust picture here.' },
+              { label: 'Content Library', href: '/content', detail: 'Use the scoped authoring board when integrity or asset issues mean the release lane still needs cleanup.' },
             ].map((item) => (
               <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #e2e8f0', textDecoration: 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>

@@ -401,7 +401,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               ['Clear blockers first', filteredBlockedModules.length ? `${filteredBlockedModules.length} blocker row${filteredBlockedModules.length === 1 ? '' : 's'} still need action before this curriculum slice is genuinely release-safe.` : 'No blocker rows in this scoped view right now.'],
               ['Use full authoring when structure matters', 'Quick edit is fine for status or duration. If the learner flow, media cues, or evidence design matters, open Lesson Studio and do it properly.'],
               ['Asset library is live', 'Authors can upload or register media once, then browse copy-ready runtime URLs and asset keys from the library instead of winging every media reference by hand.'],
-              ['Route back into delivery on purpose', 'After content is structurally clean, move into assignments or reports with the same scoped story instead of making operators reconstruct context from memory.'],
+              ['Route back into delivery on purpose', 'After content is structurally clean, move into assignments or progress with the same scoped story instead of making operators reconstruct context from memory.'],
             ].map(([title, detail]) => (
               <div key={title} style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                 <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
@@ -415,8 +415,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               <Link href="/assignments" style={{ color: '#166534', fontWeight: 800, textDecoration: 'none' }}>
                 Open assignments →
               </Link>
-              <Link href="/reports" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
-                Cross-check reports →
+              <Link href="/progress" style={{ color: '#7C3AED', fontWeight: 800, textDecoration: 'none' }}>
+                Cross-check progress →
               </Link>
             </div>
           </div>

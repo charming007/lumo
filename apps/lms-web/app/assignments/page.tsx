@@ -99,7 +99,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
         docs={[
           { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
           { label: 'Content library', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Mallam ops', href: '/mallams', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
         ]}
       />
     );
@@ -219,8 +219,8 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
           <Link href="/content" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
             Open content library
           </Link>
-          <Link href="/mallams" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
-            Open mallam ops
+          <Link href="/progress" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+            Open progress board
           </Link>
         </div>
       }
@@ -281,8 +281,8 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
                 <Link href="/assignments" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
                   Reset delivery scope
                 </Link>
-                <Link href="/mallams" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none' }}>
-                  Check mallam load
+                <Link href="/progress" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none' }}>
+                  Cross-check progress
                 </Link>
                 <Link href="/content?view=blocked" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none', border: '1px solid #FED7AA' }}>
                   Review content blockers

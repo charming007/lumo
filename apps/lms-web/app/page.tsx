@@ -423,7 +423,7 @@ export default async function HomePage() {
           ? [
               { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
               { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
-              { label: 'Cross-check', value: 'Verify /progress, /students, /mallams, and /assignments after the upstream fix lands' },
+              { label: 'Cross-check', value: 'Verify /progress, /assignments, and the dashboard facilitator-coverage cards after the upstream fix lands' },
             ]
           : [
               { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
