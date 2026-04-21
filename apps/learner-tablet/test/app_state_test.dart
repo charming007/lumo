@@ -2242,7 +2242,8 @@ void main() {
       state.dispose();
     });
 
-    test('blocks registration when live learner save fails instead of queuing a local fallback',
+    test(
+        'blocks registration when live learner save fails instead of queuing a local fallback',
         () async {
       final state = LumoAppState(
         includeSeedDemoContent: true,
@@ -2277,7 +2278,8 @@ void main() {
           isA<StateError>().having(
             (error) => error.message,
             'message',
-            contains('learner intake stays blocked until the live backend recovers'),
+            contains(
+                'learner intake stays blocked until the live backend recovers'),
           ),
         ),
       );
@@ -2288,9 +2290,11 @@ void main() {
       expect(state.pendingSyncEvents, isEmpty);
       expect(
         state.backendError,
-        contains('learner intake stays blocked until the live backend recovers'),
+        contains(
+            'learner intake stays blocked until the live backend recovers'),
       );
-      expect(state.lastSyncError, contains('Backend register endpoint is down.'));
+      expect(
+          state.lastSyncError, contains('Backend register endpoint is down.'));
       expect(state.registrationDraft.name, 'Safiya');
       state.dispose();
     });
@@ -2549,6 +2553,92 @@ void main() {
       expect(state.activeSession!.practiceMode, PracticeMode.repeatAfterMe);
       final evaluation = state.evaluateLearnerResponse('ready');
       expect(evaluation.review, ResponseReview.needsSupport);
+    });
+
+    test('tap choice respects authored choice correctness over targetResponse',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.learners.add(beginner);
+      state.currentLearner = beginner;
+
+      const lesson = LessonCardModel(
+        id: 'tap-choice-correctness',
+        moduleId: 'english',
+        title: 'Tap choice correctness',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Respect authored correct choice.',
+        scenario:
+            'Wrong tap must not finish the lesson just because targetResponse drifted.',
+        steps: [
+          LessonStep(
+            id: 'tap-step-1',
+            type: LessonStepType.practice,
+            title: 'Tap the right word',
+            instruction: 'Tap Kado.',
+            expectedResponse: 'Barku',
+            coachPrompt: 'Tap Kado.',
+            facilitatorTip: 'Only Kado is correct.',
+            realWorldCheck: 'Wrong taps trigger support.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.tapChoice,
+              prompt: 'Tap Kado.',
+              targetResponse: 'Barku',
+              choiceItems: [
+                LessonActivityChoice(
+                    id: 'choice-1', label: 'Barku', isCorrect: false),
+                LessonActivityChoice(
+                    id: 'choice-2', label: 'Kado', isCorrect: true),
+              ],
+            ),
+          ),
+        ],
+      );
+
+      state.assignedLessons.add(lesson);
+      state.startLesson(lesson);
+
+      final wrongOutcome = state.submitLearnerResponse('Barku');
+      expect(wrongOutcome.accepted, isFalse);
+      expect(wrongOutcome.review, ResponseReview.needsSupport);
+
+      final correctOutcome = state.submitLearnerResponse('Kado');
+      expect(correctOutcome.accepted, isTrue);
+      expect(correctOutcome.review, ResponseReview.onTrack);
+    });
+
+    test('backend choice correctness accepts correctness aliases', () {
+      final lesson = LessonCardModel.fromBackend({
+        'id': 'backend-tap-choice',
+        'moduleId': 'english',
+        'title': 'Backend tap choice',
+        'subject': 'English',
+        'durationMinutes': 5,
+        'status': 'published',
+        'mascotName': 'Mallam',
+        'readinessFocus': 'Backend correctness parsing',
+        'scenario':
+            'Choice correctness should survive backend payload variants.',
+        'activitySteps': [
+          {
+            'id': 'backend-step-1',
+            'type': 'tap_choice',
+            'prompt': 'Tap Kado.',
+            'choices': [
+              {'id': 'choice-1', 'label': 'Barku', 'correctness': 'wrong'},
+              {'id': 'choice-2', 'label': 'Kado', 'correctness': 'correct'},
+            ],
+          },
+        ],
+      });
+
+      final activity = lesson.steps.first.activity!;
+      expect(activity.choiceItems.first.isCorrect, isFalse);
+      expect(activity.choiceItems.last.isCorrect, isTrue);
+      expect(activity.targetResponse, 'Kado');
     });
 
     test('creates local rewards for seed learners after lesson completion',

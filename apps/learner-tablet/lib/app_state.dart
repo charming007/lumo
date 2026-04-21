@@ -1911,6 +1911,28 @@ class LumoAppState {
     final step = session.currentStep;
     final practiceMode = session.practiceMode;
     final normalizedResponse = _normalizeForComparison(response);
+
+    final activity = step.activity;
+    if (activity != null &&
+        (activity.type == LessonActivityType.imageChoice ||
+            activity.type == LessonActivityType.tapChoice) &&
+        activity.choiceItems.isNotEmpty) {
+      final matchedChoice = activity.choiceItems.where((choice) {
+        final normalizedLabel = _normalizeForComparison(choice.label);
+        return normalizedLabel.isNotEmpty &&
+            normalizedLabel == normalizedResponse;
+      }).toList();
+      if (matchedChoice.isNotEmpty) {
+        return ResponseEvaluation(
+          review: matchedChoice.first.isCorrect
+              ? ResponseReview.onTrack
+              : ResponseReview.needsSupport,
+          similarityScore: matchedChoice.first.isCorrect ? 1 : 0,
+          usedAlias: false,
+        );
+      }
+    }
+
     final expected = personalizeExpectedResponse(step.expectedResponse);
     final normalizedExpected = _normalizeForComparison(expected);
     final aliases = step.acceptableResponses

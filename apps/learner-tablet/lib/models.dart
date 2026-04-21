@@ -81,10 +81,17 @@ class LessonActivityChoice {
                     Map<String, dynamic>.from(media))
               ]
             : const <LessonActivityMedia>[];
+    final rawCorrectness = json['correctness']?.toString().trim().toLowerCase();
+    final isCorrect = json['isCorrect'] == true ||
+        json['correct'] == true ||
+        rawCorrectness == 'correct' ||
+        rawCorrectness == 'true' ||
+        rawCorrectness == 'yes' ||
+        rawCorrectness == '1';
     return LessonActivityChoice(
       id: json['id']?.toString() ?? json['label']?.toString() ?? 'choice',
       label: json['label']?.toString() ?? 'Choice',
-      isCorrect: json['isCorrect'] == true,
+      isCorrect: isCorrect,
       mediaItems: mediaItems,
     );
   }
