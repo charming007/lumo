@@ -824,7 +824,7 @@ class HomePage extends StatelessWidget {
     final viewportSize = MediaQuery.sizeOf(context);
     final viewportHeight = viewportSize.height;
     final viewportWidth = viewportSize.width;
-    final showTrustBanner = viewportHeight > 840 && viewportWidth >= 700;
+    final showTrustBanner = viewportHeight > 840 && viewportWidth >= 900;
 
     return Scaffold(
       body: SafeArea(

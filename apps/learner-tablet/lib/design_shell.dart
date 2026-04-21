@@ -33,36 +33,68 @@ class LumoTopBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 900 || extraChips.isNotEmpty;
+        final stackedCompact = constraints.maxWidth < 600;
 
         if (compact) {
-          return Column(
+          final logo = GestureDetector(
+            onTap: onLogoTap,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.asset('assets/images/lumo_logo.jpg',
+                  height: 56, width: 56, fit: BoxFit.cover),
+            ),
+          );
+
+          final chipWrap = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: stackedCompact ? WrapAlignment.start : WrapAlignment.end,
+            children: chips,
+          );
+
+          if (stackedCompact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    logo,
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Lumo',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                chipWrap,
+              ],
+            );
+          }
+
+          return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: onLogoTap,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Image.asset('assets/images/lumo_logo.jpg',
-                          height: 56, width: 56, fit: BoxFit.cover),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Lumo',
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
+              logo,
+              const SizedBox(width: 12),
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  'Lumo',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+                ),
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: chips,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: chipWrap,
+                ),
               ),
             ],
           );
