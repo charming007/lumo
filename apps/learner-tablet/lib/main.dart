@@ -821,8 +821,10 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewportHeight = MediaQuery.sizeOf(context).height;
-    final showTrustBanner = viewportHeight > 840;
+    final viewportSize = MediaQuery.sizeOf(context);
+    final viewportHeight = viewportSize.height;
+    final viewportWidth = viewportSize.width;
+    final showTrustBanner = viewportHeight > 840 && viewportWidth >= 700;
 
     return Scaffold(
       body: SafeArea(
@@ -892,6 +894,11 @@ class HomePage extends StatelessWidget {
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 900;
                     final shortHeight = constraints.maxHeight < 840;
+                    final denseSubjectLayout =
+                        shortHeight && state.modules.length > 3;
+                    final mallamStageHeight = denseSubjectLayout
+                        ? (compact ? 156.0 : 196.0)
+                        : (compact ? 204.0 : 252.0);
 
                     void openRegister() {
                       final blocker = state.registrationBlockerReason;
@@ -975,24 +982,32 @@ class HomePage extends StatelessWidget {
                             builder: (context, subjectConstraints) {
                               final minTileWidth = compact ? 210.0 : 260.0;
                               final crossAxisSpacing = compact ? 10.0 : 14.0;
+                              final preferredSingleRowCount = !compact &&
+                                      state.modules.length <= 4 &&
+                                      state.modules.isNotEmpty
+                                  ? state.modules.length
+                                  : 0;
+                              final singleRowTileWidth = compact ? 210.0 : 220.0;
                               final shouldForceSingleRowSubjectStrip =
-                                  !compact &&
-                                      state.modules.length == 3 &&
+                                  preferredSingleRowCount > 0 &&
                                       subjectConstraints.maxWidth >=
-                                          ((minTileWidth * 3) +
-                                              (crossAxisSpacing * 2));
+                                          ((singleRowTileWidth *
+                                                  preferredSingleRowCount) +
+                                              (crossAxisSpacing *
+                                                  (preferredSingleRowCount -
+                                                      1)));
                               final adaptiveCrossAxisCount = _adaptiveGridCount(
                                 subjectConstraints.maxWidth,
                                 minTileWidth: minTileWidth,
                                 maxCount: shouldForceSingleRowSubjectStrip
-                                    ? 3
+                                    ? preferredSingleRowCount
                                     : shortHeight
                                         ? (compact ? 2 : 3)
-                                        : 2,
+                                        : 3,
                               );
                               final crossAxisCount =
                                   shouldForceSingleRowSubjectStrip
-                                      ? 3
+                                      ? preferredSingleRowCount
                                       : adaptiveCrossAxisCount;
 
                               final aspectRatio = shortHeight
@@ -1089,7 +1104,7 @@ class HomePage extends StatelessWidget {
                                       right: compact ? 0 : 8,
                                     ),
                                     child: SizedBox(
-                                      height: compact ? 204 : 252,
+                                      height: mallamStageHeight,
                                       child: _HomeMallamStage(state: state),
                                     ),
                                   )
@@ -1220,6 +1235,89 @@ class _HomeTrustBanner extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (compact) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: state.usingFallbackData
+                    ? const Color(0xFFFFF7ED)
+                    : const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: state.usingFallbackData
+                      ? const Color(0xFFFED7AA)
+                      : const Color(0xFFBBF7D0),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        state.usingFallbackData
+                            ? Icons.cloud_off_rounded
+                            : Icons.cloud_done_rounded,
+                        color: state.usingFallbackData
+                            ? const Color(0xFF9A3412)
+                            : const Color(0xFF166534),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              state.backendStatusLabel,
+                              style: TextStyle(
+                                color: state.usingFallbackData
+                                    ? const Color(0xFF9A3412)
+                                    : const Color(0xFF166534),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              state.rosterFreshnessDetail,
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      StatusPill(
+                        text: state.rosterFreshnessLabel,
+                        color: state.usingFallbackData
+                            ? LumoTheme.accentOrange
+                            : LumoTheme.accentGreen,
+                      ),
+                      StatusPill(
+                        text: state.syncQueueLabel,
+                        color: state.usingFallbackData
+                            ? LumoTheme.accentOrange
+                            : LumoTheme.accentGreen,
+                      ),
+                      StatusPill(
+                        text: state.lastSyncSummaryLabel,
+                        color: state.usingFallbackData
+                            ? LumoTheme.accentOrange
+                            : LumoTheme.accentGreen,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             if (hasPriorityWarning) ...[
               const SizedBox(height: 12),
               Container(

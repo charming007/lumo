@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
-import { fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchWorkboard } from '../lib/api';
+import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchWorkboard } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
-import type { Assignment, Assessment, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, WorkboardItem } from '../lib/types';
+import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 
@@ -154,6 +154,12 @@ function dashboardApiSourceDetail() {
   };
 }
 
+function assetReadinessTone(readiness: AssetRuntimeReport['summary']['readiness']) {
+  if (readiness === 'blocked') return { background: '#FEE2E2', border: '1px solid #FCA5A5', text: '#991B1B' };
+  if (readiness === 'degraded') return { background: '#FFF7ED', border: '1px solid #FDBA74', text: '#9A3412' };
+  return { background: '#ECFDF5', border: '1px solid #BBF7D0', text: '#166534' };
+}
+
 export default async function HomePage() {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
@@ -201,7 +207,7 @@ export default async function HomePage() {
     );
   }
 
-  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult, modulesResult, lessonsResult, assessmentsResult] = await Promise.allSettled([
+  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult, modulesResult, lessonsResult, assessmentsResult, assetRuntimeResult] = await Promise.allSettled([
     fetchDashboardSummary(),
     fetchDashboardInsights(),
     fetchWorkboard(),
@@ -210,6 +216,7 @@ export default async function HomePage() {
     fetchCurriculumModules(),
     fetchLessons(),
     fetchAssessments(),
+    fetchAssetRuntime(8),
   ]);
 
   const summary: DashboardSummary = summaryResult.status === 'fulfilled' ? summaryResult.value : emptySummary;
@@ -224,6 +231,16 @@ export default async function HomePage() {
   const modules: CurriculumModule[] = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons: Lesson[] = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const assessments: Assessment[] = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const assetRuntime = assetRuntimeResult.status === 'fulfilled' ? assetRuntimeResult.value : null;
+  const assetOpsVisibleBlocker = Boolean(
+    assetRuntime && (
+      assetRuntime.summary.readiness === 'blocked'
+      || !assetRuntime.summary.registryHealthy
+      || !assetRuntime.uploads.ready
+      || assetRuntime.summary.brokenManagedReferenceCount > 0
+      || assetRuntime.summary.unresolvedReferenceCount > 0
+    ),
+  );
 
   const failedSources = [
     { label: 'dashboard summary', result: summaryResult },
@@ -234,6 +251,7 @@ export default async function HomePage() {
     { label: 'modules', result: modulesResult },
     { label: 'lessons', result: lessonsResult },
     { label: 'assessments', result: assessmentsResult },
+    { label: 'asset runtime', result: assetRuntimeResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
@@ -590,6 +608,45 @@ export default async function HomePage() {
                 </div>
               </div>
             ) : null}
+            {assetRuntime ? (
+              <div style={{ ...assetReadinessTone(assetRuntime.summary.readiness), padding: '16px 18px', borderRadius: 18, display: 'grid', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, fontWeight: 800, color: assetReadinessTone(assetRuntime.summary.readiness).text }}>Asset operations readiness</div>
+                    <strong style={{ fontSize: 18, color: assetReadinessTone(assetRuntime.summary.readiness).text }}>{assetRuntime.summary.headline}</strong>
+                    <div style={{ color: assetReadinessTone(assetRuntime.summary.readiness).text, lineHeight: 1.6 }}>
+                      {assetOpsVisibleBlocker
+                        ? `${assetRuntime.summary.operatorAction} Do not let a pilot reviewer mistake a broken asset registry for “content is ready anyway.”`
+                        : 'Shared media registry, uploads, and reference integrity look usable from the runtime audit. Keep it that way.'}
+                    </div>
+                  </div>
+                  <Pill
+                    label={assetRuntime.summary.readiness}
+                    tone={assetReadinessTone(assetRuntime.summary.readiness).background}
+                    text={assetReadinessTone(assetRuntime.summary.readiness).text}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Pill label={`${assetRuntime.registry.usableRecords} usable asset${assetRuntime.registry.usableRecords === 1 ? '' : 's'}`} tone="#FFF" text={assetReadinessTone(assetRuntime.summary.readiness).text} />
+                  <Pill label={`${assetRuntime.summary.brokenManagedReferenceCount} broken managed ref${assetRuntime.summary.brokenManagedReferenceCount === 1 ? '' : 's'}`} tone="#FFF" text={assetReadinessTone(assetRuntime.summary.readiness).text} />
+                  <Pill label={`${assetRuntime.summary.unresolvedReferenceCount} unresolved lesson ref${assetRuntime.summary.unresolvedReferenceCount === 1 ? '' : 's'}`} tone="#FFF" text={assetReadinessTone(assetRuntime.summary.readiness).text} />
+                  <Pill label={assetRuntime.uploads.ready ? 'Uploads writable' : 'Uploads blocked'} tone="#FFF" text={assetReadinessTone(assetRuntime.summary.readiness).text} />
+                </div>
+                <div style={{ color: assetReadinessTone(assetRuntime.summary.readiness).text, lineHeight: 1.6 }}>
+                  {assetRuntime.routeEvidence?.ready
+                    ? `${assetRuntime.routeEvidence.mountedCount}/${assetRuntime.routeEvidence.expectedCount} critical asset routes are mounted in this API build. If the library UI is still failing, you are probably staring at a stale backend target or proxy damage, not missing source code.`
+                    : 'The runtime audit cannot prove the asset routes are mounted cleanly in this API build yet. Treat that as a release smell until settings or the asset board says otherwise.'}
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href="/content/assets" style={{ ...quickActionStyle, background: assetReadinessTone(assetRuntime.summary.readiness).text, color: 'white', padding: '10px 12px' }}>
+                    Open asset library
+                  </Link>
+                  <Link href="/settings" style={{ ...quickActionStyle, background: '#fff', color: assetReadinessTone(assetRuntime.summary.readiness).text, border: `1px solid ${assetReadinessTone(assetRuntime.summary.readiness).text}`, padding: '10px 12px' }}>
+                    Open settings + config audit
+                  </Link>
+                </div>
+              </div>
+            ) : sectionAlert('Asset runtime diagnostics are unavailable right now. That means the dashboard cannot honestly tell you whether the shared media registry is ready for pilot content ops.', 'warning')}
             <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 10 }}>
               <div style={{ display: 'grid', gap: 6 }}>
                 <strong style={{ color: '#3730A3' }}>Curriculum action lives in Content Library</strong>
