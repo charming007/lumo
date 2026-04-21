@@ -21,11 +21,9 @@ const SIDEBAR_PREFERENCE_KEY = 'lumo:lms-sidebar-collapsed';
 export function AppShell({
   children,
   seedCount = 0,
-  buildSignature,
 }: {
   children: React.ReactNode;
   seedCount?: number;
-  buildSignature: string;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -68,7 +66,6 @@ export function AppShell({
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
           seedCount={seedCount}
-          buildSignature={buildSignature}
         />
         {children}
       </main>
