@@ -588,7 +588,7 @@ function findStudentByLearnerCode(learnerCode) {
 function buildLearnerAssignmentIndex() {
   return store
     .listAssignments()
-    .filter((assignment) => assignment.status === 'active')
+    .filter((assignment) => ['active', 'scheduled'].includes(assignment.status))
     .map(presenters.presentLearnerAssignmentPack);
 }
 

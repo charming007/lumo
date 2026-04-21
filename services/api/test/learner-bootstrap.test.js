@@ -226,6 +226,39 @@ test('learner bootstrap includes active assigned modules even when release statu
   assert.equal(reviewAssignment.lessonPack?.moduleKey, 'module-4');
 });
 
+test('learner bootstrap includes scheduled assignments in learner assignment packs', async () => {
+  repository.updateModule('module-3', { status: 'review' });
+  const scheduledLesson = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-3',
+    title: 'Planned speaking rehearsal',
+    durationMinutes: 13,
+    status: 'draft',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Practice the greeting.' }],
+  });
+
+  repository.createAssignment({
+    cohortId: 'cohort-1',
+    lessonId: scheduledLesson.id,
+    assignedBy: 'teacher-1',
+    dueDate: '2026-04-25',
+    status: 'scheduled',
+  });
+
+  const response = await request('/api/v1/learner-app/bootstrap');
+
+  assert.equal(response.status, 200);
+  const projectedLesson = response.body.lessons.find((lesson) => lesson.id === scheduledLesson.id);
+  assert.ok(projectedLesson, JSON.stringify(response.body.lessons));
+
+  const scheduledAssignment = response.body.assignments.find(
+    (assignment) => assignment.lessonPack?.lessonId === scheduledLesson.id,
+  );
+  assert.ok(scheduledAssignment, JSON.stringify(response.body.assignments));
+  assert.equal(scheduledAssignment.status, 'scheduled');
+});
+
 test('learner module bundle includes active assigned lessons even when lesson release status is not published', async () => {
   repository.updateModule('module-5', { status: 'review' });
   const assignedLessonA = repository.createLesson({
