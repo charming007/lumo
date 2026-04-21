@@ -260,7 +260,7 @@ class LumoApiClient {
               .map(
                 (event) => {
                   'id': event.id,
-                  'type': event.type,
+                  'type': _canonicalSyncEventType(event.type),
                   ...event.payload,
                 },
               )
@@ -306,6 +306,15 @@ class LumoApiClient {
     return RewardSnapshot.fromJson(
       _decodeObject(response.body, action: 'load learner rewards', uri: uri),
     );
+  }
+
+  String _canonicalSyncEventType(String type) {
+    switch (type) {
+      case 'learner_registered_local_fallback':
+        return 'learner_registered';
+      default:
+        return type;
+    }
   }
 
   List<Map<String, dynamic>> _asList(Object? value) {
