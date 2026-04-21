@@ -159,7 +159,11 @@ export default async function HomePage() {
         blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: dashboard API base URL is unsafe for production.'}
         blockerDetail={(
           <>
-            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is present, but the current value is not production-safe. {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would let a broken deployment masquerade as a live admin dashboard.
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>{' '}
+            {API_BASE_SOURCE === 'missing-production-env'
+              ? 'is missing in production.'
+              : 'is present, but the current value is not production-safe.'}{' '}
+            {API_BASE_DIAGNOSTIC.blockerDetail} Treating that as healthy would let a broken deployment masquerade as a live admin dashboard.
           </>
         )}
         whyBlocked={[
