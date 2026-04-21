@@ -420,9 +420,6 @@ export default async function HomePage() {
           <Link href="/progress" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
             Open progress
           </Link>
-          <Link href="/students" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>
-            Open learners
-          </Link>
         </div>
       )}
     >
@@ -542,11 +539,58 @@ export default async function HomePage() {
               ))}
             </div>
             {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. Open Content Library after the feeds recover; the dashboard will not pretend to be the blocker board.', 'warning') : null}
+            {releaseFeedsAvailable && topReleaseBlocker ? (
+              <div style={{ padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Release handoff</div>
+                    <strong style={{ color: '#7C2D12', fontSize: 18 }}>{topReleaseBlocker.title}</strong>
+                    <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
+                      {topReleaseBlocker.subjectName !== '—'
+                        ? `${topReleaseBlocker.subjectName} · `
+                        : ''}
+                      {describeNextAction(topReleaseBlocker)}
+                    </div>
+                  </div>
+                  <Pill
+                    label={describeReleaseRisk(topReleaseBlocker.blockerCount).label}
+                    tone={describeReleaseRisk(topReleaseBlocker.blockerCount).tone}
+                    text={describeReleaseRisk(topReleaseBlocker.blockerCount).text}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {topReleaseBlocker.missingLessons > 0 ? (
+                    <Pill
+                      label={`${topReleaseBlocker.missingLessons} missing lesson${topReleaseBlocker.missingLessons === 1 ? '' : 's'}`}
+                      tone="#FFF"
+                      text="#9A3412"
+                    />
+                  ) : null}
+                  {!topReleaseBlocker.hasAssessmentGate ? (
+                    <Pill label="Assessment gate missing" tone="#FFF" text="#9A3412" />
+                  ) : null}
+                  {topReleaseBlocker.isDraftModule ? (
+                    <Pill label="Still in draft" tone="#FFF" text="#9A3412" />
+                  ) : null}
+                </div>
+                <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
+                  The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so pilot operators do not end up juggling two competing release boards.
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href="/content?view=blocked" style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
+                    Open blocker board
+                  </Link>
+                  <Link href="/content" style={{ ...quickActionStyle, background: '#fff', color: '#9A3412', border: '1px solid #FED7AA', padding: '10px 12px' }}>
+                    Open Content Library
+                  </Link>
+                </div>
+              </div>
+            ) : null}
             <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 10 }}>
               <div style={{ display: 'grid', gap: 6 }}>
                 <strong style={{ color: '#3730A3' }}>Curriculum action lives in Content Library</strong>
                 <span style={{ color: '#4338CA', lineHeight: 1.6 }}>
-                  The dashboard stays a pilot front door: scan the numbers here, then use Content Library for blocker triage, lesson creation, and release cleanup.
+                  The dashboard stays a thin pilot front door: scan the counts here, then use Content Library for blocker triage, lesson authoring, and release cleanup.
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -603,33 +647,31 @@ export default async function HomePage() {
         <Card title="Pilot route discipline" eyebrow="Scope freeze">
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Allowed pilot control plane</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Primary pilot control plane</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Dashboard', 'Content', 'Assignments', 'Progress', 'Learners', 'Mallams', 'Rewards', 'Settings'].map((label) => (
+                {['Dashboard', 'Content', 'Assignments', 'Progress', 'Settings'].map((label) => (
                   <Pill key={label} label={label} tone="#DCFCE7" text="#166534" />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                Pilot ops should stay inside these eight routes. Dashboard, content, assignments, and progress remain the core flow; learners, mallams, and rewards are back because pilot staff actually need them to operate.
+                Pilot operators should live inside these five routes. Everything else is secondary or internal until field ops prove it belongs in the daily loop.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Deferred from pilot navigation</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Hidden from the default pilot path</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Canvas', 'English', 'Reports', 'Guide', 'Attendance', 'Pods'].map((label) => (
+                {['Learners', 'Mallams', 'Rewards', 'Canvas', 'English', 'Reports', 'Guide', 'Attendance', 'Pods'].map((label) => (
                   <Pill key={label} label={label} tone="#FFEDD5" text="#9A3412" />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
-                The rest stay hidden on purpose. This is a targeted restore for pilot operations, not permission to re-bloat the nav.
+                Those routes still exist for deeper triage, but the dashboard should stop advertising them like co-equal pilot surfaces. That is how you get route sprawl and contradictory operator habits.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/content" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open content</Link>
               <Link href="/assignments" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open assignments</Link>
-              <Link href="/students" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>Open learners</Link>
-              <Link href="/mallams" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open mallams</Link>
-              <Link href="/rewards" style={{ ...quickActionStyle, background: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>Open rewards</Link>
+              <Link href="/progress" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open progress</Link>
               <Link href="/settings" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Open settings</Link>
             </div>
           </div>
