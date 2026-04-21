@@ -343,9 +343,10 @@ export function CurriculumCanvas({
   updateStrandAction: (formData: FormData) => void;
   returnPath?: string;
 }) {
+  const defaultSubjectId = data.subjects[0]?.id ?? 'all';
   const firstModule = data.subjects[0]?.strands[0]?.modules[0] ?? null;
   const [searchTerm, setSearchTerm] = useState('');
-  const [subjectFilter, setSubjectFilter] = useState('all');
+  const [subjectFilter, setSubjectFilter] = useState(defaultSubjectId);
   const [readinessFilter, setReadinessFilter] = useState('all');
   const [selectedModuleId, setSelectedModuleId] = useState(firstModule?.id ?? '');
   const [copiedState, setCopiedState] = useState<'idle' | 'copied'>('idle');
@@ -355,8 +356,9 @@ export function CurriculumCanvas({
   useEffect(() => {
     const syncFromUrl = () => {
       const nextState = readCanvasUrlState(firstModule?.id);
+      const nextSubjectFilter = nextState.subjectFilter === 'all' ? defaultSubjectId : nextState.subjectFilter;
       setSearchTerm(nextState.searchTerm);
-      setSubjectFilter(nextState.subjectFilter);
+      setSubjectFilter(nextSubjectFilter);
       setReadinessFilter(nextState.readinessFilter);
       setSelectedModuleId(nextState.selectedModuleId);
       setSelectedLessonId(nextState.selectedLessonId);
@@ -367,7 +369,7 @@ export function CurriculumCanvas({
     if (typeof window === 'undefined') return undefined;
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [firstModule?.id]);
+  }, [defaultSubjectId, firstModule?.id]);
 
   useEffect(() => {
     if (!selectedModuleId && firstModule?.id) {
@@ -428,6 +430,7 @@ export function CurriculumCanvas({
       .filter((subject) => subject.strands.length > 0);
   }, [data.subjects, readinessFilter, searchTerm, subjectFilter]);
 
+
   const filteredSummary = useMemo(() => ({
     subjects: filteredSubjects.length,
     strands: filteredSubjects.reduce((sum, subject) => sum + subject.strands.length, 0),
@@ -437,6 +440,17 @@ export function CurriculumCanvas({
     readyLessons: filteredSubjects.reduce((sum, subject) => sum + subject.totals.readyLessons, 0),
     blockedModules: filteredSubjects.reduce((sum, subject) => sum + subject.strands.reduce((strandSum, strand) => strandSum + strand.modules.filter((module) => module.gapCount > 0).length, 0), 0),
   }), [filteredSubjects]);
+
+  const selectSubject = (nextSubjectId: string) => {
+    setSubjectFilter(nextSubjectId);
+    const nextSubject = data.subjects.find((subject) => subject.id === nextSubjectId) ?? null;
+    const nextModule = nextSubject?.strands[0]?.modules[0] ?? null;
+    if (nextModule) {
+      setSelectedModuleId(nextModule.id);
+      setSelectedLessonId(null);
+      setSelectedAssessmentId(null);
+    }
+  };
 
   const priorityModules = useMemo(() => filteredSubjects
     .flatMap((subject) => subject.strands.flatMap((strand) => strand.modules.map((module) => ({ subject, strand, module }))))
@@ -613,8 +627,7 @@ export function CurriculumCanvas({
             placeholder="Search subject, strand, module, lesson, gate, or blocker…"
             style={{ borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(255,255,255,0.05)', color: '#f8fafc' }}
           />
-          <select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)} style={{ borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-            <option value="all">All subjects</option>
+          <select value={subjectFilter} onChange={(event) => selectSubject(event.target.value)} style={{ borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(255,255,255,0.05)', color: '#f8fafc' }}>
             {data.subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
           </select>
           <select value={readinessFilter} onChange={(event) => setReadinessFilter(event.target.value)} style={{ borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(255,255,255,0.05)', color: '#f8fafc' }}>
@@ -626,7 +639,7 @@ export function CurriculumCanvas({
             type="button"
             onClick={() => {
               setSearchTerm('');
-              setSubjectFilter('all');
+              selectSubject(defaultSubjectId);
               setReadinessFilter('all');
             }}
             style={{ ...filterButtonStyle, height: '100%' }}
@@ -712,6 +725,41 @@ export function CurriculumCanvas({
             </div>
 
             <div style={{ display: 'grid', gap: 20 }}>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Choose subject first</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {data.subjects.map((subject) => {
+                    const active = subject.id === subjectFilter;
+                    const visibleSubject = filteredSubjects.find((entry) => entry.id === subject.id);
+                    const subjectModuleCount = visibleSubject?.totals.modules ?? subject.strands.reduce((sum, strand) => sum + strand.modules.length, 0);
+                    const subjectLessonCount = visibleSubject?.totals.lessons ?? subject.strands.reduce((sum, strand) => sum + strand.modules.reduce((moduleSum, module) => moduleSum + module.lessons.length, 0), 0);
+                    return (
+                      <button
+                        key={subject.id}
+                        type="button"
+                        onClick={() => selectSubject(subject.id)}
+                        style={{
+                          ...filterButtonStyle,
+                          background: active ? '#4F46E5' : 'rgba(255,255,255,0.04)',
+                          color: '#f8fafc',
+                          border: active ? '1px solid #8b5cf6' : '1px solid rgba(148,163,184,0.18)',
+                          display: 'grid',
+                          gap: 4,
+                          justifyItems: 'start',
+                          textAlign: 'left',
+                          minWidth: 180,
+                        }}
+                      >
+                        <span style={{ fontWeight: 800 }}>{subject.name}</span>
+                        <span style={{ color: active ? '#ddd6fe' : '#94a3b8', fontSize: 12 }}>{subjectModuleCount} modules · {subjectLessonCount} lessons</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6 }}>
+                  Subject stays first. Pick a lane here, then inspect that subject’s modules and lesson journey below.
+                </div>
+              </div>
               {filteredSubjects.map((subject, index) => {
                 const accent = palettes[index % palettes.length];
                 return (
