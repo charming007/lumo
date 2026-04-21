@@ -2297,6 +2297,105 @@ void main() {
   });
 
   testWidgets(
+      'choice lesson does not advance when the selected option is wrong', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const lesson = LessonCardModel(
+      id: 'tap-choice-runtime-guardrail',
+      moduleId: 'english',
+      title: 'Tap choice guardrail',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Wrong taps must stay on the same step.',
+      scenario: 'UI must not advance when the learner picks the wrong card.',
+      steps: [
+        LessonStep(
+          id: 'choice-step-1',
+          type: LessonStepType.practice,
+          title: 'Tap Kado',
+          instruction: 'Tap Kado.',
+          expectedResponse: 'Barku',
+          coachPrompt: 'Tap Kado.',
+          facilitatorTip: 'Only Kado is correct.',
+          realWorldCheck: 'Wrong taps keep the same step open.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.tapChoice,
+            prompt: 'Tap Kado.',
+            targetResponse: 'Barku',
+            choiceItems: [
+              LessonActivityChoice(
+                id: 'choice-1',
+                label: 'Barku',
+                isCorrect: false,
+              ),
+              LessonActivityChoice(
+                id: 'choice-2',
+                label: 'Kado',
+                isCorrect: true,
+              ),
+            ],
+          ),
+        ),
+        LessonStep(
+          id: 'choice-step-2',
+          type: LessonStepType.practice,
+          title: 'Second step',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Only reachable after the right tap.',
+          realWorldCheck: 'Second step stays hidden after wrong taps.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+      state.modules.firstWhere((module) => module.id == lesson.moduleId),
+    );
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonSessionPage(
+          state: state,
+          lesson: lesson,
+          onChanged: () {},
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    await tester.tap(find.ancestor(
+      of: find.text('Barku').first,
+      matching: find.byType(InkWell),
+    ));
+    await pumpForUi(tester, const Duration(milliseconds: 300));
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+    await pumpForUi(tester);
+
+    expect(state.activeSession?.stepIndex, 0);
+    expect(state.activeSession?.currentStep.id, 'choice-step-1');
+    expect(state.activeSession?.latestReview, ResponseReview.needsSupport);
+    expect(find.text('Second step'), findsNothing);
+    expect(find.text('Continue'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets(
       'image choice lesson waits for a selection before next step unlocks', (
     tester,
   ) async {

@@ -8554,10 +8554,20 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                         final primaryAction = isChoiceStep
                             ? (canAdvanceChoiceStep
                                 ? () async {
-                                    await _handleSubmittedResponse(
+                                    final outcome = widget.state
+                                        .submitLearnerResponse(
                                       responseController.text,
                                     );
+                                    transcriptReviewPending = false;
+                                    _latestTranscriptNeedsManualReview = false;
+                                    widget.onChanged();
                                     if (!mounted) return;
+                                    setState(() {
+                                      microphoneStatus = outcome.automationStatus;
+                                    });
+                                    if (!outcome.accepted) {
+                                      return;
+                                    }
                                     await _afterCorrectResponse();
                                   }
                                 : null)
