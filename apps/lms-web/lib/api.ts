@@ -36,6 +36,20 @@ import { API_BASE } from './config';
 import type { RewardCatalog } from './rewards';
 import type { CurriculumCanvasApiTree } from './curriculum-canvas';
 
+function buildApiHeaders(role = 'admin') {
+  const headers: Record<string, string> = {
+    'x-lumo-role': role,
+    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
+  };
+  const adminApiKey = String(process.env.LUMO_ADMIN_API_KEY || '').trim();
+
+  if (adminApiKey) {
+    headers['x-lumo-api-key'] = adminApiKey;
+  }
+
+  return headers;
+}
+
 type ApiResponseDiagnostic = {
   apiBase: string;
   requestUrl: string;
@@ -125,10 +139,7 @@ async function getJson<T>(path: string): Promise<T> {
   try {
     const response = await fetch(requestUrl, {
       cache: 'no-store',
-      headers: {
-        'x-lumo-role': 'admin',
-        'x-lumo-user': 'Pilot Admin',
-      },
+      headers: buildApiHeaders(),
       signal: AbortSignal.timeout(API_REQUEST_TIMEOUT_MS),
     });
 

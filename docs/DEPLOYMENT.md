@@ -36,8 +36,11 @@
 
 ### Required environment variables
 - `NEXT_PUBLIC_API_BASE_URL=https://your-lumo-api.up.railway.app`
+- `LUMO_ADMIN_API_KEY=...` (same admin key configured on the API service)
 
 If `NEXT_PUBLIC_API_BASE_URL` is missing, the LMS production build/start now fails fast on purpose. That is intentional: shipping a degraded admin shell with no real API wiring is a deployment mistake, not a recoverable success state.
+
+The LMS server runtime now reads `LUMO_ADMIN_API_KEY` and forwards it to protected API endpoints as `x-lumo-api-key`. Without that env on Vercel, asset uploads and other protected admin reads/writes will fail with `Missing or invalid API key for protected endpoint.` even if the public API base URL is correct.
 
 ### Build settings
 - Framework preset: Next.js

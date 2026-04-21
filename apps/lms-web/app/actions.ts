@@ -7,11 +7,20 @@ import { redirect } from 'next/navigation';
 import { API_BASE } from '../lib/config';
 import { buildSubjectMutationPayload } from '../lib/subject-lifecycle';
 
+function getAdminApiKey() {
+  return String(process.env.LUMO_ADMIN_API_KEY || '').trim();
+}
+
 function buildApiHeaders(role = 'admin', includeJson = false) {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
     'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
   };
+  const adminApiKey = getAdminApiKey();
+
+  if (adminApiKey) {
+    headers['x-lumo-api-key'] = adminApiKey;
+  }
 
   if (includeJson) {
     headers['Content-Type'] = 'application/json';

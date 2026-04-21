@@ -420,6 +420,9 @@ export default async function HomePage() {
           <Link href="/progress" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
             Open progress
           </Link>
+          <Link href="/students" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>
+            Open learners
+          </Link>
         </div>
       )}
     >
@@ -602,28 +605,31 @@ export default async function HomePage() {
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Allowed pilot control plane</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Dashboard', 'Content', 'Assignments', 'Progress', 'Settings'].map((label) => (
+                {['Dashboard', 'Content', 'Assignments', 'Progress', 'Learners', 'Mallams', 'Rewards', 'Settings'].map((label) => (
                   <Pill key={label} label={label} tone="#DCFCE7" text="#166534" />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                Pilot ops should stay inside these five routes. Everything else is extra surface area, not launch-critical truth.
+                Pilot ops should stay inside these eight routes. Dashboard, content, assignments, and progress remain the core flow; learners, mallams, and rewards are back because pilot staff actually need them to operate.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Deferred from pilot navigation</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Canvas', 'English', 'Reports', 'Rewards', 'Guide', 'Attendance', 'Mallams', 'Pods'].map((label) => (
+                {['Canvas', 'English', 'Reports', 'Guide', 'Attendance', 'Pods'].map((label) => (
                   <Pill key={label} label={label} tone="#FFEDD5" text="#9A3412" />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
-                If staff need one of these to do basic daily work, the pilot scope is still too wide. Keep the front door disciplined instead of training around avoidable complexity.
+                The rest stay hidden on purpose. This is a targeted restore for pilot operations, not permission to re-bloat the nav.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/content" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open content</Link>
               <Link href="/assignments" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open assignments</Link>
+              <Link href="/students" style={{ ...quickActionStyle, background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' }}>Open learners</Link>
+              <Link href="/mallams" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open mallams</Link>
+              <Link href="/rewards" style={{ ...quickActionStyle, background: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>Open rewards</Link>
               <Link href="/settings" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Open settings</Link>
             </div>
           </div>

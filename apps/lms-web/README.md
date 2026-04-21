@@ -17,7 +17,10 @@ Create `.env.local` with:
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
+LUMO_ADMIN_API_KEY=your-local-admin-key
 ```
+
+`LUMO_ADMIN_API_KEY` is server-only. The LMS now reads that env in server components/server actions and forwards it as `x-lumo-api-key` when talking to protected API endpoints.
 
 If the API is down, key pages now stay usable in degraded mode and call out which feeds failed instead of just silently collapsing.
 
