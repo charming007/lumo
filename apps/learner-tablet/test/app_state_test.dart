@@ -4053,6 +4053,135 @@ void main() {
     });
 
     test(
+        'healthy live bootstrap does not report bundled fundamentals as curriculum mixed',
+        () async {
+      final bundledLesson = LessonCardModel(
+        id: 'lf-meet-mallam',
+        moduleId: 'lumo-fundamentals',
+        title: 'Meet Mallam',
+        subject: 'Lumo Fundamentals',
+        durationMinutes: 6,
+        status: 'bundled',
+        mascotName: 'Mallam',
+        readinessFocus: 'Offline starter',
+        scenario: 'Bundled offline intro lesson.',
+        steps: const [
+          LessonStep(
+            id: 'bundled-step-1',
+            type: LessonStepType.practice,
+            title: 'Meet Mallam',
+            instruction: 'Say hello to Mallam.',
+            expectedResponse: 'Hello Mallam',
+            coachPrompt: 'Say hello to Mallam.',
+            facilitatorTip: 'Model the phrase once.',
+            realWorldCheck: 'Learner greets Mallam.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        bundledContentLoader: _FakeBundledContentLoader(
+          BundledContentLibrary(
+            modules: const [
+              LearningModule(
+                id: 'lumo-fundamentals',
+                title: 'Lumo Fundamentals',
+                description: 'Offline starter pack',
+                voicePrompt: 'Meet Mallam offline.',
+                readinessGoal: 'Ready for offline startup.',
+                badge: 'Bundled pack',
+              ),
+            ],
+            lessons: [bundledLesson],
+          ),
+        ),
+        apiClient: _BootstrapWithBundledFundamentalsApiClient(),
+      );
+
+      await state.bootstrap();
+
+      expect(state.usingFallbackData, isFalse);
+      expect(state.curriculumHasMixedOrigins, isFalse);
+      expect(state.curriculumSourceLabel, 'Curriculum live');
+      expect(state.curriculumTruthWarning, isNull);
+      state.dispose();
+    });
+
+    test(
+        'healthy learner routing prefers live backend assignments over bundled fallback lessons',
+        () async {
+      final bundledLesson = LessonCardModel(
+        id: 'lf-meet-mallam',
+        moduleId: 'lumo-fundamentals',
+        title: 'Meet Mallam',
+        subject: 'Lumo Fundamentals',
+        durationMinutes: 6,
+        status: 'bundled',
+        mascotName: 'Mallam',
+        readinessFocus: 'Offline starter',
+        scenario: 'Bundled offline intro lesson.',
+        steps: const [
+          LessonStep(
+            id: 'bundled-step-1',
+            type: LessonStepType.practice,
+            title: 'Meet Mallam',
+            instruction: 'Say hello to Mallam.',
+            expectedResponse: 'Hello Mallam',
+            coachPrompt: 'Say hello to Mallam.',
+            facilitatorTip: 'Model the phrase once.',
+            realWorldCheck: 'Learner greets Mallam.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        bundledContentLoader: _FakeBundledContentLoader(
+          BundledContentLibrary(
+            modules: const [
+              LearningModule(
+                id: 'lumo-fundamentals',
+                title: 'Lumo Fundamentals',
+                description: 'Offline starter pack',
+                voicePrompt: 'Meet Mallam offline.',
+                readinessGoal: 'Ready for offline startup.',
+                badge: 'Bundled pack',
+              ),
+            ],
+            lessons: [bundledLesson],
+          ),
+        ),
+        apiClient: _BootstrapWithBundledFundamentalsApiClient(),
+      );
+
+      await state.bootstrap();
+      state.assignmentPacks
+        ..clear()
+        ..add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-1',
+            lessonId: 'english-live-1',
+            moduleId: 'english',
+            curriculumModuleId: 'english',
+            lessonTitle: 'English hello',
+            cohortName: beginner.cohort,
+            mallamName: 'Mallam Idris',
+            dueDate: '2026-04-22T08:00:00.000Z',
+            eligibleLearnerIds: [beginner.id],
+          ),
+        );
+
+      expect(
+        state.lessonsForLearner(beginner).map((lesson) => lesson.id).toList(),
+        equals(['english-live-1']),
+      );
+      state.dispose();
+    });
+
+    test(
         'content source status tracks live, bundled, and persisted lesson paths',
         () async {
       final bundledLesson = LessonCardModel(

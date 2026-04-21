@@ -375,8 +375,24 @@ class LumoAppState {
       .where((origin) => origin != ContentOrigin.seedDemoFallback)
       .toSet();
 
+  bool get hasIntentionalBundledFundamentalsSupplement {
+    if (usingFallbackData) return false;
+    final origins = visibleCurriculumOrigins;
+    if (!origins.contains(ContentOrigin.liveBackend) ||
+        !origins.contains(ContentOrigin.bundledOfflinePack)) {
+      return false;
+    }
+
+    return assignedLessons
+        .where(
+          (lesson) => lessonOriginFor(lesson) == ContentOrigin.bundledOfflinePack,
+        )
+        .every(_isBundledFundamentalsLesson);
+  }
+
   bool get curriculumHasMixedOrigins {
     final origins = visibleCurriculumOrigins;
+    if (hasIntentionalBundledFundamentalsSupplement) return false;
     if (origins.length > 1) return true;
     return !usingFallbackData &&
         origins.isNotEmpty &&
@@ -410,7 +426,8 @@ class LumoAppState {
 
     final origins = visibleCurriculumOrigins;
     if (!usingFallbackData && origins.isNotEmpty) {
-      if (origins.length == 1 && origins.single == ContentOrigin.liveBackend) {
+      if ((origins.length == 1 && origins.single == ContentOrigin.liveBackend) ||
+          hasIntentionalBundledFundamentalsSupplement) {
         return 'Curriculum live';
       }
       return 'Curriculum mixed';
@@ -431,6 +448,9 @@ class LumoAppState {
     }
     if (!usingFallbackData && curriculumHasMixedOrigins) {
       return 'Backend connectivity is healthy, but the visible curriculum still mixes live lessons with cached or bundled content.';
+    }
+    if (hasIntentionalBundledFundamentalsSupplement) {
+      return null;
     }
     if (usingFallbackData && hasOfflineSnapshotPayload) {
       return 'The tablet is teaching from local cached curriculum, not a fresh live backend fetch.';
@@ -1257,6 +1277,10 @@ class LumoAppState {
 
     final preferredModuleIds = _preferredModuleIdsForLearner(learner);
     final backendAssigned = backendAssignedLessonsForLearner(learner);
+    if (!usingFallbackData && backendAssigned.isNotEmpty) {
+      return backendAssigned;
+    }
+
     final backendLessonIds = backendAssigned.map((item) => item.id).toSet();
     final rankedFallback = List<LessonCardModel>.from(assignedLessons)
       ..sort((left, right) {
