@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
+
+export const dynamic = 'force-dynamic';
+
 import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchWorkboard } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
