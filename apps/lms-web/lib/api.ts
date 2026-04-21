@@ -36,12 +36,31 @@ import { API_BASE } from './config';
 import type { RewardCatalog } from './rewards';
 import type { CurriculumCanvasApiTree } from './curriculum-canvas';
 
+function getAdminApiKey() {
+  return String(process.env.LUMO_ADMIN_API_KEY || '').trim();
+}
+
+function assertProtectedApiKeyConfigured(role = 'admin') {
+  if (role !== 'admin' && role !== 'teacher' && role !== 'facilitator') {
+    return;
+  }
+
+  if (getAdminApiKey()) {
+    return;
+  }
+
+  if (['production', 'staging'].includes(String(process.env.NODE_ENV || '').toLowerCase())) {
+    throw new Error('LMS is missing LUMO_ADMIN_API_KEY, so it cannot authenticate to protected API endpoints. Add the same admin key to the LMS deployment env and redeploy.');
+  }
+}
+
 function buildApiHeaders(role = 'admin') {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
     'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
   };
-  const adminApiKey = String(process.env.LUMO_ADMIN_API_KEY || '').trim();
+  assertProtectedApiKeyConfigured(role);
+  const adminApiKey = getAdminApiKey();
 
   if (adminApiKey) {
     headers['x-lumo-api-key'] = adminApiKey;
