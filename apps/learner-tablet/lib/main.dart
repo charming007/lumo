@@ -832,6 +832,8 @@ class HomePage extends StatelessWidget {
                 onLogoTap: () {},
                 extraChips: _buildOperatorStatusChips(state),
               ),
+              const SizedBox(height: 12),
+              _HomeTrustBanner(state: state, onChanged: onChanged),
               if (state.hasPendingRecoveredSession) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -883,6 +885,17 @@ class HomePage extends StatelessWidget {
                     final shortHeight = constraints.maxHeight < 840;
 
                     void openRegister() {
+                      final blocker = state.registrationBlockerReason;
+                      if (blocker != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(blocker),
+                            backgroundColor: LumoTheme.accentOrange,
+                          ),
+                        );
+                        return;
+                      }
+
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => RegisterPage(
@@ -905,11 +918,19 @@ class HomePage extends StatelessWidget {
                     }
 
                     Widget buildActionPanel() {
+                      final registrationBlocked =
+                          state.registrationBlockerReason != null;
                       final actions = [
                         _HomeQuickAction(
-                          title: 'Register',
-                          icon: Icons.person_add_alt_1_rounded,
-                          color: LumoTheme.primary,
+                          title: registrationBlocked
+                              ? 'Registration offline'
+                              : 'Register',
+                          icon: registrationBlocked
+                              ? Icons.sync_problem_rounded
+                              : Icons.person_add_alt_1_rounded,
+                          color: registrationBlocked
+                              ? LumoTheme.accentOrange
+                              : LumoTheme.primary,
                           onTap: openRegister,
                         ),
                         _HomeQuickAction(
@@ -1096,6 +1117,156 @@ class HomePage extends StatelessWidget {
   }
 }
 
+class _HomeTrustBanner extends StatelessWidget {
+  const _HomeTrustBanner({
+    required this.state,
+    required this.onChanged,
+  });
+
+  final LumoAppState state;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final registrationBlocked = state.registrationBlockerReason;
+    final assignmentGapCount = state.assignedLessons
+        .where((lesson) => lesson.isAssignmentPlaceholder)
+        .length;
+    final hasPriorityWarning =
+        registrationBlocked != null || assignmentGapCount > 0;
+
+    Future<void> refreshTabletSync() async {
+      await state.bootstrap();
+      onChanged();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x140F172A),
+            blurRadius: 24,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.verified_user_rounded, color: LumoTheme.primary),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Tablet trust check',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasPriorityWarning
+                ? 'Do the boring safety check first: confirm backend status, roster freshness, and assignment payload health before Mallam starts a live lesson.'
+                : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
+            style: const TextStyle(
+              color: Color(0xFF475569),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _BackendStatusBanner(state: state),
+          const SizedBox(height: 12),
+          _RosterFreshnessBanner(state: state),
+          if (hasPriorityWarning) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFFED7AA)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.sync_problem_rounded,
+                          color: Color(0xFF9A3412)),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Pilot blocker to clear on this tablet',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF9A3412),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    registrationBlocked != null
+                        ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
+                        : assignmentGapCount == 1
+                            ? '1 assigned lesson is still only a placeholder on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                            : '$assignmentGapCount assigned lessons are still placeholders on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
+                    style: const TextStyle(
+                      color: Color(0xFF7C2D12),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: () async {
+                  await refreshTabletSync();
+                },
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Refresh live sync'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AllStudentsPage(
+                        state: state,
+                        onChanged: onChanged,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.groups_rounded),
+                label: const Text('Review learner roster'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MallamStageShell extends StatelessWidget {
   final String eyebrow;
   final String? title;
@@ -1212,9 +1383,12 @@ String _buildHomeMallamReplayPrompt(LumoAppState state) {
   final module =
       learner == null ? null : state.recommendedModuleForLearner(learner);
   final greeting = _timeAwareMallamGreeting();
+  final registrationBlocked = state.registrationBlockerReason != null;
 
   if (learner == null) {
-    return '$greeting You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.';
+    return registrationBlocked
+        ? '$greeting You are on the home page. Registration is blocked until the live backend recovers, so open Student List to review synced learners or choose a subject to continue teaching.'
+        : '$greeting You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.';
   }
 
   final learnerName = learner.name.split(' ').first;
@@ -2797,7 +2971,8 @@ class SubjectModulesPage extends StatelessWidget {
                                         ),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius: BorderRadius.circular(20),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
                                           border: Border.all(
                                             color: const Color(0xFFDDE7FF),
                                           ),
@@ -3963,8 +4138,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(error.message),
-                                        backgroundColor:
-                                            LumoTheme.accentOrange,
+                                        backgroundColor: LumoTheme.accentOrange,
                                       ),
                                     );
                                     setState(() {});
@@ -4185,10 +4359,8 @@ class RegistrationSuccessPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      state.usingFallbackData
-                          ? 'Profile saved locally because backend sync was unavailable.'
-                          : 'Profile posted to the backend and added to the learner list.',
+                    const Text(
+                      'Profile posted to the backend and added to the learner list.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
@@ -10251,7 +10423,8 @@ LearnerSourceStatusSignal buildLearnerSourceStatusSignal(
     return LearnerSourceStatusSignal(
       id: 'source-offline-fallback',
       label: state.curriculumSourceLabel,
-      detail: 'Lessons are coming from local fallback state, not a fresh live backend fetch.',
+      detail:
+          'Lessons are coming from local fallback state, not a fresh live backend fetch.',
       icon: Icons.inventory_2_rounded,
       color: const Color(0xFF0F766E),
       backgroundColor: const Color(0xFFF0FDFA),
@@ -10262,7 +10435,8 @@ LearnerSourceStatusSignal buildLearnerSourceStatusSignal(
     return const LearnerSourceStatusSignal(
       id: 'source-live-runtime-ready',
       label: 'Backend link live',
-      detail: 'Backend connectivity and runtime sync look healthy. Curriculum truth is shown separately so a live link does not overclaim the lesson source.',
+      detail:
+          'Backend connectivity and runtime sync look healthy. Curriculum truth is shown separately so a live link does not overclaim the lesson source.',
       icon: Icons.cloud_done_rounded,
       color: Color(0xFF166534),
       backgroundColor: Color(0xFFF0FDF4),
