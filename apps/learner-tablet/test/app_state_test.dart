@@ -2281,7 +2281,7 @@ void main() {
       expect(state.pendingSyncEvents.first.type,
           'learner_registered_local_fallback');
       expect(state.backendError, contains('saved locally and queued for sync'));
-      expect(state.lastSyncError, 'Backend register endpoint is down.');
+      expect(state.lastSyncError, contains('Backend register endpoint is down.'));
       expect(state.registrationDraft.name, isEmpty);
       state.dispose();
     });

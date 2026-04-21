@@ -1529,17 +1529,17 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text(seedLesson.title), findsOneWidget);
     expect(find.textContaining('Current learner: ${learner.name}'), findsOneWidget);
 
     await tester.dragUntilVisible(
       find.text('English extension'),
-      find.byType(ListView),
+      find.byType(SingleChildScrollView),
       const Offset(0, -200),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('English extension'), findsOneWidget);
 

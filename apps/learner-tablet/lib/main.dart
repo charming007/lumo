@@ -2786,6 +2786,31 @@ class SubjectModulesPage extends StatelessWidget {
                                           fontSize: 16,
                                         ),
                                       ),
+                                      const SizedBox(height: 16),
+                                    ],
+                                    if (selectedLearner != null) ...[
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 14,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: const Color(0xFFDDE7FF),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Current learner: ${selectedLearner.name}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF1E3A8A),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
                                       const SizedBox(height: 20),
                                     ],
                                     Wrap(
@@ -2814,11 +2839,7 @@ class SubjectModulesPage extends StatelessWidget {
 
                             final content = buildJourneyPath();
 
-                            if (detailConstraints.maxHeight < 940) {
-                              return SingleChildScrollView(child: content);
-                            }
-
-                            return content;
+                            return SingleChildScrollView(child: content);
                           },
                         ),
                       ),
