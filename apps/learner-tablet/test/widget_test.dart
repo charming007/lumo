@@ -1519,6 +1519,67 @@ void main() {
     state.dispose();
   });
 
+  testWidgets(
+      'subject modules page still shows lessons when backend module keys drift before learner selection',
+      (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final module = state.modules.firstWhere((item) => item.id == 'english');
+    final seedLesson = state.assignedLessons.firstWhere(
+      (item) => item.moduleId == module.id,
+    );
+    state.assignedLessons.add(
+      LessonCardModel(
+        id: 'english-home-alias-lesson',
+        moduleId: 'english-reading',
+        title: 'English alias lesson',
+        subject: module.title,
+        durationMinutes: seedLesson.durationMinutes,
+        status: seedLesson.status,
+        mascotName: seedLesson.mascotName,
+        readinessFocus: 'Keep building ${module.title}',
+        scenario:
+            'Home route should still show this lesson before a learner is chosen.',
+        steps: seedLesson.steps,
+      ),
+    );
+
+    expect(
+      state.lessonsForLearnerAndModule(null, module.id).map((lesson) => lesson.id),
+      containsAll([seedLesson.id, 'english-home-alias-lesson']),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: module,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text(seedLesson.title), findsOneWidget);
+
+    await tester.dragUntilVisible(
+      find.text('English alias lesson'),
+      find.byType(SingleChildScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('English alias lesson'), findsOneWidget);
+
+    state.dispose();
+  });
 
   testWidgets('subject modules page shows all learner-facing lessons for the selected module', (
     tester,

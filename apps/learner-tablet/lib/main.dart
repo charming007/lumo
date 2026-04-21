@@ -2983,11 +2983,10 @@ class SubjectModulesPage extends StatelessWidget {
     final resumableSession = selectedLearner == null
         ? null
         : state.resumableRuntimeSessionForLearner(selectedLearner);
-    final lessons = selectedLearner == null
-        ? state.assignedLessons
-            .where((lesson) => lesson.moduleId == module.id)
-            .toList()
-        : state.lessonsForLearnerAndModule(selectedLearner, module.id);
+    final lessons = state.lessonsForLearnerAndModule(
+      selectedLearner,
+      module.id,
+    );
     final nextAssignedLesson =
         state.nextAssignedLessonForLearner(selectedLearner);
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
