@@ -1111,7 +1111,7 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('student list marks locally registered learners as sync pending',
+  testWidgets('registration page blocks local-only learner saves while backend is offline',
       (
     tester,
   ) async {
@@ -1119,21 +1119,21 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final state = LumoAppState(includeSeedDemoContent: true);
-    state.usingFallbackData = true;
-    state.registrationDraft = const RegistrationDraft(
-      name: 'Amina Bello',
-      age: '9',
-      cohort: 'Fallback cohort',
-      guardianName: 'Hauwa Bello',
-      village: 'Kawo',
-      consentCaptured: true,
-    );
-    await state.registerLearner();
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = true
+      ..backendError = 'Backend registration is offline.'
+      ..registrationDraft = const RegistrationDraft(
+        name: 'Amina Bello',
+        age: '9',
+        cohort: 'Fallback cohort',
+        guardianName: 'Hauwa Bello',
+        village: 'Kawo',
+        consentCaptured: true,
+      );
 
     await tester.pumpWidget(
       MaterialApp(
-        home: AllStudentsPage(
+        home: RegisterPage(
           state: state,
           onChanged: () {},
         ),
@@ -1141,12 +1141,18 @@ void main() {
     );
     await pumpForUi(tester);
 
-    expect(find.text('1 sync pending'), findsOneWidget);
-    expect(find.text('Sync pending'), findsWidgets);
     expect(
-      find.textContaining('waiting for backend sync'),
+      find.text('Registration blocked until live backend recovers'),
       findsOneWidget,
     );
+    expect(find.text('Backend required to save learner'), findsOneWidget);
+    final saveButtonFinder = find.widgetWithText(
+      FilledButton,
+      'Backend required to save learner',
+    );
+    expect(saveButtonFinder, findsOneWidget);
+    final button = tester.widget<FilledButton>(saveButtonFinder);
+    expect(button.onPressed, isNull);
 
     state.dispose();
   });

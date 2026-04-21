@@ -2242,7 +2242,7 @@ void main() {
       state.dispose();
     });
 
-    test('falls back to local registration when live learner save fails',
+    test('blocks registration when live learner save fails instead of queuing a local fallback',
         () async {
       final state = LumoAppState(
         includeSeedDemoContent: true,
@@ -2271,18 +2271,27 @@ void main() {
         consentCaptured: true,
       );
 
-      final learner = await state.registerLearner();
+      await expectLater(
+        state.registerLearner(),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('learner intake stays blocked until the live backend recovers'),
+          ),
+        ),
+      );
 
-      expect(learner.name, 'Safiya');
-      expect(state.learners.first.name, 'Safiya');
-      expect(state.currentLearner?.name, 'Safiya');
+      expect(state.learners.where((item) => item.name == 'Safiya'), isEmpty);
+      expect(state.currentLearner?.name, isNot('Safiya'));
       expect(state.usingFallbackData, isTrue);
-      expect(state.pendingSyncEvents, hasLength(1));
-      expect(state.pendingSyncEvents.first.type,
-          'learner_registered_local_fallback');
-      expect(state.backendError, contains('saved locally and queued for sync'));
+      expect(state.pendingSyncEvents, isEmpty);
+      expect(
+        state.backendError,
+        contains('learner intake stays blocked until the live backend recovers'),
+      );
       expect(state.lastSyncError, contains('Backend register endpoint is down.'));
-      expect(state.registrationDraft.name, isEmpty);
+      expect(state.registrationDraft.name, 'Safiya');
       state.dispose();
     });
 

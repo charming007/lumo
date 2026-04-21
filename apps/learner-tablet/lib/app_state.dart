@@ -1600,12 +1600,30 @@ class LumoAppState {
     return '${target.cohort.name} • ${target.mallam.name}';
   }
 
-  Future<LearnerProfile> registerLearner() async {
+  String? get registrationBlockerReason {
+    if (isBootstrapping) {
+      return 'Learner registration stays blocked until the tablet finishes the live production bootstrap.';
+    }
     if (usingFallbackData) {
-      final learner = _registerLearnerLocally();
-      backendError ??=
-          'Registration stayed local because the learner-app backend was unavailable.';
-      return learner;
+      final detail = backendError?.trim();
+      if (detail != null && detail.isNotEmpty) {
+        return 'Learner registration cannot continue while the tablet is offline or using fallback data. $detail';
+      }
+      return 'Learner registration cannot continue while the tablet is offline or using fallback data.';
+    }
+    return null;
+  }
+
+  bool get canRegisterLearner =>
+      registrationBlockerReason == null && !isRegisteringLearner;
+
+  Future<LearnerProfile> registerLearner() async {
+    final blocker = registrationBlockerReason;
+    if (blocker != null) {
+      backendError ??= blocker;
+      lastSyncError = blocker;
+      lastSyncAttemptAt = DateTime.now();
+      throw StateError(blocker);
     }
 
     isRegisteringLearner = true;
@@ -1628,13 +1646,12 @@ class LumoAppState {
     } catch (error) {
       usingFallbackData = true;
       final message = error.toString().replaceFirst('Exception: ', '');
-      backendError = message;
+      backendError =
+          'Backend registration failed, so learner intake stays blocked until the live backend recovers. $message';
       lastSyncError = message;
       lastSyncAttemptAt = DateTime.now();
-      final learner = _registerLearnerLocally();
-      backendError =
-          'Backend registration failed, so this learner was saved locally and queued for sync. $message';
-      return learner;
+      persistStateSoon();
+      throw StateError(backendError!);
     } finally {
       isRegisteringLearner = false;
     }

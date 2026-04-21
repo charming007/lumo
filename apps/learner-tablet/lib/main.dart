@@ -3934,32 +3934,48 @@ class _RegisterPageState extends State<RegisterPage> {
                         ],
                       );
 
+                      final registrationBlocker =
+                          widget.state.registrationBlockerReason;
                       final saveButton = SizedBox(
                         width: double.infinity,
                         child: FilledButton(
                           onPressed: draft.isValid &&
-                                  !widget.state.isRegisteringLearner
+                                  widget.state.canRegisterLearner
                               ? () async {
                                   syncDraft();
                                   setState(() {});
-                                  final learner =
-                                      await widget.state.registerLearner();
-                                  if (!context.mounted) return;
-                                  widget.onChanged();
-                                  Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(
-                                      builder: (_) => RegistrationSuccessPage(
-                                        state: widget.state,
-                                        learner: learner,
-                                        onChanged: widget.onChanged,
+                                  try {
+                                    final learner =
+                                        await widget.state.registerLearner();
+                                    if (!context.mounted) return;
+                                    widget.onChanged();
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => RegistrationSuccessPage(
+                                          state: widget.state,
+                                          learner: learner,
+                                          onChanged: widget.onChanged,
+                                        ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  } on StateError catch (error) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(error.message),
+                                        backgroundColor:
+                                            LumoTheme.accentOrange,
+                                      ),
+                                    );
+                                    setState(() {});
+                                  }
                                 }
                               : null,
                           child: Text(widget.state.isRegisteringLearner
                               ? 'Saving learner...'
-                              : 'Save learner'),
+                              : registrationBlocker == null
+                                  ? 'Save learner'
+                                  : 'Backend required to save learner'),
                         ),
                       );
 
@@ -3996,6 +4012,12 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                               const SizedBox(height: 18),
                               _BackendStatusBanner(state: widget.state),
+                              if (registrationBlocker != null) ...[
+                                const SizedBox(height: 18),
+                                _RegistrationBlockerBanner(
+                                  message: registrationBlocker,
+                                ),
+                              ],
                               const SizedBox(height: 18),
                               _ProgressMeter(score: draft.completionScore),
                               const SizedBox(height: 18),
@@ -4035,6 +4057,12 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           const SizedBox(height: 18),
                           _BackendStatusBanner(state: widget.state),
+                          if (registrationBlocker != null) ...[
+                            const SizedBox(height: 18),
+                            _RegistrationBlockerBanner(
+                              message: registrationBlocker,
+                            ),
+                          ],
                           const SizedBox(height: 18),
                           _ProgressMeter(score: draft.completionScore),
                           const SizedBox(height: 18),
@@ -4054,6 +4082,58 @@ class _RegisterPageState extends State<RegisterPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RegistrationBlockerBanner extends StatelessWidget {
+  final String message;
+
+  const _RegistrationBlockerBanner({
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.sync_problem_rounded,
+                color: Color(0xFF9A3412),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Registration blocked until live backend recovers',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF9A3412),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$message Saving a learner locally here would create a sync contract the backend does not currently honor, which is how you end up with a poisoned queue and fake progress.',
+            style: const TextStyle(
+              color: Color(0xFF7C2D12),
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }
