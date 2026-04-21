@@ -48,7 +48,11 @@ function statusTone(status: string) {
 }
 
 function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`;
+  if (!Number.isFinite(value)) return '—';
+
+  const normalized = value > 1 ? value : value * 100;
+  const clamped = Math.max(0, Math.min(100, normalized));
+  return `${Math.round(clamped)}%`;
 }
 
 function formatDueLabel(value: string) {
