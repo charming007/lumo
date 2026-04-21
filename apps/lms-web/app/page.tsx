@@ -307,16 +307,34 @@ export default async function HomePage() {
         isDraftModule,
         hasAuthoringContext: Boolean(subjectId),
         blockerCount,
+        priorityWeight: !hasAssessmentGate && !isDraftModule
+          ? 4
+          : !isDraftModule
+            ? 3
+            : !hasAssessmentGate
+              ? 2
+              : 1,
       };
     })
     .filter((module): module is NonNullable<typeof module> => Boolean(module))
-    .sort((left, right) => right.blockerCount - left.blockerCount || right.missingLessons - left.missingLessons || left.title.localeCompare(right.title));
+    .sort((left, right) => right.priorityWeight - left.priorityWeight || right.blockerCount - left.blockerCount || right.missingLessons - left.missingLessons || left.title.localeCompare(right.title));
   const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled';
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
   const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
   const liveMissingGateBlockers = missingGateBlockers.filter((module) => !module.isDraftModule);
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
+  const topReleaseBlockerBoardHref = topReleaseBlocker
+    ? `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${encodeURIComponent(topReleaseBlocker.subjectId)}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`
+    : '/content?view=blocked';
+  const topReleaseBlockerPrimaryHref = topReleaseBlocker?.missingLessons && topReleaseBlocker.hasAuthoringContext
+    ? `/content/lessons/new?subjectId=${encodeURIComponent(topReleaseBlocker.subjectId)}&moduleId=${encodeURIComponent(topReleaseBlocker.id)}&from=${encodeURIComponent(topReleaseBlockerBoardHref)}&focus=blockers`
+    : topReleaseBlockerBoardHref;
+  const topReleaseBlockerPrimaryLabel = topReleaseBlocker?.missingLessons && topReleaseBlocker.hasAuthoringContext
+    ? topReleaseBlocker.missingLessons === 1
+      ? 'Create missing lesson'
+      : `Create ${topReleaseBlocker.missingLessons} missing lessons`
+    : 'Open exact blocker';
 
   if (hasCriticalDashboardGap || criticalReleaseFailures.length) {
     const blockerDetail = hasCriticalDashboardGap
@@ -602,8 +620,11 @@ export default async function HomePage() {
                   The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so pilot operators do not end up juggling two competing release boards.
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <Link href="/content?view=blocked" style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
-                    Open blocker board
+                  <Link href={topReleaseBlockerPrimaryHref} style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
+                    {topReleaseBlockerPrimaryLabel}
+                  </Link>
+                  <Link href={topReleaseBlockerBoardHref} style={{ ...quickActionStyle, background: '#fff', color: '#9A3412', border: '1px solid #FED7AA', padding: '10px 12px' }}>
+                    Open scoped blocker board
                   </Link>
                   <Link href="/content" style={{ ...quickActionStyle, background: '#fff', color: '#9A3412', border: '1px solid #FED7AA', padding: '10px 12px' }}>
                     Open Content Library
