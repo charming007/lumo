@@ -4505,20 +4505,34 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final normalizedTitle = widget.lesson.title.trim().toLowerCase();
     final normalizedModuleId = widget.module.id.trim().toLowerCase();
 
-    for (final lesson in widget.state.assignedLessons) {
-      if (lesson.isAssignmentPlaceholder) continue;
-      final lessonTitle = lesson.title.trim().toLowerCase();
-      final lessonModuleId = lesson.moduleId.trim().toLowerCase();
-      final titleMatches =
-          normalizedTitle.isNotEmpty && lessonTitle == normalizedTitle;
-      final moduleMatches =
-          normalizedModuleId.isNotEmpty && lessonModuleId == normalizedModuleId;
-      if (titleMatches || moduleMatches) {
-        return lesson;
+    final candidates = widget.state.assignedLessons
+        .where((lesson) => !lesson.isAssignmentPlaceholder)
+        .toList(growable: false);
+
+    if (normalizedTitle.isNotEmpty) {
+      final exactTitleMatch = candidates.where((lesson) {
+        return lesson.title.trim().toLowerCase() == normalizedTitle;
+      }).toList(growable: false);
+      if (exactTitleMatch.length == 1) {
+        return exactTitleMatch.first;
+      }
+
+      final titleWithinModule = exactTitleMatch.where((lesson) {
+        return normalizedModuleId.isNotEmpty &&
+            lesson.moduleId.trim().toLowerCase() == normalizedModuleId;
+      }).toList(growable: false);
+      if (titleWithinModule.length == 1) {
+        return titleWithinModule.first;
       }
     }
 
-    return null;
+    if (normalizedModuleId.isEmpty) return null;
+
+    final moduleMatches = candidates.where((lesson) {
+      return lesson.moduleId.trim().toLowerCase() == normalizedModuleId;
+    }).toList(growable: false);
+
+    return moduleMatches.length == 1 ? moduleMatches.first : null;
   }
 
   Future<void> _refreshSyncPendingLesson() async {

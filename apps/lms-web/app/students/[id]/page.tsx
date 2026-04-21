@@ -20,6 +20,14 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
   );
 }
 
+function asArray<T>(value: T[] | null | undefined) {
+  return Array.isArray(value) ? value : [];
+}
+
+function asNumber(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
 export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
 
@@ -78,6 +86,16 @@ export default async function StudentDetailPage({ params, searchParams }: { para
 
     const student = studentResult.value;
     const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+    const progress = asArray(student.progress);
+    const attendance = asArray(student.attendance);
+    const observations = asArray(student.observations);
+    const assignments = asArray(student.assignments);
+    const recommendedActions = asArray(student.recommendedActions);
+    const summary = {
+      attendanceRate: asNumber(student.summary?.attendanceRate),
+      latestMastery: typeof student.summary?.latestMastery === 'number' && Number.isFinite(student.summary.latestMastery) ? student.summary.latestMastery : null,
+      activeAssignments: asNumber(student.summary?.activeAssignments),
+    };
 
     return (
       <PageShell
@@ -116,12 +134,12 @@ export default async function StudentDetailPage({ params, searchParams }: { para
 
           <Card title="Intervention summary" eyebrow="What to do next">
             <div style={{ ...responsiveGrid(160), gap: 12, marginBottom: 16 }}>
-              <div style={{ padding: 14, borderRadius: 16, background: '#eef2ff' }}><strong>{Math.round(student.summary.attendanceRate * 100)}%</strong><div style={{ color: '#64748b' }}>Attendance</div></div>
-              <div style={{ padding: 14, borderRadius: 16, background: '#ecfeff' }}><strong>{student.summary.latestMastery !== null ? `${Math.round(student.summary.latestMastery * 100)}%` : '—'}</strong><div style={{ color: '#64748b' }}>Latest mastery</div></div>
-              <div style={{ padding: 14, borderRadius: 16, background: '#fef3c7' }}><strong>{student.summary.activeAssignments}</strong><div style={{ color: '#64748b' }}>Active assignments</div></div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#eef2ff' }}><strong>{Math.round(summary.attendanceRate * 100)}%</strong><div style={{ color: '#64748b' }}>Attendance</div></div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#ecfeff' }}><strong>{summary.latestMastery !== null ? `${Math.round(summary.latestMastery * 100)}%` : '—'}</strong><div style={{ color: '#64748b' }}>Latest mastery</div></div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fef3c7' }}><strong>{summary.activeAssignments}</strong><div style={{ color: '#64748b' }}>Active assignments</div></div>
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
-              {student.recommendedActions.map((action) => (
+              {recommendedActions.map((action) => (
                 <div key={action} style={{ padding: 14, borderRadius: 14, border: '1px solid #e2e8f0', background: '#fff' }}>{action}</div>
               ))}
             </div>
@@ -132,7 +150,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
           <Card title="Progress timeline" eyebrow="Mastery + readiness">
             <SimpleTable
               columns={['Subject', 'Module', 'Mastery', 'Lessons', 'Progression', 'Next module']}
-              rows={student.progress.map((item) => [
+              rows={progress.map((item) => [
                 item.subjectName,
                 item.moduleTitle ?? '—',
                 `${Math.round(item.mastery * 100)}%`,
@@ -155,18 +173,18 @@ export default async function StudentDetailPage({ params, searchParams }: { para
 
         <section style={{ ...responsiveGrid(320) }}>
           <Card title="Attendance history" eyebrow="Recent sessions">
-            <SimpleTable columns={['Date', 'Status']} rows={student.attendance.map((item) => [item.date, item.status])} />
+            <SimpleTable columns={['Date', 'Status']} rows={attendance.map((item) => [item.date, item.status])} />
           </Card>
           <Card title="Active delivery" eyebrow="Assignments + observations">
             <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
-              {student.assignments.map((assignment) => (
+              {assignments.map((assignment) => (
                 <div key={assignment.id} style={{ padding: 14, borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
                   <strong>{assignment.lessonTitle}</strong>
                   <div style={{ color: '#64748b', marginTop: 4 }}>{assignment.teacherName} • due {assignment.dueDate}</div>
                 </div>
               ))}
             </div>
-            <SimpleTable columns={['When', 'Support', 'Note']} rows={student.observations.map((item) => [new Date(item.createdAt).toLocaleString('en-GB'), item.supportLevel, item.note])} />
+            <SimpleTable columns={['When', 'Support', 'Note']} rows={observations.map((item) => [new Date(item.createdAt).toLocaleString('en-GB'), item.supportLevel, item.note])} />
           </Card>
         </section>
       </PageShell>

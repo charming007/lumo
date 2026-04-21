@@ -92,6 +92,35 @@ class _SeedApiClient extends LumoApiClient {
   }
 }
 
+class _AmbiguousPlaceholderRecoveryApiClient extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap() async {
+    final englishSeed = assignedLessonsSeed.firstWhere(
+      (item) => item.moduleId == 'english',
+    );
+
+    return LumoBootstrap(
+      learners: learnerProfilesSeed,
+      modules: learningModules,
+      lessons: [
+        englishSeed,
+        LessonCardModel(
+          id: 'english-second-live-lesson',
+          moduleId: 'english',
+          title: 'Another live English lesson',
+          subject: englishSeed.subject,
+          durationMinutes: englishSeed.durationMinutes,
+          status: englishSeed.status,
+          mascotName: englishSeed.mascotName,
+          readinessFocus: englishSeed.readinessFocus,
+          scenario: 'Second live lesson in the same module.',
+          steps: englishSeed.steps,
+        ),
+      ],
+    );
+  }
+}
+
 class _FakeBundledContentLoader extends BundledContentLoader {
   const _FakeBundledContentLoader(this.library);
 
@@ -1651,6 +1680,70 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Refresh sync before starting'), findsNothing);
     expect(find.textContaining('is selected for'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'sync-pending placeholder refresh refuses to swap into the wrong lesson when a module has multiple lessons', (
+    tester,
+  ) async {
+    final state = LumoAppState(
+      includeSeedDemoContent: true,
+      apiClient: _AmbiguousPlaceholderRecoveryApiClient(),
+    )..usingFallbackData = false;
+    final module = state.modules.firstWhere((item) => item.id == 'english');
+    final lesson = LessonCardModel(
+      id: 'assignment-placeholder:assignment-99',
+      moduleId: module.id,
+      title: 'Backend lesson still syncing',
+      subject: 'Live assignment',
+      durationMinutes: 10,
+      status: 'assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Assignment payload reached the tablet first.',
+      scenario: 'Real lesson payload has not synced yet.',
+      steps: const [
+        LessonStep(
+          id: 'assignment-placeholder-step',
+          type: LessonStepType.intro,
+          title: 'Lesson sync pending',
+          instruction: 'Refresh sync before starting this assignment.',
+          expectedResponse: 'Refresh sync first.',
+          coachPrompt: 'Do not start runtime on a placeholder lesson.',
+          facilitatorTip: 'Refresh assignments first.',
+          realWorldCheck: 'Only start once the real lesson appears.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonLaunchSetupPage(
+          state: state,
+          onChanged: () {},
+          lesson: lesson,
+          module: module,
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    final refreshButton = find.widgetWithText(
+      FilledButton,
+      'Refresh sync before starting',
+    );
+    await tester.ensureVisible(refreshButton);
+    await tester.tap(refreshButton);
+    await pumpForUi(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Refresh sync before starting'), findsOneWidget);
+    expect(
+      find.textContaining('is selected for Backend lesson still syncing.'),
+      findsOneWidget,
+    );
 
     state.dispose();
   });

@@ -35,6 +35,14 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
   );
 }
 
+function asArray<T>(value: T[] | null | undefined) {
+  return Array.isArray(value) ? value : [];
+}
+
+function asNumber(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
 export default async function MallamDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ message?: string }> }) {
   const { id } = await params;
 
@@ -94,9 +102,18 @@ export default async function MallamDetailPage({ params, searchParams }: { param
     const mallam = mallamResult.value;
     const allStudents = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
     const allMallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
-    const roster = mallam.roster ?? [];
+    const roster = asArray(mallam.roster);
     const candidateLearners = allStudents.filter((student) => student.mallamId !== mallam.id);
-    const assignments = mallam.assignments ?? [];
+    const assignments = asArray(mallam.assignments);
+    const recommendedActions = asArray(mallam.recommendedActions);
+    const summary = {
+      rosterCount: asNumber(mallam.summary?.rosterCount),
+      activeAssignments: asNumber(mallam.summary?.activeAssignments),
+      averageAttendance: asNumber(mallam.summary?.averageAttendance),
+      readinessCount: asNumber(mallam.summary?.readinessCount),
+      watchCount: asNumber(mallam.summary?.watchCount),
+      podCoverage: asNumber(mallam.summary?.podCoverage),
+    };
     const watchLearners = roster.filter((student) => student.attendanceRate < 0.85);
     const stableLearners = roster.filter((student) => student.attendanceRate >= 0.9);
     const levelsInRoster = Array.from(new Set(roster.map((student) => `${student.level} · ${student.stage}`))).slice(0, 6);
@@ -107,7 +124,7 @@ export default async function MallamDetailPage({ params, searchParams }: { param
     const cohortsCovered = new Set(roster.map((student) => student.cohortName).filter(Boolean)).size;
     const podsCovered = new Set(roster.map((student) => student.podLabel).filter(Boolean)).size;
     const loadBand = roster.length >= 18 ? 'High load' : roster.length >= 10 ? 'Balanced load' : 'Light load';
-    const supportBand = mallam.summary.watchCount >= 4 ? 'Escalate coaching support' : mallam.summary.watchCount >= 2 ? 'Targeted follow-up' : 'Routine coaching';
+    const supportBand = summary.watchCount >= 4 ? 'Escalate coaching support' : summary.watchCount >= 2 ? 'Targeted follow-up' : 'Routine coaching';
     const assignmentPace = assignments.length >= 4 ? 'Heavy delivery window' : assignments.length >= 2 ? 'Steady delivery window' : 'Light delivery window';
     const rosterMomentum = stableLearners.length > watchLearners.length ? 'Roster is mostly stable' : 'Roster is carrying visible risk';
     const attendanceSpread = {
@@ -117,7 +134,7 @@ export default async function MallamDetailPage({ params, searchParams }: { param
     };
     const reportDrilldownHref = `/reports?mallam=${encodeURIComponent(mallam.id)}`;
     const assignmentDrilldownHref = `/assignments?mallam=${encodeURIComponent(mallam.id)}`;
-    const fieldNarrative = `${mallam.displayName} is carrying ${roster.length} learner${roster.length === 1 ? '' : 's'} across ${podsCovered || mallam.summary.podCoverage} pod${(podsCovered || mallam.summary.podCoverage) === 1 ? '' : 's'}, with average attendance at ${Math.round(mallam.summary.averageAttendance * 100)}% and ${mallam.summary.watchCount} learner${mallam.summary.watchCount === 1 ? '' : 's'} on watch. ${nextAssignment ? `Next visible checkpoint is ${nextAssignment.lessonTitle} due ${formatDate(nextAssignment.dueDate)}.` : 'No future assignment checkpoint is attached yet, so delivery planning still needs upstream cleanup.'}`;
+    const fieldNarrative = `${mallam.displayName} is carrying ${roster.length} learner${roster.length === 1 ? '' : 's'} across ${podsCovered || summary.podCoverage} pod${(podsCovered || summary.podCoverage) === 1 ? '' : 's'}, with average attendance at ${Math.round(summary.averageAttendance * 100)}% and ${summary.watchCount} learner${summary.watchCount === 1 ? '' : 's'} on watch. ${nextAssignment ? `Next visible checkpoint is ${nextAssignment.lessonTitle} due ${formatDate(nextAssignment.dueDate)}.` : 'No future assignment checkpoint is attached yet, so delivery planning still needs upstream cleanup.'}`;
 
     return (
       <PageShell
@@ -152,17 +169,17 @@ export default async function MallamDetailPage({ params, searchParams }: { param
           </div>
         ) : null}
         <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
-          <Card title={String(mallam.summary.rosterCount)} eyebrow="Roster"><div style={{ color: '#64748b' }}>Learners directly mapped to this mallam.</div></Card>
-          <Card title={String(mallam.summary.activeAssignments)} eyebrow="Active assignments"><div style={{ color: '#64748b' }}>Delivery blocks owned in the current window.</div></Card>
-          <Card title={`${Math.round(mallam.summary.averageAttendance * 100)}%`} eyebrow="Avg attendance"><div style={{ color: '#64748b' }}>Across the current roster, not just the neat cases.</div></Card>
-          <Card title={String(mallam.summary.watchCount)} eyebrow="Watchlist"><div style={{ color: '#64748b' }}>Learners needing tighter coaching support.</div></Card>
+          <Card title={String(summary.rosterCount)} eyebrow="Roster"><div style={{ color: '#64748b' }}>Learners directly mapped to this mallam.</div></Card>
+          <Card title={String(summary.activeAssignments)} eyebrow="Active assignments"><div style={{ color: '#64748b' }}>Delivery blocks owned in the current window.</div></Card>
+          <Card title={`${Math.round(summary.averageAttendance * 100)}%`} eyebrow="Avg attendance"><div style={{ color: '#64748b' }}>Across the current roster, not just the neat cases.</div></Card>
+          <Card title={String(summary.watchCount)} eyebrow="Watchlist"><div style={{ color: '#64748b' }}>Learners needing tighter coaching support.</div></Card>
         </section>
 
         <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16, marginBottom: 20 }}>
           <Card title="Operator handoff" eyebrow="Use this before a coaching or donor call">
             <div style={{ display: 'grid', gap: 12 }}>
               {[
-                ['Roster reality', `${mallam.displayName} is carrying ${roster.length} learner${roster.length === 1 ? '' : 's'} across ${podsCovered || mallam.summary.podCoverage} pod${(podsCovered || mallam.summary.podCoverage) === 1 ? '' : 's'}.`],
+                ['Roster reality', `${mallam.displayName} is carrying ${roster.length} learner${roster.length === 1 ? '' : 's'} across ${podsCovered || summary.podCoverage} pod${(podsCovered || summary.podCoverage) === 1 ? '' : 's'}.`],
                 ['Immediate risk', watchLearners.length ? `${watchLearners.length} learner${watchLearners.length === 1 ? '' : 's'} are below the attendance watch threshold and should be the first coaching conversation.` : 'No learner is currently below the attendance watch threshold. That is rare; don’t waste it.'],
                 ['Delivery pressure', nextAssignment ? `Next checkpoint is ${nextAssignment.lessonTitle} due ${formatDate(nextAssignment.dueDate)} with ${assignments.length} assignment${assignments.length === 1 ? '' : 's'} in the visible window.` : 'No future assignment checkpoint is attached yet, so delivery planning still needs cleanup upstream.'],
               ].map(([title, detail]) => (
@@ -210,8 +227,8 @@ export default async function MallamDetailPage({ params, searchParams }: { param
           <Card title="Operating readout" eyebrow="What this history says">
             <div style={{ display: 'grid', gap: 12 }}>
               {[
-                ['Load posture', `${loadBand} across ${podsCovered || mallam.summary.podCoverage} pod${(podsCovered || mallam.summary.podCoverage) === 1 ? '' : 's'}`],
-                ['Support posture', `${supportBand} with ${mallam.summary.watchCount} learner${mallam.summary.watchCount === 1 ? '' : 's'} flagged`],
+                ['Load posture', `${loadBand} across ${podsCovered || summary.podCoverage} pod${(podsCovered || summary.podCoverage) === 1 ? '' : 's'}`],
+                ['Support posture', `${supportBand} with ${summary.watchCount} learner${summary.watchCount === 1 ? '' : 's'} flagged`],
                 ['Delivery pace', assignmentPace],
                 ['Roster momentum', rosterMomentum],
               ].map(([label, detail]) => (
@@ -225,7 +242,7 @@ export default async function MallamDetailPage({ params, searchParams }: { param
 
           <Card title="Recommended actions" eyebrow="Coach the operator">
             <div style={{ display: 'grid', gap: 10 }}>
-              {mallam.recommendedActions.map((action) => (
+              {recommendedActions.map((action) => (
                 <div key={action} style={{ padding: 14, borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc' }}>{action}</div>
               ))}
               {nextAssignment ? (
@@ -353,8 +370,8 @@ export default async function MallamDetailPage({ params, searchParams }: { param
               {[
                 ['Most recent assignment', recentAssignment ? `${recentAssignment.lessonTitle} · ${formatDate(recentAssignment.dueDate)}` : 'No recorded assignments yet'],
                 ['Upcoming assignment', nextAssignment ? `${nextAssignment.lessonTitle} · ${formatDate(nextAssignment.dueDate)}` : 'No future assignment in the queue'],
-                ['Pod coverage', `${podsCovered || mallam.summary.podCoverage} live pod${(podsCovered || mallam.summary.podCoverage) === 1 ? '' : 's'}`],
-                ['Readiness lift', `${mallam.summary.readinessCount} learner${mallam.summary.readinessCount === 1 ? '' : 's'} ready to progress`],
+                ['Pod coverage', `${podsCovered || summary.podCoverage} live pod${(podsCovered || summary.podCoverage) === 1 ? '' : 's'}`],
+                ['Readiness lift', `${summary.readinessCount} learner${summary.readinessCount === 1 ? '' : 's'} ready to progress`],
               ].map(([label, detail]) => (
                 <div key={label} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>{label}</div>
