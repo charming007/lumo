@@ -1,9 +1,11 @@
+import type { BuildSignature } from '../lib/build-signature';
 import { describeDashboardStatus } from '../lib/trust-copy';
 
 type TopbarProps = {
   sidebarCollapsed?: boolean;
   onToggleSidebarCollapse?: () => void;
   seedCount?: number;
+  buildSignature: BuildSignature;
 };
 
 const desktopSidebarToggleStyle: React.CSSProperties = {
@@ -21,6 +23,7 @@ export function Topbar({
   sidebarCollapsed = false,
   onToggleSidebarCollapse,
   seedCount = 0,
+  buildSignature,
 }: TopbarProps) {
   const dashboardStatus = describeDashboardStatus(seedCount);
 
@@ -59,6 +62,9 @@ export function Topbar({
       </div>
       <div className="topbar__meta" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0, flex: '1 1 280px' }}>
         <div className="topbar__meta-chip" style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>Northern Nigeria pilot</div>
+        <div className="topbar__meta-chip" style={{ background: '#eef2ff', color: '#3730a3', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }} title={buildSignature.summary}>
+          Live shell: v{buildSignature.version} · {buildSignature.commitShort} · {buildSignature.deploymentLabel}
+        </div>
         <div className="topbar__meta-chip" style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{dashboardStatus}</div>
         <div className="topbar__meta-chip" style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Admin</div>
       </div>

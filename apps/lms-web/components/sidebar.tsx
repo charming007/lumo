@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
+import type { BuildSignature } from '../lib/build-signature';
 import { navigationItems } from '../lib/navigation';
 
 function isActivePath(pathname: string, href: string) {
@@ -22,6 +23,7 @@ function itemMonogram(label: string) {
 type SidebarProps = {
   mobileNavOpen?: boolean;
   sidebarCollapsed?: boolean;
+  buildSignature: BuildSignature;
   onCloseMobileNav?: () => void;
   onToggleSidebarCollapse?: () => void;
 };
@@ -29,6 +31,7 @@ type SidebarProps = {
 export function Sidebar({
   mobileNavOpen = false,
   sidebarCollapsed = false,
+  buildSignature,
   onCloseMobileNav,
   onToggleSidebarCollapse,
 }: SidebarProps) {
@@ -165,6 +168,11 @@ export function Sidebar({
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Pilot workspace</div>
           <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise readiness, content release, learner intervention, and deployment trust without route sprawl.</div>
+          <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
+            <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
+            <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
+            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>{buildSignature.deploymentLabel} · built {buildSignature.builtAtLabel}</div>
+          </div>
         </div>
       </aside>
       <style>{`

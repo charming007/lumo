@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import type { BuildSignature } from '../lib/build-signature';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 
@@ -21,9 +22,11 @@ const SIDEBAR_PREFERENCE_KEY = 'lumo:lms-sidebar-collapsed';
 export function AppShell({
   children,
   seedCount = 0,
+  buildSignature,
 }: {
   children: React.ReactNode;
   seedCount?: number;
+  buildSignature: BuildSignature;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -47,6 +50,7 @@ export function AppShell({
       <Sidebar
         mobileNavOpen={mobileNavOpen}
         sidebarCollapsed={sidebarCollapsed}
+        buildSignature={buildSignature}
         onCloseMobileNav={() => setMobileNavOpen(false)}
         onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
       />
@@ -66,6 +70,7 @@ export function AppShell({
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
           seedCount={seedCount}
+          buildSignature={buildSignature}
         />
         {children}
       </main>
