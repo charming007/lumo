@@ -144,6 +144,61 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
     assignmentsResult.status === 'rejected' ? 'assignments' : null,
   ].filter(Boolean);
+  const criticalReleaseFailures = [
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+  ].filter(Boolean);
+  const hasCriticalContentGap = criticalReleaseFailures.length > 0;
+
+  if (hasCriticalContentGap) {
+    const blockerDetail = criticalReleaseFailures.length === 1
+      ? `The ${criticalReleaseFailures[0]} feed failed to load from the live API. Leaving the content board up would turn blocker counts, readiness scoring, and authoring actions into polished fiction.`
+      : `The ${criticalReleaseFailures.join(', ')} feeds failed to load from the live API. Leaving the content board up would turn blocker counts, readiness scoring, and authoring actions into polished fiction.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Content library"
+        subtitle="Critical curriculum feeds are degraded, so the publishing board is blocked instead of pretending blank counts mean release-safe content."
+        blockerHeadline="Deployment blocker: content release-readiness feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalReleaseFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalReleaseFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalReleaseFailures.includes(source)).join(', ')}.`
+              : null}
+          </>
+        )}
+        whyBlocked={[
+          'This page decides whether modules are genuinely shippable. Zeroed cards and empty blocker rows during an outage are a lie, not a fallback.',
+          'Operators should not be able to open lesson or assessment creation flows when the reference curriculum context is missing or stale.',
+          'Assignments can degrade separately, but modules, lessons, subjects, and assessment gates are the trust backbone for this route.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Content board counts',
+            expected: 'Subjects, modules, lessons, and assessment gates reflect live backend totals',
+            failure: 'Neat zero-value cards or empty blocker rows appear while one of the core feeds is down',
+          },
+          {
+            surface: 'Blocked modules board',
+            expected: 'Missing lessons, draft modules, and missing gates show exact blocker rows',
+            failure: 'The page suggests nothing is blocked because fallback arrays collapsed the board to empty',
+          },
+          {
+            surface: 'Authoring actions',
+            expected: 'Lesson studio and assessment creation are only available with trustworthy curriculum context',
+            failure: 'Operators can launch write flows against degraded reference data',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Assignments blocker', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Settings blocker', href: '/settings', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
   const subjectFilter = normalizeFilterValue(query?.subject).trim();
