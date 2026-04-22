@@ -689,6 +689,19 @@ void launchLessonFlow({
     return;
   }
 
+  if (lesson.steps.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          lesson.title.trim().isEmpty
+              ? 'This lesson is missing its activity steps. Republish or refresh sync before a learner starts it.'
+              : '${lesson.title} is missing its activity steps. Republish or refresh sync before a learner starts it.',
+        ),
+      ),
+    );
+    return;
+  }
+
   final targetModule = resolveLessonModule(
     state: state,
     lesson: lesson,
@@ -1574,7 +1587,7 @@ String _buildHomeMallamReplayPrompt(LumoAppState state) {
   if (learner == null) {
     return registrationBlocked
         ? '$greeting You are on the home page. Registration is blocked until the live backend recovers, so open Student List to review synced learners or choose a subject to continue teaching.'
-        : '$greeting You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to open its modules.';
+        : '$greeting You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to see its lessons.';
   }
 
   final learnerName = learner.name.split(' ').first;
@@ -1587,7 +1600,7 @@ String _buildHomeMallamReplayPrompt(LumoAppState state) {
     return '$greeting $learnerName is ready to keep learning. $learnerMoment Tap Student List to open learner cards, or choose ${module.title} to keep the next lesson moving.';
   }
 
-  return '$greeting $learnerName is on the home page. $learnerMoment Tap Register to add another learner, Student List to see all learners, or choose a subject to open its modules.';
+  return '$greeting $learnerName is on the home page. $learnerMoment Tap Register to add another learner, Student List to see all learners, or choose a subject to see its lessons.';
 }
 
 class _HomeMallamStage extends StatelessWidget {
@@ -2598,7 +2611,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                               ),
                               const SizedBox(height: 12),
                               InfoRow(
-                                  label: 'Recommended module',
+                                  label: 'Recommended subject',
                                   value: recommendedModule.title),
                               if (nextAssignmentPack != null) ...[
                                 InfoRow(
@@ -3085,7 +3098,7 @@ class SubjectModulesPage extends StatelessWidget {
                             );
                           },
                           prompt:
-                              'You opened ${module.title}. Choose a lesson in this subject, then follow it one step at a time.',
+                              'You opened ${module.title}. Choose a lesson in this subject, then start with the learner who is taking it.',
                           speakerMode: SpeakerMode.guiding,
                           statusLabel: 'Mallam leads the lesson',
                           secondaryStatus: 'Lesson path guide',
@@ -9931,13 +9944,13 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                                     learner),
                                           ),
                                           (
-                                            'Recommended module',
+                                            'Recommended subject',
                                             recommendedModule.title,
                                           ),
                                           (
                                             'Next lesson',
                                             nextLesson?.title ??
-                                                'Open module to choose',
+                                                'Open subject to choose',
                                           ),
                                         ],
                                       ),
@@ -9976,7 +9989,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                       );
                                     },
                                     child: Text(nextLesson == null
-                                        ? 'Open recommended module'
+                                        ? 'Open recommended subject'
                                         : 'Start next routed lesson'),
                                   ),
                                   secondary: OutlinedButton(

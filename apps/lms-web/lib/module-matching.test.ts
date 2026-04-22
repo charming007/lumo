@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match';
-import { filterLessonsForModule } from './module-lesson-match';
+import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match.ts';
+import { filterLessonsForModule } from './module-lesson-match.ts';
 
 test('dashboard module matching keeps same-title lessons and live assessment gates together when subject context matches', () => {
   const module = {

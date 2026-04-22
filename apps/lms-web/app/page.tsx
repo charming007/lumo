@@ -269,6 +269,11 @@ export default async function HomePage() {
       || assetRuntime.summary.unresolvedReferenceCount > 0
     ),
   );
+  const assetOpsCriticalFailure = assetRuntimeResult.status === 'rejected'
+    ? 'asset runtime'
+    : assetOpsVisibleBlocker
+      ? 'asset operations'
+      : null;
   const dashboardRenderedAt = new Date();
 
   const failedSources = [
@@ -292,14 +297,16 @@ export default async function HomePage() {
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
+  const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
   const healthyFeedCount = 9 - failedSources.length;
-  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length
+  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
     ? 'Blocked'
     : failedSources.length
       ? 'Partial live pull'
       : 'Fresh live pull';
-  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length
+  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
     ? { tone: '#FEE2E2', text: '#991B1B' }
     : failedSources.length
       ? { tone: '#FEF3C7', text: '#92400E' }
@@ -373,7 +380,7 @@ export default async function HomePage() {
       : `Create ${topReleaseBlocker.missingLessons} missing lessons`
     : 'Open exact blocker';
 
-  if (hasCriticalDashboardGap || criticalReleaseFailures.length) {
+  if (hasCriticalDashboardGap || criticalReleaseFailures.length || hasCriticalAssetOpsGap) {
     const blockerDetail = hasCriticalDashboardGap
       ? !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
         ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
@@ -388,21 +395,29 @@ export default async function HomePage() {
                 : !mallamsAvailable
                   ? 'The mallam coverage feed failed to load from the live API. Without the live roster, this dashboard cannot honestly represent facilitator coverage.'
                   : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.'
-      : !modules.length && !lessons.length && !assessments.length
-        ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
-        : criticalReleaseFailures.length === 1
-          ? `The ${criticalReleaseFailures[0]} feed failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`
-          : `The ${criticalReleaseFailures.join(', ')} feeds failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`;
+      : hasCriticalAssetOpsGap
+        ? assetRuntimeResult.status === 'rejected'
+          ? 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for pilot content operations.'
+          : 'The asset runtime audit is live, and it is telling you asset operations are blocked. A dashboard that still looks deployable while uploads or managed lesson references are broken is lying by omission.'
+        : !modules.length && !lessons.length && !assessments.length
+          ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
+          : criticalReleaseFailures.length === 1
+            ? `The ${criticalReleaseFailures[0]} feed failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`
+            : `The ${criticalReleaseFailures.join(', ')} feeds failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`;
 
     return (
       <DeploymentBlockerCard
         title="Dashboard"
         subtitle={hasCriticalDashboardGap
           ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
-          : 'The admin landing page also blocks when release-readiness feeds are blind.'}
+          : hasCriticalAssetOpsGap
+            ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
+            : 'The admin landing page also blocks when release-readiness feeds are blind.'}
         blockerHeadline={hasCriticalDashboardGap
           ? 'Deployment blocker: dashboard live feeds are degraded.'
-          : 'Deployment blocker: release-readiness feeds are degraded.'}
+          : hasCriticalAssetOpsGap
+            ? 'Deployment blocker: asset operations are not trustworthy.'
+            : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length
@@ -416,11 +431,17 @@ export default async function HomePage() {
               'Operators use this screen to decide who needs intervention now, whether facilitators are actually covered, and whether delivery load is under control. Missing any of those turns this into vibes-based operations.',
               'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
             ]
-          : [
-              'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, or assessment gates are blind, the route should not imply anyone can trust the release board.',
-              'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Leaving it up with degraded data invites a false green light.',
-              'A blocker is safer than a dashboard that looks live while the release gate inputs are missing.',
-            ]}
+          : hasCriticalAssetOpsGap
+            ? [
+                'This pilot depends on shared lesson media, upload integrity, and managed asset references. If those are broken, the front door should not pretend deployment is fine.',
+                'Operators use the dashboard as a trust signal before validating learner content paths. Broken asset operations mean lessons can still fail even if top-line counts look healthy.',
+                'A loud blocker is safer than shipping a dashboard that hides dead uploads, broken registry state, or stale backend media references.',
+              ]
+            : [
+                'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, or assessment gates are blind, the route should not imply anyone can trust the release board.',
+                'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Leaving it up with degraded data invites a false green light.',
+                'A blocker is safer than a dashboard that looks live while the release gate inputs are missing.',
+              ]}
         verificationItems={hasCriticalDashboardGap
           ? [
               {
@@ -439,45 +460,75 @@ export default async function HomePage() {
                 failure: 'Dashboard still looks deployable even though facilitator coverage or delivery pressure is unknown',
               },
             ]
-          : [
-              {
-                surface: 'Content release blockers',
-                expected: 'Blocked-module counts, missing lesson gaps, and assessment-gate warnings load from live curriculum feeds',
-                failure: 'Release-readiness card renders with warnings or partial counts while modules / lessons / assessments are unavailable',
-              },
-              {
-                surface: 'Top blocker lane',
-                expected: 'Open blockers board and create-missing-lesson actions are based on real module + lesson + gate data',
-                failure: 'A module appears release-safe or actionable while one of the release feeds is blind',
-              },
-              {
-                surface: 'Cross-check routes',
-                expected: '/content and /assignments agree with the root release-readiness board after recovery',
-                failure: 'Dashboard says release is reviewable while the pilot content and delivery routes still show degraded curriculum or assignment data',
-              },
-            ]}
+          : hasCriticalAssetOpsGap
+            ? [
+                {
+                  surface: 'Asset operations readiness',
+                  expected: 'Upload readiness, registry health, and managed-reference counts show a clean live state',
+                  failure: 'Dashboard still looks deployable while uploads are blocked or registry integrity is broken',
+                },
+                {
+                  surface: 'Lesson media pipeline',
+                  expected: 'Managed lesson assets resolve cleanly without broken or unresolved references',
+                  failure: 'Pilot lessons can silently lose media even though the root route still looks green',
+                },
+                {
+                  surface: 'Cross-check routes',
+                  expected: '/content/assets and /settings agree with the dashboard asset readiness call after recovery',
+                  failure: 'Dashboard implies deployment is safe while asset tooling still shows blocked or degraded operations',
+                },
+              ]
+            : [
+                {
+                  surface: 'Content release blockers',
+                  expected: 'Blocked-module counts, missing lesson gaps, and assessment-gate warnings load from live curriculum feeds',
+                  failure: 'Release-readiness card renders with warnings or partial counts while modules / lessons / assessments are unavailable',
+                },
+                {
+                  surface: 'Top blocker lane',
+                  expected: 'Open blockers board and create-missing-lesson actions are based on real module + lesson + gate data',
+                  failure: 'A module appears release-safe or actionable while one of the release feeds is blind',
+                },
+                {
+                  surface: 'Cross-check routes',
+                  expected: '/content and /assignments agree with the root release-readiness board after recovery',
+                  failure: 'Dashboard says release is reviewable while the pilot content and delivery routes still show degraded curriculum or assignment data',
+                },
+              ]}
         fixItems={hasCriticalDashboardGap
           ? [
               { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
               { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
               { label: 'Cross-check', value: 'Verify /progress, /assignments, and the dashboard facilitator-coverage cards after the upstream fix lands' },
             ]
-          : [
-              { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
-              { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
-              { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
-            ]}
+          : hasCriticalAssetOpsGap
+            ? [
+                { label: 'Failing area', value: assetOpsCriticalFailure ?? 'asset operations' },
+                { label: 'Operator action', value: 'Restore upload readiness, registry integrity, and managed asset references before trusting the dashboard' },
+                { label: 'Cross-check', value: 'Verify /content/assets and /settings after the asset pipeline fix lands' },
+              ]
+            : [
+                { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
+                { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
+                { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
+              ]}
         docs={hasCriticalDashboardGap
           ? [
               { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
               { label: 'Open content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
               { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
             ]
-          : [
-              { label: 'Check content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
-              { label: 'Open assignments', href: '/assignments', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-              { label: 'Cross-check progress', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-            ]}
+          : hasCriticalAssetOpsGap
+            ? [
+                { label: 'Open asset library', href: '/content/assets', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+                { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+                { label: 'Cross-check content', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+              ]
+            : [
+                { label: 'Check content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+                { label: 'Open assignments', href: '/assignments', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+                { label: 'Cross-check progress', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+              ]}
       />
     );
   }
