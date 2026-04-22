@@ -639,18 +639,21 @@ function buildLearnerSubjects({ includeAssigned = false } = {}) {
 
   return sortByOrderThenName(store.listSubjects())
     .filter((subject) => subject.status === 'published' && visibleSubjectIds.has(subject.id))
-    .map((subject) => ({
-      id: subject.id,
-      title: subject.name,
-      subjectId: subject.id,
-      subjectName: subject.name,
-      description: `${subject.name} lessons ready for learner practice.`,
-      voicePrompt: `Open ${subject.name} and choose a lesson to begin.`,
-      readinessGoal: `Ready for ${subject.name.toLowerCase()} practice`,
-      badge: `${lessons.filter((lesson) => lesson.lessonPack?.subjectId === subject.id).length} lesson${lessons.filter((lesson) => lesson.lessonPack?.subjectId === subject.id).length === 1 ? '' : 's'}`,
-      status: subject.status,
-      lessonCount: lessons.filter((lesson) => lesson.lessonPack?.subjectId === subject.id).length,
-    }));
+    .map((subject) => {
+      const subjectLessons = lessons.filter((lesson) => lesson.lessonPack?.subjectId === subject.id);
+      return {
+        id: subject.id,
+        title: subject.name,
+        subjectId: subject.id,
+        subjectName: subject.name,
+        description: `${subject.name} lessons ready for learner practice.`,
+        voicePrompt: `Open ${subject.name} and choose a lesson to begin.`,
+        readinessGoal: `Ready for ${subject.name.toLowerCase()} practice`,
+        badge: `${subjectLessons.length} lesson${subjectLessons.length === 1 ? '' : 's'}`,
+        status: subject.status,
+        lessonCount: subjectLessons.length,
+      };
+    });
 }
 
 function buildLearnerAppBootstrap() {
