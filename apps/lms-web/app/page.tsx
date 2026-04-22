@@ -831,35 +831,30 @@ export default async function HomePage() {
           )}
         </Card>
 
-        <Card title="Pilot route discipline" eyebrow="Scope freeze">
+        <Card title="LMS route map" eyebrow="Admin workspace">
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Primary pilot control plane</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Primary admin routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Dashboard', 'Content', 'Assignments', 'Progress', 'Settings'].map((label) => (
+                {['Dashboard', 'Content Library', 'Curriculum Canvas', 'Students', 'Mallams', 'Pods', 'Attendance', 'Assignments', 'Assessments', 'Progress', 'Reports', 'Rewards', 'English Studio', 'Guide', 'Settings'].map((label) => (
                   <Pill key={label} label={label} tone="#DCFCE7" text="#166534" />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                Pilot operators should live inside these five routes. Everything else is secondary or internal until field ops prove it belongs in the daily loop.
+                The LMS shell is no longer intentionally restricted to a five-route pilot lane. Admin surfaces can live as dedicated routes instead of being forced through misleading remaps.
               </div>
             </div>
-            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Legacy shortcuts now funnel back into the pilot path</div>
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Learners → Progress', 'Mallams → Assignments', 'Rewards → Settings', 'Canvas → Content', 'English → Content', 'Reports → Progress', 'Guide → Settings', 'Attendance → Progress', 'Pods → Assignments'].map((label) => (
-                  <Pill key={label} label={label} tone="#FFEDD5" text="#9A3412" />
-                ))}
-              </div>
-              <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
-                The old route names are still caught for compatibility, but they no longer represent separate pilot surfaces. Landing here should reinforce one control plane, not hint that operators should wander off and invent side workflows.
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Legacy remap cleanup</div>
+              <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                The old route remaps that dumped students into progress, canvas into content, mallams/pods into assignments, and rewards into settings are being removed so navigation behaves honestly.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/content" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open content</Link>
-              <Link href="/assignments" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open assignments</Link>
-              <Link href="/progress" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open progress</Link>
-              <Link href="/settings" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Open settings</Link>
+              <Link href="/canvas" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open canvas</Link>
+              <Link href="/students" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open students</Link>
+              <Link href="/assignments" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open assignments</Link>
             </div>
           </div>
         </Card>
