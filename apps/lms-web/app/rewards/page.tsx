@@ -12,7 +12,7 @@ export default async function RewardsPage() {
   return (
     <PageShell
       title="Rewards"
-      subtitle="Monitor XP momentum, pending reward requests, and top learner progression without dropping into Settings."
+      subtitle="Monitor XP momentum, pending reward requests, and top learner progression without dropping into Settings or hiding the queue."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <Card title="Rewards snapshot" eyebrow="Live API">
