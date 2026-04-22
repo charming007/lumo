@@ -1,5 +1,10 @@
 import { redirect } from 'next/navigation';
+import { buildLegacyRedirectTarget } from '../../lib/legacy-route-redirect';
 
-export default function PodsRedirectPage() {
-  redirect('/assignments');
+export default async function PodsRedirectPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  redirect(await buildLegacyRedirectTarget('/assignments', searchParams));
 }
