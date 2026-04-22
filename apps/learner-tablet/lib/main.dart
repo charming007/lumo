@@ -3085,7 +3085,7 @@ class SubjectModulesPage extends StatelessWidget {
                             );
                           },
                           prompt:
-                              'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
+                              'You opened ${module.title}. Choose a lesson in this subject, then follow it one step at a time.',
                           speakerMode: SpeakerMode.guiding,
                           statusLabel: 'Mallam leads the lesson',
                           secondaryStatus: 'Lesson path guide',

@@ -633,10 +633,30 @@ function buildLearnerModules({ includeAssigned = false } = {}) {
     .map(presenters.presentLearnerModule);
 }
 
+function buildLearnerSubjects({ includeAssigned = false } = {}) {
+  const lessons = buildLearnerLessons({ includeAssigned });
+  const visibleSubjectIds = new Set(lessons.map((lesson) => lesson.lessonPack?.subjectId || null).filter(Boolean));
+
+  return sortByOrderThenName(store.listSubjects())
+    .filter((subject) => subject.status === 'published' && visibleSubjectIds.has(subject.id))
+    .map((subject) => ({
+      id: subject.id,
+      title: subject.name,
+      subjectId: subject.id,
+      subjectName: subject.name,
+      description: `${subject.name} lessons ready for learner practice.`,
+      voicePrompt: `Open ${subject.name} and choose a lesson to begin.`,
+      readinessGoal: `Ready for ${subject.name.toLowerCase()} practice`,
+      badge: `${lessons.filter((lesson) => lesson.lessonPack?.subjectId === subject.id).length} lesson${lessons.filter((lesson) => lesson.lessonPack?.subjectId === subject.id).length === 1 ? '' : 's'}`,
+      status: subject.status,
+      lessonCount: lessons.filter((lesson) => lesson.lessonPack?.subjectId === subject.id).length,
+    }));
+}
+
 function buildLearnerAppBootstrap() {
   const learners = store.listStudents().map(presenters.presentLearnerProfile);
-  const modules = buildLearnerModules({ includeAssigned: true });
-  const lessons = buildLearnerLessons({ includeAssigned: true });
+  const modules = buildLearnerSubjects({ includeAssigned: false });
+  const lessons = buildLearnerLessons({ includeAssigned: false });
   const assignments = buildLearnerAssignmentIndex();
   const assessments = buildLearnerAssessments();
   const lastSync = store.listSyncEvents().slice(-1)[0] || null;
@@ -666,8 +686,8 @@ function buildLearnerAppBootstrap() {
       assignmentPackCount: assignments.length,
       assessmentCount: assessments.length,
       generatedAt: new Date().toISOString(),
-      contractVersion: 'learner-app-v2.3',
-      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'lesson-localization', 'assessment-packs', 'learner-rewards'],
+      contractVersion: 'learner-app-v2.4',
+      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'lesson-localization', 'assessment-packs', 'learner-rewards', 'subject-first-navigation'],
     },
   };
 }

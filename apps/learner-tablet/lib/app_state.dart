@@ -1434,34 +1434,13 @@ class LumoAppState {
     LearnerProfile? learner,
     String moduleId,
   ) {
-    final module = modules.where((item) => item.id == moduleId).firstOrNull ??
-        selectedModule;
-    final moduleLessonIds = <String>{};
-    final moduleLessonTitles = <String>{};
-
-    if (learner != null) {
-      for (final pack in assignmentPacks.where(
-        (pack) => pack.eligibleLearnerIds.contains(learner.id),
-      )) {
-        final packModuleIds = {
-          pack.curriculumModuleId?.trim(),
-          pack.moduleId.trim(),
-        }.whereType<String>().where((value) => value.isNotEmpty);
-        if (!packModuleIds.contains(moduleId)) continue;
-        moduleLessonIds.add(pack.lessonId.trim());
-        final normalizedTitle = pack.lessonTitle.trim().toLowerCase();
-        if (normalizedTitle.isNotEmpty) {
-          moduleLessonTitles.add(normalizedTitle);
-        }
-      }
-    }
+    final normalizedSubjectId = moduleId.trim().toLowerCase();
 
     return lessonsForLearner(learner).where((lesson) {
-      final packMatch = moduleLessonIds.contains(lesson.id.trim()) ||
-          moduleLessonTitles.contains(lesson.title.trim().toLowerCase());
-      if (packMatch) return true;
-      if (module == null) return lesson.moduleId == moduleId;
-      return _lessonMatchesModule(lesson: lesson, module: module);
+      final lessonSubject = lesson.subject.trim().toLowerCase();
+      final lessonModuleId = lesson.moduleId.trim().toLowerCase();
+      return lessonModuleId == normalizedSubjectId ||
+          lessonSubject == normalizedSubjectId;
     }).toList();
   }
 
