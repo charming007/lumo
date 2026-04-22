@@ -1254,6 +1254,25 @@ class LumoAppState {
     return normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
   }
 
+  String _subjectTitleForLesson(LessonCardModel lesson) {
+    final directSubject = lesson.subject.trim();
+    if (directSubject.isNotEmpty) return directSubject;
+
+    final moduleTitle = modules
+        .cast<LearningModule?>()
+        .firstWhere(
+          (module) => module?.id == lesson.moduleId,
+          orElse: () => null,
+        )
+        ?.title
+        .trim();
+    if (moduleTitle != null && moduleTitle.isNotEmpty) {
+      return moduleTitle;
+    }
+
+    return 'Learning';
+  }
+
   LearningModule _buildLearnerFacingSubject({
     required String key,
     required String title,
@@ -1286,16 +1305,7 @@ class LumoAppState {
 
     for (final lesson in lessonPool) {
       if (!_isPublishedLearnerLesson(lesson)) continue;
-      final subjectTitle = lesson.subject.trim().isEmpty
-          ? modules
-                  .cast<LearningModule?>()
-                  .firstWhere(
-                    (module) => module?.id == lesson.moduleId,
-                    orElse: () => null,
-                  )
-                  ?.title ??
-              'Learning'
-          : lesson.subject.trim();
+      final subjectTitle = _subjectTitleForLesson(lesson);
       final key = _normalizeSubjectKey(subjectTitle);
       groupedLessons.putIfAbsent(key, () => <LessonCardModel>[]).add(lesson);
       subjectTitles.putIfAbsent(key, () => subjectTitle);
@@ -1324,7 +1334,8 @@ class LumoAppState {
         learner == null ? assignedLessons : lessonsForLearner(learner);
     return lessonPool.where((lesson) {
       if (!_isPublishedLearnerLesson(lesson)) return false;
-      return _normalizeSubjectKey(lesson.subject) == normalizedSubjectId;
+      return _normalizeSubjectKey(_subjectTitleForLesson(lesson)) ==
+          normalizedSubjectId;
     }).toList(growable: false);
   }
 

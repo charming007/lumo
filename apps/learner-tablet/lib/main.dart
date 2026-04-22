@@ -734,6 +734,35 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
       .toList(growable: false);
 }
 
+String _resolvedSubjectTitleForModule({
+  required LumoAppState state,
+  required LearningModule module,
+  LearnerProfile? learner,
+}) {
+  final lessonBackedSubject = state
+      .lessonsForLearnerAndModule(learner, module.id)
+      .map((lesson) => lesson.subject.trim())
+      .firstWhere(
+        (subject) => subject.isNotEmpty,
+        orElse: () => '',
+      );
+  return lessonBackedSubject.isNotEmpty ? lessonBackedSubject : module.title;
+}
+
+String _resolvedSubjectKeyForModule({
+  required LumoAppState state,
+  required LearningModule module,
+  LearnerProfile? learner,
+}) {
+  return _normalizeSubjectKey(
+    _resolvedSubjectTitleForModule(
+      state: state,
+      module: module,
+      learner: learner,
+    ),
+  );
+}
+
 void launchLessonFlow({
   required BuildContext context,
   required LumoAppState state,
@@ -3115,8 +3144,18 @@ class SubjectModulesPage extends StatelessWidget {
     required this.module,
     String? subjectTitle,
     String? subjectKey,
-  })  : subjectTitle = subjectTitle ?? module.title,
-        subjectKey = subjectKey ?? _normalizeSubjectKey(module.title);
+  })  : subjectTitle = subjectTitle ??
+            _resolvedSubjectTitleForModule(
+              state: state,
+              module: module,
+              learner: state.currentLearner,
+            ),
+        subjectKey = subjectKey ??
+            _resolvedSubjectKeyForModule(
+              state: state,
+              module: module,
+              learner: state.currentLearner,
+            );
 
   @override
   Widget build(BuildContext context) {

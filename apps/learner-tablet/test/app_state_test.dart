@@ -4478,5 +4478,59 @@ void main() {
       expect(fallbackCards.map((card) => card.id), contains('english'));
       state.dispose();
     });
+
+    test(
+      'subject lookup keeps module-backed lessons visible when subject metadata is blank',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false);
+        state.modules
+          ..clear()
+          ..add(const LearningModule(
+            id: 'english-reading-module',
+            title: 'Reading Foundations',
+            description: 'Module-backed subject fallback.',
+            voicePrompt: 'Open the reading module.',
+            readinessGoal: 'Reading practice',
+            badge: '1 lesson',
+          ));
+        state.assignedLessons
+          ..clear()
+          ..add(const LessonCardModel(
+            id: 'english-reading-lesson',
+            moduleId: 'english-reading-module',
+            title: 'Read the greeting',
+            subject: '',
+            durationMinutes: 12,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Greeting flow',
+            scenario: 'Blank subject metadata should still map back to the module-backed subject card.',
+            steps: [
+              LessonStep(
+                id: 'step-1',
+                type: LessonStepType.prompt,
+                title: 'Say hello',
+                instruction: 'Say hello.',
+                expectedResponse: 'Say hello.',
+                coachPrompt: 'Coach the learner to say hello.',
+                facilitatorTip: 'Keep the greeting calm and short.',
+                realWorldCheck: 'Learner greets clearly before continuing.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ));
+
+        final subjectCards = buildLearnerSubjectCards(state: state, learner: null);
+        final visibleLessons = state.lessonsForLearnerAndSubject(
+          null,
+          subjectCards.single.id,
+        );
+
+        expect(subjectCards, hasLength(1));
+        expect(subjectCards.single.id, 'reading-foundations');
+        expect(visibleLessons.map((lesson) => lesson.id), ['english-reading-lesson']);
+        state.dispose();
+      },
+    );
   });
 }

@@ -3041,4 +3041,80 @@ void main() {
 
     state.dispose();
   });
+
+  test(
+    'subject module page resolves learner-facing subject labels from backend module metadata',
+    () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      final learner = const LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Alpha',
+        streakDays: 1,
+        guardianName: 'Zainab',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Pod 1',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-AL07',
+      );
+      const module = LearningModule(
+        id: 'english-reading-module',
+        title: 'Reading Foundations',
+        description: 'Backend module title differs from learner-facing subject.',
+        voicePrompt: 'Open the reading module.',
+        readinessGoal: 'Reading practice',
+        badge: '1 lesson',
+      );
+      const lesson = LessonCardModel(
+        id: 'english-reading-lesson',
+        moduleId: 'english-reading-module',
+        title: 'Read the greeting',
+        subject: 'English',
+        durationMinutes: 12,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Learner should see the mapped English lesson.',
+        steps: [
+          LessonStep(
+            id: 'step-1',
+            type: LessonStepType.prompt,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Say hello.',
+            coachPrompt: 'Coach the learner to say hello.',
+            facilitatorTip: 'Keep the greeting calm and short.',
+            realWorldCheck: 'Learner greets clearly before continuing.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      state.learners.add(learner);
+      state.modules.add(module);
+      state.assignedLessons.add(lesson);
+      state.selectLearner(learner);
+      state.selectModule(module);
+
+      final page = SubjectModulesPage(
+        state: state,
+        onChanged: () {},
+        module: module,
+      );
+      final visibleLessons = state.lessonsForLearnerAndSubject(
+        learner,
+        page.subjectKey,
+      );
+
+      expect(page.subjectTitle, 'English');
+      expect(page.subjectKey, 'english');
+      expect(visibleLessons.map((item) => item.id), ['english-reading-lesson']);
+
+      state.dispose();
+    },
+  );
 }
