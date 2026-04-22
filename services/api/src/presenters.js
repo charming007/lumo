@@ -92,30 +92,50 @@ function buildLessonContract(entry) {
 
 function presentPod(pod) {
   const center = repository.findCenterById(pod.centerId);
+  const state = pod.stateId ? repository.findStateById(pod.stateId) : center?.stateId ? repository.findStateById(center.stateId) : null;
+  const localGovernment = pod.localGovernmentId
+    ? repository.findLocalGovernmentById(pod.localGovernmentId)
+    : center?.localGovernmentId
+      ? repository.findLocalGovernmentById(center.localGovernmentId)
+      : null;
   const mallams = repository
     .listTeachers()
-    .filter((teacher) => pod.mallamIds.includes(teacher.id))
+    .filter((teacher) => (pod.mallamIds || []).includes(teacher.id))
     .map((teacher) => teacher.displayName || teacher.name);
 
   return {
     ...pod,
     centerName: center?.name ?? null,
     region: center?.region ?? null,
+    stateId: pod.stateId || center?.stateId || null,
+    stateName: state?.name ?? null,
+    localGovernmentId: pod.localGovernmentId || center?.localGovernmentId || null,
+    localGovernmentName: localGovernment?.name ?? null,
     mallamNames: mallams,
   };
 }
 
 function presentMallam(teacher) {
   const center = repository.findCenterById(teacher.centerId);
+  const podIds = Array.isArray(teacher.podIds) ? teacher.podIds : [];
+  const primaryPodId = teacher.primaryPodId || podIds[0] || null;
+  const primaryPod = primaryPodId ? repository.findPodById(primaryPodId) : null;
   const podLabels = repository
     .listPods()
-    .filter((pod) => teacher.podIds.includes(pod.id))
+    .filter((pod) => podIds.includes(pod.id))
     .map((pod) => pod.label);
 
   return {
     ...teacher,
+    podIds,
+    primaryPodId,
+    primaryPodLabel: primaryPod?.label ?? null,
     centerName: center?.name ?? null,
     region: center?.region ?? null,
+    stateId: primaryPod?.stateId || center?.stateId || null,
+    stateName: primaryPod?.stateName || (center?.stateId ? repository.findStateById(center.stateId)?.name ?? null : null),
+    localGovernmentId: primaryPod?.localGovernmentId || center?.localGovernmentId || null,
+    localGovernmentName: primaryPod?.localGovernmentName || (center?.localGovernmentId ? repository.findLocalGovernmentById(center.localGovernmentId)?.name ?? null : null),
     podLabels,
   };
 }
@@ -133,6 +153,10 @@ function presentStudent(student) {
     ...student,
     cohortName: cohort?.name ?? null,
     podLabel: pod?.label ?? null,
+    stateId: pod?.stateId ?? null,
+    stateName: pod?.stateId ? repository.findStateById(pod.stateId)?.name ?? null : null,
+    localGovernmentId: pod?.localGovernmentId ?? null,
+    localGovernmentName: pod?.localGovernmentId ? repository.findLocalGovernmentById(pod.localGovernmentId)?.name ?? null : null,
     mallamName: mallam?.displayName ?? mallam?.name ?? null,
     rewards: presentRewardSnapshot(student.id),
   };
@@ -141,6 +165,7 @@ function presentStudent(student) {
 function presentLearnerProfile(student) {
   const cohort = repository.findCohortById(student.cohortId);
   const pod = repository.findPodById(student.podId);
+  const mallam = repository.findTeacherById(student.mallamId);
   const progressEntries = repository.listProgress().filter((entry) => entry.studentId === student.id);
   const attendanceEntries = repository
     .listAttendance()
@@ -159,6 +184,11 @@ function presentLearnerProfile(student) {
     name: student.name,
     age: student.age,
     cohort: cohort?.name ?? 'Unassigned cohort',
+    cohortId: cohort?.id ?? student.cohortId ?? null,
+    podId: student.podId ?? null,
+    podLabel: pod?.label ?? null,
+    mallamId: student.mallamId ?? null,
+    mallamName: mallam?.displayName ?? mallam?.name ?? null,
     streakDays: latestProgress?.lessonsCompleted ?? 0,
     guardianName: student.guardianName || 'Unknown guardian',
     preferredLanguage: student.preferredLanguage || 'Hausa',
@@ -447,6 +477,32 @@ function presentObservation(entry) {
 
 
 
+function presentDeviceRegistration(entry) {
+  const pod = entry.podId ? repository.findPodById(entry.podId) : null;
+  const center = entry.centerId ? repository.findCenterById(entry.centerId) : pod?.centerId ? repository.findCenterById(pod.centerId) : null;
+  const state = entry.stateId ? repository.findStateById(entry.stateId) : pod?.stateId ? repository.findStateById(pod.stateId) : center?.stateId ? repository.findStateById(center.stateId) : null;
+  const localGovernment = entry.localGovernmentId
+    ? repository.findLocalGovernmentById(entry.localGovernmentId)
+    : pod?.localGovernmentId
+      ? repository.findLocalGovernmentById(pod.localGovernmentId)
+      : center?.localGovernmentId
+        ? repository.findLocalGovernmentById(center.localGovernmentId)
+        : null;
+  const mallam = entry.assignedMallamId ? repository.findTeacherById(entry.assignedMallamId) : null;
+
+  return {
+    ...entry,
+    centerId: entry.centerId || pod?.centerId || null,
+    centerName: center?.name ?? null,
+    podLabel: pod?.label ?? null,
+    stateId: entry.stateId || pod?.stateId || center?.stateId || null,
+    stateName: state?.name ?? null,
+    localGovernmentId: entry.localGovernmentId || pod?.localGovernmentId || center?.localGovernmentId || null,
+    localGovernmentName: localGovernment?.name ?? null,
+    assignedMallamName: mallam?.displayName ?? mallam?.name ?? null,
+  };
+}
+
 function presentLessonAsset(entry) {
   const subject = entry.subjectId ? repository.findSubjectById(entry.subjectId) : null;
   const module = entry.moduleId ? repository.findModuleById(entry.moduleId) : null;
@@ -510,6 +566,7 @@ module.exports = {
   presentProgress,
   presentAttendance,
   presentObservation,
+  presentDeviceRegistration,
   presentLessonAsset,
   presentLesson,
   presentLessonSession,

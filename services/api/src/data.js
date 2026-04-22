@@ -10,13 +10,24 @@ const seed = {
     { id: 'org-1', name: 'Lumo Pilot Program', country: 'Nigeria', timezone: 'Africa/Lagos' },
   ],
   centers: [
-    { id: 'center-1', organizationId: 'org-1', name: 'Kano Learning Center A', region: 'Kano', deliveryModel: 'community-hub' },
-    { id: 'center-2', organizationId: 'org-1', name: 'Kaduna Learning Center B', region: 'Kaduna', deliveryModel: 'community-hub' },
+    { id: 'center-1', organizationId: 'org-1', stateId: 'state-kano', localGovernmentId: 'lga-nassarawa', name: 'Kano Learning Center A', region: 'Kano', deliveryModel: 'community-hub' },
+    { id: 'center-2', organizationId: 'org-1', stateId: 'state-kaduna', localGovernmentId: 'lga-igabi', name: 'Kaduna Learning Center B', region: 'Kaduna', deliveryModel: 'community-hub' },
+  ],
+  states: [
+    { id: 'state-kano', code: 'KN', name: 'Kano', countryCode: 'NG', order: 1, status: 'active' },
+    { id: 'state-kaduna', code: 'KD', name: 'Kaduna', countryCode: 'NG', order: 2, status: 'active' },
+  ],
+  localGovernments: [
+    { id: 'lga-nassarawa', stateId: 'state-kano', code: 'KN-NAS', name: 'Nassarawa', order: 1, status: 'active' },
+    { id: 'lga-fagge', stateId: 'state-kano', code: 'KN-FAG', name: 'Fagge', order: 2, status: 'active' },
+    { id: 'lga-igabi', stateId: 'state-kaduna', code: 'KD-IGA', name: 'Igabi', order: 1, status: 'active' },
   ],
   pods: [
     {
       id: 'pod-1',
       centerId: 'center-1',
+      stateId: 'state-kano',
+      localGovernmentId: 'lga-nassarawa',
       code: 'KANO-01',
       label: 'Kano Pod 01',
       type: 'solar-container',
@@ -29,6 +40,8 @@ const seed = {
     {
       id: 'pod-2',
       centerId: 'center-2',
+      stateId: 'state-kaduna',
+      localGovernmentId: 'lga-igabi',
       code: 'KAD-01',
       label: 'Kaduna Pod 01',
       type: 'classroom-kit',
@@ -49,6 +62,7 @@ const seed = {
       id: 'teacher-1',
       centerId: 'center-1',
       podIds: ['pod-1'],
+      primaryPodId: 'pod-1',
       name: 'Amina Yusuf',
       displayName: 'Mallama Amina Yusuf',
       role: 'mallam-lead',
@@ -61,6 +75,7 @@ const seed = {
       id: 'teacher-2',
       centerId: 'center-2',
       podIds: ['pod-2'],
+      primaryPodId: 'pod-2',
       name: 'Musa Ibrahim',
       displayName: 'Mallam Musa Ibrahim',
       role: 'facilitator',
@@ -108,6 +123,23 @@ const seed = {
   ],
   lessons: [],
   lessonAssets: [],
+  deviceRegistrations: [
+    {
+      id: 'device-1',
+      podId: 'pod-1',
+      stateId: 'state-kano',
+      localGovernmentId: 'lga-nassarawa',
+      centerId: 'center-1',
+      assignedMallamId: 'teacher-1',
+      deviceIdentifier: 'lumo-tablet-kano-01',
+      serialNumber: 'KANO-TAB-001',
+      platform: 'android',
+      appVersion: '0.1.0',
+      status: 'active',
+      lastSeenAt: '2026-04-10T08:00:00Z',
+      registeredAt: '2026-04-09T08:00:00Z'
+    }
+  ],
   assessments: [],
   assignments: [],
   attendance: [],

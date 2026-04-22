@@ -76,12 +76,107 @@ function findCenterById(id) {
   return data.centers.find((item) => item.id === id) || null;
 }
 
+function listStates() {
+  return data.states || [];
+}
+
+function findStateById(id) {
+  return listStates().find((item) => item.id === id) || null;
+}
+
+function createState(input) {
+  const record = {
+    id: input.id || `state-${listStates().length + 1}`,
+    code: input.code || null,
+    name: input.name,
+    countryCode: input.countryCode || 'NG',
+    order: Number(input.order || listStates().length + 1),
+    status: input.status || 'active',
+  };
+
+  data.states.push(record);
+  return commit(record);
+}
+
+function updateState(id, input) {
+  const record = findStateById(id);
+  if (!record) return null;
+
+  Object.assign(record, {
+    code: input.code ?? record.code,
+    name: input.name ?? record.name,
+    countryCode: input.countryCode ?? record.countryCode,
+    order: input.order !== undefined ? Number(input.order) : record.order,
+    status: input.status ?? record.status,
+  });
+
+  return commit(record);
+}
+
+function listLocalGovernments() {
+  return data.localGovernments || [];
+}
+
+function findLocalGovernmentById(id) {
+  return listLocalGovernments().find((item) => item.id === id) || null;
+}
+
+function createLocalGovernment(input) {
+  const record = {
+    id: input.id || `lga-${listLocalGovernments().length + 1}`,
+    stateId: input.stateId,
+    code: input.code || null,
+    name: input.name,
+    order: Number(input.order || listLocalGovernments().filter((item) => item.stateId === input.stateId).length + 1),
+    status: input.status || 'active',
+  };
+
+  data.localGovernments.push(record);
+  return commit(record);
+}
+
+function updateLocalGovernment(id, input) {
+  const record = findLocalGovernmentById(id);
+  if (!record) return null;
+
+  Object.assign(record, {
+    stateId: input.stateId ?? record.stateId,
+    code: input.code ?? record.code,
+    name: input.name ?? record.name,
+    order: input.order !== undefined ? Number(input.order) : record.order,
+    status: input.status ?? record.status,
+  });
+
+  return commit(record);
+}
+
 function listPods() {
   return data.pods;
 }
 
 function findPodById(id) {
   return data.pods.find((item) => item.id === id) || null;
+}
+
+function updatePod(id, input) {
+  const pod = findPodById(id);
+  if (!pod) return null;
+
+  Object.assign(pod, {
+    centerId: input.centerId ?? pod.centerId,
+    stateId: input.stateId ?? pod.stateId,
+    localGovernmentId: input.localGovernmentId ?? pod.localGovernmentId,
+    code: input.code ?? pod.code,
+    label: input.label ?? pod.label,
+    type: input.type ?? pod.type,
+    status: input.status ?? pod.status,
+    capacity: input.capacity !== undefined ? Number(input.capacity) : pod.capacity,
+    learnersActive: input.learnersActive !== undefined ? Number(input.learnersActive) : pod.learnersActive,
+    connectivity: input.connectivity ?? pod.connectivity,
+    mallamIds: input.mallamIds ?? pod.mallamIds,
+  });
+
+  return commit(pod);
 }
 
 function listCohorts() {
@@ -101,10 +196,19 @@ function findTeacherById(id) {
 }
 
 function createTeacher(input) {
+  const normalizedPodIds = Array.isArray(input.podIds)
+    ? [...input.podIds]
+    : input.primaryPodId
+      ? [input.primaryPodId]
+      : input.podId
+        ? [input.podId]
+        : [];
+
   const teacher = {
     id: `teacher-${data.teachers.length + 1}`,
     centerId: input.centerId,
-    podIds: input.podIds || [],
+    podIds: normalizedPodIds,
+    primaryPodId: input.primaryPodId || input.podId || normalizedPodIds[0] || null,
     name: input.name,
     displayName: input.displayName || input.name,
     role: input.role || 'mallam-lead',
@@ -125,9 +229,12 @@ function updateTeacher(id, input) {
     return null;
   }
 
+  const nextPodIds = input.podIds ?? (input.primaryPodId ? [input.primaryPodId] : input.podId ? [input.podId] : teacher.podIds);
+
   Object.assign(teacher, {
     centerId: input.centerId ?? teacher.centerId,
-    podIds: input.podIds ?? teacher.podIds,
+    podIds: nextPodIds,
+    primaryPodId: input.primaryPodId ?? input.podId ?? nextPodIds?.[0] ?? teacher.primaryPodId ?? null,
     name: input.name ?? teacher.name,
     displayName: input.displayName ?? teacher.displayName,
     role: input.role ?? teacher.role,
@@ -1192,6 +1299,77 @@ function reorderCurriculumNodes({ parentType, parentId = null, nodeType, ordered
 
 
 
+function listDeviceRegistrations() {
+  return data.deviceRegistrations || [];
+}
+
+function findDeviceRegistrationById(id) {
+  return listDeviceRegistrations().find((item) => item.id === id) || null;
+}
+
+function findDeviceRegistrationByIdentifier(deviceIdentifier) {
+  if (!deviceIdentifier) return null;
+  return listDeviceRegistrations().find((item) => item.deviceIdentifier === deviceIdentifier) || null;
+}
+
+function findDeviceRegistrationByIdentifier(deviceIdentifier) {
+  if (!deviceIdentifier) return null;
+  const normalized = String(deviceIdentifier).trim().toLowerCase();
+  if (!normalized) return null;
+  return listDeviceRegistrations().find((item) => String(item.deviceIdentifier || '').trim().toLowerCase() === normalized) || null;
+}
+
+function createDeviceRegistration(input) {
+  const pod = input.podId ? findPodById(input.podId) : null;
+  const center = input.centerId ? findCenterById(input.centerId) : pod ? findCenterById(pod.centerId) : null;
+  const record = {
+    id: input.id || `device-${listDeviceRegistrations().length + 1}`,
+    podId: input.podId,
+    stateId: input.stateId || pod?.stateId || center?.stateId || null,
+    localGovernmentId: input.localGovernmentId || pod?.localGovernmentId || center?.localGovernmentId || null,
+    centerId: input.centerId || pod?.centerId || null,
+    assignedMallamId: input.assignedMallamId || null,
+    deviceIdentifier: input.deviceIdentifier,
+    serialNumber: input.serialNumber || null,
+    platform: input.platform || 'android',
+    appVersion: input.appVersion || null,
+    status: input.status || 'active',
+    metadata: input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null,
+    lastSeenAt: input.lastSeenAt || null,
+    registeredAt: input.registeredAt || new Date().toISOString(),
+  };
+
+  data.deviceRegistrations.push(record);
+  return commit(record);
+}
+
+function updateDeviceRegistration(id, input) {
+  const record = findDeviceRegistrationById(id);
+  if (!record) return null;
+
+  const nextPodId = input.podId ?? record.podId;
+  const pod = nextPodId ? findPodById(nextPodId) : null;
+  const center = (input.centerId ?? record.centerId) ? findCenterById(input.centerId ?? record.centerId) : pod ? findCenterById(pod.centerId) : null;
+
+  Object.assign(record, {
+    podId: nextPodId,
+    stateId: input.stateId ?? pod?.stateId ?? center?.stateId ?? record.stateId,
+    localGovernmentId: input.localGovernmentId ?? pod?.localGovernmentId ?? center?.localGovernmentId ?? record.localGovernmentId,
+    centerId: input.centerId ?? pod?.centerId ?? record.centerId,
+    assignedMallamId: input.assignedMallamId ?? record.assignedMallamId,
+    deviceIdentifier: input.deviceIdentifier ?? record.deviceIdentifier,
+    serialNumber: input.serialNumber !== undefined ? input.serialNumber : record.serialNumber,
+    platform: input.platform ?? record.platform,
+    appVersion: input.appVersion !== undefined ? input.appVersion : record.appVersion,
+    status: input.status ?? record.status,
+    metadata: input.metadata !== undefined ? (input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null) : record.metadata,
+    lastSeenAt: input.lastSeenAt !== undefined ? input.lastSeenAt : record.lastSeenAt,
+    registeredAt: input.registeredAt ?? record.registeredAt,
+  });
+
+  return commit(record);
+}
+
 function listLessonAssets() {
   return data.lessonAssets;
 }
@@ -1267,8 +1445,17 @@ function deleteLessonAsset(id) {
 module.exports = {
   listCenters,
   findCenterById,
+  listStates,
+  findStateById,
+  createState,
+  updateState,
+  listLocalGovernments,
+  findLocalGovernmentById,
+  createLocalGovernment,
+  updateLocalGovernment,
   listPods,
   findPodById,
+  updatePod,
   listCohorts,
   findCohortById,
   listTeachers,
@@ -1298,6 +1485,11 @@ module.exports = {
   deleteModule,
   listLessons,
   findLessonById,
+  listDeviceRegistrations,
+  findDeviceRegistrationById,
+  findDeviceRegistrationByIdentifier,
+  createDeviceRegistration,
+  updateDeviceRegistration,
   listLessonAssets,
   findLessonAssetById,
   createLesson,

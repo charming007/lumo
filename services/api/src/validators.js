@@ -224,8 +224,51 @@ function validateTeacher(body, { partial = false } = {}) {
 
   assertExists('centerId', body.centerId, repository.findCenterById);
   (body.podIds || []).forEach((podId) => assertExists('podId', podId, repository.findPodById));
+  assertExists('primaryPodId', body.primaryPodId, repository.findPodById);
+  assertExists('podId', body.podId, repository.findPodById);
   assertAllowed('status', body.status, ['active', 'training', 'leave']);
   assertAllowed('role', body.role, ['mallam-lead', 'facilitator', 'coach']);
+}
+
+function validateState(body, { partial = false } = {}) {
+  if (!partial) {
+    requireFields(body, ['name']);
+  }
+
+  assertAllowed('status', body.status, ['active', 'inactive']);
+}
+
+function validateLocalGovernment(body, { partial = false } = {}) {
+  if (!partial) {
+    requireFields(body, ['stateId', 'name']);
+  }
+
+  assertExists('stateId', body.stateId, repository.findStateById);
+  assertAllowed('status', body.status, ['active', 'inactive']);
+}
+
+function validatePod(body, { partial = false } = {}) {
+  if (!partial) {
+    requireFields(body, ['centerId', 'label']);
+  }
+
+  assertExists('centerId', body.centerId, repository.findCenterById);
+  assertExists('stateId', body.stateId, repository.findStateById);
+  assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
+  (body.mallamIds || []).forEach((teacherId) => assertExists('mallamId', teacherId, repository.findTeacherById));
+}
+
+function validateDeviceRegistration(body, { partial = false } = {}) {
+  if (!partial) {
+    requireFields(body, ['podId', 'deviceIdentifier']);
+  }
+
+  assertExists('podId', body.podId, repository.findPodById);
+  assertExists('stateId', body.stateId, repository.findStateById);
+  assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
+  assertExists('centerId', body.centerId, repository.findCenterById);
+  assertExists('assignedMallamId', body.assignedMallamId, repository.findTeacherById);
+  assertAllowed('status', body.status, ['active', 'inactive', 'retired', 'repair']);
 }
 
 const CURRICULUM_LANE_STATUSES = ['draft', 'review', 'published'];
@@ -326,6 +369,10 @@ module.exports = {
   validateProgress,
   validateStudent,
   validateTeacher,
+  validateState,
+  validateLocalGovernment,
+  validatePod,
+  validateDeviceRegistration,
   validateSubject,
   validateStrand,
   validateModule,

@@ -525,29 +525,114 @@ app.use((req, _res, next) => {
   next();
 });
 
-function getDefaultRegistrationTarget() {
-  const cohort = store.listCohorts()[0] || null;
-  const mallam = cohort
-    ? store.listTeachers().find((teacher) => (teacher.podIds || []).includes(cohort.podId)) || store.listTeachers()[0] || null
-    : store.listTeachers()[0] || null;
+function getLearnerTabletIdentifier(req, body = null) {
+  return coerceOptionalString(
+    req?.header?.('x-lumo-device-identifier')
+      || req?.header?.('x-lumo-device-id')
+      || req?.query?.deviceIdentifier
+      || req?.query?.deviceId
+      || body?.deviceIdentifier
+      || body?.deviceId
+      || body?.tablet?.deviceIdentifier
+      || body?.tablet?.deviceId,
+  );
+}
+
+function resolveLearnerTabletRegistration(req, body = null) {
+  const deviceIdentifier = getLearnerTabletIdentifier(req, body);
+  const registration = deviceIdentifier
+    ? store.findDeviceRegistrationByIdentifier(deviceIdentifier)
+    : null;
+
+  return { deviceIdentifier, registration };
+}
+
+function getDefaultRegistrationTarget({ podId = null, assignedMallamId = null } = {}) {
+  const cohorts = podId
+    ? store.listCohorts().filter((entry) => entry.podId === podId)
+    : store.listCohorts();
+  const cohort = cohorts[0] || null;
+  const mallam = assignedMallamId
+    ? store.listTeachers().find((teacher) => teacher.id === assignedMallamId) || null
+    : cohort
+      ? store.listTeachers().find((teacher) => (teacher.podIds || []).includes(cohort.podId)) || store.listTeachers()[0] || null
+      : store.listTeachers()[0] || null;
 
   return { cohort, mallam };
 }
 
-function buildRegistrationContext() {
-  const cohorts = store.listCohorts();
-  const mallams = store.listTeachers().map(presenters.presentMallam);
-  const target = getDefaultRegistrationTarget();
+function buildRegistrationContext({ registration = null } = {}) {
+  const scopedPodId = registration?.podId || null;
+  const cohorts = scopedPodId
+    ? store.listCohorts().filter((entry) => entry.podId === scopedPodId)
+    : store.listCohorts();
+  const mallams = (scopedPodId
+    ? store.listTeachers().filter((teacher) => (teacher.podIds || []).includes(scopedPodId))
+    : store.listTeachers()
+  ).map(presenters.presentMallam);
+  const target = getDefaultRegistrationTarget({
+    podId: scopedPodId,
+    assignedMallamId: registration?.assignedMallamId || null,
+  });
+  const pod = scopedPodId ? store.findPodById(scopedPodId) : null;
+  const mallam = registration?.assignedMallamId ? store.listTeachers().find((teacher) => teacher.id === registration.assignedMallamId) || null : target.mallam;
 
   return {
     cohorts,
     mallams,
     defaultTarget: {
       cohortId: target.cohort?.id ?? null,
-      podId: target.cohort?.podId ?? null,
-      mallamId: target.mallam?.id ?? null,
+      podId: target.cohort?.podId ?? registration?.podId ?? null,
+      mallamId: target.mallam?.id ?? registration?.assignedMallamId ?? null,
     },
+    tabletRegistration: registration
+      ? {
+          id: registration.id,
+          deviceIdentifier: registration.deviceIdentifier,
+          serialNumber: registration.serialNumber || null,
+          platform: registration.platform || null,
+          status: registration.status || null,
+          podId: registration.podId || null,
+          podLabel: pod?.label ?? null,
+          mallamId: registration.assignedMallamId || null,
+          mallamName: mallam?.displayName || mallam?.name || null,
+          centerId: registration.centerId || null,
+          registeredAt: registration.registeredAt || null,
+          lastSeenAt: registration.lastSeenAt || null,
+        }
+      : null,
   };
+}
+
+function resolveScopeFilters(input = {}) {
+  const podId = coerceOptionalString(input.podId);
+  const deviceRegistrationId = coerceOptionalString(input.deviceRegistrationId);
+  const deviceIdentifier = coerceOptionalString(input.deviceIdentifier);
+  const mallamId = coerceOptionalString(input.mallamId);
+  const cohortId = coerceOptionalString(input.cohortId);
+
+  const device = deviceRegistrationId
+    ? store.findDeviceRegistrationById(deviceRegistrationId)
+    : deviceIdentifier
+      ? store.findDeviceRegistrationByIdentifier(deviceIdentifier)
+      : null;
+
+  return {
+    podId: podId || device?.podId || null,
+    deviceRegistrationId: device?.id || deviceRegistrationId || null,
+    deviceIdentifier: device?.deviceIdentifier || deviceIdentifier || null,
+    mallamId,
+    cohortId,
+  };
+}
+
+function filterStudentsByScope(students, scope = {}) {
+  return students.filter((student) => {
+    if (scope.cohortId && student.cohortId !== scope.cohortId) return false;
+    if (scope.podId && student.podId !== scope.podId) return false;
+    if (scope.mallamId && student.mallamId !== scope.mallamId) return false;
+    return true;
+  });
 }
 
 function normalizeLearnerAppStudentPayload(body = {}) {
@@ -585,19 +670,32 @@ function findStudentByLearnerCode(learnerCode) {
     .find((student) => presenters.presentLearnerProfile(student).learnerCode === learnerCode) || null;
 }
 
-function buildLearnerAssignmentIndex() {
+function buildScopedLearnerAssignments({ podId = null } = {}) {
+  const cohortIds = podId
+    ? new Set(store.listCohorts().filter((entry) => entry.podId === podId).map((entry) => entry.id))
+    : null;
+
   return store
     .listAssignments()
     .filter((assignment) => ['active', 'scheduled'].includes(assignment.status))
-    .map(presenters.presentLearnerAssignmentPack);
+    .filter((assignment) => !cohortIds || cohortIds.has(assignment.cohortId));
 }
 
-function buildLearnerLessons({ includeAssigned = false } = {}) {
+function buildScopedLearners({ podId = null } = {}) {
+  return store
+    .listStudents()
+    .filter((student) => !podId || student.podId === podId)
+    .map(presenters.presentLearnerProfile);
+}
+
+function buildLearnerAssignmentIndex({ podId = null } = {}) {
+  return buildScopedLearnerAssignments({ podId }).map(presenters.presentLearnerAssignmentPack);
+}
+
+function buildLearnerLessons({ includeAssigned = false, podId = null } = {}) {
   const assignedLessonIds = includeAssigned
     ? new Set(
-        store
-          .listAssignments()
-          .filter((assignment) => ['active', 'scheduled'].includes(assignment.status))
+        buildScopedLearnerAssignments({ podId })
           .map((assignment) => assignment.lessonId)
           .filter(Boolean),
       )
@@ -616,12 +714,10 @@ function buildLearnerAssessments() {
     .map(presenters.presentAssessment);
 }
 
-function buildLearnerModules({ includeAssigned = false } = {}) {
+function buildLearnerModules({ includeAssigned = false, podId = null } = {}) {
   const assignedModuleIds = includeAssigned
     ? new Set(
-        store
-          .listAssignments()
-          .filter((assignment) => ['active', 'scheduled'].includes(assignment.status))
+        buildScopedLearnerAssignments({ podId })
           .map((assignment) => store.findLessonById(assignment.lessonId)?.moduleId)
           .filter(Boolean),
       )
@@ -633,8 +729,8 @@ function buildLearnerModules({ includeAssigned = false } = {}) {
     .map(presenters.presentLearnerModule);
 }
 
-function buildLearnerSubjects({ includeAssigned = false } = {}) {
-  const lessons = buildLearnerLessons({ includeAssigned });
+function buildLearnerSubjects({ includeAssigned = false, podId = null } = {}) {
+  const lessons = buildLearnerLessons({ includeAssigned, podId });
   const visibleSubjectIds = new Set(lessons.map((lesson) => lesson.lessonPack?.subjectId || null).filter(Boolean));
 
   return sortByOrderThenName(store.listSubjects())
@@ -656,11 +752,12 @@ function buildLearnerSubjects({ includeAssigned = false } = {}) {
     });
 }
 
-function buildLearnerAppBootstrap() {
-  const learners = store.listStudents().map(presenters.presentLearnerProfile);
-  const modules = buildLearnerSubjects({ includeAssigned: false });
-  const lessons = buildLearnerLessons({ includeAssigned: false });
-  const assignments = buildLearnerAssignmentIndex();
+function buildLearnerAppBootstrap({ registration = null } = {}) {
+  const podId = registration?.podId || null;
+  const learners = buildScopedLearners({ podId });
+  const modules = buildLearnerSubjects({ includeAssigned: false, podId });
+  const lessons = buildLearnerLessons({ includeAssigned: false, podId });
+  const assignments = buildLearnerAssignmentIndex({ podId });
   const assessments = buildLearnerAssessments();
   const lastSync = store.listSyncEvents().slice(-1)[0] || null;
 
@@ -671,7 +768,7 @@ function buildLearnerAppBootstrap() {
     assignments,
     assignmentPacks: assignments,
     assessments,
-    registrationContext: buildRegistrationContext(),
+    registrationContext: buildRegistrationContext({ registration }),
     sync: {
       acceptedEventCount: store.listSyncEvents().length,
       lastCursor: lastSync?.id ?? null,
@@ -679,10 +776,12 @@ function buildLearnerAppBootstrap() {
     },
     rewards: {
       catalog: rewards.buildRewardsCatalog(),
-      leaderboard: rewards.buildLeaderboard(5),
+      leaderboard: podId ? rewards.buildScopedLeaderboard({ podId, limit: 5 }) : rewards.buildLeaderboard(5),
     },
     meta: {
       learnerCount: learners.length,
+      scopedPodId: podId,
+      scopedDeviceIdentifier: registration?.deviceIdentifier || null,
       moduleCount: modules.length,
       lessonCount: lessons.length,
       assignmentCount: assignments.length,
@@ -690,7 +789,7 @@ function buildLearnerAppBootstrap() {
       assessmentCount: assessments.length,
       generatedAt: new Date().toISOString(),
       contractVersion: 'learner-app-v2.4',
-      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'lesson-localization', 'assessment-packs', 'learner-rewards', 'subject-first-navigation'],
+      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'lesson-localization', 'assessment-packs', 'learner-rewards', 'subject-first-navigation', 'tablet-pod-scope'],
     },
   };
 }
@@ -1426,28 +1525,61 @@ app.get('/api/v1/admin/config/audit', requireRole(['admin']), (_req, res) => {
   });
 });
 
-const sendLearnerBootstrap = (_req, res) => {
-  res.json(buildLearnerAppBootstrap());
+const sendLearnerBootstrap = (req, res) => {
+  const { registration } = resolveLearnerTabletRegistration(req);
+  res.json(buildLearnerAppBootstrap({ registration }));
 };
 
 app.get('/api/v1/learner-app/bootstrap', sendLearnerBootstrap);
 app.get('/api/v1/learner/bootstrap', sendLearnerBootstrap);
 
-app.get('/api/v1/learner-app/context', (_req, res) => {
-  res.json(buildLearnerAppBootstrap());
+app.get('/api/v1/learner-app/context', (req, res) => {
+  const { registration } = resolveLearnerTabletRegistration(req);
+  res.json(buildLearnerAppBootstrap({ registration }));
 });
 
-app.get('/api/v1/learner-app/registration-context', (_req, res) => {
-  res.json(buildRegistrationContext());
+app.get('/api/v1/learner-app/registration-context', (req, res) => {
+  const { registration } = resolveLearnerTabletRegistration(req);
+  res.json(buildRegistrationContext({ registration }));
 });
 
-app.get('/api/v1/learner-app/learners', (_req, res) => {
-  res.json(store.listStudents().map(presenters.presentLearnerProfile));
+app.get('/api/v1/learner-app/learners', (req, res) => {
+  const { registration } = resolveLearnerTabletRegistration(req);
+  res.json(buildScopedLearners({ podId: registration?.podId || null }));
 });
 
 app.post('/api/v1/learner-app/learners', (req, res, next) => {
   try {
+    const { registration } = resolveLearnerTabletRegistration(req, req.body);
     const body = normalizeLearnerAppStudentPayload(req.body);
+
+    if (registration?.podId) {
+      if (body.podId && body.podId !== registration.podId) {
+        const error = new Error('Learner registration pod does not match this tablet registration');
+        error.statusCode = 409;
+        throw error;
+      }
+
+      body.podId = registration.podId;
+
+      if (registration.assignedMallamId) {
+        body.mallamId = registration.assignedMallamId;
+      }
+
+      if (body.cohortId) {
+        const cohort = store.listCohorts().find((entry) => entry.id === body.cohortId) || null;
+        if (!cohort || cohort.podId !== registration.podId) {
+          const error = new Error('Learner cohort is outside this tablet pod');
+          error.statusCode = 409;
+          throw error;
+        }
+      } else {
+        body.cohortId = getDefaultRegistrationTarget({
+          podId: registration.podId,
+          assignedMallamId: registration.assignedMallamId || null,
+        }).cohort?.id || body.cohortId;
+      }
+    }
 
     validators.validateStudent(body);
     const student = store.createStudent(body);
@@ -1663,8 +1795,98 @@ app.get('/api/v1/centers', (_req, res) => {
   res.json(store.listCenters());
 });
 
+app.get('/api/v1/states', (_req, res) => {
+  res.json(store.listStates());
+});
+
+app.get('/api/v1/local-governments', (req, res) => {
+  const stateId = coerceOptionalString(req.query.stateId);
+  res.json(store.listLocalGovernments().filter((item) => !stateId || item.stateId === stateId));
+});
+
+app.post('/api/v1/states', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    validators.validateState(req.body);
+    return res.status(201).json(store.createState(req.body));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/v1/states/:id', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    validators.validateState(req.body, { partial: true });
+    const record = store.updateState(req.params.id, req.body);
+    if (!record) return res.status(404).json({ message: 'State not found' });
+    return res.json(record);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/v1/local-governments', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    validators.validateLocalGovernment(req.body);
+    return res.status(201).json(store.createLocalGovernment(req.body));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/v1/local-governments/:id', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    validators.validateLocalGovernment(req.body, { partial: true });
+    const record = store.updateLocalGovernment(req.params.id, req.body);
+    if (!record) return res.status(404).json({ message: 'Local government not found' });
+    return res.json(record);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.get('/api/v1/pods', (_req, res) => {
   res.json(store.listPods().map(presenters.presentPod));
+});
+
+app.patch('/api/v1/pods/:id', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    validators.validatePod(req.body, { partial: true });
+    const pod = store.updatePod(req.params.id, req.body);
+    if (!pod) return res.status(404).json({ message: 'Pod not found' });
+    return res.json(presenters.presentPod(pod));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get('/api/v1/device-registrations', (req, res) => {
+  const podId = coerceOptionalString(req.query.podId);
+  const mallamId = coerceOptionalString(req.query.mallamId);
+  const items = store.listDeviceRegistrations()
+    .filter((item) => !podId || item.podId === podId)
+    .filter((item) => !mallamId || item.assignedMallamId === mallamId)
+    .map(presenters.presentDeviceRegistration);
+  res.json(items);
+});
+
+app.post('/api/v1/device-registrations', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    validators.validateDeviceRegistration(req.body);
+    return res.status(201).json(presenters.presentDeviceRegistration(store.createDeviceRegistration(req.body)));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/v1/device-registrations/:id', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    validators.validateDeviceRegistration(req.body, { partial: true });
+    const record = store.updateDeviceRegistration(req.params.id, req.body);
+    if (!record) return res.status(404).json({ message: 'Device registration not found' });
+    return res.json(presenters.presentDeviceRegistration(record));
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.get('/api/v1/cohorts', (_req, res) => {

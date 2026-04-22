@@ -320,3 +320,55 @@ test('module bundle still exposes assigned unpublished lessons for internal rout
   assert.deepEqual(bundleLessonIds, [assignedLessonA.id, assignedLessonB.id].sort());
   assert.equal(bundle.body.lessonCount >= 2, true, JSON.stringify(bundle.body));
 });
+
+test('tablet-scoped bootstrap only returns learners and registration targets for the registered pod', async () => {
+  const response = await request('/api/v1/learner-app/bootstrap?deviceIdentifier=lumo-tablet-kano-01');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    [...new Set(response.body.learners.map((learner) => learner.podId))],
+    ['pod-1'],
+  );
+  assert.equal(response.body.learners.some((learner) => learner.id === 'student-4'), false);
+  assert.deepEqual(
+    response.body.registrationContext.cohorts.map((cohort) => cohort.podId),
+    ['pod-1', 'pod-1'],
+  );
+  assert.deepEqual(
+    [...new Set(response.body.registrationContext.mallams.flatMap((mallam) => mallam.podIds))],
+    ['pod-1'],
+  );
+  assert.equal(response.body.registrationContext.tabletRegistration.deviceIdentifier, 'lumo-tablet-kano-01');
+  assert.equal(response.body.meta.scopedPodId, 'pod-1');
+});
+
+test('tablet-scoped learner registration rejects cross-pod cohort selection and pins valid learners to the tablet pod', async () => {
+  const rejected = await request('/api/v1/learner-app/learners', {
+    method: 'POST',
+    headers: { 'x-lumo-device-identifier': 'lumo-tablet-kano-01' },
+    body: JSON.stringify({
+      name: 'Scoped mismatch',
+      age: 8,
+      cohortId: 'cohort-3',
+      podId: 'pod-2',
+      mallamId: 'teacher-2',
+    }),
+  });
+
+  assert.equal(rejected.status, 409);
+
+  const created = await request('/api/v1/learner-app/learners', {
+    method: 'POST',
+    headers: { 'x-lumo-device-identifier': 'lumo-tablet-kano-01' },
+    body: JSON.stringify({
+      name: 'Scoped learner',
+      age: 7,
+      cohortId: 'cohort-1',
+      preferredLanguage: 'Hausa',
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.podId, 'pod-1');
+  assert.equal(created.body.mallamId, 'teacher-1');
+});

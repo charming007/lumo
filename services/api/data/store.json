@@ -13,14 +13,18 @@
       "organizationId": "org-1",
       "name": "Kano Learning Center A",
       "region": "Kano",
-      "deliveryModel": "community-hub"
+      "deliveryModel": "community-hub",
+      "stateId": "state-kano",
+      "localGovernmentId": "lga-nassarawa"
     },
     {
       "id": "center-2",
       "organizationId": "org-1",
       "name": "Kaduna Learning Center B",
       "region": "Kaduna",
-      "deliveryModel": "community-hub"
+      "deliveryModel": "community-hub",
+      "stateId": "state-kaduna",
+      "localGovernmentId": "lga-igabi"
     }
   ],
   "pods": [
@@ -36,7 +40,9 @@
       "connectivity": "sync-daily",
       "mallamIds": [
         "teacher-1"
-      ]
+      ],
+      "stateId": "state-kano",
+      "localGovernmentId": "lga-nassarawa"
     },
     {
       "id": "pod-2",
@@ -50,7 +56,9 @@
       "connectivity": "offline-first",
       "mallamIds": [
         "teacher-2"
-      ]
+      ],
+      "stateId": "state-kaduna",
+      "localGovernmentId": "lga-igabi"
     }
   ],
   "cohorts": [
@@ -95,7 +103,8 @@
         "English"
       ],
       "learnerCount": 34,
-      "certificationLevel": "Level 2"
+      "certificationLevel": "Level 2",
+      "primaryPodId": "pod-1"
     },
     {
       "id": "teacher-2",
@@ -113,7 +122,8 @@
         "Fulfulde"
       ],
       "learnerCount": 19,
-      "certificationLevel": "Level 1"
+      "certificationLevel": "Level 1",
+      "primaryPodId": "pod-2"
     }
   ],
   "students": [
@@ -337,5 +347,70 @@
     }
   ],
   "progressionOverrides": [],
-  "sessionRepairs": []
+  "sessionRepairs": [],
+  "states": [
+    {
+      "id": "state-kano",
+      "code": "KN",
+      "name": "Kano",
+      "countryCode": "NG",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "state-kaduna",
+      "code": "KD",
+      "name": "Kaduna",
+      "countryCode": "NG",
+      "order": 2,
+      "status": "active"
+    }
+  ],
+  "localGovernments": [
+    {
+      "id": "lga-nassarawa",
+      "stateId": "state-kano",
+      "code": "KN-NAS",
+      "name": "Nassarawa",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-fagge",
+      "stateId": "state-kano",
+      "code": "KN-FAG",
+      "name": "Fagge",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-igabi",
+      "stateId": "state-kaduna",
+      "code": "KD-IGA",
+      "name": "Igabi",
+      "order": 1,
+      "status": "active"
+    }
+  ],
+  "deviceRegistrations": [
+    {
+      "id": "device-1",
+      "podId": "pod-1",
+      "stateId": "state-kano",
+      "localGovernmentId": "lga-nassarawa",
+      "centerId": "center-1",
+      "assignedMallamId": "teacher-1",
+      "deviceIdentifier": "lumo-tablet-kano-01",
+      "serialNumber": "KANO-TAB-001",
+      "platform": "android",
+      "appVersion": "0.1.0",
+      "status": "active",
+      "lastSeenAt": "2026-04-10T08:00:00Z",
+      "registeredAt": "2026-04-09T08:00:00Z"
+    }
+  ],
+  "lessonAssets": [],
+  "rewardAdjustments": [],
+  "rewardRedemptionRequests": [],
+  "storageOperations": []
 }

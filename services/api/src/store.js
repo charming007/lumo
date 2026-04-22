@@ -211,6 +211,26 @@ function deleteLesson(id) {
   return repository.deleteLesson(id);
 }
 
+function listDeviceRegistrations() {
+  return repository.listDeviceRegistrations();
+}
+
+function findDeviceRegistrationById(id) {
+  return repository.findDeviceRegistrationById(id);
+}
+
+function findDeviceRegistrationByIdentifier(deviceIdentifier) {
+  return repository.findDeviceRegistrationByIdentifier(deviceIdentifier);
+}
+
+function createDeviceRegistration(input) {
+  return repository.createDeviceRegistration(input);
+}
+
+function updateDeviceRegistration(id, input) {
+  return repository.updateDeviceRegistration(id, input);
+}
+
 function listLessonAssets() {
   return repository.listLessonAssets();
 }
@@ -251,8 +271,48 @@ function listCenters() {
   return repository.listCenters();
 }
 
+function listStates() {
+  return repository.listStates();
+}
+
+function findStateById(id) {
+  return repository.findStateById(id);
+}
+
+function createState(input) {
+  return repository.createState(input);
+}
+
+function updateState(id, input) {
+  return repository.updateState(id, input);
+}
+
+function listLocalGovernments() {
+  return repository.listLocalGovernments();
+}
+
+function findLocalGovernmentById(id) {
+  return repository.findLocalGovernmentById(id);
+}
+
+function createLocalGovernment(input) {
+  return repository.createLocalGovernment(input);
+}
+
+function updateLocalGovernment(id, input) {
+  return repository.updateLocalGovernment(id, input);
+}
+
 function listPods() {
   return repository.listPods();
+}
+
+function findPodById(id) {
+  return repository.findPodById(id);
+}
+
+function updatePod(id, input) {
+  return repository.updatePod(id, input);
 }
 
 function listCohorts() {
@@ -1691,6 +1751,11 @@ module.exports = {
   createLesson,
   updateLesson,
   deleteLesson,
+  listDeviceRegistrations,
+  findDeviceRegistrationById,
+  findDeviceRegistrationByIdentifier,
+  createDeviceRegistration,
+  updateDeviceRegistration,
   listLessonAssets,
   findLessonAssetById,
   createLessonAsset,
@@ -1701,7 +1766,17 @@ module.exports = {
   updateSubject,
   deleteSubject,
   listCenters,
+  listStates,
+  findStateById,
+  createState,
+  updateState,
+  listLocalGovernments,
+  findLocalGovernmentById,
+  createLocalGovernment,
+  updateLocalGovernment,
   listPods,
+  findPodById,
+  updatePod,
   listCohorts,
   listTeachers,
   createTeacher,
