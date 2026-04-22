@@ -26,16 +26,38 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
       subtitle="Mallam admin detail for profile updates, roster control, and deletion."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Mallams', href: '/mallams' }]}
       aside={
-        <Card title="Mallam snapshot" eyebrow="Coverage">
-          <MetricList
-            items={[
-              { label: 'Learners', value: String(mallam.learnerCount || 0) },
-              { label: 'Pods', value: String(mallam.podLabels?.length || 0) },
-              { label: 'Status', value: mallam.status || '—' },
-              { label: 'Center', value: mallam.centerName || '—' },
-            ]}
-          />
-        </Card>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <ModalLauncher
+              buttonLabel="✏️ Edit mallam"
+              title={`Edit ${mallam.displayName || mallam.name}`}
+              description="Update mallam details from a focused popup instead of a giant inline form."
+              eyebrow="Mallam admin"
+              triggerStyle={{ borderRadius: 14, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', boxShadow: 'none' }}
+            >
+              <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} />
+            </ModalLauncher>
+            <ModalLauncher
+              buttonLabel="🗑️ Delete mallam"
+              title={`Delete ${mallam.displayName || mallam.name}`}
+              description="Remove this mallam from the live roster carefully."
+              eyebrow="Danger zone"
+              triggerStyle={{ borderRadius: 14, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', boxShadow: 'none' }}
+            >
+              <DeleteMallamForm mallam={mallam} />
+            </ModalLauncher>
+          </div>
+          <Card title="Mallam snapshot" eyebrow="Coverage">
+            <MetricList
+              items={[
+                { label: 'Learners', value: String(mallam.learnerCount || 0) },
+                { label: 'Pods', value: String(mallam.podLabels?.length || 0) },
+                { label: 'Status', value: mallam.status || '—' },
+                { label: 'Center', value: mallam.centerName || '—' },
+              ]}
+            />
+          </Card>
+        </div>
       }
     >
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
@@ -61,26 +83,6 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
         />
       </section>
 
-      <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20, justifyContent: 'flex-end' }}>
-        <ModalLauncher
-          buttonLabel="✏️ Edit mallam"
-          title={`Edit ${mallam.displayName || mallam.name}`}
-          description="Update mallam details from a focused popup instead of a giant inline form."
-          eyebrow="Mallam admin"
-          triggerStyle={{ borderRadius: 14, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', boxShadow: 'none' }}
-        >
-          <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} />
-        </ModalLauncher>
-        <ModalLauncher
-          buttonLabel="🗑️ Delete mallam"
-          title={`Delete ${mallam.displayName || mallam.name}`}
-          description="Remove this mallam from the live roster carefully."
-          eyebrow="Danger zone"
-          triggerStyle={{ borderRadius: 14, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', boxShadow: 'none' }}
-        >
-          <DeleteMallamForm mallam={mallam} />
-        </ModalLauncher>
-      </section>
     </PageShell>
   );
 }
