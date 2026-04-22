@@ -1292,6 +1292,45 @@ class _HomeTrustBanner extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: state.usingFallbackData
+                            ? const Color(0xFFFED7AA)
+                            : const Color(0xFFBBF7D0),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 18,
+                          color: state.usingFallbackData
+                              ? const Color(0xFF9A3412)
+                              : const Color(0xFF166534),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            state.trustedSyncHeadline,
+                            style: TextStyle(
+                              color: state.usingFallbackData
+                                  ? const Color(0xFF9A3412)
+                                  : const Color(0xFF166534),
+                              fontWeight: FontWeight.w800,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -10351,6 +10390,33 @@ class _RosterFreshnessBanner extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: color.withValues(alpha: 0.16)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.schedule_rounded, size: 18, color: color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    state.trustedSyncHeadline,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             state.rosterFreshnessDetail,
             style: const TextStyle(color: Color(0xFF475569), height: 1.35),

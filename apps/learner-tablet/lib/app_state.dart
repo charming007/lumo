@@ -3399,6 +3399,28 @@ class LumoAppState {
     return 'Roster last synced $freshness';
   }
 
+  String get trustedSyncHeadline {
+    final trustProblem = offlineSnapshotTrustProblem;
+    if (lastSyncedAt == null) {
+      if (usingFallbackData && trustProblem != null) {
+        return 'No trusted live sync on this tablet';
+      }
+      return usingFallbackData
+          ? 'No live sync on this tablet yet'
+          : 'Waiting for the first live sync';
+    }
+
+    final freshness = _formatRelativeTime(lastSyncedAt!);
+    final syncedAt = _formatTime(lastSyncedAt!);
+    if (usingFallbackData && trustProblem != null) {
+      return 'Last trusted sync $freshness at $syncedAt • trust blocked';
+    }
+    if (usingFallbackData) {
+      return 'Last trusted sync $freshness at $syncedAt • offline fallback active';
+    }
+    return 'Last trusted sync $freshness at $syncedAt';
+  }
+
   String get rosterFreshnessDetail {
     final trustProblem = offlineSnapshotTrustProblem;
     if (lastSyncedAt == null) {

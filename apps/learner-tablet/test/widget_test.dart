@@ -209,6 +209,33 @@ void main() {
     expect(find.text('Sync stale'), findsOneWidget);
   });
 
+  testWidgets('home screen surfaces the last trusted sync headline prominently', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = true
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(hours: 3, minutes: 15));
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.textContaining('Last trusted sync'), findsWidgets);
+    expect(find.textContaining('offline fallback active'), findsWidgets);
+  });
+
   testWidgets(
     'home subject cards stay in a single 3-card row on the learner tablet layout',
     (tester) async {
