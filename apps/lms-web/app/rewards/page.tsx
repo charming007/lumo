@@ -1,12 +1,15 @@
 import Link from 'next/link';
-import { fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard } from '../../lib/api';
+import { RewardRequestQueuePanel } from '../../components/reward-request-queue-panel';
+import { RewardsAdminForm } from '../../components/rewards-admin-form';
+import { fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard, fetchStudents } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 export default async function RewardsPage() {
-  const [catalog, leaderboard, requests] = await Promise.all([
+  const [catalog, leaderboard, requests, students] = await Promise.all([
     fetchRewardsCatalog(),
     fetchRewardsLeaderboard(8),
     fetchRewardRequests(12),
+    fetchStudents(),
   ]);
 
   return (
@@ -43,21 +46,11 @@ export default async function RewardsPage() {
         ))}
       </section>
 
-      <Card title="Reward request queue" eyebrow="Operations">
-        <SimpleTable
-          columns={['Learner', 'Reward', 'Status', 'XP cost', 'Requested via', 'Actions']}
-          rows={(requests.items || []).map((item) => [
-            item.learnerName || item.studentId,
-            item.rewardTitle,
-            <Pill key={`${item.id}-status`} label={item.status} tone="#F8FAFC" text="#334155" />,
-            String(item.xpCost || 0),
-            item.requestedVia || '—',
-            <Link key={`${item.id}-link`} href="/settings" style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
-              Review policy
-            </Link>,
-          ])}
-        />
-      </Card>
+      <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+        <RewardsAdminForm students={students} catalog={catalog} leaderboard={leaderboard} />
+      </section>
+
+      <RewardRequestQueuePanel queue={requests} />
     </PageShell>
   );
 }
