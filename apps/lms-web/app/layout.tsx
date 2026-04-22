@@ -11,6 +11,8 @@ export const metadata = {
   description: 'Lumo teacher and admin portal',
 };
 
+export const dynamic = 'force-dynamic';
+
 const FALLBACK_META: MetaResponse = {
   actor: {
     role: 'admin',

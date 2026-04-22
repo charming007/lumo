@@ -18,7 +18,7 @@ export default async function RewardsPage() {
         <Card title="Rewards snapshot" eyebrow="Live API">
           <MetricList
             items={[
-              { label: 'Catalog items', value: String(catalog.items?.length || 0) },
+              { label: 'Catalog badges', value: String(catalog.badges?.length || 0) },
               { label: 'Pending requests', value: String(requests.summary?.pending || 0) },
               { label: 'Leaderboard rows', value: String(leaderboard.length) },
             ]}
