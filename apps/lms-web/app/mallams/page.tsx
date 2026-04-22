@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CreateMallamForm } from '../../components/admin-forms';
+import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../components/admin-forms';
 import { fetchCenters, fetchMallams, fetchPods } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
@@ -59,13 +59,17 @@ export default async function MallamsPage() {
           (mallam.podLabels || []).join(', ') || '—',
           (mallam.languages || []).join(', ') || '—',
           mallam.centerName || '—',
-          <div key={`${mallam.id}-actions`} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <Link href={`/mallams/${mallam.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
-              Open profile
-            </Link>
-            <Link href="/assignments" style={{ color: '#0f766e', fontWeight: 800, textDecoration: 'none' }}>
-              Open assignments
-            </Link>
+          <div key={`${mallam.id}-actions`} style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href={`/mallams/${mallam.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
+                Open profile
+              </Link>
+              <Link href="/assignments" style={{ color: '#0f766e', fontWeight: 800, textDecoration: 'none' }}>
+                Open assignments
+              </Link>
+            </div>
+            <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} embedded />
+            <DeleteMallamForm mallam={mallam} embedded />
           </div>,
         ])}
       />

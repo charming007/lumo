@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CreateStudentForm } from '../../components/admin-forms';
+import { CreateStudentForm, DeleteStudentForm, UpdateStudentForm } from '../../components/admin-forms';
 import { LearnerMallamAssignmentForm } from '../../components/learner-mallam-assignment-form';
 import { fetchCohorts, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
@@ -72,13 +72,17 @@ export default async function StudentsPage() {
           student.podLabel || '—',
           student.mallamName || '—',
           percent(student.attendanceRate),
-          <div key={`${student.id}-actions`} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <Link href={`/students/${student.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
-              Open learner
-            </Link>
-            <Link href="/progress" style={{ color: '#0f766e', fontWeight: 800, textDecoration: 'none' }}>
-              Open progress
-            </Link>
+          <div key={`${student.id}-actions`} style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href={`/students/${student.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
+                Open learner
+              </Link>
+              <Link href="/progress" style={{ color: '#0f766e', fontWeight: 800, textDecoration: 'none' }}>
+                Open progress
+              </Link>
+            </div>
+            <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} title={`Edit ${student.name}`} embedded />
+            <DeleteStudentForm student={student} embedded />
           </div>,
         ])}
       />
