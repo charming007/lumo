@@ -36,14 +36,11 @@ export default async function AttendancePage() {
       </section>
 
       <SimpleTable
-        columns={['Learner', 'Date', 'Status', 'Pod', 'Mallam', 'Rate']}
+        columns={['Learner', 'Date', 'Status']}
         rows={records.map((record) => [
-          record.studentName || record.studentId || 'Unknown learner',
+          record.studentName || 'Unknown learner',
           record.date || '—',
           <Pill key={`${record.id}-status`} label={record.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
-          record.podLabel || '—',
-          record.mallamName || '—',
-          percent(record.attendanceRate),
         ])}
       />
     </PageShell>
