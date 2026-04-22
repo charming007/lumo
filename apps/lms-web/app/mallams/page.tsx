@@ -59,9 +59,14 @@ export default async function MallamsPage() {
           (mallam.podLabels || []).join(', ') || '—',
           (mallam.languages || []).join(', ') || '—',
           mallam.centerName || '—',
-          <Link key={`${mallam.id}-link`} href="/assignments" style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
-            Open assignments
-          </Link>,
+          <div key={`${mallam.id}-actions`} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link href={`/mallams/${mallam.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
+              Open profile
+            </Link>
+            <Link href="/assignments" style={{ color: '#0f766e', fontWeight: 800, textDecoration: 'none' }}>
+              Open assignments
+            </Link>
+          </div>,
         ])}
       />
     </PageShell>

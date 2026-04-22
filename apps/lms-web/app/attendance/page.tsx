@@ -1,4 +1,5 @@
-import { fetchAttendance } from '../../lib/api';
+import { AttendanceCaptureForm } from '../../components/attendance-form';
+import { fetchAttendance, fetchStudents } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,10 @@ function percent(value: number | null | undefined) {
 }
 
 export default async function AttendancePage() {
-  const records = await fetchAttendance();
+  const [records, students] = await Promise.all([
+    fetchAttendance(),
+    fetchStudents(),
+  ]);
   const present = records.filter((record) => (record.status || '').toLowerCase() === 'present');
 
   return (
@@ -29,7 +33,8 @@ export default async function AttendancePage() {
         </Card>
       }
     >
-      <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
+      <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+        <AttendanceCaptureForm students={students} />
         <Card title="Live attendance posture" eyebrow="Operations">
           <div style={{ color: '#475569', lineHeight: 1.7 }}>
             This surface shows the raw attendance feed instead of bouncing operators into Progress. Use it to spot pods or learners slipping before completion metrics hide the damage.

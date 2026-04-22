@@ -72,9 +72,14 @@ export default async function StudentsPage() {
           student.podLabel || '—',
           student.mallamName || '—',
           percent(student.attendanceRate),
-          <Link key={`${student.id}-link`} href="/progress" style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
-            Open progress
-          </Link>,
+          <div key={`${student.id}-actions`} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link href={`/students/${student.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
+              Open learner
+            </Link>
+            <Link href="/progress" style={{ color: '#0f766e', fontWeight: 800, textDecoration: 'none' }}>
+              Open progress
+            </Link>
+          </div>,
         ])}
       />
     </PageShell>
