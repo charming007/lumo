@@ -1,6 +1,8 @@
 import { fetchAttendance } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
+export const dynamic = 'force-dynamic';
+
 function percent(value: number | null | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—';
   return `${Math.round(value)}%`;
