@@ -1,4 +1,17 @@
 import { CurriculumCanvas } from '../../components/curriculum-canvas';
+import {
+  bulkUpdateCanvasModuleLessonsAction,
+  createCanvasAssessmentQuickAction,
+  createCanvasModuleLessonShellsAction,
+  createStrandAction,
+  quickLinkCanvasLessonAssessmentAction,
+  quickUpdateAssessmentStatusAction,
+  quickUpdateCanvasAssessmentAction,
+  quickUpdateCanvasLessonAction,
+  quickUpdateCanvasModuleAction,
+  quickUpdateLessonStatusAction,
+  updateStrandAction,
+} from '../actions';
 import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
 import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
 import { Card, MetricList, PageShell } from '../../lib/ui';
@@ -36,7 +49,21 @@ export default async function CanvasPage() {
         </Card>
       }
     >
-      <CurriculumCanvas data={canvasData} assessments={assessments} />
+      <CurriculumCanvas
+        data={canvasData}
+        quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
+        quickUpdateCanvasLessonAction={quickUpdateCanvasLessonAction}
+        quickLinkCanvasLessonAssessmentAction={quickLinkCanvasLessonAssessmentAction}
+        quickUpdateCanvasModuleAction={quickUpdateCanvasModuleAction}
+        bulkUpdateCanvasModuleLessonsAction={bulkUpdateCanvasModuleLessonsAction}
+        createCanvasModuleLessonShellsAction={createCanvasModuleLessonShellsAction}
+        quickUpdateAssessmentStatusAction={quickUpdateAssessmentStatusAction}
+        quickUpdateCanvasAssessmentAction={quickUpdateCanvasAssessmentAction}
+        createCanvasAssessmentQuickAction={createCanvasAssessmentQuickAction}
+        createStrandAction={createStrandAction}
+        updateStrandAction={updateStrandAction}
+        subjectOptions={subjects.map((subject) => ({ id: subject.id, name: subject.name }))}
+      />
     </PageShell>
   );
 }
