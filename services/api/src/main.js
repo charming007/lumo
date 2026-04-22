@@ -646,7 +646,7 @@ function buildLearnerSubjects({ includeAssigned = false } = {}) {
         title: subject.name,
         subjectId: subject.id,
         subjectName: subject.name,
-        description: `${subject.name} lessons ready for learner practice.`,
+        description: `${subject.name} lessons ready for learner practice and tablet launch.`,
         voicePrompt: `Open ${subject.name} and choose a lesson to begin.`,
         readinessGoal: `Ready for ${subject.name.toLowerCase()} practice`,
         badge: `${subjectLessons.length} lesson${subjectLessons.length === 1 ? '' : 's'}`,
