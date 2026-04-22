@@ -27,20 +27,20 @@ export function describeRuntimeStatus(mode: string, seedCount: number) {
 
   if (seedCount > 0) {
     return {
-      label: 'Runtime status: live LMS with starter catalog',
-      detail: `Core LMS storage is live. The catalog still includes ${seedCount} starter content pack${seedCount === 1 ? '' : 's'}, so content/admin surfaces should be treated as reference material until they are replaced or verified against field operations.`,
+      label: 'Runtime status: live LMS',
+      detail: `Core LMS storage is live. ${seedCount} seeded content pack${seedCount === 1 ? '' : 's'} are still present in the catalog, but the admin shell remains fully active.`,
     };
   }
 
   return {
     label: 'Runtime status: live LMS',
-    detail: 'Core LMS storage is live and the operator catalog is no longer showing starter content packs.',
+    detail: 'Core LMS storage is live and the admin shell is fully active.',
   };
 }
 
 export function describeDashboardStatus(seedCount: number) {
   if (seedCount > 0) {
-    return 'Live LMS · starter catalog still visible';
+    return 'Live LMS feed connected';
   }
 
   return 'Live LMS feed connected';

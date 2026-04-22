@@ -82,7 +82,7 @@ export function Sidebar({
           <div className="sidebar__brand-copy">
             <div style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              Pilot control plane for content readiness, assignment delivery, learner progress, and deployment trust.
+              Admin control plane for curriculum, learner operations, reporting, and deployment trust.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -130,9 +130,9 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
-          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Pilot scope locked</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Five routes, one job</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Keep Dashboard, Content, Assignments, Progress, and Settings as the only pilot-facing lanes in the shell.</div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full navigation active</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the full LMS shell to manage curriculum, learners, mallams, assessments, reporting, and deployment trust from one place.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
