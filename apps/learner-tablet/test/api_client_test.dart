@@ -373,4 +373,75 @@ void main() {
       expect(bootstrap.registrationContext.summary, contains('Mallam Idris'));
     });
   });
+
+  group('LumoApiClient bootstrap scope', () {
+    test('parses pod-scoped learner and tablet registration context', () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/bootstrap');
+          return http.Response(
+            jsonEncode({
+              'learners': [
+                {
+                  'id': 'student-1',
+                  'name': 'Abdullahi',
+                  'age': 8,
+                  'cohortId': 'cohort-1',
+                  'cohortName': 'Alpha Cohort',
+                  'podId': 'pod-1',
+                  'podLabel': 'Kano North',
+                  'mallamId': 'teacher-1',
+                  'mallamName': 'Mallam Idris',
+                  'attendanceRate': 0.9,
+                  'level': 'beginner',
+                },
+              ],
+              'modules': const [],
+              'lessons': const [],
+              'assignments': const [],
+              'registrationContext': {
+                'cohorts': [
+                  {'id': 'cohort-1', 'name': 'Alpha Cohort', 'podId': 'pod-1'},
+                ],
+                'mallams': [
+                  {'id': 'teacher-1', 'name': 'Mallam Idris', 'podIds': ['pod-1']},
+                ],
+                'defaultTarget': {
+                  'cohortId': 'cohort-1',
+                  'podId': 'pod-1',
+                  'mallamId': 'teacher-1',
+                },
+                'tabletRegistration': {
+                  'id': 'device-1',
+                  'deviceIdentifier': 'lumo-tablet-kano-01',
+                  'podId': 'pod-1',
+                  'podLabel': 'Kano North',
+                  'mallamId': 'teacher-1',
+                  'mallamName': 'Mallam Idris',
+                },
+              },
+              'meta': {
+                'generatedAt': '2026-04-23T00:00:00.000Z',
+                'contractVersion': 'learner-app-v2.4',
+                'assignmentCount': 0,
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+      );
+
+      final bootstrap = await client.fetchBootstrap();
+
+      expect(bootstrap.learners.single.podId, 'pod-1');
+      expect(bootstrap.learners.single.mallamName, 'Mallam Idris');
+      expect(
+        bootstrap.registrationContext.tabletRegistration?.deviceIdentifier,
+        'lumo-tablet-kano-01',
+      );
+      expect(bootstrap.registrationContext.summary, 'Kano North • Mallam Idris');
+    });
+  });
 }

@@ -226,6 +226,11 @@ class LearnerProfile {
   final String name;
   final int age;
   final String cohort;
+  final String? cohortId;
+  final String? podId;
+  final String? podLabel;
+  final String? mallamId;
+  final String? mallamName;
   final int streakDays;
   final String guardianName;
   final String preferredLanguage;
@@ -251,6 +256,11 @@ class LearnerProfile {
     required this.name,
     required this.age,
     required this.cohort,
+    this.cohortId,
+    this.podId,
+    this.podLabel,
+    this.mallamId,
+    this.mallamName,
     required this.streakDays,
     required this.guardianName,
     required this.preferredLanguage,
@@ -287,6 +297,11 @@ class LearnerProfile {
       name: name,
       age: age,
       cohort: cohortName ?? 'Backend cohort',
+      cohortId: json['cohortId']?.toString(),
+      podId: json['podId']?.toString(),
+      podLabel: podLabel,
+      mallamId: json['mallamId']?.toString(),
+      mallamName: json['mallamName']?.toString(),
       streakDays: _estimateStreak(json['attendanceRate']),
       guardianName: json['guardianName']?.toString() ?? 'Guardian pending',
       preferredLanguage: 'Hausa + English',
@@ -321,6 +336,11 @@ class LearnerProfile {
     String? name,
     int? age,
     String? cohort,
+    String? cohortId,
+    String? podId,
+    String? podLabel,
+    String? mallamId,
+    String? mallamName,
     int? streakDays,
     String? guardianName,
     String? preferredLanguage,
@@ -346,6 +366,11 @@ class LearnerProfile {
       name: name ?? this.name,
       age: age ?? this.age,
       cohort: cohort ?? this.cohort,
+      cohortId: cohortId ?? this.cohortId,
+      podId: podId ?? this.podId,
+      podLabel: podLabel ?? this.podLabel,
+      mallamId: mallamId ?? this.mallamId,
+      mallamName: mallamName ?? this.mallamName,
       streakDays: streakDays ?? this.streakDays,
       guardianName: guardianName ?? this.guardianName,
       preferredLanguage: preferredLanguage ?? this.preferredLanguage,
@@ -1125,11 +1150,13 @@ class RegistrationContext {
   final List<BackendCohort> cohorts;
   final List<BackendMallam> mallams;
   final RegistrationTarget? defaultTarget;
+  final TabletRegistration? tabletRegistration;
 
   const RegistrationContext({
     this.cohorts = const [],
     this.mallams = const [],
     this.defaultTarget,
+    this.tabletRegistration,
   });
 
   BackendCohort? findCohortByName(String? cohortName) {
@@ -1201,6 +1228,11 @@ class RegistrationContext {
       cohorts: cohorts,
       mallams: mallams,
       defaultTarget: defaultTarget,
+      tabletRegistration: json['tabletRegistration'] is Map
+          ? TabletRegistration.fromJson(
+              Map<String, dynamic>.from(json['tabletRegistration'] as Map),
+            )
+          : null,
     );
   }
 
@@ -1216,6 +1248,12 @@ class RegistrationContext {
   bool get isReady => cohorts.isNotEmpty && mallams.isNotEmpty;
 
   String get summary {
+    if (tabletRegistration != null) {
+      final pod = tabletRegistration!.podLabel ?? tabletRegistration!.podId ?? 'Pod';
+      final mallam = tabletRegistration!.mallamName;
+      if (mallam != null && mallam.isNotEmpty) return '$pod • $mallam';
+      return pod;
+    }
     if (!isReady) return 'Backend assignment mapping not loaded yet.';
     final target = resolveTarget();
     return '${target.cohort.name} • ${target.mallam.name}';
@@ -1247,6 +1285,35 @@ class RegistrationTarget {
   final BackendMallam mallam;
 
   const RegistrationTarget({required this.cohort, required this.mallam});
+}
+
+class TabletRegistration {
+  final String id;
+  final String? deviceIdentifier;
+  final String? podId;
+  final String? podLabel;
+  final String? mallamId;
+  final String? mallamName;
+
+  const TabletRegistration({
+    required this.id,
+    this.deviceIdentifier,
+    this.podId,
+    this.podLabel,
+    this.mallamId,
+    this.mallamName,
+  });
+
+  factory TabletRegistration.fromJson(Map<String, dynamic> json) {
+    return TabletRegistration(
+      id: json['id']?.toString() ?? 'tablet-registration',
+      deviceIdentifier: json['deviceIdentifier']?.toString(),
+      podId: json['podId']?.toString(),
+      podLabel: json['podLabel']?.toString(),
+      mallamId: json['mallamId']?.toString(),
+      mallamName: json['mallamName']?.toString(),
+    );
+  }
 }
 
 int? _asInt(Object? value) {
