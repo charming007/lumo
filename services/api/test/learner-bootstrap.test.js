@@ -58,7 +58,7 @@ test('legacy learner bootstrap alias returns the same contract as learner-app bo
   );
 });
 
-test('learner bootstrap keeps distinct curriculum modules instead of collapsing them to subject buckets', async () => {
+test('learner bootstrap projects published subjects first while keeping lesson subject links intact', async () => {
   const lessonA = repository.createLesson({
     subjectId: 'english',
     moduleId: 'module-1',
@@ -120,14 +120,19 @@ test('learner bootstrap keeps distinct curriculum modules instead of collapsing 
 
   assert.equal(response.status, 200);
 
-  const moduleIds = response.body.modules.map((module) => module.id);
-  assert.equal(moduleIds.includes('module-1'), true, JSON.stringify(response.body.modules));
-  assert.equal(moduleIds.includes('module-5'), true, JSON.stringify(response.body.modules));
+  const subjectIds = response.body.modules.map((subject) => subject.id);
+  assert.equal(subjectIds.includes('english'), true, JSON.stringify(response.body.modules));
+  assert.equal(subjectIds.includes('module-1'), false, JSON.stringify(response.body.modules));
+  assert.equal(subjectIds.includes('module-5'), false, JSON.stringify(response.body.modules));
 
-  const lessonModuleIds = response.body.lessons
+  const englishSubject = response.body.modules.find((subject) => subject.id === 'english');
+  assert.ok(englishSubject, JSON.stringify(response.body.modules));
+  assert.equal(englishSubject.lessonCount >= 2, true, JSON.stringify(englishSubject));
+
+  const lessonSubjectIds = response.body.lessons
     .filter((lesson) => lesson.id === lessonA.id || lesson.id === lessonB.id)
-    .map((lesson) => lesson.moduleId);
-  assert.deepEqual(lessonModuleIds.sort(), ['module-1', 'module-5']);
+    .map((lesson) => lesson.lessonPack?.subjectId);
+  assert.deepEqual([...new Set(lessonSubjectIds)], ['english']);
 
   const assignmentModuleIds = response.body.assignments
     .filter((assignment) => assignment.lessonPack?.lessonId === lessonA.id || assignment.lessonPack?.lessonId === lessonB.id)
@@ -174,7 +179,7 @@ test('learner module bundle keeps the same projected lessons visible in bootstra
   assert.deepEqual(bundleLessonIds, bootstrapLessonIds);
 });
 
-test('learner bootstrap includes active assigned modules even when release status is not published', async () => {
+test('learner bootstrap keeps unpublished module labels hidden while assigned lessons still retain module routing metadata', async () => {
   repository.updateModule('module-4', { status: 'review' });
   const reviewLesson = repository.createLesson({
     subjectId: 'english',
@@ -209,24 +214,23 @@ test('learner bootstrap includes active assigned modules even when release statu
   const response = await request('/api/v1/learner-app/bootstrap');
 
   assert.equal(response.status, 200);
-  const reviewModule = response.body.modules.find((module) => module.id === 'module-4');
-  assert.ok(reviewModule, JSON.stringify(response.body.modules));
-  assert.equal(reviewModule.status, 'review');
-  assert.equal(reviewModule.lessonCount >= 1, true, JSON.stringify(reviewModule));
+  const englishSubject = response.body.modules.find((module) => module.id === 'english');
+  assert.ok(englishSubject, JSON.stringify(response.body.modules));
+  const hiddenReviewModule = response.body.modules.find((module) => module.id === 'module-4');
+  assert.equal(hiddenReviewModule, undefined, JSON.stringify(response.body.modules));
 
   const projectedLesson = response.body.lessons.find((lesson) => lesson.id === reviewLesson.id);
-  assert.ok(projectedLesson, JSON.stringify(response.body.lessons));
-  assert.equal(projectedLesson.moduleId, 'module-4');
-  assert.equal(projectedLesson.status, 'review');
+  assert.equal(projectedLesson, undefined, JSON.stringify(response.body.lessons));
 
   const reviewAssignment = response.body.assignments.find(
     (assignment) => assignment.lessonPack?.lessonId === reviewLesson.id,
   );
   assert.ok(reviewAssignment, JSON.stringify(response.body.assignments));
   assert.equal(reviewAssignment.lessonPack?.moduleKey, 'module-4');
+  assert.equal(reviewAssignment.lessonPack?.subjectId, 'english');
 });
 
-test('learner bootstrap includes scheduled assignments in learner assignment packs', async () => {
+test('learner bootstrap keeps scheduled assignments without exposing unpublished lessons on the subject list', async () => {
   repository.updateModule('module-3', { status: 'review' });
   const scheduledLesson = repository.createLesson({
     subjectId: 'english',
@@ -250,16 +254,17 @@ test('learner bootstrap includes scheduled assignments in learner assignment pac
 
   assert.equal(response.status, 200);
   const projectedLesson = response.body.lessons.find((lesson) => lesson.id === scheduledLesson.id);
-  assert.ok(projectedLesson, JSON.stringify(response.body.lessons));
+  assert.equal(projectedLesson, undefined, JSON.stringify(response.body.lessons));
 
   const scheduledAssignment = response.body.assignments.find(
     (assignment) => assignment.lessonPack?.lessonId === scheduledLesson.id,
   );
   assert.ok(scheduledAssignment, JSON.stringify(response.body.assignments));
   assert.equal(scheduledAssignment.status, 'scheduled');
+  assert.equal(scheduledAssignment.lessonPack?.subjectId, 'english');
 });
 
-test('learner module bundle includes active assigned lessons even when lesson release status is not published', async () => {
+test('module bundle still exposes assigned unpublished lessons for internal routing while bootstrap stays subject-first', async () => {
   repository.updateModule('module-5', { status: 'review' });
   const assignedLessonA = repository.createLesson({
     subjectId: 'english',
@@ -298,19 +303,20 @@ test('learner module bundle includes active assigned lessons even when lesson re
   const bootstrap = await request('/api/v1/learner-app/bootstrap');
   assert.equal(bootstrap.status, 200);
 
-  const bundle = await request('/api/v1/learner-app/modules/module-5');
-  assert.equal(bundle.status, 200);
-
   const bootstrapLessonIds = bootstrap.body.lessons
     .filter((lesson) => lesson.id === assignedLessonA.id || lesson.id === assignedLessonB.id)
     .map((lesson) => lesson.id)
     .sort();
+  assert.deepEqual(bootstrapLessonIds, []);
+
+  const bundle = await request('/api/v1/learner-app/modules/module-5');
+  assert.equal(bundle.status, 200);
+
   const bundleLessonIds = bundle.body.lessons
     .filter((lesson) => lesson.id === assignedLessonA.id || lesson.id === assignedLessonB.id)
     .map((lesson) => lesson.id)
     .sort();
 
-  assert.deepEqual(bootstrapLessonIds, [assignedLessonA.id, assignedLessonB.id].sort());
-  assert.deepEqual(bundleLessonIds, bootstrapLessonIds);
+  assert.deepEqual(bundleLessonIds, [assignedLessonA.id, assignedLessonB.id].sort());
   assert.equal(bundle.body.lessonCount >= 2, true, JSON.stringify(bundle.body));
 });
