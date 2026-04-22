@@ -17,7 +17,7 @@ export default async function PodsPage() {
             items={[
               { label: 'Pods', value: String(pods.length) },
               { label: 'Active', value: String(activePods.length) },
-              { label: 'Avg learners', value: pods.length ? String(Math.round(pods.reduce((sum, pod) => sum + (pod.learnerCount || 0), 0) / pods.length)) : '0' },
+              { label: 'Avg learners', value: pods.length ? String(Math.round(pods.reduce((sum, pod) => sum + (pod.learnersActive || 0), 0) / pods.length)) : '0' },
             ]}
           />
         </Card>
@@ -28,11 +28,11 @@ export default async function PodsPage() {
           <Card key={pod.id} title={pod.label || pod.name || pod.id} eyebrow={pod.status || 'Pod'}>
             <div style={{ display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Pill label={`${pod.learnerCount || 0} learners`} tone="#EEF2FF" text="#3730A3" />
-                <Pill label={pod.mallamName || 'No mallam'} tone="#ECFDF5" text="#166534" />
+                <Pill label={`${pod.learnersActive || 0} learners`} tone="#EEF2FF" text="#3730A3" />
+                <Pill label={(pod.mallamNames || []).join(', ') || 'No mallam'} tone="#ECFDF5" text="#166534" />
               </div>
               <div style={{ color: '#475569', lineHeight: 1.6 }}>
-                Cohort: <strong>{pod.cohortName || 'Unknown'}</strong><br />
+                Type: <strong>{pod.type || 'Unknown'}</strong><br />
                 Center: <strong>{pod.centerName || 'Unknown'}</strong>
               </div>
             </div>
@@ -41,13 +41,13 @@ export default async function PodsPage() {
       </section>
 
       <SimpleTable
-        columns={['Pod', 'Status', 'Learners', 'Mallam', 'Cohort', 'Center', 'Actions']}
+        columns={['Pod', 'Status', 'Learners', 'Mallams', 'Type', 'Center', 'Actions']}
         rows={pods.map((pod) => [
           pod.label || pod.name || pod.id,
           <Pill key={`${pod.id}-status`} label={pod.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
-          String(pod.learnerCount || 0),
-          pod.mallamName || '—',
-          pod.cohortName || '—',
+          String(pod.learnersActive || 0),
+          (pod.mallamNames || []).join(', ') || '—',
+          pod.type || '—',
           pod.centerName || '—',
           <Link key={`${pod.id}-link`} href="/assignments" style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
             Open assignments
