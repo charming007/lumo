@@ -23,7 +23,7 @@ export function ModalLauncher({
   disabled = false,
   children,
 }: {
-  buttonLabel: string;
+  buttonLabel: ReactNode;
   title: string;
   description?: string;
   eyebrow?: string;

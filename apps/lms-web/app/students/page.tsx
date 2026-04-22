@@ -51,27 +51,6 @@ export default async function StudentsPage() {
         </div>
       }
     >
-      <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
-        {students.slice(0, 2).map((student) => (
-          <LearnerMallamAssignmentForm key={`assign-${student.id}`} student={student} mallams={mallams} returnPath="/students" />
-        ))}
-        {students.slice(0, 2).map((student) => (
-          <Card key={student.id} title={student.name} eyebrow={student.level || 'Learner'}>
-            <div style={{ display: 'grid', gap: 10 }}>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Pill label={student.stage || 'Stage not set'} tone="#EEF2FF" text="#3730A3" />
-                <Pill label={student.cohortName || 'No cohort'} tone="#ECFDF5" text="#166534" />
-              </div>
-              <div style={{ color: '#475569', lineHeight: 1.6 }}>
-                Pod: <strong>{student.podLabel || 'Unassigned'}</strong><br />
-                Mallam: <strong>{student.mallamName || 'Unassigned'}</strong><br />
-                Attendance: <strong>{percent(student.attendanceRate)}</strong>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </section>
-
       <SimpleTable
         columns={['Learner', 'Stage', 'Cohort', 'Pod', 'Mallam', 'Attendance', 'Actions']}
         rows={students.map((student) => [
@@ -84,17 +63,37 @@ export default async function StudentsPage() {
           student.podLabel || '—',
           student.mallamName || '—',
           percent(student.attendanceRate),
-          <div key={`${student.id}-actions`} style={{ display: 'grid', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link href={`/students/${student.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
-                Open learner
-              </Link>
-              <Link href="/progress" style={{ color: '#0f766e', fontWeight: 800, textDecoration: 'none' }}>
-                Open progress
-              </Link>
-            </div>
-            <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} title={`Edit ${student.name}`} embedded />
-            <DeleteStudentForm student={student} embedded />
+          <div key={`${student.id}-actions`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Link href={`/students/${student.id}`} title="View learner" aria-label="View learner" style={{ textDecoration: 'none', borderRadius: 10, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#3730A3', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
+              👁
+            </Link>
+            <ModalLauncher
+              buttonLabel={<span aria-hidden="true">✏️</span>}
+              title={`Edit ${student.name}`}
+              description="Update learner details without blowing up the table layout."
+              eyebrow="Learner admin"
+              triggerStyle={{ borderRadius: 10, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
+            >
+              <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} title={`Edit ${student.name}`} />
+            </ModalLauncher>
+            <ModalLauncher
+              buttonLabel={<span aria-hidden="true">🗑️</span>}
+              title={`Delete ${student.name}`}
+              description="Remove this learner from the live roster carefully."
+              eyebrow="Danger zone"
+              triggerStyle={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
+            >
+              <DeleteStudentForm student={student} />
+            </ModalLauncher>
+            <ModalLauncher
+              buttonLabel={<span aria-hidden="true">🧭</span>}
+              title={`Assign mallam for ${student.name}`}
+              description="Change or clear learner ownership from a focused popup."
+              eyebrow="Learner routing"
+              triggerStyle={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#ecfdf5', color: '#166534', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
+            >
+              <LearnerMallamAssignmentForm student={student} mallams={mallams} returnPath="/students" />
+            </ModalLauncher>
           </div>,
         ])}
       />
