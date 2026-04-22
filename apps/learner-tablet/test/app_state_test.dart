@@ -4361,6 +4361,57 @@ void main() {
       state.dispose();
     });
 
+    test('subject-first cards prefer learner subject labels over module titles', () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+
+      state.modules
+        ..clear()
+        ..add(const LearningModule(
+          id: 'english-reading-module',
+          title: 'Reading Foundations',
+          description: 'Module metadata should not leak into learner subjects.',
+          voicePrompt: 'Open the reading module.',
+          readinessGoal: 'Reading practice',
+          badge: '1 lesson',
+        ));
+      state.assignedLessons
+        ..clear()
+        ..add(
+          LessonCardModel(
+            id: 'english-reading-lesson',
+            moduleId: 'english-reading-module',
+            title: 'Read the greeting',
+            subject: 'English',
+            durationMinutes: 12,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Greeting flow',
+            scenario: 'Learner should see the subject, not the module name.',
+            steps: const [
+              LessonStep(
+                id: 'step-1',
+                type: LessonStepType.prompt,
+                title: 'Say hello',
+                instruction: 'Say hello.',
+                expectedResponse: 'Say hello.',
+                coachPrompt: 'Coach the learner to say hello.',
+                facilitatorTip: 'Keep the greeting calm and short.',
+                realWorldCheck: 'Learner greets clearly before continuing.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+        );
+
+      final subjectCards = buildLearnerSubjectCards(state: state, learner: null);
+
+      expect(subjectCards, hasLength(1));
+      expect(subjectCards.single.id, 'english');
+      expect(subjectCards.single.title, 'English');
+      expect(subjectCards.single.module.title, 'English');
+      state.dispose();
+    });
+
     test('offline-only lessons stay hidden until fallback mode is active', () {
       final state = LumoAppState(includeSeedDemoContent: false);
       state.usingFallbackData = false;

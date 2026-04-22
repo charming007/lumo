@@ -262,7 +262,7 @@ void main() {
 
       expect(delegate.crossAxisCount, 3);
       expect(find.text('English'), findsOneWidget);
-      expect(find.text('Basic Mathematics'), findsOneWidget);
+      expect(find.text('Math'), findsOneWidget);
       expect(find.text('Life Skills'), findsOneWidget);
 
       state.dispose();
@@ -640,7 +640,7 @@ void main() {
     expect(find.byType(GridView), findsOneWidget);
     expect(find.byType(DetailCard), findsNothing);
     expect(find.text('English'), findsOneWidget);
-    expect(find.text('Basic Mathematics'), findsOneWidget);
+    expect(find.text('Math'), findsOneWidget);
     expect(find.text('Life Skills'), findsOneWidget);
   });
 
@@ -654,7 +654,7 @@ void main() {
     expect(find.text('Hear Mallam again'), findsOneWidget);
     expect(find.byType(DetailCard), findsNothing);
     expect(find.text('English'), findsOneWidget);
-    expect(find.text('Basic Mathematics'), findsOneWidget);
+    expect(find.text('Math'), findsOneWidget);
     expect(find.text('Life Skills'), findsOneWidget);
   });
 
@@ -788,7 +788,7 @@ void main() {
         ),
         findsNWidgets(4));
     expect(find.text('English'), findsOneWidget);
-    expect(find.text('Basic Mathematics'), findsOneWidget);
+    expect(find.text('Math'), findsOneWidget);
     expect(find.text('Life Skills'), findsOneWidget);
     expect(find.text('Lumo Fundamentals'), findsOneWidget);
 

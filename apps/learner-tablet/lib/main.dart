@@ -717,66 +717,21 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
   required LumoAppState state,
   LearnerProfile? learner,
 }) {
-  final lessonPool = state.lessonsForLearner(learner);
-  final cards = <LearnerSubjectCardModel>[];
-  final seen = <String>{};
+  final subjects = state.learnerFacingSubjects(learner: learner);
 
-  void addCard({
-    required String subjectKey,
-    required String subjectTitle,
-    required LearningModule module,
-    required int lessonCount,
-  }) {
-    if (subjectKey.isEmpty || seen.contains(subjectKey)) return;
-    seen.add(subjectKey);
-    cards.add(
-      LearnerSubjectCardModel(
-        id: subjectKey,
-        title: subjectTitle,
-        description:
-            'Open $subjectTitle first, then choose the lesson and learner from the published path.',
-        voicePrompt:
-            'We are opening $subjectTitle. Choose a lesson, then choose the learner.',
-        readinessGoal: 'Keep the learner inside one published subject path at a time',
-        badge: '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
-        module: module,
-      ),
-    );
-  }
-
-  final lessonsBySubject = <String, List<LessonCardModel>>{};
-  final modulesBySubject = <String, LearningModule>{};
-  final titlesBySubject = <String, String>{};
-
-  for (final lesson in lessonPool) {
-    if (!
-        _isLearnerVisibleLesson(state: state, lesson: lesson)) {
-      continue;
-    }
-    final module = resolveLessonModule(state: state, lesson: lesson);
-    final subjectTitle = module.title.trim().isNotEmpty
-        ? module.title.trim()
-        : lesson.subject.trim().isNotEmpty
-            ? lesson.subject.trim()
-            : 'Learning';
-    final subjectKey = _normalizeSubjectKey(subjectTitle);
-    if (subjectKey.isEmpty) continue;
-    lessonsBySubject.putIfAbsent(subjectKey, () => <LessonCardModel>[]).add(lesson);
-    modulesBySubject.putIfAbsent(subjectKey, () => module);
-    titlesBySubject.putIfAbsent(subjectKey, () => subjectTitle);
-  }
-
-  for (final entry in lessonsBySubject.entries) {
-    addCard(
-      subjectKey: entry.key,
-      subjectTitle: titlesBySubject[entry.key] ?? 'Learning',
-      module: modulesBySubject[entry.key]!,
-      lessonCount: entry.value.length,
-    );
-  }
-
-  cards.sort((left, right) => left.title.compareTo(right.title));
-  return cards;
+  return subjects
+      .map(
+        (subject) => LearnerSubjectCardModel(
+          id: subject.id,
+          title: subject.title,
+          description: subject.description,
+          voicePrompt: subject.voicePrompt,
+          readinessGoal: subject.readinessGoal,
+          badge: subject.badge,
+          module: subject,
+        ),
+      )
+      .toList(growable: false);
 }
 
 void launchLessonFlow({
@@ -1190,7 +1145,7 @@ class HomePage extends StatelessWidget {
                                           status: subject.module.status,
                                         ),
                                         lessonCount: state
-                                            .lessonsForLearnerAndModule(
+                                            .lessonsForLearnerAndSubject(
                                               state.currentLearner,
                                               subject.id,
                                             )
@@ -3169,14 +3124,10 @@ class SubjectModulesPage extends StatelessWidget {
     final resumableSession = selectedLearner == null
         ? null
         : state.resumableRuntimeSessionForLearner(selectedLearner);
-    final lessons = state.lessonsForLearner(selectedLearner).where((lesson) {
-      if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
-        return false;
-      }
-      final lessonSubject = _normalizeSubjectKey(lesson.subject);
-      final lessonModuleId = _normalizeSubjectKey(lesson.moduleId);
-      return lessonSubject == subjectKey || lessonModuleId == subjectKey;
-    }).toList();
+    final lessons = state
+        .lessonsForLearnerAndSubject(selectedLearner, subjectKey)
+        .where((lesson) => _isLearnerVisibleLesson(state: state, lesson: lesson))
+        .toList();
     final nextAssignedLesson =
         state.nextAssignedLessonForLearner(selectedLearner);
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(

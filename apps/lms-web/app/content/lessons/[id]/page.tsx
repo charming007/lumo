@@ -177,7 +177,7 @@ export default async function LessonStudioEditPage({
         ]}
         docs={[
           { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Assessments', href: '/assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Assessment lane', href: '/content?view=assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
         ]}
       />
     );
@@ -267,8 +267,8 @@ export default async function LessonStudioEditPage({
               </div>
             )}
             <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-              <Link href={`/assessments?subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? lesson.title)}`} style={{ color: '#5B21B6', fontWeight: 800, textDecoration: 'none' }}>
-                Open assessment board →
+              <Link href={`/content?view=assessments&subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? lesson.title)}`} style={{ color: '#5B21B6', fontWeight: 800, textDecoration: 'none' }}>
+                Open assessment lane →
               </Link>
               <Link href={`/content?view=blocked&subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? lesson.title)}`} style={{ color: '#92400E', fontWeight: 800, textDecoration: 'none' }}>
                 Review blocker context →
