@@ -25,7 +25,7 @@ export default async function PodsPage() {
     >
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
         {pods.slice(0, 3).map((pod) => (
-          <Card key={pod.id} title={pod.label || pod.name || pod.id} eyebrow={pod.status || 'Pod'}>
+          <Card key={pod.id} title={pod.label || pod.id} eyebrow={pod.status || 'Pod'}>
             <div style={{ display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Pill label={`${pod.learnersActive || 0} learners`} tone="#EEF2FF" text="#3730A3" />
@@ -43,7 +43,7 @@ export default async function PodsPage() {
       <SimpleTable
         columns={['Pod', 'Status', 'Learners', 'Mallams', 'Type', 'Center', 'Actions']}
         rows={pods.map((pod) => [
-          pod.label || pod.name || pod.id,
+          pod.label || pod.id,
           <Pill key={`${pod.id}-status`} label={pod.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
           String(pod.learnersActive || 0),
           (pod.mallamNames || []).join(', ') || '—',
