@@ -68,6 +68,31 @@ function formatDueLabel(value: string) {
   });
 }
 
+function formatDateTime(value: Date) {
+  return value.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function formatRelativeMinutes(value: Date) {
+  const diffMs = Date.now() - value.getTime();
+  const diffMinutes = Math.max(0, Math.round(diffMs / (60 * 1000)));
+
+  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes === 1) return '1 minute ago';
+  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours === 1) return '1 hour ago';
+  if (diffHours < 24) return `${diffHours} hours ago`;
+
+  const diffDays = Math.round(diffHours / 24);
+  return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+}
+
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -244,6 +269,7 @@ export default async function HomePage() {
       || assetRuntime.summary.unresolvedReferenceCount > 0
     ),
   );
+  const dashboardRenderedAt = new Date();
 
   const failedSources = [
     { label: 'dashboard summary', result: summaryResult },
@@ -267,6 +293,17 @@ export default async function HomePage() {
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
   ].filter(Boolean) as string[];
+  const healthyFeedCount = 9 - failedSources.length;
+  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length
+    ? 'Blocked'
+    : failedSources.length
+      ? 'Partial live pull'
+      : 'Fresh live pull';
+  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length
+    ? { tone: '#FEE2E2', text: '#991B1B' }
+    : failedSources.length
+      ? { tone: '#FEF3C7', text: '#92400E' }
+      : { tone: '#DCFCE7', text: '#166534' };
 
   const readyLearners = workboard.filter((item) => item.progressionStatus === 'ready');
   const watchLearners = workboard.filter((item) => item.progressionStatus === 'watch');
@@ -499,6 +536,20 @@ export default async function HomePage() {
               <Pill label={apiSourceDetail.label} tone="#FFFFFF" text={apiSourceDetail.tone.text} />
             </div>
             <div style={{ color: apiSourceDetail.tone.text, lineHeight: 1.6 }}>{apiSourceDetail.note}</div>
+          </div>
+
+          <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <strong style={{ color: '#0f172a' }}>Live pull freshness</strong>
+              <Pill label={dashboardTrustBadge} tone={dashboardTrustTone.tone} text={dashboardTrustTone.text} />
+            </div>
+            <div style={{ color: '#334155', lineHeight: 1.6 }}>
+              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/9 dashboard feeds responding.
+              {failedSources.length ? ` Missing or degraded: ${failedSources.join(', ')}.` : ' No missing feeds detected in this pull.'}
+            </div>
+            <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+              If this timestamp is already old by the time someone screenshots the page, the dashboard should be treated as a stale briefing, not a deployment sign-off.
+            </div>
           </div>
         </div>
       </section>
