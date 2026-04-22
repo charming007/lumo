@@ -173,8 +173,8 @@ export function Sidebar({
         </nav>
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Pilot workspace</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise launch readiness, content release, learner intervention, and deployment trust without pretending the broader admin estate is part of this pilot shell.</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise curriculum, learner operations, reporting, rewards, guides, and deployment trust from one place.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
