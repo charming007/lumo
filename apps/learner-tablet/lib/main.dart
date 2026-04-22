@@ -5942,9 +5942,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   String get _learnerResponseHintText => _isAudioOnlyReviewState
       ? 'No transcript was captured. Listen to the saved voice note, then type the learner response here if needed.'
-      : _draftTranscriptNeedsVoiceCheck
-          ? 'Saved audio and a draft transcript are attached. Listen once, then edit or confirm the text here.'
-          : 'Transcript or typed response appears here';
+      : _avoidConcurrentSpeechCapture
+          ? 'Browser recording saves the learner voice only. Type the learner response here after playback.'
+          : _draftTranscriptNeedsVoiceCheck
+              ? 'Saved audio and a draft transcript are attached. Listen once, then edit or confirm the text here.'
+              : 'Transcript or typed response appears here';
 
   String get _reviewBannerTitle => _isAudioOnlyReviewState
       ? 'Review saved voice before advancing'
@@ -8693,9 +8695,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               CrossAxisAlignment.start,
                                           children: [
                                             if (!isSimplifiedSpokenStep) ...[
-                                              const Text(
-                                                'Transcription',
-                                                style: TextStyle(
+                                              Text(
+                                                _avoidConcurrentSpeechCapture
+                                                    ? 'Learner response'
+                                                    : 'Transcription',
+                                                style: const TextStyle(
                                                   fontWeight: FontWeight.w800,
                                                   fontSize: 16,
                                                   color: Color(0xFF0F172A),
@@ -8703,11 +8707,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                               const SizedBox(height: 8),
                                               Text(
-                                                transcriptReviewPending
-                                                    ? 'Check the learner words here, then confirm before Mallam continues.'
-                                                    : (isRecording
-                                                        ? 'Listening to the learner now.'
-                                                        : 'Start listening, capture the learner voice, then review the text here.'),
+                                                _avoidConcurrentSpeechCapture
+                                                    ? (transcriptReviewPending
+                                                        ? 'Listen to the saved learner voice, then type or confirm the answer here before Mallam continues.'
+                                                        : (isRecording
+                                                            ? 'Listening now and saving learner audio for manual review.'
+                                                            : 'Start listening, capture the learner voice, then type or confirm the answer here.'))
+                                                    : (transcriptReviewPending
+                                                        ? 'Check the learner words here, then confirm before Mallam continues.'
+                                                        : (isRecording
+                                                            ? 'Listening to the learner now.'
+                                                            : 'Start listening, capture the learner voice, then review the text here.')),
                                                 style: const TextStyle(
                                                   color: Color(0xFF475569),
                                                   height: 1.35,
@@ -8848,9 +8858,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ],
                                             const SizedBox(height: 14),
                                             if (isSimplifiedSpokenStep) ...[
-                                              const Text(
-                                                'Learner transcript',
-                                                style: TextStyle(
+                                              Text(
+                                                _avoidConcurrentSpeechCapture
+                                                    ? 'Learner response'
+                                                    : 'Learner transcript',
+                                                style: const TextStyle(
                                                   color: Color(0xFF0F172A),
                                                   fontWeight: FontWeight.w800,
                                                   fontSize: 16,
@@ -8858,11 +8870,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               ),
                                               const SizedBox(height: 8),
                                               Text(
-                                                transcriptReviewPending
-                                                    ? 'Check the learner words here, then confirm before Mallam continues.'
-                                                    : (isRecording
-                                                        ? 'Listening to the learner now.'
-                                                        : 'Capture the learner answer, then confirm the transcript here.'),
+                                                _avoidConcurrentSpeechCapture
+                                                    ? (transcriptReviewPending
+                                                        ? 'Listen to the saved learner voice, then type or confirm the answer here before Mallam continues.'
+                                                        : (isRecording
+                                                            ? 'Listening now and saving learner audio for manual review.'
+                                                            : 'Capture the learner answer, then type or confirm it here.'))
+                                                    : (transcriptReviewPending
+                                                        ? 'Check the learner words here, then confirm before Mallam continues.'
+                                                        : (isRecording
+                                                            ? 'Listening to the learner now.'
+                                                            : 'Capture the learner answer, then confirm the transcript here.')),
                                                 style: const TextStyle(
                                                   color: Color(0xFF475569),
                                                   height: 1.35,
