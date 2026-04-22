@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../components/admin-forms';
+import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchMallams, fetchPods } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
@@ -17,19 +18,30 @@ export default async function MallamsPage() {
       subtitle="Manage facilitator coverage, assigned pods, languages, and center distribution."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
-        <Card title="Mallam coverage" eyebrow="Live API">
-          <MetricList
-            items={[
-              { label: 'Mallams', value: String(mallams.length) },
-              { label: 'Active', value: String(active.length) },
-              { label: 'Pods covered', value: String(new Set(mallams.flatMap((mallam) => mallam.podLabels || [])).size) },
-            ]}
-          />
-        </Card>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ModalLauncher
+              buttonLabel="Add mallam"
+              title="Add mallam"
+              description="Create a mallam from a focused popup instead of burying a long form inside the page grid."
+              eyebrow="Mallam admin"
+            >
+              <CreateMallamForm centers={centers} pods={pods} />
+            </ModalLauncher>
+          </div>
+          <Card title="Mallam coverage" eyebrow="Live API">
+            <MetricList
+              items={[
+                { label: 'Mallams', value: String(mallams.length) },
+                { label: 'Active', value: String(active.length) },
+                { label: 'Pods covered', value: String(new Set(mallams.flatMap((mallam) => mallam.podLabels || [])).size) },
+              ]}
+            />
+          </Card>
+        </div>
       }
     >
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
-        <CreateMallamForm centers={centers} pods={pods} />
         {mallams.slice(0, 2).map((mallam) => (
           <Card key={mallam.id} title={mallam.displayName || mallam.name} eyebrow={mallam.role || 'Mallam'}>
             <div style={{ display: 'grid', gap: 10 }}>

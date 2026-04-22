@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { CreateStudentForm, DeleteStudentForm, UpdateStudentForm } from '../../components/admin-forms';
 import { LearnerMallamAssignmentForm } from '../../components/learner-mallam-assignment-form';
+import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCohorts, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
@@ -27,19 +28,30 @@ export default async function StudentsPage() {
       subtitle="Track learner roster health, attendance, pods, and mallam assignment from one place."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
-        <Card title="Roster snapshot" eyebrow="Live API">
-          <MetricList
-            items={[
-              { label: 'Learners', value: String(students.length) },
-              { label: 'Active', value: String(activeStudents.length) },
-              { label: 'Avg attendance', value: `${avgAttendance}%` },
-            ]}
-          />
-        </Card>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ModalLauncher
+              buttonLabel="Add learner"
+              title="Add learner"
+              description="Create a learner without dumping a giant form into the roster page."
+              eyebrow="Learner admin"
+            >
+              <CreateStudentForm cohorts={cohorts} pods={pods} mallams={mallams} />
+            </ModalLauncher>
+          </div>
+          <Card title="Roster snapshot" eyebrow="Live API">
+            <MetricList
+              items={[
+                { label: 'Learners', value: String(students.length) },
+                { label: 'Active', value: String(activeStudents.length) },
+                { label: 'Avg attendance', value: `${avgAttendance}%` },
+              ]}
+            />
+          </Card>
+        </div>
       }
     >
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
-        <CreateStudentForm cohorts={cohorts} pods={pods} mallams={mallams} />
         {students.slice(0, 2).map((student) => (
           <LearnerMallamAssignmentForm key={`assign-${student.id}`} student={student} mallams={mallams} returnPath="/students" />
         ))}
