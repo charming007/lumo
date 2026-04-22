@@ -1,6 +1,6 @@
 import { CurriculumCanvas } from '../../components/curriculum-canvas';
 import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
-import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromApiTree } from '../../lib/curriculum-canvas';
+import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
 import { Card, MetricList, PageShell } from '../../lib/ui';
 
 export default async function CanvasPage() {
@@ -14,12 +14,9 @@ export default async function CanvasPage() {
   ]);
 
   const fallbackData = buildCurriculumCanvasData({ subjects, strands, modules, lessons, assessments });
-  const canvasData = buildCurriculumCanvasDataFromApiTree(tree, {
-    fallbackData,
-    modules,
-    lessons,
-    assessments,
-  });
+  const canvasData = tree?.root
+    ? buildCurriculumCanvasDataFromTree(tree)
+    : fallbackData;
 
   return (
     <PageShell
