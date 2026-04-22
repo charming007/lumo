@@ -1239,7 +1239,13 @@ class LumoAppState {
   bool _isPublishedLearnerLesson(LessonCardModel lesson) {
     final normalizedStatus = lesson.status.trim().toLowerCase();
     if (normalizedStatus.isEmpty) return true;
-    return normalizedStatus == 'published' || normalizedStatus == 'live';
+    if (normalizedStatus == 'published' ||
+        normalizedStatus == 'live' ||
+        normalizedStatus == 'assigned' ||
+        normalizedStatus == 'bundled') {
+      return true;
+    }
+    return usingFallbackData && normalizedStatus == 'offline';
   }
 
   String _normalizeSubjectKey(String value) {

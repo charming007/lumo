@@ -4301,5 +4301,131 @@ void main() {
       expect(
           state.sourceStatusForLesson(lesson).origin, ContentOrigin.localCache);
     });
+
+    test('subject-first cards keep assigned and bundled lessons visible', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final englishModule =
+          state.modules.firstWhere((module) => module.id == 'english');
+      final englishSeed =
+          state.assignedLessons.firstWhere((lesson) => lesson.moduleId == 'english');
+      state.usingFallbackData = true;
+
+      state.modules.add(const LearningModule(
+        id: 'lumo-fundamentals',
+        title: 'Lumo Fundamentals',
+        description: 'Bundled onboarding path',
+        voicePrompt: 'Meet Mallam offline.',
+        readinessGoal: 'Offline startup path',
+        badge: 'Bundled pack',
+      ));
+      state.assignedLessons.addAll([
+        LessonCardModel(
+          id: 'english-assigned-extra',
+          moduleId: 'english-reading',
+          title: 'Assigned English follow-up',
+          subject: englishModule.title,
+          durationMinutes: englishSeed.durationMinutes,
+          status: 'assigned',
+          mascotName: englishSeed.mascotName,
+          readinessFocus: 'Assigned practice',
+          scenario: 'Live assignment that should stay visible in subject-first UI.',
+          steps: englishSeed.steps,
+        ),
+        LessonCardModel(
+          id: 'fundamentals-bundled-extra',
+          moduleId: 'lumo-fundamentals',
+          title: 'Meet Mallam offline',
+          subject: 'Lumo Fundamentals',
+          durationMinutes: englishSeed.durationMinutes,
+          status: 'bundled',
+          mascotName: englishSeed.mascotName,
+          readinessFocus: 'Offline warmup',
+          scenario: 'Bundled lesson merged into the learner-facing subject grid.',
+          steps: englishSeed.steps,
+        ),
+      ]);
+
+      final subjectCards = buildLearnerSubjectCards(state: state, learner: null);
+      final subjectIds = subjectCards.map((card) => card.id).toList();
+
+      expect(subjectIds, contains('english'));
+      expect(subjectIds, contains('lumo-fundamentals'));
+      expect(
+        state.lessonsForLearnerAndModule(null, 'english').map((lesson) => lesson.id),
+        contains('english-assigned-extra'),
+      );
+      expect(
+        subjectCards.map((card) => card.id),
+        contains('lumo-fundamentals'),
+      );
+      state.dispose();
+    });
+
+    test('offline-only lessons stay hidden until fallback mode is active', () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.usingFallbackData = false;
+      state.modules
+        ..clear()
+        ..add(const LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'English path',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Greeting flow',
+          badge: '1 lesson',
+        ));
+      state.learners
+        ..clear()
+        ..add(const LearnerProfile(
+          id: 'learner-1',
+          name: 'Amina',
+          age: 7,
+          cohort: 'Alpha',
+          streakDays: 1,
+          guardianName: 'Zainab',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Pod 1',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-AL07',
+        ));
+      state.assignedLessons
+        ..clear()
+        ..add(const LessonCardModel(
+          id: 'english-offline-1',
+          moduleId: 'english',
+          title: 'Offline hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'offline',
+          mascotName: 'Mallam',
+          readinessFocus: 'Offline drill',
+          scenario: 'Offline-only fallback lesson.',
+          steps: [
+            LessonStep(
+              id: 'offline-step-1',
+              type: LessonStepType.practice,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Keep it warm.',
+              realWorldCheck: 'Learner says hello.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ));
+
+      final learner = state.learners.first;
+      expect(buildLearnerSubjectCards(state: state, learner: learner), isEmpty);
+
+      state.usingFallbackData = true;
+      final fallbackCards = buildLearnerSubjectCards(state: state, learner: learner);
+      expect(fallbackCards.map((card) => card.id), contains('english'));
+      state.dispose();
+    });
   });
 }

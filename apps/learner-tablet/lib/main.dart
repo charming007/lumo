@@ -697,11 +697,20 @@ String _normalizeSubjectKey(String value) {
       .replaceAll(RegExp(r'[^a-z0-9]+'), '-');
 }
 
-bool _isPublishedLearnerLesson(LessonCardModel lesson) {
+bool _isLearnerVisibleLesson({
+  required LumoAppState state,
+  required LessonCardModel lesson,
+}) {
   final normalizedStatus = lesson.status.trim().toLowerCase();
-  return normalizedStatus.isEmpty ||
+  if (normalizedStatus.isEmpty ||
       normalizedStatus == 'published' ||
-      normalizedStatus == 'live';
+      normalizedStatus == 'live' ||
+      normalizedStatus == 'assigned' ||
+      normalizedStatus == 'bundled') {
+    return true;
+  }
+
+  return state.usingFallbackData && normalizedStatus == 'offline';
 }
 
 List<LearnerSubjectCardModel> buildLearnerSubjectCards({
@@ -740,12 +749,15 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
   final titlesBySubject = <String, String>{};
 
   for (final lesson in lessonPool) {
-    if (!_isPublishedLearnerLesson(lesson)) continue;
+    if (!
+        _isLearnerVisibleLesson(state: state, lesson: lesson)) {
+      continue;
+    }
     final module = resolveLessonModule(state: state, lesson: lesson);
-    final subjectTitle = lesson.subject.trim().isNotEmpty
-        ? lesson.subject.trim()
-        : module.title.trim().isNotEmpty
-            ? module.title.trim()
+    final subjectTitle = module.title.trim().isNotEmpty
+        ? module.title.trim()
+        : lesson.subject.trim().isNotEmpty
+            ? lesson.subject.trim()
             : 'Learning';
     final subjectKey = _normalizeSubjectKey(subjectTitle);
     if (subjectKey.isEmpty) continue;
@@ -3158,7 +3170,9 @@ class SubjectModulesPage extends StatelessWidget {
         ? null
         : state.resumableRuntimeSessionForLearner(selectedLearner);
     final lessons = state.lessonsForLearner(selectedLearner).where((lesson) {
-      if (!_isPublishedLearnerLesson(lesson)) return false;
+      if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
+        return false;
+      }
       final lessonSubject = _normalizeSubjectKey(lesson.subject);
       final lessonModuleId = _normalizeSubjectKey(lesson.moduleId);
       return lessonSubject == subjectKey || lessonModuleId == subjectKey;
@@ -3246,8 +3260,7 @@ class SubjectModulesPage extends StatelessWidget {
                                 );
                               }
 
-                              final showJourneyHeader =
-                                  detailConstraints.maxHeight < 1100;
+                              const showJourneyHeader = true;
                               final journeyHint = selectedLearner == null
                                   ? 'Start with the first big card, then keep a gentle rhythm by following the path one lesson at a time.'
                                   : 'Start ${selectedLearner.name} on the first big card, then follow the path one lesson at a time so the flow stays calm.';
