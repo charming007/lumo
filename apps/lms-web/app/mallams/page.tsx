@@ -1,17 +1,27 @@
 import Link from 'next/link';
 import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../components/admin-forms';
+import { GeographyFilterBar } from '../../components/geography-filter-bar';
 import { ModalLauncher } from '../../components/modal-launcher';
-import { fetchCenters, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
+import { fetchCenters, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
+import { filterMallamsByGeography, mallamGeographyLabel } from '../../lib/geography';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
-export default async function MallamsPage() {
-  const [mallams, centers, pods, students] = await Promise.all([
+export default async function MallamsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  const query = await searchParams;
+  const stateId = typeof query?.stateId === 'string' ? query.stateId : '';
+  const localGovernmentId = typeof query?.localGovernmentId === 'string' ? query.localGovernmentId : '';
+  const podId = typeof query?.podId === 'string' ? query.podId : '';
+
+  const [mallams, centers, pods, students, states, localGovernments] = await Promise.all([
     fetchMallams(),
     fetchCenters(),
     fetchPods(),
     fetchStudents(),
+    fetchStates(),
+    fetchLocalGovernments(),
   ]);
-  const active = mallams.filter((mallam) => (mallam.status || '').toLowerCase() === 'active');
+  const filteredMallams = filterMallamsByGeography(mallams, centers, { stateId, localGovernmentId, podId });
+  const active = filteredMallams.filter((mallam) => (mallam.status || '').toLowerCase() === 'active');
 
   return (
     <PageShell
@@ -27,13 +37,13 @@ export default async function MallamsPage() {
               description="Create a mallam from a focused popup instead of burying a long form inside the page grid."
               eyebrow="Mallam admin"
             >
-              <CreateMallamForm centers={centers} pods={pods} />
+              <CreateMallamForm centers={centers} pods={pods} states={states} localGovernments={localGovernments} />
             </ModalLauncher>
           </div>
           <Card title="Mallam coverage" eyebrow="Live API">
             <MetricList
               items={[
-                { label: 'Mallams', value: String(mallams.length) },
+                { label: 'Mallams', value: String(filteredMallams.length) },
                 { label: 'Active', value: String(active.length) },
                 { label: 'Pods covered', value: String(new Set(mallams.flatMap((mallam) => mallam.podLabels || [])).size) },
               ]}
@@ -42,16 +52,26 @@ export default async function MallamsPage() {
         </div>
       }
     >
+      <GeographyFilterBar
+        resetHref="/mallams"
+        fields={[
+          { name: 'stateId', label: 'State', value: stateId, options: states.map((state) => ({ value: state.id, label: state.name })) },
+          { name: 'localGovernmentId', label: 'Local government', value: localGovernmentId, options: localGovernments.filter((item) => !stateId || item.stateId === stateId).map((item) => ({ value: item.id, label: item.name })) },
+          { name: 'podId', label: 'Pod', value: podId, options: pods.map((pod) => ({ value: pod.id, label: pod.label })) },
+        ]}
+        helper={`Showing ${filteredMallams.length} mallam profile${filteredMallams.length === 1 ? '' : 's'} in the selected geography slice.`}
+      />
       <SimpleTable
-        columns={['Mallam', 'Status', 'Learners', 'Pods', 'Languages', 'Center', 'Actions']}
-        rows={mallams.map((mallam) => [
+        columns={['Mallam', 'Status', 'Geography', 'Learners', 'Primary pod', 'Languages', 'Center', 'Actions']}
+        rows={filteredMallams.map((mallam) => [
           <div key={`${mallam.id}-name`}>
             <strong>{mallam.displayName || mallam.name}</strong>
             <div style={{ color: '#64748b', marginTop: 4 }}>{mallam.role || 'Mallam'} · {mallam.region || 'Unknown region'}</div>
           </div>,
           <Pill key={`${mallam.id}-status`} label={mallam.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
+          mallamGeographyLabel(mallam, centers, states, localGovernments),
           String(mallam.learnerCount || 0),
-          (mallam.podLabels || []).join(', ') || '—',
+          mallam.podLabels?.[0] || '—',
           (mallam.languages || []).join(', ') || '—',
           mallam.centerName || '—',
           <div key={`${mallam.id}-actions`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -65,7 +85,7 @@ export default async function MallamsPage() {
               eyebrow="Mallam admin"
               triggerStyle={{ borderRadius: 10, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
             >
-              <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} />
+              <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} states={states} localGovernments={localGovernments} />
             </ModalLauncher>
             <ModalLauncher
               buttonLabel={<span aria-hidden="true">🗑️</span>}

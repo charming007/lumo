@@ -205,6 +205,27 @@ export type Center = {
   id: string;
   name: string;
   region: string;
+  stateId?: string;
+  localGovernmentId?: string;
+  deliveryModel?: string;
+};
+
+export type State = {
+  id: string;
+  code?: string | null;
+  name: string;
+  countryCode?: string | null;
+  order?: number;
+  status?: string;
+};
+
+export type LocalGovernment = {
+  id: string;
+  stateId: string;
+  code?: string | null;
+  name: string;
+  order?: number;
+  status?: string;
 };
 
 export type CurriculumModule = {
@@ -325,6 +346,9 @@ export type Assessment = {
 
 export type Pod = {
   id: string;
+  centerId?: string;
+  stateId?: string;
+  localGovernmentId?: string;
   label: string;
   type: string;
   status: string;

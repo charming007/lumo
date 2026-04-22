@@ -1,9 +1,15 @@
 import Link from 'next/link';
-import { fetchPods } from '../../lib/api';
+import { fetchCenters, fetchLocalGovernments, fetchPods, fetchStates } from '../../lib/api';
+import { podGeographyLabel } from '../../lib/geography';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 export default async function PodsPage() {
-  const pods = await fetchPods();
+  const [pods, centers, states, localGovernments] = await Promise.all([
+    fetchPods(),
+    fetchCenters(),
+    fetchStates(),
+    fetchLocalGovernments(),
+  ]);
   const activePods = pods.filter((pod) => (pod.status || '').toLowerCase() === 'active');
 
   return (
@@ -33,7 +39,8 @@ export default async function PodsPage() {
               </div>
               <div style={{ color: '#475569', lineHeight: 1.6 }}>
                 Type: <strong>{pod.type || 'Unknown'}</strong><br />
-                Center: <strong>{pod.centerName || 'Unknown'}</strong>
+                Center: <strong>{pod.centerName || 'Unknown'}</strong><br />
+                Geography: <strong>{podGeographyLabel(pod, centers, states, localGovernments)}</strong>
               </div>
             </div>
           </Card>
@@ -41,10 +48,11 @@ export default async function PodsPage() {
       </section>
 
       <SimpleTable
-        columns={['Pod', 'Status', 'Learners', 'Mallams', 'Type', 'Center', 'Actions']}
+        columns={['Pod', 'Status', 'Geography', 'Learners', 'Mallams', 'Type', 'Center', 'Actions']}
         rows={pods.map((pod) => [
           pod.label || pod.id,
           <Pill key={`${pod.id}-status`} label={pod.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
+          podGeographyLabel(pod, centers, states, localGovernments),
           String(pod.learnersActive || 0),
           (pod.mallamNames || []).join(', ') || '—',
           pod.type || '—',

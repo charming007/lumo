@@ -4,7 +4,7 @@ import { ActionButton } from '../../components/action-button';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { ExportShareCard } from '../../components/export-share-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
-import { fetchAssetRuntime, fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
+import { fetchAssetRuntime, fetchLocalGovernments, fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStates, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { describeCatalogState, describeLiveBackendWithCatalog } from '../../lib/trust-copy';
@@ -212,7 +212,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     );
   }
 
-  const [metaResult, leaderboardResult, workboardResult, rewardsReportResult, storageStatusResult, integrityResult, backupsResult, operationsResult, assetRuntimeResult] = await Promise.allSettled([
+  const [metaResult, leaderboardResult, workboardResult, rewardsReportResult, storageStatusResult, integrityResult, backupsResult, operationsResult, assetRuntimeResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
     fetchMeta(),
     fetchRewardsLeaderboard(8),
     fetchWorkboard(),
@@ -222,6 +222,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     fetchStorageBackups(8),
     fetchOperationsReport(8),
     fetchAssetRuntime(8),
+    fetchStates(),
+    fetchLocalGovernments(),
   ]);
 
   const meta = metaResult.status === 'fulfilled' ? metaResult.value : EMPTY_META;
@@ -233,6 +235,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const backups = backupsResult.status === 'fulfilled' ? backupsResult.value : EMPTY_STORAGE_BACKUPS;
   const operationsReport = operationsResult.status === 'fulfilled' ? operationsResult.value : EMPTY_OPERATIONS_REPORT;
   const assetRuntime = assetRuntimeResult.status === 'fulfilled' ? assetRuntimeResult.value : EMPTY_ASSET_RUNTIME;
+  const states = statesResult.status === 'fulfilled' ? statesResult.value : [];
+  const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
   const apiTargetSourceLabel = describeApiSource(API_BASE_SOURCE);
   const assetEndpoint = `${API_BASE}/api/v1/assets`;
   const assetRuntimeEndpoint = `${API_BASE}/api/v1/admin/assets/runtime`;
@@ -249,6 +253,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     backupsResult.status === 'rejected' ? 'storage backups' : null,
     operationsResult.status === 'rejected' ? 'operations report' : null,
     assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean);
 
   const ready = workboard.filter((item) => item.progressionStatus === 'ready').length;
@@ -418,6 +424,17 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
               { label: 'Persistence', value: storagePersistent ? 'Durable' : 'Volatile' },
               { label: 'Driver', value: storageDriver },
               { label: 'Integrity issues', value: String(integrity.summary.issueCount) },
+            ]}
+          />
+        </Card>
+
+        <Card title="Geography model" eyebrow="Admin structure now visible">
+          <MetricList
+            items={[
+              { label: 'States', value: String(states.length) },
+              { label: 'Local governments', value: String(localGovernments.length) },
+              { label: 'Pods remain operational', value: 'Yes' },
+              { label: 'Cohorts stay program-based', value: 'Yes' },
             ]}
           />
         </Card>

@@ -5,6 +5,7 @@ import type {
   Center,
   Cohort,
   CurriculumModule,
+  LocalGovernment,
   DashboardInsight,
   DashboardSummary,
   Lesson,
@@ -26,6 +27,7 @@ import type {
   StorageStatus,
   ConfigAudit,
   AssetRuntimeReport,
+  State,
   Strand,
   Subject,
   WorkboardItem,
@@ -284,6 +286,14 @@ export function fetchCohorts() {
 
 export function fetchCenters() {
   return getJson<Center[]>('/api/v1/centers');
+}
+
+export function fetchStates() {
+  return getJson<State[]>('/api/v1/states');
+}
+
+export function fetchLocalGovernments() {
+  return getJson<LocalGovernment[]>('/api/v1/local-governments');
 }
 
 export function fetchStudentRewards(id: string) {

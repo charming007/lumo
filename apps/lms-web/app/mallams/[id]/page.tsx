@@ -2,16 +2,19 @@ import { notFound } from 'next/navigation';
 import { DeleteMallamForm, UpdateMallamForm } from '../../../components/admin-forms';
 import { MallamRosterManager } from '../../../components/mallam-roster-manager';
 import { ModalLauncher } from '../../../components/modal-launcher';
-import { fetchCenters, fetchMallams, fetchPods, fetchStudents } from '../../../lib/api';
+import { fetchCenters, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../../lib/api';
+import { mallamGeographyLabel } from '../../../lib/geography';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
 export default async function MallamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [mallams, centers, pods, students] = await Promise.all([
+  const [mallams, centers, pods, students, states, localGovernments] = await Promise.all([
     fetchMallams(),
     fetchCenters(),
     fetchPods(),
     fetchStudents(),
+    fetchStates(),
+    fetchLocalGovernments(),
   ]);
 
   const mallam = mallams.find((item) => item.id === id);
@@ -35,7 +38,7 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
               eyebrow="Mallam admin"
               triggerStyle={{ borderRadius: 14, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', boxShadow: 'none' }}
             >
-              <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} />
+              <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} states={states} localGovernments={localGovernments} />
             </ModalLauncher>
             <ModalLauncher
               buttonLabel="🗑️ Delete mallam"
@@ -54,6 +57,7 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
                 { label: 'Pods', value: String(mallam.podLabels?.length || 0) },
                 { label: 'Status', value: mallam.status || '—' },
                 { label: 'Center', value: mallam.centerName || '—' },
+                { label: 'Geography', value: mallamGeographyLabel(mallam, centers, states, localGovernments) },
               ]}
             />
           </Card>

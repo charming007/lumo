@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { DeleteStudentForm, UpdateStudentForm } from '../../../components/admin-forms';
 import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../../components/modal-launcher';
-import { fetchCohorts, fetchMallams, fetchPods, fetchStudents } from '../../../lib/api';
+import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../../lib/api';
+import { studentGeographyLabel } from '../../../lib/geography';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
 function percent(value: number | null | undefined) {
@@ -12,11 +13,14 @@ function percent(value: number | null | undefined) {
 
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [students, cohorts, pods, mallams] = await Promise.all([
+  const [students, cohorts, pods, mallams, centers, states, localGovernments] = await Promise.all([
     fetchStudents(),
     fetchCohorts(),
     fetchPods(),
     fetchMallams(),
+    fetchCenters(),
+    fetchStates(),
+    fetchLocalGovernments(),
   ]);
 
   const student = students.find((item) => item.id === id);
@@ -37,7 +41,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               eyebrow="Learner admin"
               triggerStyle={{ borderRadius: 14, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', boxShadow: 'none' }}
             >
-              <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} />
+              <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} centers={centers} states={states} localGovernments={localGovernments} />
             </ModalLauncher>
             <ModalLauncher
               buttonLabel="🗑️ Delete learner"
@@ -56,6 +60,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                 { label: 'Stage', value: student.stage || '—' },
                 { label: 'Attendance', value: percent(student.attendanceRate) },
                 { label: 'Pod', value: student.podLabel || 'Unassigned' },
+                { label: 'Geography', value: studentGeographyLabel(student, pods, centers, states, localGovernments) },
               ]}
             />
           </Card>
