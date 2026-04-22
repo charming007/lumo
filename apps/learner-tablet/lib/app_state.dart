@@ -1236,6 +1236,92 @@ class LumoAppState {
     persistStateSoon();
   }
 
+  bool _isPublishedLearnerLesson(LessonCardModel lesson) {
+    final normalizedStatus = lesson.status.trim().toLowerCase();
+    if (normalizedStatus.isEmpty) return true;
+    return normalizedStatus == 'published' || normalizedStatus == 'live';
+  }
+
+  String _normalizeSubjectKey(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) return 'subject';
+    return normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+  }
+
+  LearningModule _buildLearnerFacingSubject({
+    required String key,
+    required String title,
+    required List<LessonCardModel> lessons,
+  }) {
+    final matchingModule = modules.cast<LearningModule?>().firstWhere(
+          (module) =>
+              module != null && _normalizeSubjectKey(module.title) == key,
+          orElse: () => null,
+        );
+    final lessonCount = lessons.length;
+    return LearningModule(
+      id: key,
+      title: title,
+      description: matchingModule?.description ??
+          'Open $title to see the published learner lessons for this subject.',
+      voicePrompt: matchingModule?.voicePrompt ??
+          'We are opening $title. Choose a lesson, then choose the learner.',
+      readinessGoal: matchingModule?.readinessGoal ??
+          'Published lessons ready for learner launch',
+      badge: '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
+    );
+  }
+
+  List<LearningModule> learnerFacingSubjects({LearnerProfile? learner}) {
+    final lessonPool =
+        learner == null ? assignedLessons : lessonsForLearner(learner);
+    final groupedLessons = <String, List<LessonCardModel>>{};
+    final subjectTitles = <String, String>{};
+
+    for (final lesson in lessonPool) {
+      if (!_isPublishedLearnerLesson(lesson)) continue;
+      final subjectTitle = lesson.subject.trim().isEmpty
+          ? modules
+                  .cast<LearningModule?>()
+                  .firstWhere(
+                    (module) => module?.id == lesson.moduleId,
+                    orElse: () => null,
+                  )
+                  ?.title ??
+              'Learning'
+          : lesson.subject.trim();
+      final key = _normalizeSubjectKey(subjectTitle);
+      groupedLessons.putIfAbsent(key, () => <LessonCardModel>[]).add(lesson);
+      subjectTitles.putIfAbsent(key, () => subjectTitle);
+    }
+
+    final subjects = groupedLessons.entries
+        .map(
+          (entry) => _buildLearnerFacingSubject(
+            key: entry.key,
+            title: subjectTitles[entry.key] ?? 'Learning',
+            lessons: entry.value,
+          ),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => left.title.compareTo(right.title));
+
+    return subjects;
+  }
+
+  List<LessonCardModel> lessonsForLearnerAndSubject(
+    LearnerProfile? learner,
+    String subjectId,
+  ) {
+    final normalizedSubjectId = _normalizeSubjectKey(subjectId);
+    final lessonPool =
+        learner == null ? assignedLessons : lessonsForLearner(learner);
+    return lessonPool.where((lesson) {
+      if (!_isPublishedLearnerLesson(lesson)) return false;
+      return _normalizeSubjectKey(lesson.subject) == normalizedSubjectId;
+    }).toList(growable: false);
+  }
+
   Set<String> _moduleKeyVariants(LearningModule module) {
     String normalize(String value) => value.trim().toLowerCase();
 

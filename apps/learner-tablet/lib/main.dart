@@ -691,7 +691,17 @@ class LearnerSubjectCardModel {
 }
 
 String _normalizeSubjectKey(String value) {
-  return value.trim().toLowerCase();
+  return value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+}
+
+bool _isPublishedLearnerLesson(LessonCardModel lesson) {
+  final normalizedStatus = lesson.status.trim().toLowerCase();
+  return normalizedStatus.isEmpty ||
+      normalizedStatus == 'published' ||
+      normalizedStatus == 'live';
 }
 
 List<LearnerSubjectCardModel> buildLearnerSubjectCards({
@@ -706,6 +716,7 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
     required String subjectKey,
     required String subjectTitle,
     required LearningModule module,
+    required int lessonCount,
   }) {
     if (subjectKey.isEmpty || seen.contains(subjectKey)) return;
     seen.add(subjectKey);
@@ -714,34 +725,45 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
         id: subjectKey,
         title: subjectTitle,
         description:
-            'Open $subjectTitle first, then choose the lesson and learner from the live path.',
+            'Open $subjectTitle first, then choose the lesson and learner from the published path.',
         voicePrompt:
-            'We are opening $subjectTitle. Choose the next lesson calmly.',
-        readinessGoal: 'Keep the learner inside one subject path at a time',
-        badge: module.badge,
+            'We are opening $subjectTitle. Choose a lesson, then choose the learner.',
+        readinessGoal: 'Keep the learner inside one published subject path at a time',
+        badge: '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
         module: module,
       ),
     );
   }
 
-  for (final lesson in lessonPool) {
-    final module = resolveLessonModule(state: state, lesson: lesson);
-    final subjectKey = _normalizeSubjectKey(
-      module.id.trim().isNotEmpty ? module.id : lesson.moduleId,
-    );
-    final subjectTitle = module.title.trim().isNotEmpty
-        ? module.title.trim()
-        : lesson.subject.trim().isNotEmpty
-            ? lesson.subject.trim()
-            : 'Learning';
+  final lessonsBySubject = <String, List<LessonCardModel>>{};
+  final modulesBySubject = <String, LearningModule>{};
+  final titlesBySubject = <String, String>{};
 
+  for (final lesson in lessonPool) {
+    if (!_isPublishedLearnerLesson(lesson)) continue;
+    final module = resolveLessonModule(state: state, lesson: lesson);
+    final subjectTitle = lesson.subject.trim().isNotEmpty
+        ? lesson.subject.trim()
+        : module.title.trim().isNotEmpty
+            ? module.title.trim()
+            : 'Learning';
+    final subjectKey = _normalizeSubjectKey(subjectTitle);
+    if (subjectKey.isEmpty) continue;
+    lessonsBySubject.putIfAbsent(subjectKey, () => <LessonCardModel>[]).add(lesson);
+    modulesBySubject.putIfAbsent(subjectKey, () => module);
+    titlesBySubject.putIfAbsent(subjectKey, () => subjectTitle);
+  }
+
+  for (final entry in lessonsBySubject.entries) {
     addCard(
-      subjectKey: subjectKey,
-      subjectTitle: subjectTitle,
-      module: module,
+      subjectKey: entry.key,
+      subjectTitle: titlesBySubject[entry.key] ?? 'Learning',
+      module: modulesBySubject[entry.key]!,
+      lessonCount: entry.value.length,
     );
   }
 
+  cards.sort((left, right) => left.title.compareTo(right.title));
   return cards;
 }
 
@@ -1061,7 +1083,6 @@ class HomePage extends StatelessWidget {
                         state: state,
                         learner: state.currentLearner,
                       );
-
                       return Expanded(
                         flex: shortHeight ? 9 : (compact ? 7 : 6),
                         child: Padding(
@@ -3137,6 +3158,7 @@ class SubjectModulesPage extends StatelessWidget {
         ? null
         : state.resumableRuntimeSessionForLearner(selectedLearner);
     final lessons = state.lessonsForLearner(selectedLearner).where((lesson) {
+      if (!_isPublishedLearnerLesson(lesson)) return false;
       final lessonSubject = _normalizeSubjectKey(lesson.subject);
       final lessonModuleId = _normalizeSubjectKey(lesson.moduleId);
       return lessonSubject == subjectKey || lessonModuleId == subjectKey;
