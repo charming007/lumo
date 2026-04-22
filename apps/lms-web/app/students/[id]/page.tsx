@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { DeleteStudentForm, UpdateStudentForm } from '../../../components/admin-forms';
 import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
+import { ModalLauncher } from '../../../components/modal-launcher';
 import { fetchCohorts, fetchMallams, fetchPods, fetchStudents } from '../../../lib/api';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
@@ -57,9 +58,25 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         <LearnerMallamAssignmentForm student={student} mallams={mallams} returnPath={`/students/${student.id}`} />
       </section>
 
-      <section style={{ ...responsiveGrid(340), marginBottom: 20 }}>
-        <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} />
-        <DeleteStudentForm student={student} />
+      <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20, justifyContent: 'flex-end' }}>
+        <ModalLauncher
+          buttonLabel="✏️ Edit learner"
+          title={`Edit ${student.name}`}
+          description="Update learner details from a focused popup instead of a giant inline form."
+          eyebrow="Learner admin"
+          triggerStyle={{ borderRadius: 14, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', boxShadow: 'none' }}
+        >
+          <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} />
+        </ModalLauncher>
+        <ModalLauncher
+          buttonLabel="🗑️ Delete learner"
+          title={`Delete ${student.name}`}
+          description="Remove this learner from the live roster carefully."
+          eyebrow="Danger zone"
+          triggerStyle={{ borderRadius: 14, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', boxShadow: 'none' }}
+        >
+          <DeleteStudentForm student={student} />
+        </ModalLauncher>
       </section>
     </PageShell>
   );

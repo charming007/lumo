@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { DeleteMallamForm, UpdateMallamForm } from '../../../components/admin-forms';
 import { MallamRosterManager } from '../../../components/mallam-roster-manager';
+import { ModalLauncher } from '../../../components/modal-launcher';
 import { fetchCenters, fetchMallams, fetchPods, fetchStudents } from '../../../lib/api';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
@@ -60,9 +61,25 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
         />
       </section>
 
-      <section style={{ ...responsiveGrid(340), marginBottom: 20 }}>
-        <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} />
-        <DeleteMallamForm mallam={mallam} />
+      <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20, justifyContent: 'flex-end' }}>
+        <ModalLauncher
+          buttonLabel="✏️ Edit mallam"
+          title={`Edit ${mallam.displayName || mallam.name}`}
+          description="Update mallam details from a focused popup instead of a giant inline form."
+          eyebrow="Mallam admin"
+          triggerStyle={{ borderRadius: 14, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', boxShadow: 'none' }}
+        >
+          <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} />
+        </ModalLauncher>
+        <ModalLauncher
+          buttonLabel="🗑️ Delete mallam"
+          title={`Delete ${mallam.displayName || mallam.name}`}
+          description="Remove this mallam from the live roster carefully."
+          eyebrow="Danger zone"
+          triggerStyle={{ borderRadius: 14, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', boxShadow: 'none' }}
+        >
+          <DeleteMallamForm mallam={mallam} />
+        </ModalLauncher>
       </section>
     </PageShell>
   );
