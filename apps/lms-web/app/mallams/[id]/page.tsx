@@ -51,7 +51,13 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
         </Card>
-        <MallamRosterManager mallam={mallam} assignedStudents={assignedLearners} candidateStudents={unassignedLearners} />
+        <MallamRosterManager
+          mallam={mallam}
+          roster={assignedLearners}
+          candidateLearners={unassignedLearners}
+          mallams={mallams}
+          returnPath={`/mallams/${mallam.id}`}
+        />
       </section>
 
       <section style={{ ...responsiveGrid(340), marginBottom: 20 }}>
