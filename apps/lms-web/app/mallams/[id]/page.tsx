@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function MallamDetailRedirectPage() {
-  redirect('/assignments?view=mallams');
+  redirect('/assignments');
 }

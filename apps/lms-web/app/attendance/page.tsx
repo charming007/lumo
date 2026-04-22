@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function AttendanceRedirectPage() {
-  redirect('/progress?view=attendance');
+  redirect('/progress');
 }
