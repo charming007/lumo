@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { fetchStudents } from '../../lib/api';
+import { CreateStudentForm } from '../../components/admin-forms';
+import { LearnerMallamAssignmentForm } from '../../components/learner-mallam-assignment-form';
+import { fetchCohorts, fetchMallams, fetchPods, fetchStudents } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function percent(value: number | null | undefined) {
@@ -8,7 +10,12 @@ function percent(value: number | null | undefined) {
 }
 
 export default async function StudentsPage() {
-  const students = await fetchStudents();
+  const [students, cohorts, pods, mallams] = await Promise.all([
+    fetchStudents(),
+    fetchCohorts(),
+    fetchPods(),
+    fetchMallams(),
+  ]);
   const activeStudents = students.filter((student) => (student.stage || '').toLowerCase() !== 'inactive');
   const avgAttendance = students.length
     ? Math.round(students.reduce((sum, student) => sum + (Number(student.attendanceRate) || 0), 0) / students.length)
@@ -32,7 +39,11 @@ export default async function StudentsPage() {
       }
     >
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
-        {students.slice(0, 3).map((student) => (
+        <CreateStudentForm cohorts={cohorts} pods={pods} mallams={mallams} />
+        {students.slice(0, 2).map((student) => (
+          <LearnerMallamAssignmentForm key={`assign-${student.id}`} student={student} mallams={mallams} returnPath="/students" />
+        ))}
+        {students.slice(0, 2).map((student) => (
           <Card key={student.id} title={student.name} eyebrow={student.level || 'Learner'}>
             <div style={{ display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

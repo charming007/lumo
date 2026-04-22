@@ -1,9 +1,14 @@
 import Link from 'next/link';
-import { fetchMallams } from '../../lib/api';
+import { CreateMallamForm } from '../../components/admin-forms';
+import { fetchCenters, fetchMallams, fetchPods } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 export default async function MallamsPage() {
-  const mallams = await fetchMallams();
+  const [mallams, centers, pods] = await Promise.all([
+    fetchMallams(),
+    fetchCenters(),
+    fetchPods(),
+  ]);
   const active = mallams.filter((mallam) => (mallam.status || '').toLowerCase() === 'active');
 
   return (
@@ -24,7 +29,8 @@ export default async function MallamsPage() {
       }
     >
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
-        {mallams.slice(0, 3).map((mallam) => (
+        <CreateMallamForm centers={centers} pods={pods} />
+        {mallams.slice(0, 2).map((mallam) => (
           <Card key={mallam.id} title={mallam.displayName || mallam.name} eyebrow={mallam.role || 'Mallam'}>
             <div style={{ display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

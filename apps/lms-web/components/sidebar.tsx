@@ -131,8 +131,8 @@ export function Sidebar({
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
           <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Pilot routes only</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>This shell is intentionally limited to Dashboard, Content Library, Assignments, Progress, and Settings so deployment review stays pinned to the launch-critical surfaces.</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full navigation active</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the full LMS shell to manage curriculum, learners, mallams, assignments, rewards, reporting, and deployment trust from one place.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
