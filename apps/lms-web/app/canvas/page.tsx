@@ -1,22 +1,45 @@
-import Link from 'next/link';
-import { PageShell, Card } from '../../lib/ui';
+import { CurriculumCanvas } from '../../components/curriculum-canvas';
+import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
+import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromApiTree } from '../../lib/curriculum-canvas';
+import { Card, MetricList, PageShell } from '../../lib/ui';
 
-export default function CanvasPage() {
+export default async function CanvasPage() {
+  const [subjects, strands, modules, lessons, assessments, tree] = await Promise.all([
+    fetchSubjects(),
+    fetchStrands(),
+    fetchCurriculumModules(),
+    fetchLessons(),
+    fetchAssessments(),
+    fetchCurriculumCanvasTree(),
+  ]);
+
+  const fallbackData = buildCurriculumCanvasData({ subjects, strands, modules, lessons, assessments });
+  const canvasData = buildCurriculumCanvasDataFromApiTree(tree, {
+    fallbackData,
+    modules,
+    lessons,
+    assessments,
+  });
+
   return (
     <PageShell
       title="Curriculum Canvas"
-      subtitle="Canvas is being restored as its own workspace instead of dumping users into Content Library."
+      subtitle="View the live curriculum graph across subjects, strands, modules, lessons, and assessment gates."
+      breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
+      aside={
+        <Card title="Canvas summary" eyebrow="Live API">
+          <MetricList
+            items={[
+              { label: 'Subjects', value: String(canvasData.summary.subjects) },
+              { label: 'Modules', value: String(canvasData.summary.modules) },
+              { label: 'Lessons', value: String(canvasData.summary.lessons) },
+              { label: 'Assessments', value: String(canvasData.summary.assessments) },
+            ]}
+          />
+        </Card>
+      }
     >
-      <Card title="Curriculum Canvas route restored" eyebrow="Route restored">
-        <div style={{ color: '#475569', lineHeight: 1.7, marginBottom: 16 }}>
-          This route used to redirect to <strong>Content Library</strong>. The redirect has been removed so the navigation behaves honestly.
-        </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Link href="/content" style={{ textDecoration: 'none', fontWeight: 800, color: '#0f766e' }}>
-            Open Content Library
-          </Link>
-        </div>
-      </Card>
+      <CurriculumCanvas data={canvasData} assessments={assessments} />
     </PageShell>
   );
 }

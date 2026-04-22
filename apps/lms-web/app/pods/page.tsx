@@ -1,22 +1,59 @@
 import Link from 'next/link';
-import { PageShell, Card } from '../../lib/ui';
+import { fetchPods } from '../../lib/api';
+import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
-export default function PodsPage() {
+export default async function PodsPage() {
+  const pods = await fetchPods();
+  const activePods = pods.filter((pod) => (pod.status || '').toLowerCase() === 'active');
+
   return (
     <PageShell
       title="Pods"
-      subtitle="Pod operations are being rebuilt as a dedicated route instead of redirecting to Assignments."
+      subtitle="Monitor pod composition, mallam assignment, and learner throughput without bouncing into Assignments."
+      breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
+      aside={
+        <Card title="Pod snapshot" eyebrow="Live API">
+          <MetricList
+            items={[
+              { label: 'Pods', value: String(pods.length) },
+              { label: 'Active', value: String(activePods.length) },
+              { label: 'Avg learners', value: pods.length ? String(Math.round(pods.reduce((sum, pod) => sum + (pod.learnerCount || 0), 0) / pods.length)) : '0' },
+            ]}
+          />
+        </Card>
+      }
     >
-      <Card title="Pods workspace in progress" eyebrow="Route restored">
-        <div style={{ color: '#475569', lineHeight: 1.7, marginBottom: 16 }}>
-          This route used to redirect to <strong>Assignments</strong>. The redirect has been removed.
-        </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Link href="/assignments" style={{ textDecoration: 'none', fontWeight: 800, color: '#9a3412' }}>
-            Open Assignments
-          </Link>
-        </div>
-      </Card>
+      <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
+        {pods.slice(0, 3).map((pod) => (
+          <Card key={pod.id} title={pod.label || pod.name || pod.id} eyebrow={pod.status || 'Pod'}>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Pill label={`${pod.learnerCount || 0} learners`} tone="#EEF2FF" text="#3730A3" />
+                <Pill label={pod.mallamName || 'No mallam'} tone="#ECFDF5" text="#166534" />
+              </div>
+              <div style={{ color: '#475569', lineHeight: 1.6 }}>
+                Cohort: <strong>{pod.cohortName || 'Unknown'}</strong><br />
+                Center: <strong>{pod.centerName || 'Unknown'}</strong>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </section>
+
+      <SimpleTable
+        columns={['Pod', 'Status', 'Learners', 'Mallam', 'Cohort', 'Center', 'Actions']}
+        rows={pods.map((pod) => [
+          pod.label || pod.name || pod.id,
+          <Pill key={`${pod.id}-status`} label={pod.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
+          String(pod.learnerCount || 0),
+          pod.mallamName || '—',
+          pod.cohortName || '—',
+          pod.centerName || '—',
+          <Link key={`${pod.id}-link`} href="/assignments" style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
+            Open assignments
+          </Link>,
+        ])}
+      />
     </PageShell>
   );
 }

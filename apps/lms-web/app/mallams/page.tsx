@@ -1,22 +1,63 @@
 import Link from 'next/link';
-import { PageShell, Card } from '../../lib/ui';
+import { fetchMallams } from '../../lib/api';
+import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
-export default function MallamsPage() {
+export default async function MallamsPage() {
+  const mallams = await fetchMallams();
+  const active = mallams.filter((mallam) => (mallam.status || '').toLowerCase() === 'active');
+
   return (
     <PageShell
       title="Mallams"
-      subtitle="Mallam operations are being rebuilt as a dedicated route instead of redirecting to Assignments."
+      subtitle="Manage facilitator coverage, assigned pods, languages, and center distribution."
+      breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
+      aside={
+        <Card title="Mallam coverage" eyebrow="Live API">
+          <MetricList
+            items={[
+              { label: 'Mallams', value: String(mallams.length) },
+              { label: 'Active', value: String(active.length) },
+              { label: 'Pods covered', value: String(new Set(mallams.flatMap((mallam) => mallam.podLabels || [])).size) },
+            ]}
+          />
+        </Card>
+      }
     >
-      <Card title="Mallams workspace in progress" eyebrow="Route restored">
-        <div style={{ color: '#475569', lineHeight: 1.7, marginBottom: 16 }}>
-          This route used to redirect to <strong>Assignments</strong>. The redirect has been removed.
-        </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Link href="/assignments" style={{ textDecoration: 'none', fontWeight: 800, color: '#9a3412' }}>
-            Open Assignments
-          </Link>
-        </div>
-      </Card>
+      <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
+        {mallams.slice(0, 3).map((mallam) => (
+          <Card key={mallam.id} title={mallam.displayName || mallam.name} eyebrow={mallam.role || 'Mallam'}>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Pill label={mallam.status || 'Unknown'} tone="#ECFDF5" text="#166534" />
+                <Pill label={mallam.certificationLevel || 'Certification pending'} tone="#EEF2FF" text="#3730A3" />
+              </div>
+              <div style={{ color: '#475569', lineHeight: 1.6 }}>
+                Learners: <strong>{mallam.learnerCount}</strong><br />
+                Pods: <strong>{(mallam.podLabels || []).join(', ') || 'None'}</strong><br />
+                Center: <strong>{mallam.centerName || 'Unknown'}</strong>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </section>
+
+      <SimpleTable
+        columns={['Mallam', 'Status', 'Learners', 'Pods', 'Languages', 'Center', 'Actions']}
+        rows={mallams.map((mallam) => [
+          <div key={`${mallam.id}-name`}>
+            <strong>{mallam.displayName || mallam.name}</strong>
+            <div style={{ color: '#64748b', marginTop: 4 }}>{mallam.role || 'Mallam'} · {mallam.region || 'Unknown region'}</div>
+          </div>,
+          <Pill key={`${mallam.id}-status`} label={mallam.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
+          String(mallam.learnerCount || 0),
+          (mallam.podLabels || []).join(', ') || '—',
+          (mallam.languages || []).join(', ') || '—',
+          mallam.centerName || '—',
+          <Link key={`${mallam.id}-link`} href="/assignments" style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
+            Open assignments
+          </Link>,
+        ])}
+      />
     </PageShell>
   );
 }
