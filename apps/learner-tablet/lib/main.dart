@@ -2865,19 +2865,23 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           SizedBox(
                                             width: double.infinity,
                                             child: FilledButton.tonalIcon(
-                                              onPressed: () {
-                                                state.selectLearner(learner);
-                                                launchLessonFlow(
-                                                  context: context,
-                                                  state: state,
-                                                  onChanged: () {},
-                                                  lesson: lesson,
-                                                  resumeFrom:
-                                                      matchesResumableSession
-                                                          ? resumableSession
-                                                          : null,
-                                                );
-                                              },
+                                              onPressed:
+                                                  lesson.isAssignmentPlaceholder
+                                                      ? null
+                                                      : () {
+                                                          state.selectLearner(
+                                                              learner);
+                                                          launchLessonFlow(
+                                                            context: context,
+                                                            state: state,
+                                                            onChanged: () {},
+                                                            lesson: lesson,
+                                                            resumeFrom:
+                                                                matchesResumableSession
+                                                                    ? resumableSession
+                                                                    : null,
+                                                          );
+                                                        },
                                               icon: Icon(
                                                 lesson.isAssignmentPlaceholder
                                                     ? Icons.sync_rounded

@@ -1071,6 +1071,74 @@ void main() {
   });
 
   testWidgets(
+      'learner profile keeps sync-pending assigned lessons blocked until refresh', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final learner = state.learners.first;
+    final module = state.modules.firstWhere((item) => item.id == 'english');
+    state.currentLearner = learner;
+    state.assignedLessons
+      ..clear()
+      ..add(
+        LessonCardModel(
+          id: 'assignment-placeholder:profile-blocked',
+          moduleId: module.id,
+          title: 'Backend lesson still syncing',
+          subject: 'Live assignment',
+          durationMinutes: 10,
+          status: 'assigned',
+          mascotName: 'Mallam',
+          readinessFocus: 'Assignment payload reached the tablet first.',
+          scenario: 'Real lesson payload has not synced yet.',
+          steps: const [
+            LessonStep(
+              id: 'assignment-placeholder-step',
+              type: LessonStepType.intro,
+              title: 'Lesson sync pending',
+              instruction: 'Refresh sync before starting this assignment.',
+              expectedResponse: 'Refresh sync first.',
+              coachPrompt: 'Do not start runtime on a placeholder lesson.',
+              facilitatorTip: 'Refresh assignments first.',
+              realWorldCheck: 'Only start once the real lesson appears.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorObservers: [lumoRouteObserver],
+        home: LearnerProfilePage(
+          state: state,
+          learner: learner,
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    final refreshButton = find.widgetWithText(
+      FilledButton,
+      'Refresh sync before starting',
+    );
+    expect(refreshButton, findsOneWidget);
+    expect(tester.widget<FilledButton>(refreshButton).onPressed, isNull);
+
+    await tester.tap(refreshButton, warnIfMissed: false);
+    await pumpForUi(tester);
+
+    expect(find.byType(LessonLaunchSetupPage), findsNothing);
+    expect(find.text('Choose learner'), findsNothing);
+
+    state.dispose();
+  });
+
+  testWidgets(
       'learner profile refreshes while an async reward reconciliation lands', (
     tester,
   ) async {
