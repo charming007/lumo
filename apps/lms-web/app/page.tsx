@@ -743,14 +743,14 @@ export default async function HomePage() {
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Hidden from the default pilot path</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Legacy shortcuts now funnel back into the pilot path</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Learners', 'Mallams', 'Rewards', 'Canvas', 'English', 'Reports', 'Guide', 'Attendance', 'Pods'].map((label) => (
+                {['Learners → Progress', 'Mallams → Assignments', 'Rewards → Settings', 'Canvas → Content', 'English → Content', 'Reports → Progress', 'Guide → Settings', 'Attendance → Progress', 'Pods → Assignments'].map((label) => (
                   <Pill key={label} label={label} tone="#FFEDD5" text="#9A3412" />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
-                Those routes still exist for deeper triage, but the dashboard should stop advertising them like co-equal pilot surfaces. That is how you get route sprawl and contradictory operator habits.
+                The old route names are still caught for compatibility, but they no longer represent separate pilot surfaces. Landing here should reinforce one control plane, not hint that operators should wander off and invent side workflows.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
