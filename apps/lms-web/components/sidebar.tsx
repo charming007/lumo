@@ -250,8 +250,9 @@ export function Sidebar({
 
         .sidebar--collapsed .sidebar__nav-link {
           justify-content: center;
-          padding-left: 10px !important;
-          padding-right: 10px !important;
+          padding-left: 12px !important;
+          padding-right: 12px !important;
+          min-width: 0;
         }
 
         .sidebar--collapsed .sidebar__actions {

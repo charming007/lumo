@@ -84,7 +84,7 @@ export function AppShell({
         }
 
         .app-shell--sidebar-collapsed {
-          grid-template-columns: 96px minmax(0, 1fr);
+          grid-template-columns: 112px minmax(0, 1fr);
         }
 
         .app-shell__mobile-menu-button {
