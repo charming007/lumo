@@ -1,7 +1,17 @@
 export const navigationItems = [
   { label: 'Dashboard', href: '/' },
   { label: 'Content Library', href: '/content' },
+  { label: 'Curriculum Canvas', href: '/canvas' },
+  { label: 'Students', href: '/students' },
+  { label: 'Mallams', href: '/mallams' },
+  { label: 'Pods', href: '/pods' },
+  { label: 'Attendance', href: '/attendance' },
   { label: 'Assignments', href: '/assignments' },
+  { label: 'Assessments', href: '/assessments' },
   { label: 'Progress', href: '/progress' },
+  { label: 'Reports', href: '/reports' },
+  { label: 'Rewards', href: '/rewards' },
+  { label: 'English Studio', href: '/english' },
+  { label: 'Guide', href: '/guide' },
   { label: 'Settings', href: '/settings' },
 ];
