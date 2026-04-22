@@ -670,6 +670,81 @@ LearningModule resolveLessonModule({
       );
 }
 
+class LearnerSubjectCardModel {
+  final String id;
+  final String title;
+  final String description;
+  final String voicePrompt;
+  final String readinessGoal;
+  final String badge;
+  final LearningModule module;
+
+  const LearnerSubjectCardModel({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.voicePrompt,
+    required this.readinessGoal,
+    required this.badge,
+    required this.module,
+  });
+}
+
+String _normalizeSubjectKey(String value) {
+  return value.trim().toLowerCase();
+}
+
+List<LearnerSubjectCardModel> buildLearnerSubjectCards({
+  required LumoAppState state,
+  LearnerProfile? learner,
+}) {
+  final lessonPool = state.lessonsForLearner(learner);
+  final cards = <LearnerSubjectCardModel>[];
+  final seen = <String>{};
+
+  void addCard({
+    required String subjectKey,
+    required String subjectTitle,
+    required LearningModule module,
+  }) {
+    if (subjectKey.isEmpty || seen.contains(subjectKey)) return;
+    seen.add(subjectKey);
+    cards.add(
+      LearnerSubjectCardModel(
+        id: subjectKey,
+        title: subjectTitle,
+        description:
+            'Open $subjectTitle first, then choose the lesson and learner from the live path.',
+        voicePrompt:
+            'We are opening $subjectTitle. Choose the next lesson calmly.',
+        readinessGoal: 'Keep the learner inside one subject path at a time',
+        badge: module.badge,
+        module: module,
+      ),
+    );
+  }
+
+  for (final lesson in lessonPool) {
+    final module = resolveLessonModule(state: state, lesson: lesson);
+    final subjectKey = _normalizeSubjectKey(
+      module.id.trim().isNotEmpty ? module.id : lesson.moduleId,
+    );
+    final subjectTitle = module.title.trim().isNotEmpty
+        ? module.title.trim()
+        : lesson.subject.trim().isNotEmpty
+            ? lesson.subject.trim()
+            : 'Learning';
+
+    addCard(
+      subjectKey: subjectKey,
+      subjectTitle: subjectTitle,
+      module: module,
+    );
+  }
+
+  return cards;
+}
+
 void launchLessonFlow({
   required BuildContext context,
   required LumoAppState state,
@@ -982,6 +1057,11 @@ class HomePage extends StatelessWidget {
                     }
 
                     Widget buildSubjectSection() {
+                      final subjectCards = buildLearnerSubjectCards(
+                        state: state,
+                        learner: state.currentLearner,
+                      );
+
                       return Expanded(
                         flex: shortHeight ? 9 : (compact ? 7 : 6),
                         child: Padding(
@@ -996,9 +1076,9 @@ class HomePage extends StatelessWidget {
                               final minTileWidth = compact ? 210.0 : 260.0;
                               final crossAxisSpacing = compact ? 10.0 : 14.0;
                               final preferredSingleRowCount = !compact &&
-                                      state.modules.length <= 4 &&
-                                      state.modules.isNotEmpty
-                                  ? state.modules.length
+                                      subjectCards.length <= 4 &&
+                                      subjectCards.isNotEmpty
+                                  ? subjectCards.length
                                   : 0;
                               final singleRowTileWidth =
                                   compact ? 210.0 : 220.0;
@@ -1051,7 +1131,7 @@ class HomePage extends StatelessWidget {
                                   width: centeredGridWidth,
                                   child: GridView.builder(
                                     padding: const EdgeInsets.only(bottom: 8),
-                                    itemCount: state.modules.length,
+                                    itemCount: subjectCards.length,
                                     primary: false,
                                     physics: const BouncingScrollPhysics(),
                                     shrinkWrap: false,
@@ -1065,17 +1145,26 @@ class HomePage extends StatelessWidget {
                                       childAspectRatio: aspectRatio,
                                     ),
                                     itemBuilder: (context, index) {
-                                      final module = state.modules[index];
+                                      final subject = subjectCards[index];
                                       return _SubjectCard(
-                                        module: module,
-                                        lessonCount:
-                                            state.assignedLessonCountForModule(
-                                          module: module,
-                                          learner: state.currentLearner,
+                                        module: LearningModule(
+                                          id: subject.id,
+                                          title: subject.title,
+                                          description: subject.description,
+                                          voicePrompt: subject.voicePrompt,
+                                          readinessGoal: subject.readinessGoal,
+                                          badge: subject.badge,
+                                          status: subject.module.status,
                                         ),
+                                        lessonCount: state
+                                            .lessonsForLearnerAndModule(
+                                              state.currentLearner,
+                                              subject.id,
+                                            )
+                                            .length,
                                         compact: false,
                                         onTap: () {
-                                          state.selectModule(module);
+                                          state.selectModule(subject.module);
                                           onChanged();
                                           Navigator.of(context).push(
                                             MaterialPageRoute(
@@ -1083,7 +1172,9 @@ class HomePage extends StatelessWidget {
                                                   SubjectModulesPage(
                                                 state: state,
                                                 onChanged: onChanged,
-                                                module: module,
+                                                module: subject.module,
+                                                subjectTitle: subject.title,
+                                                subjectKey: subject.id,
                                               ),
                                             ),
                                           );
@@ -3026,13 +3117,18 @@ class SubjectModulesPage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
   final LearningModule module;
+  final String subjectTitle;
+  final String subjectKey;
 
-  const SubjectModulesPage({
+  SubjectModulesPage({
     super.key,
     required this.state,
     required this.onChanged,
     required this.module,
-  });
+    String? subjectTitle,
+    String? subjectKey,
+  })  : subjectTitle = subjectTitle ?? module.title,
+        subjectKey = subjectKey ?? _normalizeSubjectKey(module.title);
 
   @override
   Widget build(BuildContext context) {
@@ -3040,10 +3136,11 @@ class SubjectModulesPage extends StatelessWidget {
     final resumableSession = selectedLearner == null
         ? null
         : state.resumableRuntimeSessionForLearner(selectedLearner);
-    final lessons = state.lessonsForLearnerAndModule(
-      selectedLearner,
-      module.id,
-    );
+    final lessons = state.lessonsForLearner(selectedLearner).where((lesson) {
+      final lessonSubject = _normalizeSubjectKey(lesson.subject);
+      final lessonModuleId = _normalizeSubjectKey(lesson.moduleId);
+      return lessonSubject == subjectKey || lessonModuleId == subjectKey;
+    }).toList();
     final nextAssignedLesson =
         state.nextAssignedLessonForLearner(selectedLearner);
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
@@ -3094,11 +3191,11 @@ class SubjectModulesPage extends StatelessWidget {
                           instruction: modulesInstruction,
                           onVoiceTap: () {
                             state.replayVisiblePrompt(
-                              'You opened ${module.title}. Start with the next lesson bubble, then follow the lesson path one step at a time.',
+                              'You opened $subjectTitle. Start with the next lesson bubble, then follow the lesson path one step at a time.',
                             );
                           },
                           prompt:
-                              'You opened ${module.title}. Choose a lesson in this subject, then start with the learner who is taking it.',
+                              'You opened $subjectTitle. Choose a lesson in this subject, then start with the learner who is taking it.',
                           speakerMode: SpeakerMode.guiding,
                           statusLabel: 'Mallam leads the lesson',
                           secondaryStatus: 'Lesson path guide',
@@ -8612,8 +8709,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                         final primaryAction = isChoiceStep
                             ? (canAdvanceChoiceStep
                                 ? () async {
-                                    final outcome = widget.state
-                                        .submitLearnerResponse(
+                                    final outcome =
+                                        widget.state.submitLearnerResponse(
                                       responseController.text,
                                     );
                                     transcriptReviewPending = false;
@@ -8621,7 +8718,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                     widget.onChanged();
                                     if (!mounted) return;
                                     setState(() {
-                                      microphoneStatus = outcome.automationStatus;
+                                      microphoneStatus =
+                                          outcome.automationStatus;
                                     });
                                     if (!outcome.accepted) {
                                       return;
