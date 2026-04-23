@@ -195,11 +195,20 @@ function deletePod(id) {
 }
 
 function createPod(input) {
+  const matchingMallam = Array.isArray(input.mallamIds) && input.mallamIds.length
+    ? findTeacherById(input.mallamIds[0])
+    : null;
+  const derivedCenter = input.centerId
+    ? findCenterById(input.centerId)
+    : matchingMallam?.centerId
+      ? findCenterById(matchingMallam.centerId)
+      : (data.centers || []).find((item) => item.stateId === input.stateId && item.localGovernmentId === input.localGovernmentId) || null;
+
   const pod = {
     id: input.id || `pod-${data.pods.length + 1}`,
-    centerId: input.centerId,
-    stateId: input.stateId || null,
-    localGovernmentId: input.localGovernmentId || null,
+    centerId: input.centerId || derivedCenter?.id || null,
+    stateId: input.stateId || derivedCenter?.stateId || null,
+    localGovernmentId: input.localGovernmentId || derivedCenter?.localGovernmentId || null,
     code: input.code || null,
     label: input.label,
     type: input.type || 'community-pod',
