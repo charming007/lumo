@@ -843,7 +843,8 @@ LearnerLessonAvailability learnerLessonAvailability({
       return const LearnerLessonAvailability(
         kind: LearnerLessonAvailabilityKind.skipped,
         label: 'Skipped today',
-        detail: 'This learner already skipped this lesson today on this tablet.',
+        detail:
+            'This learner already skipped this lesson today on this tablet.',
       );
     }
     if (state.lessonCompletedTodayForLearner(learner, lesson)) {
@@ -3456,6 +3457,63 @@ class SubjectModulesPage extends StatelessWidget {
               learner: state.currentLearner,
             );
 
+  LessonCardModel? _resolveHighlightedLesson(List<LessonCardModel> lessons) {
+    if (lessons.isEmpty) return null;
+
+    final currentLearner = state.currentLearner;
+    if (currentLearner != null) {
+      final learnerPreferred =
+          state.nextAssignedLessonForLearner(currentLearner);
+      if (learnerPreferred != null) {
+        final inSubjectMatch = lessons.cast<LessonCardModel?>().firstWhere(
+              (lesson) => lesson?.id == learnerPreferred.id,
+              orElse: () => null,
+            );
+        if (inSubjectMatch != null) return inSubjectMatch;
+      }
+
+      for (final lesson in lessons) {
+        final availability = learnerLessonAvailability(
+          state: state,
+          learner: currentLearner,
+          lesson: lesson,
+        );
+        if (availability.kind == LearnerLessonAvailabilityKind.resumeReady ||
+            availability.kind == LearnerLessonAvailabilityKind.assigned ||
+            availability.kind == LearnerLessonAvailabilityKind.available) {
+          return lesson;
+        }
+      }
+    }
+
+    for (final kind in const [
+      LearnerLessonAvailabilityKind.resumeReady,
+      LearnerLessonAvailabilityKind.assigned,
+      LearnerLessonAvailabilityKind.available,
+    ]) {
+      for (final lesson in lessons) {
+        final learners = state.availableLearnersForLesson(lesson);
+        final matchingLearner = learners.cast<LearnerProfile?>().firstWhere(
+              (learner) =>
+                  learner != null &&
+                  learnerLessonAvailability(
+                        state: state,
+                        learner: learner,
+                        lesson: lesson,
+                      ).kind ==
+                      kind,
+              orElse: () => null,
+            );
+        if (matchingLearner != null) return lesson;
+      }
+    }
+
+    return lessons.cast<LessonCardModel?>().firstWhere(
+          (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
+          orElse: () => lessons.first,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final lessons =
@@ -3465,7 +3523,7 @@ class SubjectModulesPage extends StatelessWidget {
       }
       return state.availableLearnersForLesson(lesson).isNotEmpty;
     }).toList();
-    final nextAssignedLesson = null;
+    final nextAssignedLesson = _resolveHighlightedLesson(lessons);
     final registrationBlocked = state.registrationBlockerReason;
     final usingFallbackData = state.usingFallbackData;
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
