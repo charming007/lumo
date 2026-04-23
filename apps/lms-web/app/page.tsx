@@ -3,10 +3,10 @@ import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 
 export const dynamic = 'force-dynamic';
 
-import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchWorkboard } from '../lib/api';
+import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
-import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, WorkboardItem } from '../lib/types';
+import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 
@@ -235,7 +235,7 @@ export default async function HomePage() {
     );
   }
 
-  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult, modulesResult, lessonsResult, assessmentsResult, assetRuntimeResult] = await Promise.allSettled([
+  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult, modulesResult, lessonsResult, assessmentsResult, assetRuntimeResult, subjectsResult] = await Promise.allSettled([
     fetchDashboardSummary(),
     fetchDashboardInsights(),
     fetchWorkboard(),
@@ -245,6 +245,7 @@ export default async function HomePage() {
     fetchLessons(),
     fetchAssessments(),
     fetchAssetRuntime(8),
+    fetchSubjects(),
   ]);
 
   const summary: DashboardSummary = summaryResult.status === 'fulfilled' ? summaryResult.value : emptySummary;
@@ -259,6 +260,7 @@ export default async function HomePage() {
   const modules: CurriculumModule[] = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons: Lesson[] = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const assessments: Assessment[] = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const subjects: Subject[] = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const assetRuntime = assetRuntimeResult.status === 'fulfilled' ? assetRuntimeResult.value : null;
   const assetOpsVisibleBlocker = Boolean(
     assetRuntime && (
@@ -286,6 +288,7 @@ export default async function HomePage() {
     { label: 'lessons', result: lessonsResult },
     { label: 'assessments', result: assessmentsResult },
     { label: 'asset runtime', result: assetRuntimeResult },
+    { label: 'subjects', result: subjectsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
@@ -300,7 +303,7 @@ export default async function HomePage() {
     assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
-  const healthyFeedCount = 9 - failedSources.length;
+  const healthyFeedCount = 10 - failedSources.length;
   const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
     ? 'Blocked'
     : failedSources.length
@@ -371,14 +374,21 @@ export default async function HomePage() {
   const topReleaseBlockerBoardHref = topReleaseBlocker
     ? `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${encodeURIComponent(topReleaseBlocker.subjectId)}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`
     : '/content?view=blocked';
-  const topReleaseBlockerPrimaryHref = topReleaseBlocker?.missingLessons && topReleaseBlocker.hasAuthoringContext
+  const canLaunchTopReleaseLessonCreate = Boolean(
+    topReleaseBlocker?.missingLessons
+    && topReleaseBlocker.hasAuthoringContext
+    && subjects.some((subject) => subject.id === topReleaseBlocker.subjectId),
+  );
+  const topReleaseBlockerPrimaryHref = canLaunchTopReleaseLessonCreate && topReleaseBlocker
     ? `/content/lessons/new?subjectId=${encodeURIComponent(topReleaseBlocker.subjectId)}&moduleId=${encodeURIComponent(topReleaseBlocker.id)}&from=${encodeURIComponent(topReleaseBlockerBoardHref)}&focus=blockers`
     : topReleaseBlockerBoardHref;
-  const topReleaseBlockerPrimaryLabel = topReleaseBlocker?.missingLessons && topReleaseBlocker.hasAuthoringContext
+  const topReleaseBlockerPrimaryLabel = canLaunchTopReleaseLessonCreate && topReleaseBlocker
     ? topReleaseBlocker.missingLessons === 1
       ? 'Create missing lesson'
       : `Create ${topReleaseBlocker.missingLessons} missing lessons`
-    : 'Open exact blocker';
+    : topReleaseBlocker?.missingLessons
+      ? 'Recover subject context first'
+      : 'Open exact blocker';
 
   if (hasCriticalDashboardGap || criticalReleaseFailures.length || hasCriticalAssetOpsGap) {
     const blockerDetail = hasCriticalDashboardGap
@@ -595,7 +605,7 @@ export default async function HomePage() {
               <Pill label={dashboardTrustBadge} tone={dashboardTrustTone.tone} text={dashboardTrustTone.text} />
             </div>
             <div style={{ color: '#334155', lineHeight: 1.6 }}>
-              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/9 dashboard feeds responding.
+              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/10 dashboard feeds responding.
               {failedSources.length ? ` Missing or degraded: ${failedSources.join(', ')}.` : ' No missing feeds detected in this pull.'}
             </div>
             <div style={{ color: '#64748b', lineHeight: 1.6 }}>
@@ -719,7 +729,9 @@ export default async function HomePage() {
                   ) : null}
                 </div>
                 <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
-                  The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so pilot operators do not end up juggling two competing release boards.
+                  {canLaunchTopReleaseLessonCreate
+                    ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so pilot operators do not end up juggling two competing release boards.'
+                    : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Link href={topReleaseBlockerPrimaryHref} style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
