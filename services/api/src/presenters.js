@@ -488,10 +488,12 @@ function presentDeviceRegistration(entry) {
       : center?.localGovernmentId
         ? repository.findLocalGovernmentById(center.localGovernmentId)
         : null;
-  const mallam = entry.assignedMallamId ? repository.findTeacherById(entry.assignedMallamId) : null;
+  const resolvedMallamId = entry.assignedMallamId || (Array.isArray(pod?.mallamIds) && pod.mallamIds.length ? pod.mallamIds[0] : null);
+  const mallam = resolvedMallamId ? repository.findTeacherById(resolvedMallamId) : null;
 
   return {
     ...entry,
+    tabletName: entry.tabletName ?? null,
     centerId: entry.centerId || pod?.centerId || null,
     centerName: center?.name ?? null,
     podLabel: pod?.label ?? null,
@@ -499,6 +501,7 @@ function presentDeviceRegistration(entry) {
     stateName: state?.name ?? null,
     localGovernmentId: entry.localGovernmentId || pod?.localGovernmentId || center?.localGovernmentId || null,
     localGovernmentName: localGovernment?.name ?? null,
+    assignedMallamId: resolvedMallamId,
     assignedMallamName: mallam?.displayName ?? mallam?.name ?? null,
   };
 }

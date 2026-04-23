@@ -13,7 +13,7 @@ const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole, getAuthAudit } = require('./auth');
 const { getBuildInfo } = require('./build-info');
 const { synthesizeTutorVoice } = require('./voice');
-const { buildPodLabelParts } = require('./pod-naming');
+const { buildPodLabelParts, buildTabletIdentifier, extractPodShortNameFromLabel, slugifyPodSegment } = require('./pod-naming');
 
 const app = express();
 app.set('trust proxy', true);
@@ -255,6 +255,42 @@ function readPositiveIntEnv(name, fallback) {
   if (raw === undefined || raw === null || raw === '') return fallback;
   const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function deriveDeviceRegistrationPayload(input = {}, { partial = false } = {}) {
+  const payload = input && typeof input === 'object' ? { ...input } : {};
+  const podId = coerceOptionalString(payload.podId);
+  const pod = podId ? store.findPodById(podId) : null;
+  const tabletName = coerceOptionalString(payload.tabletName);
+  const fallbackMallamId = Array.isArray(pod?.mallamIds) && pod.mallamIds.length
+    ? pod.mallamIds[0]
+    : store.listTeachers().find((teacher) => Array.isArray(teacher.podIds) && teacher.podIds.includes(podId))?.id || null;
+
+  payload.podId = podId;
+
+  if (!partial || tabletName !== null) {
+    payload.tabletName = tabletName;
+  }
+
+  if (pod) {
+    payload.centerId = pod.centerId || null;
+    payload.stateId = pod.stateId || null;
+    payload.localGovernmentId = pod.localGovernmentId || null;
+    payload.assignedMallamId = coerceOptionalString(payload.assignedMallamId) || fallbackMallamId;
+  } else if (!partial || payload.assignedMallamId !== undefined) {
+    payload.assignedMallamId = coerceOptionalString(payload.assignedMallamId);
+  }
+
+  if (pod?.label && tabletName) {
+    payload.deviceIdentifier = buildTabletIdentifier({
+      podLabel: pod.label,
+      tabletName,
+    });
+  } else if (!partial || payload.deviceIdentifier !== undefined) {
+    payload.deviceIdentifier = coerceOptionalString(payload.deviceIdentifier);
+  }
+
+  return payload;
 }
 
 function getClientAddress(req) {
@@ -2082,10 +2118,21 @@ app.post('/api/v1/pods', ...protectedMutation(['admin']), (req, res, next) => {
     const state = req.body?.stateId ? (store.listStates() || []).find((item) => item.id === req.body.stateId) || null : null;
     const localGovernment = req.body?.localGovernmentId ? (store.listLocalGovernments() || []).find((item) => item.id === req.body.localGovernmentId) || null : null;
     const mallamIds = Array.isArray(req.body?.mallamIds) ? req.body.mallamIds : [];
-    const mallamCenter = mallamIds.length ? (store.listTeachers() || []).find((item) => mallamIds.includes(item.id) && item.centerId)?.centerId : null;
-    const center = (store.listCenters() || []).find((item) => item.id === req.body?.centerId)
-      || (mallamCenter ? (store.listCenters() || []).find((item) => item.id === mallamCenter) : null)
-      || (store.listCenters() || []).find((item) => item.stateId === req.body?.stateId && item.localGovernmentId === req.body?.localGovernmentId)
+    const teachers = store.listTeachers() || [];
+    const centers = store.listCenters() || [];
+    const mallamCenter = mallamIds.length
+      ? teachers
+        .filter((item) => mallamIds.includes(item.id) && item.centerId)
+        .map((item) => centers.find((center) => center.id === item.centerId) || null)
+        .find((center) => center && (!req.body?.stateId || center.stateId === req.body.stateId) && (!req.body?.localGovernmentId || center.localGovernmentId === req.body.localGovernmentId))
+        || teachers
+          .filter((item) => mallamIds.includes(item.id) && item.centerId)
+          .map((item) => centers.find((center) => center.id === item.centerId) || null)
+          .find(Boolean)
+      : null;
+    const center = centers.find((item) => item.id === req.body?.centerId)
+      || mallamCenter
+      || centers.find((item) => item.stateId === req.body?.stateId && item.localGovernmentId === req.body?.localGovernmentId)
       || null;
     const podName = String(req.body?.podName || '').trim();
     const generatedLabel = buildPodLabelParts({
@@ -2120,15 +2167,28 @@ app.patch('/api/v1/pods/:id', ...protectedMutation(['admin']), (req, res, next) 
     const mallamIds = Array.isArray(req.body?.mallamIds) ? req.body.mallamIds : current.mallamIds || [];
     const stateId = req.body?.stateId ?? current.stateId;
     const localGovernmentId = req.body?.localGovernmentId ?? current.localGovernmentId;
-    const podName = String(req.body?.podName || '').trim();
+    const requestedPodName = String(req.body?.podName || '').trim();
+    const podName = requestedPodName || extractPodShortNameFromLabel(current.label);
     const state = stateId ? (store.listStates() || []).find((item) => item.id === stateId) || null : null;
     const localGovernment = localGovernmentId ? (store.listLocalGovernments() || []).find((item) => item.id === localGovernmentId) || null : null;
-    const mallamCenter = mallamIds.length ? (store.listTeachers() || []).find((item) => mallamIds.includes(item.id) && item.centerId)?.centerId : null;
-    const center = (store.listCenters() || []).find((item) => item.id === req.body?.centerId)
-      || (mallamCenter ? (store.listCenters() || []).find((item) => item.id === mallamCenter) : null)
-      || (store.listCenters() || []).find((item) => item.stateId === stateId && item.localGovernmentId === localGovernmentId)
-      || (current.centerId ? (store.listCenters() || []).find((item) => item.id === current.centerId) : null)
+    const teachers = store.listTeachers() || [];
+    const centers = store.listCenters() || [];
+    const mallamCenter = mallamIds.length
+      ? teachers
+        .filter((item) => mallamIds.includes(item.id) && item.centerId)
+        .map((item) => centers.find((center) => center.id === item.centerId) || null)
+        .find((center) => center && (!stateId || center.stateId === stateId) && (!localGovernmentId || center.localGovernmentId === localGovernmentId))
+        || teachers
+          .filter((item) => mallamIds.includes(item.id) && item.centerId)
+          .map((item) => centers.find((center) => center.id === item.centerId) || null)
+          .find(Boolean)
+      : null;
+    const center = centers.find((item) => item.id === req.body?.centerId)
+      || mallamCenter
+      || centers.find((item) => item.stateId === stateId && item.localGovernmentId === localGovernmentId)
+      || (current.centerId ? centers.find((item) => item.id === current.centerId) : null)
       || null;
+    const shouldRegenerateLabel = Boolean(requestedPodName || req.body?.stateId || req.body?.localGovernmentId);
 
     const payload = {
       ...req.body,
@@ -2136,7 +2196,7 @@ app.patch('/api/v1/pods/:id', ...protectedMutation(['admin']), (req, res, next) 
       stateId: stateId || center?.stateId || null,
       localGovernmentId: localGovernmentId || center?.localGovernmentId || null,
       mallamIds,
-      label: podName ? buildPodLabelParts({ stateName: state?.name, localGovernmentName: localGovernment?.name, podName }).label : req.body?.label,
+      label: shouldRegenerateLabel ? buildPodLabelParts({ stateName: state?.name, localGovernmentName: localGovernment?.name, podName }).label : req.body?.label,
     };
 
     validators.validatePod(payload, { partial: true });
@@ -2170,8 +2230,9 @@ app.get('/api/v1/device-registrations', (req, res) => {
 
 app.post('/api/v1/device-registrations', ...protectedMutation(['admin']), (req, res, next) => {
   try {
-    validators.validateDeviceRegistration(req.body);
-    return res.status(201).json(presenters.presentDeviceRegistration(store.createDeviceRegistration(req.body)));
+    const payload = deriveDeviceRegistrationPayload(req.body);
+    validators.validateDeviceRegistration(payload);
+    return res.status(201).json(presenters.presentDeviceRegistration(store.createDeviceRegistration(payload)));
   } catch (error) {
     return next(error);
   }
@@ -2179,8 +2240,9 @@ app.post('/api/v1/device-registrations', ...protectedMutation(['admin']), (req, 
 
 app.patch('/api/v1/device-registrations/:id', ...protectedMutation(['admin']), (req, res, next) => {
   try {
-    validators.validateDeviceRegistration(req.body, { partial: true });
-    const record = store.updateDeviceRegistration(req.params.id, req.body);
+    const payload = deriveDeviceRegistrationPayload(req.body, { partial: true });
+    validators.validateDeviceRegistration(payload, { partial: true });
+    const record = store.updateDeviceRegistration(req.params.id, payload);
     if (!record) return res.status(404).json({ message: 'Device registration not found' });
     return res.json(presenters.presentDeviceRegistration(record));
   } catch (error) {

@@ -377,6 +377,7 @@ export type DeviceRegistration = {
   localGovernmentName?: string | null;
   assignedMallamId?: string | null;
   assignedMallamName?: string | null;
+  tabletName?: string | null;
   deviceIdentifier: string;
   serialNumber?: string | null;
   platform: string;

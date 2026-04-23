@@ -1,4 +1,5 @@
 const data = require('./data');
+const { buildTabletIdentifier, extractTabletNameFromIdentifier } = require('./pod-naming');
 
 function commit(value) {
   data.persist();
@@ -1375,26 +1376,54 @@ function findDeviceRegistrationByIdentifier(deviceIdentifier) {
   return listDeviceRegistrations().find((item) => String(item.deviceIdentifier || '').trim().toLowerCase() === normalized) || null;
 }
 
-function createDeviceRegistration(input) {
-  const pod = input.podId ? findPodById(input.podId) : null;
-  const center = input.centerId ? findCenterById(input.centerId) : pod ? findCenterById(pod.centerId) : null;
-  const record = {
-    id: input.id || `device-${listDeviceRegistrations().length + 1}`,
-    podId: input.podId,
-    stateId: input.stateId || pod?.stateId || center?.stateId || null,
-    localGovernmentId: input.localGovernmentId || pod?.localGovernmentId || center?.localGovernmentId || null,
-    centerId: input.centerId || pod?.centerId || null,
-    assignedMallamId: input.assignedMallamId || null,
-    deviceIdentifier: input.deviceIdentifier,
-    serialNumber: input.serialNumber || null,
-    platform: input.platform || 'android',
-    appVersion: input.appVersion || null,
-    status: input.status || 'active',
-    metadata: input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null,
-    lastSeenAt: input.lastSeenAt || null,
-    registeredAt: input.registeredAt || new Date().toISOString(),
-  };
+function deriveMallamIdFromPod(pod) {
+  if (!pod) return null;
+  const explicitPodMallamId = Array.isArray(pod.mallamIds) && pod.mallamIds.length ? pod.mallamIds[0] : null;
+  if (explicitPodMallamId) return explicitPodMallamId;
+  return listTeachers().find((teacher) => Array.isArray(teacher.podIds) && teacher.podIds.includes(pod.id))?.id || null;
+}
 
+function deriveTabletName({ tabletName, deviceIdentifier, podLabel } = {}) {
+  const explicitName = String(tabletName || '').trim();
+  if (explicitName) return explicitName;
+  return extractTabletNameFromIdentifier(deviceIdentifier, podLabel);
+}
+
+function buildDeviceRegistrationRecord(input, existingRecord = null) {
+  const nextPodId = input.podId ?? existingRecord?.podId ?? null;
+  const pod = nextPodId ? findPodById(nextPodId) : null;
+  const nextCenterId = input.centerId ?? pod?.centerId ?? existingRecord?.centerId ?? null;
+  const center = nextCenterId ? findCenterById(nextCenterId) : null;
+  const nextTabletName = deriveTabletName({
+    tabletName: input.tabletName,
+    deviceIdentifier: input.deviceIdentifier ?? existingRecord?.deviceIdentifier,
+    podLabel: pod?.label || '',
+  }) || existingRecord?.tabletName || null;
+  const nextDeviceIdentifier = pod?.label && nextTabletName
+    ? buildTabletIdentifier({ podLabel: pod.label, tabletName: nextTabletName })
+    : (input.deviceIdentifier ?? existingRecord?.deviceIdentifier ?? null);
+
+  return {
+    id: input.id || existingRecord?.id || `device-${listDeviceRegistrations().length + 1}`,
+    podId: nextPodId,
+    stateId: pod?.stateId || center?.stateId || input.stateId || existingRecord?.stateId || null,
+    localGovernmentId: pod?.localGovernmentId || center?.localGovernmentId || input.localGovernmentId || existingRecord?.localGovernmentId || null,
+    centerId: nextCenterId,
+    assignedMallamId: input.assignedMallamId ?? deriveMallamIdFromPod(pod) ?? existingRecord?.assignedMallamId ?? null,
+    tabletName: nextTabletName,
+    deviceIdentifier: nextDeviceIdentifier,
+    serialNumber: input.serialNumber !== undefined ? input.serialNumber || null : (existingRecord?.serialNumber || null),
+    platform: input.platform ?? existingRecord?.platform ?? 'android',
+    appVersion: input.appVersion !== undefined ? input.appVersion || null : (existingRecord?.appVersion || null),
+    status: input.status ?? existingRecord?.status ?? 'active',
+    metadata: input.metadata !== undefined ? (input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null) : (existingRecord?.metadata ?? null),
+    lastSeenAt: input.lastSeenAt !== undefined ? input.lastSeenAt : (existingRecord?.lastSeenAt ?? null),
+    registeredAt: input.registeredAt ?? existingRecord?.registeredAt ?? new Date().toISOString(),
+  };
+}
+
+function createDeviceRegistration(input) {
+  const record = buildDeviceRegistrationRecord(input);
   data.deviceRegistrations.push(record);
   return commit(record);
 }
@@ -1411,26 +1440,7 @@ function updateDeviceRegistration(id, input) {
   const record = findDeviceRegistrationById(id);
   if (!record) return null;
 
-  const nextPodId = input.podId ?? record.podId;
-  const pod = nextPodId ? findPodById(nextPodId) : null;
-  const center = (input.centerId ?? record.centerId) ? findCenterById(input.centerId ?? record.centerId) : pod ? findCenterById(pod.centerId) : null;
-
-  Object.assign(record, {
-    podId: nextPodId,
-    stateId: input.stateId ?? pod?.stateId ?? center?.stateId ?? record.stateId,
-    localGovernmentId: input.localGovernmentId ?? pod?.localGovernmentId ?? center?.localGovernmentId ?? record.localGovernmentId,
-    centerId: input.centerId ?? pod?.centerId ?? record.centerId,
-    assignedMallamId: input.assignedMallamId ?? record.assignedMallamId,
-    deviceIdentifier: input.deviceIdentifier ?? record.deviceIdentifier,
-    serialNumber: input.serialNumber !== undefined ? input.serialNumber : record.serialNumber,
-    platform: input.platform ?? record.platform,
-    appVersion: input.appVersion !== undefined ? input.appVersion : record.appVersion,
-    status: input.status ?? record.status,
-    metadata: input.metadata !== undefined ? (input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null) : record.metadata,
-    lastSeenAt: input.lastSeenAt !== undefined ? input.lastSeenAt : record.lastSeenAt,
-    registeredAt: input.registeredAt ?? record.registeredAt,
-  });
-
+  Object.assign(record, buildDeviceRegistrationRecord(input, record));
   return commit(record);
 }
 

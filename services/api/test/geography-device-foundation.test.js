@@ -87,27 +87,49 @@ test('geography create routes reject duplicate ids instead of silently polluting
   assert.match(String(duplicateLga.body?.message || ''), /Local government already exists/i);
 });
 
-test('device registrations inherit pod geography and expose it through the API', async () => {
+test('device registrations derive naming and geography directly from the selected pod', async () => {
   const created = await request('/api/v1/device-registrations', {
     method: 'POST',
     headers: { 'x-lumo-role': 'admin' },
     body: JSON.stringify({
       podId: 'pod-2',
-      assignedMallamId: 'teacher-2',
-      deviceIdentifier: 'lumo-tablet-kaduna-02',
+      tabletName: 'tablet 02',
       serialNumber: 'KAD-TAB-002',
     }),
   });
 
   assert.equal(created.status, 201, JSON.stringify(created.body));
   assert.equal(created.body.podId, 'pod-2');
+  assert.equal(created.body.tabletName, 'tablet 02');
+  assert.equal(created.body.deviceIdentifier, 'kaduna_pod_01-tablet_02');
   assert.equal(created.body.stateId, 'state-kaduna');
   assert.equal(created.body.localGovernmentId, 'lga-igabi');
+  assert.equal(created.body.centerId, 'center-2');
   assert.equal(created.body.assignedMallamName, 'Mallam Musa Ibrahim');
 
   const listed = await request('/api/v1/device-registrations?podId=pod-2');
   assert.equal(listed.status, 200);
-  assert.equal(listed.body.some((item) => item.deviceIdentifier === 'lumo-tablet-kaduna-02'), true, JSON.stringify(listed.body));
+  assert.equal(listed.body.some((item) => item.deviceIdentifier === 'kaduna_pod_01-tablet_02'), true, JSON.stringify(listed.body));
+});
+
+test('device registration updates recompute the identifier when the pod changes', async () => {
+  const updated = await request('/api/v1/device-registrations/device-1', {
+    method: 'PATCH',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      podId: 'pod-2',
+      tabletName: 'tablet 09',
+    }),
+  });
+
+  assert.equal(updated.status, 200, JSON.stringify(updated.body));
+  assert.equal(updated.body.podId, 'pod-2');
+  assert.equal(updated.body.tabletName, 'tablet 09');
+  assert.equal(updated.body.deviceIdentifier, 'kaduna_pod_01-tablet_09');
+  assert.equal(updated.body.stateId, 'state-kaduna');
+  assert.equal(updated.body.localGovernmentId, 'lga-igabi');
+  assert.equal(updated.body.centerId, 'center-2');
+  assert.equal(updated.body.assignedMallamId, 'teacher-2');
 });
 
 test('reward queue summary exposes the LMS contract fields used by the rewards admin surface', async () => {
@@ -145,7 +167,26 @@ test('pod creation generates the required state-LG-Pod_name label and persists g
   assert.equal(created.body.localGovernmentId, 'lga-nassarawa');
 });
 
-test('pod updates can persist geography without changing cohort semantics', async () => {
+test('pod creation can derive center from assigned mallam ownership when the form does not force a center picker', async () => {
+  const created = await request('/api/v1/pods', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      stateId: 'state-kaduna',
+      localGovernmentId: 'lga-igabi',
+      podName: 'Morning Stars',
+      mallamIds: ['teacher-2'],
+      type: 'community-pod',
+      status: 'active',
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.centerId, 'center-2');
+  assert.equal(created.body.label, 'kaduna-igabi-morning_stars');
+});
+
+test('pod updates regenerate the geography-first label while preserving the current pod short name', async () => {
   const updated = await request('/api/v1/pods/pod-1', {
     method: 'PATCH',
     headers: { 'x-lumo-role': 'admin' },
@@ -155,6 +196,7 @@ test('pod updates can persist geography without changing cohort semantics', asyn
   assert.equal(updated.status, 200, JSON.stringify(updated.body));
   assert.equal(updated.body.localGovernmentId, 'lga-fagge');
   assert.equal(updated.body.stateId, 'state-kano');
+  assert.equal(updated.body.label, 'kano-fagge-pod_01');
 
   const cohorts = await request('/api/v1/cohorts');
   assert.equal(cohorts.status, 200);

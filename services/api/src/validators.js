@@ -271,7 +271,7 @@ function validatePod(body, { partial = false } = {}) {
 
 function validateDeviceRegistration(body, { partial = false } = {}) {
   if (!partial) {
-    requireFields(body, ['deviceIdentifier']);
+    requireFields(body, ['podId', 'tabletName']);
   }
 
   assertExists('podId', body.podId, repository.findPodById);
@@ -279,6 +279,18 @@ function validateDeviceRegistration(body, { partial = false } = {}) {
   assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
   assertExists('assignedMallamId', body.assignedMallamId, repository.findTeacherById);
   assertAllowed('status', body.status, ['active', 'inactive', 'retired', 'repair']);
+
+  if (!partial && body.deviceIdentifier && repository.findDeviceRegistrationByIdentifier(body.deviceIdentifier)) {
+    const error = new Error(`Device identifier already exists: ${body.deviceIdentifier}`);
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (body.tabletName !== undefined && !String(body.tabletName || '').trim()) {
+    const error = new Error('Invalid tabletName');
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 const CURRICULUM_LANE_STATUSES = ['draft', 'review', 'published'];

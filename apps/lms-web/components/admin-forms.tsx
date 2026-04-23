@@ -33,6 +33,7 @@ import type { Assessment, Center, Cohort, CurriculumModule, Lesson, LocalGovernm
 import { ActionButton } from './action-button';
 import { CreateAssessmentFormClient } from './create-assessment-form';
 import { cohortGeographyLabel, mallamGeographyLabel, podGeographyLabel } from '../lib/geography';
+import { extractPodShortNameFromLabel } from '../lib/pod-naming';
 import { MallamGeographySelectors, PodGeographySelectors, StudentGeographySelectors } from './geo-scoped-selects';
 
 const cardStyle = {
@@ -309,8 +310,12 @@ export function CreatePodForm({ centers, mallams, states, localGovernments }: { 
       <input type="hidden" name="returnPath" value="/pods" />
       <h2 style={{ margin: 0 }}>Add pod</h2>
       <SectionHint>
-        Pods are now first-class admin records. Pick the geography first, then enter the short pod name and we will generate the final label in the required <strong>state-LG-Pod_name</strong> format.
+        Pods are now first-class admin records. Start with geography, lock the pod owner, then enter the short pod name and we will generate the final label in the required <strong>state-LG-pod_name</strong> format.
       </SectionHint>
+      <MallamAssignmentSelector mallams={mallams} selectedMallamIds={[]} centers={centers} states={states} localGovernments={localGovernments} />
+      <GeographyHint>
+        Mallam ownership stays prominent on purpose. The pod should belong to the operator responsible for that footprint, not get reconstructed later from device assignment guesswork.
+      </GeographyHint>
       <PodGeographySelectors
         centers={centers}
         states={states}
@@ -321,7 +326,6 @@ export function CreatePodForm({ centers, mallams, states, localGovernments }: { 
       <GeographyHint>
         Center is now derived from the selected geography or assigned mallam coverage. Operators should not have to babysit a redundant center picker just to create a pod.
       </GeographyHint>
-      <MallamAssignmentSelector mallams={mallams} selectedMallamIds={[]} centers={centers} states={states} localGovernments={localGovernments} />
       <div style={twoColumnGrid}>
         <FieldLabel>Type<select name="type" defaultValue="community-pod" style={inputStyle}><option value="community-pod">Community pod</option><option value="solar-container">Solar container</option><option value="classroom-kit">Classroom kit</option></select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="pilot">Pilot</option><option value="inactive">Inactive</option></select></FieldLabel>
@@ -343,9 +347,12 @@ export function UpdatePodForm({ pod, centers, mallams, states, localGovernments,
         <input type="hidden" name="podId" value={pod.id} />
         <input type="hidden" name="returnPath" value={returnPath} />
         <h2 style={{ margin: 0 }}>Update pod</h2>
-        <SectionHint>Pods are operational records now. Edit the geography, label source, and mallam ownership here instead of faking pod edits through device assignment.</SectionHint>
-        <PodGeographySelectors centers={centers} states={states} localGovernments={localGovernments} initialCenterId={pod.centerId} initialStateId={pod.stateId} initialLocalGovernmentId={pod.localGovernmentId} initialLabel={pod.label} initialPodName={pod.label.split('-').slice(2).join('-') || pod.label} showCenter={false} />
+        <SectionHint>Pods are operational records now. Edit the geography, mallam ownership, and label source here instead of faking pod edits through device assignment.</SectionHint>
         <MallamAssignmentSelector mallams={mallams} selectedMallamIds={pod.mallamIds ?? []} centers={centers} states={states} localGovernments={localGovernments} />
+        <GeographyHint>
+          Keep mallam ownership obvious during edits. If the pod moves geography, the label and center routing should follow that move cleanly instead of leaving stale deployment metadata behind.
+        </GeographyHint>
+        <PodGeographySelectors centers={centers} states={states} localGovernments={localGovernments} initialCenterId={pod.centerId} initialStateId={pod.stateId} initialLocalGovernmentId={pod.localGovernmentId} initialLabel={pod.label} initialPodName={extractPodShortNameFromLabel(pod.label) || pod.label} showCenter={false} />
         <div style={twoColumnGrid}>
           <FieldLabel>Type<select name="type" defaultValue={pod.type} style={inputStyle}><option value="community-pod">Community pod</option><option value="solar-container">Solar container</option><option value="classroom-kit">Classroom kit</option></select></FieldLabel>
           <FieldLabel>Status<select name="status" defaultValue={pod.status} style={inputStyle}><option value="active">Active</option><option value="pilot">Pilot</option><option value="inactive">Inactive</option></select></FieldLabel>
@@ -377,28 +384,23 @@ export function DeletePodForm({ pod, embedded = false, returnPath = '/pods' }: {
   );
 }
 
-export function CreateDeviceRegistrationForm({ pods, mallams, centers, states, localGovernments, returnPath = '/devices' }: { pods: Pod[]; mallams: Mallam[]; centers: Center[]; states: State[]; localGovernments: LocalGovernment[]; returnPath?: string }) {
+export function CreateDeviceRegistrationForm({ pods, returnPath = '/devices' }: { pods: Pod[]; returnPath?: string }) {
   return (
     <form action={createDeviceRegistrationAction} style={cardStyle}>
       <input type="hidden" name="returnPath" value={returnPath} />
       <h2 style={{ margin: 0 }}>Register tablet</h2>
-      <SectionHint>Devices are a real admin surface now: register the tablet first, then assign or reassign it to the right pod and mallam lane.</SectionHint>
+      <SectionHint>Select the pod, give the tablet a short name, and the system will generate the final device identifier as <strong>pod-label-tablet-name</strong>. State, local government, center, and mallam are derived from that pod automatically.</SectionHint>
       <div style={responsiveGrid(220)}>
-        <FieldLabel>Device identifier<input name="deviceIdentifier" defaultValue="tablet-kano-07" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Pod<select name="podId" defaultValue={pods[0]?.id ?? ''} style={inputStyle}><option value="">Select pod</option>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}</select></FieldLabel>
+        <FieldLabel>Tablet name<input name="tabletName" defaultValue="tablet-07" style={inputStyle} /></FieldLabel>
         <FieldLabel>Serial number<input name="serialNumber" defaultValue="SN-LUMO-007" style={inputStyle} /></FieldLabel>
         <FieldLabel>Platform<select name="platform" defaultValue="android" style={inputStyle}><option value="android">Android</option><option value="ios">iPadOS</option><option value="web">Web kiosk</option></select></FieldLabel>
         <FieldLabel>App version<input name="appVersion" defaultValue="0.1.0" style={inputStyle} /></FieldLabel>
-      </div>
-      <div style={responsiveGrid(220)}>
-        <FieldLabel>Pod assignment<select name="podId" defaultValue="" style={inputStyle}><option value="">Unassigned</option>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}</select></FieldLabel>
-        <FieldLabel>Responsible mallam<select name="assignedMallamId" defaultValue="" style={inputStyle}><option value="">No direct mallam assignment</option>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName || mallam.name}</option>)}</select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="inactive">Inactive</option><option value="repair">Repair</option><option value="retired">Retired</option></select></FieldLabel>
       </div>
-      <div style={responsiveGrid(220)}>
-        <FieldLabel>State<select name="stateId" defaultValue={states[0]?.id ?? ''} style={inputStyle}><option value="">Select state</option>{states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}</select></FieldLabel>
-        <FieldLabel>Local government<select name="localGovernmentId" defaultValue={localGovernments[0]?.id ?? ''} style={inputStyle}><option value="">Select local government</option>{localGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FieldLabel>
-        <FieldLabel>Center<select name="centerId" defaultValue={centers[0]?.id ?? ''} style={inputStyle}><option value="">Optional center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></FieldLabel>
-      </div>
+      <GeographyHint>
+        Pod selection is the source of truth here. If the pod is wrong, the geography and owning mallam will be wrong too — so fix the pod, not four redundant fields.
+      </GeographyHint>
       <ActionButton label="Register tablet" pendingLabel="Registering tablet…" style={buttonStyle} />
     </form>
   );

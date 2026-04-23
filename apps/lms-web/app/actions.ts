@@ -1497,11 +1497,7 @@ export async function createDeviceRegistrationAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/devices');
   const payload = {
     podId: String(formData.get('podId') || '').trim() || null,
-    centerId: String(formData.get('centerId') || '').trim() || null,
-    stateId: String(formData.get('stateId') || '').trim() || null,
-    localGovernmentId: String(formData.get('localGovernmentId') || '').trim() || null,
-    assignedMallamId: String(formData.get('assignedMallamId') || '').trim() || null,
-    deviceIdentifier: String(formData.get('deviceIdentifier') || '').trim(),
+    tabletName: String(formData.get('tabletName') || '').trim(),
     serialNumber: String(formData.get('serialNumber') || '').trim() || null,
     platform: String(formData.get('platform') || 'android').trim(),
     appVersion: String(formData.get('appVersion') || '').trim() || null,
@@ -1544,7 +1540,7 @@ export async function updateDeviceRegistrationAction(formData: FormData) {
   const registrationId = String(formData.get('registrationId') || '').trim();
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
   const podIdValue = String(formData.get('podId') || '').trim();
-  const assignedMallamIdValue = String(formData.get('assignedMallamId') || '').trim();
+  const tabletNameValue = String(formData.get('tabletName') || '').trim();
   const status = String(formData.get('status') || '').trim();
   const appVersion = String(formData.get('appVersion') || '').trim();
 
@@ -1557,7 +1553,7 @@ export async function updateDeviceRegistrationAction(formData: FormData) {
   try {
     await apiWrite(`/api/v1/device-registrations/${registrationId}`, 'PATCH', {
       podId: podIdValue || null,
-      assignedMallamId: assignedMallamIdValue || null,
+      tabletName: tabletNameValue || undefined,
       status: status || undefined,
       appVersion: appVersion || null,
     }, 'admin');
