@@ -300,4 +300,109 @@ void main() {
     expect(find.text(nextLesson.title), findsOneWidget);
     expect(find.text('Start next lesson'), findsOneWidget);
   });
+
+  testWidgets(
+      'subject page keeps learner lessons visible when backend recommends an alias module id', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const learner = LearnerProfile(
+      id: 'learner-a',
+      name: 'Amina',
+      age: 7,
+      cohort: 'Pod A',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Hauwa',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+      backendRecommendedModuleId: 'english-reading-module',
+    );
+    const recommendedModule = LearningModule(
+      id: 'english-reading-module',
+      title: 'English Reading',
+      description: 'Backend alias module title differs from learner subject.',
+      voicePrompt: 'Open English reading.',
+      readinessGoal: 'Keep English moving.',
+      badge: 'Alias',
+    );
+    const canonicalModule = LearningModule(
+      id: 'english',
+      title: 'English',
+      description: 'Canonical learner-facing subject.',
+      voicePrompt: 'Open English.',
+      readinessGoal: 'Greeting flow',
+      badge: 'Live',
+    );
+    const lesson = LessonCardModel(
+      id: 'english-live-lesson',
+      moduleId: 'english',
+      title: 'English greeting lesson',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Learner should still see this from the alias route.',
+      steps: [
+        LessonStep(
+          id: 'step-a',
+          type: LessonStepType.practice,
+          title: 'Say hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Keep it warm.',
+          realWorldCheck: 'Learner greets',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    addTearDown(state.dispose);
+    state.usingFallbackData = false;
+    state.learners.add(learner);
+    state.modules.addAll([recommendedModule, canonicalModule]);
+    state.assignedLessons.add(lesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-a',
+        lessonId: lesson.id,
+        moduleId: lesson.moduleId,
+        lessonTitle: lesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+    );
+    state.selectLearner(learner);
+    state.selectModule(recommendedModule);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: recommendedModule,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('English greeting lesson'), findsOneWidget);
+    expect(
+      find.text('No learner-safe lessons are ready in English Reading yet.'),
+      findsNothing,
+    );
+  });
 }
