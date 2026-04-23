@@ -623,8 +623,7 @@ void main() {
     expect(state.offlineSnapshotTrustProblem,
         contains('beyond the 24-hour trust window'));
 
-    state.persistStateSoon();
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await state.flushPersistence();
 
     final restored = LumoAppState(includeSeedDemoContent: false);
     await restored.restorePersistedState();
