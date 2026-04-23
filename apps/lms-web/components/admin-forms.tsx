@@ -306,6 +306,7 @@ export function UpdateMallamForm({ mallam, centers, pods, states, localGovernmen
 export function CreatePodForm({ centers, mallams, states, localGovernments }: { centers: Center[]; mallams: Mallam[]; states: State[]; localGovernments: LocalGovernment[] }) {
   return (
     <form action={createPodAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value="/pods" />
       <h2 style={{ margin: 0 }}>Add pod</h2>
       <SectionHint>
         Pods are now first-class admin records. Pick the geography first, then enter the short pod name and we will generate the final label in the required <strong>state-LG-Pod_name</strong> format.

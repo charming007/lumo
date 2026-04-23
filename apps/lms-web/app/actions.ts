@@ -1400,6 +1400,7 @@ export async function expireStaleRewardRequestsAction(formData: FormData) {
 }
 
 export async function createPodAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
   const payload = {
     centerId: String(formData.get('centerId') || '').trim() || null,
     stateId: String(formData.get('stateId') || '').trim(),
@@ -1414,10 +1415,26 @@ export async function createPodAction(formData: FormData) {
     mallamIds: formData.getAll('mallamIds').map((value) => String(value).trim()).filter(Boolean),
   };
 
-  await apiWrite('/api/v1/pods', 'POST', payload, 'admin');
+  if (!payload.stateId || !payload.localGovernmentId || !payload.podName) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Pod creation failed: state, local government, and pod short name are required',
+    }));
+  }
+
+  try {
+    await apiWrite('/api/v1/pods', 'POST', payload, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `Pod creation failed: ${describeActionError(error, 'pod could not be created')}`,
+    }));
+  }
+
   revalidatePath('/pods');
   revalidatePath('/mallams');
-  redirect('/pods?message=Pod%20created%20and%20ready%20for%20device%20and%20mallam%20assignment');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Pod created and ready for device and mallam assignment',
+  }));
 }
 
 export async function updatePodAction(formData: FormData) {
