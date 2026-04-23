@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'app_state.dart';
+import 'api_client.dart';
 import 'audio_capture_service.dart';
 import 'browser_runtime_observer.dart';
 import 'design_shell.dart';
@@ -49,7 +50,8 @@ class _LumoAppState extends State<LumoApp> {
   late final bool _ownsState = widget.stateOverride == null;
   late final LumoAppState state = widget.stateOverride ??
       LumoAppState(includeSeedDemoContent: widget.includeSeedDemoContent);
-  final voiceReplayService = VoiceReplayService();
+  late final VoiceReplayService voiceReplayService = VoiceReplayService(
+      apiClient: LumoApiClient(baseUrl: state.backendBaseUrl));
   bool showSplash = true;
 
   @override
@@ -691,10 +693,7 @@ class LearnerSubjectCardModel {
 }
 
 String _normalizeSubjectKey(String value) {
-  return value
-      .trim()
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+  return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
 }
 
 bool _isLearnerVisibleLesson({
@@ -728,7 +727,11 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
           voicePrompt: subject.voicePrompt,
           readinessGoal: subject.readinessGoal,
           badge: subject.badge,
-          module: subject,
+          module: state.primaryModuleForSubject(
+                learner: learner,
+                subjectId: subject.id,
+              ) ??
+              subject,
         ),
       )
       .toList(growable: false);
@@ -3165,7 +3168,8 @@ class SubjectModulesPage extends StatelessWidget {
         : state.resumableRuntimeSessionForLearner(selectedLearner);
     final lessons = state
         .lessonsForLearnerAndSubject(selectedLearner, subjectKey)
-        .where((lesson) => _isLearnerVisibleLesson(state: state, lesson: lesson))
+        .where(
+            (lesson) => _isLearnerVisibleLesson(state: state, lesson: lesson))
         .toList();
     final nextAssignedLesson =
         state.nextAssignedLessonForLearner(selectedLearner);

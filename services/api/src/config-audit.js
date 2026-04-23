@@ -3,6 +3,7 @@ const path = require('path');
 const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getAuthAudit } = require('./auth');
 const { getBuildInfo } = require('./build-info');
+const { buildVoiceAudit } = require('./voice');
 
 function buildAllowedOrigins() {
   const configured = (process.env.LUMO_CORS_ORIGINS || process.env.CORS_ORIGINS || '')
@@ -192,6 +193,7 @@ function buildConfigAudit() {
   const apiBaseUrl = canonicalApiBase.configured;
   const authAudit = getAuthAudit();
   const assetUploads = getAssetUploadAudit();
+  const voice = buildVoiceAudit();
   const throttles = {
     jsonBodyLimit: String(process.env.LUMO_JSON_BODY_LIMIT || '1mb'),
     learnerSync: {
@@ -265,6 +267,10 @@ function buildConfigAudit() {
     }
   }
 
+  for (const warning of voice.warnings) {
+    if (!warnings.includes(warning)) warnings.push(warning);
+  }
+
   if (authAudit.productionLike && !authAudit.roles.admin) {
     errors.push('Protected endpoints are not production-safe without LUMO_ADMIN_API_KEY. Configure API-key auth before exposing admin/teacher/facilitator routes.');
   }
@@ -294,6 +300,7 @@ function buildConfigAudit() {
     },
     storage: dbMeta,
     assetUploads,
+    voice,
     apiBaseUrl,
     publicApiBase: canonicalApiBase,
     cors: {

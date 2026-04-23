@@ -12,6 +12,7 @@ const { buildAllowedOrigins, isLoopbackOrigin, isProductionLike, buildConfigAudi
 const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole, getAuthAudit } = require('./auth');
 const { getBuildInfo } = require('./build-info');
+const { synthesizeTutorVoice } = require('./voice');
 
 const app = express();
 app.set('trust proxy', true);
@@ -1702,6 +1703,33 @@ app.get('/api/v1/learner-app/lessons/:id', (req, res) => {
   }
 
   return res.json(presenters.presentLearnerLesson(lesson));
+});
+
+app.post('/api/v1/learner-app/voice/replay', async (req, res, next) => {
+  try {
+    const text = String(req.body?.text || '').trim();
+    const mode = String(req.body?.mode || 'guiding').trim().toLowerCase() || 'guiding';
+    const clip = await synthesizeTutorVoice({ text, mode });
+
+    if (!clip.ok) {
+      if (clip.status === 204) {
+        return res.status(204).end();
+      }
+
+      return res.status(clip.status || 502).json({
+        message: clip.message || 'Tutor voice synthesis failed.',
+        code: clip.code || 'voice-error',
+      });
+    }
+
+    res.setHeader('content-type', clip.contentType || 'audio/mpeg');
+    res.setHeader('cache-control', 'no-store');
+    res.setHeader('x-lumo-voice-provider', clip.provider || 'unknown');
+    res.setHeader('x-lumo-voice-model', clip.modelId || 'unknown');
+    return res.status(200).send(clip.audioBuffer);
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get('/api/v1/learner-app/modules/:id', (req, res) => {
