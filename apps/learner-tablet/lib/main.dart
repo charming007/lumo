@@ -728,8 +728,10 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
           if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
             return false;
           }
-          return learner != null ||
-              state.availableLearnersForLesson(lesson).isNotEmpty;
+          if (learner != null || state.learners.isEmpty) {
+            return true;
+          }
+          return state.availableLearnersForLesson(lesson).isNotEmpty;
         }).length;
 
         return LearnerSubjectCardModel(
@@ -5523,13 +5525,28 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             color: const Color(0xFFFED7AA),
                           ),
                         ),
-                        child: const Text(
-                          'Lesson content not available yet. Refresh the tablet sync or publish the linked lesson payload before a learner starts this assignment.',
-                          style: TextStyle(
-                            color: Color(0xFF9A3412),
-                            fontWeight: FontWeight.w700,
-                            height: 1.35,
-                          ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Lesson content not available yet. Refresh the tablet sync or publish the linked lesson payload before a learner starts this assignment.',
+                              style: TextStyle(
+                                color: Color(0xFF9A3412),
+                                fontWeight: FontWeight.w700,
+                                height: 1.35,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Select learner to continue',
+                              style: TextStyle(
+                                color: Color(0xFF9A3412),
+                                fontWeight: FontWeight.w600,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     if (widget.resumeFrom != null)

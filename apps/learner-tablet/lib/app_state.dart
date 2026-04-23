@@ -1411,9 +1411,17 @@ class LumoAppState {
     required String title,
     required List<LessonCardModel> lessons,
   }) {
+    final lessonModuleIds = lessons
+        .map((lesson) => lesson.moduleId.trim())
+        .where((moduleId) => moduleId.isNotEmpty)
+        .toSet();
     final matchingModule = modules.cast<LearningModule?>().firstWhere(
-          (module) =>
-              module != null && _normalizeSubjectKey(module.title) == key,
+          (module) {
+            if (module == null) return false;
+            return lessonModuleIds.contains(module.id) ||
+                _normalizeSubjectKey(module.title) == key ||
+                _normalizeSubjectKey(module.id) == key;
+          },
           orElse: () => null,
         );
     final lessonCount = lessons.length;
