@@ -122,6 +122,29 @@ test('reward queue summary exposes the LMS contract fields used by the rewards a
   assert.equal(queue.body.summary.averageAgeDays, queue.body.summary.avgOpenAgeDays);
 });
 
+test('pod creation generates the required state-LG-Pod_name label and persists geography', async () => {
+  const created = await request('/api/v1/pods', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      centerId: 'center-1',
+      stateId: 'state-kano',
+      localGovernmentId: 'lga-nassarawa',
+      podName: 'Girls Alpha',
+      type: 'community-pod',
+      status: 'active',
+      capacity: 24,
+      learnersActive: 0,
+      connectivity: 'offline-first',
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.label, 'kano-nassarawa-girls_alpha');
+  assert.equal(created.body.stateId, 'state-kano');
+  assert.equal(created.body.localGovernmentId, 'lga-nassarawa');
+});
+
 test('pod updates can persist geography without changing cohort semantics', async () => {
   const updated = await request('/api/v1/pods/pod-1', {
     method: 'PATCH',

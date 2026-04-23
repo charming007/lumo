@@ -311,6 +311,10 @@ function findPodById(id) {
   return repository.findPodById(id);
 }
 
+function createPod(input) {
+  return repository.createPod(input);
+}
+
 function updatePod(id, input) {
   return repository.updatePod(id, input);
 }
@@ -1776,6 +1780,7 @@ module.exports = {
   updateLocalGovernment,
   listPods,
   findPodById,
+  createPod,
   updatePod,
   listCohorts,
   listTeachers,

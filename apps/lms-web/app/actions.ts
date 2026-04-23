@@ -1399,6 +1399,26 @@ export async function expireStaleRewardRequestsAction(formData: FormData) {
   redirect('/rewards?message=Stale%20reward%20requests%20expired');
 }
 
+export async function createPodAction(formData: FormData) {
+  const payload = {
+    centerId: String(formData.get('centerId') || '').trim(),
+    stateId: String(formData.get('stateId') || '').trim(),
+    localGovernmentId: String(formData.get('localGovernmentId') || '').trim(),
+    podName: String(formData.get('podName') || '').trim(),
+    label: String(formData.get('label') || '').trim(),
+    type: String(formData.get('type') || 'community-pod').trim(),
+    status: String(formData.get('status') || 'active').trim(),
+    capacity: Number(formData.get('capacity') || 0),
+    learnersActive: Number(formData.get('learnersActive') || 0),
+    connectivity: String(formData.get('connectivity') || 'offline-first').trim(),
+  };
+
+  await apiWrite('/api/v1/pods', 'POST', payload, 'admin');
+  revalidatePath('/pods');
+  revalidatePath('/mallams');
+  redirect('/pods?message=Pod%20created%20and%20ready%20for%20device%20and%20mallam%20assignment');
+}
+
 export async function updateDeviceRegistrationAction(formData: FormData) {
   const registrationId = String(formData.get('registrationId') || '').trim();
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');

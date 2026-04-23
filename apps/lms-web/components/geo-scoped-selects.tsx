@@ -1,9 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Center, Cohort, LocalGovernment, Mallam, Pod, State } from '../lib/types';
 import { cohortGeographyLabel, mallamGeographyLabel, podGeographyLabel } from '../lib/geography';
+import { buildPodLabelParts } from '../lib/pod-naming';
 
 const fieldStyle = {
   display: 'grid',
@@ -162,6 +163,7 @@ export function StudentGeographySelectors({
             <option value="">Select state</option>
             {states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}
           </select>
+          <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('state', states.length, 'No states loaded yet')}</span>
         </FieldLabel>
         <FieldLabel>
           Local government
@@ -169,6 +171,7 @@ export function StudentGeographySelectors({
             <option value="">Select local government</option>
             {filteredLocalGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
+          <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('local government', filteredLocalGovernments.length, stateId ? 'No local governments for this state yet' : 'Pick a state to narrow LGAs')}</span>
         </FieldLabel>
       </div>
       <FieldLabel>
@@ -194,6 +197,11 @@ export function StudentGeographySelectors({
       </FieldLabel>
     </>
   );
+}
+
+
+function geographySelectHint(label: string, count: number, emptyLabel: string) {
+  return count ? `${count} ${label}${count === 1 ? '' : 's'} available` : emptyLabel;
 }
 
 export function MallamGeographySelectors({
@@ -270,17 +278,19 @@ export function MallamGeographySelectors({
       <div style={twoColumnGrid}>
         <FieldLabel>
           State
-          <select value={stateId} onChange={(event) => setStateId(event.target.value)} style={inputStyle}>
+          <select name="stateId" value={stateId} onChange={(event) => { setStateId(event.target.value); setLocalGovernmentId(''); setCenterId(''); }} style={inputStyle}> 
             <option value="">Select state</option>
             {states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}
           </select>
+          <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('state', states.length, 'No states loaded yet')}</span>
         </FieldLabel>
         <FieldLabel>
           Local government
-          <select value={localGovernmentId} onChange={(event) => setLocalGovernmentId(event.target.value)} style={inputStyle}>
+          <select name="localGovernmentId" value={localGovernmentId} onChange={(event) => { setLocalGovernmentId(event.target.value); setCenterId(''); }} style={inputStyle}>
             <option value="">Select local government</option>
             {filteredLocalGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
+          <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('local government', filteredLocalGovernments.length, stateId ? 'No local governments for this state yet' : 'Pick a state to narrow LGAs')}</span>
         </FieldLabel>
       </div>
       <FieldLabel>
@@ -316,6 +326,121 @@ export function MallamGeographySelectors({
           })}
         </div>
       </div>
+    </>
+  );
+}
+
+
+type PodGeographySelectorsProps = {
+  centers: Center[];
+  states: State[];
+  localGovernments: LocalGovernment[];
+  initialCenterId?: string | null;
+  initialStateId?: string | null;
+  initialLocalGovernmentId?: string | null;
+  initialPodName?: string | null;
+  initialLabel?: string | null;
+};
+
+export function PodGeographySelectors({
+  centers,
+  states,
+  localGovernments,
+  initialCenterId,
+  initialStateId,
+  initialLocalGovernmentId,
+  initialPodName,
+  initialLabel,
+}: PodGeographySelectorsProps) {
+  const [stateId, setStateId] = useState(initialStateId || deriveStateIdFromCenter(initialCenterId, centers) || '');
+  const [localGovernmentId, setLocalGovernmentId] = useState(initialLocalGovernmentId || deriveLocalGovernmentIdFromCenter(initialCenterId, centers) || '');
+  const [centerId, setCenterId] = useState(initialCenterId || '');
+  const [podName, setPodName] = useState(initialPodName || '');
+
+  const filteredLocalGovernments = useMemo(
+    () => localGovernments.filter((item) => !stateId || item.stateId === stateId),
+    [localGovernments, stateId],
+  );
+
+  const filteredCenters = useMemo(() => {
+    return centers.filter((center) => {
+      if (stateId && center.stateId !== stateId) return false;
+      if (localGovernmentId && center.localGovernmentId !== localGovernmentId) return false;
+      return true;
+    });
+  }, [centers, stateId, localGovernmentId]);
+
+  useEffect(() => {
+    if (localGovernmentId && !filteredLocalGovernments.some((item) => item.id === localGovernmentId)) {
+      setLocalGovernmentId('');
+    }
+  }, [filteredLocalGovernments, localGovernmentId]);
+
+  useEffect(() => {
+    if (centerId && !filteredCenters.some((item) => item.id === centerId)) {
+      setCenterId(filteredCenters[0]?.id || '');
+    }
+  }, [filteredCenters, centerId]);
+
+  useEffect(() => {
+    if (!centerId) return;
+    const derivedStateId = deriveStateIdFromCenter(centerId, centers);
+    const derivedLocalGovernmentId = deriveLocalGovernmentIdFromCenter(centerId, centers);
+    if (derivedStateId && derivedStateId !== stateId) setStateId(derivedStateId);
+    if (derivedLocalGovernmentId && derivedLocalGovernmentId !== localGovernmentId) setLocalGovernmentId(derivedLocalGovernmentId);
+  }, [centerId, centers, stateId, localGovernmentId]);
+
+  const selectedState = states.find((item) => item.id === stateId) || null;
+  const selectedLocalGovernment = localGovernments.find((item) => item.id === localGovernmentId) || null;
+  const generatedLabel = buildPodLabelParts({
+    stateName: selectedState?.name,
+    localGovernmentName: selectedLocalGovernment?.name,
+    podName,
+  }).label;
+
+  const handlePodNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setPodName(event.target.value);
+  };
+
+  return (
+    <>
+      <input type="hidden" name="stateId" value={stateId} />
+      <input type="hidden" name="localGovernmentId" value={localGovernmentId} />
+      <div style={twoColumnGrid}>
+        <FieldLabel>
+          State
+          <select value={stateId} onChange={(event) => { setStateId(event.target.value); setLocalGovernmentId(''); setCenterId(''); }} style={inputStyle}>
+            <option value="">Select state</option>
+            {states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}
+          </select>
+          <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('state', states.length, 'No states loaded yet')}</span>
+        </FieldLabel>
+        <FieldLabel>
+          Local government
+          <select value={localGovernmentId} onChange={(event) => { setLocalGovernmentId(event.target.value); setCenterId(''); }} style={inputStyle}>
+            <option value="">Select local government</option>
+            {filteredLocalGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+          <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('local government', filteredLocalGovernments.length, stateId ? 'No local governments for this state yet' : 'Pick a state to narrow LGAs')}</span>
+        </FieldLabel>
+      </div>
+      <FieldLabel>
+        Center
+        <select name="centerId" value={centerId} onChange={(event) => setCenterId(event.target.value)} style={inputStyle}>
+          <option value="">Select center</option>
+          {filteredCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
+        </select>
+      </FieldLabel>
+      <FieldLabel>
+        Pod short name
+        <input name="podName" value={podName} onChange={handlePodNameChange} placeholder="Pod_name" style={inputStyle} />
+        <span style={{ color: '#64748b', fontSize: 12 }}>Use the human-readable suffix only. We generate the final pod label for you.</span>
+      </FieldLabel>
+      <FieldLabel>
+        Generated pod label
+        <input name="label" value={generatedLabel || initialLabel || ''} readOnly style={{ ...inputStyle, background: '#f8fafc', fontWeight: 700 }} />
+        <span style={{ color: '#64748b', fontSize: 12 }}>Format: state-LG-Pod_name</span>
+      </FieldLabel>
     </>
   );
 }

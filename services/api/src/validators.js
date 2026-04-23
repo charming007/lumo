@@ -261,13 +261,14 @@ function validateLocalGovernment(body, { partial = false } = {}) {
 
 function validatePod(body, { partial = false } = {}) {
   if (!partial) {
-    requireFields(body, ['centerId', 'label']);
+    requireFields(body, ['centerId', 'label', 'stateId', 'localGovernmentId']);
   }
 
   assertExists('centerId', body.centerId, repository.findCenterById);
   assertExists('stateId', body.stateId, repository.findStateById);
   assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
   (body.mallamIds || []).forEach((teacherId) => assertExists('mallamId', teacherId, repository.findTeacherById));
+  assertAllowed('status', body.status, ['active', 'pilot', 'inactive']);
 }
 
 function validateDeviceRegistration(body, { partial = false } = {}) {

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { CreatePodForm } from '../../components/admin-forms';
+import { ModalLauncher } from '../../components/modal-launcher';
 import { updateDeviceRegistrationAction } from '../actions';
 import { fetchCenters, fetchDeviceRegistrations, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates } from '../../lib/api';
 import { podGeographyLabel } from '../../lib/geography';
@@ -68,16 +70,28 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
       subtitle="Monitor pod composition, mallam assignment, learner throughput, and the tablets registered to each pod without bouncing into a fake separate admin lane."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
-        <Card title="Pod snapshot" eyebrow="Live API">
-          <MetricList
-            items={[
-              { label: 'Pods', value: String(pods.length) },
-              { label: 'Active pods', value: String(activePods.length) },
-              { label: 'Registered tablets', value: String(mappedRegistrations.length) },
-              { label: 'Unassigned tablets', value: String(unassignedRegistrations) },
-            ]}
-          />
-        </Card>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ModalLauncher
+              buttonLabel="Add pod"
+              title="Add pod"
+              description="Create a real pod record with the correct geography and naming pattern instead of hand-editing raw store data."
+              eyebrow="Pod admin"
+            >
+              <CreatePodForm centers={centers} states={states} localGovernments={localGovernments} />
+            </ModalLauncher>
+          </div>
+          <Card title="Pod snapshot" eyebrow="Live API">
+            <MetricList
+              items={[
+                { label: 'Pods', value: String(pods.length) },
+                { label: 'Active pods', value: String(activePods.length) },
+                { label: 'Registered tablets', value: String(mappedRegistrations.length) },
+                { label: 'Unassigned tablets', value: String(unassignedRegistrations) },
+              ]}
+            />
+          </Card>
+        </div>
       }
     >
       {query?.message ? (
@@ -165,7 +179,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
           </div>
         </Card>
 
-        <Card title="Why this lives in Pods" eyebrow="Surface decision">
+        <Card title="Why Devices opens Pods" eyebrow="Surface decision">
           <div style={{ display: 'grid', gap: 12 }}>
             {[
               'Tablets are now pod-scoped operational assets, so the Pods route is where assignment truth belongs. Hiding them under generic settings would make field ops harder, not cleaner.',

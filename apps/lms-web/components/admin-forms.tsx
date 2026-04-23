@@ -6,6 +6,7 @@ import {
   createLessonAction,
   createMallamAction,
   createModuleAction,
+  createPodAction,
   createStrandAction,
   createStudentAction,
   createSubjectAction,
@@ -28,7 +29,7 @@ import type { Assessment, Center, Cohort, CurriculumModule, Lesson, LocalGovernm
 import { ActionButton } from './action-button';
 import { CreateAssessmentFormClient } from './create-assessment-form';
 import { cohortGeographyLabel, mallamGeographyLabel, podGeographyLabel } from '../lib/geography';
-import { MallamGeographySelectors, StudentGeographySelectors } from './geo-scoped-selects';
+import { MallamGeographySelectors, PodGeographySelectors, StudentGeographySelectors } from './geo-scoped-selects';
 
 const cardStyle = {
   background: 'white',
@@ -275,6 +276,33 @@ export function UpdateMallamForm({ mallam, centers, pods, states, localGovernmen
         </div>
       </form>
     </div>
+  );
+}
+
+export function CreatePodForm({ centers, states, localGovernments }: { centers: Center[]; states: State[]; localGovernments: LocalGovernment[] }) {
+  return (
+    <form action={createPodAction} style={cardStyle}>
+      <h2 style={{ margin: 0 }}>Add pod</h2>
+      <SectionHint>
+        Pods are now first-class admin records. Pick the geography first, then enter the short pod name and we will generate the final label in the required <strong>state-LG-Pod_name</strong> format.
+      </SectionHint>
+      <PodGeographySelectors
+        centers={centers}
+        states={states}
+        localGovernments={localGovernments}
+        initialCenterId={centers[0]?.id}
+      />
+      <div style={twoColumnGrid}>
+        <FieldLabel>Type<select name="type" defaultValue="community-pod" style={inputStyle}><option value="community-pod">Community pod</option><option value="solar-container">Solar container</option><option value="classroom-kit">Classroom kit</option></select></FieldLabel>
+        <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="pilot">Pilot</option><option value="inactive">Inactive</option></select></FieldLabel>
+      </div>
+      <div style={threeColumnGrid}>
+        <FieldLabel>Capacity<input name="capacity" type="number" min="1" defaultValue="30" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Current learners<input name="learnersActive" type="number" min="0" defaultValue="0" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Connectivity<select name="connectivity" defaultValue="offline-first" style={inputStyle}><option value="offline-first">Offline first</option><option value="sync-daily">Sync daily</option><option value="always-online">Always online</option></select></FieldLabel>
+      </div>
+      <ActionButton label="Create pod" pendingLabel="Creating pod…" style={buttonStyle} />
+    </form>
   );
 }
 

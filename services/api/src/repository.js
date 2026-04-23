@@ -158,6 +158,26 @@ function findPodById(id) {
   return data.pods.find((item) => item.id === id) || null;
 }
 
+function createPod(input) {
+  const pod = {
+    id: input.id || `pod-${data.pods.length + 1}`,
+    centerId: input.centerId,
+    stateId: input.stateId || null,
+    localGovernmentId: input.localGovernmentId || null,
+    code: input.code || null,
+    label: input.label,
+    type: input.type || 'community-pod',
+    status: input.status || 'active',
+    capacity: Number(input.capacity || 0),
+    learnersActive: Number(input.learnersActive || 0),
+    connectivity: input.connectivity || 'offline-first',
+    mallamIds: Array.isArray(input.mallamIds) ? [...input.mallamIds] : [],
+  };
+
+  data.pods.push(pod);
+  return commit(pod);
+}
+
 function updatePod(id, input) {
   const pod = findPodById(id);
   if (!pod) return null;
@@ -1455,6 +1475,7 @@ module.exports = {
   updateLocalGovernment,
   listPods,
   findPodById,
+  createPod,
   updatePod,
   listCohorts,
   findCohortById,

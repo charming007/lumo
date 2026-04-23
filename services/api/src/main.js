@@ -13,6 +13,7 @@ const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole, getAuthAudit } = require('./auth');
 const { getBuildInfo } = require('./build-info');
 const { synthesizeTutorVoice } = require('./voice');
+const { buildPodLabelParts } = require('./pod-naming');
 
 const app = express();
 app.set('trust proxy', true);
@@ -1874,6 +1875,35 @@ app.patch('/api/v1/local-governments/:id', ...protectedMutation(['admin']), (req
 
 app.get('/api/v1/pods', (_req, res) => {
   res.json(store.listPods().map(presenters.presentPod));
+});
+
+app.post('/api/v1/pods', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    const center = (store.listCenters() || []).find((item) => item.id === req.body?.centerId) || null;
+    const state = req.body?.stateId ? (store.listStates() || []).find((item) => item.id === req.body.stateId) || null : null;
+    const localGovernment = req.body?.localGovernmentId ? (store.listLocalGovernments() || []).find((item) => item.id === req.body.localGovernmentId) || null : null;
+    const podName = String(req.body?.podName || '').trim();
+    const generatedLabel = buildPodLabelParts({
+      stateName: state?.name,
+      localGovernmentName: localGovernment?.name,
+      podName,
+    }).label;
+
+    const payload = {
+      ...req.body,
+      label: generatedLabel,
+      code: req.body?.code || generatedLabel.toUpperCase().replace(/[^A-Z0-9]+/g, '-'),
+      stateId: req.body?.stateId || center?.stateId || null,
+      localGovernmentId: req.body?.localGovernmentId || center?.localGovernmentId || null,
+      mallamIds: Array.isArray(req.body?.mallamIds) ? req.body.mallamIds : [],
+    };
+
+    validators.validatePod(payload);
+    const pod = store.createPod(payload);
+    return res.status(201).json(presenters.presentPod(pod));
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.patch('/api/v1/pods/:id', ...protectedMutation(['admin']), (req, res, next) => {
