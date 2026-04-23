@@ -14,7 +14,8 @@ import 'package:lumo_learner_tablet/widgets.dart';
 
 class _FailingApiClient extends LumoApiClient {
   @override
-  Future<LumoBootstrap> fetchBootstrap() async {
+  Future<LumoBootstrap> fetchBootstrap(
+      {String? overrideDeviceIdentifier}) async {
     throw Exception('backend offline');
   }
 }
@@ -25,7 +26,9 @@ class _DelayedApiClient extends LumoApiClient {
   final Completer<LumoBootstrap> _completer;
 
   @override
-  Future<LumoBootstrap> fetchBootstrap() => _completer.future;
+  Future<LumoBootstrap> fetchBootstrap(
+          {String? overrideDeviceIdentifier}) =>
+      _completer.future;
 
   @override
   Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
@@ -58,7 +61,8 @@ class _RewardsRefreshApiClient extends LumoApiClient {
 
 class _PlaceholderRecoveryApiClient extends LumoApiClient {
   @override
-  Future<LumoBootstrap> fetchBootstrap() async {
+  Future<LumoBootstrap> fetchBootstrap(
+      {String? overrideDeviceIdentifier}) async {
     return LumoBootstrap(
       learners: learnerProfilesSeed,
       modules: learningModules,
@@ -69,7 +73,8 @@ class _PlaceholderRecoveryApiClient extends LumoApiClient {
 
 class _SeedApiClient extends LumoApiClient {
   @override
-  Future<LumoBootstrap> fetchBootstrap() async {
+  Future<LumoBootstrap> fetchBootstrap(
+      {String? overrideDeviceIdentifier}) async {
     return LumoBootstrap(
       learners: learnerProfilesSeed,
       modules: learningModules,
@@ -94,7 +99,8 @@ class _SeedApiClient extends LumoApiClient {
 
 class _AmbiguousPlaceholderRecoveryApiClient extends LumoApiClient {
   @override
-  Future<LumoBootstrap> fetchBootstrap() async {
+  Future<LumoBootstrap> fetchBootstrap(
+      {String? overrideDeviceIdentifier}) async {
     final englishSeed = assignedLessonsSeed.firstWhere(
       (item) => item.moduleId == 'english',
     );
@@ -675,6 +681,88 @@ void main() {
 
     expect((firstCardTop - secondCardTop).abs(), lessThan(1));
     expect((firstCardTop - thirdCardTop).abs(), lessThan(1));
+  });
+
+  testWidgets(
+      'home layout density follows visible subject count instead of raw module count',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.modules.addAll(const [
+      LearningModule(
+        id: 'english-reading',
+        title: 'English Reading',
+        description: 'Backend alias module for English.',
+        voicePrompt: 'Open English reading.',
+        readinessGoal: 'Keep reading practice moving.',
+        badge: 'Alias',
+      ),
+      LearningModule(
+        id: 'english-speaking',
+        title: 'English Speaking',
+        description: 'Backend alias module for English.',
+        voicePrompt: 'Open English speaking.',
+        readinessGoal: 'Keep speaking practice moving.',
+        badge: 'Alias',
+      ),
+    ]);
+    final englishSeed = assignedLessonsSeed.firstWhere(
+      (item) => item.moduleId == 'english',
+    );
+    state.assignedLessons.addAll([
+      LessonCardModel(
+        id: 'english-reading-alias-lesson',
+        moduleId: 'english-reading',
+        title: 'English reading alias',
+        subject: 'English',
+        durationMinutes: englishSeed.durationMinutes,
+        status: englishSeed.status,
+        mascotName: englishSeed.mascotName,
+        readinessFocus: englishSeed.readinessFocus,
+        scenario: 'Alias module should not force dense home layout.',
+        steps: englishSeed.steps,
+      ),
+      LessonCardModel(
+        id: 'english-speaking-alias-lesson',
+        moduleId: 'english-speaking',
+        title: 'English speaking alias',
+        subject: 'English',
+        durationMinutes: englishSeed.durationMinutes,
+        status: englishSeed.status,
+        mascotName: englishSeed.mascotName,
+        readinessFocus: englishSeed.readinessFocus,
+        scenario: 'Alias module should not force dense home layout.',
+        steps: englishSeed.steps,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final subjectCards = find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_SubjectCard',
+    );
+    expect(subjectCards, findsNWidgets(3));
+
+    final firstCardTop = tester.getTopLeft(subjectCards.at(0)).dy;
+    final secondCardTop = tester.getTopLeft(subjectCards.at(1)).dy;
+    final thirdCardTop = tester.getTopLeft(subjectCards.at(2)).dy;
+
+    expect((firstCardTop - secondCardTop).abs(), lessThan(1));
+    expect((firstCardTop - thirdCardTop).abs(), lessThan(1));
+
+    state.dispose();
   });
 
   testWidgets('home screen keeps the Mallam stage and subjects tightly stacked',

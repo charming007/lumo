@@ -1003,8 +1003,12 @@ class HomePage extends StatelessWidget {
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 900;
                     final shortHeight = constraints.maxHeight < 840;
+                    final visibleSubjectCount = buildLearnerSubjectCards(
+                      state: state,
+                      learner: state.currentLearner,
+                    ).length;
                     final denseSubjectLayout =
-                        shortHeight && state.modules.length > 3;
+                        shortHeight && visibleSubjectCount > 3;
                     final mallamStageHeight = denseSubjectLayout
                         ? (compact ? 156.0 : 196.0)
                         : (compact ? 204.0 : 252.0);
