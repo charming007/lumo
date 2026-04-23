@@ -21,7 +21,8 @@ class _FakeBundledContentLoader extends BundledContentLoader {
 
 class _BootstrapWithBundledFundamentalsApiClient extends LumoApiClient {
   @override
-  Future<LumoBootstrap> fetchBootstrap() async {
+  Future<LumoBootstrap> fetchBootstrap(
+      {String? overrideDeviceIdentifier}) async {
     return LumoBootstrap(
       learners: const [
         LearnerProfile(
@@ -294,6 +295,144 @@ void main() {
       readinessLabel: 'Confident responder',
       learnerCode: 'HAL-AL09',
     );
+
+    test(
+        'generates and persists a stable tablet device identifier across restarts',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = LumoAppState(includeSeedDemoContent: true);
+
+      await state.restorePersistedState();
+      final firstIdentifier = state.stableDeviceIdentifier;
+
+      expect(firstIdentifier, isNotNull);
+      expect(firstIdentifier, startsWith('lumo-tablet-'));
+
+      state.dispose();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final restored = LumoAppState(includeSeedDemoContent: true);
+      await restored.restorePersistedState();
+
+      expect(restored.stableDeviceIdentifier, firstIdentifier);
+      restored.dispose();
+    });
+
+    test('bootstrap automatically sends the persisted tablet device identifier',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      late String capturedHeader;
+      late String capturedQuery;
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              capturedHeader =
+                  request.headers['x-lumo-device-identifier'] ?? '';
+              capturedQuery =
+                  request.url.queryParameters['deviceIdentifier'] ?? '';
+              return http.Response(
+                jsonEncode({
+                  'learners': const [],
+                  'modules': const [],
+                  'lessons': const [],
+                  'assignments': const [],
+                  'registrationContext': const {},
+                  'meta': const {},
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.restorePersistedState();
+      final deviceIdentifier = state.stableDeviceIdentifier;
+      await state.bootstrap();
+
+      expect(capturedHeader, deviceIdentifier);
+      expect(capturedQuery, deviceIdentifier);
+      state.dispose();
+    });
+
+    test(
+        'live registration automatically sends the stable device identifier and does not rely on manual backendTarget input',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      Map<String, dynamic>? postedBody;
+      String? postedHeader;
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/learners') {
+              postedHeader = request.headers['x-lumo-device-identifier'];
+              postedBody = jsonDecode(request.body) as Map<String, dynamic>;
+              return http.Response(
+                jsonEncode({
+                  'id': 'student-live-1',
+                  'name': 'Safiya',
+                  'age': 8,
+                  'cohortName': 'Cohort B',
+                  'guardianName': 'Maryam',
+                  'attendanceRate': 0.9,
+                  'level': 'beginner',
+                }),
+                201,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      state.usingFallbackData = false;
+      state.registrationContext = RegistrationContext(
+        cohorts: const [
+          BackendCohort(id: 'cohort-1', name: 'Cohort A', podId: 'pod-1'),
+          BackendCohort(id: 'cohort-2', name: 'Cohort B', podId: 'pod-2'),
+        ],
+        mallams: const [
+          BackendMallam(
+              id: 'mallam-1', name: 'Mallam Idris', podIds: ['pod-1']),
+          BackendMallam(
+              id: 'mallam-2', name: 'Mallama Zarah', podIds: ['pod-2']),
+        ],
+        tabletRegistration: const TabletRegistration(
+          id: 'device-1',
+          deviceIdentifier: 'server-side-registration',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+          mallamId: 'mallam-1',
+          mallamName: 'Mallam Idris',
+        ),
+      );
+      state.registrationDraft = const RegistrationDraft(
+        name: 'Safiya',
+        age: '8',
+        cohort: 'Cohort B',
+        guardianName: 'Maryam',
+        village: 'Pod 3',
+        guardianPhone: '0801234567',
+        consentCaptured: true,
+      );
+
+      await state.restorePersistedState();
+      final deviceIdentifier = state.stableDeviceIdentifier;
+      await state.registerLearner();
+
+      expect(postedHeader, deviceIdentifier);
+      expect(postedBody?['deviceIdentifier'], deviceIdentifier);
+      expect(postedBody?.containsKey('backendTarget'), isFalse);
+      state.dispose();
+    });
 
     test('does not auto-select a learner during bootstrap refreshes', () async {
       final state = LumoAppState(
@@ -3603,6 +3742,92 @@ void main() {
     });
 
     test(
+        'production-like bootstrap hard-blocks when live backend returns only non-learner-visible lessons',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'id': 'english',
+                      'subjectId': 'english',
+                      'subjectName': 'English',
+                      'title': 'English',
+                      'level': 'beginner',
+                      'status': 'published',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'draft-lesson',
+                      'moduleId': 'english',
+                      'moduleName': 'English',
+                      'subject': 'English',
+                      'title': 'Draft greeting',
+                      'status': 'draft',
+                      'activitySteps': [
+                        {
+                          'id': 'draft-step-1',
+                          'type': 'listen_repeat',
+                          'title': 'Say hello',
+                          'prompt': 'Say hello.',
+                          'detail': 'Greeting step',
+                          'evidence': 'Learner greets',
+                        },
+                      ],
+                    },
+                  ],
+                  'assignments': [],
+                  'registrationContext': {
+                    'cohorts': [],
+                    'mallams': [],
+                  },
+                  'meta': {
+                    'generatedAt': '2026-04-21T06:30:09.634Z',
+                    'contractVersion': 'learner-app-v2.3',
+                    'assignmentCount': 0,
+                  },
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      addTearDown(state.dispose);
+
+      await state.bootstrap();
+
+      expect(state.learners, isNotEmpty);
+      expect(state.modules, isNotEmpty);
+      expect(state.assignedLessons, isEmpty);
+      expect(state.assignmentPacks, isEmpty);
+      expect(state.usingFallbackData, isTrue);
+      expect(
+        state.deploymentBlockerReason,
+        contains('zero learner-visible lessons and zero assignments'),
+      );
+    });
+
+    test(
         'production-like bootstrap hard-blocks when live backend returns no lessons or assignments',
         () async {
       final state = LumoAppState(
@@ -3665,7 +3890,7 @@ void main() {
       expect(state.usingFallbackData, isTrue);
       expect(
         state.deploymentBlockerReason,
-        contains('zero live lessons and zero assignments'),
+        contains('zero learner-visible lessons and zero assignments'),
       );
       expect(state.backendError, state.deploymentBlockerReason);
       expect(
@@ -4306,8 +4531,8 @@ void main() {
       final state = LumoAppState(includeSeedDemoContent: true);
       final englishModule =
           state.modules.firstWhere((module) => module.id == 'english');
-      final englishSeed =
-          state.assignedLessons.firstWhere((lesson) => lesson.moduleId == 'english');
+      final englishSeed = state.assignedLessons
+          .firstWhere((lesson) => lesson.moduleId == 'english');
       state.usingFallbackData = true;
 
       state.modules.add(const LearningModule(
@@ -4328,7 +4553,8 @@ void main() {
           status: 'assigned',
           mascotName: englishSeed.mascotName,
           readinessFocus: 'Assigned practice',
-          scenario: 'Live assignment that should stay visible in subject-first UI.',
+          scenario:
+              'Live assignment that should stay visible in subject-first UI.',
           steps: englishSeed.steps,
         ),
         LessonCardModel(
@@ -4340,18 +4566,22 @@ void main() {
           status: 'bundled',
           mascotName: englishSeed.mascotName,
           readinessFocus: 'Offline warmup',
-          scenario: 'Bundled lesson merged into the learner-facing subject grid.',
+          scenario:
+              'Bundled lesson merged into the learner-facing subject grid.',
           steps: englishSeed.steps,
         ),
       ]);
 
-      final subjectCards = buildLearnerSubjectCards(state: state, learner: null);
+      final subjectCards =
+          buildLearnerSubjectCards(state: state, learner: null);
       final subjectIds = subjectCards.map((card) => card.id).toList();
 
       expect(subjectIds, contains('english'));
       expect(subjectIds, contains('lumo-fundamentals'));
       expect(
-        state.lessonsForLearnerAndModule(null, 'english').map((lesson) => lesson.id),
+        state
+            .lessonsForLearnerAndModule(null, 'english')
+            .map((lesson) => lesson.id),
         contains('english-assigned-extra'),
       );
       expect(
@@ -4361,7 +4591,8 @@ void main() {
       state.dispose();
     });
 
-    test('subject-first cards prefer learner subject labels over module titles', () {
+    test('subject-first cards prefer learner subject labels over module titles',
+        () {
       final state = LumoAppState(includeSeedDemoContent: false);
 
       state.modules
@@ -4403,12 +4634,14 @@ void main() {
           ),
         );
 
-      final subjectCards = buildLearnerSubjectCards(state: state, learner: null);
+      final subjectCards =
+          buildLearnerSubjectCards(state: state, learner: null);
 
       expect(subjectCards, hasLength(1));
       expect(subjectCards.single.id, 'english');
       expect(subjectCards.single.title, 'English');
-      expect(subjectCards.single.module.title, 'English');
+      expect(subjectCards.single.module.id, 'english-reading-module');
+      expect(subjectCards.single.module.title, 'Reading Foundations');
       state.dispose();
     });
 
@@ -4474,7 +4707,8 @@ void main() {
       expect(buildLearnerSubjectCards(state: state, learner: learner), isEmpty);
 
       state.usingFallbackData = true;
-      final fallbackCards = buildLearnerSubjectCards(state: state, learner: learner);
+      final fallbackCards =
+          buildLearnerSubjectCards(state: state, learner: learner);
       expect(fallbackCards.map((card) => card.id), contains('english'));
       state.dispose();
     });
@@ -4504,7 +4738,8 @@ void main() {
             status: 'published',
             mascotName: 'Mallam',
             readinessFocus: 'Greeting flow',
-            scenario: 'Blank subject metadata should still map back to the module-backed subject card.',
+            scenario:
+                'Blank subject metadata should still map back to the module-backed subject card.',
             steps: [
               LessonStep(
                 id: 'step-1',
@@ -4520,7 +4755,8 @@ void main() {
             ],
           ));
 
-        final subjectCards = buildLearnerSubjectCards(state: state, learner: null);
+        final subjectCards =
+            buildLearnerSubjectCards(state: state, learner: null);
         final visibleLessons = state.lessonsForLearnerAndSubject(
           null,
           subjectCards.single.id,
@@ -4528,7 +4764,8 @@ void main() {
 
         expect(subjectCards, hasLength(1));
         expect(subjectCards.single.id, 'reading-foundations');
-        expect(visibleLessons.map((lesson) => lesson.id), ['english-reading-lesson']);
+        expect(visibleLessons.map((lesson) => lesson.id),
+            ['english-reading-lesson']);
         state.dispose();
       },
     );

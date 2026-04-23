@@ -372,3 +372,36 @@ test('tablet-scoped learner registration rejects cross-pod cohort selection and 
   assert.equal(created.body.podId, 'pod-1');
   assert.equal(created.body.mallamId, 'teacher-1');
 });
+
+
+test('tablet-scoped learner registration also resolves pod scope from body deviceIdentifier when the header is absent', async () => {
+  const created = await request('/api/v1/learner-app/learners', {
+    method: 'POST',
+    body: JSON.stringify({
+      deviceIdentifier: 'lumo-tablet-kano-01',
+      name: 'Scoped body learner',
+      age: 7,
+      cohortId: 'cohort-1',
+      podId: 'pod-2',
+      mallamId: 'teacher-2',
+      preferredLanguage: 'Hausa',
+    }),
+  });
+
+  assert.equal(created.status, 409);
+
+  const accepted = await request('/api/v1/learner-app/learners', {
+    method: 'POST',
+    body: JSON.stringify({
+      deviceIdentifier: 'lumo-tablet-kano-01',
+      name: 'Scoped body learner',
+      age: 7,
+      cohortId: 'cohort-1',
+      preferredLanguage: 'Hausa',
+    }),
+  });
+
+  assert.equal(accepted.status, 201, JSON.stringify(accepted.body));
+  assert.equal(accepted.body.podId, 'pod-1');
+  assert.equal(accepted.body.mallamId, 'teacher-1');
+});

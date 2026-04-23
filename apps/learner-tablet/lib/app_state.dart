@@ -25,6 +25,19 @@ const Duration _kTrustedOfflineSnapshotMaxAge = Duration(hours: 24);
 const Duration _kOperatorSyncStaleThreshold = Duration(minutes: 30);
 const Duration _kOperatorRosterStaleThreshold = Duration(hours: 6);
 
+bool isLearnerVisibleLessonStatus(String status,
+    {required bool usingFallbackData}) {
+  final normalizedStatus = status.trim().toLowerCase();
+  if (normalizedStatus.isEmpty) return true;
+  if (normalizedStatus == 'published' ||
+      normalizedStatus == 'live' ||
+      normalizedStatus == 'assigned' ||
+      normalizedStatus == 'bundled') {
+    return true;
+  }
+  return usingFallbackData && normalizedStatus == 'offline';
+}
+
 enum ContentOrigin {
   liveBackend,
   localCache,
@@ -101,6 +114,7 @@ class LumoAppState {
   SpeakerMode speakerMode = SpeakerMode.guiding;
   RegistrationDraft registrationDraft = const RegistrationDraft();
   RegistrationContext registrationContext = const RegistrationContext();
+  String? tabletDeviceIdentifier;
   Map<String, dynamic>? pendingRecoveredSessionSnapshot;
 
   final List<SyncEvent> pendingSyncEvents = [];
@@ -148,6 +162,7 @@ class LumoAppState {
   String? learnerRuntimeError;
 
   String get backendBaseUrl => _apiClient.baseUrl;
+  String? get stableDeviceIdentifier => tabletDeviceIdentifier;
 
   void attachVoiceReplay(VoiceReplay replay, {VoiceReplayStop? onStop}) {
     voiceReplay = replay;
@@ -229,15 +244,20 @@ class LumoAppState {
   String? _liveBootstrapRuntimeBlockerReason(LumoBootstrap data) {
     if (_includeSeedDemoContent) return null;
 
-    final hasLiveLessons = data.lessons.isNotEmpty;
+    final hasLearnerVisibleLessons = data.lessons.any(
+      (lesson) => isLearnerVisibleLessonStatus(
+        lesson.status,
+        usingFallbackData: false,
+      ),
+    );
     final hasLiveAssignments = data.assignmentPacks.isNotEmpty;
-    if (hasLiveLessons || hasLiveAssignments) return null;
+    if (hasLearnerVisibleLessons || hasLiveAssignments) return null;
 
     final hasVisibleCurriculumShell =
         data.modules.isNotEmpty || data.learners.isNotEmpty;
     if (!hasVisibleCurriculumShell) return null;
 
-    return 'Production bootstrap returned the learner roster and curriculum shell, but zero live lessons and zero assignments. That tablet would open into a dead-end learner experience.';
+    return 'Production bootstrap returned the learner roster and curriculum shell, but zero learner-visible lessons and zero assignments. That tablet would open into a dead-end learner experience.';
   }
 
   String get pendingSyncSummary {
@@ -385,7 +405,8 @@ class LumoAppState {
 
     return assignedLessons
         .where(
-          (lesson) => lessonOriginFor(lesson) == ContentOrigin.bundledOfflinePack,
+          (lesson) =>
+              lessonOriginFor(lesson) == ContentOrigin.bundledOfflinePack,
         )
         .every(_isBundledFundamentalsLesson);
   }
@@ -426,7 +447,8 @@ class LumoAppState {
 
     final origins = visibleCurriculumOrigins;
     if (!usingFallbackData && origins.isNotEmpty) {
-      if ((origins.length == 1 && origins.single == ContentOrigin.liveBackend) ||
+      if ((origins.length == 1 &&
+              origins.single == ContentOrigin.liveBackend) ||
           hasIntentionalBundledFundamentalsSupplement) {
         return 'Curriculum live';
       }
@@ -524,16 +546,30 @@ class LumoAppState {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_kPersistenceStorageKey);
-      if (raw == null || raw.trim().isEmpty) return;
+      if (raw == null || raw.trim().isEmpty) {
+        await ensureStableDeviceIdentifier();
+        return;
+      }
 
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return;
       final snapshot = Map<String, dynamic>.from(decoded);
+      final persistedDeviceIdentifier =
+          _readNullableString(snapshot['tabletDeviceIdentifier']);
       if (snapshot['schemaVersion']?.toString() != _kPersistenceSchemaVersion) {
+        if (persistedDeviceIdentifier != null) {
+          tabletDeviceIdentifier = persistedDeviceIdentifier;
+          _apiClient.deviceIdentifier = persistedDeviceIdentifier;
+        } else {
+          await ensureStableDeviceIdentifier();
+        }
         persistenceError =
             'Saved tablet state uses an older schema and was skipped safely.';
         return;
       }
+
+      tabletDeviceIdentifier = persistedDeviceIdentifier;
+      _apiClient.deviceIdentifier = persistedDeviceIdentifier;
 
       final restoredLearners = (snapshot['learners'] as List?)
               ?.whereType<Map>()
@@ -722,6 +758,7 @@ class LumoAppState {
       deploymentBlockerReason =
           hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
       restoredFromPersistence = true;
+      await ensureStableDeviceIdentifier();
       persistenceError = null;
     } catch (error) {
       persistenceError = 'Unable to restore saved tablet state: $error';
@@ -737,6 +774,7 @@ class LumoAppState {
   }
 
   Future<void> bootstrap() async {
+    await ensureStableDeviceIdentifier();
     if (isBootstrapping) return;
     isBootstrapping = true;
     backendError = null;
@@ -1237,15 +1275,10 @@ class LumoAppState {
   }
 
   bool _isPublishedLearnerLesson(LessonCardModel lesson) {
-    final normalizedStatus = lesson.status.trim().toLowerCase();
-    if (normalizedStatus.isEmpty) return true;
-    if (normalizedStatus == 'published' ||
-        normalizedStatus == 'live' ||
-        normalizedStatus == 'assigned' ||
-        normalizedStatus == 'bundled') {
-      return true;
-    }
-    return usingFallbackData && normalizedStatus == 'offline';
+    return isLearnerVisibleLessonStatus(
+      lesson.status,
+      usingFallbackData: usingFallbackData,
+    );
   }
 
   String _normalizeSubjectKey(String value) {
@@ -1337,6 +1370,45 @@ class LumoAppState {
       return _normalizeSubjectKey(_subjectTitleForLesson(lesson)) ==
           normalizedSubjectId;
     }).toList(growable: false);
+  }
+
+  LearningModule? primaryModuleForSubject({
+    LearnerProfile? learner,
+    required String subjectId,
+  }) {
+    final lessons = lessonsForLearnerAndSubject(learner, subjectId);
+    if (lessons.isEmpty) return null;
+
+    final moduleIdsByPopularity = <String, int>{};
+    for (final lesson in lessons) {
+      final moduleId = lesson.moduleId.trim();
+      if (moduleId.isEmpty) continue;
+      moduleIdsByPopularity[moduleId] =
+          (moduleIdsByPopularity[moduleId] ?? 0) + 1;
+    }
+
+    final rankedModuleIds = moduleIdsByPopularity.entries.toList()
+      ..sort((left, right) {
+        final countCompare = right.value.compareTo(left.value);
+        if (countCompare != 0) return countCompare;
+        return left.key.compareTo(right.key);
+      });
+
+    for (final candidate in rankedModuleIds) {
+      final match = modules.cast<LearningModule?>().firstWhere(
+            (module) => module?.id == candidate.key,
+            orElse: () => null,
+          );
+      if (match != null) return match;
+    }
+
+    return modules.cast<LearningModule?>().firstWhere(
+          (module) =>
+              module != null &&
+              _normalizeSubjectKey(module.title) ==
+                  _normalizeSubjectKey(subjectId),
+          orElse: () => null,
+        );
   }
 
   Set<String> _moduleKeyVariants(LearningModule module) {
@@ -1743,6 +1815,7 @@ class LumoAppState {
       registrationBlockerReason == null && !isRegisteringLearner;
 
   Future<LearnerProfile> registerLearner() async {
+    await ensureStableDeviceIdentifier();
     final blocker = registrationBlockerReason;
     if (blocker != null) {
       backendError ??= blocker;
@@ -1756,6 +1829,7 @@ class LumoAppState {
       final learner = await _apiClient.registerLearner(
         draft: registrationDraft,
         registrationTarget: registrationTargetForDraft,
+        overrideDeviceIdentifier: tabletDeviceIdentifier,
       );
       learners.insert(0, learner);
       currentLearner = learner;
@@ -4125,6 +4199,7 @@ class LumoAppState {
           _moduleContentOrigins.map((key, value) => MapEntry(key, value.name)),
       'lessonContentOrigins':
           _lessonContentOrigins.map((key, value) => MapEntry(key, value.name)),
+      'tabletDeviceIdentifier': tabletDeviceIdentifier,
       'registrationDraft': _encodeRegistrationDraft(registrationDraft),
       'registrationContext': _encodeRegistrationContext(registrationContext),
       'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),
@@ -4823,6 +4898,29 @@ class LumoAppState {
     final value = raw?.toString();
     if (value == null || value.trim().isEmpty || value == 'null') return null;
     return value;
+  }
+
+  Future<String> ensureStableDeviceIdentifier() async {
+    final existing = tabletDeviceIdentifier?.trim();
+    if (existing != null && existing.isNotEmpty) {
+      _apiClient.deviceIdentifier = existing;
+      return existing;
+    }
+
+    final generated = _generateStableDeviceIdentifier();
+    tabletDeviceIdentifier = generated;
+    _apiClient.deviceIdentifier = generated;
+    await _persistStateNow();
+    return generated;
+  }
+
+  String _generateStableDeviceIdentifier() {
+    final random = Random.secure();
+    final entropy = List<int>.generate(8, (_) => random.nextInt(256))
+        .map((value) => value.toRadixString(16).padLeft(2, '0'))
+        .join();
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+    return 'lumo-tablet-$timestamp-$entropy';
   }
 
   void dispose() {

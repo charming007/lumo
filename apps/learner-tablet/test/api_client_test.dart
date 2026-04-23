@@ -4,8 +4,93 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:lumo_learner_tablet/api_client.dart';
+import 'package:lumo_learner_tablet/models.dart';
 
 void main() {
+  group('LumoApiClient tablet identity', () {
+    test('sends stable device identifier on bootstrap requests', () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/bootstrap');
+          expect(request.url.queryParameters['deviceIdentifier'],
+              'lumo-tablet-stable-01');
+          expect(request.headers['x-lumo-device-identifier'],
+              'lumo-tablet-stable-01');
+          return http.Response(
+            jsonEncode({
+              'learners': const [],
+              'modules': const [],
+              'lessons': const [],
+              'assignments': const [],
+              'registrationContext': const {},
+              'meta': const {},
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+        deviceIdentifier: 'lumo-tablet-stable-01',
+      );
+
+      await client.fetchBootstrap();
+    });
+
+    test(
+        'sends device identifier on learner registration and skips manual backendTarget when tablet identity is present',
+        () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/learners');
+          expect(request.headers['x-lumo-device-identifier'],
+              'lumo-tablet-stable-01');
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body['deviceIdentifier'], 'lumo-tablet-stable-01');
+          expect(body.containsKey('backendTarget'), isFalse);
+          return http.Response(
+            jsonEncode({
+              'id': 'student-1',
+              'name': 'Amina',
+              'age': 8,
+              'cohortName': 'Alpha',
+              'guardianName': 'Zainab',
+              'attendanceRate': 0.9,
+              'level': 'beginner',
+            }),
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+        deviceIdentifier: 'lumo-tablet-stable-01',
+      );
+
+      await client.registerLearner(
+        draft: const RegistrationDraft(
+          name: 'Amina',
+          age: '8',
+          cohort: 'Alpha',
+          guardianName: 'Zainab',
+          village: 'Pod 1',
+          guardianPhone: '0800000000',
+          consentCaptured: true,
+        ),
+        registrationTarget: RegistrationTarget(
+          cohort: const BackendCohort(
+            id: 'cohort-1',
+            name: 'Alpha',
+            podId: 'pod-1',
+          ),
+          mallam: const BackendMallam(
+            id: 'teacher-1',
+            name: 'Mallam Idris',
+            podIds: ['pod-1'],
+          ),
+        ),
+      );
+    });
+  });
+
   group('LumoApiClient.normalizeBaseUrl', () {
     test('keeps a clean https origin unchanged', () {
       expect(
@@ -404,7 +489,11 @@ void main() {
                   {'id': 'cohort-1', 'name': 'Alpha Cohort', 'podId': 'pod-1'},
                 ],
                 'mallams': [
-                  {'id': 'teacher-1', 'name': 'Mallam Idris', 'podIds': ['pod-1']},
+                  {
+                    'id': 'teacher-1',
+                    'name': 'Mallam Idris',
+                    'podIds': ['pod-1']
+                  },
                 ],
                 'defaultTarget': {
                   'cohortId': 'cohort-1',
@@ -441,7 +530,61 @@ void main() {
         bootstrap.registrationContext.tabletRegistration?.deviceIdentifier,
         'lumo-tablet-kano-01',
       );
-      expect(bootstrap.registrationContext.summary, 'Kano North • Mallam Idris');
+      expect(
+          bootstrap.registrationContext.summary, 'Kano North • Mallam Idris');
+    });
+  });
+
+  group('LumoApiClient tutor voice replay', () {
+    test('returns null when backend says remote tutor voice is unavailable',
+        () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/voice/replay');
+          return http.Response('', 204);
+        }),
+        baseUrl: 'https://example.com',
+      );
+
+      final clip = await client.fetchTutorVoiceReplay(
+        text: 'Hello learner',
+        mode: SpeakerMode.guiding,
+      );
+
+      expect(clip, isNull);
+    });
+
+    test('parses binary tutor voice audio payloads', () async {
+      final bytes = utf8.encode('fake-mp3-audio');
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/voice/replay');
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body['text'], 'Hello learner');
+          expect(body['mode'], 'guiding');
+          return http.Response.bytes(
+            bytes,
+            200,
+            headers: {
+              'content-type': 'audio/mpeg',
+              'x-lumo-voice-provider': 'elevenlabs',
+              'x-lumo-voice-model': 'eleven_flash_v2_5',
+            },
+          );
+        }),
+        baseUrl: 'https://example.com',
+      );
+
+      final clip = await client.fetchTutorVoiceReplay(
+        text: 'Hello learner',
+        mode: SpeakerMode.guiding,
+      );
+
+      expect(clip, isNotNull);
+      expect(clip!.contentType, 'audio/mpeg');
+      expect(clip.provider, 'elevenlabs');
+      expect(clip.model, 'eleven_flash_v2_5');
+      expect(clip.audioBytes, bytes);
     });
   });
 }

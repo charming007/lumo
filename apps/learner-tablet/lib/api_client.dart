@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -8,8 +9,22 @@ import 'models.dart';
 const String kDefaultProductionApiBaseUrl =
     'https://lumo-api-production-303a.up.railway.app';
 
+class TutorVoiceClip {
+  final Uint8List audioBytes;
+  final String contentType;
+  final String? provider;
+  final String? model;
+
+  const TutorVoiceClip({
+    required this.audioBytes,
+    required this.contentType,
+    this.provider,
+    this.model,
+  });
+}
+
 class LumoApiClient {
-  LumoApiClient({http.Client? client, String? baseUrl})
+  LumoApiClient({http.Client? client, String? baseUrl, this.deviceIdentifier})
       : _client = client ?? http.Client(),
         _hasExplicitBaseUrl =
             baseUrl != null || const bool.hasEnvironment('LUMO_API_BASE_URL'),
@@ -24,6 +39,7 @@ class LumoApiClient {
   final http.Client _client;
   final bool _hasExplicitBaseUrl;
   final String baseUrl;
+  String? deviceIdentifier;
   static const Duration _requestTimeout = Duration(seconds: 12);
 
   static String normalizeBaseUrl(String rawBaseUrl) {
@@ -120,17 +136,57 @@ class LumoApiClient {
     return segments;
   }
 
-  Map<String, String> get _jsonHeaders => const {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+  Map<String, String> _jsonHeadersWithDevice(
+      [String? overrideDeviceIdentifier]) {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    final resolvedDeviceIdentifier =
+        overrideDeviceIdentifier?.trim().isNotEmpty == true
+            ? overrideDeviceIdentifier!.trim()
+            : deviceIdentifier?.trim();
+    if (resolvedDeviceIdentifier != null &&
+        resolvedDeviceIdentifier.isNotEmpty) {
+      headers['x-lumo-device-identifier'] = resolvedDeviceIdentifier;
+    }
+    return headers;
+  }
 
-  Future<LumoBootstrap> fetchBootstrap() async {
-    final uri = Uri.parse('$baseUrl/api/v1/learner-app/bootstrap');
+  Uri _learnerAppUri(
+    String path, {
+    Map<String, String>? queryParameters,
+    String? overrideDeviceIdentifier,
+    bool includeDeviceIdentifierQuery = false,
+  }) {
+    final resolvedDeviceIdentifier =
+        overrideDeviceIdentifier?.trim().isNotEmpty == true
+            ? overrideDeviceIdentifier!.trim()
+            : deviceIdentifier?.trim();
+    final mergedQuery = <String, String>{...?queryParameters};
+    if (includeDeviceIdentifierQuery &&
+        resolvedDeviceIdentifier != null &&
+        resolvedDeviceIdentifier.isNotEmpty) {
+      mergedQuery['deviceIdentifier'] = resolvedDeviceIdentifier;
+    }
+
+    final uri = Uri.parse('$baseUrl$path');
+    return mergedQuery.isEmpty
+        ? uri
+        : uri.replace(queryParameters: mergedQuery);
+  }
+
+  Future<LumoBootstrap> fetchBootstrap(
+      {String? overrideDeviceIdentifier}) async {
+    final uri = _learnerAppUri(
+      '/api/v1/learner-app/bootstrap',
+      overrideDeviceIdentifier: overrideDeviceIdentifier,
+      includeDeviceIdentifierQuery: true,
+    );
     final response = await _send(
       () => _client.get(
         uri,
-        headers: _jsonHeaders,
+        headers: _jsonHeadersWithDevice(overrideDeviceIdentifier),
       ),
       action: 'load learner app bootstrap',
       uri: uri,
@@ -169,10 +225,20 @@ class LumoApiClient {
   Future<LearnerProfile> registerLearner({
     required RegistrationDraft draft,
     RegistrationTarget? registrationTarget,
+    String? overrideDeviceIdentifier,
   }) async {
+    final resolvedDeviceIdentifier =
+        overrideDeviceIdentifier?.trim().isNotEmpty == true
+            ? overrideDeviceIdentifier!.trim()
+            : deviceIdentifier?.trim();
     final payload = {
       ...draft.backendPayloadPreview,
-      if (registrationTarget != null) ...{
+      if (resolvedDeviceIdentifier != null &&
+          resolvedDeviceIdentifier.isNotEmpty)
+        'deviceIdentifier': resolvedDeviceIdentifier,
+      if ((resolvedDeviceIdentifier == null ||
+              resolvedDeviceIdentifier.isEmpty) &&
+          registrationTarget != null) ...{
         'backendTarget': {
           'cohortId': registrationTarget.cohort.id,
           'cohortName': registrationTarget.cohort.name,
@@ -183,11 +249,11 @@ class LumoApiClient {
       },
     };
 
-    final uri = Uri.parse('$baseUrl/api/v1/learner-app/learners');
+    final uri = _learnerAppUri('/api/v1/learner-app/learners');
     final response = await _send(
       () => _client.post(
         uri,
-        headers: _jsonHeaders,
+        headers: _jsonHeadersWithDevice(overrideDeviceIdentifier),
         body: jsonEncode(payload),
       ),
       action: 'register learner',
@@ -201,11 +267,11 @@ class LumoApiClient {
   }
 
   Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
-    final uri = Uri.parse('$baseUrl/api/v1/learner-app/modules/$moduleId');
+    final uri = _learnerAppUri('/api/v1/learner-app/modules/$moduleId');
     final response = await _send(
       () => _client.get(
         uri,
-        headers: _jsonHeaders,
+        headers: _jsonHeadersWithDevice(),
       ),
       action: 'load module details for $moduleId',
       uri: uri,
@@ -228,14 +294,17 @@ class LumoApiClient {
     required String learnerCode,
     int limit = 5,
   }) async {
-    final encodedLearnerCode = Uri.encodeQueryComponent(learnerCode);
-    final uri = Uri.parse(
-      '$baseUrl/api/v1/learner-app/sessions?learnerCode=$encodedLearnerCode&limit=$limit',
+    final uri = _learnerAppUri(
+      '/api/v1/learner-app/sessions',
+      queryParameters: {
+        'learnerCode': learnerCode,
+        'limit': '$limit',
+      },
     );
     final response = await _send(
       () => _client.get(
         uri,
-        headers: _jsonHeaders,
+        headers: _jsonHeadersWithDevice(),
       ),
       action: 'load learner runtime sessions',
       uri: uri,
@@ -250,11 +319,11 @@ class LumoApiClient {
   }
 
   Future<LumoSyncResult> syncEvents(List<SyncEvent> events) async {
-    final uri = Uri.parse('$baseUrl/api/v1/learner-app/sync');
+    final uri = _learnerAppUri('/api/v1/learner-app/sync');
     final response = await _send(
       () => _client.post(
         uri,
-        headers: _jsonHeaders,
+        headers: _jsonHeadersWithDevice(),
         body: jsonEncode({
           'events': events
               .map(
@@ -282,6 +351,40 @@ class LumoApiClient {
     );
   }
 
+  Future<TutorVoiceClip?> fetchTutorVoiceReplay({
+    required String text,
+    required SpeakerMode mode,
+  }) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return null;
+
+    final uri = Uri.parse('$baseUrl/api/v1/learner-app/voice/replay');
+    final response = await _send(
+      () => _client.post(
+        uri,
+        headers: _jsonHeadersWithDevice(),
+        body: jsonEncode({
+          'text': trimmed,
+          'mode': mode.name,
+        }),
+      ),
+      action: 'load tutor voice replay audio',
+      uri: uri,
+    );
+
+    if (response.statusCode == 204) {
+      return null;
+    }
+
+    _ensureOk(response, 'load tutor voice replay audio', uri);
+    return TutorVoiceClip(
+      audioBytes: response.bodyBytes,
+      contentType: response.headers['content-type'] ?? 'audio/mpeg',
+      provider: response.headers['x-lumo-voice-provider'],
+      model: response.headers['x-lumo-voice-model'],
+    );
+  }
+
   Future<RewardSnapshot> fetchLearnerRewards({
     String? learnerId,
     String? learnerCode,
@@ -294,10 +397,12 @@ class LumoApiClient {
       query['learnerCode'] = learnerCode.trim();
     }
 
-    final uri = Uri.parse('$baseUrl/api/v1/learner-app/rewards')
-        .replace(queryParameters: query.isEmpty ? null : query);
+    final uri = _learnerAppUri(
+      '/api/v1/learner-app/rewards',
+      queryParameters: query.isEmpty ? null : query,
+    );
     final response = await _send(
-      () => _client.get(uri, headers: _jsonHeaders),
+      () => _client.get(uri, headers: _jsonHeadersWithDevice()),
       action: 'load learner rewards',
       uri: uri,
     );
