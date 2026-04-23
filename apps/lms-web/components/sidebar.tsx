@@ -82,7 +82,7 @@ export function Sidebar({
           <div className="sidebar__brand-copy">
             <div style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              Pilot control plane for deployment trust, content release handoff, assignment flow, learner progress, and settings.
+              Admin control plane for deployment trust, content release handoff, assignment flow, learner progress, and settings.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -131,8 +131,8 @@ export function Sidebar({
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
           <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Pilot routes only</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Keep the shell honest: dashboard, content, assignments, progress, and settings are the only launch-critical routes in this deployment target.</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full navigation active</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Keep the shell honest: dashboard, content, assignments, progress, and settings are the only full-admin routes in this deployment target.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
