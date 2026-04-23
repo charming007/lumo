@@ -56,8 +56,8 @@ export function Topbar({
           {sidebarCollapsed ? '⇥ Expand nav' : '⇤ Collapse nav'}
         </button>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>Welcome back</div>
-          <div style={{ fontSize: 'clamp(22px, 3vw, 28px)', fontWeight: 900, color: '#0f172a', overflowWrap: 'anywhere' }}>Lumo command center</div>
+          <div style={{ fontSize: 13, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>Pilot workspace</div>
+          <div style={{ fontSize: 'clamp(22px, 3vw, 28px)', fontWeight: 900, color: '#0f172a', overflowWrap: 'anywhere' }}>Lumo launch shell</div>
         </div>
       </div>
       <div className="topbar__meta" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0, flex: '1 1 280px' }}>

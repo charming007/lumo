@@ -1721,7 +1721,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(
-      find.textContaining('${learner.name} is selected for ${lesson.title}.'),
+      find.textContaining('${learner.name} is selected for ${lesson.title}'),
       findsOneWidget,
     );
     expect(find.text('Start with ${learner.name}'), findsOneWidget);
@@ -1729,6 +1729,63 @@ void main() {
 
     state.dispose();
   });
+
+  testWidgets(
+    'lesson launch setup only renders learners who can actually open the lesson',
+    (tester) async {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final module = state.modules.firstWhere((item) => item.id == 'english');
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+      );
+      final baseLearners = List<LearnerProfile>.of(state.learners);
+      state.learners
+        ..clear()
+        ..addAll([
+          baseLearners[0].copyWith(
+            id: 'student-pod-a',
+            name: 'Amina Pod A',
+            podId: 'pod-a',
+            podLabel: 'Pod A',
+            cohort: 'Pod A Cohort',
+          ),
+          baseLearners[1].copyWith(
+            id: 'student-pod-b',
+            name: 'Bashir Pod B',
+            podId: 'pod-b',
+            podLabel: 'Pod B',
+            cohort: 'Pod B Cohort',
+          ),
+        ]);
+      state.registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-registration-pod-a',
+          deviceIdentifier: 'tablet-pod-a',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Amina Pod A'), findsWidgets);
+      expect(find.text('Bashir Pod B'), findsNothing);
+      expect(find.text('Start with Amina Pod A'), findsOneWidget);
+      expect(find.text('Start with Bashir Pod B'), findsNothing);
+
+      state.dispose();
+    },
+  );
 
   testWidgets(
       'subject modules page shows all learner-facing lessons for the selected module',

@@ -82,7 +82,7 @@ export function Sidebar({
           <div className="sidebar__brand-copy">
             <div style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              Full admin control plane for curriculum, learners, pods, assignments, intervention, and deployment trust.
+              Pilot control plane for curriculum release, assignment flow, intervention, and deployment trust.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -130,9 +130,9 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
-          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full operations view</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Learners, mallams, pods, assignments, reporting, and deployment trust all belong in the main nav. Hiding operational surfaces is how regressions slip into production.</div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Pilot workspace</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Narrow launch shell</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Keep pilot operators inside the five launch-critical surfaces: dashboard, content, assignments, progress, and settings. Extra admin routes can exist in the repo without pretending they belong in deployment sign-off.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
@@ -173,8 +173,8 @@ export function Sidebar({
         </nav>
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise the full LMS surface: geography, learners, pods, curriculum release, assignment flow, learner intervention, and deployment trust.</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Pilot workspace</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise the launch-critical LMS shell only: curriculum release, assignments, learner intervention, and deployment trust.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
