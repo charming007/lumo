@@ -1263,6 +1263,105 @@ class LumoAppState {
     return learners.first;
   }
 
+  String? get tabletPodId {
+    final tabletRegistration = registrationContext.tabletRegistration;
+    if (tabletRegistration?.podId?.trim().isNotEmpty == true) {
+      return tabletRegistration!.podId!.trim();
+    }
+    final defaultTarget = registrationContext.defaultTarget;
+    final targetPodId = defaultTarget?.cohort.podId.trim();
+    if (targetPodId != null && targetPodId.isNotEmpty) {
+      return targetPodId;
+    }
+    return null;
+  }
+
+  String? get tabletPodLabel {
+    final tabletRegistration = registrationContext.tabletRegistration;
+    final registrationLabel = tabletRegistration?.podLabel?.trim();
+    if (registrationLabel != null && registrationLabel.isNotEmpty) {
+      return registrationLabel;
+    }
+    final podId = tabletPodId;
+    if (podId == null || podId.isEmpty) return null;
+    final matchingCohort =
+        registrationContext.cohorts.cast<BackendCohort?>().firstWhere(
+              (cohort) => cohort?.podId == podId,
+              orElse: () => null,
+            );
+    return matchingCohort?.name ?? podId;
+  }
+
+  bool learnerMatchesTabletPod(LearnerProfile learner) {
+    final podId = tabletPodId?.trim();
+    if (podId == null || podId.isEmpty) return true;
+    final learnerPodId = learner.podId?.trim();
+    if (learnerPodId == null || learnerPodId.isEmpty) return true;
+    return learnerPodId == podId;
+  }
+
+  bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
+    if (lesson.isAssignmentPlaceholder) {
+      return learnerMatchesTabletPod(learner);
+    }
+    if (!_isPublishedLearnerLesson(lesson)) return false;
+    if (!learnerMatchesTabletPod(learner)) return false;
+
+    final resumable = resumableLessonForLearner(learner);
+    if (resumable?.id == lesson.id) return true;
+
+    final backendAssigned = backendAssignedLessonsForLearner(learner)
+        .where((item) => !item.isAssignmentPlaceholder)
+        .toList(growable: false);
+    if (backendAssigned.any((item) => item.id == lesson.id)) {
+      return true;
+    }
+
+    final learnerLessons = lessonsForLearner(learner)
+        .where((item) => !item.isAssignmentPlaceholder)
+        .toList(growable: false);
+    return learnerLessons.any((item) => item.id == lesson.id);
+  }
+
+  List<LearnerProfile> availableLearnersForLesson(LessonCardModel lesson) {
+    final available = learners
+        .where((learner) => learnerCanOpenLesson(learner, lesson))
+        .toList(growable: false);
+    available.sort((left, right) {
+      final leftResumable = resumableLessonForLearner(left)?.id == lesson.id;
+      final rightResumable = resumableLessonForLearner(right)?.id == lesson.id;
+      if (leftResumable != rightResumable) {
+        return leftResumable ? -1 : 1;
+      }
+
+      final leftAssigned = backendAssignedLessonsForLearner(left)
+          .any((item) => item.id == lesson.id);
+      final rightAssigned = backendAssignedLessonsForLearner(right)
+          .any((item) => item.id == lesson.id);
+      if (leftAssigned != rightAssigned) {
+        return leftAssigned ? -1 : 1;
+      }
+
+      final leftCurrent = currentLearner?.id == left.id;
+      final rightCurrent = currentLearner?.id == right.id;
+      if (leftCurrent != rightCurrent) {
+        return leftCurrent ? -1 : 1;
+      }
+
+      return left.name.compareTo(right.name);
+    });
+    return available;
+  }
+
+  BackendLessonSession? resumableSessionForLearnerAndLesson(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) {
+    final session = resumableRuntimeSessionForLearner(learner);
+    if (session == null) return null;
+    return session.lessonId == lesson.id ? session : null;
+  }
+
   void selectLearner(LearnerProfile learner) {
     currentLearner = learner;
     persistStateSoon();

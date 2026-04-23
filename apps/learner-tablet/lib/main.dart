@@ -766,6 +766,104 @@ String _resolvedSubjectKeyForModule({
   );
 }
 
+enum LearnerLessonAvailabilityKind {
+  resumeReady,
+  assigned,
+  available,
+  podMismatch,
+  unavailable,
+}
+
+class LearnerLessonAvailability {
+  final LearnerLessonAvailabilityKind kind;
+  final String label;
+  final String detail;
+  final BackendLessonSession? resumableSession;
+
+  const LearnerLessonAvailability({
+    required this.kind,
+    required this.label,
+    required this.detail,
+    this.resumableSession,
+  });
+
+  bool get canLaunch =>
+      kind == LearnerLessonAvailabilityKind.resumeReady ||
+      kind == LearnerLessonAvailabilityKind.assigned ||
+      kind == LearnerLessonAvailabilityKind.available;
+}
+
+LearnerLessonAvailability learnerLessonAvailability({
+  required LumoAppState state,
+  required LearnerProfile learner,
+  required LessonCardModel lesson,
+}) {
+  final resumableSession =
+      state.resumableSessionForLearnerAndLesson(learner, lesson);
+  if (resumableSession != null) {
+    return LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.resumeReady,
+      label: 'Resume ready',
+      detail: resumableSession.progressLabel,
+      resumableSession: resumableSession,
+    );
+  }
+
+  if (!state.learnerMatchesTabletPod(learner)) {
+    final tabletPodLabel = state.tabletPodLabel ?? 'this tablet pod';
+    final learnerPodLabel = learner.podLabel ?? learner.cohort;
+    return LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.podMismatch,
+      label: 'Different pod',
+      detail: '$learnerPodLabel learner, tablet is set for $tabletPodLabel.',
+    );
+  }
+
+  final backendAssigned = state
+      .backendAssignedLessonsForLearner(learner)
+      .any((item) => item.id == lesson.id);
+  if (backendAssigned) {
+    return LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.assigned,
+      label: 'Assigned now',
+      detail: state.backendRoutingSummaryForLearner(learner),
+    );
+  }
+
+  final learnerLessons = state.lessonsForLearner(learner);
+  if (learnerLessons.any((item) => item.id == lesson.id)) {
+    return LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.available,
+      label: 'Available',
+      detail: state.nextLessonRouteSummaryForLearner(
+        learner,
+        completedLessonId: lesson.id,
+      ),
+    );
+  }
+
+  return LearnerLessonAvailability(
+    kind: LearnerLessonAvailabilityKind.unavailable,
+    label: 'Not ready',
+    detail: 'No safe start path for this learner on this lesson yet.',
+  );
+}
+
+Color _learnerAvailabilityColor(LearnerLessonAvailabilityKind kind) {
+  switch (kind) {
+    case LearnerLessonAvailabilityKind.resumeReady:
+      return LumoTheme.primary;
+    case LearnerLessonAvailabilityKind.assigned:
+      return LumoTheme.accentGreen;
+    case LearnerLessonAvailabilityKind.available:
+      return LumoTheme.accentOrange;
+    case LearnerLessonAvailabilityKind.podMismatch:
+      return const Color(0xFF7C3AED);
+    case LearnerLessonAvailabilityKind.unavailable:
+      return const Color(0xFF64748B);
+  }
+}
+
 void launchLessonFlow({
   required BuildContext context,
   required LumoAppState state,
@@ -1005,7 +1103,6 @@ class HomePage extends StatelessWidget {
                     final shortHeight = constraints.maxHeight < 840;
                     final visibleSubjectCount = buildLearnerSubjectCards(
                       state: state,
-                      learner: state.currentLearner,
                     ).length;
                     final denseSubjectLayout =
                         shortHeight && visibleSubjectCount > 3;
@@ -1084,7 +1181,6 @@ class HomePage extends StatelessWidget {
                     Widget buildSubjectSection() {
                       final subjectCards = buildLearnerSubjectCards(
                         state: state,
-                        learner: state.currentLearner,
                       );
                       final assignmentGapCount = state.assignedLessons
                           .where((lesson) => lesson.isAssignmentPlaceholder)
@@ -1104,7 +1200,8 @@ class HomePage extends StatelessWidget {
                                 final headline = state.isBootstrapping
                                     ? 'Refreshing live subjects for this tablet.'
                                     : 'No live subjects are ready on this tablet yet.';
-                                final detail = state.registrationBlockerReason !=
+                                final detail = state
+                                            .registrationBlockerReason !=
                                         null
                                     ? '${state.registrationBlockerReason!} Fix the roster feed before expecting learner-ready subjects.'
                                     : assignmentGapCount > 0
@@ -1317,7 +1414,7 @@ class HomePage extends StatelessWidget {
                                         ),
                                         lessonCount: state
                                             .lessonsForLearnerAndSubject(
-                                              state.currentLearner,
+                                              null,
                                               subject.id,
                                             )
                                             .length,
@@ -3302,16 +3399,17 @@ class SubjectModulesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedLearner = state.currentLearner;
-    final resumableSession = selectedLearner == null
+    final lessons =
+        state.lessonsForLearnerAndSubject(null, subjectKey).where((lesson) {
+      if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
+        return false;
+      }
+      return state.availableLearnersForLesson(lesson).isNotEmpty;
+    }).toList();
+    final highlightedLearner = selectedLearner ?? state.suggestedLearnerForHome;
+    final nextAssignedLesson = highlightedLearner == null
         ? null
-        : state.resumableRuntimeSessionForLearner(selectedLearner);
-    final lessons = state
-        .lessonsForLearnerAndSubject(selectedLearner, subjectKey)
-        .where(
-            (lesson) => _isLearnerVisibleLesson(state: state, lesson: lesson))
-        .toList();
-    final nextAssignedLesson =
-        state.nextAssignedLessonForLearner(selectedLearner);
+        : state.nextAssignedLessonForLearner(highlightedLearner);
     final registrationBlocked = state.registrationBlockerReason;
     final usingFallbackData = state.usingFallbackData;
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
@@ -3332,8 +3430,12 @@ class SubjectModulesPage extends StatelessWidget {
         onChanged: onChanged,
         lesson: lesson,
         module: module,
-        resumeFrom:
-            resumableSession?.lessonId == lesson.id ? resumableSession : null,
+        resumeFrom: selectedLearner == null
+            ? null
+            : state.resumableSessionForLearnerAndLesson(
+                selectedLearner,
+                lesson,
+              ),
       );
     }
 
@@ -3442,7 +3544,8 @@ class SubjectModulesPage extends StatelessWidget {
                                             onPressed: () async {
                                               await refreshTabletSync();
                                             },
-                                            icon: const Icon(Icons.sync_rounded),
+                                            icon:
+                                                const Icon(Icons.sync_rounded),
                                             label: const Text(
                                               'Refresh live sync',
                                             ),
@@ -3475,8 +3578,8 @@ class SubjectModulesPage extends StatelessWidget {
 
                               const showJourneyHeader = true;
                               final journeyHint = selectedLearner == null
-                                  ? 'Start with the first big card, then keep a gentle rhythm by following the path one lesson at a time.'
-                                  : 'Start ${selectedLearner.name} on the first big card, then follow the path one lesson at a time so the flow stays calm.';
+                                  ? 'Start with the first big card, then keep a gentle rhythm by following the path one lesson at a time. The tablet will ask which learner is available right after that.'
+                                  : 'Start with the first big card, then keep a gentle rhythm by following the path one lesson at a time. ${selectedLearner.name} can still be changed on the next screen so the shared-tablet handoff stays clean.';
 
                               return Container(
                                 width: double.infinity,
@@ -5083,25 +5186,27 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final resumeLearner = _resumeLearner;
     if (resumeLearner != null) return resumeLearner;
 
+    final availableLearners =
+        widget.state.availableLearnersForLesson(widget.lesson);
+    if (availableLearners.isEmpty) return null;
+
     final currentLearner = widget.state.currentLearner;
     if (currentLearner != null &&
-        widget.state.learners
-            .any((learner) => learner.id == currentLearner.id)) {
+        availableLearners.any((learner) => learner.id == currentLearner.id)) {
       return currentLearner;
     }
 
-    if (widget.state.learners.length == 1) {
-      return widget.state.learners.first;
+    if (availableLearners.length == 1) {
+      return availableLearners.first;
     }
 
     final suggestedLearner = widget.state.suggestedLearnerForHome;
     if (suggestedLearner != null &&
-        widget.state.learners
-            .any((learner) => learner.id == suggestedLearner.id)) {
+        availableLearners.any((learner) => learner.id == suggestedLearner.id)) {
       return suggestedLearner;
     }
 
-    return null;
+    return availableLearners.first;
   }
 
   @override
@@ -5132,8 +5237,11 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       viewportConstraints.maxHeight < 900;
 
                   Widget buildLearnerGrid({required bool shrinkWrap}) {
-                    if (state.learners.isEmpty) {
-                      final registrationBlocker = state.registrationBlockerReason;
+                    final learnerChoices =
+                        state.availableLearnersForLesson(lesson);
+                    if (learnerChoices.isEmpty) {
+                      final registrationBlocker =
+                          state.registrationBlockerReason;
 
                       return Center(
                         child: ConstrainedBox(
@@ -5164,8 +5272,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 const SizedBox(height: 10),
                                 Text(
                                   registrationBlocker == null
-                                      ? 'You cannot start ${lesson.title} until at least one learner is registered on this tablet or synced from the backend. Register the first learner now instead of leaving the facilitator on a blank chooser.'
-                                      : 'You cannot start ${lesson.title} because this tablet has no synced learners and registration is currently blocked. ${registrationBlocker.trim()} Refresh live sync first so the learner roster lands before launch.',
+                                      ? 'No learner on this tablet is currently available for ${lesson.title}. Check pod assignment, refresh sync, or register the learner that should take this lesson so the handoff stays clean.'
+                                      : 'You cannot start ${lesson.title} because no eligible learner has landed on this tablet yet and registration is currently blocked. ${registrationBlocker.trim()} Refresh live sync first so the learner roster lands before launch.',
                                   style: const TextStyle(
                                     color: Color(0xFF475569),
                                     height: 1.45,
@@ -5224,14 +5332,14 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                         );
 
                         final mainAxisExtent = constraints.maxWidth < 760
-                            ? 276.0
+                            ? 310.0
                             : constraints.maxWidth < 1180
-                                ? 292.0
-                                : 308.0;
+                                ? 326.0
+                                : 340.0;
 
                         return GridView.builder(
                           padding: const EdgeInsets.only(bottom: 12),
-                          itemCount: state.learners.length,
+                          itemCount: learnerChoices.length,
                           shrinkWrap: shrinkWrap,
                           physics: shrinkWrap
                               ? const NeverScrollableScrollPhysics()
@@ -5244,14 +5352,20 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             mainAxisExtent: mainAxisExtent,
                           ),
                           itemBuilder: (context, index) {
-                            final learner = state.learners[index];
+                            final learner = learnerChoices[index];
+                            final availability = learnerLessonAvailability(
+                              state: state,
+                              learner: learner,
+                              lesson: lesson,
+                            );
                             final isSelected =
                                 selectedLearner?.id == learner.id;
-                            final isLockedOut = _resumeLocksLearner &&
-                                resumeLearner != null &&
-                                learner.id != resumeLearner.id;
+                            final isLockedOut = (_resumeLocksLearner &&
+                                    resumeLearner != null &&
+                                    learner.id != resumeLearner.id) ||
+                                !availability.canLaunch;
                             return Opacity(
-                              opacity: isLockedOut ? 0.45 : 1,
+                              opacity: isLockedOut ? 0.58 : 1,
                               child: GestureDetector(
                                 onTap: isLockedOut
                                     ? null
@@ -5270,11 +5384,78 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                       width: 2,
                                     ),
                                   ),
-                                  child: _LearnerCard(
-                                    learner: learner,
-                                    state: state,
-                                    dense: true,
-                                    isActive: isSelected,
+                                  child: Stack(
+                                    children: [
+                                      Positioned.fill(
+                                        child: _LearnerCard(
+                                          learner: learner,
+                                          state: state,
+                                          dense: true,
+                                          isActive: isSelected,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 12,
+                                        right: 12,
+                                        child: StatusPill(
+                                          text: availability.label,
+                                          color: _learnerAvailabilityColor(
+                                            availability.kind,
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        left: 12,
+                                        right: 12,
+                                        bottom: 12,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.95,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                learner.podLabel ??
+                                                    learner.cohort,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF1E3A8A),
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                availability.detail,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Color(0xFF475569),
+                                                  height: 1.3,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -5333,7 +5514,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 ? '${lesson.title} is still waiting for the real lesson payload to sync to this tablet. Keep the assignment visible, but do not start runtime until the full lesson content lands.'
                                 : _resumeLocksLearner
                                     ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
-                                    : 'Pick who is taking ${lesson.title}, then confirm to begin.',
+                                    : 'Pick who is available for ${lesson.title}. Shared-tablet handoff happens here so the lesson opens under the right learner.',
                             style: const TextStyle(
                               color: Color(0xFF475569),
                               height: 1.45,
@@ -5356,6 +5537,17 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 text: lesson.readinessFocus,
                                 color: LumoTheme.accentGreen,
                               ),
+                              StatusPill(
+                                text:
+                                    '${state.availableLearnersForLesson(lesson).length} learners ready',
+                                color: const Color(0xFF7C3AED),
+                              ),
+                              if (state.tabletPodLabel?.trim().isNotEmpty ==
+                                  true)
+                                StatusPill(
+                                  text: state.tabletPodLabel!,
+                                  color: const Color(0xFF0EA5E9),
+                                ),
                             ],
                           ),
                         ],
@@ -5426,9 +5618,18 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                _resumeLocksLearner
-                                    ? '${selectedLearner!.name} is locked for this resume session.'
-                                    : '${selectedLearner!.name} is selected for ${lesson.title}.',
+                                (() {
+                                  final availability =
+                                      learnerLessonAvailability(
+                                    state: state,
+                                    learner: selectedLearner!,
+                                    lesson: lesson,
+                                  );
+                                  if (_resumeLocksLearner) {
+                                    return '${selectedLearner!.name} is locked for this resume session.';
+                                  }
+                                  return '${selectedLearner!.name} is selected for ${lesson.title}. ${availability.label}.';
+                                })(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF0F172A),
@@ -5451,32 +5652,42 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     ],
                   ];
 
+                  final selectedAvailability = selectedLearner == null
+                      ? null
+                      : learnerLessonAvailability(
+                          state: state,
+                          learner: selectedLearner!,
+                          lesson: lesson,
+                        );
+
                   final ctaButton = FilledButton.icon(
                     onPressed: syncPendingLesson
                         ? () async {
                             await _refreshSyncPendingLesson();
                           }
-                        : state.learners.isEmpty || resumeMissingLearner
+                        : state.availableLearnersForLesson(lesson).isEmpty ||
+                                resumeMissingLearner ||
+                                selectedAvailability?.canLaunch != true
                             ? null
-                            : selectedLearner == null
-                                ? null
-                                : () {
-                                    final learner = selectedLearner!;
-                                    state.selectLearner(learner);
-                                    state.selectModule(widget.module);
-                                    widget.onChanged();
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => LessonCountdownPage(
-                                          state: state,
-                                          onChanged: widget.onChanged,
-                                          learner: learner,
-                                          lesson: lesson,
-                                          resumeFrom: widget.resumeFrom,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                            : () {
+                                final learner = selectedLearner!;
+                                state.selectLearner(learner);
+                                state.selectModule(widget.module);
+                                widget.onChanged();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonCountdownPage(
+                                      state: state,
+                                      onChanged: widget.onChanged,
+                                      learner: learner,
+                                      lesson: lesson,
+                                      resumeFrom: selectedAvailability
+                                              ?.resumableSession ??
+                                          widget.resumeFrom,
+                                    ),
+                                  ),
+                                );
+                              },
                     icon: Icon(
                       _resumeLocksLearner
                           ? Icons.play_circle_fill_rounded
@@ -5485,13 +5696,16 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     label: Text(
                       syncPendingLesson
                           ? 'Refresh sync before starting'
-                          : state.learners.isEmpty
-                              ? 'Register learner to continue'
+                          : state.availableLearnersForLesson(lesson).isEmpty
+                              ? 'No learner ready on this tablet'
                               : resumeMissingLearner
                                   ? 'Sync learner to resume'
                                   : selectedLearner == null
                                       ? 'Select learner to continue'
-                                      : _resumeLocksLearner
+                                      : _resumeLocksLearner ||
+                                              selectedAvailability?.kind ==
+                                                  LearnerLessonAvailabilityKind
+                                                      .resumeReady
                                           ? 'Resume with ${selectedLearner!.name}'
                                           : 'Start with ${selectedLearner!.name}',
                     ),
