@@ -4,7 +4,7 @@ import type { ChangeEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Center, Cohort, LocalGovernment, Mallam, Pod, State } from '../lib/types';
 import { cohortGeographyLabel, mallamGeographyLabel, podGeographyLabel } from '../lib/geography';
-import { buildPodLabelParts } from '../lib/pod-naming';
+import { buildPodLabelParts, extractPodShortNameFromLabel } from '../lib/pod-naming';
 
 const fieldStyle = {
   display: 'grid',
@@ -357,7 +357,7 @@ export function PodGeographySelectors({
   const [stateId, setStateId] = useState(initialStateId || deriveStateIdFromCenter(initialCenterId, centers) || '');
   const [localGovernmentId, setLocalGovernmentId] = useState(initialLocalGovernmentId || deriveLocalGovernmentIdFromCenter(initialCenterId, centers) || '');
   const [centerId, setCenterId] = useState(initialCenterId || '');
-  const [podName, setPodName] = useState(initialPodName || '');
+  const [podName, setPodName] = useState(initialPodName || extractPodShortNameFromLabel(initialLabel) || '');
 
   const filteredLocalGovernments = useMemo(
     () => localGovernments.filter((item) => !stateId || item.stateId === stateId),
@@ -380,7 +380,7 @@ export function PodGeographySelectors({
 
   useEffect(() => {
     if (centerId && !filteredCenters.some((item) => item.id === centerId)) {
-      setCenterId(filteredCenters[0]?.id || '');
+      setCenterId('');
     }
   }, [filteredCenters, centerId]);
 
@@ -394,6 +394,7 @@ export function PodGeographySelectors({
 
   const selectedState = states.find((item) => item.id === stateId) || null;
   const selectedLocalGovernment = localGovernments.find((item) => item.id === localGovernmentId) || null;
+  const effectiveCenter = filteredCenters.find((item) => item.id === centerId) || filteredCenters[0] || null;
   const generatedLabel = buildPodLabelParts({
     stateName: selectedState?.name,
     localGovernmentName: selectedLocalGovernment?.name,
@@ -426,7 +427,7 @@ export function PodGeographySelectors({
           <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('local government', filteredLocalGovernments.length, stateId ? 'No local governments for this state yet' : 'Pick a state to narrow LGAs')}</span>
         </FieldLabel>
       </div>
-      <input type="hidden" name="centerId" value={centerId} />
+      <input type="hidden" name="centerId" value={effectiveCenter?.id || ''} />
       {showCenter ? (
         <FieldLabel>
           Center
@@ -435,16 +436,25 @@ export function PodGeographySelectors({
             {filteredCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
           </select>
         </FieldLabel>
-      ) : null}
+      ) : (
+        <div style={{ padding: '12px 14px', borderRadius: 14, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', lineHeight: 1.6, fontSize: 13 }}>
+          <strong style={{ color: '#334155' }}>Center routing</strong>
+          <div>
+            {effectiveCenter
+              ? `This pod will route through ${effectiveCenter.name}. We derive center from the chosen geography first, then fall back to mallam coverage if needed.`
+              : 'No center is locked yet for this geography. That is fine on create — the backend will still try mallam ownership first, then the geography footprint.'}
+          </div>
+        </div>
+      )}
       <FieldLabel>
         Pod short name
-        <input name="podName" value={podName} onChange={handlePodNameChange} placeholder="Pod_name" style={inputStyle} />
+        <input name="podName" value={podName} onChange={handlePodNameChange} placeholder="Girls Alpha" style={inputStyle} />
         <span style={{ color: '#64748b', fontSize: 12 }}>Use the human-readable suffix only. We generate the final pod label for you.</span>
       </FieldLabel>
       <FieldLabel>
         Generated pod label
         <input name="label" value={generatedLabel || initialLabel || ''} readOnly style={{ ...inputStyle, background: '#f8fafc', fontWeight: 700 }} />
-        <span style={{ color: '#64748b', fontSize: 12 }}>Format: state-LG-Pod_name</span>
+        <span style={{ color: '#64748b', fontSize: 12 }}>Format: state-LG-pod_name. Geography stays first so labels stay operational instead of turning into random nicknames.</span>
       </FieldLabel>
     </>
   );
