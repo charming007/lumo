@@ -3376,8 +3376,8 @@ class LumoAppState {
   }) {
     final existing = recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
     final now = DateTime.now();
-    final resolvedSessionId = sessionId ??
-        '${status}-${lesson.id}-${DateTime.now().millisecondsSinceEpoch}';
+    final resolvedSessionId =
+        sessionId ?? '$status-${lesson.id}-${DateTime.now().millisecondsSinceEpoch}';
     final activityAt = lastActivityAt ?? completedAt ?? now;
     final terminalAt = completedAt ?? activityAt;
     final projected = BackendLessonSession(

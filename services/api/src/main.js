@@ -743,10 +743,15 @@ function buildLearnerLessonAvailability({ podId = null, lessons = null, learners
       .map((learner) => {
         const session = sessionsByLearnerAndLesson.get(`${learner.id}:${lesson.id}`) || null;
         const subjectProgress = progressByLearnerAndSubject.get(`${learner.id}:${lesson.lessonPack?.subjectId || ''}`) || null;
-        const isCompleted = session?.status === 'completed' || session?.completionState === 'completed';
-        const needsRetry = !isCompleted && (session?.status === 'abandoned' || session?.completionState === 'abandoned' || session?.latestReview === 'needsSupport');
-        const canResume = !isCompleted && session && ['in_progress', 'paused'].includes(session.status);
-        const status = isCompleted ? 'completed' : canResume ? 'resume' : needsRetry ? 'retry' : 'ready';
+        const normalizedCompletionState = String(session?.completionState || '').trim().toLowerCase();
+        const normalizedSessionStatus = String(session?.status || '').trim().toLowerCase();
+        const isCompleted = normalizedSessionStatus === 'completed' || normalizedCompletionState === 'completed';
+        const isAbsent = normalizedSessionStatus === 'absent' || normalizedCompletionState === 'absent';
+        const isSkipped = normalizedSessionStatus === 'skipped' || normalizedSessionStatus === 'skip' || normalizedCompletionState === 'skipped' || normalizedCompletionState === 'skip';
+        const isTerminalUnavailable = isCompleted || isAbsent || isSkipped;
+        const needsRetry = !isTerminalUnavailable && (normalizedSessionStatus === 'abandoned' || normalizedCompletionState === 'abandoned' || session?.latestReview === 'needsSupport');
+        const canResume = !isTerminalUnavailable && session && ['in_progress', 'paused'].includes(normalizedSessionStatus);
+        const status = isCompleted ? 'completed' : isAbsent ? 'absent' : isSkipped ? 'skipped' : canResume ? 'resume' : needsRetry ? 'retry' : 'ready';
         const latestSession = session ? presenters.presentLessonSession(session) : null;
         const lessonStatus = {
           learnerId: learner.id,
@@ -755,8 +760,9 @@ function buildLearnerLessonAvailability({ podId = null, lessons = null, learners
           subjectId: lesson.lessonPack?.subjectId || null,
           status,
           started: Boolean(session),
-          canStart: !canResume,
+          canStart: !canResume && !isTerminalUnavailable,
           canResume: Boolean(canResume),
+          isTerminalUnavailable,
           latestSession,
           progress: subjectProgress ? presenters.presentProgress(subjectProgress) : null,
           completedAt: latestSession?.completedAt || null,
@@ -773,7 +779,7 @@ function buildLearnerLessonAvailability({ podId = null, lessons = null, learners
       const key = learner.lessonStatus.status;
       acc[key] = (acc[key] || 0) + 1;
       return acc;
-    }, { ready: 0, resume: 0, completed: 0, retry: 0 });
+    }, { ready: 0, resume: 0, completed: 0, retry: 0, absent: 0, skipped: 0 });
 
     return {
       lessonId: lesson.id,
@@ -819,7 +825,7 @@ function buildLearnerLessons({ includeAssigned = false, podId = null, includeAva
       subjectId: lesson.lessonPack?.subjectId || null,
       podId,
       availableLearnerCount: 0,
-      counts: { ready: 0, resume: 0, completed: 0, retry: 0 },
+      counts: { ready: 0, resume: 0, completed: 0, retry: 0, absent: 0, skipped: 0 },
       availableLearners: [],
       assignmentIds: [],
     },
@@ -1255,6 +1261,8 @@ function buildSyncReceipt(event, result, batchId) {
 function mapCompletionStateToStatus(completionState) {
   if (completionState === 'completed') return 'completed';
   if (completionState === 'abandoned') return 'abandoned';
+  if (completionState === 'absent') return 'absent';
+  if (completionState === 'skipped' || completionState === 'skip') return 'skipped';
   return 'in_progress';
 }
 
@@ -1309,9 +1317,14 @@ function upsertRuntimeSessionFromEvent(student, payload, type) {
     updates.currentStepIndex = Math.max(currentStepIndex, Number(existing?.currentStepIndex || 0));
   }
 
-  if (type === 'lesson_completed') {
-    updates.status = mapCompletionStateToStatus(payload.completionState || 'completed');
-    updates.completionState = payload.completionState || 'completed';
+  if (['lesson_completed', 'learner_marked_absent', 'lesson_skipped'].includes(type)) {
+    const derivedCompletionState = type === 'learner_marked_absent'
+      ? 'absent'
+      : type === 'lesson_skipped'
+        ? 'skipped'
+        : (payload.completionState || 'completed');
+    updates.status = mapCompletionStateToStatus(derivedCompletionState);
+    updates.completionState = derivedCompletionState;
     updates.completedAt = payload.capturedAt || new Date().toISOString();
     updates.currentStepIndex = Math.max(currentStepIndex, stepsTotal, Number(existing?.currentStepIndex || 0));
   }
@@ -1416,7 +1429,7 @@ function syncLearnerAppEvents(events = [], options = {}) {
       };
     }
 
-    if (type === 'lesson_completed') {
+    if (['lesson_completed', 'learner_marked_absent', 'lesson_skipped'].includes(type)) {
       const student = payload.studentId
         ? store.findStudentById(payload.studentId)
         : findStudentByLearnerCode(payload.learnerCode);
@@ -1431,49 +1444,54 @@ function syncLearnerAppEvents(events = [], options = {}) {
       const lessonModule = lesson?.moduleId ? store.listModules().find((module) => module.id === lesson.moduleId) : null;
       const moduleId = payload.curriculumModuleId || payload.moduleId || lesson?.moduleId || null;
       const subjectId = lesson?.subjectId || lessonModule?.subjectId || 'english';
-      const progressRecord = store.upsertProgress({
-        studentId: student.id,
-        subjectId,
-        moduleId,
-        mastery: payload.review === 'onTrack' ? 0.75 : payload.review === 'needsSupport' ? 0.45 : 0.6,
-        lessonsCompleted: Number(payload.stepsTotal || payload.stepIndex || 1),
-        progressionStatus: payload.review === 'needsSupport' ? 'watch' : 'on-track',
-        recommendedNextModuleId: moduleId,
-      });
+      const session = payload.sessionId ? upsertRuntimeSessionFromEvent(student, payload, type) : null;
 
-      const rewardResult = rewards.awardLessonCompletion({
-        studentId: student.id,
-        lessonId: lesson?.id || payload.lessonId || null,
-        moduleId,
-        subjectId,
-        review: payload.review,
-        supportActionsUsed: payload.supportActionsUsed,
-        observationsCount: Array.isArray(payload.observations) ? payload.observations.length : 0,
-      });
+      let progressRecord = null;
+      let rewardResult = null;
+      if (type === 'lesson_completed') {
+        progressRecord = store.upsertProgress({
+          studentId: student.id,
+          subjectId,
+          moduleId,
+          mastery: payload.review === 'onTrack' ? 0.75 : payload.review === 'needsSupport' ? 0.45 : 0.6,
+          lessonsCompleted: Number(payload.stepsTotal || payload.stepIndex || 1),
+          progressionStatus: payload.review === 'needsSupport' ? 'watch' : 'on-track',
+          recommendedNextModuleId: moduleId,
+        });
 
-      if (Array.isArray(payload.observations)) {
-        payload.observations
-          .filter((item) => item && item.trim())
-          .forEach((note) => {
-            store.createObservation({
-              studentId: student.id,
-              teacherId: student.mallamId,
-              note,
-              competencyTag: lesson?.subjectId || subjectId,
-              supportLevel: payload.review === 'needsSupport' ? 'guided' : 'independent',
+        rewardResult = rewards.awardLessonCompletion({
+          studentId: student.id,
+          lessonId: lesson?.id || payload.lessonId || null,
+          moduleId,
+          subjectId,
+          review: payload.review,
+          supportActionsUsed: payload.supportActionsUsed,
+          observationsCount: Array.isArray(payload.observations) ? payload.observations.length : 0,
+        });
+
+        if (Array.isArray(payload.observations)) {
+          payload.observations
+            .filter((item) => item && item.trim())
+            .forEach((note) => {
+              store.createObservation({
+                studentId: student.id,
+                teacherId: student.mallamId,
+                note,
+                competencyTag: lesson?.subjectId || subjectId,
+                supportLevel: payload.review === 'needsSupport' ? 'guided' : 'independent',
+              });
             });
-          });
+        }
       }
 
-      const session = payload.sessionId ? upsertRuntimeSessionFromEvent(student, payload, type) : null;
       const result = {
         index,
         type,
         status: 'accepted',
         session,
-        progress: presenters.presentProgress(progressRecord),
-        rewards: rewardResult.snapshot,
-        rewardDelta: rewardResult.delta,
+        progress: progressRecord ? presenters.presentProgress(progressRecord) : null,
+        rewards: rewardResult?.snapshot || null,
+        rewardDelta: rewardResult?.delta || null,
       };
 
       const receipt = store.createSyncEvent({

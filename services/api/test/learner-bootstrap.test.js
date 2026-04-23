@@ -374,6 +374,137 @@ test('tablet-scoped learner registration rejects cross-pod cohort selection and 
 });
 
 
+test('learner availability marks same-day completed lessons as completed and not startable', async () => {
+  const lesson = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Shared tablet completion lockout',
+    durationMinutes: 9,
+    status: 'published',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Say hello again.' }],
+  });
+
+  repository.createAssignment({
+    cohortId: 'cohort-1',
+    lessonId: lesson.id,
+    assignedBy: 'teacher-1',
+    dueDate: '2026-04-23',
+    status: 'active',
+  });
+
+  const learner = repository.listStudents().find((entry) => entry.cohortId === 'cohort-1');
+  assert.ok(learner);
+
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      clientId: 'tablet-test-client',
+      batchId: 'batch-completed-availability',
+      events: [
+        {
+          clientEventId: 'completed-availability-1',
+          type: 'lesson_completed',
+          payload: {
+            sessionId: 'session-completed-availability-1',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: lesson.id,
+            moduleId: lesson.moduleId,
+            stepIndex: 1,
+            stepsTotal: 1,
+            completionState: 'completed',
+            review: 'onTrack',
+            capturedAt: '2026-04-23T10:00:00.000Z',
+          },
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202);
+
+  const bootstrap = await request('/api/v1/learner-app/bootstrap');
+  assert.equal(bootstrap.status, 200);
+
+  const projectedLesson = bootstrap.body.lessons.find((entry) => entry.id === lesson.id);
+  assert.ok(projectedLesson, JSON.stringify(bootstrap.body.lessons));
+  const availability = projectedLesson.learnerAvailability;
+  assert.ok(availability, JSON.stringify(projectedLesson));
+  assert.equal(availability.counts.completed >= 1, true, JSON.stringify(availability));
+
+  const learnerEntry = availability.availableLearners.find((entry) => entry.id === learner.id);
+  assert.ok(learnerEntry, JSON.stringify(availability.availableLearners));
+  assert.equal(learnerEntry.lessonStatus.status, 'completed');
+  assert.equal(learnerEntry.lessonStatus.canStart, false);
+  assert.equal(learnerEntry.lessonStatus.canResume, false);
+  assert.equal(learnerEntry.lessonStatus.isTerminalUnavailable, true);
+});
+
+test('learner availability supports absent terminal status from offline tablet sync', async () => {
+  const lesson = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Shared tablet absent lockout',
+    durationMinutes: 9,
+    status: 'published',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Say hello again.' }],
+  });
+
+  repository.createAssignment({
+    cohortId: 'cohort-1',
+    lessonId: lesson.id,
+    assignedBy: 'teacher-1',
+    dueDate: '2026-04-23',
+    status: 'active',
+  });
+
+  const learner = repository.listStudents().find((entry) => entry.cohortId === 'cohort-1');
+  assert.ok(learner);
+
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      clientId: 'tablet-test-client',
+      batchId: 'batch-absent-availability',
+      events: [
+        {
+          clientEventId: 'absent-availability-1',
+          type: 'learner_marked_absent',
+          payload: {
+            sessionId: 'session-absent-availability-1',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: lesson.id,
+            moduleId: lesson.moduleId,
+            capturedAt: '2026-04-23T11:00:00.000Z',
+          },
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202);
+  assert.equal(syncResponse.body.results[0].session.completionState, 'absent');
+  assert.equal(syncResponse.body.results[0].session.status, 'absent');
+
+  const bootstrap = await request('/api/v1/learner-app/bootstrap');
+  assert.equal(bootstrap.status, 200);
+
+  const projectedLesson = bootstrap.body.lessons.find((entry) => entry.id === lesson.id);
+  assert.ok(projectedLesson, JSON.stringify(bootstrap.body.lessons));
+  const availability = projectedLesson.learnerAvailability;
+  assert.ok(availability, JSON.stringify(projectedLesson));
+  assert.equal(availability.counts.absent >= 1, true, JSON.stringify(availability));
+
+  const learnerEntry = availability.availableLearners.find((entry) => entry.id === learner.id);
+  assert.ok(learnerEntry, JSON.stringify(availability.availableLearners));
+  assert.equal(learnerEntry.lessonStatus.status, 'absent');
+  assert.equal(learnerEntry.lessonStatus.canStart, false);
+  assert.equal(learnerEntry.lessonStatus.isTerminalUnavailable, true);
+});
+
 test('tablet-scoped learner registration also resolves pod scope from body deviceIdentifier when the header is absent', async () => {
   const created = await request('/api/v1/learner-app/learners', {
     method: 'POST',
