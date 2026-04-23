@@ -2185,6 +2185,49 @@ void main() {
       state.dispose();
     });
 
+    test('flushes completed lesson state to local persistence immediately',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      state.selectLearner(learner);
+      state.selectModule(
+          state.modules.firstWhere((item) => item.id == 'english'));
+      state.startLesson(lesson);
+      await state.completeLesson(lesson);
+
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('lumo_learner_tablet_state_v1');
+      expect(raw, isNotNull);
+      final snapshot = jsonDecode(raw!) as Map<String, dynamic>;
+      final sessions = snapshot['recentRuntimeSessionsByLearnerId'] as Map;
+      final learnerSessions = (sessions[learner.id] as List?) ?? const [];
+      expect(learnerSessions, isNotEmpty);
+      expect(
+        learnerSessions.any(
+          (item) =>
+              item is Map &&
+              item['lessonId'] == lesson.id &&
+              item['status'] == 'completed' &&
+              item['completionState'] == 'completed',
+        ),
+        isTrue,
+      );
+
+      final pendingEvents = (snapshot['pendingSyncEvents'] as List?) ?? const [];
+      expect(
+        pendingEvents.any(
+          (item) => item is Map && item['type'] == 'lesson_completed',
+        ),
+        isTrue,
+      );
+      state.dispose();
+    });
+
     test('falls back to backend recommended module after lesson completion',
         () {
       final state = LumoAppState(includeSeedDemoContent: true);

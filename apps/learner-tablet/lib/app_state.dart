@@ -766,6 +766,7 @@ class LumoAppState {
   }
 
   void persistStateSoon() {
+    _notifyListeners();
     _persistenceDebounce?.cancel();
     _persistenceDebounce = Timer(
       const Duration(milliseconds: 400),
@@ -1836,9 +1837,13 @@ class LumoAppState {
       return resumableLesson;
     }
 
-    final rankedLessons = lessonsForLearner(learner)
-        .where((lesson) => lesson.id != excludingLessonId)
-        .toList();
+    bool isAllowed(LessonCardModel lesson) {
+      if (lesson.id == excludingLessonId) return false;
+      if (learner == null) return true;
+      return learnerCanOpenLesson(learner, lesson);
+    }
+
+    final rankedLessons = lessonsForLearner(learner).where(isAllowed).toList();
     if (rankedLessons.isNotEmpty) return rankedLessons.first;
 
     if (learner == null || assignedLessons.isEmpty) return null;
@@ -1847,9 +1852,9 @@ class LumoAppState {
           (lesson) =>
               lesson != null &&
               lesson.moduleId == recommendedModule.id &&
-              lesson.id != excludingLessonId,
+              isAllowed(lesson),
           orElse: () => assignedLessons.cast<LessonCardModel?>().firstWhere(
-                (lesson) => lesson?.id != excludingLessonId,
+                (lesson) => lesson != null && isAllowed(lesson),
                 orElse: () => null,
               ),
         );
@@ -3322,6 +3327,7 @@ class LumoAppState {
     );
 
     persistStateSoon();
+    await flushPersistence();
     await syncPendingEvents();
     await refreshLearnerRewards(updatedLearner);
     await refreshLearnerRuntimeSessions(updatedLearner);
