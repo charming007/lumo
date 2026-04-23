@@ -3204,6 +3204,43 @@ void main() {
     state.dispose();
   });
 
+  testWidgets('subject module page shows recovery actions when a subject has no learner-safe lessons', (
+    tester,
+  ) async {
+    final state = LumoAppState(includeSeedDemoContent: false);
+    const module = LearningModule(
+      id: 'science-lab',
+      title: 'Science Lab',
+      description: 'No published lessons have reached this tablet yet.',
+      voicePrompt: 'Open science.',
+      readinessGoal: 'Science practice',
+      badge: '0 lessons',
+    );
+    state.modules.add(module);
+    state.selectModule(module);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: module,
+          subjectTitle: 'Science Lab',
+          subjectKey: 'science-lab',
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('No learner-safe lessons are ready in Science Lab yet.'),
+        findsOneWidget);
+    expect(find.text('Refresh live sync'), findsOneWidget);
+    expect(find.text('Open student list'), findsOneWidget);
+    expect(find.text('Back to subjects'), findsWidgets);
+
+    state.dispose();
+  });
+
   test(
     'subject module page resolves learner-facing subject labels from backend module metadata',
     () {

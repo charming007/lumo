@@ -3312,6 +3312,8 @@ class SubjectModulesPage extends StatelessWidget {
         .toList();
     final nextAssignedLesson =
         state.nextAssignedLessonForLearner(selectedLearner);
+    final registrationBlocked = state.registrationBlockerReason;
+    final usingFallbackData = state.usingFallbackData;
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
           (lesson) => lesson?.id == nextAssignedLesson?.id,
           orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
@@ -3332,6 +3334,22 @@ class SubjectModulesPage extends StatelessWidget {
         module: module,
         resumeFrom:
             resumableSession?.lessonId == lesson.id ? resumableSession : null,
+      );
+    }
+
+    Future<void> refreshTabletSync() async {
+      await state.bootstrap();
+      onChanged();
+    }
+
+    void openRoster() {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AllStudentsPage(
+            state: state,
+            onChanged: onChanged,
+          ),
+        ),
       );
     }
 
@@ -3386,9 +3404,71 @@ class SubjectModulesPage extends StatelessWidget {
 
                             Widget buildJourneyPath() {
                               if (lessons.isEmpty) {
-                                return const SoftPanel(
-                                  child: Text(
-                                    'No lessons are mapped to this subject yet.',
+                                final emptyStateMessage = registrationBlocked !=
+                                        null
+                                    ? '$registrationBlocked Refresh live sync before reopening $subjectTitle so the learner-safe lesson path can load.'
+                                    : usingFallbackData
+                                        ? 'This tablet is still leaning on fallback content and $subjectTitle does not have a learner-safe lesson path yet. Refresh live sync before handing it over.'
+                                        : '$subjectTitle is visible, but its learner-safe lesson path has not landed on this tablet yet. Refresh live sync or reopen the student list before launch.';
+
+                                return SoftPanel(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'No learner-safe lessons are ready in $subjectTitle yet.',
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        emptyStateMessage,
+                                        style: const TextStyle(
+                                          color: Color(0xFF475569),
+                                          height: 1.5,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Wrap(
+                                        spacing: 12,
+                                        runSpacing: 12,
+                                        children: [
+                                          FilledButton.icon(
+                                            onPressed: () async {
+                                              await refreshTabletSync();
+                                            },
+                                            icon: const Icon(Icons.sync_rounded),
+                                            label: const Text(
+                                              'Refresh live sync',
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: openRoster,
+                                            icon: const Icon(
+                                              Icons.groups_rounded,
+                                            ),
+                                            label: const Text(
+                                              'Open student list',
+                                            ),
+                                          ),
+                                          TextButton.icon(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(),
+                                            icon: const Icon(
+                                              Icons.arrow_back_rounded,
+                                            ),
+                                            label: const Text(
+                                              'Back to subjects',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 );
                               }
