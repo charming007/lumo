@@ -257,11 +257,19 @@ export function fetchPods() {
   return getJson<Pod[]>('/api/v1/pods');
 }
 
-export function fetchDeviceRegistrations(params?: { podId?: string; mallamId?: string }) {
+export async function fetchDeviceRegistrations(params?: { podId?: string; mallamId?: string }) {
   const query = new URLSearchParams();
   if (params?.podId) query.set('podId', params.podId);
   if (params?.mallamId) query.set('mallamId', params.mallamId);
-  return getJson<DeviceRegistration[]>(`/api/v1/device-registrations${query.size ? `?${query.toString()}` : ''}`);
+
+  try {
+    return await getJson<DeviceRegistration[]>(`/api/v1/device-registrations${query.size ? `?${query.toString()}` : ''}`);
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 404) {
+      return [] as DeviceRegistration[];
+    }
+    throw error;
+  }
 }
 
 export function fetchProgress() {
@@ -334,13 +342,58 @@ export function fetchRewardsLeaderboard(limit = 10, params?: { cohortId?: string
   return getJson<RewardSnapshot[]>(`/api/v1/rewards/leaderboard?${query.toString()}`);
 }
 
-export function fetchRewardRequests(limit = 20, params?: { cohortId?: string; podId?: string; mallamId?: string; status?: string }) {
+function normalizeRewardRequestQueue(queue: RewardRequestQueue): RewardRequestQueue {
+  const summary = queue?.summary || ({} as RewardRequestQueue['summary']);
+  const averageAgeDays = Number(
+    summary.averageAgeDays
+    ?? (summary as RewardRequestQueue['summary'] & { avgOpenAgeDays?: number }).avgOpenAgeDays
+    ?? 0,
+  );
+  const urgentCount = Number(
+    summary.urgentCount
+    ?? (summary as RewardRequestQueue['summary'] & { staleOpen?: number }).staleOpen
+    ?? 0,
+  );
+  const attentionCount = Number(
+    summary.attentionCount
+    ?? summary.pending
+    ?? summary.approved
+    ?? 0,
+  );
+
+  return {
+    ...queue,
+    summary: {
+      total: Number(summary.total ?? queue?.items?.length ?? 0),
+      pending: Number(summary.pending ?? 0),
+      approved: Number(summary.approved ?? 0),
+      fulfilled: Number(summary.fulfilled ?? 0),
+      rejected: Number(summary.rejected ?? 0),
+      cancelled: Number(summary.cancelled ?? 0),
+      expired: Number(summary.expired ?? 0),
+      attentionCount,
+      urgentCount,
+      averageAgeDays,
+    },
+    meta: {
+      cohortId: queue?.meta?.cohortId ?? null,
+      podId: queue?.meta?.podId ?? null,
+      mallamId: queue?.meta?.mallamId ?? null,
+      learnerId: queue?.meta?.learnerId ?? null,
+      status: queue?.meta?.status ?? null,
+      count: Number(queue?.meta?.count ?? queue?.items?.length ?? 0),
+      returned: Number(queue?.meta?.returned ?? queue?.items?.length ?? 0),
+    },
+  };
+}
+
+export async function fetchRewardRequests(limit = 20, params?: { cohortId?: string; podId?: string; mallamId?: string; status?: string }) {
   const query = new URLSearchParams({ limit: String(limit) });
   if (params?.cohortId) query.set('cohortId', params.cohortId);
   if (params?.podId) query.set('podId', params.podId);
   if (params?.mallamId) query.set('mallamId', params.mallamId);
   if (params?.status) query.set('status', params.status);
-  return getJson<RewardRequestQueue>(`/api/v1/rewards/requests?${query.toString()}`);
+  return normalizeRewardRequestQueue(await getJson<RewardRequestQueue>(`/api/v1/rewards/requests?${query.toString()}`));
 }
 
 export function fetchRewardsReport(limit = 20, params?: { cohortId?: string; podId?: string; mallamId?: string; learnerId?: string; since?: string; until?: string }) {
