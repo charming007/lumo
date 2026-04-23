@@ -27,6 +27,6527 @@
       "localGovernmentId": "lga-igabi"
     }
   ],
+  "states": [
+    {
+      "id": "state-abia",
+      "code": "AB",
+      "name": "Abia",
+      "countryCode": "NG",
+      "order": 1,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-adamawa",
+      "code": "AD",
+      "name": "Adamawa",
+      "countryCode": "NG",
+      "order": 2,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-akwa-ibom",
+      "code": "AK",
+      "name": "Akwa Ibom",
+      "countryCode": "NG",
+      "order": 3,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-anambra",
+      "code": "AN",
+      "name": "Anambra",
+      "countryCode": "NG",
+      "order": 4,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-bauchi",
+      "code": "BA",
+      "name": "Bauchi",
+      "countryCode": "NG",
+      "order": 5,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-bayelsa",
+      "code": "BY",
+      "name": "Bayelsa",
+      "countryCode": "NG",
+      "order": 6,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-benue",
+      "code": "BE",
+      "name": "Benue",
+      "countryCode": "NG",
+      "order": 7,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-borno",
+      "code": "BO",
+      "name": "Borno",
+      "countryCode": "NG",
+      "order": 8,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-cross-river",
+      "code": "CR",
+      "name": "Cross River",
+      "countryCode": "NG",
+      "order": 9,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-delta",
+      "code": "DE",
+      "name": "Delta",
+      "countryCode": "NG",
+      "order": 10,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-ebonyi",
+      "code": "EB",
+      "name": "Ebonyi",
+      "countryCode": "NG",
+      "order": 11,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-edo",
+      "code": "ED",
+      "name": "Edo",
+      "countryCode": "NG",
+      "order": 12,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-ekiti",
+      "code": "EK",
+      "name": "Ekiti",
+      "countryCode": "NG",
+      "order": 13,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-enugu",
+      "code": "EN",
+      "name": "Enugu",
+      "countryCode": "NG",
+      "order": 14,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-gombe",
+      "code": "GO",
+      "name": "Gombe",
+      "countryCode": "NG",
+      "order": 15,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-imo",
+      "code": "IM",
+      "name": "Imo",
+      "countryCode": "NG",
+      "order": 16,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-jigawa",
+      "code": "JI",
+      "name": "Jigawa",
+      "countryCode": "NG",
+      "order": 17,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-kaduna",
+      "code": "KD",
+      "name": "Kaduna",
+      "countryCode": "NG",
+      "order": 18,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-kano",
+      "code": "KN",
+      "name": "Kano",
+      "countryCode": "NG",
+      "order": 19,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-katsina",
+      "code": "KT",
+      "name": "Katsina",
+      "countryCode": "NG",
+      "order": 20,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-kebbi",
+      "code": "KE",
+      "name": "Kebbi",
+      "countryCode": "NG",
+      "order": 21,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-kogi",
+      "code": "KO",
+      "name": "Kogi",
+      "countryCode": "NG",
+      "order": 22,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-kwara",
+      "code": "KW",
+      "name": "Kwara",
+      "countryCode": "NG",
+      "order": 23,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-lagos",
+      "code": "LA",
+      "name": "Lagos",
+      "countryCode": "NG",
+      "order": 24,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-nasarawa",
+      "code": "NA",
+      "name": "Nasarawa",
+      "countryCode": "NG",
+      "order": 25,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-niger",
+      "code": "NI",
+      "name": "Niger",
+      "countryCode": "NG",
+      "order": 26,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-ogun",
+      "code": "OG",
+      "name": "Ogun",
+      "countryCode": "NG",
+      "order": 27,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-ondo",
+      "code": "ON",
+      "name": "Ondo",
+      "countryCode": "NG",
+      "order": 28,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-osun",
+      "code": "OS",
+      "name": "Osun",
+      "countryCode": "NG",
+      "order": 29,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-oyo",
+      "code": "OY",
+      "name": "Oyo",
+      "countryCode": "NG",
+      "order": 30,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-plateau",
+      "code": "PL",
+      "name": "Plateau",
+      "countryCode": "NG",
+      "order": 31,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-rivers",
+      "code": "RI",
+      "name": "Rivers",
+      "countryCode": "NG",
+      "order": 32,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-sokoto",
+      "code": "SO",
+      "name": "Sokoto",
+      "countryCode": "NG",
+      "order": 33,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-taraba",
+      "code": "TA",
+      "name": "Taraba",
+      "countryCode": "NG",
+      "order": 34,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-yobe",
+      "code": "YO",
+      "name": "Yobe",
+      "countryCode": "NG",
+      "order": 35,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "state-zamfara",
+      "code": "ZA",
+      "name": "Zamfara",
+      "countryCode": "NG",
+      "order": 36,
+      "status": "active",
+      "type": "state"
+    },
+    {
+      "id": "territory-fct",
+      "code": "FC",
+      "name": "Federal Capital Territory",
+      "countryCode": "NG",
+      "order": 37,
+      "status": "active",
+      "type": "territory"
+    }
+  ],
+  "localGovernments": [
+    {
+      "id": "lga-aba-north",
+      "stateId": "state-abia",
+      "code": "AB-01",
+      "name": "Aba North",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-aba-south",
+      "stateId": "state-abia",
+      "code": "AB-02",
+      "name": "Aba South",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-arochukwu",
+      "stateId": "state-abia",
+      "code": "AB-03",
+      "name": "Arochukwu",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-bende",
+      "stateId": "state-abia",
+      "code": "AB-04",
+      "name": "Bende",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikwuano",
+      "stateId": "state-abia",
+      "code": "AB-05",
+      "name": "Ikwuano",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-isiala-ngwa-north",
+      "stateId": "state-abia",
+      "code": "AB-06",
+      "name": "Isiala Ngwa North",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-isiala-ngwa-south",
+      "stateId": "state-abia",
+      "code": "AB-07",
+      "name": "Isiala Ngwa South",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-isuikwuato",
+      "stateId": "state-abia",
+      "code": "AB-08",
+      "name": "Isuikwuato",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-obi-ngwa",
+      "stateId": "state-abia",
+      "code": "AB-09",
+      "name": "Obi Ngwa",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-ohafia",
+      "stateId": "state-abia",
+      "code": "AB-10",
+      "name": "Ohafia",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-osisioma",
+      "stateId": "state-abia",
+      "code": "AB-11",
+      "name": "Osisioma",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ugwunagbo",
+      "stateId": "state-abia",
+      "code": "AB-12",
+      "name": "Ugwunagbo",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-ukwa-east",
+      "stateId": "state-abia",
+      "code": "AB-13",
+      "name": "Ukwa East",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-ukwa-west",
+      "stateId": "state-abia",
+      "code": "AB-14",
+      "name": "Ukwa West",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-umuahia-north",
+      "stateId": "state-abia",
+      "code": "AB-15",
+      "name": "Umuahia North",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-umuahia-south",
+      "stateId": "state-abia",
+      "code": "AB-16",
+      "name": "Umuahia South",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-umu-nneochi",
+      "stateId": "state-abia",
+      "code": "AB-17",
+      "name": "Umu Nneochi",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-demsa",
+      "stateId": "state-adamawa",
+      "code": "AD-01",
+      "name": "Demsa",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-fufore",
+      "stateId": "state-adamawa",
+      "code": "AD-02",
+      "name": "Fufore",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-ganye",
+      "stateId": "state-adamawa",
+      "code": "AD-03",
+      "name": "Ganye",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-gayuk",
+      "stateId": "state-adamawa",
+      "code": "AD-04",
+      "name": "Gayuk",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-gombi",
+      "stateId": "state-adamawa",
+      "code": "AD-05",
+      "name": "Gombi",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-grie",
+      "stateId": "state-adamawa",
+      "code": "AD-06",
+      "name": "Grie",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-hong",
+      "stateId": "state-adamawa",
+      "code": "AD-07",
+      "name": "Hong",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-jada",
+      "stateId": "state-adamawa",
+      "code": "AD-08",
+      "name": "Jada",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-lamurde",
+      "stateId": "state-adamawa",
+      "code": "AD-09",
+      "name": "Lamurde",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-madagali",
+      "stateId": "state-adamawa",
+      "code": "AD-10",
+      "name": "Madagali",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-maiha",
+      "stateId": "state-adamawa",
+      "code": "AD-11",
+      "name": "Maiha",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-mayo-belwa",
+      "stateId": "state-adamawa",
+      "code": "AD-12",
+      "name": "Mayo-Belwa",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-michika",
+      "stateId": "state-adamawa",
+      "code": "AD-13",
+      "name": "Michika",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-mubi-north",
+      "stateId": "state-adamawa",
+      "code": "AD-14",
+      "name": "Mubi North",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-mubi-south",
+      "stateId": "state-adamawa",
+      "code": "AD-15",
+      "name": "Mubi South",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-numan",
+      "stateId": "state-adamawa",
+      "code": "AD-16",
+      "name": "Numan",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-shelleng",
+      "stateId": "state-adamawa",
+      "code": "AD-17",
+      "name": "Shelleng",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-song",
+      "stateId": "state-adamawa",
+      "code": "AD-18",
+      "name": "Song",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-toungo",
+      "stateId": "state-adamawa",
+      "code": "AD-19",
+      "name": "Toungo",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-yola-north",
+      "stateId": "state-adamawa",
+      "code": "AD-20",
+      "name": "Yola North",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-yola-south",
+      "stateId": "state-adamawa",
+      "code": "AD-21",
+      "name": "Yola South",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-abak",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-01",
+      "name": "Abak",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-eastern-obolo",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-02",
+      "name": "Eastern Obolo",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-eket",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-03",
+      "name": "Eket",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-esit-eket",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-04",
+      "name": "Esit Eket",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-essien-udim",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-05",
+      "name": "Essien Udim",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-etim-ekpo",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-06",
+      "name": "Etim Ekpo",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-etinan",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-07",
+      "name": "Etinan",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibeno",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-08",
+      "name": "Ibeno",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibesikpo-asutan",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-09",
+      "name": "Ibesikpo Asutan",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibiono-ibom",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-10",
+      "name": "Ibiono-Ibom",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ika",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-11",
+      "name": "Ika",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikono",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-12",
+      "name": "Ikono",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikot-abasi",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-13",
+      "name": "Ikot Abasi",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikot-ekpene",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-14",
+      "name": "Ikot Ekpene",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ini",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-15",
+      "name": "Ini",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-itu",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-16",
+      "name": "Itu",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-mbo",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-17",
+      "name": "Mbo",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-mkpat-enin",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-18",
+      "name": "Mkpat-Enin",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-nsit-atai",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-19",
+      "name": "Nsit-Atai",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-nsit-ibom",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-20",
+      "name": "Nsit-Ibom",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-nsit-ubium",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-21",
+      "name": "Nsit-Ubium",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-obot-akara",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-22",
+      "name": "Obot Akara",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-okobo",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-23",
+      "name": "Okobo",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-onna",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-24",
+      "name": "Onna",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-oron",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-25",
+      "name": "Oron",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-oruk-anam",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-26",
+      "name": "Oruk Anam",
+      "order": 26,
+      "status": "active"
+    },
+    {
+      "id": "lga-udung-uko",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-27",
+      "name": "Udung-Uko",
+      "order": 27,
+      "status": "active"
+    },
+    {
+      "id": "lga-ukanafun",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-28",
+      "name": "Ukanafun",
+      "order": 28,
+      "status": "active"
+    },
+    {
+      "id": "lga-uruan",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-29",
+      "name": "Uruan",
+      "order": 29,
+      "status": "active"
+    },
+    {
+      "id": "lga-urue-offong-oruko",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-30",
+      "name": "Urue-Offong/Oruko",
+      "order": 30,
+      "status": "active"
+    },
+    {
+      "id": "lga-uyo",
+      "stateId": "state-akwa-ibom",
+      "code": "AK-31",
+      "name": "Uyo",
+      "order": 31,
+      "status": "active"
+    },
+    {
+      "id": "lga-aguata",
+      "stateId": "state-anambra",
+      "code": "AN-01",
+      "name": "Aguata",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-anambra-east",
+      "stateId": "state-anambra",
+      "code": "AN-02",
+      "name": "Anambra East",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-anambra-west",
+      "stateId": "state-anambra",
+      "code": "AN-03",
+      "name": "Anambra West",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-anaocha",
+      "stateId": "state-anambra",
+      "code": "AN-04",
+      "name": "Anaocha",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-awka-north",
+      "stateId": "state-anambra",
+      "code": "AN-05",
+      "name": "Awka North",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-awka-south",
+      "stateId": "state-anambra",
+      "code": "AN-06",
+      "name": "Awka South",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ayamelum",
+      "stateId": "state-anambra",
+      "code": "AN-07",
+      "name": "Ayamelum",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-dunukofia",
+      "stateId": "state-anambra",
+      "code": "AN-08",
+      "name": "Dunukofia",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ekwusigo",
+      "stateId": "state-anambra",
+      "code": "AN-09",
+      "name": "Ekwusigo",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-idemili-north",
+      "stateId": "state-anambra",
+      "code": "AN-10",
+      "name": "Idemili North",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-idemili-south",
+      "stateId": "state-anambra",
+      "code": "AN-11",
+      "name": "Idemili South",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ihiala",
+      "stateId": "state-anambra",
+      "code": "AN-12",
+      "name": "Ihiala",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-njikoka",
+      "stateId": "state-anambra",
+      "code": "AN-13",
+      "name": "Njikoka",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-nnewi-north",
+      "stateId": "state-anambra",
+      "code": "AN-14",
+      "name": "Nnewi North",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-nnewi-south",
+      "stateId": "state-anambra",
+      "code": "AN-15",
+      "name": "Nnewi South",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogbaru",
+      "stateId": "state-anambra",
+      "code": "AN-16",
+      "name": "Ogbaru",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-onitsha-north",
+      "stateId": "state-anambra",
+      "code": "AN-17",
+      "name": "Onitsha North",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-onitsha-south",
+      "stateId": "state-anambra",
+      "code": "AN-18",
+      "name": "Onitsha South",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-orumba-north",
+      "stateId": "state-anambra",
+      "code": "AN-19",
+      "name": "Orumba North",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-orumba-south",
+      "stateId": "state-anambra",
+      "code": "AN-20",
+      "name": "Orumba South",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-oyi",
+      "stateId": "state-anambra",
+      "code": "AN-21",
+      "name": "Oyi",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-alkaleri",
+      "stateId": "state-bauchi",
+      "code": "BA-01",
+      "name": "Alkaleri",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-bauchi",
+      "stateId": "state-bauchi",
+      "code": "BA-02",
+      "name": "Bauchi",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-bogoro",
+      "stateId": "state-bauchi",
+      "code": "BA-03",
+      "name": "Bogoro",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-damban",
+      "stateId": "state-bauchi",
+      "code": "BA-04",
+      "name": "Damban",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-darazo",
+      "stateId": "state-bauchi",
+      "code": "BA-05",
+      "name": "Darazo",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-dass",
+      "stateId": "state-bauchi",
+      "code": "BA-06",
+      "name": "Dass",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-gamawa",
+      "stateId": "state-bauchi",
+      "code": "BA-07",
+      "name": "Gamawa",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ganjuwa",
+      "stateId": "state-bauchi",
+      "code": "BA-08",
+      "name": "Ganjuwa",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-giade",
+      "stateId": "state-bauchi",
+      "code": "BA-09",
+      "name": "Giade",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-itas-gadau",
+      "stateId": "state-bauchi",
+      "code": "BA-10",
+      "name": "Itas/Gadau",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-jamaare",
+      "stateId": "state-bauchi",
+      "code": "BA-11",
+      "name": "Jama'are",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-katagum",
+      "stateId": "state-bauchi",
+      "code": "BA-12",
+      "name": "Katagum",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-kirfi",
+      "stateId": "state-bauchi",
+      "code": "BA-13",
+      "name": "Kirfi",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-misau",
+      "stateId": "state-bauchi",
+      "code": "BA-14",
+      "name": "Misau",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ningi",
+      "stateId": "state-bauchi",
+      "code": "BA-15",
+      "name": "Ningi",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-shira",
+      "stateId": "state-bauchi",
+      "code": "BA-16",
+      "name": "Shira",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-tafawa-balewa",
+      "stateId": "state-bauchi",
+      "code": "BA-17",
+      "name": "Tafawa Balewa",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-toro",
+      "stateId": "state-bauchi",
+      "code": "BA-18",
+      "name": "Toro",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-warji",
+      "stateId": "state-bauchi",
+      "code": "BA-19",
+      "name": "Warji",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-zaki",
+      "stateId": "state-bauchi",
+      "code": "BA-20",
+      "name": "Zaki",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-brass",
+      "stateId": "state-bayelsa",
+      "code": "BY-01",
+      "name": "Brass",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-ekeremor",
+      "stateId": "state-bayelsa",
+      "code": "BY-02",
+      "name": "Ekeremor",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-kolokuma-opokuma",
+      "stateId": "state-bayelsa",
+      "code": "BY-03",
+      "name": "Kolokuma/Opokuma",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-nembe",
+      "stateId": "state-bayelsa",
+      "code": "BY-04",
+      "name": "Nembe",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogbia",
+      "stateId": "state-bayelsa",
+      "code": "BY-05",
+      "name": "Ogbia",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-sagbama",
+      "stateId": "state-bayelsa",
+      "code": "BY-06",
+      "name": "Sagbama",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-southern-ijaw",
+      "stateId": "state-bayelsa",
+      "code": "BY-07",
+      "name": "Southern Ijaw",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-yenagoa",
+      "stateId": "state-bayelsa",
+      "code": "BY-08",
+      "name": "Yenagoa",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ado",
+      "stateId": "state-benue",
+      "code": "BE-01",
+      "name": "Ado",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-agatu",
+      "stateId": "state-benue",
+      "code": "BE-02",
+      "name": "Agatu",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-apa",
+      "stateId": "state-benue",
+      "code": "BE-03",
+      "name": "Apa",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-buruku",
+      "stateId": "state-benue",
+      "code": "BE-04",
+      "name": "Buruku",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-gboko",
+      "stateId": "state-benue",
+      "code": "BE-05",
+      "name": "Gboko",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-guma",
+      "stateId": "state-benue",
+      "code": "BE-06",
+      "name": "Guma",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwer-east",
+      "stateId": "state-benue",
+      "code": "BE-07",
+      "name": "Gwer East",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwer-west",
+      "stateId": "state-benue",
+      "code": "BE-08",
+      "name": "Gwer West",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-katsina-ala",
+      "stateId": "state-benue",
+      "code": "BE-09",
+      "name": "Katsina-Ala",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-konshisha",
+      "stateId": "state-benue",
+      "code": "BE-10",
+      "name": "Konshisha",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-kwande",
+      "stateId": "state-benue",
+      "code": "BE-11",
+      "name": "Kwande",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-logo",
+      "stateId": "state-benue",
+      "code": "BE-12",
+      "name": "Logo",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-makurdi",
+      "stateId": "state-benue",
+      "code": "BE-13",
+      "name": "Makurdi",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-obi",
+      "stateId": "state-benue",
+      "code": "BE-14",
+      "name": "Obi",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogbadibo",
+      "stateId": "state-benue",
+      "code": "BE-15",
+      "name": "Ogbadibo",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-ohimini",
+      "stateId": "state-benue",
+      "code": "BE-16",
+      "name": "Ohimini",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-oju",
+      "stateId": "state-benue",
+      "code": "BE-17",
+      "name": "Oju",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-okpokwu",
+      "stateId": "state-benue",
+      "code": "BE-18",
+      "name": "Okpokwu",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-oturkpo",
+      "stateId": "state-benue",
+      "code": "BE-19",
+      "name": "Oturkpo",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-tarka",
+      "stateId": "state-benue",
+      "code": "BE-20",
+      "name": "Tarka",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-ukum",
+      "stateId": "state-benue",
+      "code": "BE-21",
+      "name": "Ukum",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-ushongo",
+      "stateId": "state-benue",
+      "code": "BE-22",
+      "name": "Ushongo",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-vandeikya",
+      "stateId": "state-benue",
+      "code": "BE-23",
+      "name": "Vandeikya",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-abadam",
+      "stateId": "state-borno",
+      "code": "BO-01",
+      "name": "Abadam",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-askira-uba",
+      "stateId": "state-borno",
+      "code": "BO-02",
+      "name": "Askira/Uba",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-bama",
+      "stateId": "state-borno",
+      "code": "BO-03",
+      "name": "Bama",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-bayo",
+      "stateId": "state-borno",
+      "code": "BO-04",
+      "name": "Bayo",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-biu",
+      "stateId": "state-borno",
+      "code": "BO-05",
+      "name": "Biu",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-chibok",
+      "stateId": "state-borno",
+      "code": "BO-06",
+      "name": "Chibok",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-damboa",
+      "stateId": "state-borno",
+      "code": "BO-07",
+      "name": "Damboa",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-dikwa",
+      "stateId": "state-borno",
+      "code": "BO-08",
+      "name": "Dikwa",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-gubio",
+      "stateId": "state-borno",
+      "code": "BO-09",
+      "name": "Gubio",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-guzamala",
+      "stateId": "state-borno",
+      "code": "BO-10",
+      "name": "Guzamala",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwoza",
+      "stateId": "state-borno",
+      "code": "BO-11",
+      "name": "Gwoza",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-hawul",
+      "stateId": "state-borno",
+      "code": "BO-12",
+      "name": "Hawul",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-jere",
+      "stateId": "state-borno",
+      "code": "BO-13",
+      "name": "Jere",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaga",
+      "stateId": "state-borno",
+      "code": "BO-14",
+      "name": "Kaga",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-kala-balge",
+      "stateId": "state-borno",
+      "code": "BO-15",
+      "name": "Kala/Balge",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-konduga",
+      "stateId": "state-borno",
+      "code": "BO-16",
+      "name": "Konduga",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-kukawa",
+      "stateId": "state-borno",
+      "code": "BO-17",
+      "name": "Kukawa",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-kwaya-kusar",
+      "stateId": "state-borno",
+      "code": "BO-18",
+      "name": "Kwaya Kusar",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-mafa",
+      "stateId": "state-borno",
+      "code": "BO-19",
+      "name": "Mafa",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-magumeri",
+      "stateId": "state-borno",
+      "code": "BO-20",
+      "name": "Magumeri",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-maiduguri",
+      "stateId": "state-borno",
+      "code": "BO-21",
+      "name": "Maiduguri",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-marte",
+      "stateId": "state-borno",
+      "code": "BO-22",
+      "name": "Marte",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-mobbar",
+      "stateId": "state-borno",
+      "code": "BO-23",
+      "name": "Mobbar",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-monguno",
+      "stateId": "state-borno",
+      "code": "BO-24",
+      "name": "Monguno",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-ngala",
+      "stateId": "state-borno",
+      "code": "BO-25",
+      "name": "Ngala",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-nganzai",
+      "stateId": "state-borno",
+      "code": "BO-26",
+      "name": "Nganzai",
+      "order": 26,
+      "status": "active"
+    },
+    {
+      "id": "lga-shani",
+      "stateId": "state-borno",
+      "code": "BO-27",
+      "name": "Shani",
+      "order": 27,
+      "status": "active"
+    },
+    {
+      "id": "lga-abi",
+      "stateId": "state-cross-river",
+      "code": "CR-01",
+      "name": "Abi",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-akamkpa",
+      "stateId": "state-cross-river",
+      "code": "CR-02",
+      "name": "Akamkpa",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-akpabuyo",
+      "stateId": "state-cross-river",
+      "code": "CR-03",
+      "name": "Akpabuyo",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-bakassi",
+      "stateId": "state-cross-river",
+      "code": "CR-04",
+      "name": "Bakassi",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-bekwarra",
+      "stateId": "state-cross-river",
+      "code": "CR-05",
+      "name": "Bekwarra",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-biase",
+      "stateId": "state-cross-river",
+      "code": "CR-06",
+      "name": "Biase",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-boki",
+      "stateId": "state-cross-river",
+      "code": "CR-07",
+      "name": "Boki",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-calabar-municipal",
+      "stateId": "state-cross-river",
+      "code": "CR-08",
+      "name": "Calabar Municipal",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-calabar-south",
+      "stateId": "state-cross-river",
+      "code": "CR-09",
+      "name": "Calabar South",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-etung",
+      "stateId": "state-cross-river",
+      "code": "CR-10",
+      "name": "Etung",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikom",
+      "stateId": "state-cross-river",
+      "code": "CR-11",
+      "name": "Ikom",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-obanliku",
+      "stateId": "state-cross-river",
+      "code": "CR-12",
+      "name": "Obanliku",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-obubra",
+      "stateId": "state-cross-river",
+      "code": "CR-13",
+      "name": "Obubra",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-obudu",
+      "stateId": "state-cross-river",
+      "code": "CR-14",
+      "name": "Obudu",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-odukpani",
+      "stateId": "state-cross-river",
+      "code": "CR-15",
+      "name": "Odukpani",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogoja",
+      "stateId": "state-cross-river",
+      "code": "CR-16",
+      "name": "Ogoja",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-yakuur",
+      "stateId": "state-cross-river",
+      "code": "CR-17",
+      "name": "Yakuur",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-yala",
+      "stateId": "state-cross-river",
+      "code": "CR-18",
+      "name": "Yala",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-aniocha-north",
+      "stateId": "state-delta",
+      "code": "DE-01",
+      "name": "Aniocha North",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-aniocha-south",
+      "stateId": "state-delta",
+      "code": "DE-02",
+      "name": "Aniocha South",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-bomadi",
+      "stateId": "state-delta",
+      "code": "DE-03",
+      "name": "Bomadi",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-burutu",
+      "stateId": "state-delta",
+      "code": "DE-04",
+      "name": "Burutu",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-ethiope-east",
+      "stateId": "state-delta",
+      "code": "DE-05",
+      "name": "Ethiope East",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ethiope-west",
+      "stateId": "state-delta",
+      "code": "DE-06",
+      "name": "Ethiope West",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ika-north-east",
+      "stateId": "state-delta",
+      "code": "DE-07",
+      "name": "Ika North East",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ika-south",
+      "stateId": "state-delta",
+      "code": "DE-08",
+      "name": "Ika South",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-isoko-north",
+      "stateId": "state-delta",
+      "code": "DE-09",
+      "name": "Isoko North",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-isoko-south",
+      "stateId": "state-delta",
+      "code": "DE-10",
+      "name": "Isoko South",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ndokwa-east",
+      "stateId": "state-delta",
+      "code": "DE-11",
+      "name": "Ndokwa East",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ndokwa-west",
+      "stateId": "state-delta",
+      "code": "DE-12",
+      "name": "Ndokwa West",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-okpe",
+      "stateId": "state-delta",
+      "code": "DE-13",
+      "name": "Okpe",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-oshimili-north",
+      "stateId": "state-delta",
+      "code": "DE-14",
+      "name": "Oshimili North",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-oshimili-south",
+      "stateId": "state-delta",
+      "code": "DE-15",
+      "name": "Oshimili South",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-patani",
+      "stateId": "state-delta",
+      "code": "DE-16",
+      "name": "Patani",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-sapele",
+      "stateId": "state-delta",
+      "code": "DE-17",
+      "name": "Sapele",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-udu",
+      "stateId": "state-delta",
+      "code": "DE-18",
+      "name": "Udu",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-ughelli-north",
+      "stateId": "state-delta",
+      "code": "DE-19",
+      "name": "Ughelli North",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-ughelli-south",
+      "stateId": "state-delta",
+      "code": "DE-20",
+      "name": "Ughelli South",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-ukwuani",
+      "stateId": "state-delta",
+      "code": "DE-21",
+      "name": "Ukwuani",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-uvwie",
+      "stateId": "state-delta",
+      "code": "DE-22",
+      "name": "Uvwie",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-warri-north",
+      "stateId": "state-delta",
+      "code": "DE-23",
+      "name": "Warri North",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-warri-south",
+      "stateId": "state-delta",
+      "code": "DE-24",
+      "name": "Warri South",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-warri-south-west",
+      "stateId": "state-delta",
+      "code": "DE-25",
+      "name": "Warri South West",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-abakaliki",
+      "stateId": "state-ebonyi",
+      "code": "EB-01",
+      "name": "Abakaliki",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-afikpo-north",
+      "stateId": "state-ebonyi",
+      "code": "EB-02",
+      "name": "Afikpo North",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-afikpo-south",
+      "stateId": "state-ebonyi",
+      "code": "EB-03",
+      "name": "Afikpo South",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-ebonyi",
+      "stateId": "state-ebonyi",
+      "code": "EB-04",
+      "name": "Ebonyi",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-ezza-north",
+      "stateId": "state-ebonyi",
+      "code": "EB-05",
+      "name": "Ezza North",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ezza-south",
+      "stateId": "state-ebonyi",
+      "code": "EB-06",
+      "name": "Ezza South",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikwo",
+      "stateId": "state-ebonyi",
+      "code": "EB-07",
+      "name": "Ikwo",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ishielu",
+      "stateId": "state-ebonyi",
+      "code": "EB-08",
+      "name": "Ishielu",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ivo",
+      "stateId": "state-ebonyi",
+      "code": "EB-09",
+      "name": "Ivo",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-izzi",
+      "stateId": "state-ebonyi",
+      "code": "EB-10",
+      "name": "Izzi",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ohaozara",
+      "stateId": "state-ebonyi",
+      "code": "EB-11",
+      "name": "Ohaozara",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ohaukwu",
+      "stateId": "state-ebonyi",
+      "code": "EB-12",
+      "name": "Ohaukwu",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-onicha",
+      "stateId": "state-ebonyi",
+      "code": "EB-13",
+      "name": "Onicha",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-akoko-edo",
+      "stateId": "state-edo",
+      "code": "ED-01",
+      "name": "Akoko-Edo",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-egor",
+      "stateId": "state-edo",
+      "code": "ED-02",
+      "name": "Egor",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-esan-central",
+      "stateId": "state-edo",
+      "code": "ED-03",
+      "name": "Esan Central",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-esan-north-east",
+      "stateId": "state-edo",
+      "code": "ED-04",
+      "name": "Esan North-East",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-esan-south-east",
+      "stateId": "state-edo",
+      "code": "ED-05",
+      "name": "Esan South-East",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-esan-west",
+      "stateId": "state-edo",
+      "code": "ED-06",
+      "name": "Esan West",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-etsako-central",
+      "stateId": "state-edo",
+      "code": "ED-07",
+      "name": "Etsako Central",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-etsako-east",
+      "stateId": "state-edo",
+      "code": "ED-08",
+      "name": "Etsako East",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-etsako-west",
+      "stateId": "state-edo",
+      "code": "ED-09",
+      "name": "Etsako West",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-igueben",
+      "stateId": "state-edo",
+      "code": "ED-10",
+      "name": "Igueben",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikpoba-okha",
+      "stateId": "state-edo",
+      "code": "ED-11",
+      "name": "Ikpoba-Okha",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-oredo",
+      "stateId": "state-edo",
+      "code": "ED-12",
+      "name": "Oredo",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-orhionmwon",
+      "stateId": "state-edo",
+      "code": "ED-13",
+      "name": "Orhionmwon",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-ovia-north-east",
+      "stateId": "state-edo",
+      "code": "ED-14",
+      "name": "Ovia North-East",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ovia-south-west",
+      "stateId": "state-edo",
+      "code": "ED-15",
+      "name": "Ovia South-West",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-owan-east",
+      "stateId": "state-edo",
+      "code": "ED-16",
+      "name": "Owan East",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-owan-west",
+      "stateId": "state-edo",
+      "code": "ED-17",
+      "name": "Owan West",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-uhunmwonde",
+      "stateId": "state-edo",
+      "code": "ED-18",
+      "name": "Uhunmwonde",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-ado-ekiti",
+      "stateId": "state-ekiti",
+      "code": "EK-01",
+      "name": "Ado Ekiti",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-efon",
+      "stateId": "state-ekiti",
+      "code": "EK-02",
+      "name": "Efon",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-ekiti-east",
+      "stateId": "state-ekiti",
+      "code": "EK-03",
+      "name": "Ekiti East",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-ekiti-south-west",
+      "stateId": "state-ekiti",
+      "code": "EK-04",
+      "name": "Ekiti South-West",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-ekiti-west",
+      "stateId": "state-ekiti",
+      "code": "EK-05",
+      "name": "Ekiti West",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-emure",
+      "stateId": "state-ekiti",
+      "code": "EK-06",
+      "name": "Emure",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-gbonyin",
+      "stateId": "state-ekiti",
+      "code": "EK-07",
+      "name": "Gbonyin",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ido-osi",
+      "stateId": "state-ekiti",
+      "code": "EK-08",
+      "name": "Ido Osi",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ijero",
+      "stateId": "state-ekiti",
+      "code": "EK-09",
+      "name": "Ijero",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikere",
+      "stateId": "state-ekiti",
+      "code": "EK-10",
+      "name": "Ikere",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikole",
+      "stateId": "state-ekiti",
+      "code": "EK-11",
+      "name": "Ikole",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ilejemeje",
+      "stateId": "state-ekiti",
+      "code": "EK-12",
+      "name": "Ilejemeje",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-irepodun-ifelodun",
+      "stateId": "state-ekiti",
+      "code": "EK-13",
+      "name": "Irepodun/Ifelodun",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-ise-orun",
+      "stateId": "state-ekiti",
+      "code": "EK-14",
+      "name": "Ise/Orun",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-moba",
+      "stateId": "state-ekiti",
+      "code": "EK-15",
+      "name": "Moba",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-oye",
+      "stateId": "state-ekiti",
+      "code": "EK-16",
+      "name": "Oye",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-aninri",
+      "stateId": "state-enugu",
+      "code": "EN-01",
+      "name": "Aninri",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-awgu",
+      "stateId": "state-enugu",
+      "code": "EN-02",
+      "name": "Awgu",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-enugu-east",
+      "stateId": "state-enugu",
+      "code": "EN-03",
+      "name": "Enugu East",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-enugu-north",
+      "stateId": "state-enugu",
+      "code": "EN-04",
+      "name": "Enugu North",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-enugu-south",
+      "stateId": "state-enugu",
+      "code": "EN-05",
+      "name": "Enugu South",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ezeagu",
+      "stateId": "state-enugu",
+      "code": "EN-06",
+      "name": "Ezeagu",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-igbo-etiti",
+      "stateId": "state-enugu",
+      "code": "EN-07",
+      "name": "Igbo Etiti",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-igbo-eze-north",
+      "stateId": "state-enugu",
+      "code": "EN-08",
+      "name": "Igbo Eze North",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-igbo-eze-south",
+      "stateId": "state-enugu",
+      "code": "EN-09",
+      "name": "Igbo Eze South",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-isi-uzo",
+      "stateId": "state-enugu",
+      "code": "EN-10",
+      "name": "Isi Uzo",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-nkanu-east",
+      "stateId": "state-enugu",
+      "code": "EN-11",
+      "name": "Nkanu East",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-nkanu-west",
+      "stateId": "state-enugu",
+      "code": "EN-12",
+      "name": "Nkanu West",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-nsukka",
+      "stateId": "state-enugu",
+      "code": "EN-13",
+      "name": "Nsukka",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-oji-river",
+      "stateId": "state-enugu",
+      "code": "EN-14",
+      "name": "Oji River",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-udenu",
+      "stateId": "state-enugu",
+      "code": "EN-15",
+      "name": "Udenu",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-udi",
+      "stateId": "state-enugu",
+      "code": "EN-16",
+      "name": "Udi",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-uzo-uwani",
+      "stateId": "state-enugu",
+      "code": "EN-17",
+      "name": "Uzo Uwani",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-akko",
+      "stateId": "state-gombe",
+      "code": "GO-01",
+      "name": "Akko",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-balanga",
+      "stateId": "state-gombe",
+      "code": "GO-02",
+      "name": "Balanga",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-billiri",
+      "stateId": "state-gombe",
+      "code": "GO-03",
+      "name": "Billiri",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-dukku",
+      "stateId": "state-gombe",
+      "code": "GO-04",
+      "name": "Dukku",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-funakaye",
+      "stateId": "state-gombe",
+      "code": "GO-05",
+      "name": "Funakaye",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-gombe",
+      "stateId": "state-gombe",
+      "code": "GO-06",
+      "name": "Gombe",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaltungo",
+      "stateId": "state-gombe",
+      "code": "GO-07",
+      "name": "Kaltungo",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-kwami",
+      "stateId": "state-gombe",
+      "code": "GO-08",
+      "name": "Kwami",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-nafada",
+      "stateId": "state-gombe",
+      "code": "GO-09",
+      "name": "Nafada",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-shongom",
+      "stateId": "state-gombe",
+      "code": "GO-10",
+      "name": "Shongom",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-yamaltu-deba",
+      "stateId": "state-gombe",
+      "code": "GO-11",
+      "name": "Yamaltu/Deba",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-aboh-mbaise",
+      "stateId": "state-imo",
+      "code": "IM-01",
+      "name": "Aboh Mbaise",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-ahiazu-mbaise",
+      "stateId": "state-imo",
+      "code": "IM-02",
+      "name": "Ahiazu Mbaise",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-ehime-mbano",
+      "stateId": "state-imo",
+      "code": "IM-03",
+      "name": "Ehime Mbano",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-ezinihitte",
+      "stateId": "state-imo",
+      "code": "IM-04",
+      "name": "Ezinihitte",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-ideato-north",
+      "stateId": "state-imo",
+      "code": "IM-05",
+      "name": "Ideato North",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ideato-south",
+      "stateId": "state-imo",
+      "code": "IM-06",
+      "name": "Ideato South",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ihitte-uboma",
+      "stateId": "state-imo",
+      "code": "IM-07",
+      "name": "Ihitte/Uboma",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikeduru",
+      "stateId": "state-imo",
+      "code": "IM-08",
+      "name": "Ikeduru",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-isiala-mbano",
+      "stateId": "state-imo",
+      "code": "IM-09",
+      "name": "Isiala Mbano",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-isu",
+      "stateId": "state-imo",
+      "code": "IM-10",
+      "name": "Isu",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-mbaitoli",
+      "stateId": "state-imo",
+      "code": "IM-11",
+      "name": "Mbaitoli",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ngor-okpala",
+      "stateId": "state-imo",
+      "code": "IM-12",
+      "name": "Ngor Okpala",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-njaba",
+      "stateId": "state-imo",
+      "code": "IM-13",
+      "name": "Njaba",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-nkwerre",
+      "stateId": "state-imo",
+      "code": "IM-14",
+      "name": "Nkwerre",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-nwangele",
+      "stateId": "state-imo",
+      "code": "IM-15",
+      "name": "Nwangele",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-obowo",
+      "stateId": "state-imo",
+      "code": "IM-16",
+      "name": "Obowo",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-oguta",
+      "stateId": "state-imo",
+      "code": "IM-17",
+      "name": "Oguta",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-ohaji-egbema",
+      "stateId": "state-imo",
+      "code": "IM-18",
+      "name": "Ohaji/Egbema",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-okigwe",
+      "stateId": "state-imo",
+      "code": "IM-19",
+      "name": "Okigwe",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-orlu",
+      "stateId": "state-imo",
+      "code": "IM-20",
+      "name": "Orlu",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-orsu",
+      "stateId": "state-imo",
+      "code": "IM-21",
+      "name": "Orsu",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-oru-east",
+      "stateId": "state-imo",
+      "code": "IM-22",
+      "name": "Oru East",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-oru-west",
+      "stateId": "state-imo",
+      "code": "IM-23",
+      "name": "Oru West",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-owerri-municipal",
+      "stateId": "state-imo",
+      "code": "IM-24",
+      "name": "Owerri Municipal",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-owerri-north",
+      "stateId": "state-imo",
+      "code": "IM-25",
+      "name": "Owerri North",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-owerri-west",
+      "stateId": "state-imo",
+      "code": "IM-26",
+      "name": "Owerri West",
+      "order": 26,
+      "status": "active"
+    },
+    {
+      "id": "lga-auyo",
+      "stateId": "state-jigawa",
+      "code": "JI-01",
+      "name": "Auyo",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-babura",
+      "stateId": "state-jigawa",
+      "code": "JI-02",
+      "name": "Babura",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-biriniwa",
+      "stateId": "state-jigawa",
+      "code": "JI-03",
+      "name": "Biriniwa",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-birnin-kudu",
+      "stateId": "state-jigawa",
+      "code": "JI-04",
+      "name": "Birnin Kudu",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-buji",
+      "stateId": "state-jigawa",
+      "code": "JI-05",
+      "name": "Buji",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-dutse",
+      "stateId": "state-jigawa",
+      "code": "JI-06",
+      "name": "Dutse",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-gagarawa",
+      "stateId": "state-jigawa",
+      "code": "JI-07",
+      "name": "Gagarawa",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-garki",
+      "stateId": "state-jigawa",
+      "code": "JI-08",
+      "name": "Garki",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-gumel",
+      "stateId": "state-jigawa",
+      "code": "JI-09",
+      "name": "Gumel",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-guri",
+      "stateId": "state-jigawa",
+      "code": "JI-10",
+      "name": "Guri",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwaram",
+      "stateId": "state-jigawa",
+      "code": "JI-11",
+      "name": "Gwaram",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwiwa",
+      "stateId": "state-jigawa",
+      "code": "JI-12",
+      "name": "Gwiwa",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-hadejia",
+      "stateId": "state-jigawa",
+      "code": "JI-13",
+      "name": "Hadejia",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-jahun",
+      "stateId": "state-jigawa",
+      "code": "JI-14",
+      "name": "Jahun",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-kafin-hausa",
+      "stateId": "state-jigawa",
+      "code": "JI-15",
+      "name": "Kafin Hausa",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-kazaure",
+      "stateId": "state-jigawa",
+      "code": "JI-16",
+      "name": "Kazaure",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-kiri-kasama",
+      "stateId": "state-jigawa",
+      "code": "JI-17",
+      "name": "Kiri Kasama",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-kiyawa",
+      "stateId": "state-jigawa",
+      "code": "JI-18",
+      "name": "Kiyawa",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaugama",
+      "stateId": "state-jigawa",
+      "code": "JI-19",
+      "name": "Kaugama",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-maigatari",
+      "stateId": "state-jigawa",
+      "code": "JI-20",
+      "name": "Maigatari",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-malam-madori",
+      "stateId": "state-jigawa",
+      "code": "JI-21",
+      "name": "Malam Madori",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-miga",
+      "stateId": "state-jigawa",
+      "code": "JI-22",
+      "name": "Miga",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-ringim",
+      "stateId": "state-jigawa",
+      "code": "JI-23",
+      "name": "Ringim",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-roni",
+      "stateId": "state-jigawa",
+      "code": "JI-24",
+      "name": "Roni",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-sule-tankarkar",
+      "stateId": "state-jigawa",
+      "code": "JI-25",
+      "name": "Sule Tankarkar",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-taura",
+      "stateId": "state-jigawa",
+      "code": "JI-26",
+      "name": "Taura",
+      "order": 26,
+      "status": "active"
+    },
+    {
+      "id": "lga-yankwashi",
+      "stateId": "state-jigawa",
+      "code": "JI-27",
+      "name": "Yankwashi",
+      "order": 27,
+      "status": "active"
+    },
+    {
+      "id": "lga-birnin-gwari",
+      "stateId": "state-kaduna",
+      "code": "KD-01",
+      "name": "Birnin Gwari",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-chikun",
+      "stateId": "state-kaduna",
+      "code": "KD-02",
+      "name": "Chikun",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-giwa",
+      "stateId": "state-kaduna",
+      "code": "KD-03",
+      "name": "Giwa",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-igabi",
+      "stateId": "state-kaduna",
+      "code": "KD-04",
+      "name": "Igabi",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikara",
+      "stateId": "state-kaduna",
+      "code": "KD-05",
+      "name": "Ikara",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-jaba",
+      "stateId": "state-kaduna",
+      "code": "KD-06",
+      "name": "Jaba",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-jemaa",
+      "stateId": "state-kaduna",
+      "code": "KD-07",
+      "name": "Jema'a",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-kachia",
+      "stateId": "state-kaduna",
+      "code": "KD-08",
+      "name": "Kachia",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaduna-north",
+      "stateId": "state-kaduna",
+      "code": "KD-09",
+      "name": "Kaduna North",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaduna-south",
+      "stateId": "state-kaduna",
+      "code": "KD-10",
+      "name": "Kaduna South",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-kagarko",
+      "stateId": "state-kaduna",
+      "code": "KD-11",
+      "name": "Kagarko",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-kajuru",
+      "stateId": "state-kaduna",
+      "code": "KD-12",
+      "name": "Kajuru",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaura",
+      "stateId": "state-kaduna",
+      "code": "KD-13",
+      "name": "Kaura",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-kauru",
+      "stateId": "state-kaduna",
+      "code": "KD-14",
+      "name": "Kauru",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-kubau",
+      "stateId": "state-kaduna",
+      "code": "KD-15",
+      "name": "Kubau",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-kudan",
+      "stateId": "state-kaduna",
+      "code": "KD-16",
+      "name": "Kudan",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-lere",
+      "stateId": "state-kaduna",
+      "code": "KD-17",
+      "name": "Lere",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-makarfi",
+      "stateId": "state-kaduna",
+      "code": "KD-18",
+      "name": "Makarfi",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-sabon-gari",
+      "stateId": "state-kaduna",
+      "code": "KD-19",
+      "name": "Sabon Gari",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-sanga",
+      "stateId": "state-kaduna",
+      "code": "KD-20",
+      "name": "Sanga",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-soba",
+      "stateId": "state-kaduna",
+      "code": "KD-21",
+      "name": "Soba",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-zangon-kataf",
+      "stateId": "state-kaduna",
+      "code": "KD-22",
+      "name": "Zangon Kataf",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-zaria",
+      "stateId": "state-kaduna",
+      "code": "KD-23",
+      "name": "Zaria",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-ajingi",
+      "stateId": "state-kano",
+      "code": "KN-01",
+      "name": "Ajingi",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-albasu",
+      "stateId": "state-kano",
+      "code": "KN-02",
+      "name": "Albasu",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-bagwai",
+      "stateId": "state-kano",
+      "code": "KN-03",
+      "name": "Bagwai",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-bebeji",
+      "stateId": "state-kano",
+      "code": "KN-04",
+      "name": "Bebeji",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-bichi",
+      "stateId": "state-kano",
+      "code": "KN-05",
+      "name": "Bichi",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-bunkure",
+      "stateId": "state-kano",
+      "code": "KN-06",
+      "name": "Bunkure",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-dala",
+      "stateId": "state-kano",
+      "code": "KN-07",
+      "name": "Dala",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-dambatta",
+      "stateId": "state-kano",
+      "code": "KN-08",
+      "name": "Dambatta",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-dawakin-kudu",
+      "stateId": "state-kano",
+      "code": "KN-09",
+      "name": "Dawakin Kudu",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-dawakin-tofa",
+      "stateId": "state-kano",
+      "code": "KN-10",
+      "name": "Dawakin Tofa",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-doguwa",
+      "stateId": "state-kano",
+      "code": "KN-11",
+      "name": "Doguwa",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-fagge",
+      "stateId": "state-kano",
+      "code": "KN-12",
+      "name": "Fagge",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-gabasawa",
+      "stateId": "state-kano",
+      "code": "KN-13",
+      "name": "Gabasawa",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-garko",
+      "stateId": "state-kano",
+      "code": "KN-14",
+      "name": "Garko",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-garun-mallam",
+      "stateId": "state-kano",
+      "code": "KN-15",
+      "name": "Garun Mallam",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-gaya",
+      "stateId": "state-kano",
+      "code": "KN-16",
+      "name": "Gaya",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-gezawa",
+      "stateId": "state-kano",
+      "code": "KN-17",
+      "name": "Gezawa",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwale",
+      "stateId": "state-kano",
+      "code": "KN-18",
+      "name": "Gwale",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwarzo",
+      "stateId": "state-kano",
+      "code": "KN-19",
+      "name": "Gwarzo",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-kabo",
+      "stateId": "state-kano",
+      "code": "KN-20",
+      "name": "Kabo",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-kano-municipal",
+      "stateId": "state-kano",
+      "code": "KN-21",
+      "name": "Kano Municipal",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-karaye",
+      "stateId": "state-kano",
+      "code": "KN-22",
+      "name": "Karaye",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-kibiya",
+      "stateId": "state-kano",
+      "code": "KN-23",
+      "name": "Kibiya",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-kiru",
+      "stateId": "state-kano",
+      "code": "KN-24",
+      "name": "Kiru",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-kumbotso",
+      "stateId": "state-kano",
+      "code": "KN-25",
+      "name": "Kumbotso",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-kunchi",
+      "stateId": "state-kano",
+      "code": "KN-26",
+      "name": "Kunchi",
+      "order": 26,
+      "status": "active"
+    },
+    {
+      "id": "lga-kura",
+      "stateId": "state-kano",
+      "code": "KN-27",
+      "name": "Kura",
+      "order": 27,
+      "status": "active"
+    },
+    {
+      "id": "lga-madobi",
+      "stateId": "state-kano",
+      "code": "KN-28",
+      "name": "Madobi",
+      "order": 28,
+      "status": "active"
+    },
+    {
+      "id": "lga-makoda",
+      "stateId": "state-kano",
+      "code": "KN-29",
+      "name": "Makoda",
+      "order": 29,
+      "status": "active"
+    },
+    {
+      "id": "lga-minjibir",
+      "stateId": "state-kano",
+      "code": "KN-30",
+      "name": "Minjibir",
+      "order": 30,
+      "status": "active"
+    },
+    {
+      "id": "lga-nassarawa",
+      "stateId": "state-kano",
+      "code": "KN-31",
+      "name": "Nassarawa",
+      "order": 31,
+      "status": "active"
+    },
+    {
+      "id": "lga-rano",
+      "stateId": "state-kano",
+      "code": "KN-32",
+      "name": "Rano",
+      "order": 32,
+      "status": "active"
+    },
+    {
+      "id": "lga-rimin-gado",
+      "stateId": "state-kano",
+      "code": "KN-33",
+      "name": "Rimin Gado",
+      "order": 33,
+      "status": "active"
+    },
+    {
+      "id": "lga-rogo",
+      "stateId": "state-kano",
+      "code": "KN-34",
+      "name": "Rogo",
+      "order": 34,
+      "status": "active"
+    },
+    {
+      "id": "lga-shanono",
+      "stateId": "state-kano",
+      "code": "KN-35",
+      "name": "Shanono",
+      "order": 35,
+      "status": "active"
+    },
+    {
+      "id": "lga-sumaila",
+      "stateId": "state-kano",
+      "code": "KN-36",
+      "name": "Sumaila",
+      "order": 36,
+      "status": "active"
+    },
+    {
+      "id": "lga-takai",
+      "stateId": "state-kano",
+      "code": "KN-37",
+      "name": "Takai",
+      "order": 37,
+      "status": "active"
+    },
+    {
+      "id": "lga-tarauni",
+      "stateId": "state-kano",
+      "code": "KN-38",
+      "name": "Tarauni",
+      "order": 38,
+      "status": "active"
+    },
+    {
+      "id": "lga-tofa",
+      "stateId": "state-kano",
+      "code": "KN-39",
+      "name": "Tofa",
+      "order": 39,
+      "status": "active"
+    },
+    {
+      "id": "lga-tsanyawa",
+      "stateId": "state-kano",
+      "code": "KN-40",
+      "name": "Tsanyawa",
+      "order": 40,
+      "status": "active"
+    },
+    {
+      "id": "lga-tudun-wada",
+      "stateId": "state-kano",
+      "code": "KN-41",
+      "name": "Tudun Wada",
+      "order": 41,
+      "status": "active"
+    },
+    {
+      "id": "lga-ungogo",
+      "stateId": "state-kano",
+      "code": "KN-42",
+      "name": "Ungogo",
+      "order": 42,
+      "status": "active"
+    },
+    {
+      "id": "lga-warawa",
+      "stateId": "state-kano",
+      "code": "KN-43",
+      "name": "Warawa",
+      "order": 43,
+      "status": "active"
+    },
+    {
+      "id": "lga-wudil",
+      "stateId": "state-kano",
+      "code": "KN-44",
+      "name": "Wudil",
+      "order": 44,
+      "status": "active"
+    },
+    {
+      "id": "lga-bakori",
+      "stateId": "state-katsina",
+      "code": "KT-01",
+      "name": "Bakori",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-batagarawa",
+      "stateId": "state-katsina",
+      "code": "KT-02",
+      "name": "Batagarawa",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-batsari",
+      "stateId": "state-katsina",
+      "code": "KT-03",
+      "name": "Batsari",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-baure",
+      "stateId": "state-katsina",
+      "code": "KT-04",
+      "name": "Baure",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-bindawa",
+      "stateId": "state-katsina",
+      "code": "KT-05",
+      "name": "Bindawa",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-charanchi",
+      "stateId": "state-katsina",
+      "code": "KT-06",
+      "name": "Charanchi",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-dan-musa",
+      "stateId": "state-katsina",
+      "code": "KT-07",
+      "name": "Dan Musa",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-dandume",
+      "stateId": "state-katsina",
+      "code": "KT-08",
+      "name": "Dandume",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-danja",
+      "stateId": "state-katsina",
+      "code": "KT-09",
+      "name": "Danja",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-daura",
+      "stateId": "state-katsina",
+      "code": "KT-10",
+      "name": "Daura",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-dutsi",
+      "stateId": "state-katsina",
+      "code": "KT-11",
+      "name": "Dutsi",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-dutsin-ma",
+      "stateId": "state-katsina",
+      "code": "KT-12",
+      "name": "Dutsin Ma",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-faskari",
+      "stateId": "state-katsina",
+      "code": "KT-13",
+      "name": "Faskari",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-funtua",
+      "stateId": "state-katsina",
+      "code": "KT-14",
+      "name": "Funtua",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ingawa",
+      "stateId": "state-katsina",
+      "code": "KT-15",
+      "name": "Ingawa",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-jibia",
+      "stateId": "state-katsina",
+      "code": "KT-16",
+      "name": "Jibia",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-kafur",
+      "stateId": "state-katsina",
+      "code": "KT-17",
+      "name": "Kafur",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaita",
+      "stateId": "state-katsina",
+      "code": "KT-18",
+      "name": "Kaita",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-kankara",
+      "stateId": "state-katsina",
+      "code": "KT-19",
+      "name": "Kankara",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-kankia",
+      "stateId": "state-katsina",
+      "code": "KT-20",
+      "name": "Kankia",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-katsina",
+      "stateId": "state-katsina",
+      "code": "KT-21",
+      "name": "Katsina",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-kurfi",
+      "stateId": "state-katsina",
+      "code": "KT-22",
+      "name": "Kurfi",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-kusada",
+      "stateId": "state-katsina",
+      "code": "KT-23",
+      "name": "Kusada",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-maiadua",
+      "stateId": "state-katsina",
+      "code": "KT-24",
+      "name": "Mai'Adua",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-malumfashi",
+      "stateId": "state-katsina",
+      "code": "KT-25",
+      "name": "Malumfashi",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-mani",
+      "stateId": "state-katsina",
+      "code": "KT-26",
+      "name": "Mani",
+      "order": 26,
+      "status": "active"
+    },
+    {
+      "id": "lga-mashi",
+      "stateId": "state-katsina",
+      "code": "KT-27",
+      "name": "Mashi",
+      "order": 27,
+      "status": "active"
+    },
+    {
+      "id": "lga-matazu",
+      "stateId": "state-katsina",
+      "code": "KT-28",
+      "name": "Matazu",
+      "order": 28,
+      "status": "active"
+    },
+    {
+      "id": "lga-musawa",
+      "stateId": "state-katsina",
+      "code": "KT-29",
+      "name": "Musawa",
+      "order": 29,
+      "status": "active"
+    },
+    {
+      "id": "lga-rimi",
+      "stateId": "state-katsina",
+      "code": "KT-30",
+      "name": "Rimi",
+      "order": 30,
+      "status": "active"
+    },
+    {
+      "id": "lga-sabuwa",
+      "stateId": "state-katsina",
+      "code": "KT-31",
+      "name": "Sabuwa",
+      "order": 31,
+      "status": "active"
+    },
+    {
+      "id": "lga-safana",
+      "stateId": "state-katsina",
+      "code": "KT-32",
+      "name": "Safana",
+      "order": 32,
+      "status": "active"
+    },
+    {
+      "id": "lga-sandamu",
+      "stateId": "state-katsina",
+      "code": "KT-33",
+      "name": "Sandamu",
+      "order": 33,
+      "status": "active"
+    },
+    {
+      "id": "lga-zango",
+      "stateId": "state-katsina",
+      "code": "KT-34",
+      "name": "Zango",
+      "order": 34,
+      "status": "active"
+    },
+    {
+      "id": "lga-aleiro",
+      "stateId": "state-kebbi",
+      "code": "KE-01",
+      "name": "Aleiro",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-arewa-dandi",
+      "stateId": "state-kebbi",
+      "code": "KE-02",
+      "name": "Arewa Dandi",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-argungu",
+      "stateId": "state-kebbi",
+      "code": "KE-03",
+      "name": "Argungu",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-augie",
+      "stateId": "state-kebbi",
+      "code": "KE-04",
+      "name": "Augie",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-bagudo",
+      "stateId": "state-kebbi",
+      "code": "KE-05",
+      "name": "Bagudo",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-birnin-kebbi",
+      "stateId": "state-kebbi",
+      "code": "KE-06",
+      "name": "Birnin Kebbi",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-bunza",
+      "stateId": "state-kebbi",
+      "code": "KE-07",
+      "name": "Bunza",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-dandi",
+      "stateId": "state-kebbi",
+      "code": "KE-08",
+      "name": "Dandi",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-fakai",
+      "stateId": "state-kebbi",
+      "code": "KE-09",
+      "name": "Fakai",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwandu",
+      "stateId": "state-kebbi",
+      "code": "KE-10",
+      "name": "Gwandu",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-jega",
+      "stateId": "state-kebbi",
+      "code": "KE-11",
+      "name": "Jega",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-kalgo",
+      "stateId": "state-kebbi",
+      "code": "KE-12",
+      "name": "Kalgo",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-koko-besse",
+      "stateId": "state-kebbi",
+      "code": "KE-13",
+      "name": "Koko/Besse",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-maiyama",
+      "stateId": "state-kebbi",
+      "code": "KE-14",
+      "name": "Maiyama",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ngaski",
+      "stateId": "state-kebbi",
+      "code": "KE-15",
+      "name": "Ngaski",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-sakaba",
+      "stateId": "state-kebbi",
+      "code": "KE-16",
+      "name": "Sakaba",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-shanga",
+      "stateId": "state-kebbi",
+      "code": "KE-17",
+      "name": "Shanga",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-suru",
+      "stateId": "state-kebbi",
+      "code": "KE-18",
+      "name": "Suru",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-wasagu-danko",
+      "stateId": "state-kebbi",
+      "code": "KE-19",
+      "name": "Wasagu/Danko",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-yauri",
+      "stateId": "state-kebbi",
+      "code": "KE-20",
+      "name": "Yauri",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-zuru",
+      "stateId": "state-kebbi",
+      "code": "KE-21",
+      "name": "Zuru",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-adavi",
+      "stateId": "state-kogi",
+      "code": "KO-01",
+      "name": "Adavi",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-ajaokuta",
+      "stateId": "state-kogi",
+      "code": "KO-02",
+      "name": "Ajaokuta",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-ankpa",
+      "stateId": "state-kogi",
+      "code": "KO-03",
+      "name": "Ankpa",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-bassa",
+      "stateId": "state-kogi",
+      "code": "KO-04",
+      "name": "Bassa",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-dekina",
+      "stateId": "state-kogi",
+      "code": "KO-05",
+      "name": "Dekina",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibaji",
+      "stateId": "state-kogi",
+      "code": "KO-06",
+      "name": "Ibaji",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-idah",
+      "stateId": "state-kogi",
+      "code": "KO-07",
+      "name": "Idah",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-igalamela-odolu",
+      "stateId": "state-kogi",
+      "code": "KO-08",
+      "name": "Igalamela Odolu",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ijumu",
+      "stateId": "state-kogi",
+      "code": "KO-09",
+      "name": "Ijumu",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-kabba-bunu",
+      "stateId": "state-kogi",
+      "code": "KO-10",
+      "name": "Kabba/Bunu",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-kogi",
+      "stateId": "state-kogi",
+      "code": "KO-11",
+      "name": "Kogi",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-lokoja",
+      "stateId": "state-kogi",
+      "code": "KO-12",
+      "name": "Lokoja",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-mopa-muro",
+      "stateId": "state-kogi",
+      "code": "KO-13",
+      "name": "Mopa-Muro",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-ofu",
+      "stateId": "state-kogi",
+      "code": "KO-14",
+      "name": "Ofu",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogori-magongo",
+      "stateId": "state-kogi",
+      "code": "KO-15",
+      "name": "Ogori/Magongo",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-okehi",
+      "stateId": "state-kogi",
+      "code": "KO-16",
+      "name": "Okehi",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-okene",
+      "stateId": "state-kogi",
+      "code": "KO-17",
+      "name": "Okene",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-olamaboro",
+      "stateId": "state-kogi",
+      "code": "KO-18",
+      "name": "Olamaboro",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-omala",
+      "stateId": "state-kogi",
+      "code": "KO-19",
+      "name": "Omala",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-yagba-east",
+      "stateId": "state-kogi",
+      "code": "KO-20",
+      "name": "Yagba East",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-yagba-west",
+      "stateId": "state-kogi",
+      "code": "KO-21",
+      "name": "Yagba West",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-asa",
+      "stateId": "state-kwara",
+      "code": "KW-01",
+      "name": "Asa",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-baruten",
+      "stateId": "state-kwara",
+      "code": "KW-02",
+      "name": "Baruten",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-edu",
+      "stateId": "state-kwara",
+      "code": "KW-03",
+      "name": "Edu",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-ekiti",
+      "stateId": "state-kwara",
+      "code": "KW-04",
+      "name": "Ekiti",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-ifelodun",
+      "stateId": "state-kwara",
+      "code": "KW-05",
+      "name": "Ifelodun",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ilorin-east",
+      "stateId": "state-kwara",
+      "code": "KW-06",
+      "name": "Ilorin East",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ilorin-south",
+      "stateId": "state-kwara",
+      "code": "KW-07",
+      "name": "Ilorin South",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ilorin-west",
+      "stateId": "state-kwara",
+      "code": "KW-08",
+      "name": "Ilorin West",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-irepodun",
+      "stateId": "state-kwara",
+      "code": "KW-09",
+      "name": "Irepodun",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-isin",
+      "stateId": "state-kwara",
+      "code": "KW-10",
+      "name": "Isin",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaiama",
+      "stateId": "state-kwara",
+      "code": "KW-11",
+      "name": "Kaiama",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-moro",
+      "stateId": "state-kwara",
+      "code": "KW-12",
+      "name": "Moro",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-offa",
+      "stateId": "state-kwara",
+      "code": "KW-13",
+      "name": "Offa",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-oke-ero",
+      "stateId": "state-kwara",
+      "code": "KW-14",
+      "name": "Oke Ero",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-oyun",
+      "stateId": "state-kwara",
+      "code": "KW-15",
+      "name": "Oyun",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-pategi",
+      "stateId": "state-kwara",
+      "code": "KW-16",
+      "name": "Pategi",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-agege",
+      "stateId": "state-lagos",
+      "code": "LA-01",
+      "name": "Agege",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-ajeromi-ifelodun",
+      "stateId": "state-lagos",
+      "code": "LA-02",
+      "name": "Ajeromi-Ifelodun",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-alimosho",
+      "stateId": "state-lagos",
+      "code": "LA-03",
+      "name": "Alimosho",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-amuwo-odofin",
+      "stateId": "state-lagos",
+      "code": "LA-04",
+      "name": "Amuwo-Odofin",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-apapa",
+      "stateId": "state-lagos",
+      "code": "LA-05",
+      "name": "Apapa",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-badagry",
+      "stateId": "state-lagos",
+      "code": "LA-06",
+      "name": "Badagry",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-epe",
+      "stateId": "state-lagos",
+      "code": "LA-07",
+      "name": "Epe",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-eti-osa",
+      "stateId": "state-lagos",
+      "code": "LA-08",
+      "name": "Eti Osa",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibeju-lekki",
+      "stateId": "state-lagos",
+      "code": "LA-09",
+      "name": "Ibeju-Lekki",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-ifako-ijaiye",
+      "stateId": "state-lagos",
+      "code": "LA-10",
+      "name": "Ifako-Ijaiye",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikeja",
+      "stateId": "state-lagos",
+      "code": "LA-11",
+      "name": "Ikeja",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikorodu",
+      "stateId": "state-lagos",
+      "code": "LA-12",
+      "name": "Ikorodu",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-kosofe",
+      "stateId": "state-lagos",
+      "code": "LA-13",
+      "name": "Kosofe",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-lagos-island",
+      "stateId": "state-lagos",
+      "code": "LA-14",
+      "name": "Lagos Island",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-lagos-mainland",
+      "stateId": "state-lagos",
+      "code": "LA-15",
+      "name": "Lagos Mainland",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-mushin",
+      "stateId": "state-lagos",
+      "code": "LA-16",
+      "name": "Mushin",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-ojo",
+      "stateId": "state-lagos",
+      "code": "LA-17",
+      "name": "Ojo",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-oshodi-isolo",
+      "stateId": "state-lagos",
+      "code": "LA-18",
+      "name": "Oshodi-Isolo",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-shomolu",
+      "stateId": "state-lagos",
+      "code": "LA-19",
+      "name": "Shomolu",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-surulere",
+      "stateId": "state-lagos",
+      "code": "LA-20",
+      "name": "Surulere",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-akwanga",
+      "stateId": "state-nasarawa",
+      "code": "NA-01",
+      "name": "Akwanga",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-awe",
+      "stateId": "state-nasarawa",
+      "code": "NA-02",
+      "name": "Awe",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-doma",
+      "stateId": "state-nasarawa",
+      "code": "NA-03",
+      "name": "Doma",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-karu",
+      "stateId": "state-nasarawa",
+      "code": "NA-04",
+      "name": "Karu",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-keana",
+      "stateId": "state-nasarawa",
+      "code": "NA-05",
+      "name": "Keana",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-keffi",
+      "stateId": "state-nasarawa",
+      "code": "NA-06",
+      "name": "Keffi",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-kokona",
+      "stateId": "state-nasarawa",
+      "code": "NA-07",
+      "name": "Kokona",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-lafia",
+      "stateId": "state-nasarawa",
+      "code": "NA-08",
+      "name": "Lafia",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-nasarawa",
+      "stateId": "state-nasarawa",
+      "code": "NA-09",
+      "name": "Nasarawa",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-nasarawa-egon",
+      "stateId": "state-nasarawa",
+      "code": "NA-10",
+      "name": "Nasarawa Egon",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-obi",
+      "stateId": "state-nasarawa",
+      "code": "NA-11",
+      "name": "Obi",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-toto",
+      "stateId": "state-nasarawa",
+      "code": "NA-12",
+      "name": "Toto",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-wamba",
+      "stateId": "state-nasarawa",
+      "code": "NA-13",
+      "name": "Wamba",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-agaie",
+      "stateId": "state-niger",
+      "code": "NI-01",
+      "name": "Agaie",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-agwara",
+      "stateId": "state-niger",
+      "code": "NI-02",
+      "name": "Agwara",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-bida",
+      "stateId": "state-niger",
+      "code": "NI-03",
+      "name": "Bida",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-borgu",
+      "stateId": "state-niger",
+      "code": "NI-04",
+      "name": "Borgu",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-bosso",
+      "stateId": "state-niger",
+      "code": "NI-05",
+      "name": "Bosso",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-chanchaga",
+      "stateId": "state-niger",
+      "code": "NI-06",
+      "name": "Chanchaga",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-edati",
+      "stateId": "state-niger",
+      "code": "NI-07",
+      "name": "Edati",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-gbako",
+      "stateId": "state-niger",
+      "code": "NI-08",
+      "name": "Gbako",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-gurara",
+      "stateId": "state-niger",
+      "code": "NI-09",
+      "name": "Gurara",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-katcha",
+      "stateId": "state-niger",
+      "code": "NI-10",
+      "name": "Katcha",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-kontagora",
+      "stateId": "state-niger",
+      "code": "NI-11",
+      "name": "Kontagora",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-lapai",
+      "stateId": "state-niger",
+      "code": "NI-12",
+      "name": "Lapai",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-lavun",
+      "stateId": "state-niger",
+      "code": "NI-13",
+      "name": "Lavun",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-magama",
+      "stateId": "state-niger",
+      "code": "NI-14",
+      "name": "Magama",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-mariga",
+      "stateId": "state-niger",
+      "code": "NI-15",
+      "name": "Mariga",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-mashegu",
+      "stateId": "state-niger",
+      "code": "NI-16",
+      "name": "Mashegu",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-mokwa",
+      "stateId": "state-niger",
+      "code": "NI-17",
+      "name": "Mokwa",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-moya",
+      "stateId": "state-niger",
+      "code": "NI-18",
+      "name": "Moya",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-paikoro",
+      "stateId": "state-niger",
+      "code": "NI-19",
+      "name": "Paikoro",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-rafi",
+      "stateId": "state-niger",
+      "code": "NI-20",
+      "name": "Rafi",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-rijau",
+      "stateId": "state-niger",
+      "code": "NI-21",
+      "name": "Rijau",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-shiroro",
+      "stateId": "state-niger",
+      "code": "NI-22",
+      "name": "Shiroro",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-suleja",
+      "stateId": "state-niger",
+      "code": "NI-23",
+      "name": "Suleja",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-tafa",
+      "stateId": "state-niger",
+      "code": "NI-24",
+      "name": "Tafa",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-wushishi",
+      "stateId": "state-niger",
+      "code": "NI-25",
+      "name": "Wushishi",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-abeokuta-north",
+      "stateId": "state-ogun",
+      "code": "OG-01",
+      "name": "Abeokuta North",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-abeokuta-south",
+      "stateId": "state-ogun",
+      "code": "OG-02",
+      "name": "Abeokuta South",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-ado-odo-ota",
+      "stateId": "state-ogun",
+      "code": "OG-03",
+      "name": "Ado-Odo/Ota",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-egbado-north",
+      "stateId": "state-ogun",
+      "code": "OG-04",
+      "name": "Egbado North",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-egbado-south",
+      "stateId": "state-ogun",
+      "code": "OG-05",
+      "name": "Egbado South",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ewekoro",
+      "stateId": "state-ogun",
+      "code": "OG-06",
+      "name": "Ewekoro",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ifo",
+      "stateId": "state-ogun",
+      "code": "OG-07",
+      "name": "Ifo",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ijebu-east",
+      "stateId": "state-ogun",
+      "code": "OG-08",
+      "name": "Ijebu East",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ijebu-north",
+      "stateId": "state-ogun",
+      "code": "OG-09",
+      "name": "Ijebu North",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-ijebu-north-east",
+      "stateId": "state-ogun",
+      "code": "OG-10",
+      "name": "Ijebu North East",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ijebu-ode",
+      "stateId": "state-ogun",
+      "code": "OG-11",
+      "name": "Ijebu Ode",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikenne",
+      "stateId": "state-ogun",
+      "code": "OG-12",
+      "name": "Ikenne",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-imeko-afon",
+      "stateId": "state-ogun",
+      "code": "OG-13",
+      "name": "Imeko Afon",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-ipokia",
+      "stateId": "state-ogun",
+      "code": "OG-14",
+      "name": "Ipokia",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-obafemi-owode",
+      "stateId": "state-ogun",
+      "code": "OG-15",
+      "name": "Obafemi Owode",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-odeda",
+      "stateId": "state-ogun",
+      "code": "OG-16",
+      "name": "Odeda",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-odogbolu",
+      "stateId": "state-ogun",
+      "code": "OG-17",
+      "name": "Odogbolu",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogun-waterside",
+      "stateId": "state-ogun",
+      "code": "OG-18",
+      "name": "Ogun Waterside",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-remo-north",
+      "stateId": "state-ogun",
+      "code": "OG-19",
+      "name": "Remo North",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-shagamu",
+      "stateId": "state-ogun",
+      "code": "OG-20",
+      "name": "Shagamu",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-akoko-north-east",
+      "stateId": "state-ondo",
+      "code": "ON-01",
+      "name": "Akoko North-East",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-akoko-north-west",
+      "stateId": "state-ondo",
+      "code": "ON-02",
+      "name": "Akoko North-West",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-akoko-south-west",
+      "stateId": "state-ondo",
+      "code": "ON-03",
+      "name": "Akoko South-West",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-akoko-south-east",
+      "stateId": "state-ondo",
+      "code": "ON-04",
+      "name": "Akoko South-East",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-akure-north",
+      "stateId": "state-ondo",
+      "code": "ON-05",
+      "name": "Akure North",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-akure-south",
+      "stateId": "state-ondo",
+      "code": "ON-06",
+      "name": "Akure South",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ese-odo",
+      "stateId": "state-ondo",
+      "code": "ON-07",
+      "name": "Ese Odo",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-idanre",
+      "stateId": "state-ondo",
+      "code": "ON-08",
+      "name": "Idanre",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ifedore",
+      "stateId": "state-ondo",
+      "code": "ON-09",
+      "name": "Ifedore",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-ilaje",
+      "stateId": "state-ondo",
+      "code": "ON-10",
+      "name": "Ilaje",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ile-oluji-okeigbo",
+      "stateId": "state-ondo",
+      "code": "ON-11",
+      "name": "Ile Oluji/Okeigbo",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-irele",
+      "stateId": "state-ondo",
+      "code": "ON-12",
+      "name": "Irele",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-odigbo",
+      "stateId": "state-ondo",
+      "code": "ON-13",
+      "name": "Odigbo",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-okitipupa",
+      "stateId": "state-ondo",
+      "code": "ON-14",
+      "name": "Okitipupa",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ondo-east",
+      "stateId": "state-ondo",
+      "code": "ON-15",
+      "name": "Ondo East",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-ondo-west",
+      "stateId": "state-ondo",
+      "code": "ON-16",
+      "name": "Ondo West",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-ose",
+      "stateId": "state-ondo",
+      "code": "ON-17",
+      "name": "Ose",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-owo",
+      "stateId": "state-ondo",
+      "code": "ON-18",
+      "name": "Owo",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-atakunmosa-east",
+      "stateId": "state-osun",
+      "code": "OS-01",
+      "name": "Atakunmosa East",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-atakunmosa-west",
+      "stateId": "state-osun",
+      "code": "OS-02",
+      "name": "Atakunmosa West",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-aiyedaade",
+      "stateId": "state-osun",
+      "code": "OS-03",
+      "name": "Aiyedaade",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-aiyedire",
+      "stateId": "state-osun",
+      "code": "OS-04",
+      "name": "Aiyedire",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-boluwaduro",
+      "stateId": "state-osun",
+      "code": "OS-05",
+      "name": "Boluwaduro",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-boripe",
+      "stateId": "state-osun",
+      "code": "OS-06",
+      "name": "Boripe",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ede-north",
+      "stateId": "state-osun",
+      "code": "OS-07",
+      "name": "Ede North",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ede-south",
+      "stateId": "state-osun",
+      "code": "OS-08",
+      "name": "Ede South",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-egbedore",
+      "stateId": "state-osun",
+      "code": "OS-09",
+      "name": "Egbedore",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-ejigbo",
+      "stateId": "state-osun",
+      "code": "OS-10",
+      "name": "Ejigbo",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ife-central",
+      "stateId": "state-osun",
+      "code": "OS-11",
+      "name": "Ife Central",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ife-east",
+      "stateId": "state-osun",
+      "code": "OS-12",
+      "name": "Ife East",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-ife-north",
+      "stateId": "state-osun",
+      "code": "OS-13",
+      "name": "Ife North",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-ife-south",
+      "stateId": "state-osun",
+      "code": "OS-14",
+      "name": "Ife South",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-ifedayo",
+      "stateId": "state-osun",
+      "code": "OS-15",
+      "name": "Ifedayo",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-ifelodun",
+      "stateId": "state-osun",
+      "code": "OS-16",
+      "name": "Ifelodun",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-ila",
+      "stateId": "state-osun",
+      "code": "OS-17",
+      "name": "Ila",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-ilesa-east",
+      "stateId": "state-osun",
+      "code": "OS-18",
+      "name": "Ilesa East",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-ilesa-west",
+      "stateId": "state-osun",
+      "code": "OS-19",
+      "name": "Ilesa West",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-irepodun",
+      "stateId": "state-osun",
+      "code": "OS-20",
+      "name": "Irepodun",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-irewole",
+      "stateId": "state-osun",
+      "code": "OS-21",
+      "name": "Irewole",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-isokan",
+      "stateId": "state-osun",
+      "code": "OS-22",
+      "name": "Isokan",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-iwo",
+      "stateId": "state-osun",
+      "code": "OS-23",
+      "name": "Iwo",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-obokun",
+      "stateId": "state-osun",
+      "code": "OS-24",
+      "name": "Obokun",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-odo-otin",
+      "stateId": "state-osun",
+      "code": "OS-25",
+      "name": "Odo Otin",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-ola-oluwa",
+      "stateId": "state-osun",
+      "code": "OS-26",
+      "name": "Ola Oluwa",
+      "order": 26,
+      "status": "active"
+    },
+    {
+      "id": "lga-olorunda",
+      "stateId": "state-osun",
+      "code": "OS-27",
+      "name": "Olorunda",
+      "order": 27,
+      "status": "active"
+    },
+    {
+      "id": "lga-oriade",
+      "stateId": "state-osun",
+      "code": "OS-28",
+      "name": "Oriade",
+      "order": 28,
+      "status": "active"
+    },
+    {
+      "id": "lga-orolu",
+      "stateId": "state-osun",
+      "code": "OS-29",
+      "name": "Orolu",
+      "order": 29,
+      "status": "active"
+    },
+    {
+      "id": "lga-osogbo",
+      "stateId": "state-osun",
+      "code": "OS-30",
+      "name": "Osogbo",
+      "order": 30,
+      "status": "active"
+    },
+    {
+      "id": "lga-afijio",
+      "stateId": "state-oyo",
+      "code": "OY-01",
+      "name": "Afijio",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-akinyele",
+      "stateId": "state-oyo",
+      "code": "OY-02",
+      "name": "Akinyele",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-atiba",
+      "stateId": "state-oyo",
+      "code": "OY-03",
+      "name": "Atiba",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-atisbo",
+      "stateId": "state-oyo",
+      "code": "OY-04",
+      "name": "Atisbo",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-egbeda",
+      "stateId": "state-oyo",
+      "code": "OY-05",
+      "name": "Egbeda",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibadan-north",
+      "stateId": "state-oyo",
+      "code": "OY-06",
+      "name": "Ibadan North",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibadan-north-east",
+      "stateId": "state-oyo",
+      "code": "OY-07",
+      "name": "Ibadan North-East",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibadan-north-west",
+      "stateId": "state-oyo",
+      "code": "OY-08",
+      "name": "Ibadan North-West",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibadan-south-east",
+      "stateId": "state-oyo",
+      "code": "OY-09",
+      "name": "Ibadan South-East",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibadan-south-west",
+      "stateId": "state-oyo",
+      "code": "OY-10",
+      "name": "Ibadan South-West",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibarapa-central",
+      "stateId": "state-oyo",
+      "code": "OY-11",
+      "name": "Ibarapa Central",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibarapa-east",
+      "stateId": "state-oyo",
+      "code": "OY-12",
+      "name": "Ibarapa East",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibarapa-north",
+      "stateId": "state-oyo",
+      "code": "OY-13",
+      "name": "Ibarapa North",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-ido",
+      "stateId": "state-oyo",
+      "code": "OY-14",
+      "name": "Ido",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-irepo",
+      "stateId": "state-oyo",
+      "code": "OY-15",
+      "name": "Irepo",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-iseyin",
+      "stateId": "state-oyo",
+      "code": "OY-16",
+      "name": "Iseyin",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-itesiwaju",
+      "stateId": "state-oyo",
+      "code": "OY-17",
+      "name": "Itesiwaju",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-iwajowa",
+      "stateId": "state-oyo",
+      "code": "OY-18",
+      "name": "Iwajowa",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-kajola",
+      "stateId": "state-oyo",
+      "code": "OY-19",
+      "name": "Kajola",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-lagelu",
+      "stateId": "state-oyo",
+      "code": "OY-20",
+      "name": "Lagelu",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogbomosho-north",
+      "stateId": "state-oyo",
+      "code": "OY-21",
+      "name": "Ogbomosho North",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogbomosho-south",
+      "stateId": "state-oyo",
+      "code": "OY-22",
+      "name": "Ogbomosho South",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogo-oluwa",
+      "stateId": "state-oyo",
+      "code": "OY-23",
+      "name": "Ogo Oluwa",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-olorunsogo",
+      "stateId": "state-oyo",
+      "code": "OY-24",
+      "name": "Olorunsogo",
+      "order": 24,
+      "status": "active"
+    },
+    {
+      "id": "lga-oluyole",
+      "stateId": "state-oyo",
+      "code": "OY-25",
+      "name": "Oluyole",
+      "order": 25,
+      "status": "active"
+    },
+    {
+      "id": "lga-ona-ara",
+      "stateId": "state-oyo",
+      "code": "OY-26",
+      "name": "Ona Ara",
+      "order": 26,
+      "status": "active"
+    },
+    {
+      "id": "lga-orelope",
+      "stateId": "state-oyo",
+      "code": "OY-27",
+      "name": "Orelope",
+      "order": 27,
+      "status": "active"
+    },
+    {
+      "id": "lga-ori-ire",
+      "stateId": "state-oyo",
+      "code": "OY-28",
+      "name": "Ori Ire",
+      "order": 28,
+      "status": "active"
+    },
+    {
+      "id": "lga-oyo",
+      "stateId": "state-oyo",
+      "code": "OY-29",
+      "name": "Oyo",
+      "order": 29,
+      "status": "active"
+    },
+    {
+      "id": "lga-oyo-east",
+      "stateId": "state-oyo",
+      "code": "OY-30",
+      "name": "Oyo East",
+      "order": 30,
+      "status": "active"
+    },
+    {
+      "id": "lga-saki-east",
+      "stateId": "state-oyo",
+      "code": "OY-31",
+      "name": "Saki East",
+      "order": 31,
+      "status": "active"
+    },
+    {
+      "id": "lga-saki-west",
+      "stateId": "state-oyo",
+      "code": "OY-32",
+      "name": "Saki West",
+      "order": 32,
+      "status": "active"
+    },
+    {
+      "id": "lga-surulere",
+      "stateId": "state-oyo",
+      "code": "OY-33",
+      "name": "Surulere",
+      "order": 33,
+      "status": "active"
+    },
+    {
+      "id": "lga-barkin-ladi",
+      "stateId": "state-plateau",
+      "code": "PL-01",
+      "name": "Barkin Ladi",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-bassa",
+      "stateId": "state-plateau",
+      "code": "PL-02",
+      "name": "Bassa",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-bokkos",
+      "stateId": "state-plateau",
+      "code": "PL-03",
+      "name": "Bokkos",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-jos-east",
+      "stateId": "state-plateau",
+      "code": "PL-04",
+      "name": "Jos East",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-jos-north",
+      "stateId": "state-plateau",
+      "code": "PL-05",
+      "name": "Jos North",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-jos-south",
+      "stateId": "state-plateau",
+      "code": "PL-06",
+      "name": "Jos South",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-kanam",
+      "stateId": "state-plateau",
+      "code": "PL-07",
+      "name": "Kanam",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-kanke",
+      "stateId": "state-plateau",
+      "code": "PL-08",
+      "name": "Kanke",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-langtang-north",
+      "stateId": "state-plateau",
+      "code": "PL-09",
+      "name": "Langtang North",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-langtang-south",
+      "stateId": "state-plateau",
+      "code": "PL-10",
+      "name": "Langtang South",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-mangu",
+      "stateId": "state-plateau",
+      "code": "PL-11",
+      "name": "Mangu",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-mikang",
+      "stateId": "state-plateau",
+      "code": "PL-12",
+      "name": "Mikang",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-pankshin",
+      "stateId": "state-plateau",
+      "code": "PL-13",
+      "name": "Pankshin",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-quaan-pan",
+      "stateId": "state-plateau",
+      "code": "PL-14",
+      "name": "Qua'an Pan",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-riyom",
+      "stateId": "state-plateau",
+      "code": "PL-15",
+      "name": "Riyom",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-shendam",
+      "stateId": "state-plateau",
+      "code": "PL-16",
+      "name": "Shendam",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-wase",
+      "stateId": "state-plateau",
+      "code": "PL-17",
+      "name": "Wase",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-abua-odual",
+      "stateId": "state-rivers",
+      "code": "RI-01",
+      "name": "Abua/Odual",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-ahoada-east",
+      "stateId": "state-rivers",
+      "code": "RI-02",
+      "name": "Ahoada East",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-ahoada-west",
+      "stateId": "state-rivers",
+      "code": "RI-03",
+      "name": "Ahoada West",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-akuku-toru",
+      "stateId": "state-rivers",
+      "code": "RI-04",
+      "name": "Akuku-Toru",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-andoni",
+      "stateId": "state-rivers",
+      "code": "RI-05",
+      "name": "Andoni",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-asari-toru",
+      "stateId": "state-rivers",
+      "code": "RI-06",
+      "name": "Asari-Toru",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-bonny",
+      "stateId": "state-rivers",
+      "code": "RI-07",
+      "name": "Bonny",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-degema",
+      "stateId": "state-rivers",
+      "code": "RI-08",
+      "name": "Degema",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-eleme",
+      "stateId": "state-rivers",
+      "code": "RI-09",
+      "name": "Eleme",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-emuoha",
+      "stateId": "state-rivers",
+      "code": "RI-10",
+      "name": "Emuoha",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-etche",
+      "stateId": "state-rivers",
+      "code": "RI-11",
+      "name": "Etche",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-gokana",
+      "stateId": "state-rivers",
+      "code": "RI-12",
+      "name": "Gokana",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-ikwerre",
+      "stateId": "state-rivers",
+      "code": "RI-13",
+      "name": "Ikwerre",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-khana",
+      "stateId": "state-rivers",
+      "code": "RI-14",
+      "name": "Khana",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-obio-akpor",
+      "stateId": "state-rivers",
+      "code": "RI-15",
+      "name": "Obio/Akpor",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogba-egbema-ndoni",
+      "stateId": "state-rivers",
+      "code": "RI-16",
+      "name": "Ogba/Egbema/Ndoni",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-ogu-bolo",
+      "stateId": "state-rivers",
+      "code": "RI-17",
+      "name": "Ogu/Bolo",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-okrika",
+      "stateId": "state-rivers",
+      "code": "RI-18",
+      "name": "Okrika",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-omuma",
+      "stateId": "state-rivers",
+      "code": "RI-19",
+      "name": "Omuma",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-opobo-nkoro",
+      "stateId": "state-rivers",
+      "code": "RI-20",
+      "name": "Opobo/Nkoro",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-oyigbo",
+      "stateId": "state-rivers",
+      "code": "RI-21",
+      "name": "Oyigbo",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-port-harcourt",
+      "stateId": "state-rivers",
+      "code": "RI-22",
+      "name": "Port Harcourt",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-tai",
+      "stateId": "state-rivers",
+      "code": "RI-23",
+      "name": "Tai",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-binji",
+      "stateId": "state-sokoto",
+      "code": "SO-01",
+      "name": "Binji",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-bodinga",
+      "stateId": "state-sokoto",
+      "code": "SO-02",
+      "name": "Bodinga",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-dange-shuni",
+      "stateId": "state-sokoto",
+      "code": "SO-03",
+      "name": "Dange Shuni",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-gada",
+      "stateId": "state-sokoto",
+      "code": "SO-04",
+      "name": "Gada",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-goronyo",
+      "stateId": "state-sokoto",
+      "code": "SO-05",
+      "name": "Goronyo",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-gudu",
+      "stateId": "state-sokoto",
+      "code": "SO-06",
+      "name": "Gudu",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwadabawa",
+      "stateId": "state-sokoto",
+      "code": "SO-07",
+      "name": "Gwadabawa",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-illela",
+      "stateId": "state-sokoto",
+      "code": "SO-08",
+      "name": "Illela",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-isa",
+      "stateId": "state-sokoto",
+      "code": "SO-09",
+      "name": "Isa",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-kebbe",
+      "stateId": "state-sokoto",
+      "code": "SO-10",
+      "name": "Kebbe",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-kware",
+      "stateId": "state-sokoto",
+      "code": "SO-11",
+      "name": "Kware",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-rabah",
+      "stateId": "state-sokoto",
+      "code": "SO-12",
+      "name": "Rabah",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-sabon-birni",
+      "stateId": "state-sokoto",
+      "code": "SO-13",
+      "name": "Sabon Birni",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-shagari",
+      "stateId": "state-sokoto",
+      "code": "SO-14",
+      "name": "Shagari",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-silame",
+      "stateId": "state-sokoto",
+      "code": "SO-15",
+      "name": "Silame",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-sokoto-north",
+      "stateId": "state-sokoto",
+      "code": "SO-16",
+      "name": "Sokoto North",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-sokoto-south",
+      "stateId": "state-sokoto",
+      "code": "SO-17",
+      "name": "Sokoto South",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-tambuwal",
+      "stateId": "state-sokoto",
+      "code": "SO-18",
+      "name": "Tambuwal",
+      "order": 18,
+      "status": "active"
+    },
+    {
+      "id": "lga-tangaza",
+      "stateId": "state-sokoto",
+      "code": "SO-19",
+      "name": "Tangaza",
+      "order": 19,
+      "status": "active"
+    },
+    {
+      "id": "lga-tureta",
+      "stateId": "state-sokoto",
+      "code": "SO-20",
+      "name": "Tureta",
+      "order": 20,
+      "status": "active"
+    },
+    {
+      "id": "lga-wamako",
+      "stateId": "state-sokoto",
+      "code": "SO-21",
+      "name": "Wamako",
+      "order": 21,
+      "status": "active"
+    },
+    {
+      "id": "lga-wurno",
+      "stateId": "state-sokoto",
+      "code": "SO-22",
+      "name": "Wurno",
+      "order": 22,
+      "status": "active"
+    },
+    {
+      "id": "lga-yabo",
+      "stateId": "state-sokoto",
+      "code": "SO-23",
+      "name": "Yabo",
+      "order": 23,
+      "status": "active"
+    },
+    {
+      "id": "lga-ardo-kola",
+      "stateId": "state-taraba",
+      "code": "TA-01",
+      "name": "Ardo Kola",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-bali",
+      "stateId": "state-taraba",
+      "code": "TA-02",
+      "name": "Bali",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-donga",
+      "stateId": "state-taraba",
+      "code": "TA-03",
+      "name": "Donga",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-gashaka",
+      "stateId": "state-taraba",
+      "code": "TA-04",
+      "name": "Gashaka",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-gassol",
+      "stateId": "state-taraba",
+      "code": "TA-05",
+      "name": "Gassol",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-ibi",
+      "stateId": "state-taraba",
+      "code": "TA-06",
+      "name": "Ibi",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-jalingo",
+      "stateId": "state-taraba",
+      "code": "TA-07",
+      "name": "Jalingo",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-karim-lamido",
+      "stateId": "state-taraba",
+      "code": "TA-08",
+      "name": "Karim Lamido",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-kumi",
+      "stateId": "state-taraba",
+      "code": "TA-09",
+      "name": "Kumi",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-lau",
+      "stateId": "state-taraba",
+      "code": "TA-10",
+      "name": "Lau",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-sardauna",
+      "stateId": "state-taraba",
+      "code": "TA-11",
+      "name": "Sardauna",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-takum",
+      "stateId": "state-taraba",
+      "code": "TA-12",
+      "name": "Takum",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-ussa",
+      "stateId": "state-taraba",
+      "code": "TA-13",
+      "name": "Ussa",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-wukari",
+      "stateId": "state-taraba",
+      "code": "TA-14",
+      "name": "Wukari",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-yorro",
+      "stateId": "state-taraba",
+      "code": "TA-15",
+      "name": "Yorro",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-zing",
+      "stateId": "state-taraba",
+      "code": "TA-16",
+      "name": "Zing",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-bade",
+      "stateId": "state-yobe",
+      "code": "YO-01",
+      "name": "Bade",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-bursari",
+      "stateId": "state-yobe",
+      "code": "YO-02",
+      "name": "Bursari",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-damaturu",
+      "stateId": "state-yobe",
+      "code": "YO-03",
+      "name": "Damaturu",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-fika",
+      "stateId": "state-yobe",
+      "code": "YO-04",
+      "name": "Fika",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-fune",
+      "stateId": "state-yobe",
+      "code": "YO-05",
+      "name": "Fune",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-geidam",
+      "stateId": "state-yobe",
+      "code": "YO-06",
+      "name": "Geidam",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-gujba",
+      "stateId": "state-yobe",
+      "code": "YO-07",
+      "name": "Gujba",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-gulani",
+      "stateId": "state-yobe",
+      "code": "YO-08",
+      "name": "Gulani",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-jakusko",
+      "stateId": "state-yobe",
+      "code": "YO-09",
+      "name": "Jakusko",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-karasuwa",
+      "stateId": "state-yobe",
+      "code": "YO-10",
+      "name": "Karasuwa",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-machina",
+      "stateId": "state-yobe",
+      "code": "YO-11",
+      "name": "Machina",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-nangere",
+      "stateId": "state-yobe",
+      "code": "YO-12",
+      "name": "Nangere",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-nguru",
+      "stateId": "state-yobe",
+      "code": "YO-13",
+      "name": "Nguru",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-potiskum",
+      "stateId": "state-yobe",
+      "code": "YO-14",
+      "name": "Potiskum",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-tarmuwa",
+      "stateId": "state-yobe",
+      "code": "YO-15",
+      "name": "Tarmuwa",
+      "order": 15,
+      "status": "active"
+    },
+    {
+      "id": "lga-yunusari",
+      "stateId": "state-yobe",
+      "code": "YO-16",
+      "name": "Yunusari",
+      "order": 16,
+      "status": "active"
+    },
+    {
+      "id": "lga-yusufari",
+      "stateId": "state-yobe",
+      "code": "YO-17",
+      "name": "Yusufari",
+      "order": 17,
+      "status": "active"
+    },
+    {
+      "id": "lga-anka",
+      "stateId": "state-zamfara",
+      "code": "ZA-01",
+      "name": "Anka",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-bakura",
+      "stateId": "state-zamfara",
+      "code": "ZA-02",
+      "name": "Bakura",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-birnin-magaji-kiyaw",
+      "stateId": "state-zamfara",
+      "code": "ZA-03",
+      "name": "Birnin Magaji/Kiyaw",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-bukkuyum",
+      "stateId": "state-zamfara",
+      "code": "ZA-04",
+      "name": "Bukkuyum",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-bungudu",
+      "stateId": "state-zamfara",
+      "code": "ZA-05",
+      "name": "Bungudu",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-gummi",
+      "stateId": "state-zamfara",
+      "code": "ZA-06",
+      "name": "Gummi",
+      "order": 6,
+      "status": "active"
+    },
+    {
+      "id": "lga-gusau",
+      "stateId": "state-zamfara",
+      "code": "ZA-07",
+      "name": "Gusau",
+      "order": 7,
+      "status": "active"
+    },
+    {
+      "id": "lga-kaura-namoda",
+      "stateId": "state-zamfara",
+      "code": "ZA-08",
+      "name": "Kaura Namoda",
+      "order": 8,
+      "status": "active"
+    },
+    {
+      "id": "lga-maradun",
+      "stateId": "state-zamfara",
+      "code": "ZA-09",
+      "name": "Maradun",
+      "order": 9,
+      "status": "active"
+    },
+    {
+      "id": "lga-maru",
+      "stateId": "state-zamfara",
+      "code": "ZA-10",
+      "name": "Maru",
+      "order": 10,
+      "status": "active"
+    },
+    {
+      "id": "lga-shinkafi",
+      "stateId": "state-zamfara",
+      "code": "ZA-11",
+      "name": "Shinkafi",
+      "order": 11,
+      "status": "active"
+    },
+    {
+      "id": "lga-talata-mafara",
+      "stateId": "state-zamfara",
+      "code": "ZA-12",
+      "name": "Talata Mafara",
+      "order": 12,
+      "status": "active"
+    },
+    {
+      "id": "lga-chafe",
+      "stateId": "state-zamfara",
+      "code": "ZA-13",
+      "name": "Chafe",
+      "order": 13,
+      "status": "active"
+    },
+    {
+      "id": "lga-zurmi",
+      "stateId": "state-zamfara",
+      "code": "ZA-14",
+      "name": "Zurmi",
+      "order": 14,
+      "status": "active"
+    },
+    {
+      "id": "lga-abaji",
+      "stateId": "territory-fct",
+      "code": "FC-01",
+      "name": "Abaji",
+      "order": 1,
+      "status": "active"
+    },
+    {
+      "id": "lga-abuja-municipal",
+      "stateId": "territory-fct",
+      "code": "FC-02",
+      "name": "Abuja Municipal",
+      "order": 2,
+      "status": "active"
+    },
+    {
+      "id": "lga-bwari",
+      "stateId": "territory-fct",
+      "code": "FC-03",
+      "name": "Bwari",
+      "order": 3,
+      "status": "active"
+    },
+    {
+      "id": "lga-gwagwalada",
+      "stateId": "territory-fct",
+      "code": "FC-04",
+      "name": "Gwagwalada",
+      "order": 4,
+      "status": "active"
+    },
+    {
+      "id": "lga-kuje",
+      "stateId": "territory-fct",
+      "code": "FC-05",
+      "name": "Kuje",
+      "order": 5,
+      "status": "active"
+    },
+    {
+      "id": "lga-kwali",
+      "stateId": "territory-fct",
+      "code": "FC-06",
+      "name": "Kwali",
+      "order": 6,
+      "status": "active"
+    }
+  ],
   "pods": [
     {
       "id": "pod-1",
@@ -189,19 +6710,22 @@
       "id": "english",
       "name": "Foundational English",
       "icon": "record_voice_over",
-      "order": 1
+      "order": 1,
+      "status": "published"
     },
     {
       "id": "math",
       "name": "Basic Numeracy",
       "icon": "calculate",
-      "order": 2
+      "order": 2,
+      "status": "published"
     },
     {
       "id": "life-skills",
       "name": "Life Skills",
       "icon": "favorite",
-      "order": 3
+      "order": 3,
+      "status": "draft"
     }
   ],
   "strands": [
@@ -209,31 +6733,36 @@
       "id": "strand-1",
       "subjectId": "english",
       "name": "Listening & Speaking",
-      "order": 1
+      "order": 1,
+      "status": "published"
     },
     {
       "id": "strand-4",
       "subjectId": "english",
       "name": "Phonics & Word Building",
-      "order": 2
+      "order": 2,
+      "status": "draft"
     },
     {
       "id": "strand-2",
       "subjectId": "math",
       "name": "Number Sense",
-      "order": 1
+      "order": 1,
+      "status": "published"
     },
     {
       "id": "strand-5",
       "subjectId": "math",
       "name": "Operations & Problem Solving",
-      "order": 2
+      "order": 2,
+      "status": "draft"
     },
     {
       "id": "strand-3",
       "subjectId": "life-skills",
       "name": "Health & Hygiene",
-      "order": 1
+      "order": 1,
+      "status": "draft"
     }
   ],
   "modules": [
@@ -311,6 +6840,24 @@
     }
   ],
   "lessons": [],
+  "lessonAssets": [],
+  "deviceRegistrations": [
+    {
+      "id": "device-1",
+      "podId": "pod-1",
+      "stateId": "state-kano",
+      "localGovernmentId": "lga-nassarawa",
+      "centerId": "center-1",
+      "assignedMallamId": "teacher-1",
+      "deviceIdentifier": "lumo-tablet-kano-01",
+      "serialNumber": "KANO-TAB-001",
+      "platform": "android",
+      "appVersion": "0.1.0",
+      "status": "active",
+      "lastSeenAt": "2026-04-10T08:00:00Z",
+      "registeredAt": "2026-04-09T08:00:00Z"
+    }
+  ],
   "assessments": [],
   "assignments": [],
   "attendance": [],
@@ -346,71 +6893,9 @@
       "createdAt": "2026-04-08T13:10:00Z"
     }
   ],
-  "progressionOverrides": [],
-  "sessionRepairs": [],
-  "states": [
-    {
-      "id": "state-kano",
-      "code": "KN",
-      "name": "Kano",
-      "countryCode": "NG",
-      "order": 1,
-      "status": "active"
-    },
-    {
-      "id": "state-kaduna",
-      "code": "KD",
-      "name": "Kaduna",
-      "countryCode": "NG",
-      "order": 2,
-      "status": "active"
-    }
-  ],
-  "localGovernments": [
-    {
-      "id": "lga-nassarawa",
-      "stateId": "state-kano",
-      "code": "KN-NAS",
-      "name": "Nassarawa",
-      "order": 1,
-      "status": "active"
-    },
-    {
-      "id": "lga-fagge",
-      "stateId": "state-kano",
-      "code": "KN-FAG",
-      "name": "Fagge",
-      "order": 2,
-      "status": "active"
-    },
-    {
-      "id": "lga-igabi",
-      "stateId": "state-kaduna",
-      "code": "KD-IGA",
-      "name": "Igabi",
-      "order": 1,
-      "status": "active"
-    }
-  ],
-  "deviceRegistrations": [
-    {
-      "id": "device-1",
-      "podId": "pod-1",
-      "stateId": "state-kano",
-      "localGovernmentId": "lga-nassarawa",
-      "centerId": "center-1",
-      "assignedMallamId": "teacher-1",
-      "deviceIdentifier": "lumo-tablet-kano-01",
-      "serialNumber": "KANO-TAB-001",
-      "platform": "android",
-      "appVersion": "0.1.0",
-      "status": "active",
-      "lastSeenAt": "2026-04-10T08:00:00Z",
-      "registeredAt": "2026-04-09T08:00:00Z"
-    }
-  ],
-  "lessonAssets": [],
   "rewardAdjustments": [],
   "rewardRedemptionRequests": [],
+  "progressionOverrides": [],
+  "sessionRepairs": [],
   "storageOperations": []
 }

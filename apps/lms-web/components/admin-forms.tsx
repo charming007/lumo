@@ -28,6 +28,7 @@ import type { Assessment, Center, Cohort, CurriculumModule, Lesson, LocalGovernm
 import { ActionButton } from './action-button';
 import { CreateAssessmentFormClient } from './create-assessment-form';
 import { cohortGeographyLabel, mallamGeographyLabel, podGeographyLabel } from '../lib/geography';
+import { MallamGeographySelectors, StudentGeographySelectors } from './geo-scoped-selects';
 
 const cardStyle = {
   background: 'white',
@@ -127,11 +128,19 @@ export function CreateStudentForm({ cohorts, pods, mallams, centers, states, loc
         <FieldLabel>Age<input name="age" type="number" min="5" max="18" defaultValue="10" style={inputStyle} /></FieldLabel>
         <FieldLabel>Gender<select name="gender" defaultValue="female" style={inputStyle}><option value="female">Female</option><option value="male">Male</option><option value="unspecified">Unspecified</option></select></FieldLabel>
       </div>
-      <FieldLabel>Cohort<select name="cohortId" defaultValue={cohorts[0]?.id} style={inputStyle}>{cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name} · {cohortGeographyLabel(cohort, pods, centers, states, localGovernments)} · {pods.find((pod) => pod.id === cohort.podId)?.label ?? 'Pod pending'}</option>)}</select></FieldLabel>
-      <FieldLabel>Pod<select name="podId" defaultValue={pods[0]?.id} style={inputStyle}>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label} · {podGeographyLabel(pod, centers, states, localGovernments)}</option>)}</select></FieldLabel>
-      <FieldLabel>Mallam<select name="mallamId" defaultValue={mallams[0]?.id} style={inputStyle}>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName} · {mallamGeographyLabel(mallam, centers, states, localGovernments)}</option>)}</select></FieldLabel>
+      <StudentGeographySelectors
+        cohorts={cohorts}
+        pods={pods}
+        mallams={mallams}
+        centers={centers}
+        states={states}
+        localGovernments={localGovernments}
+        initialPodId={pods[0]?.id}
+        initialCohortId={cohorts[0]?.id}
+        initialMallamId={mallams[0]?.id}
+      />
       <GeographyHint>
-        Geography follows the operational structure: <strong>state → local government → pod → cohort</strong>. Cohort is the program grouping; pod is the delivery unit.
+        Geography is explicit now: pick <strong>state → local government</strong> first, then the form narrows pod, cohort, and mallam choices to that footprint.
       </GeographyHint>
       <div style={twoColumnGrid}>
         <FieldLabel>Level<select name="level" defaultValue="beginner" style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
@@ -154,11 +163,21 @@ export function UpdateStudentForm({ student, cohorts, pods, mallams, centers, st
         <input type="hidden" name="studentId" value={student.id} />
         <h2 style={{ margin: 0 }}>{title}</h2>
         <FieldLabel>Name<input name="name" defaultValue={student.name} style={inputStyle} /></FieldLabel>
-        <FieldLabel>Cohort<select name="cohortId" defaultValue={student.cohortId} style={inputStyle}>{cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name} · {cohortGeographyLabel(cohort, pods, centers, states, localGovernments)} · {pods.find((pod) => pod.id === cohort.podId)?.label ?? 'Pod pending'}</option>)}</select></FieldLabel>
-        <FieldLabel>Pod<select name="podId" defaultValue={student.podId} style={inputStyle}>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label} · {podGeographyLabel(pod, centers, states, localGovernments)}</option>)}</select></FieldLabel>
-        <FieldLabel>Mallam<select name="mallamId" defaultValue={student.mallamId} style={inputStyle}>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName} · {mallamGeographyLabel(mallam, centers, states, localGovernments)}</option>)}</select></FieldLabel>
+        <StudentGeographySelectors
+          cohorts={cohorts}
+          pods={pods}
+          mallams={mallams}
+          centers={centers}
+          states={states}
+          localGovernments={localGovernments}
+          initialStateId={student.stateId}
+          initialLocalGovernmentId={student.localGovernmentId}
+          initialPodId={student.podId}
+          initialCohortId={student.cohortId}
+          initialMallamId={student.mallamId}
+        />
         <GeographyHint>
-          Current learner geography is driven by the selected pod and cohort, so admins can separate where the learner is served from which cohort schedule they belong to.
+          State and local government stay visible during learner edits, then pod and cohort stay pinned to that same geography so operators do not accidentally cross-wire locations.
         </GeographyHint>
         <div style={twoColumnGrid}>
           <FieldLabel>Level<select name="level" defaultValue={student.level} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
@@ -198,14 +217,16 @@ export function CreateMallamForm({ centers, pods, states, localGovernments }: { 
       <h2 style={{ margin: 0 }}>Add mallam</h2>
       <FieldLabel>Name<input name="name" defaultValue="Fatima Ali" style={inputStyle} /></FieldLabel>
       <FieldLabel>Display name<input name="displayName" defaultValue="Mallama Fatima Ali" style={inputStyle} /></FieldLabel>
-      <FieldLabel>Center<select name="centerId" defaultValue={centers[0]?.id} style={inputStyle}>{centers.map((center) => {
-        const state = states.find((item) => item.id === center.stateId);
-        const localGovernment = localGovernments.find((item) => item.id === center.localGovernmentId);
-        return <option key={center.id} value={center.id}>{center.name} · {[state?.name, localGovernment?.name].filter(Boolean).join(' / ') || center.region}</option>;
-      })}</select></FieldLabel>
-      <PodSelector pods={pods} selectedPodIds={pods[0]?.id ? [pods[0].id] : []} centers={centers} states={states} localGovernments={localGovernments} />
+      <MallamGeographySelectors
+        centers={centers}
+        pods={pods}
+        states={states}
+        localGovernments={localGovernments}
+        initialCenterId={centers[0]?.id}
+        initialPodIds={pods[0]?.id ? [pods[0].id] : []}
+      />
       <GeographyHint>
-        Mallam deployment is geography-aware now: center anchors the state and local government, while pod selection keeps the operational footprint explicit. Current operating rule is still one primary pod per mallam, even if extra coverage pods are visible.
+        Mallam deployment is geography-aware now: choose state and local government first, then select the center and pod coverage inside that footprint.
       </GeographyHint>
       <FieldLabel>Languages<input name="languages" defaultValue="Hausa, English" style={inputStyle} /></FieldLabel>
       <div style={twoColumnGrid}>
@@ -229,14 +250,16 @@ export function UpdateMallamForm({ mallam, centers, pods, states, localGovernmen
         <h2 style={{ margin: 0 }}>Update mallam</h2>
         <FieldLabel>Name<input name="name" defaultValue={mallam.name} style={inputStyle} /></FieldLabel>
         <FieldLabel>Display name<input name="displayName" defaultValue={mallam.displayName} style={inputStyle} /></FieldLabel>
-        <FieldLabel>Center<select name="centerId" defaultValue={mallam.centerId} style={inputStyle}>{centers.map((center) => {
-          const state = states.find((item) => item.id === center.stateId);
-          const localGovernment = localGovernments.find((item) => item.id === center.localGovernmentId);
-          return <option key={center.id} value={center.id}>{center.name} · {[state?.name, localGovernment?.name].filter(Boolean).join(' / ') || center.region}</option>;
-        })}</select></FieldLabel>
-        <PodSelector pods={pods} selectedPodIds={mallam.podIds ?? []} centers={centers} states={states} localGovernments={localGovernments} />
+        <MallamGeographySelectors
+          centers={centers}
+          pods={pods}
+          states={states}
+          localGovernments={localGovernments}
+          initialCenterId={mallam.centerId}
+          initialPodIds={mallam.podIds ?? []}
+        />
         <GeographyHint>
-          Use the center for the mallam&apos;s base geography, then keep pod coverage operational. That avoids the common mess of treating cohort as if it were a place.
+          Keep the mallam anchored to a real state and local government first, then choose the center and pods within that geography. That avoids the classic mess of treating cohort like a place.
         </GeographyHint>
         <FieldLabel>Languages<input name="languages" defaultValue={(mallam.languages ?? []).join(', ')} style={inputStyle} /></FieldLabel>
         <div style={twoColumnGrid}>

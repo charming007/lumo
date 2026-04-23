@@ -155,6 +155,10 @@ export type Student = {
   mallamId?: string;
   cohortName?: string | null;
   podLabel?: string | null;
+  stateId?: string | null;
+  stateName?: string | null;
+  localGovernmentId?: string | null;
+  localGovernmentName?: string | null;
   mallamName?: string | null;
   rewards?: RewardSnapshot | null;
 };

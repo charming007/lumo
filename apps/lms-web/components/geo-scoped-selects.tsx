@@ -1,0 +1,321 @@
+'use client';
+
+import type { ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { Center, Cohort, LocalGovernment, Mallam, Pod, State } from '../lib/types';
+import { cohortGeographyLabel, mallamGeographyLabel, podGeographyLabel } from '../lib/geography';
+
+const fieldStyle = {
+  display: 'grid',
+  gap: 6,
+  color: '#475569',
+  fontSize: 14,
+} as const;
+
+const inputStyle = {
+  border: '1px solid #d1d5db',
+  borderRadius: 12,
+  padding: '12px 14px',
+  fontSize: 14,
+  width: '100%',
+  background: 'white',
+} as const;
+
+const twoColumnGrid = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))',
+  gap: 12,
+} as const;
+
+function FieldLabel({ children }: { children: ReactNode }) {
+  return <label style={fieldStyle}>{children}</label>;
+}
+
+function deriveStateIdFromPod(podId: string | null | undefined, pods: Pod[], centers: Center[]) {
+  if (!podId) return '';
+  const pod = pods.find((item) => item.id === podId);
+  if (!pod) return '';
+  const center = centers.find((item) => item.id === pod.centerId);
+  return pod.stateId || center?.stateId || '';
+}
+
+function deriveLocalGovernmentIdFromPod(podId: string | null | undefined, pods: Pod[], centers: Center[]) {
+  if (!podId) return '';
+  const pod = pods.find((item) => item.id === podId);
+  if (!pod) return '';
+  const center = centers.find((item) => item.id === pod.centerId);
+  return pod.localGovernmentId || center?.localGovernmentId || '';
+}
+
+function deriveStateIdFromCenter(centerId: string | null | undefined, centers: Center[]) {
+  if (!centerId) return '';
+  return centers.find((item) => item.id === centerId)?.stateId || '';
+}
+
+function deriveLocalGovernmentIdFromCenter(centerId: string | null | undefined, centers: Center[]) {
+  if (!centerId) return '';
+  return centers.find((item) => item.id === centerId)?.localGovernmentId || '';
+}
+
+export function StudentGeographySelectors({
+  cohorts,
+  pods,
+  mallams,
+  centers,
+  states,
+  localGovernments,
+  initialStateId,
+  initialLocalGovernmentId,
+  initialPodId,
+  initialCohortId,
+  initialMallamId,
+}: {
+  cohorts: Cohort[];
+  pods: Pod[];
+  mallams: Mallam[];
+  centers: Center[];
+  states: State[];
+  localGovernments: LocalGovernment[];
+  initialStateId?: string | null;
+  initialLocalGovernmentId?: string | null;
+  initialPodId?: string | null;
+  initialCohortId?: string | null;
+  initialMallamId?: string | null;
+}) {
+  const [stateId, setStateId] = useState(initialStateId || deriveStateIdFromPod(initialPodId, pods, centers) || '');
+  const [localGovernmentId, setLocalGovernmentId] = useState(initialLocalGovernmentId || deriveLocalGovernmentIdFromPod(initialPodId, pods, centers) || '');
+  const [podId, setPodId] = useState(initialPodId || '');
+  const [cohortId, setCohortId] = useState(initialCohortId || '');
+  const [mallamId, setMallamId] = useState(initialMallamId || '');
+
+  const filteredLocalGovernments = useMemo(
+    () => localGovernments.filter((item) => !stateId || item.stateId === stateId),
+    [localGovernments, stateId],
+  );
+
+  const filteredPods = useMemo(() => {
+    return pods.filter((pod) => {
+      const center = centers.find((item) => item.id === pod.centerId);
+      const podStateId = pod.stateId || center?.stateId || '';
+      const podLocalGovernmentId = pod.localGovernmentId || center?.localGovernmentId || '';
+      if (stateId && podStateId !== stateId) return false;
+      if (localGovernmentId && podLocalGovernmentId !== localGovernmentId) return false;
+      return true;
+    });
+  }, [pods, centers, stateId, localGovernmentId]);
+
+  const filteredCohorts = useMemo(
+    () => cohorts.filter((cohort) => !podId || cohort.podId === podId),
+    [cohorts, podId],
+  );
+
+  const filteredMallams = useMemo(() => {
+    return mallams.filter((mallam) => {
+      const center = centers.find((item) => item.id === mallam.centerId);
+      const mallamStateId = deriveStateIdFromCenter(center?.id, centers);
+      const mallamLocalGovernmentId = deriveLocalGovernmentIdFromCenter(center?.id, centers);
+      if (stateId && mallamStateId !== stateId) return false;
+      if (localGovernmentId && mallamLocalGovernmentId !== localGovernmentId) return false;
+      if (podId && !(mallam.podIds || []).includes(podId)) return false;
+      return true;
+    });
+  }, [mallams, centers, stateId, localGovernmentId, podId]);
+
+  useEffect(() => {
+    if (localGovernmentId && !filteredLocalGovernments.some((item) => item.id === localGovernmentId)) {
+      setLocalGovernmentId('');
+    }
+  }, [filteredLocalGovernments, localGovernmentId]);
+
+  useEffect(() => {
+    if (podId && !filteredPods.some((item) => item.id === podId)) {
+      setPodId(filteredPods[0]?.id || '');
+    }
+  }, [filteredPods, podId]);
+
+  useEffect(() => {
+    if (cohortId && !filteredCohorts.some((item) => item.id === cohortId)) {
+      setCohortId(filteredCohorts[0]?.id || '');
+    }
+  }, [filteredCohorts, cohortId]);
+
+  useEffect(() => {
+    if (mallamId && !filteredMallams.some((item) => item.id === mallamId)) {
+      setMallamId(filteredMallams[0]?.id || '');
+    }
+  }, [filteredMallams, mallamId]);
+
+  useEffect(() => {
+    if (!podId) return;
+    const derivedStateId = deriveStateIdFromPod(podId, pods, centers);
+    const derivedLocalGovernmentId = deriveLocalGovernmentIdFromPod(podId, pods, centers);
+    if (derivedStateId && derivedStateId !== stateId) setStateId(derivedStateId);
+    if (derivedLocalGovernmentId && derivedLocalGovernmentId !== localGovernmentId) setLocalGovernmentId(derivedLocalGovernmentId);
+  }, [podId, pods, centers, stateId, localGovernmentId]);
+
+  return (
+    <>
+      <div style={twoColumnGrid}>
+        <FieldLabel>
+          State
+          <select name="stateId" value={stateId} onChange={(event) => setStateId(event.target.value)} style={inputStyle}>
+            <option value="">Select state</option>
+            {states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}
+          </select>
+        </FieldLabel>
+        <FieldLabel>
+          Local government
+          <select name="localGovernmentId" value={localGovernmentId} onChange={(event) => setLocalGovernmentId(event.target.value)} style={inputStyle}>
+            <option value="">Select local government</option>
+            {filteredLocalGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </FieldLabel>
+      </div>
+      <FieldLabel>
+        Pod
+        <select name="podId" value={podId} onChange={(event) => setPodId(event.target.value)} style={inputStyle}>
+          <option value="">Select pod</option>
+          {filteredPods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label} · {podGeographyLabel(pod, centers, states, localGovernments)}</option>)}
+        </select>
+      </FieldLabel>
+      <FieldLabel>
+        Cohort
+        <select name="cohortId" value={cohortId} onChange={(event) => setCohortId(event.target.value)} style={inputStyle}>
+          <option value="">Select cohort</option>
+          {filteredCohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name} · {cohortGeographyLabel(cohort, pods, centers, states, localGovernments)}</option>)}
+        </select>
+      </FieldLabel>
+      <FieldLabel>
+        Mallam
+        <select name="mallamId" value={mallamId} onChange={(event) => setMallamId(event.target.value)} style={inputStyle}>
+          <option value="">Select mallam</option>
+          {filteredMallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName} · {mallamGeographyLabel(mallam, centers, states, localGovernments)}</option>)}
+        </select>
+      </FieldLabel>
+    </>
+  );
+}
+
+export function MallamGeographySelectors({
+  centers,
+  pods,
+  states,
+  localGovernments,
+  initialCenterId,
+  initialPodIds,
+}: {
+  centers: Center[];
+  pods: Pod[];
+  states: State[];
+  localGovernments: LocalGovernment[];
+  initialCenterId?: string | null;
+  initialPodIds?: string[];
+}) {
+  const [stateId, setStateId] = useState(deriveStateIdFromCenter(initialCenterId, centers) || '');
+  const [localGovernmentId, setLocalGovernmentId] = useState(deriveLocalGovernmentIdFromCenter(initialCenterId, centers) || '');
+  const [centerId, setCenterId] = useState(initialCenterId || '');
+  const [selectedPodIds, setSelectedPodIds] = useState<string[]>(initialPodIds || []);
+
+  const filteredLocalGovernments = useMemo(
+    () => localGovernments.filter((item) => !stateId || item.stateId === stateId),
+    [localGovernments, stateId],
+  );
+
+  const filteredCenters = useMemo(() => {
+    return centers.filter((center) => {
+      if (stateId && center.stateId !== stateId) return false;
+      if (localGovernmentId && center.localGovernmentId !== localGovernmentId) return false;
+      return true;
+    });
+  }, [centers, stateId, localGovernmentId]);
+
+  const filteredPods = useMemo(() => {
+    return pods.filter((pod) => {
+      const center = centers.find((item) => item.id === pod.centerId);
+      const podStateId = pod.stateId || center?.stateId || '';
+      const podLocalGovernmentId = pod.localGovernmentId || center?.localGovernmentId || '';
+      if (stateId && podStateId !== stateId) return false;
+      if (localGovernmentId && podLocalGovernmentId !== localGovernmentId) return false;
+      if (centerId && pod.centerId !== centerId) return false;
+      return true;
+    });
+  }, [pods, centers, stateId, localGovernmentId, centerId]);
+
+  useEffect(() => {
+    if (localGovernmentId && !filteredLocalGovernments.some((item) => item.id === localGovernmentId)) {
+      setLocalGovernmentId('');
+    }
+  }, [filteredLocalGovernments, localGovernmentId]);
+
+  useEffect(() => {
+    if (centerId && !filteredCenters.some((item) => item.id === centerId)) {
+      setCenterId(filteredCenters[0]?.id || '');
+    }
+  }, [filteredCenters, centerId]);
+
+  useEffect(() => {
+    setSelectedPodIds((current) => current.filter((podId) => filteredPods.some((pod) => pod.id === podId)));
+  }, [filteredPods]);
+
+  useEffect(() => {
+    if (!centerId) return;
+    const derivedStateId = deriveStateIdFromCenter(centerId, centers);
+    const derivedLocalGovernmentId = deriveLocalGovernmentIdFromCenter(centerId, centers);
+    if (derivedStateId && derivedStateId !== stateId) setStateId(derivedStateId);
+    if (derivedLocalGovernmentId && derivedLocalGovernmentId !== localGovernmentId) setLocalGovernmentId(derivedLocalGovernmentId);
+  }, [centerId, centers, stateId, localGovernmentId]);
+
+  return (
+    <>
+      <div style={twoColumnGrid}>
+        <FieldLabel>
+          State
+          <select value={stateId} onChange={(event) => setStateId(event.target.value)} style={inputStyle}>
+            <option value="">Select state</option>
+            {states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}
+          </select>
+        </FieldLabel>
+        <FieldLabel>
+          Local government
+          <select value={localGovernmentId} onChange={(event) => setLocalGovernmentId(event.target.value)} style={inputStyle}>
+            <option value="">Select local government</option>
+            {filteredLocalGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </FieldLabel>
+      </div>
+      <FieldLabel>
+        Center
+        <select name="centerId" value={centerId} onChange={(event) => setCenterId(event.target.value)} style={inputStyle}>
+          <option value="">Select center</option>
+          {filteredCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
+        </select>
+      </FieldLabel>
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ color: '#475569', fontSize: 14, fontWeight: 700 }}>Pod coverage</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: 10 }}>
+          {filteredPods.map((pod) => {
+            const checked = selectedPodIds.includes(pod.id);
+            return (
+              <label key={pod.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155' }}>
+                <input
+                  type="checkbox"
+                  name="podIds"
+                  value={pod.id}
+                  checked={checked}
+                  onChange={(event) => {
+                    setSelectedPodIds((current) => event.target.checked ? [...current, pod.id] : current.filter((item) => item !== pod.id));
+                  }}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  <strong style={{ display: 'block' }}>{pod.label}</strong>
+                  <span style={{ color: '#64748b', fontSize: 13 }}>{podGeographyLabel(pod, centers, states, localGovernments)}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}

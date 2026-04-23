@@ -1,5 +1,6 @@
 const path = require('path');
 const { createStorageEngine } = require('./storage-engine');
+const { NIGERIA_GEOGRAPHY } = require('./nigeria-geography');
 
 const DATA_FILE = process.env.LUMO_DATA_FILE
   ? path.resolve(process.env.LUMO_DATA_FILE)
@@ -13,15 +14,8 @@ const seed = {
     { id: 'center-1', organizationId: 'org-1', stateId: 'state-kano', localGovernmentId: 'lga-nassarawa', name: 'Kano Learning Center A', region: 'Kano', deliveryModel: 'community-hub' },
     { id: 'center-2', organizationId: 'org-1', stateId: 'state-kaduna', localGovernmentId: 'lga-igabi', name: 'Kaduna Learning Center B', region: 'Kaduna', deliveryModel: 'community-hub' },
   ],
-  states: [
-    { id: 'state-kano', code: 'KN', name: 'Kano', countryCode: 'NG', order: 1, status: 'active' },
-    { id: 'state-kaduna', code: 'KD', name: 'Kaduna', countryCode: 'NG', order: 2, status: 'active' },
-  ],
-  localGovernments: [
-    { id: 'lga-nassarawa', stateId: 'state-kano', code: 'KN-NAS', name: 'Nassarawa', order: 1, status: 'active' },
-    { id: 'lga-fagge', stateId: 'state-kano', code: 'KN-FAG', name: 'Fagge', order: 2, status: 'active' },
-    { id: 'lga-igabi', stateId: 'state-kaduna', code: 'KD-IGA', name: 'Igabi', order: 1, status: 'active' },
-  ],
+  states: NIGERIA_GEOGRAPHY.states,
+  localGovernments: NIGERIA_GEOGRAPHY.localGovernments,
   pods: [
     {
       id: 'pod-1',
@@ -172,6 +166,15 @@ function clone(value) {
 function normalizeLifecycleStatus(collectionKey, parsedItems, seedItems) {
   if (!Array.isArray(parsedItems)) {
     return { items: clone(seedItems), changed: true };
+  }
+
+  if (collectionKey === 'states' || collectionKey === 'localGovernments') {
+    const seedSignature = JSON.stringify(seedItems);
+    const parsedSignature = JSON.stringify(parsedItems);
+    if (seedSignature !== parsedSignature) {
+      return { items: clone(seedItems), changed: true };
+    }
+    return { items: parsedItems, changed: false };
   }
 
   if (!['subjects', 'strands', 'modules', 'lessons'].includes(collectionKey)) {
