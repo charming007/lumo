@@ -56,7 +56,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
         resetHref="/mallams"
         fields={[
           { name: 'stateId', label: 'State', value: stateId, options: states.map((state) => ({ value: state.id, label: state.name })) },
-          { name: 'localGovernmentId', label: 'Local government', value: localGovernmentId, options: localGovernments.filter((item) => !stateId || item.stateId === stateId).map((item) => ({ value: item.id, label: item.name })) },
+          { name: 'localGovernmentId', label: 'Local government', value: localGovernmentId, dependsOn: 'stateId', emptyLabel: 'Select state first', options: localGovernments.map((item) => ({ value: item.id, label: item.name, stateId: item.stateId })) },
           { name: 'podId', label: 'Pod', value: podId, options: pods.map((pod) => ({ value: pod.id, label: pod.label })) },
         ]}
         helper={`Showing ${filteredMallams.length} mallam profile${filteredMallams.length === 1 ? '' : 's'} in the selected geography slice.`}

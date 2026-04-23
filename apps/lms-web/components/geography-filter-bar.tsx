@@ -1,12 +1,17 @@
+'use client';
+
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
-type Option = { value: string; label: string };
+type Option = { value: string; label: string; stateId?: string };
 
 type FilterField = {
   name: string;
   label: string;
   value?: string;
   options: Option[];
+  dependsOn?: string;
+  emptyLabel?: string;
 };
 
 export function GeographyFilterBar({
@@ -20,6 +25,33 @@ export function GeographyFilterBar({
   resetHref: string;
   helper?: ReactNode;
 }) {
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(fields.map((field) => [field.name, field.value || ''])),
+  );
+
+  const fieldMap = useMemo(() => new Map(fields.map((field) => [field.name, field])), [fields]);
+
+  function optionsForField(field: FilterField) {
+    if (!field.dependsOn) return field.options;
+    const dependencyValue = values[field.dependsOn] || '';
+    if (!dependencyValue) return [];
+    return field.options.filter((option) => option.stateId === dependencyValue);
+  }
+
+  function handleChange(fieldName: string, nextValue: string) {
+    setValues((current) => {
+      const next = { ...current, [fieldName]: nextValue };
+
+      for (const field of fields) {
+        if (field.dependsOn === fieldName) {
+          next[field.name] = '';
+        }
+      }
+
+      return next;
+    });
+  }
+
   return (
     <form method="get" style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: '#fff', border: '1px solid #e2e8f0', marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -30,15 +62,30 @@ export function GeographyFilterBar({
         <a href={resetHref} style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>Reset</a>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: 12 }}>
-        {fields.map((field) => (
-          <label key={field.name} style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
-            <span>{field.label}</span>
-            <select name={field.name} defaultValue={field.value || ''} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
-              <option value="">All</option>
-              {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
-        ))}
+        {fields.map((field) => {
+          const dependencyField = field.dependsOn ? fieldMap.get(field.dependsOn) : null;
+          const filteredOptions = optionsForField(field);
+          const disabled = Boolean(field.dependsOn && !values[field.dependsOn]);
+          const placeholder = disabled
+            ? field.emptyLabel || `Select ${dependencyField?.label?.toLowerCase() || 'the parent filter'} first`
+            : 'All';
+
+          return (
+            <label key={field.name} style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+              <span>{field.label}</span>
+              <select
+                name={field.name}
+                value={values[field.name] || ''}
+                disabled={disabled}
+                onChange={(event) => handleChange(field.name, event.target.value)}
+                style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: disabled ? '#f8fafc' : 'white' }}
+              >
+                <option value="">{placeholder}</option>
+                {filteredOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+          );
+        })}
       </div>
       {helper ? <div style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>{helper}</div> : null}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
