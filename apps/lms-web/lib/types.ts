@@ -367,6 +367,7 @@ export type Pod = {
 
 export type DeviceRegistration = {
   id: string;
+  tabletName?: string | null;
   podId: string | null;
   podLabel?: string | null;
   centerId?: string | null;

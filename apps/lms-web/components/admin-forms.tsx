@@ -377,29 +377,23 @@ export function DeletePodForm({ pod, embedded = false, returnPath = '/pods' }: {
   );
 }
 
-export function CreateDeviceRegistrationForm({ pods, mallams, centers, states, localGovernments, returnPath = '/devices' }: { pods: Pod[]; mallams: Mallam[]; centers: Center[]; states: State[]; localGovernments: LocalGovernment[]; returnPath?: string }) {
+export function CreateDeviceRegistrationForm({ pods, returnPath = '/devices' }: { pods: Pod[]; returnPath?: string }) {
   return (
     <form action={createDeviceRegistrationAction} style={cardStyle}>
       <input type="hidden" name="returnPath" value={returnPath} />
       <h2 style={{ margin: 0 }}>Register tablet</h2>
-      <SectionHint>Devices are a real admin surface now: register the tablet first, then assign or reassign it to the right pod and mallam lane.</SectionHint>
+      <SectionHint>Select the pod first, then give the tablet a short name. Geography and mallam context derive from the selected pod.</SectionHint>
       <div style={responsiveGrid(220)}>
-        <FieldLabel>Device identifier<input name="deviceIdentifier" defaultValue="tablet-kano-07" style={inputStyle} /></FieldLabel>
-        <FieldLabel>Serial number<input name="serialNumber" defaultValue="SN-LUMO-007" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Pod<select name="podId" defaultValue="" style={inputStyle} required><option value="">Select pod</option>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}</select></FieldLabel>
+        <FieldLabel>Tablet name<input name="tabletName" placeholder="tablet_01" style={inputStyle} required /></FieldLabel>
+      </div>
+      <div style={responsiveGrid(220)}>
+        <FieldLabel>Serial number<input name="serialNumber" defaultValue="" style={inputStyle} /></FieldLabel>
         <FieldLabel>Platform<select name="platform" defaultValue="android" style={inputStyle}><option value="android">Android</option><option value="ios">iPadOS</option><option value="web">Web kiosk</option></select></FieldLabel>
         <FieldLabel>App version<input name="appVersion" defaultValue="0.1.0" style={inputStyle} /></FieldLabel>
-      </div>
-      <div style={responsiveGrid(220)}>
-        <FieldLabel>Pod assignment<select name="podId" defaultValue="" style={inputStyle}><option value="">Unassigned</option>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}</select></FieldLabel>
-        <FieldLabel>Responsible mallam<select name="assignedMallamId" defaultValue="" style={inputStyle}><option value="">No direct mallam assignment</option>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName || mallam.name}</option>)}</select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="inactive">Inactive</option><option value="repair">Repair</option><option value="retired">Retired</option></select></FieldLabel>
       </div>
-      <div style={responsiveGrid(220)}>
-        <FieldLabel>State<select name="stateId" defaultValue={states[0]?.id ?? ''} style={inputStyle}><option value="">Select state</option>{states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}</select></FieldLabel>
-        <FieldLabel>Local government<select name="localGovernmentId" defaultValue={localGovernments[0]?.id ?? ''} style={inputStyle}><option value="">Select local government</option>{localGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FieldLabel>
-        <FieldLabel>Center<select name="centerId" defaultValue={centers[0]?.id ?? ''} style={inputStyle}><option value="">Optional center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></FieldLabel>
-      </div>
-      <ActionButton label="Register tablet" pendingLabel="Registering tablet…" style={buttonStyle} />
+      <button type="submit" style={buttonStyle}>Register tablet</button>
     </form>
   );
 }
