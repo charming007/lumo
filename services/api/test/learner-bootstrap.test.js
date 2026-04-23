@@ -405,3 +405,140 @@ test('tablet-scoped learner registration also resolves pod scope from body devic
   assert.equal(accepted.body.podId, 'pod-1');
   assert.equal(accepted.body.mallamId, 'teacher-1');
 });
+
+
+test('learner bootstrap exposes pod-scoped learner availability and per-learner lesson statuses for lesson launch', async () => {
+  const lesson = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Shared tablet readiness lesson',
+    durationMinutes: 12,
+    status: 'published',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Say hello.' }],
+  });
+
+  repository.createAssignment({
+    cohortId: 'cohort-1',
+    lessonId: lesson.id,
+    assignedBy: 'teacher-1',
+    dueDate: '2026-04-24',
+    status: 'active',
+  });
+
+  const completeResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [{
+        id: 'lesson-complete-student-1',
+        type: 'lesson_completed',
+        payload: {
+          sessionId: 'session-complete-student-1',
+          studentId: 'student-1',
+          lessonId: lesson.id,
+          moduleId: 'module-1',
+          stepIndex: 3,
+          stepsTotal: 3,
+          review: 'onTrack',
+          completionState: 'completed',
+          capturedAt: '2026-04-23T10:00:00.000Z',
+        },
+      }],
+    }),
+  });
+  assert.equal(completeResponse.status, 202, JSON.stringify(completeResponse.body));
+
+  const resumeResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [{
+        id: 'lesson-start-student-2',
+        type: 'lesson_session_started',
+        payload: {
+          sessionId: 'session-resume-student-2',
+          studentId: 'student-2',
+          lessonId: lesson.id,
+          moduleId: 'module-1',
+          stepIndex: 1,
+          stepsTotal: 4,
+          capturedAt: '2026-04-23T11:00:00.000Z',
+        },
+      }],
+    }),
+  });
+  assert.equal(resumeResponse.status, 202, JSON.stringify(resumeResponse.body));
+
+  const retryResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [{
+        id: 'lesson-retry-student-3',
+        type: 'lesson_completed',
+        payload: {
+          sessionId: 'session-retry-student-3',
+          studentId: 'student-3',
+          lessonId: lesson.id,
+          moduleId: 'module-1',
+          stepIndex: 1,
+          stepsTotal: 4,
+          review: 'needsSupport',
+          completionState: 'abandoned',
+          capturedAt: '2026-04-23T12:00:00.000Z',
+        },
+      }],
+    }),
+  });
+  assert.equal(retryResponse.status, 202, JSON.stringify(retryResponse.body));
+
+  const bootstrap = await request('/api/v1/learner-app/bootstrap?deviceIdentifier=lumo-tablet-kano-01');
+  assert.equal(bootstrap.status, 200, JSON.stringify(bootstrap.body));
+
+  const projectedLesson = bootstrap.body.lessons.find((entry) => entry.id === lesson.id);
+  assert.ok(projectedLesson, JSON.stringify(bootstrap.body.lessons));
+  assert.equal(projectedLesson.learnerAvailability.availableLearnerCount >= 3, true);
+  assert.equal(projectedLesson.learnerAvailability.counts.resume >= 1, true);
+  assert.equal(projectedLesson.learnerAvailability.counts.completed >= 1, true);
+  assert.equal(projectedLesson.learnerAvailability.counts.retry >= 1, true);
+
+  const statusByLearnerId = Object.fromEntries(
+    projectedLesson.learnerAvailability.availableLearners.map((learner) => [learner.id, learner.lessonStatus.status]),
+  );
+  assert.equal(statusByLearnerId['student-1'], 'completed');
+  assert.equal(statusByLearnerId['student-2'], 'resume');
+  assert.equal(statusByLearnerId['student-3'], 'retry');
+  assert.equal(statusByLearnerId['student-4'], undefined);
+
+  const lessonAvailability = bootstrap.body.lessonAvailability.find((entry) => entry.lessonId === lesson.id);
+  assert.ok(lessonAvailability, JSON.stringify(bootstrap.body.lessonAvailability));
+  assert.equal(lessonAvailability.availableLearnerCount >= 3, true);
+  assert.equal(bootstrap.body.meta.supports.includes('lesson-learner-availability'), true);
+  assert.equal(bootstrap.body.meta.supports.includes('per-learner-lesson-status'), true);
+});
+
+test('lesson learner endpoint returns pod-scoped available learners with launch statuses', async () => {
+  const lesson = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Lesson launch roster endpoint',
+    durationMinutes: 10,
+    status: 'published',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Say ready.' }],
+  });
+
+  repository.createAssignment({
+    cohortId: 'cohort-1',
+    lessonId: lesson.id,
+    assignedBy: 'teacher-1',
+    dueDate: '2026-04-24',
+    status: 'active',
+  });
+
+  const response = await request(`/api/v1/learner-app/lessons/${lesson.id}/learners?deviceIdentifier=lumo-tablet-kano-01`);
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(response.body.meta.scopedPodId, 'pod-1');
+  assert.equal(response.body.meta.lessonId, lesson.id);
+  assert.equal(response.body.learners.length >= 3, true);
+  assert.equal(response.body.learners.every((learner) => learner.podId === 'pod-1'), true);
+  assert.equal(response.body.learners.every((learner) => learner.lessonStatus.lessonId === lesson.id), true);
+});

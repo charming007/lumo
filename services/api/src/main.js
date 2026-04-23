@@ -694,7 +694,105 @@ function buildLearnerAssignmentIndex({ podId = null } = {}) {
   return buildScopedLearnerAssignments({ podId }).map(presenters.presentLearnerAssignmentPack);
 }
 
-function buildLearnerLessons({ includeAssigned = false, podId = null } = {}) {
+function buildLearnerLessonAvailability({ podId = null, lessons = null, learners = null, assignments = null } = {}) {
+  const scopedLearners = Array.isArray(learners) ? learners : buildScopedLearners({ podId });
+  const scopedLessons = Array.isArray(lessons) ? lessons : buildLearnerLessons({ includeAssigned: false, podId });
+  const assignmentIndex = Array.isArray(assignments) ? assignments : buildLearnerAssignmentIndex({ podId });
+  const learnerById = new Map(scopedLearners.map((learner) => [learner.id, learner]));
+  const assignmentIndexByLessonId = assignmentIndex.reduce((map, assignment) => {
+    const lessonId = assignment.lessonPack?.lessonId;
+    if (!lessonId) return map;
+    const current = map.get(lessonId) || [];
+    current.push(assignment);
+    map.set(lessonId, current);
+    return map;
+  }, new Map());
+  const sessionsByLearnerAndLesson = store.listLessonSessions().reduce((map, session) => {
+    if (!session.studentId || !session.lessonId) return map;
+    if (podId) {
+      const learner = learnerById.get(session.studentId);
+      if (!learner) return map;
+    }
+    const key = `${session.studentId}:${session.lessonId}`;
+    const current = map.get(key);
+    if (!current || new Date(session.lastActivityAt || session.startedAt || 0) > new Date(current.lastActivityAt || current.startedAt || 0)) {
+      map.set(key, session);
+    }
+    return map;
+  }, new Map());
+  const progressByLearnerAndSubject = store.listProgress().reduce((map, entry) => {
+    if (!entry.studentId || !entry.subjectId) return map;
+    if (podId) {
+      const learner = learnerById.get(entry.studentId);
+      if (!learner) return map;
+    }
+    const key = `${entry.studentId}:${entry.subjectId}`;
+    const current = map.get(key);
+    if (!current || new Date(entry.lastActiveAt || 0) > new Date(current.lastActiveAt || 0)) {
+      map.set(key, entry);
+    }
+    return map;
+  }, new Map());
+
+  const learnerStatuses = [];
+  const lessonAvailability = scopedLessons.map((lesson) => {
+    const lessonAssignments = assignmentIndexByLessonId.get(lesson.id) || [];
+    const assignedLearnerIds = new Set(lessonAssignments.flatMap((assignment) => (assignment.eligibleLearners || []).map((learner) => learner.id)));
+    const availableLearners = scopedLearners
+      .filter((learner) => !assignedLearnerIds.size || assignedLearnerIds.has(learner.id))
+      .map((learner) => {
+        const session = sessionsByLearnerAndLesson.get(`${learner.id}:${lesson.id}`) || null;
+        const subjectProgress = progressByLearnerAndSubject.get(`${learner.id}:${lesson.lessonPack?.subjectId || ''}`) || null;
+        const isCompleted = session?.status === 'completed' || session?.completionState === 'completed';
+        const needsRetry = !isCompleted && (session?.status === 'abandoned' || session?.completionState === 'abandoned' || session?.latestReview === 'needsSupport');
+        const canResume = !isCompleted && session && ['in_progress', 'paused'].includes(session.status);
+        const status = isCompleted ? 'completed' : canResume ? 'resume' : needsRetry ? 'retry' : 'ready';
+        const latestSession = session ? presenters.presentLessonSession(session) : null;
+        const lessonStatus = {
+          learnerId: learner.id,
+          learnerCode: learner.learnerCode || null,
+          lessonId: lesson.id,
+          subjectId: lesson.lessonPack?.subjectId || null,
+          status,
+          started: Boolean(session),
+          canStart: !canResume,
+          canResume: Boolean(canResume),
+          latestSession,
+          progress: subjectProgress ? presenters.presentProgress(subjectProgress) : null,
+          completedAt: latestSession?.completedAt || null,
+          lastActivityAt: latestSession?.lastActivityAt || subjectProgress?.lastActiveAt || null,
+        };
+        learnerStatuses.push(lessonStatus);
+        return {
+          ...learner,
+          lessonStatus,
+        };
+      });
+
+    const counts = availableLearners.reduce((acc, learner) => {
+      const key = learner.lessonStatus.status;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, { ready: 0, resume: 0, completed: 0, retry: 0 });
+
+    return {
+      lessonId: lesson.id,
+      subjectId: lesson.lessonPack?.subjectId || null,
+      podId,
+      availableLearnerCount: availableLearners.length,
+      counts,
+      availableLearners,
+      assignmentIds: lessonAssignments.map((assignment) => assignment.assignmentId),
+    };
+  });
+
+  return {
+    lessonAvailability,
+    learnerStatuses,
+  };
+}
+
+function buildLearnerLessons({ includeAssigned = false, podId = null, includeAvailability = false } = {}) {
   const assignedLessonIds = includeAssigned
     ? new Set(
         buildScopedLearnerAssignments({ podId })
@@ -703,10 +801,29 @@ function buildLearnerLessons({ includeAssigned = false, podId = null } = {}) {
       )
     : new Set();
 
-  return store
+  const lessons = store
     .listLessons()
     .filter((lesson) => ['approved', 'published'].includes(lesson.status) || assignedLessonIds.has(lesson.id))
     .map(presenters.presentLearnerLesson);
+
+  if (!includeAvailability) {
+    return lessons;
+  }
+
+  const availability = buildLearnerLessonAvailability({ podId, lessons });
+  const availabilityByLessonId = new Map(availability.lessonAvailability.map((entry) => [entry.lessonId, entry]));
+  return lessons.map((lesson) => ({
+    ...lesson,
+    learnerAvailability: availabilityByLessonId.get(lesson.id) || {
+      lessonId: lesson.id,
+      subjectId: lesson.lessonPack?.subjectId || null,
+      podId,
+      availableLearnerCount: 0,
+      counts: { ready: 0, resume: 0, completed: 0, retry: 0 },
+      availableLearners: [],
+      assignmentIds: [],
+    },
+  }));
 }
 
 function buildLearnerAssessments() {
@@ -758,8 +875,10 @@ function buildLearnerAppBootstrap({ registration = null } = {}) {
   const podId = registration?.podId || null;
   const learners = buildScopedLearners({ podId });
   const modules = buildLearnerSubjects({ includeAssigned: false, podId });
-  const lessons = buildLearnerLessons({ includeAssigned: false, podId });
   const assignments = buildLearnerAssignmentIndex({ podId });
+  const lessons = buildLearnerLessons({ includeAssigned: false, podId, includeAvailability: true });
+  const lessonAvailability = lessons.map((lesson) => lesson.learnerAvailability).filter(Boolean);
+  const learnerStatuses = lessonAvailability.flatMap((entry) => entry.availableLearners.map((learner) => learner.lessonStatus));
   const assessments = buildLearnerAssessments();
   const lastSync = store.listSyncEvents().slice(-1)[0] || null;
 
@@ -770,6 +889,8 @@ function buildLearnerAppBootstrap({ registration = null } = {}) {
     assignments,
     assignmentPacks: assignments,
     assessments,
+    lessonAvailability,
+    learnerStatuses,
     registrationContext: buildRegistrationContext({ registration }),
     sync: {
       acceptedEventCount: store.listSyncEvents().length,
@@ -789,9 +910,11 @@ function buildLearnerAppBootstrap({ registration = null } = {}) {
       assignmentCount: assignments.length,
       assignmentPackCount: assignments.length,
       assessmentCount: assessments.length,
+      lessonAvailabilityCount: lessonAvailability.length,
+      learnerStatusCount: learnerStatuses.length,
       generatedAt: new Date().toISOString(),
-      contractVersion: 'learner-app-v2.4',
-      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'lesson-localization', 'assessment-packs', 'learner-rewards', 'subject-first-navigation', 'tablet-pod-scope'],
+      contractVersion: 'learner-app-v2.5',
+      supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'rewards-on-sync', 'lesson-localization', 'assessment-packs', 'learner-rewards', 'subject-first-navigation', 'tablet-pod-scope', 'lesson-learner-availability', 'per-learner-lesson-status'],
     },
   };
 }
@@ -1552,6 +1675,29 @@ app.get('/api/v1/learner-app/learners', (req, res) => {
   res.json(buildScopedLearners({ podId: registration?.podId || null }));
 });
 
+app.get('/api/v1/learner-app/learner-statuses', (req, res) => {
+  const { registration } = resolveLearnerTabletRegistration(req);
+  const podId = registration?.podId || null;
+  const learnerId = coerceOptionalString(req.query.learnerId);
+  const lessonId = coerceOptionalString(req.query.lessonId);
+  const availability = buildLearnerLessonAvailability({ podId });
+  const items = availability.learnerStatuses.filter((entry) => {
+    if (learnerId && entry.learnerId !== learnerId) return false;
+    if (lessonId && entry.lessonId !== lessonId) return false;
+    return true;
+  });
+
+  return res.json({
+    items,
+    meta: {
+      scopedPodId: podId,
+      learnerId,
+      lessonId,
+      count: items.length,
+    },
+  });
+});
+
 app.post('/api/v1/learner-app/learners', (req, res, next) => {
   try {
     const { registration } = resolveLearnerTabletRegistration(req, req.body);
@@ -1697,6 +1843,8 @@ app.get('/api/v1/learner-app/assessments', (_req, res) => {
 });
 
 app.get('/api/v1/learner-app/lessons/:id', (req, res) => {
+  const { registration } = resolveLearnerTabletRegistration(req);
+  const podId = registration?.podId || null;
   const lesson = store
     .listLessons()
     .find((entry) => entry.id === req.params.id);
@@ -1705,7 +1853,39 @@ app.get('/api/v1/learner-app/lessons/:id', (req, res) => {
     return res.status(404).json({ message: 'Lesson not found' });
   }
 
-  return res.json(presenters.presentLearnerLesson(lesson));
+  const presentedLesson = presenters.presentLearnerLesson(lesson);
+  const availability = buildLearnerLessonAvailability({ podId, lessons: [presentedLesson] });
+  return res.json({
+    ...presentedLesson,
+    learnerAvailability: availability.lessonAvailability[0] || null,
+  });
+});
+
+app.get('/api/v1/learner-app/lessons/:id/learners', (req, res) => {
+  const { registration } = resolveLearnerTabletRegistration(req);
+  const podId = registration?.podId || null;
+  const lesson = store
+    .listLessons()
+    .find((entry) => entry.id === req.params.id);
+
+  if (!lesson) {
+    return res.status(404).json({ message: 'Lesson not found' });
+  }
+
+  const presentedLesson = presenters.presentLearnerLesson(lesson);
+  const availability = buildLearnerLessonAvailability({ podId, lessons: [presentedLesson] });
+  const lessonAvailability = availability.lessonAvailability[0] || null;
+
+  return res.json({
+    lesson: presentedLesson,
+    lessonAvailability,
+    learners: lessonAvailability?.availableLearners || [],
+    meta: {
+      scopedPodId: podId,
+      lessonId: presentedLesson.id,
+      availableLearnerCount: lessonAvailability?.availableLearnerCount || 0,
+    },
+  });
 });
 
 app.post('/api/v1/learner-app/voice/replay', async (req, res, next) => {
