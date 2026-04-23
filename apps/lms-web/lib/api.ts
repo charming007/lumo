@@ -296,12 +296,26 @@ export function fetchCenters() {
   return getJson<Center[]>('/api/v1/centers');
 }
 
-export function fetchStates() {
-  return getJson<State[]>('/api/v1/states');
+export async function fetchStates() {
+  try {
+    return await getJson<State[]>('/api/v1/states');
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 404) {
+      return [] as State[];
+    }
+    throw error;
+  }
 }
 
-export function fetchLocalGovernments() {
-  return getJson<LocalGovernment[]>('/api/v1/local-governments');
+export async function fetchLocalGovernments() {
+  try {
+    return await getJson<LocalGovernment[]>('/api/v1/local-governments');
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 404) {
+      return [] as LocalGovernment[];
+    }
+    throw error;
+  }
 }
 
 export function fetchStudentRewards(id: string) {
