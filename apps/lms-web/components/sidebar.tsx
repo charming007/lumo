@@ -147,10 +147,6 @@ export function Sidebar({
                 prefetch={false}
                 data-nav-id={item.id}
                 data-nav-href={item.href}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onCloseMobileNav?.();
-                }}
                 aria-label={sidebarCollapsed ? item.label : undefined}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={`sidebar__nav-link ${sidebarCollapsed ? 'sidebar__nav-link--collapsed' : ''}`}
