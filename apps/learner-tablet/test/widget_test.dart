@@ -2145,6 +2145,48 @@ void main() {
   });
 
   testWidgets(
+      'lesson launch shows refresh recovery instead of blocked registration when roster is offline', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(
+      apiClient: _SeedApiClient(),
+      includeSeedDemoContent: false,
+    )
+      ..usingFallbackData = true
+      ..backendError = 'Backend registration is offline.';
+    final module = learningModules.first;
+    final lesson = assignedLessonsSeed.firstWhere(
+      (item) => item.moduleId == module.id,
+      orElse: () => assignedLessonsSeed.first,
+    );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonLaunchSetupPage(
+          state: state,
+          onChanged: () {},
+          lesson: lesson,
+          module: module,
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('No learners available for this lesson yet'), findsOneWidget);
+    expect(find.text('Refresh live sync'), findsOneWidget);
+    expect(find.text('Register first learner'), findsNothing);
+    expect(
+      find.textContaining('registration is currently blocked'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
       'resume launch setup locks the original learner from backend session', (
     tester,
   ) async {

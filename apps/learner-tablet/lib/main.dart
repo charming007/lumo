@@ -5053,6 +5053,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
 
                   Widget buildLearnerGrid({required bool shrinkWrap}) {
                     if (state.learners.isEmpty) {
+                      final registrationBlocker = state.registrationBlockerReason;
+
                       return Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 560),
@@ -5081,7 +5083,9 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
-                                  'You cannot start ${lesson.title} until at least one learner is registered on this tablet or synced from the backend. Register the first learner now instead of leaving the facilitator on a blank chooser.',
+                                  registrationBlocker == null
+                                      ? 'You cannot start ${lesson.title} until at least one learner is registered on this tablet or synced from the backend. Register the first learner now instead of leaving the facilitator on a blank chooser.'
+                                      : 'You cannot start ${lesson.title} because this tablet has no synced learners and registration is currently blocked. ${registrationBlocker.trim()} Refresh live sync first so the learner roster lands before launch.',
                                   style: const TextStyle(
                                     color: Color(0xFF475569),
                                     height: 1.45,
@@ -5091,20 +5095,37 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 SizedBox(
                                   width: double.infinity,
                                   child: FilledButton.icon(
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => RegisterPage(
-                                            state: state,
-                                            onChanged: widget.onChanged,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(
-                                      Icons.person_add_alt_1_rounded,
+                                    onPressed: registrationBlocker == null
+                                        ? () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) => RegisterPage(
+                                                  state: state,
+                                                  onChanged: widget.onChanged,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        : state.isBootstrapping
+                                            ? null
+                                            : () async {
+                                                await state.bootstrap();
+                                                widget.onChanged();
+                                                if (!mounted) return;
+                                                setState(() {});
+                                              },
+                                    icon: Icon(
+                                      registrationBlocker == null
+                                          ? Icons.person_add_alt_1_rounded
+                                          : Icons.sync_rounded,
                                     ),
-                                    label: const Text('Register first learner'),
+                                    label: Text(
+                                      registrationBlocker == null
+                                          ? 'Register first learner'
+                                          : state.isBootstrapping
+                                              ? 'Refreshing live sync…'
+                                              : 'Refresh live sync',
+                                    ),
                                   ),
                                 ),
                               ],
