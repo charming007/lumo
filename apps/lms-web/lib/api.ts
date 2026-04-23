@@ -8,6 +8,7 @@ import type {
   LocalGovernment,
   DashboardInsight,
   DashboardSummary,
+  DeviceRegistration,
   Lesson,
   Mallam,
   MallamDetail,
@@ -254,6 +255,13 @@ export function fetchAssessments() {
 
 export function fetchPods() {
   return getJson<Pod[]>('/api/v1/pods');
+}
+
+export function fetchDeviceRegistrations(params?: { podId?: string; mallamId?: string }) {
+  const query = new URLSearchParams();
+  if (params?.podId) query.set('podId', params.podId);
+  if (params?.mallamId) query.set('mallamId', params.mallamId);
+  return getJson<DeviceRegistration[]>(`/api/v1/device-registrations${query.size ? `?${query.toString()}` : ''}`);
 }
 
 export function fetchProgress() {

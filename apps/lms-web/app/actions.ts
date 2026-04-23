@@ -1399,6 +1399,41 @@ export async function expireStaleRewardRequestsAction(formData: FormData) {
   redirect('/rewards?message=Stale%20reward%20requests%20expired');
 }
 
+export async function updateDeviceRegistrationAction(formData: FormData) {
+  const registrationId = String(formData.get('registrationId') || '').trim();
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
+  const podIdValue = String(formData.get('podId') || '').trim();
+  const assignedMallamIdValue = String(formData.get('assignedMallamId') || '').trim();
+  const status = String(formData.get('status') || '').trim();
+  const appVersion = String(formData.get('appVersion') || '').trim();
+
+  if (!registrationId) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Device update failed: missing registration id',
+    }));
+  }
+
+  try {
+    await apiWrite(`/api/v1/device-registrations/${registrationId}`, 'PATCH', {
+      podId: podIdValue || null,
+      assignedMallamId: assignedMallamIdValue || null,
+      status: status || undefined,
+      appVersion: appVersion || null,
+    }, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `Device update failed: ${describeActionError(error, 'device registration could not be updated')}`,
+    }));
+  }
+
+  revalidatePath('/pods');
+  revalidatePath('/settings');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Device registration updated',
+  }));
+}
+
 export async function checkpointStorageAction(formData: FormData) {
   const label = String(formData.get('label') || '').trim() || 'manual-checkpoint';
   await apiWrite('/api/v1/admin/storage/checkpoint', 'POST', { label }, 'admin');

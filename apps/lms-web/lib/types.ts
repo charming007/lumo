@@ -360,6 +360,28 @@ export type Pod = {
   mallamNames?: string[];
 };
 
+export type DeviceRegistration = {
+  id: string;
+  podId: string | null;
+  podLabel?: string | null;
+  centerId?: string | null;
+  centerName?: string | null;
+  stateId?: string | null;
+  stateName?: string | null;
+  localGovernmentId?: string | null;
+  localGovernmentName?: string | null;
+  assignedMallamId?: string | null;
+  assignedMallamName?: string | null;
+  deviceIdentifier: string;
+  serialNumber?: string | null;
+  platform: string;
+  appVersion?: string | null;
+  status: string;
+  metadata?: Record<string, unknown> | null;
+  lastSeenAt?: string | null;
+  registeredAt?: string | null;
+};
+
 export type AttendanceRecord = {
   id: string;
   studentName: string;
