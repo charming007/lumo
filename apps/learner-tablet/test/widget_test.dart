@@ -537,7 +537,8 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Back home'), findsOneWidget);
+    expect(find.text('Go home'), findsOneWidget);
+    expect(find.text('Go to next learner'), findsOneWidget);
     expect(find.textContaining('lesson'), findsWidgets);
 
     state.dispose();
@@ -1659,7 +1660,8 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Back home'), findsOneWidget);
+    expect(find.text('Go home'), findsOneWidget);
+    expect(find.text('Go to next learner'), findsOneWidget);
     expect(find.textContaining('lesson'), findsWidgets);
 
     state.dispose();
