@@ -1086,6 +1086,9 @@ class HomePage extends StatelessWidget {
                         state: state,
                         learner: state.currentLearner,
                       );
+                      final assignmentGapCount = state.assignedLessons
+                          .where((lesson) => lesson.isAssignmentPlaceholder)
+                          .length;
                       return Expanded(
                         flex: shortHeight ? 9 : (compact ? 7 : 6),
                         child: Padding(
@@ -1097,6 +1100,138 @@ class HomePage extends StatelessWidget {
                           ),
                           child: LayoutBuilder(
                             builder: (context, subjectConstraints) {
+                              if (subjectCards.isEmpty) {
+                                final headline = state.isBootstrapping
+                                    ? 'Refreshing live subjects for this tablet.'
+                                    : 'No live subjects are ready on this tablet yet.';
+                                final detail = state.registrationBlockerReason !=
+                                        null
+                                    ? '${state.registrationBlockerReason!} Fix the roster feed before expecting learner-ready subjects.'
+                                    : assignmentGapCount > 0
+                                        ? assignmentGapCount == 1
+                                            ? '1 assigned lesson is still only a placeholder. Refresh sync after the publish finishes so learners do not hit a dead-end card.'
+                                            : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync after publish finishes so learners do not hit a dead-end card.'
+                                        : state.usingFallbackData
+                                            ? 'The tablet is running on fallback data and there are still no learner-safe published subjects to show. Refresh live sync before handoff.'
+                                            : 'Publish at least one learner-safe subject with live lesson content before handing the tablet to a learner.';
+
+                                return Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 760,
+                                    ),
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: EdgeInsets.all(
+                                        compact ? 18 : 24,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(28),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x140F172A),
+                                            blurRadius: 24,
+                                            offset: Offset(0, 14),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFFFF7ED),
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.menu_book_rounded,
+                                                  color: LumoTheme.accentOrange,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 14),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      headline,
+                                                      style: const TextStyle(
+                                                        fontSize: 24,
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                        color:
+                                                            Color(0xFF0F172A),
+                                                        height: 1.15,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 10),
+                                                    Text(
+                                                      detail,
+                                                      style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF475569),
+                                                        height: 1.5,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 18),
+                                          Wrap(
+                                            spacing: 12,
+                                            runSpacing: 12,
+                                            children: [
+                                              FilledButton.icon(
+                                                onPressed: state.isBootstrapping
+                                                    ? null
+                                                    : () async {
+                                                        await state.bootstrap();
+                                                        onChanged();
+                                                      },
+                                                icon: const Icon(
+                                                  Icons.sync_rounded,
+                                                ),
+                                                label: Text(
+                                                  state.isBootstrapping
+                                                      ? 'Refreshing live sync…'
+                                                      : 'Refresh live sync',
+                                                ),
+                                              ),
+                                              OutlinedButton.icon(
+                                                onPressed: openLearners,
+                                                icon: const Icon(
+                                                  Icons.groups_rounded,
+                                                ),
+                                                label: const Text(
+                                                  'Open student list',
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+
                               final minTileWidth = compact ? 210.0 : 260.0;
                               final crossAxisSpacing = compact ? 10.0 : 14.0;
                               final preferredSingleRowCount = !compact &&

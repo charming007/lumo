@@ -650,6 +650,38 @@ void main() {
     expect(find.text('Life Skills'), findsOneWidget);
   });
 
+  testWidgets('home screen explains when no learner-safe subjects are ready', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..isBootstrapping = false
+      ..usingFallbackData = false;
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      find.text('No live subjects are ready on this tablet yet.'),
+      findsOneWidget,
+    );
+    expect(find.text('Refresh live sync'), findsOneWidget);
+    expect(find.text('Open student list'), findsOneWidget);
+    expect(find.byType(GridView), findsNothing);
+  });
+
   testWidgets(
       'home screen keeps all subject cards visible on short tablet heights', (
     tester,
