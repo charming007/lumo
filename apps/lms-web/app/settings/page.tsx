@@ -4,7 +4,7 @@ import { ActionButton } from '../../components/action-button';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { ExportShareCard } from '../../components/export-share-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
-import { fetchAssetRuntime, fetchLocalGovernments, fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStates, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard } from '../../lib/api';
+import { fetchAssetRuntime, fetchLocalGovernments, fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStates, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard, isProtectedEndpointAuthFailure } from '../../lib/api';
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { describeCatalogState, describeLiveBackendWithCatalog } from '../../lib/trust-copy';
@@ -256,6 +256,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean);
+  const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
 
   const ready = workboard.filter((item) => item.progressionStatus === 'ready').length;
   const watch = workboard.filter((item) => item.progressionStatus === 'watch').length;
@@ -339,7 +340,11 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
       }
     >
       <FeedbackBanner message={query?.message} />
-      {failedSources.length ? (
+      {assetRuntimeAuthBlocked ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontWeight: 700, lineHeight: 1.6 }}>
+          Settings is blocked on protected audit auth: the LMS cannot unlock <code>/api/v1/admin/assets/runtime</code>. Set the correct <code>LUMO_ADMIN_API_KEY</code> in the LMS deployment, then re-check settings, dashboard, and asset library before calling this stack production-ready.
+        </div>
+      ) : failedSources.length ? (
         <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           Settings is running in degraded mode: {failedSources.join(', ')} {failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.
         </div>

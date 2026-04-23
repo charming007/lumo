@@ -3,7 +3,7 @@ import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 
 export const dynamic = 'force-dynamic';
 
-import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard } from '../lib/api';
+import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
@@ -290,6 +290,7 @@ export default async function HomePage() {
     { label: 'asset runtime', result: assetRuntimeResult },
     { label: 'subjects', result: subjectsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
+  const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
     !workboardAvailable ? 'workboard' : null,
@@ -407,7 +408,9 @@ export default async function HomePage() {
                   : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.'
       : hasCriticalAssetOpsGap
         ? assetRuntimeResult.status === 'rejected'
-          ? 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for pilot content operations.'
+          ? assetRuntimeAuthBlocked
+            ? 'The dashboard cannot read the protected asset runtime audit because the LMS is missing or using the wrong admin API key. Until that auth wiring is fixed, this route cannot honestly prove upload readiness, registry integrity, or managed lesson media health.'
+            : 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for pilot content operations.'
           : 'The asset runtime audit is live, and it is telling you asset operations are blocked. A dashboard that still looks deployable while uploads or managed lesson references are broken is lying by omission.'
         : !modules.length && !lessons.length && !assessments.length
           ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
@@ -426,7 +429,9 @@ export default async function HomePage() {
         blockerHeadline={hasCriticalDashboardGap
           ? 'Deployment blocker: dashboard live feeds are degraded.'
           : hasCriticalAssetOpsGap
-            ? 'Deployment blocker: asset operations are not trustworthy.'
+            ? assetRuntimeAuthBlocked
+              ? 'Deployment blocker: LMS admin API key cannot unlock asset audit feeds.'
+              : 'Deployment blocker: asset operations are not trustworthy.'
             : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
@@ -442,11 +447,17 @@ export default async function HomePage() {
               'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
             ]
           : hasCriticalAssetOpsGap
-            ? [
-                'This pilot depends on shared lesson media, upload integrity, and managed asset references. If those are broken, the front door should not pretend deployment is fine.',
-                'Operators use the dashboard as a trust signal before validating learner content paths. Broken asset operations mean lessons can still fail even if top-line counts look healthy.',
-                'A loud blocker is safer than shipping a dashboard that hides dead uploads, broken registry state, or stale backend media references.',
-              ]
+            ? assetRuntimeAuthBlocked
+              ? [
+                  'The dashboard now depends on protected audit feeds to prove whether asset operations are genuinely healthy. If the LMS cannot authenticate to those endpoints, the front door should block instead of hand-waving.',
+                  'A missing or wrong LUMO_ADMIN_API_KEY can look like a mysterious asset outage even when the backend is fine. Reviewers need the route to say that plainly.',
+                  'A loud auth blocker is safer than shipping a dashboard that implies lesson media is trustworthy while its protected audits are still locked.',
+                ]
+              : [
+                  'This pilot depends on shared lesson media, upload integrity, and managed asset references. If those are broken, the front door should not pretend deployment is fine.',
+                  'Operators use the dashboard as a trust signal before validating learner content paths. Broken asset operations mean lessons can still fail even if top-line counts look healthy.',
+                  'A loud blocker is safer than shipping a dashboard that hides dead uploads, broken registry state, or stale backend media references.',
+                ]
             : [
                 'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, or assessment gates are blind, the route should not imply anyone can trust the release board.',
                 'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Leaving it up with degraded data invites a false green light.',
@@ -512,11 +523,17 @@ export default async function HomePage() {
               { label: 'Cross-check', value: 'Verify /progress, /assignments, and the dashboard facilitator-coverage cards after the upstream fix lands' },
             ]
           : hasCriticalAssetOpsGap
-            ? [
-                { label: 'Failing area', value: assetOpsCriticalFailure ?? 'asset operations' },
-                { label: 'Operator action', value: 'Restore upload readiness, registry integrity, and managed asset references before trusting the dashboard' },
-                { label: 'Cross-check', value: 'Verify /content/assets and /settings after the asset pipeline fix lands' },
-              ]
+            ? assetRuntimeAuthBlocked
+              ? [
+                  { label: 'Failing area', value: 'protected asset runtime audit authentication' },
+                  { label: 'Operator action', value: 'Set the correct LUMO_ADMIN_API_KEY in the LMS deployment so protected audit endpoints can answer' },
+                  { label: 'Cross-check', value: 'Verify /settings and /content/assets stop 401ing before trusting the dashboard again' },
+                ]
+              : [
+                  { label: 'Failing area', value: assetOpsCriticalFailure ?? 'asset operations' },
+                  { label: 'Operator action', value: 'Restore upload readiness, registry integrity, and managed asset references before trusting the dashboard' },
+                  { label: 'Cross-check', value: 'Verify /content/assets and /settings after the asset pipeline fix lands' },
+                ]
             : [
                 { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
                 { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
