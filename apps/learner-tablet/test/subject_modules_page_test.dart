@@ -4,8 +4,153 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lumo_learner_tablet/app_state.dart';
 import 'package:lumo_learner_tablet/main.dart';
+import 'package:lumo_learner_tablet/models.dart';
 
 void main() {
+  testWidgets(
+      'subject page keeps the selected learner scoped to their own subject lessons',
+      (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const learnerA = LearnerProfile(
+      id: 'learner-a',
+      name: 'Amina',
+      age: 7,
+      cohort: 'Pod A',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Hauwa',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const learnerB = LearnerProfile(
+      id: 'learner-b',
+      name: 'Bashir',
+      age: 8,
+      cohort: 'Pod A',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Aisha',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000001',
+      sex: 'Boy',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'BAS-001',
+    );
+    const module = LearningModule(
+      id: 'english',
+      title: 'English',
+      description: 'Live English path',
+      voicePrompt: 'Open English.',
+      readinessGoal: 'Greeting flow',
+      badge: '2 lessons',
+    );
+    const learnerALesson = LessonCardModel(
+      id: 'english-amina',
+      moduleId: 'english',
+      title: 'Amina greeting lesson',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Learner A lesson',
+      steps: [
+        LessonStep(
+          id: 'step-a',
+          type: LessonStepType.practice,
+          title: 'Say hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Keep it warm.',
+          realWorldCheck: 'Learner greets',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+    const learnerBLesson = LessonCardModel(
+      id: 'english-bashir',
+      moduleId: 'english',
+      title: 'Bashir greeting lesson',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Learner B lesson',
+      steps: [
+        LessonStep(
+          id: 'step-b',
+          type: LessonStepType.practice,
+          title: 'Wave hello',
+          instruction: 'Wave hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Wave hello.',
+          facilitatorTip: 'Model the wave.',
+          realWorldCheck: 'Learner greets',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    addTearDown(state.dispose);
+    state.usingFallbackData = false;
+    state.modules.add(module);
+    state.learners.addAll([learnerA, learnerB]);
+    state.assignedLessons.addAll([learnerALesson, learnerBLesson]);
+    state.assignmentPacks.addAll([
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-a',
+        lessonId: learnerALesson.id,
+        moduleId: learnerALesson.moduleId,
+        lessonTitle: learnerALesson.title,
+        eligibleLearnerIds: [learnerA.id],
+      ),
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-b',
+        lessonId: learnerBLesson.id,
+        moduleId: learnerBLesson.moduleId,
+        lessonTitle: learnerBLesson.title,
+        eligibleLearnerIds: [learnerB.id],
+      ),
+    ]);
+    state.selectLearner(learnerA);
+    state.selectModule(module);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: module,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    await state.flushPersistence();
+
+    expect(find.text(learnerALesson.title), findsOneWidget);
+    expect(find.text(learnerBLesson.title), findsNothing);
+  });
+
   testWidgets(
       'subject page marks the guided next lesson for the selected learner', (
     tester,

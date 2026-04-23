@@ -3516,10 +3516,19 @@ class SubjectModulesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lessons =
-        state.lessonsForLearnerAndSubject(null, subjectKey).where((lesson) {
+    final scopedLearner = state.currentLearner;
+    final lessons = state
+        .lessonsForLearnerAndSubject(scopedLearner, subjectKey)
+        .where((lesson) {
       if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
         return false;
+      }
+      if (scopedLearner != null) {
+        return learnerLessonAvailability(
+          state: state,
+          learner: scopedLearner,
+          lesson: lesson,
+        ).canLaunch;
       }
       return state.availableLearnersForLesson(lesson).isNotEmpty;
     }).toList();
