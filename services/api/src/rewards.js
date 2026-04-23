@@ -507,6 +507,9 @@ function summarizeRewardRequestQueue(items) {
   });
 
   summary.avgOpenAgeDays = openAgeCount ? openAgeTotal / openAgeCount : 0;
+  summary.attentionCount = summary.open;
+  summary.urgentCount = summary.staleOpen;
+  summary.averageAgeDays = summary.avgOpenAgeDays;
   return summary;
 }
 

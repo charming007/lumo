@@ -110,6 +110,18 @@ test('device registrations inherit pod geography and expose it through the API',
   assert.equal(listed.body.some((item) => item.deviceIdentifier === 'lumo-tablet-kaduna-02'), true, JSON.stringify(listed.body));
 });
 
+test('reward queue summary exposes the LMS contract fields used by the rewards admin surface', async () => {
+  const queue = await request('/api/v1/rewards/requests?limit=5');
+
+  assert.equal(queue.status, 200, JSON.stringify(queue.body));
+  assert.equal(typeof queue.body.summary.attentionCount, 'number');
+  assert.equal(typeof queue.body.summary.urgentCount, 'number');
+  assert.equal(typeof queue.body.summary.averageAgeDays, 'number');
+  assert.equal(queue.body.summary.attentionCount, queue.body.summary.open);
+  assert.equal(queue.body.summary.urgentCount, queue.body.summary.staleOpen);
+  assert.equal(queue.body.summary.averageAgeDays, queue.body.summary.avgOpenAgeDays);
+});
+
 test('pod updates can persist geography without changing cohort semantics', async () => {
   const updated = await request('/api/v1/pods/pod-1', {
     method: 'PATCH',
