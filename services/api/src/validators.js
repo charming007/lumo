@@ -235,12 +235,24 @@ function validateState(body, { partial = false } = {}) {
     requireFields(body, ['name']);
   }
 
+  if (!partial && body.id && repository.findStateById(body.id)) {
+    const error = new Error(`State already exists: ${body.id}`);
+    error.statusCode = 409;
+    throw error;
+  }
+
   assertAllowed('status', body.status, ['active', 'inactive']);
 }
 
 function validateLocalGovernment(body, { partial = false } = {}) {
   if (!partial) {
     requireFields(body, ['stateId', 'name']);
+  }
+
+  if (!partial && body.id && repository.findLocalGovernmentById(body.id)) {
+    const error = new Error(`Local government already exists: ${body.id}`);
+    error.statusCode = 409;
+    throw error;
   }
 
   assertExists('stateId', body.stateId, repository.findStateById);

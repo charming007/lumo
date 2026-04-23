@@ -47,24 +47,44 @@ test('states and local governments can be created and filtered for admin workflo
   const state = await request('/api/v1/states', {
     method: 'POST',
     headers: { 'x-lumo-role': 'admin' },
-    body: JSON.stringify({ id: 'state-jigawa', code: 'JG', name: 'Jigawa' }),
+    body: JSON.stringify({ id: 'state-admin-test', code: 'AT', name: 'Admin Test State' }),
   });
 
   assert.equal(state.status, 201, JSON.stringify(state.body));
-  assert.equal(state.body.name, 'Jigawa');
+  assert.equal(state.body.name, 'Admin Test State');
 
   const lga = await request('/api/v1/local-governments', {
     method: 'POST',
     headers: { 'x-lumo-role': 'admin' },
-    body: JSON.stringify({ id: 'lga-dutse', stateId: 'state-jigawa', name: 'Dutse', code: 'JG-DUT' }),
+    body: JSON.stringify({ id: 'lga-admin-test', stateId: 'state-admin-test', name: 'Admin Test LGA', code: 'AT-LGA' }),
   });
 
   assert.equal(lga.status, 201, JSON.stringify(lga.body));
-  assert.equal(lga.body.stateId, 'state-jigawa');
+  assert.equal(lga.body.stateId, 'state-admin-test');
 
-  const filtered = await request('/api/v1/local-governments?stateId=state-jigawa');
+  const filtered = await request('/api/v1/local-governments?stateId=state-admin-test');
   assert.equal(filtered.status, 200);
-  assert.deepEqual(filtered.body.map((item) => item.id), ['lga-dutse']);
+  assert.deepEqual(filtered.body.map((item) => item.id), ['lga-admin-test']);
+});
+
+test('geography create routes reject duplicate ids instead of silently polluting admin filters', async () => {
+  const duplicateState = await request('/api/v1/states', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({ id: 'state-jigawa', code: 'JG', name: 'Jigawa Duplicate' }),
+  });
+
+  assert.equal(duplicateState.status, 409, JSON.stringify(duplicateState.body));
+  assert.match(String(duplicateState.body?.message || ''), /State already exists/i);
+
+  const duplicateLga = await request('/api/v1/local-governments', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({ id: 'lga-dutse', stateId: 'state-jigawa', name: 'Dutse Duplicate', code: 'JG-DUT-2' }),
+  });
+
+  assert.equal(duplicateLga.status, 409, JSON.stringify(duplicateLga.body));
+  assert.match(String(duplicateLga.body?.message || ''), /Local government already exists/i);
 });
 
 test('device registrations inherit pod geography and expose it through the API', async () => {
