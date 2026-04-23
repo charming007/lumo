@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { BuildSignature } from '../lib/build-signature';
-import { navigationItems, pilotNavigationIds } from '../lib/navigation';
+import { navigationItems } from '../lib/navigation';
 
 function isActivePath(pathname: string, href: string) {
   if (href === '/') return pathname === '/';
@@ -46,24 +46,6 @@ export function Sidebar({
     previousPathnameRef.current = pathname;
   }, [pathname, mobileNavOpen, onCloseMobileNav]);
 
-  const activeItem = useMemo(
-    () => navigationItems.find((item) => isActivePath(pathname, item.href)),
-    [pathname],
-  );
-
-  const primaryItems = useMemo(
-    () => navigationItems.filter((item) => pilotNavigationIds.has(item.id)),
-    [],
-  );
-
-  const tuckedAwayItems = useMemo(
-    () => navigationItems.filter((item) => !pilotNavigationIds.has(item.id)),
-    [],
-  );
-
-  const activeInternalItem =
-    activeItem && !pilotNavigationIds.has(activeItem.id) ? activeItem : null;
-
   return (
     <>
       {mobileNavOpen ? (
@@ -100,7 +82,7 @@ export function Sidebar({
           <div className="sidebar__brand-copy">
             <div style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              Pilot control plane for release readiness, delivery pressure, learner risk, and deployment trust.
+              Admin control plane for curriculum, learners, mallams, pods, reporting, rewards, and deployment trust.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -148,15 +130,13 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
-          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Pilot workspace</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Focused pilot navigation</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>
-            Keep operators on the five routes that matter for launch: dashboard, content, assignments, progress, and settings.
-          </div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full navigation active</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the full LMS shell to manage curriculum, learners, mallams, pods, devices, assignments, rewards, reporting, and deployment trust from one place.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
-          {primaryItems.map((item) => {
+          {navigationItems.map((item) => {
             const active = isActivePath(pathname, item.href);
             const monogram = itemMonogram(item.label);
 
@@ -192,55 +172,9 @@ export function Sidebar({
           })}
         </nav>
 
-        {activeInternalItem ? (
-          <div
-            className="sidebar__internal-route"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 18,
-              padding: 14,
-              display: 'grid',
-              gap: 10,
-            }}
-          >
-            <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1 }}>
-              Internal route currently open
-            </div>
-            <Link
-              href={activeInternalItem.href}
-              prefetch={false}
-              onClick={(event) => {
-                event.stopPropagation();
-                onCloseMobileNav?.();
-              }}
-              style={{
-                textDecoration: 'none',
-                color: 'white',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 14px',
-                borderRadius: 14,
-                background: 'rgba(108, 99, 255, 0.18)',
-                border: '1px solid rgba(139, 127, 255, 0.35)',
-              }}
-            >
-              <span className="sidebar__nav-icon" aria-hidden="true">{itemMonogram(activeInternalItem.label)}</span>
-              <span className="sidebar__nav-label">{activeInternalItem.label}</span>
-            </Link>
-            <div style={{ color: '#cbd5e1', fontSize: 13, lineHeight: 1.5 }}>
-              This route still works, but it stays out of the default pilot shell so operators do not wander into non-critical surfaces during deployment review.
-            </div>
-          </div>
-        ) : null}
-
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Pilot shell</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>
-            Hidden from default nav: {tuckedAwayItems.map((item) => item.label).join(', ')}.
-          </div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this view to supervise curriculum, learner operations, pods, rewards, reports, guides, and deployment trust from one place.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
@@ -309,7 +243,6 @@ export function Sidebar({
 
         .sidebar--collapsed .sidebar__brand-detail,
         .sidebar--collapsed .sidebar__callout,
-        .sidebar--collapsed .sidebar__internal-route,
         .sidebar--collapsed .sidebar__footer,
         .sidebar--collapsed .sidebar__nav-label {
           display: none;
@@ -353,14 +286,12 @@ export function Sidebar({
 
           .sidebar--collapsed .sidebar__brand-detail,
           .sidebar--collapsed .sidebar__callout,
-          .sidebar--collapsed .sidebar__internal-route,
           .sidebar--collapsed .sidebar__footer,
           .sidebar--collapsed .sidebar__nav-label {
             display: initial;
           }
 
           .sidebar--collapsed .sidebar__callout,
-          .sidebar--collapsed .sidebar__internal-route,
           .sidebar--collapsed .sidebar__footer {
             display: block;
           }

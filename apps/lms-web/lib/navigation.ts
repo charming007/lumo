@@ -16,11 +16,3 @@ export const navigationItems = [
   { id: 'guide', label: 'Guide', href: '/guide' },
   { id: 'settings', label: 'Settings', href: '/settings' },
 ] as const;
-
-export const pilotNavigationIds = new Set([
-  'dashboard',
-  'content',
-  'assignments',
-  'progress',
-  'settings',
-]);
