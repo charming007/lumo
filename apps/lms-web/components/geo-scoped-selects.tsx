@@ -340,6 +340,7 @@ type PodGeographySelectorsProps = {
   initialLocalGovernmentId?: string | null;
   initialPodName?: string | null;
   initialLabel?: string | null;
+  showCenter?: boolean;
 };
 
 export function PodGeographySelectors({
@@ -351,6 +352,7 @@ export function PodGeographySelectors({
   initialLocalGovernmentId,
   initialPodName,
   initialLabel,
+  showCenter = true,
 }: PodGeographySelectorsProps) {
   const [stateId, setStateId] = useState(initialStateId || deriveStateIdFromCenter(initialCenterId, centers) || '');
   const [localGovernmentId, setLocalGovernmentId] = useState(initialLocalGovernmentId || deriveLocalGovernmentIdFromCenter(initialCenterId, centers) || '');
@@ -424,13 +426,16 @@ export function PodGeographySelectors({
           <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('local government', filteredLocalGovernments.length, stateId ? 'No local governments for this state yet' : 'Pick a state to narrow LGAs')}</span>
         </FieldLabel>
       </div>
-      <FieldLabel>
-        Center
-        <select name="centerId" value={centerId} onChange={(event) => setCenterId(event.target.value)} style={inputStyle}>
-          <option value="">Select center</option>
-          {filteredCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
-        </select>
-      </FieldLabel>
+      <input type="hidden" name="centerId" value={centerId} />
+      {showCenter ? (
+        <FieldLabel>
+          Center
+          <select name="centerId" value={centerId} onChange={(event) => setCenterId(event.target.value)} style={inputStyle}>
+            <option value="">Select center</option>
+            {filteredCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
+          </select>
+        </FieldLabel>
+      ) : null}
       <FieldLabel>
         Pod short name
         <input name="podName" value={podName} onChange={handlePodNameChange} placeholder="Pod_name" style={inputStyle} />

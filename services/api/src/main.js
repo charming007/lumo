@@ -2079,9 +2079,14 @@ app.get('/api/v1/pods', (_req, res) => {
 
 app.post('/api/v1/pods', ...protectedMutation(['admin']), (req, res, next) => {
   try {
-    const center = (store.listCenters() || []).find((item) => item.id === req.body?.centerId) || null;
     const state = req.body?.stateId ? (store.listStates() || []).find((item) => item.id === req.body.stateId) || null : null;
     const localGovernment = req.body?.localGovernmentId ? (store.listLocalGovernments() || []).find((item) => item.id === req.body.localGovernmentId) || null : null;
+    const mallamIds = Array.isArray(req.body?.mallamIds) ? req.body.mallamIds : [];
+    const mallamCenter = mallamIds.length ? (store.listTeachers() || []).find((item) => mallamIds.includes(item.id) && item.centerId)?.centerId : null;
+    const center = (store.listCenters() || []).find((item) => item.id === req.body?.centerId)
+      || (mallamCenter ? (store.listCenters() || []).find((item) => item.id === mallamCenter) : null)
+      || (store.listCenters() || []).find((item) => item.stateId === req.body?.stateId && item.localGovernmentId === req.body?.localGovernmentId)
+      || null;
     const podName = String(req.body?.podName || '').trim();
     const generatedLabel = buildPodLabelParts({
       stateName: state?.name,
@@ -2091,11 +2096,12 @@ app.post('/api/v1/pods', ...protectedMutation(['admin']), (req, res, next) => {
 
     const payload = {
       ...req.body,
+      centerId: req.body?.centerId || center?.id || null,
       label: generatedLabel,
       code: req.body?.code || generatedLabel.toUpperCase().replace(/[^A-Z0-9]+/g, '-'),
       stateId: req.body?.stateId || center?.stateId || null,
       localGovernmentId: req.body?.localGovernmentId || center?.localGovernmentId || null,
-      mallamIds: Array.isArray(req.body?.mallamIds) ? req.body.mallamIds : [],
+      mallamIds,
     };
 
     validators.validatePod(payload);
@@ -2108,10 +2114,45 @@ app.post('/api/v1/pods', ...protectedMutation(['admin']), (req, res, next) => {
 
 app.patch('/api/v1/pods/:id', ...protectedMutation(['admin']), (req, res, next) => {
   try {
-    validators.validatePod(req.body, { partial: true });
-    const pod = store.updatePod(req.params.id, req.body);
+    const current = store.findPodById(req.params.id);
+    if (!current) return res.status(404).json({ message: 'Pod not found' });
+
+    const mallamIds = Array.isArray(req.body?.mallamIds) ? req.body.mallamIds : current.mallamIds || [];
+    const stateId = req.body?.stateId ?? current.stateId;
+    const localGovernmentId = req.body?.localGovernmentId ?? current.localGovernmentId;
+    const podName = String(req.body?.podName || '').trim();
+    const state = stateId ? (store.listStates() || []).find((item) => item.id === stateId) || null : null;
+    const localGovernment = localGovernmentId ? (store.listLocalGovernments() || []).find((item) => item.id === localGovernmentId) || null : null;
+    const mallamCenter = mallamIds.length ? (store.listTeachers() || []).find((item) => mallamIds.includes(item.id) && item.centerId)?.centerId : null;
+    const center = (store.listCenters() || []).find((item) => item.id === req.body?.centerId)
+      || (mallamCenter ? (store.listCenters() || []).find((item) => item.id === mallamCenter) : null)
+      || (store.listCenters() || []).find((item) => item.stateId === stateId && item.localGovernmentId === localGovernmentId)
+      || (current.centerId ? (store.listCenters() || []).find((item) => item.id === current.centerId) : null)
+      || null;
+
+    const payload = {
+      ...req.body,
+      centerId: req.body?.centerId === null ? null : req.body?.centerId || center?.id || current.centerId || null,
+      stateId: stateId || center?.stateId || null,
+      localGovernmentId: localGovernmentId || center?.localGovernmentId || null,
+      mallamIds,
+      label: podName ? buildPodLabelParts({ stateName: state?.name, localGovernmentName: localGovernment?.name, podName }).label : req.body?.label,
+    };
+
+    validators.validatePod(payload, { partial: true });
+    const pod = store.updatePod(req.params.id, payload);
     if (!pod) return res.status(404).json({ message: 'Pod not found' });
     return res.json(presenters.presentPod(pod));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.delete('/api/v1/pods/:id', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    const pod = store.deletePod(req.params.id);
+    if (!pod) return res.status(404).json({ message: 'Pod not found' });
+    return res.status(204).send();
   } catch (error) {
     return next(error);
   }
@@ -2142,6 +2183,16 @@ app.patch('/api/v1/device-registrations/:id', ...protectedMutation(['admin']), (
     const record = store.updateDeviceRegistration(req.params.id, req.body);
     if (!record) return res.status(404).json({ message: 'Device registration not found' });
     return res.json(presenters.presentDeviceRegistration(record));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.delete('/api/v1/device-registrations/:id', ...protectedMutation(['admin']), (req, res, next) => {
+  try {
+    const record = store.deleteDeviceRegistration(req.params.id);
+    if (!record) return res.status(404).json({ message: 'Device registration not found' });
+    return res.status(204).send();
   } catch (error) {
     return next(error);
   }

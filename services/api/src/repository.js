@@ -158,6 +158,42 @@ function findPodById(id) {
   return data.pods.find((item) => item.id === id) || null;
 }
 
+function deletePod(id) {
+  const pod = findPodById(id);
+  if (!pod) return null;
+
+  const linkedDevices = (data.deviceRegistrations || []).filter((item) => item.podId === id);
+  if (linkedDevices.length) {
+    const error = new Error('Pod still has registered tablets. Reassign or remove those devices first.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const linkedTeachers = (data.teachers || []).filter((item) => Array.isArray(item.podIds) && item.podIds.includes(id));
+  if (linkedTeachers.length) {
+    const error = new Error('Pod is still assigned to one or more mallams. Clear pod coverage before deleting it.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const linkedStudents = (data.students || []).filter((item) => item.podId === id);
+  if (linkedStudents.length) {
+    const error = new Error('Pod still has learners assigned. Reassign those learners before deleting it.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const linkedCohorts = (data.cohorts || []).filter((item) => item.podId === id);
+  if (linkedCohorts.length) {
+    const error = new Error('Pod still anchors one or more cohorts. Move those cohorts first.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  data.pods = data.pods.filter((item) => item.id !== id);
+  return commit(pod);
+}
+
 function createPod(input) {
   const pod = {
     id: input.id || `pod-${data.pods.length + 1}`,
@@ -1363,6 +1399,14 @@ function createDeviceRegistration(input) {
   return commit(record);
 }
 
+function deleteDeviceRegistration(id) {
+  const record = findDeviceRegistrationById(id);
+  if (!record) return null;
+
+  data.deviceRegistrations = data.deviceRegistrations.filter((item) => item.id !== id);
+  return commit(record);
+}
+
 function updateDeviceRegistration(id, input) {
   const record = findDeviceRegistrationById(id);
   if (!record) return null;
@@ -1477,6 +1521,7 @@ module.exports = {
   findPodById,
   createPod,
   updatePod,
+  deletePod,
   listCohorts,
   findCohortById,
   listTeachers,
@@ -1511,6 +1556,7 @@ module.exports = {
   findDeviceRegistrationByIdentifier,
   createDeviceRegistration,
   updateDeviceRegistration,
+  deleteDeviceRegistration,
   listLessonAssets,
   findLessonAssetById,
   createLesson,

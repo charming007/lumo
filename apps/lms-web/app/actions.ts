@@ -1401,7 +1401,7 @@ export async function expireStaleRewardRequestsAction(formData: FormData) {
 
 export async function createPodAction(formData: FormData) {
   const payload = {
-    centerId: String(formData.get('centerId') || '').trim(),
+    centerId: String(formData.get('centerId') || '').trim() || null,
     stateId: String(formData.get('stateId') || '').trim(),
     localGovernmentId: String(formData.get('localGovernmentId') || '').trim(),
     podName: String(formData.get('podName') || '').trim(),
@@ -1411,12 +1411,116 @@ export async function createPodAction(formData: FormData) {
     capacity: Number(formData.get('capacity') || 0),
     learnersActive: Number(formData.get('learnersActive') || 0),
     connectivity: String(formData.get('connectivity') || 'offline-first').trim(),
+    mallamIds: formData.getAll('mallamIds').map((value) => String(value).trim()).filter(Boolean),
   };
 
   await apiWrite('/api/v1/pods', 'POST', payload, 'admin');
   revalidatePath('/pods');
   revalidatePath('/mallams');
   redirect('/pods?message=Pod%20created%20and%20ready%20for%20device%20and%20mallam%20assignment');
+}
+
+export async function updatePodAction(formData: FormData) {
+  const podId = String(formData.get('podId') || '').trim();
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
+
+  if (!podId) {
+    redirect(appendSearchParams(returnPath, { message: 'Pod update failed: missing pod id' }));
+  }
+
+  const payload = {
+    centerId: String(formData.get('centerId') || '').trim() || null,
+    stateId: String(formData.get('stateId') || '').trim() || null,
+    localGovernmentId: String(formData.get('localGovernmentId') || '').trim() || null,
+    podName: String(formData.get('podName') || '').trim() || undefined,
+    label: String(formData.get('label') || '').trim() || undefined,
+    type: String(formData.get('type') || '').trim() || undefined,
+    status: String(formData.get('status') || '').trim() || undefined,
+    capacity: formData.get('capacity') === null ? undefined : Number(formData.get('capacity') || 0),
+    learnersActive: formData.get('learnersActive') === null ? undefined : Number(formData.get('learnersActive') || 0),
+    connectivity: String(formData.get('connectivity') || '').trim() || undefined,
+    mallamIds: formData.getAll('mallamIds').map((value) => String(value).trim()).filter(Boolean),
+  };
+
+  try {
+    await apiWrite(`/api/v1/pods/${podId}`, 'PATCH', payload, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, { message: `Pod update failed: ${describeActionError(error, 'pod could not be updated')}` }));
+  }
+
+  revalidatePath('/pods');
+  revalidatePath('/mallams');
+  revalidatePath('/devices');
+  redirect(appendSearchParams(returnPath, { message: 'Pod updated' }));
+}
+
+export async function deletePodAction(formData: FormData) {
+  const podId = String(formData.get('podId') || '').trim();
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
+
+  if (!podId) {
+    redirect(appendSearchParams(returnPath, { message: 'Pod delete failed: missing pod id' }));
+  }
+
+  try {
+    await apiWrite(`/api/v1/pods/${podId}`, 'DELETE', undefined, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, { message: `Pod delete failed: ${describeActionError(error, 'pod could not be deleted')}` }));
+  }
+
+  revalidatePath('/pods');
+  revalidatePath('/mallams');
+  revalidatePath('/devices');
+  redirect(appendSearchParams(returnPath, { message: 'Pod deleted' }));
+}
+
+export async function createDeviceRegistrationAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/devices');
+  const payload = {
+    podId: String(formData.get('podId') || '').trim() || null,
+    centerId: String(formData.get('centerId') || '').trim() || null,
+    stateId: String(formData.get('stateId') || '').trim() || null,
+    localGovernmentId: String(formData.get('localGovernmentId') || '').trim() || null,
+    assignedMallamId: String(formData.get('assignedMallamId') || '').trim() || null,
+    deviceIdentifier: String(formData.get('deviceIdentifier') || '').trim(),
+    serialNumber: String(formData.get('serialNumber') || '').trim() || null,
+    platform: String(formData.get('platform') || 'android').trim(),
+    appVersion: String(formData.get('appVersion') || '').trim() || null,
+    status: String(formData.get('status') || 'active').trim(),
+  };
+
+  try {
+    await apiWrite('/api/v1/device-registrations', 'POST', payload, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, { message: `Device registration failed: ${describeActionError(error, 'device could not be registered')}` }));
+  }
+
+  revalidatePath('/devices');
+  revalidatePath('/pods');
+  redirect(appendSearchParams(returnPath, { message: 'Tablet registered' }));
+}
+
+export async function deleteDeviceRegistrationAction(formData: FormData) {
+  const registrationId = String(formData.get('registrationId') || '').trim();
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/devices');
+
+  if (!registrationId) {
+    redirect(appendSearchParams(returnPath, { message: 'Device delete failed: missing registration id' }));
+  }
+
+  try {
+    await apiWrite(`/api/v1/device-registrations/${registrationId}`, 'DELETE', undefined, 'admin');
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, { message: `Device delete failed: ${describeActionError(error, 'device registration could not be removed')}` }));
+  }
+
+  revalidatePath('/devices');
+  revalidatePath('/pods');
+  redirect(appendSearchParams(returnPath, { message: 'Tablet registration removed' }));
 }
 
 export async function updateDeviceRegistrationAction(formData: FormData) {

@@ -222,7 +222,6 @@ function validateTeacher(body, { partial = false } = {}) {
     requireFields(body, ['name', 'displayName', 'centerId']);
   }
 
-  assertExists('centerId', body.centerId, repository.findCenterById);
   (body.podIds || []).forEach((podId) => assertExists('podId', podId, repository.findPodById));
   assertExists('primaryPodId', body.primaryPodId, repository.findPodById);
   assertExists('podId', body.podId, repository.findPodById);
@@ -261,10 +260,9 @@ function validateLocalGovernment(body, { partial = false } = {}) {
 
 function validatePod(body, { partial = false } = {}) {
   if (!partial) {
-    requireFields(body, ['centerId', 'label', 'stateId', 'localGovernmentId']);
+    requireFields(body, ['label', 'stateId', 'localGovernmentId']);
   }
 
-  assertExists('centerId', body.centerId, repository.findCenterById);
   assertExists('stateId', body.stateId, repository.findStateById);
   assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
   (body.mallamIds || []).forEach((teacherId) => assertExists('mallamId', teacherId, repository.findTeacherById));
@@ -273,13 +271,12 @@ function validatePod(body, { partial = false } = {}) {
 
 function validateDeviceRegistration(body, { partial = false } = {}) {
   if (!partial) {
-    requireFields(body, ['podId', 'deviceIdentifier']);
+    requireFields(body, ['deviceIdentifier']);
   }
 
   assertExists('podId', body.podId, repository.findPodById);
   assertExists('stateId', body.stateId, repository.findStateById);
   assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
-  assertExists('centerId', body.centerId, repository.findCenterById);
   assertExists('assignedMallamId', body.assignedMallamId, repository.findTeacherById);
   assertAllowed('status', body.status, ['active', 'inactive', 'retired', 'repair']);
 }

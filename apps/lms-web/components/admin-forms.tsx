@@ -7,6 +7,7 @@ import {
   createMallamAction,
   createModuleAction,
   createPodAction,
+  createDeviceRegistrationAction,
   createStrandAction,
   createStudentAction,
   createSubjectAction,
@@ -14,6 +15,8 @@ import {
   deleteMallamAction,
   deleteModuleAction,
   deleteLessonAction,
+  deletePodAction,
+  deleteDeviceRegistrationAction,
   deleteStrandAction,
   deleteStudentAction,
   deleteSubjectAction,
@@ -21,6 +24,7 @@ import {
   updateLessonAction,
   updateMallamAction,
   updateModuleAction,
+  updatePodAction,
   updateStrandAction,
   updateStudentAction,
   updateSubjectAction,
@@ -116,6 +120,26 @@ function PodSelector({ pods, selectedPodIds, centers, states, localGovernments }
         ))}
       </div>
       <SectionHint>Pick the actual pod coverage here instead of typing raw IDs and hoping nobody fat-fingers them.</SectionHint>
+    </div>
+  );
+}
+
+function MallamAssignmentSelector({ mallams, selectedMallamIds, centers, states, localGovernments }: { mallams: Mallam[]; selectedMallamIds: string[]; centers: Center[]; states: State[]; localGovernments: LocalGovernment[] }) {
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      <div style={{ color: '#475569', fontSize: 14, fontWeight: 700 }}>Assign to mallam</div>
+      <div style={{ ...responsiveGrid(220), gap: 10 }}>
+        {mallams.length ? mallams.map((mallam) => (
+          <label key={mallam.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155' }}>
+            <input type="checkbox" name="mallamIds" value={mallam.id} defaultChecked={selectedMallamIds.includes(mallam.id)} style={{ marginTop: 3 }} />
+            <span>
+              <strong style={{ display: 'block' }}>{mallam.displayName || mallam.name}</strong>
+              <span style={{ color: '#64748b', fontSize: 13 }}>{mallam.role || 'Mallam'} · {mallamGeographyLabel(mallam, centers, states, localGovernments)}</span>
+            </span>
+          </label>
+        )) : <div style={{ color: '#64748b', fontSize: 14 }}>No mallams loaded for assignment yet.</div>}
+      </div>
+      <SectionHint>Pods should carry their mallam ownership directly. That beats treating device assignment like the only source of truth.</SectionHint>
     </div>
   );
 }
@@ -279,7 +303,7 @@ export function UpdateMallamForm({ mallam, centers, pods, states, localGovernmen
   );
 }
 
-export function CreatePodForm({ centers, states, localGovernments }: { centers: Center[]; states: State[]; localGovernments: LocalGovernment[] }) {
+export function CreatePodForm({ centers, mallams, states, localGovernments }: { centers: Center[]; mallams: Mallam[]; states: State[]; localGovernments: LocalGovernment[] }) {
   return (
     <form action={createPodAction} style={cardStyle}>
       <h2 style={{ margin: 0 }}>Add pod</h2>
@@ -291,7 +315,12 @@ export function CreatePodForm({ centers, states, localGovernments }: { centers: 
         states={states}
         localGovernments={localGovernments}
         initialCenterId={centers[0]?.id}
+        showCenter={false}
       />
+      <GeographyHint>
+        Center is now derived from the selected geography or assigned mallam coverage. Operators should not have to babysit a redundant center picker just to create a pod.
+      </GeographyHint>
+      <MallamAssignmentSelector mallams={mallams} selectedMallamIds={[]} centers={centers} states={states} localGovernments={localGovernments} />
       <div style={twoColumnGrid}>
         <FieldLabel>Type<select name="type" defaultValue="community-pod" style={inputStyle}><option value="community-pod">Community pod</option><option value="solar-container">Solar container</option><option value="classroom-kit">Classroom kit</option></select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="pilot">Pilot</option><option value="inactive">Inactive</option></select></FieldLabel>
@@ -302,6 +331,88 @@ export function CreatePodForm({ centers, states, localGovernments }: { centers: 
         <FieldLabel>Connectivity<select name="connectivity" defaultValue="offline-first" style={inputStyle}><option value="offline-first">Offline first</option><option value="sync-daily">Sync daily</option><option value="always-online">Always online</option></select></FieldLabel>
       </div>
       <ActionButton label="Create pod" pendingLabel="Creating pod…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function UpdatePodForm({ pod, centers, mallams, states, localGovernments, embedded = false, returnPath = '/pods' }: { pod: Pod; centers: Center[]; mallams: Mallam[]; states: State[]; localGovernments: LocalGovernment[]; embedded?: boolean; returnPath?: string }) {
+  return (
+    <div style={embedded ? embeddedCardStyle : cardStyle}>
+      <form action={updatePodAction} style={{ display: 'grid', gap: 12 }}>
+        <input type="hidden" name="podId" value={pod.id} />
+        <input type="hidden" name="returnPath" value={returnPath} />
+        <h2 style={{ margin: 0 }}>Update pod</h2>
+        <SectionHint>Pods are operational records now. Edit the geography, label source, and mallam ownership here instead of faking pod edits through device assignment.</SectionHint>
+        <PodGeographySelectors centers={centers} states={states} localGovernments={localGovernments} initialCenterId={pod.centerId} initialStateId={pod.stateId} initialLocalGovernmentId={pod.localGovernmentId} initialLabel={pod.label} initialPodName={pod.label.split('-').slice(2).join('-') || pod.label} showCenter={false} />
+        <MallamAssignmentSelector mallams={mallams} selectedMallamIds={pod.mallamIds ?? []} centers={centers} states={states} localGovernments={localGovernments} />
+        <div style={twoColumnGrid}>
+          <FieldLabel>Type<select name="type" defaultValue={pod.type} style={inputStyle}><option value="community-pod">Community pod</option><option value="solar-container">Solar container</option><option value="classroom-kit">Classroom kit</option></select></FieldLabel>
+          <FieldLabel>Status<select name="status" defaultValue={pod.status} style={inputStyle}><option value="active">Active</option><option value="pilot">Pilot</option><option value="inactive">Inactive</option></select></FieldLabel>
+        </div>
+        <div style={threeColumnGrid}>
+          <FieldLabel>Capacity<input name="capacity" type="number" min="1" defaultValue={String(pod.capacity ?? 0)} style={inputStyle} /></FieldLabel>
+          <FieldLabel>Current learners<input name="learnersActive" type="number" min="0" defaultValue={String(pod.learnersActive ?? 0)} style={inputStyle} /></FieldLabel>
+          <FieldLabel>Connectivity<select name="connectivity" defaultValue={pod.connectivity || 'offline-first'} style={inputStyle}><option value="offline-first">Offline first</option><option value="sync-daily">Sync daily</option><option value="always-online">Always online</option></select></FieldLabel>
+        </div>
+        <ActionButton label="Save pod changes" pendingLabel="Saving pod…" style={buttonStyle} />
+      </form>
+    </div>
+  );
+}
+
+export function DeletePodForm({ pod, embedded = false, returnPath = '/pods' }: { pod: Pod; embedded?: boolean; returnPath?: string }) {
+  return (
+    <form action={deletePodAction} style={embedded ? embeddedCardStyle : cardStyle}>
+      <input type="hidden" name="podId" value={pod.id} />
+      <input type="hidden" name="returnPath" value={returnPath} />
+      <div style={{ display: 'grid', gap: 10 }}>
+        <h2 style={{ margin: 0 }}>Delete pod</h2>
+        <div style={{ color: '#475569', lineHeight: 1.6 }}>
+          Remove <strong>{pod.label}</strong> from the pod registry? This is guarded: if tablets, learners, mallams, or cohorts still point at the pod, the delete will fail loudly instead of wrecking the dataset.
+        </div>
+      </div>
+      <DeleteConfirmSubmit expectedText={pod.label} entityLabel="pod" actionLabel="Delete pod" pendingLabel="Deleting pod…" impactNote="Only clean, detached pods can be deleted. Reassign dependencies first if the API blocks this." />
+    </form>
+  );
+}
+
+export function CreateDeviceRegistrationForm({ pods, mallams, centers, states, localGovernments, returnPath = '/devices' }: { pods: Pod[]; mallams: Mallam[]; centers: Center[]; states: State[]; localGovernments: LocalGovernment[]; returnPath?: string }) {
+  return (
+    <form action={createDeviceRegistrationAction} style={cardStyle}>
+      <input type="hidden" name="returnPath" value={returnPath} />
+      <h2 style={{ margin: 0 }}>Register tablet</h2>
+      <SectionHint>Devices are a real admin surface now: register the tablet first, then assign or reassign it to the right pod and mallam lane.</SectionHint>
+      <div style={responsiveGrid(220)}>
+        <FieldLabel>Device identifier<input name="deviceIdentifier" defaultValue="tablet-kano-07" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Serial number<input name="serialNumber" defaultValue="SN-LUMO-007" style={inputStyle} /></FieldLabel>
+        <FieldLabel>Platform<select name="platform" defaultValue="android" style={inputStyle}><option value="android">Android</option><option value="ios">iPadOS</option><option value="web">Web kiosk</option></select></FieldLabel>
+        <FieldLabel>App version<input name="appVersion" defaultValue="0.1.0" style={inputStyle} /></FieldLabel>
+      </div>
+      <div style={responsiveGrid(220)}>
+        <FieldLabel>Pod assignment<select name="podId" defaultValue="" style={inputStyle}><option value="">Unassigned</option>{pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}</select></FieldLabel>
+        <FieldLabel>Responsible mallam<select name="assignedMallamId" defaultValue="" style={inputStyle}><option value="">No direct mallam assignment</option>{mallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName || mallam.name}</option>)}</select></FieldLabel>
+        <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="inactive">Inactive</option><option value="repair">Repair</option><option value="retired">Retired</option></select></FieldLabel>
+      </div>
+      <div style={responsiveGrid(220)}>
+        <FieldLabel>State<select name="stateId" defaultValue={states[0]?.id ?? ''} style={inputStyle}><option value="">Select state</option>{states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}</select></FieldLabel>
+        <FieldLabel>Local government<select name="localGovernmentId" defaultValue={localGovernments[0]?.id ?? ''} style={inputStyle}><option value="">Select local government</option>{localGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></FieldLabel>
+        <FieldLabel>Center<select name="centerId" defaultValue={centers[0]?.id ?? ''} style={inputStyle}><option value="">Optional center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></FieldLabel>
+      </div>
+      <ActionButton label="Register tablet" pendingLabel="Registering tablet…" style={buttonStyle} />
+    </form>
+  );
+}
+
+export function DeleteDeviceRegistrationForm({ registrationId, deviceIdentifier, embedded = false, returnPath = '/devices' }: { registrationId: string; deviceIdentifier: string; embedded?: boolean; returnPath?: string }) {
+  return (
+    <form action={deleteDeviceRegistrationAction} style={embedded ? embeddedCardStyle : cardStyle}>
+      <input type="hidden" name="registrationId" value={registrationId} />
+      <input type="hidden" name="returnPath" value={returnPath} />
+      <div style={{ display: 'grid', gap: 10 }}>
+        <h2 style={{ margin: 0 }}>Remove tablet</h2>
+        <div style={{ color: '#475569', lineHeight: 1.6 }}>Remove <strong>{deviceIdentifier}</strong> from the device registry? This clears the admin record so the tablet can be re-enrolled cleanly later if needed.</div>
+      </div>
+      <DeleteConfirmSubmit expectedText={deviceIdentifier} entityLabel="tablet registration" actionLabel="Remove tablet" pendingLabel="Removing tablet…" impactNote="This removes the current registration record from the admin surface." />
     </form>
   );
 }

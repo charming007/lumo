@@ -361,6 +361,7 @@ export type Pod = {
   connectivity: string;
   learnersActive: number;
   capacity?: number;
+  mallamIds?: string[];
   mallamNames?: string[];
 };
 

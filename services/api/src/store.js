@@ -231,6 +231,10 @@ function updateDeviceRegistration(id, input) {
   return repository.updateDeviceRegistration(id, input);
 }
 
+function deleteDeviceRegistration(id) {
+  return repository.deleteDeviceRegistration(id);
+}
+
 function listLessonAssets() {
   return repository.listLessonAssets();
 }
@@ -317,6 +321,10 @@ function createPod(input) {
 
 function updatePod(id, input) {
   return repository.updatePod(id, input);
+}
+
+function deletePod(id) {
+  return repository.deletePod(id);
 }
 
 function listCohorts() {
@@ -1760,6 +1768,7 @@ module.exports = {
   findDeviceRegistrationByIdentifier,
   createDeviceRegistration,
   updateDeviceRegistration,
+  deleteDeviceRegistration,
   listLessonAssets,
   findLessonAssetById,
   createLessonAsset,
@@ -1782,6 +1791,7 @@ module.exports = {
   findPodById,
   createPod,
   updatePod,
+  deletePod,
   listCohorts,
   listTeachers,
   createTeacher,
