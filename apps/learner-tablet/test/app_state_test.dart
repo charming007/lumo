@@ -1460,9 +1460,8 @@ void main() {
         option: option,
         note: 'Sticker earned after strong speaking turn',
       );
+      await state.flushPersistence();
       state.dispose();
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
 
       final restored = LumoAppState(includeSeedDemoContent: true);
       await restored.restorePersistedState();
@@ -1494,9 +1493,8 @@ void main() {
         ),
       );
 
+      await state.flushPersistence();
       state.dispose();
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
 
       final restored = LumoAppState(includeSeedDemoContent: true);
       await restored.restorePersistedState();
@@ -1521,9 +1519,8 @@ void main() {
       state.lastSyncAcceptedCount = 3;
       state.lastSyncIgnoredCount = 1;
       state.lastSyncAttemptAt = DateTime.parse('2026-04-16T09:15:00.000Z');
+      await state.flushPersistence();
       state.dispose();
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
 
       final restored = LumoAppState(includeSeedDemoContent: true);
       await restored.restorePersistedState();
@@ -3410,6 +3407,111 @@ void main() {
       expect(state.operatorSourceLabel, 'Backend offline');
       expect(state.curriculumSourceLabel, 'Offline pack curriculum');
       expect(state.operatorHealthLabel, 'Sync stale');
+    });
+
+    test('successful bootstrap clears stale offline trust warnings', () async {
+      final staleAttemptAt = DateTime.now().subtract(const Duration(hours: 3));
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          if (request.url.path == '/api/v1/learner-app/bootstrap') {
+            return http.Response(
+              jsonEncode({
+                'learners': [
+                  {
+                    'id': 'student-1',
+                    'name': 'Amina Bello',
+                    'age': 9,
+                    'cohort': 'Cohort A',
+                    'cohortId': 'cohort-a',
+                    'podId': 'pod-1',
+                    'podLabel': 'Pod 1',
+                    'learnerCode': 'LM-001',
+                  },
+                ],
+                'modules': [
+                  {
+                    'id': 'english',
+                    'title': 'English',
+                    'description': 'Speaking practice',
+                    'voicePrompt': 'Open English',
+                    'readinessGoal': 'Ready for English',
+                    'subjectId': 'english',
+                    'subjectName': 'English',
+                    'status': 'published',
+                  },
+                ],
+                'lessons': [
+                  {
+                    'id': 'lesson-1',
+                    'moduleId': 'english',
+                    'moduleTitle': 'English',
+                    'subjectId': 'english',
+                    'subjectName': 'English',
+                    'title': 'Live English lesson',
+                    'description': 'Live payload',
+                    'status': 'published',
+                    'activityType': 'listen_repeat',
+                    'activitySteps': [
+                      {
+                        'id': 'step-1',
+                        'type': 'listen_repeat',
+                        'prompt': 'Say hello',
+                      },
+                    ],
+                  },
+                ],
+                'assignments': [
+                  {
+                    'id': 'assignment-1',
+                    'lessonId': 'lesson-1',
+                    'learnerId': 'student-1',
+                  },
+                ],
+                'registrationContext': {
+                  'tabletRegistration': {
+                    'id': 'tablet-1',
+                    'deviceIdentifier': 'tablet-1',
+                    'podId': 'pod-1',
+                    'podLabel': 'Pod 1',
+                  },
+                },
+                'meta': {
+                  'generatedAt': '2026-04-23T00:00:00.000Z',
+                  'contractVersion': 'learner-app-v2.5',
+                  'assignmentCount': 1,
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('Not found', 404);
+        }),
+        baseUrl: 'https://example.com',
+      );
+      final state = LumoAppState(
+        apiClient: client,
+        includeSeedDemoContent: true,
+      )
+        ..usingFallbackData = true
+        ..backendError = 'timeout'
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(hours: 8))
+        ..lastSyncAttemptAt = staleAttemptAt
+        ..pendingSyncEvents.add(
+          const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+        );
+
+      await state.bootstrap();
+
+      expect(state.usingFallbackData, isFalse);
+      expect(state.backendError, isNull);
+      expect(state.operatorSourceLabel, 'Backend link live');
+      expect(state.curriculumSourceLabel, 'Curriculum live');
+      expect(state.operatorHealthLabel, 'Backend healthy');
+      expect(state.lastSyncAttemptAt, isNotNull);
+      expect(state.lastSyncAttemptAt!.isAfter(staleAttemptAt), isTrue);
+
+      state.dispose();
     });
 
     test('operator status shows backend unavailable without fallback payload',

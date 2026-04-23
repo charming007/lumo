@@ -10638,16 +10638,16 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                         ),
                                       );
                                     },
-                                    child: Text(nextLesson == null
-                                        ? 'Open recommended subject'
-                                        : 'Start next routed lesson'),
+                                    child: const Text(
+                                      'Go to next learner',
+                                    ),
                                   ),
                                   secondary: OutlinedButton(
                                     onPressed: () {
                                       Navigator.of(context)
                                           .popUntil((route) => route.isFirst);
                                     },
-                                    child: const Text('Back home'),
+                                    child: const Text('Go home'),
                                   ),
                                 ),
                               ],

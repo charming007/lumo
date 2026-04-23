@@ -773,6 +773,11 @@ class LumoAppState {
     );
   }
 
+  Future<void> flushPersistence() async {
+    _persistenceDebounce?.cancel();
+    await _persistStateNow();
+  }
+
   Future<void> bootstrap() async {
     await ensureStableDeviceIdentifier();
     if (isBootstrapping) return;
@@ -868,6 +873,7 @@ class LumoAppState {
       deploymentBlockerReason = liveBootstrapRuntimeBlocker;
       backendError = liveBootstrapRuntimeBlocker;
       lastSyncedAt = DateTime.now();
+      lastSyncAttemptAt = lastSyncedAt;
       snapshotSavedAt = lastSyncedAt;
       snapshotSourceBaseUrl = backendBaseUrl;
       snapshotContractVersion = data.contractVersion;
@@ -5172,7 +5178,6 @@ class LumoAppState {
     _syncRetryTimer?.cancel();
     _persistenceDebounce?.cancel();
     _listeners.clear();
-    unawaited(_persistStateNow());
   }
 
   void _scheduleSyncRetry() {
