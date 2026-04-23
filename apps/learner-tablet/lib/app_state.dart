@@ -1819,10 +1819,23 @@ class LumoAppState {
     String moduleId,
   ) {
     final normalizedSubjectId = moduleId.trim().toLowerCase();
+    final matchedModule = modules.cast<LearningModule?>().firstWhere(
+          (module) => module?.id.trim().toLowerCase() == normalizedSubjectId,
+          orElse: () => null,
+        );
 
     return lessonsForLearner(learner).where((lesson) {
       final lessonSubject = lesson.subject.trim().toLowerCase();
       final lessonModuleId = lesson.moduleId.trim().toLowerCase();
+      if (matchedModule != null) {
+        final moduleTitle = matchedModule.title.trim().toLowerCase();
+        return _lessonMatchesModule(lesson: lesson, module: matchedModule) ||
+            (moduleTitle.isNotEmpty &&
+                lessonSubject.isNotEmpty &&
+                (moduleTitle.contains(lessonSubject) ||
+                    lessonSubject.contains(moduleTitle)));
+      }
+
       return lessonModuleId == normalizedSubjectId ||
           lessonSubject == normalizedSubjectId;
     }).toList();
