@@ -1,7 +1,8 @@
 import { CreateDeviceRegistrationForm, DeleteDeviceRegistrationForm } from '../../components/admin-forms';
+import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { updateDeviceRegistrationAction } from '../actions';
-import { fetchCenters, fetchDeviceRegistrations, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates } from '../../lib/api';
+import { fetchDeviceRegistrations, fetchPods } from '../../lib/api';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function formatDateTime(value?: string | null) {
@@ -25,13 +26,9 @@ function toneForStatus(status?: string | null) {
 
 export default async function DevicesPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
-  const [registrations, pods, mallams, centers, states, localGovernments] = await Promise.all([
+  const [registrations, pods] = await Promise.all([
     fetchDeviceRegistrations(),
     fetchPods(),
-    fetchMallams(),
-    fetchCenters(),
-    fetchStates(),
-    fetchLocalGovernments(),
   ]);
 
   const activeCount = registrations.filter((item) => (item.status || '').toLowerCase() === 'active').length;
@@ -40,13 +37,13 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
   return (
     <PageShell
       title="Devices"
-      subtitle="Standalone tablet admin for registration, assignment, reassignment, and removal. No more fake redirect back to Pods."
+      subtitle="Register and manage tablets from the route operators are actually using, with pod selection as the source of truth for geography and mallam context."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <ModalLauncher buttonLabel="Register tablet" title="Register tablet" description="Create a new device registration, then assign it to the right pod and mallam lane." eyebrow="Device admin">
-              <CreateDeviceRegistrationForm pods={pods} mallams={mallams} centers={centers} states={states} localGovernments={localGovernments} />
+            <ModalLauncher buttonLabel="Register tablet" title="Register tablet" description="Register a tablet by picking its pod and giving it a short tablet name." eyebrow="Device admin">
+              <CreateDeviceRegistrationForm pods={pods} />
             </ModalLauncher>
           </div>
           <Card title="Device snapshot" eyebrow="Live API">
@@ -60,20 +57,16 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
         </div>
       }
     >
-      {query?.message ? (
-        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#3730A3', fontWeight: 700 }}>
-          {query.message}
-        </div>
-      ) : null}
+      <FeedbackBanner message={query?.message} />
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
           ['Pods receiving devices', String(new Set(registrations.map((item) => item.podId).filter(Boolean)).size)],
-          ['Mallams explicitly linked', String(registrations.filter((item) => item.assignedMallamId).length)],
+          ['Mallams derived from pods', String(registrations.filter((item) => item.assignedMallamId).length)],
           ['Repair queue', String(registrations.filter((item) => (item.status || '').toLowerCase() === 'repair').length)],
           ['Retired devices', String(registrations.filter((item) => (item.status || '').toLowerCase() === 'retired').length)],
         ].map(([label, value]) => (
-          <Card key={label} title={value} eyebrow={label}><div style={{ color: '#64748b' }}>Field operations now have a proper device lane instead of getting bounced into pod admin.</div></Card>
+          <Card key={label} title={value} eyebrow={label}><div style={{ color: '#64748b' }}>Pod selection now carries the geography and ownership context so operators do not have to re-enter the same deployment metadata five times.</div></Card>
         ))}
       </section>
 
@@ -83,9 +76,6 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
             columns={['Device', 'Pod', 'Mallam', 'Geography', 'Status', 'Last seen', 'Actions']}
             rows={registrations.length ? registrations.map((registration) => {
               const [tone, text] = toneForStatus(registration.status);
-              const availableMallams = registration.podId
-                ? mallams.filter((mallam) => (mallam.podIds || []).includes(registration.podId as string))
-                : mallams;
               return [
                 <div key={`${registration.id}-device`} style={{ display: 'grid', gap: 4 }}>
                   <strong>{registration.deviceIdentifier}</strong>
@@ -104,10 +94,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
                       <option value="">Unassigned pod</option>
                       {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}
                     </select>
-                    <select name="assignedMallamId" defaultValue={registration.assignedMallamId || ''} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: 'white', fontSize: 14 }}>
-                      <option value="">No direct mallam assignment</option>
-                      {availableMallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName || mallam.name}</option>)}
-                    </select>
+                    <input name="tabletName" defaultValue={registration.tabletName || ''} placeholder="Tablet name" style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: 'white', fontSize: 14 }} />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <select name="status" defaultValue={registration.status || 'active'} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: 'white', fontSize: 14 }}>
                         <option value="active">Active</option>

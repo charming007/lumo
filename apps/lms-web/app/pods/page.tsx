@@ -1,4 +1,5 @@
 import { CreatePodForm, DeletePodForm, UpdatePodForm } from '../../components/admin-forms';
+import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchDeviceRegistrations, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates } from '../../lib/api';
 import { podGeographyLabel } from '../../lib/geography';
@@ -31,7 +32,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
   return (
     <PageShell
       title="Pods"
-      subtitle="Proper pod admin: create, edit, retire, and inspect pod ownership without pretending tablets are the only thing that matters."
+      subtitle="Create, update, retire, and inspect operational pods without hiding the workflow behind a redirect."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -53,11 +54,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
         </div>
       }
     >
-      {query?.message ? (
-        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#3730A3', fontWeight: 700 }}>
-          {query.message}
-        </div>
-      ) : null}
+      <FeedbackBanner message={query?.message} />
 
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
         {pods.slice(0, 3).map((pod) => {
@@ -84,27 +81,27 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
       <div style={{ marginBottom: 20 }}>
         <Card title="Pod registry" eyebrow="CRUD admin">
           <SimpleTable
-          columns={['Pod', 'Status', 'Geography', 'Learners', 'Mallams', 'Tablets', 'Center', 'Actions']}
-          rows={pods.map((pod) => {
-            const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
-            return [
-              pod.label || pod.id,
-              <Pill key={`${pod.id}-status`} label={pod.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
-              podGeographyLabel(pod, centers, states, localGovernments),
-              String(pod.learnersActive || 0),
-              (pod.mallamNames || []).join(', ') || '—',
-              String(podDevices.length),
-              pod.centerName || 'Derived from geography',
-              <div key={`${pod.id}-actions`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <ModalLauncher buttonLabel="Edit" title={`Edit ${pod.label}`} description="Update pod geography, mallam ownership, and live operating details." eyebrow="Pod admin" triggerStyle={{ background: '#E2E8F0', color: '#0f172a', boxShadow: 'none', padding: '10px 12px', borderRadius: 12 }}>
-                  <UpdatePodForm pod={pod} centers={centers} mallams={mallams} states={states} localGovernments={localGovernments} />
-                </ModalLauncher>
-                <ModalLauncher buttonLabel="Delete" title={`Delete ${pod.label}`} description="Delete is guarded. If the pod still has tablets, learners, mallams, or cohorts linked, the API blocks it." eyebrow="Pod admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', boxShadow: 'none', padding: '10px 12px', borderRadius: 12 }}>
-                  <DeletePodForm pod={pod} />
-                </ModalLauncher>
-              </div>,
-            ];
-          })}
+            columns={['Pod', 'Status', 'Geography', 'Learners', 'Mallams', 'Tablets', 'Center', 'Actions']}
+            rows={pods.map((pod) => {
+              const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
+              return [
+                pod.label || pod.id,
+                <Pill key={`${pod.id}-status`} label={pod.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
+                podGeographyLabel(pod, centers, states, localGovernments),
+                String(pod.learnersActive || 0),
+                (pod.mallamNames || []).join(', ') || '—',
+                String(podDevices.length),
+                pod.centerName || 'Derived from geography',
+                <div key={`${pod.id}-actions`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <ModalLauncher buttonLabel="Edit" title={`Edit ${pod.label}`} description="Update pod geography, mallam ownership, and live operating details." eyebrow="Pod admin" triggerStyle={{ background: '#E2E8F0', color: '#0f172a', boxShadow: 'none', padding: '10px 12px', borderRadius: 12 }}>
+                    <UpdatePodForm pod={pod} centers={centers} mallams={mallams} states={states} localGovernments={localGovernments} />
+                  </ModalLauncher>
+                  <ModalLauncher buttonLabel="Delete" title={`Delete ${pod.label}`} description="Delete is guarded. If the pod still has tablets, learners, mallams, or cohorts linked, the API blocks it." eyebrow="Pod admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', boxShadow: 'none', padding: '10px 12px', borderRadius: 12 }}>
+                    <DeletePodForm pod={pod} />
+                  </ModalLauncher>
+                </div>,
+              ];
+            })}
           />
         </Card>
       </div>
@@ -126,9 +123,9 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
         <Card title="Why this matters" eyebrow="Closeout note">
           <div style={{ display: 'grid', gap: 12 }}>
             {[
-              'Pods finally own their mallam linkage instead of forcing operators to infer that through device rows.',
-              'Center is no longer treated like the primary operator choice on pod creation. Geography comes first; center is derived where possible.',
-              'Devices still show up here for context, but the standalone Devices route now handles registration, reassignment, and removal properly.',
+              'Pods own their mallam linkage directly instead of forcing operators to reverse-engineer ownership from device rows.',
+              'Center stays de-emphasized in pod creation. Geography and assigned mallam drive the pod; center is derived where possible.',
+              'Devices still show up here for context, but the standalone Devices route handles registration and reassignment cleanly.',
             ].map((detail) => (
               <div key={detail} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#475569', lineHeight: 1.7 }}>{detail}</div>
             ))}
