@@ -2031,6 +2031,52 @@ void main() {
     state.dispose();
   });
 
+  testWidgets(
+      'lesson launch shows completed learners as unavailable and exposes absent CTA',
+      (
+    tester,
+  ) async {
+    final state = LumoAppState(includeSeedDemoContent: true);
+    final module = state.modules.firstWhere((item) => item.id == 'english');
+    final lesson = state.assignedLessons.firstWhere(
+      (item) => item.moduleId == module.id,
+    );
+    final completedLearner = state.learners.first;
+    final availableLearner = state.learners.firstWhere(
+      (item) => item.id != completedLearner.id,
+    );
+
+    state.selectLearner(completedLearner);
+    state.selectModule(module);
+    state.startLesson(lesson);
+    await state.completeLesson(lesson);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonLaunchSetupPage(
+          state: state,
+          onChanged: () {},
+          lesson: lesson,
+          module: module,
+        ),
+      ),
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('Completed today'), findsWidgets);
+    expect(find.text('Absent: ${completedLearner.name}'), findsNothing);
+
+    await tester.tap(find.text(availableLearner.name).first);
+    await pumpForUi(tester);
+
+    expect(find.text('Absent: ${availableLearner.name}'), findsOneWidget);
+    expect(find.text('Start with ${availableLearner.name}'), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome_rounded), findsWidgets);
+    expect(find.byIcon(Icons.pets_rounded), findsWidgets);
+
+    state.dispose();
+  });
+
   testWidgets('lesson launch setup stays usable on narrow tablet widths', (
     tester,
   ) async {

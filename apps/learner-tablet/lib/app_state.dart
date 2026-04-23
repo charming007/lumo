@@ -1301,6 +1301,9 @@ class LumoAppState {
   }
 
   bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
+    if (lessonCompletedTodayForLearner(learner, lesson)) {
+      return false;
+    }
     if (lesson.isAssignmentPlaceholder) {
       return learnerMatchesTabletPod(learner);
     }
@@ -1362,6 +1365,97 @@ class LumoAppState {
     return session.lessonId == lesson.id ? session : null;
   }
 
+  BackendLessonSession? completedSessionForLearnerAndLesson(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) {
+    final sessions = recentRuntimeSessionsForLearner(learner);
+    for (final session in sessions) {
+      if (session.lessonId != lesson.id) continue;
+      final normalizedStatus = session.status.trim().toLowerCase();
+      final normalizedCompletion = session.completionState.trim().toLowerCase();
+      final completed = normalizedStatus == 'completed' ||
+          normalizedCompletion == 'completed' ||
+          normalizedCompletion == 'complete';
+      if (completed) return session;
+    }
+    return null;
+  }
+
+  BackendLessonSession? terminalRuntimeSessionForLearnerAndLesson(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) {
+    final sessions = recentRuntimeSessionsForLearner(learner);
+    for (final session in sessions) {
+      if (session.lessonId != lesson.id) continue;
+      final normalizedStatus = session.status.trim().toLowerCase();
+      final normalizedCompletion = session.completionState.trim().toLowerCase();
+      final isTerminal = normalizedStatus == 'completed' ||
+          normalizedStatus == 'absent' ||
+          normalizedStatus == 'skipped' ||
+          normalizedCompletion == 'completed' ||
+          normalizedCompletion == 'complete' ||
+          normalizedCompletion == 'absent' ||
+          normalizedCompletion == 'skipped' ||
+          normalizedCompletion == 'skip';
+      if (isTerminal) return session;
+    }
+    return null;
+  }
+
+  bool lessonCompletedTodayForLearner(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) {
+    final session = completedSessionForLearnerAndLesson(learner, lesson);
+    if (session == null) return false;
+    final activityAt =
+        session.completedAt ?? session.lastActivityAt ?? session.startedAt;
+    if (activityAt == null) return false;
+    final now = DateTime.now();
+    return activityAt.year == now.year &&
+        activityAt.month == now.month &&
+        activityAt.day == now.day;
+  }
+
+  Future<void> markLearnerAbsentForLesson(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) async {
+    _projectTerminalRuntimeSession(
+      learner: learner,
+      lesson: lesson,
+      status: 'absent',
+      completionState: 'absent',
+      automationStatus: 'Learner marked absent on this tablet.',
+    );
+
+    final updatedLearner = learner.copyWith(
+      lastAttendance: 'Absent for ${lesson.subject} today',
+      lastLessonSummary:
+          'Marked absent before ${lesson.title} started on the shared tablet.',
+      attendanceBand: 'Needs follow-up',
+    );
+    _replaceLearner(updatedLearner);
+    pendingSyncEvents.add(
+      SyncEvent(
+        id: 'sync-${pendingSyncEvents.length + 1}',
+        type: 'learner_marked_absent',
+        payload: {
+          'studentId': updatedLearner.id,
+          'learnerCode': updatedLearner.learnerCode,
+          'lessonId': lesson.id,
+          'lessonTitle': lesson.title,
+          'moduleId': lesson.moduleId,
+          'capturedAt': DateTime.now().toIso8601String(),
+        },
+      ),
+    );
+    persistStateSoon();
+    await syncPendingEvents();
+  }
+
   void selectLearner(LearnerProfile learner) {
     currentLearner = learner;
     persistStateSoon();
@@ -1416,14 +1510,14 @@ class LumoAppState {
         .where((moduleId) => moduleId.isNotEmpty)
         .toSet();
     final matchingModule = modules.cast<LearningModule?>().firstWhere(
-          (module) {
-            if (module == null) return false;
-            return lessonModuleIds.contains(module.id) ||
-                _normalizeSubjectKey(module.title) == key ||
-                _normalizeSubjectKey(module.id) == key;
-          },
-          orElse: () => null,
-        );
+      (module) {
+        if (module == null) return false;
+        return lessonModuleIds.contains(module.id) ||
+            _normalizeSubjectKey(module.title) == key ||
+            _normalizeSubjectKey(module.id) == key;
+      },
+      orElse: () => null,
+    );
     final lessonCount = lessons.length;
     return LearningModule(
       id: key,
@@ -3242,16 +3336,10 @@ class LumoAppState {
     LearnerProfile learner,
     LessonSessionState session,
   ) {
-    final existing = recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
-    final projected = BackendLessonSession(
-      id: session.sessionId,
+    _projectTerminalRuntimeSession(
+      learner: learner,
+      lesson: session.lesson,
       sessionId: session.sessionId,
-      studentId: learner.id,
-      learnerCode: learner.learnerCode,
-      lessonId: session.lesson.id,
-      lessonTitle: session.lesson.title,
-      moduleId: session.lesson.moduleId,
-      moduleTitle: session.lesson.subject,
       status: 'completed',
       completionState: 'completed',
       automationStatus: 'Lesson completed on this tablet.',
@@ -3265,6 +3353,55 @@ class LumoAppState {
       startedAt: session.startedAt,
       lastActivityAt: session.lastUpdatedAt,
       completedAt: session.lastUpdatedAt,
+    );
+  }
+
+  void _projectTerminalRuntimeSession({
+    required LearnerProfile learner,
+    required LessonCardModel lesson,
+    required String status,
+    required String completionState,
+    required String automationStatus,
+    String? sessionId,
+    int currentStepIndex = 0,
+    int? stepsTotal,
+    int responsesCaptured = 0,
+    int supportActionsUsed = 0,
+    int audioCaptures = 0,
+    int facilitatorObservations = 0,
+    String? latestReview,
+    DateTime? startedAt,
+    DateTime? lastActivityAt,
+    DateTime? completedAt,
+  }) {
+    final existing = recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
+    final now = DateTime.now();
+    final resolvedSessionId = sessionId ??
+        '${status}-${lesson.id}-${DateTime.now().millisecondsSinceEpoch}';
+    final activityAt = lastActivityAt ?? completedAt ?? now;
+    final terminalAt = completedAt ?? activityAt;
+    final projected = BackendLessonSession(
+      id: resolvedSessionId,
+      sessionId: resolvedSessionId,
+      studentId: learner.id,
+      learnerCode: learner.learnerCode,
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      moduleId: lesson.moduleId,
+      moduleTitle: lesson.subject,
+      status: status,
+      completionState: completionState,
+      automationStatus: automationStatus,
+      currentStepIndex: currentStepIndex,
+      stepsTotal: stepsTotal ?? lesson.steps.length,
+      responsesCaptured: responsesCaptured,
+      supportActionsUsed: supportActionsUsed,
+      audioCaptures: audioCaptures,
+      facilitatorObservations: facilitatorObservations,
+      latestReview: latestReview,
+      startedAt: startedAt ?? activityAt,
+      lastActivityAt: activityAt,
+      completedAt: terminalAt,
     );
     recentRuntimeSessionsByLearnerId[learner.id] =
         _mergeRuntimeSessions(existing, [projected]);
