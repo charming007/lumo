@@ -680,6 +680,7 @@ class LearnerSubjectCardModel {
   final String readinessGoal;
   final String badge;
   final LearningModule module;
+  final int availableLessonCount;
 
   const LearnerSubjectCardModel({
     required this.id,
@@ -689,6 +690,7 @@ class LearnerSubjectCardModel {
     required this.readinessGoal,
     required this.badge,
     required this.module,
+    required this.availableLessonCount,
   });
 }
 
@@ -719,8 +721,18 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
   final subjects = state.learnerFacingSubjects(learner: learner);
 
   return subjects
-      .map(
-        (subject) => LearnerSubjectCardModel(
+      .map((subject) {
+        final availableLessonCount = state
+            .lessonsForLearnerAndSubject(learner, subject.id)
+            .where((lesson) {
+          if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
+            return false;
+          }
+          return learner != null ||
+              state.availableLearnersForLesson(lesson).isNotEmpty;
+        }).length;
+
+        return LearnerSubjectCardModel(
           id: subject.id,
           title: subject.title,
           description: subject.description,
@@ -732,8 +744,10 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
                 subjectId: subject.id,
               ) ??
               subject,
-        ),
-      )
+          availableLessonCount: availableLessonCount,
+        );
+      })
+      .where((subject) => subject.availableLessonCount > 0)
       .toList(growable: false);
 }
 
@@ -1031,7 +1045,13 @@ class HomePage extends StatelessWidget {
     final viewportSize = MediaQuery.sizeOf(context);
     final viewportHeight = viewportSize.height;
     final viewportWidth = viewportSize.width;
-    final showTrustBanner = viewportHeight > 840 && viewportWidth >= 900;
+    final hasSyncWarnings = state.usingFallbackData ||
+        state.hasCriticalSyncTrustBlocker ||
+        state.registrationBlockerReason != null ||
+        state.assignedLessons.any((lesson) => lesson.isAssignmentPlaceholder) ||
+        state.lastSyncedAt == null;
+    final showTrustBanner =
+        hasSyncWarnings && viewportHeight > 840 && viewportWidth >= 900;
 
     return Scaffold(
       body: SafeArea(
@@ -1412,12 +1432,8 @@ class HomePage extends StatelessWidget {
                                           badge: subject.badge,
                                           status: subject.module.status,
                                         ),
-                                        lessonCount: state
-                                            .lessonsForLearnerAndSubject(
-                                              null,
-                                              subject.id,
-                                            )
-                                            .length,
+                                        lessonCount:
+                                            subject.availableLessonCount,
                                         compact: false,
                                         onTap: () {
                                           state.selectModule(subject.module);
@@ -3398,7 +3414,6 @@ class SubjectModulesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedLearner = state.currentLearner;
     final lessons =
         state.lessonsForLearnerAndSubject(null, subjectKey).where((lesson) {
       if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
@@ -3406,10 +3421,7 @@ class SubjectModulesPage extends StatelessWidget {
       }
       return state.availableLearnersForLesson(lesson).isNotEmpty;
     }).toList();
-    final highlightedLearner = selectedLearner ?? state.suggestedLearnerForHome;
-    final nextAssignedLesson = highlightedLearner == null
-        ? null
-        : state.nextAssignedLessonForLearner(highlightedLearner);
+    final nextAssignedLesson = null;
     final registrationBlocked = state.registrationBlockerReason;
     final usingFallbackData = state.usingFallbackData;
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
@@ -3430,12 +3442,6 @@ class SubjectModulesPage extends StatelessWidget {
         onChanged: onChanged,
         lesson: lesson,
         module: module,
-        resumeFrom: selectedLearner == null
-            ? null
-            : state.resumableSessionForLearnerAndLesson(
-                selectedLearner,
-                lesson,
-              ),
       );
     }
 
@@ -3577,9 +3583,8 @@ class SubjectModulesPage extends StatelessWidget {
                               }
 
                               const showJourneyHeader = true;
-                              final journeyHint = selectedLearner == null
-                                  ? 'Start with the first big card, then keep a gentle rhythm by following the path one lesson at a time. The tablet will ask which learner is available right after that.'
-                                  : 'Start with the first big card, then keep a gentle rhythm by following the path one lesson at a time. ${selectedLearner.name} can still be changed on the next screen so the shared-tablet handoff stays clean.';
+                              const journeyHint =
+                                  'Start with the first lesson card, then choose which available learner is taking it before the lesson begins.';
 
                               return Container(
                                 width: double.infinity,
@@ -3593,7 +3598,7 @@ class SubjectModulesPage extends StatelessWidget {
                                   children: [
                                     if (showJourneyHeader) ...[
                                       const Text(
-                                        'Lesson journey',
+                                        'Available lessons',
                                         style: TextStyle(
                                           fontSize: 30,
                                           fontWeight: FontWeight.w900,
@@ -3611,32 +3616,6 @@ class SubjectModulesPage extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 16),
-                                    ],
-                                    if (selectedLearner != null) ...[
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 14,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: const Color(0xFFDDE7FF),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'Current learner: ${selectedLearner.name}',
-                                          style: const TextStyle(
-                                            color: Color(0xFF1E3A8A),
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 20),
                                     ],
                                     Wrap(
                                       spacing: compact ? 18 : 22,
@@ -5186,27 +5165,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final resumeLearner = _resumeLearner;
     if (resumeLearner != null) return resumeLearner;
 
-    final availableLearners =
-        widget.state.availableLearnersForLesson(widget.lesson);
-    if (availableLearners.isEmpty) return null;
-
-    final currentLearner = widget.state.currentLearner;
-    if (currentLearner != null &&
-        availableLearners.any((learner) => learner.id == currentLearner.id)) {
-      return currentLearner;
-    }
-
-    if (availableLearners.length == 1) {
-      return availableLearners.first;
-    }
-
-    final suggestedLearner = widget.state.suggestedLearnerForHome;
-    if (suggestedLearner != null &&
-        availableLearners.any((learner) => learner.id == suggestedLearner.id)) {
-      return suggestedLearner;
-    }
-
-    return availableLearners.first;
+    return null;
   }
 
   @override
@@ -5501,7 +5460,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           Text(
                             _resumeLocksLearner
                                 ? 'Resume learner'
-                                : 'Choose learner',
+                                : 'Select available learner',
                             style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w900,
@@ -5514,7 +5473,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 ? '${lesson.title} is still waiting for the real lesson payload to sync to this tablet. Keep the assignment visible, but do not start runtime until the full lesson content lands.'
                                 : _resumeLocksLearner
                                     ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
-                                    : 'Pick who is available for ${lesson.title}. Shared-tablet handoff happens here so the lesson opens under the right learner.',
+                                    : 'Pick which available learner is taking ${lesson.title}. Shared-tablet handoff happens here so the lesson starts under the right learner.',
                             style: const TextStyle(
                               color: Color(0xFF475569),
                               height: 1.45,

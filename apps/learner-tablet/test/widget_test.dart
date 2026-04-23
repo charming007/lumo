@@ -26,8 +26,7 @@ class _DelayedApiClient extends LumoApiClient {
   final Completer<LumoBootstrap> _completer;
 
   @override
-  Future<LumoBootstrap> fetchBootstrap(
-          {String? overrideDeviceIdentifier}) =>
+  Future<LumoBootstrap> fetchBootstrap({String? overrideDeviceIdentifier}) =>
       _completer.future;
 
   @override
@@ -215,7 +214,8 @@ void main() {
     expect(find.text('Sync stale'), findsOneWidget);
   });
 
-  testWidgets('home screen surfaces the last trusted sync headline prominently', (
+  testWidgets('home screen surfaces the last trusted sync headline prominently',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 1000);
@@ -224,7 +224,8 @@ void main() {
 
     final state = LumoAppState(includeSeedDemoContent: true)
       ..usingFallbackData = true
-      ..lastSyncedAt = DateTime.now().subtract(const Duration(hours: 3, minutes: 15));
+      ..lastSyncedAt =
+          DateTime.now().subtract(const Duration(hours: 3, minutes: 15));
     addTearDown(state.dispose);
 
     await tester.pumpWidget(
@@ -272,6 +273,52 @@ void main() {
       expect(find.text('Life Skills'), findsOneWidget);
 
       state.dispose();
+    },
+  );
+
+  testWidgets(
+    'home screen hides subject cards that have no learner-safe launch path on this tablet',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-locked',
+            podLabel: 'Locked pod',
+          ),
+        );
+      final mismatchedLearners = state.learners
+          .map(
+            (learner) => learner.copyWith(
+              podId: 'other-pod',
+              podLabel: 'Other pod',
+            ),
+          )
+          .toList(growable: false);
+      state.learners
+        ..clear()
+        ..addAll(mismatchedLearners);
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(
+            state: state,
+            onChanged: _noop,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(GridView), findsNothing);
+      expect(find.text('No live subjects are ready on this tablet yet.'),
+          findsOneWidget);
+      expect(find.text('Open student list'), findsOneWidget);
     },
   );
 
@@ -412,11 +459,12 @@ void main() {
       find.textContaining('You opened ${module.title}.'),
       findsNothing,
     );
-    expect(find.text('Lesson journey'), findsOneWidget);
+    expect(find.text('Available lessons'), findsOneWidget);
     expect(
-      find.textContaining('first big card'),
+      find.textContaining('choose which available learner'),
       findsOneWidget,
     );
+    expect(find.text('Lesson journey'), findsNothing);
     expect(find.text('Lesson path'), findsNothing);
     expect(find.text('Next step'), findsNothing);
 
@@ -1270,15 +1318,17 @@ void main() {
     await pumpForUi(tester);
 
     expect(find.byType(LessonLaunchSetupPage), findsOneWidget);
-    expect(find.text('Choose learner'), findsOneWidget);
+    expect(find.text('Select available learner'), findsOneWidget);
     expect(
-        find.textContaining('${learner.name} is selected for'), findsOneWidget);
+        find.textContaining('${learner.name} is selected for'), findsNothing);
+    expect(find.text('Select learner to continue'), findsOneWidget);
 
     state.dispose();
   });
 
   testWidgets(
-      'learner profile keeps sync-pending assigned lessons blocked until refresh', (
+      'learner profile keeps sync-pending assigned lessons blocked until refresh',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 1200);
@@ -1340,7 +1390,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(find.byType(LessonLaunchSetupPage), findsNothing);
-    expect(find.text('Choose learner'), findsNothing);
+    expect(find.text('Select available learner'), findsNothing);
 
     state.dispose();
   });
@@ -1637,17 +1687,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Lesson journey'), findsOneWidget);
-    expect(find.text('Start next lesson'), findsOneWidget);
+    expect(find.text('Available lessons'), findsOneWidget);
     expect(
-      find.textContaining('first big card'),
+      find.textContaining('choose which available learner'),
       findsOneWidget,
     );
 
     final mallamGuideTopLeft =
         tester.getTopLeft(find.text('Hear Mallam again'));
     final lessonChooserTopLeft =
-        tester.getTopLeft(find.text('Start next lesson'));
+        tester.getTopLeft(find.text('Available lessons'));
     expect(
       mallamGuideTopLeft.dy,
       lessThan(lessonChooserTopLeft.dy),
@@ -1699,7 +1748,7 @@ void main() {
     state.dispose();
   });
 
-  testWidgets('lesson launch setup preselects the current learner', (
+  testWidgets('lesson launch setup requires an explicit learner pick', (
     tester,
   ) async {
     final state = LumoAppState(includeSeedDemoContent: true);
@@ -1722,10 +1771,10 @@ void main() {
 
     expect(
       find.textContaining('${learner.name} is selected for ${lesson.title}'),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.text('Start with ${learner.name}'), findsOneWidget);
-    expect(find.text('Select learner to continue'), findsNothing);
+    expect(find.text('Start with ${learner.name}'), findsNothing);
+    expect(find.text('Select learner to continue'), findsOneWidget);
 
     state.dispose();
   });
@@ -1780,7 +1829,8 @@ void main() {
 
       expect(find.text('Amina Pod A'), findsWidgets);
       expect(find.text('Bashir Pod B'), findsNothing);
-      expect(find.text('Start with Amina Pod A'), findsOneWidget);
+      expect(find.text('Select learner to continue'), findsOneWidget);
+      expect(find.text('Start with Amina Pod A'), findsNothing);
       expect(find.text('Start with Bashir Pod B'), findsNothing);
 
       state.dispose();
@@ -1966,8 +2016,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text(seedLesson.title), findsOneWidget);
-    expect(find.textContaining('Current learner: ${learner.name}'),
-        findsOneWidget);
+    expect(
+        find.textContaining('Current learner: ${learner.name}'), findsNothing);
 
     await tester.dragUntilVisible(
       find.text('English extension'),
@@ -2005,12 +2055,9 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Choose learner'), findsOneWidget);
-    expect(
-      find.text('Select learner to continue').evaluate().isNotEmpty ||
-          find.textContaining('is selected for').evaluate().isNotEmpty,
-      isTrue,
-    );
+    expect(find.text('Select available learner'), findsOneWidget);
+    expect(find.text('Select learner to continue'), findsOneWidget);
+    expect(find.textContaining('is selected for'), findsNothing);
     expect(find.byType(SingleChildScrollView), findsWidgets);
 
     state.dispose();
@@ -2078,8 +2125,9 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Refresh sync before starting'), findsNothing);
-    expect(find.textContaining('is selected for'), findsOneWidget);
+    expect(find.text('Select available learner'), findsOneWidget);
+    expect(find.text('Select learner to continue'), findsOneWidget);
+    expect(find.textContaining('is selected for'), findsNothing);
 
     state.dispose();
   });
@@ -2141,9 +2189,11 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Refresh sync before starting'), findsOneWidget);
+    expect(find.text('Select available learner'), findsOneWidget);
+    expect(find.text('Select learner to continue'), findsOneWidget);
     expect(
       find.textContaining('is selected for Backend lesson still syncing.'),
-      findsOneWidget,
+      findsNothing,
     );
 
     state.dispose();
@@ -2256,13 +2306,14 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Choose learner'), findsOneWidget);
+    expect(find.text('Select available learner'), findsOneWidget);
 
     state.dispose();
   });
 
   testWidgets(
-      'lesson launch shows refresh recovery instead of blocked registration when roster is offline', (
+      'lesson launch shows refresh recovery instead of blocked registration when roster is offline',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 1280);
@@ -2294,7 +2345,8 @@ void main() {
     );
     await pumpForUi(tester);
 
-    expect(find.text('No learners available for this lesson yet'), findsOneWidget);
+    expect(
+        find.text('No learners available for this lesson yet'), findsOneWidget);
     expect(find.text('Refresh live sync'), findsOneWidget);
     expect(find.text('Register first learner'), findsNothing);
     expect(
@@ -3315,13 +3367,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Lesson journey'), findsOneWidget);
-    expect(find.textContaining('first big card'), findsOneWidget);
+    expect(find.text('Available lessons'), findsOneWidget);
+    expect(
+        find.textContaining('choose which available learner'), findsOneWidget);
 
     state.dispose();
   });
 
-  testWidgets('subject module page shows recovery actions when a subject has no learner-safe lessons', (
+  testWidgets(
+      'subject module page shows recovery actions when a subject has no learner-safe lessons',
+      (
     tester,
   ) async {
     final state = LumoAppState(includeSeedDemoContent: false);
@@ -3381,7 +3436,8 @@ void main() {
       const module = LearningModule(
         id: 'english-reading-module',
         title: 'Reading Foundations',
-        description: 'Backend module title differs from learner-facing subject.',
+        description:
+            'Backend module title differs from learner-facing subject.',
         voicePrompt: 'Open the reading module.',
         readinessGoal: 'Reading practice',
         badge: '1 lesson',
