@@ -786,6 +786,9 @@ enum LearnerLessonAvailabilityKind {
   resumeReady,
   assigned,
   available,
+  completedToday,
+  absent,
+  skipped,
   podMismatch,
   unavailable,
 }
@@ -822,6 +825,39 @@ LearnerLessonAvailability learnerLessonAvailability({
       label: 'Resume ready',
       detail: resumableSession.progressLabel,
       resumableSession: resumableSession,
+    );
+  }
+
+  final terminalSession =
+      state.terminalRuntimeSessionForLearnerAndLesson(learner, lesson);
+  if (terminalSession != null) {
+    final terminalState = terminalSession.completionState.trim().toLowerCase();
+    if (terminalState == 'absent') {
+      return const LearnerLessonAvailability(
+        kind: LearnerLessonAvailabilityKind.absent,
+        label: 'Absent today',
+        detail: 'This learner was already marked absent for this lesson today.',
+      );
+    }
+    if (terminalState == 'skipped' || terminalState == 'skip') {
+      return const LearnerLessonAvailability(
+        kind: LearnerLessonAvailabilityKind.skipped,
+        label: 'Skipped today',
+        detail: 'This learner already skipped this lesson today on this tablet.',
+      );
+    }
+    if (state.lessonCompletedTodayForLearner(learner, lesson)) {
+      return const LearnerLessonAvailability(
+        kind: LearnerLessonAvailabilityKind.completedToday,
+        label: 'Completed today',
+        detail:
+            'This learner already finished this lesson today on this tablet.',
+      );
+    }
+    return const LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.unavailable,
+      label: 'Unavailable',
+      detail: 'This learner already has a terminal session on this lesson.',
     );
   }
 
@@ -873,6 +909,12 @@ Color _learnerAvailabilityColor(LearnerLessonAvailabilityKind kind) {
       return LumoTheme.accentGreen;
     case LearnerLessonAvailabilityKind.available:
       return LumoTheme.accentOrange;
+    case LearnerLessonAvailabilityKind.completedToday:
+      return const Color(0xFF0F766E);
+    case LearnerLessonAvailabilityKind.absent:
+      return const Color(0xFFB45309);
+    case LearnerLessonAvailabilityKind.skipped:
+      return const Color(0xFF475569);
     case LearnerLessonAvailabilityKind.podMismatch:
       return const Color(0xFF7C3AED);
     case LearnerLessonAvailabilityKind.unavailable:
@@ -5198,9 +5240,22 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       viewportConstraints.maxHeight < 900;
 
                   Widget buildLearnerGrid({required bool shrinkWrap}) {
-                    final learnerChoices =
-                        state.availableLearnersForLesson(lesson);
-                    if (learnerChoices.isEmpty) {
+                    final learnerChoices = state.learners.where((learner) {
+                      return state.learnerMatchesTabletPod(learner) ||
+                          (_resumeLocksLearner &&
+                              resumeLearner != null &&
+                              learner.id == resumeLearner.id);
+                    }).toList(growable: false);
+                    final launchableLearnerCount = learnerChoices
+                        .where(
+                          (learner) => learnerLessonAvailability(
+                            state: state,
+                            learner: learner,
+                            lesson: lesson,
+                          ).canLaunch,
+                        )
+                        .length;
+                    if (launchableLearnerCount == 0) {
                       final registrationBlocker =
                           state.registrationBlockerReason;
 
@@ -5687,6 +5742,36 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     ),
                   );
 
+                  final absentButton = OutlinedButton.icon(
+                    onPressed: selectedLearner == null || _resumeLocksLearner
+                        ? null
+                        : () async {
+                            final learner = selectedLearner!;
+                            await state.markLearnerAbsentForLesson(
+                              learner,
+                              lesson,
+                            );
+                            widget.onChanged();
+                            if (!mounted) return;
+                            setState(() {
+                              selectedLearner = null;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${learner.name} marked absent for ${lesson.title}.',
+                                ),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.event_busy_rounded),
+                    label: Text(
+                      selectedLearner == null
+                          ? 'Select learner for absent'
+                          : 'Absent: ${selectedLearner!.name}',
+                    ),
+                  );
+
                   if (useCompactLayout) {
                     return SingleChildScrollView(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -5696,7 +5781,11 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           ...contentChildren,
                           buildLearnerGrid(shrinkWrap: true),
                           const SizedBox(height: 16),
-                          ctaButton,
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [ctaButton, absentButton],
+                          ),
                         ],
                       ),
                     );
@@ -5708,7 +5797,11 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       ...contentChildren,
                       Expanded(child: buildLearnerGrid(shrinkWrap: false)),
                       const SizedBox(height: 16),
-                      ctaButton,
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [ctaButton, absentButton],
+                      ),
                     ],
                   );
                 },
@@ -11803,6 +11896,46 @@ class _SubjectCard extends StatelessWidget {
   }
 }
 
+_LearnerIdentityCue _learnerIdentityCue(LearnerProfile learner) {
+  final normalizedSex = learner.sex.trim().toLowerCase();
+  if (normalizedSex.contains('girl')) {
+    return const _LearnerIdentityCue(
+      shape: BoxShape.circle,
+      color: Color(0xFFF472B6),
+      icon: Icons.auto_awesome_rounded,
+      label: 'Star learner cue',
+    );
+  }
+  if (normalizedSex.contains('boy')) {
+    return const _LearnerIdentityCue(
+      shape: BoxShape.rectangle,
+      color: Color(0xFF38BDF8),
+      icon: Icons.pets_rounded,
+      label: 'Lion learner cue',
+    );
+  }
+  return const _LearnerIdentityCue(
+    shape: BoxShape.circle,
+    color: Color(0xFFA78BFA),
+    icon: Icons.favorite_rounded,
+    label: 'Heart learner cue',
+  );
+}
+
+class _LearnerIdentityCue {
+  final BoxShape shape;
+  final Color color;
+  final IconData icon;
+  final String label;
+
+  const _LearnerIdentityCue({
+    required this.shape,
+    required this.color,
+    required this.icon,
+    required this.label,
+  });
+}
+
 class _LearnerCard extends StatelessWidget {
   final LearnerProfile learner;
   final LumoAppState? state;
@@ -11834,6 +11967,8 @@ class _LearnerCard extends StatelessWidget {
         onSetActive != null || onOpenProfile != null || onStartLesson != null;
     final needsBackendSync = _learnerNeedsBackendSync(learner);
 
+    final identityCue = _learnerIdentityCue(learner);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactHeight = dense || constraints.maxHeight < 470;
@@ -11863,12 +11998,35 @@ class _LearnerCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: compactHeight ? 24 : 28,
-                      backgroundColor: const Color(0xFFE9E7FF),
-                      child: Text(
-                        learner.name.characters.first,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                    Container(
+                      width: compactHeight ? 48 : 56,
+                      height: compactHeight ? 48 : 56,
+                      decoration: BoxDecoration(
+                        color: identityCue.color.withValues(alpha: 0.18),
+                        shape: identityCue.shape,
+                        border: Border.all(
+                          color: identityCue.color.withValues(alpha: 0.55),
+                          width: 2,
+                        ),
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Text(
+                            learner.name.characters.first,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Positioned(
+                            right: 6,
+                            bottom: 6,
+                            child: Icon(
+                              identityCue.icon,
+                              size: 16,
+                              color: identityCue.color,
+                              semanticLabel: identityCue.label,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -11925,6 +12083,10 @@ class _LearnerCard extends StatelessWidget {
                               : learner.readinessLabel),
                       color:
                           isActive ? LumoTheme.primary : LumoTheme.accentGreen,
+                    ),
+                    StatusPill(
+                      text: identityCue.label,
+                      color: identityCue.color,
                     ),
                     StatusPill(
                       text: '$points pts',

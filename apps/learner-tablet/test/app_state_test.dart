@@ -2167,6 +2167,27 @@ void main() {
       );
     });
 
+    test('completed lesson is no longer launchable for that learner today',
+        () async {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      state.selectLearner(learner);
+      state.selectModule(
+          state.modules.firstWhere((item) => item.id == 'english'));
+      state.startLesson(lesson);
+      await state.completeLesson(lesson);
+
+      expect(state.lessonCompletedTodayForLearner(learner, lesson), isTrue);
+      expect(state.learnerCanOpenLesson(learner, lesson), isFalse);
+      expect(state.availableLearnersForLesson(lesson).map((item) => item.id),
+          isNot(contains(learner.id)));
+      state.dispose();
+    });
+
     test('falls back to backend recommended module after lesson completion',
         () {
       final state = LumoAppState(includeSeedDemoContent: true);
