@@ -163,18 +163,80 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function mergeSeededGeography(parsedItems, seedItems) {
+  if (!Array.isArray(parsedItems)) {
+    return { items: clone(seedItems), changed: true };
+  }
+
+  const makeMatcherKeys = (item) => {
+    const keys = [];
+    const id = String(item?.id || '').trim();
+    const code = String(item?.code || '').trim();
+    const name = String(item?.name || '').trim().toLowerCase();
+    const stateId = String(item?.stateId || '').trim();
+    if (id) keys.push(`id:${id}`);
+    if (code) keys.push(`code:${code}`);
+    if (stateId && name) keys.push(`state-name:${stateId}:${name}`);
+    if (name) keys.push(`name:${name}`);
+    return keys;
+  };
+
+  const parsedIndexesByKey = new Map();
+  parsedItems.forEach((item, index) => {
+    makeMatcherKeys(item).forEach((key) => {
+      if (!parsedIndexesByKey.has(key)) parsedIndexesByKey.set(key, []);
+      parsedIndexesByKey.get(key).push(index);
+    });
+  });
+
+  const consumedIndexes = new Set();
+  const merged = [];
+  let changed = false;
+
+  for (const seedItem of seedItems) {
+    const matchIndex = makeMatcherKeys(seedItem)
+      .flatMap((key) => parsedIndexesByKey.get(key) || [])
+      .find((index) => !consumedIndexes.has(index));
+    const parsed = matchIndex !== undefined ? parsedItems[matchIndex] : null;
+
+    if (matchIndex === undefined || !parsed || typeof parsed !== 'object') {
+      merged.push(clone(seedItem));
+      changed = true;
+      continue;
+    }
+
+    consumedIndexes.add(matchIndex);
+    const next = {
+      ...seedItem,
+      ...parsed,
+      id: seedItem.id,
+      code: seedItem.code,
+      stateId: seedItem.stateId ?? parsed.stateId,
+    };
+
+    if (JSON.stringify(next) !== JSON.stringify(parsed)) {
+      changed = true;
+    }
+
+    merged.push(next);
+  }
+
+  parsedItems.forEach((item, index) => {
+    if (!consumedIndexes.has(index)) {
+      merged.push(item);
+    }
+  });
+
+  return { items: merged, changed };
+}
+
 function normalizeLifecycleStatus(collectionKey, parsedItems, seedItems) {
   if (!Array.isArray(parsedItems)) {
     return { items: clone(seedItems), changed: true };
   }
 
   if (collectionKey === 'states' || collectionKey === 'localGovernments') {
-    const seedSignature = JSON.stringify(seedItems);
-    const parsedSignature = JSON.stringify(parsedItems);
-    if (seedSignature !== parsedSignature) {
-      return { items: clone(seedItems), changed: true };
-    }
-    return { items: parsedItems, changed: false };
+    return mergeSeededGeography(parsedItems, seedItems);
   }
 
   if (!['subjects', 'strands', 'modules', 'lessons'].includes(collectionKey)) {

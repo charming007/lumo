@@ -160,3 +160,31 @@ test('pod updates can persist geography without changing cohort semantics', asyn
   assert.equal(cohorts.status, 200);
   assert.equal(cohorts.body.find((item) => item.id === 'cohort-1').podId, 'pod-1');
 });
+
+test('admin geography edits survive a storage reload instead of snapping back to the baked Nigeria seed', async () => {
+  const statePatch = await request('/api/v1/states/state-kano', {
+    method: 'PATCH',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({ name: 'Kano Persisted' }),
+  });
+
+  assert.equal(statePatch.status, 200, JSON.stringify(statePatch.body));
+  assert.equal(statePatch.body.name, 'Kano Persisted');
+
+  const lgaCreate = await request('/api/v1/local-governments', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({ id: 'lga-kano-persisted', stateId: 'state-kano', name: 'Kano Persisted LGA', code: 'KN-PERSIST' }),
+  });
+
+  assert.equal(lgaCreate.status, 201, JSON.stringify(lgaCreate.body));
+
+  const data = require('../src/data');
+  data.reload();
+
+  const reloadedState = data.states.find((item) => item.id === 'state-kano');
+  const reloadedLga = data.localGovernments.find((item) => item.id === 'lga-kano-persisted');
+
+  assert.equal(reloadedState?.name, 'Kano Persisted');
+  assert.equal(reloadedLga?.name, 'Kano Persisted LGA');
+});

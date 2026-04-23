@@ -2,15 +2,23 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { buildConfigAudit } = require('../src/config-audit');
+const store = require('../src/store');
 
 const audit = buildConfigAudit();
+const storageStatus = store.getStorageStatus();
+const configuredStorage = `${audit.storage.mode} (${audit.storage.driver})`;
+const effectiveStorage = storageStatus
+  ? `${storageStatus.kind}${storageStatus.note ? ` — ${storageStatus.note}` : ''}`
+  : 'unknown';
 const lines = [
   '',
   `Lumo API runtime audit (${audit.environment.nodeEnv}).`,
   `Ready: ${audit.summary.ready ? 'yes' : 'no'}`,
   `Build: v${audit.build.version} revision=${audit.build.revision.short || 'unknown'} boot=${audit.build.bootId}`,
   `Started: ${audit.build.startedAt}`,
-  `Storage: ${audit.storage.mode} (${audit.storage.driver})`,
+  `Storage configured: ${configuredStorage}`,
+  `Storage effective: ${effectiveStorage}`,
+  `Storage primary durability: ${storageStatus?.kind === 'postgres' ? 'Postgres snapshot+journal' : storageStatus?.kind === 'postgres-misconfigured' ? 'file fallback because Postgres is misconfigured' : 'JSON file'}`,
   `Asset uploads: ${audit.assetUploads.ready ? 'ready' : 'blocked'} @ ${audit.assetUploads.root}`,
   `Managed asset public base: ${audit.assetUploads.publicBaseValid ? (audit.assetUploads.publicBase || 'valid') : 'needs attention'}`,
 ];

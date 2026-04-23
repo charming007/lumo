@@ -1461,6 +1461,8 @@ app.get('/health', (_req, res) => {
       mode: storageStatus?.db?.mode || getDbMode(),
       driver: storageStatus?.db?.driver || getDbModeMeta().driver,
       persistent: storageStatus?.db?.persistent ?? true,
+      effectiveKind: storageStatus?.kind || null,
+      note: storageStatus?.note || null,
     },
     assets: {
       ready: Boolean(configAudit.assetUploads?.ready),

@@ -51,6 +51,13 @@ function slugify(value) {
 function buildNigeriaGeography() {
   const states = [];
   const localGovernments = [];
+  const lgaIdCounts = NIGERIA_STATE_LGAS.reduce((acc, entry) => {
+    (entry.lgas || []).forEach((lgaName) => {
+      const baseId = `lga-${slugify(lgaName)}`;
+      acc[baseId] = Number(acc[baseId] || 0) + 1;
+    });
+    return acc;
+  }, {});
 
   NIGERIA_STATE_LGAS.forEach((entry, stateIndex) => {
     const stateId = entry.type === 'territory' ? 'territory-fct' : `state-${slugify(entry.name)}`;
@@ -65,8 +72,10 @@ function buildNigeriaGeography() {
     });
 
     entry.lgas.forEach((lgaName, lgaIndex) => {
+      const baseId = `lga-${slugify(lgaName)}`;
+      const lgaId = lgaIdCounts[baseId] > 1 ? `lga-${entry.code.toLowerCase()}-${slugify(lgaName)}` : baseId;
       localGovernments.push({
-        id: `lga-${slugify(lgaName)}`,
+        id: lgaId,
         stateId,
         code: `${entry.code}-${String(lgaIndex + 1).padStart(2, '0')}`,
         name: lgaName,

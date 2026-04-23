@@ -135,3 +135,23 @@ test('buildConfigAudit exposes throttle posture for production reviews', () => {
   assert.ok(audit.warnings.some((entry) => entry.includes('LUMO_REWARD_REQUEST_THROTTLE_MAX_REQUESTS')));
   assert.ok(audit.warnings.some((entry) => entry.includes('LUMO_ADMIN_MUTATION_THROTTLE_MAX_REQUESTS')));
 });
+
+test('runtime audit shows when postgres mode is configured but the API actually fell back to file storage', () => {
+  const runtimeAuditPath = path.join(__dirname, '..', 'scripts', 'runtime-audit.mjs');
+  const result = spawnSync(process.execPath, [runtimeAuditPath], {
+    env: {
+      ...process.env,
+      NODE_ENV: 'development',
+      LUMO_DB_MODE: 'postgres',
+      DATABASE_URL: '',
+      LUMO_ADMIN_API_KEY: '',
+      LUMO_CORS_ALLOW_ANY_ORIGIN: 'false',
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 1);
+  assert.ok(`${result.stdout}${result.stderr}`.includes('Storage configured: postgres'));
+  assert.ok(`${result.stdout}${result.stderr}`.includes('Storage effective: postgres-misconfigured'));
+  assert.ok(`${result.stdout}${result.stderr}`.includes('file fallback because Postgres is misconfigured'));
+});
