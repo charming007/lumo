@@ -1275,6 +1275,7 @@ class LumoAppState {
   }
 
   bool _isPublishedLearnerLesson(LessonCardModel lesson) {
+    if (lesson.isAssignmentPlaceholder) return false;
     return isLearnerVisibleLessonStatus(
       lesson.status,
       usingFallbackData: usingFallbackData,

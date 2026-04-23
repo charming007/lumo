@@ -4769,5 +4769,50 @@ void main() {
         state.dispose();
       },
     );
+
+    test(
+      'learner-facing subjects ignore sync-pending assignment placeholders',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = false;
+
+        state.assignedLessons.add(
+          const LessonCardModel(
+            id: 'assignment-placeholder:assignment-42',
+            moduleId: 'science-module',
+            title: 'Count the seeds',
+            subject: 'Live assignment',
+            durationMinutes: 10,
+            status: 'assigned',
+            mascotName: 'Mallam',
+            readinessFocus: 'Waiting for lesson sync',
+            scenario:
+                'Placeholder should warn operators, not appear as a learner subject.',
+            steps: [
+              LessonStep(
+                id: 'assignment-placeholder-step',
+                type: LessonStepType.intro,
+                title: 'Lesson sync pending',
+                instruction: 'Refresh the tablet sync before starting.',
+                expectedResponse: 'Refresh the tablet sync before starting.',
+                coachPrompt: 'Do not start runtime on a placeholder lesson.',
+                facilitatorTip: 'Refresh sync before launch.',
+                realWorldCheck:
+                    'Learner waits until the real lesson content arrives.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+        );
+
+        expect(state.learnerFacingSubjects(), isEmpty);
+        expect(
+          state.lessonsForLearnerAndSubject(null, 'live-assignment'),
+          isEmpty,
+        );
+
+        state.dispose();
+      },
+    );
   });
 }

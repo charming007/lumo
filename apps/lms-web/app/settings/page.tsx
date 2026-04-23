@@ -673,14 +673,14 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                   <code key={endpoint} style={{ color: '#334155', wordBreak: 'break-all' }}>{endpoint}</code>
                 ))}
               </div>
-              <div style={{ padding: 14, borderRadius: 16, background: assetRuntime.routeEvidence?.ready ? '#FEF2F2' : '#FFF7ED', border: assetRuntime.routeEvidence?.ready ? '1px solid #FECACA' : '1px solid #FDBA74', display: 'grid', gap: 8 }}>
-                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: assetRuntime.routeEvidence?.ready ? '#991B1B' : '#9A3412', fontWeight: 800 }}>Mismatch test</div>
+              <div style={{ padding: 14, borderRadius: 16, background: assetRuntime.routeEvidence?.ready ? '#ECFDF5' : '#FFF7ED', border: assetRuntime.routeEvidence?.ready ? '1px solid #BBF7D0' : '1px solid #FDBA74', display: 'grid', gap: 8 }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: assetRuntime.routeEvidence?.ready ? '#166534' : '#9A3412', fontWeight: 800 }}>Mismatch test</div>
                 <div style={{ color: '#0f172a', fontWeight: 800 }}>
                   {assetRuntime.routeEvidence?.ready
                     ? `${assetRuntime.routeEvidence.mountedCount}/${assetRuntime.routeEvidence.expectedCount} critical asset routes are mounted in this API build`
                     : 'Route evidence is degraded or missing'}
                 </div>
-                <div style={{ color: assetRuntime.routeEvidence?.ready ? '#7F1D1D' : '#7C2D12', lineHeight: 1.6 }}>
+                <div style={{ color: assetRuntime.routeEvidence?.ready ? '#166534' : '#7C2D12', lineHeight: 1.6 }}>
                   {assetRuntime.routeEvidence?.ready
                     ? 'If the settings/runtime lane says the routes exist here but the asset library gets a live 404, assume wrong/stale backend target or proxy rewrite damage before blaming the frontend.'
                     : 'If route evidence itself is missing, verify the backend build before drawing conclusions from LMS pages.'}

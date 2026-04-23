@@ -683,6 +683,66 @@ void main() {
   });
 
   testWidgets(
+    'home screen keeps sync-pending placeholders out of the learner subject grid',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false;
+      state.assignedLessons.add(
+        const LessonCardModel(
+          id: 'assignment-placeholder:assignment-42',
+          moduleId: 'science-module',
+          title: 'Count the seeds',
+          subject: 'Live assignment',
+          durationMinutes: 10,
+          status: 'assigned',
+          mascotName: 'Mallam',
+          readinessFocus: 'Waiting for lesson sync',
+          scenario:
+              'Placeholder should not render as a learner-facing subject card.',
+          steps: [
+            LessonStep(
+              id: 'assignment-placeholder-step',
+              type: LessonStepType.intro,
+              title: 'Lesson sync pending',
+              instruction: 'Refresh the tablet sync before starting.',
+              expectedResponse: 'Refresh the tablet sync before starting.',
+              coachPrompt: 'Do not start runtime on a placeholder lesson.',
+              facilitatorTip: 'Refresh sync before launch.',
+              realWorldCheck:
+                  'Learner waits until the real lesson content arrives.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      );
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(
+            state: state,
+            onChanged: _noop,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text('No live subjects are ready on this tablet yet.'),
+        findsOneWidget,
+      );
+      expect(find.text('Live assignment'), findsNothing);
+      expect(find.byType(GridView), findsNothing);
+    },
+  );
+
+  testWidgets(
       'home screen keeps all subject cards visible on short tablet heights', (
     tester,
   ) async {
