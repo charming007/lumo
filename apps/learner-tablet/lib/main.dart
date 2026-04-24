@@ -5358,7 +5358,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Center(
+          child: Align(
+            alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1320),
               child: LayoutBuilder(
@@ -5382,10 +5383,155 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           ).canLaunch,
                         )
                         .length;
-                    if (launchableLearnerCount == 0) {
-                      final registrationBlocker =
-                          state.registrationBlockerReason;
+                    final registrationBlocker = state.registrationBlockerReason;
 
+                    Widget buildLearnerCards() {
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          final crossAxisCount = _adaptiveGridCount(
+                            constraints.maxWidth,
+                            minTileWidth: 280,
+                            maxCount: 4,
+                          );
+
+                          final mainAxisExtent = constraints.maxWidth < 760
+                              ? 310.0
+                              : constraints.maxWidth < 1180
+                                  ? 326.0
+                                  : 340.0;
+
+                          return GridView.builder(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            itemCount: learnerChoices.length,
+                            shrinkWrap: shrinkWrap,
+                            physics: shrinkWrap
+                                ? const NeverScrollableScrollPhysics()
+                                : null,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              mainAxisExtent: mainAxisExtent,
+                            ),
+                            itemBuilder: (context, index) {
+                              final learner = learnerChoices[index];
+                              final availability = learnerLessonAvailability(
+                                state: state,
+                                learner: learner,
+                                lesson: lesson,
+                              );
+                              final isSelected =
+                                  selectedLearner?.id == learner.id;
+                              final isLockedOut = (_resumeLocksLearner &&
+                                      resumeLearner != null &&
+                                      learner.id != resumeLearner.id) ||
+                                  !availability.canLaunch;
+                              return Opacity(
+                                opacity: isLockedOut ? 0.58 : 1,
+                                child: GestureDetector(
+                                  onTap: isLockedOut
+                                      ? null
+                                      : () {
+                                          setState(() {
+                                            selectedLearner = learner;
+                                          });
+                                        },
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(28),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? LumoTheme.primary
+                                            : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: _LearnerCard(
+                                            learner: learner,
+                                            state: state,
+                                            dense: true,
+                                            isActive: isSelected,
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 12,
+                                          right: 12,
+                                          child: StatusPill(
+                                            text: availability.label,
+                                            color: _learnerAvailabilityColor(
+                                              availability.kind,
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          left: 12,
+                                          right: 12,
+                                          bottom: 12,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.95,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                              border: Border.all(
+                                                color: const Color(0xFFE2E8F0),
+                                              ),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  learner.podLabel ??
+                                                      learner.cohort,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF1E3A8A),
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  availability.detail,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF475569),
+                                                    height: 1.3,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    }
+
+                    if (learnerChoices.isEmpty) {
                       return Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 560),
@@ -5415,8 +5561,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 const SizedBox(height: 10),
                                 Text(
                                   registrationBlocker == null
-                                      ? 'No learner on this tablet is currently available for ${lesson.title}. Check pod assignment, refresh sync, or register the learner that should take this lesson so the handoff stays clean.'
-                                      : 'You cannot start ${lesson.title} because no eligible learner has landed on this tablet yet and registration is currently blocked. ${registrationBlocker.trim()} Refresh live sync first so the learner roster lands before launch.',
+                                      ? 'No learner on this tablet is currently in the synced pod roster for ${lesson.title}. Register or sync the correct learner before launch so the handoff stays clean.'
+                                      : 'You cannot start ${lesson.title} because no synced learner has landed on this tablet yet and registration is currently blocked. ${registrationBlocker.trim()} Refresh live sync first so the learner roster lands before launch.',
                                   style: const TextStyle(
                                     color: Color(0xFF475569),
                                     height: 1.45,
@@ -5459,6 +5605,24 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => AllStudentsPage(
+                                            state: state,
+                                            onChanged: widget.onChanged,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.groups_rounded),
+                                    label: const Text('Open student list'),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -5466,147 +5630,99 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       );
                     }
 
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final crossAxisCount = _adaptiveGridCount(
-                          constraints.maxWidth,
-                          minTileWidth: 280,
-                          maxCount: 4,
+                    if (launchableLearnerCount == 0) {
+                      final blockedByLabel = <String, int>{};
+                      for (final learner in learnerChoices) {
+                        final availability = learnerLessonAvailability(
+                          state: state,
+                          learner: learner,
+                          lesson: lesson,
                         );
+                        blockedByLabel[availability.label] =
+                            (blockedByLabel[availability.label] ?? 0) + 1;
+                      }
+                      final blockerSummary = blockedByLabel.entries
+                          .map(
+                            (entry) =>
+                                '${entry.value} ${entry.key.toLowerCase()}',
+                          )
+                          .join(' • ');
 
-                        final mainAxisExtent = constraints.maxWidth < 760
-                            ? 310.0
-                            : constraints.maxWidth < 1180
-                                ? 326.0
-                                : 340.0;
-
-                        return GridView.builder(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          itemCount: learnerChoices.length,
-                          shrinkWrap: shrinkWrap,
-                          physics: shrinkWrap
-                              ? const NeverScrollableScrollPhysics()
-                              : null,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxisCount,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            mainAxisExtent: mainAxisExtent,
-                          ),
-                          itemBuilder: (context, index) {
-                            final learner = learnerChoices[index];
-                            final availability = learnerLessonAvailability(
-                              state: state,
-                              learner: learner,
-                              lesson: lesson,
-                            );
-                            final isSelected =
-                                selectedLearner?.id == learner.id;
-                            final isLockedOut = (_resumeLocksLearner &&
-                                    resumeLearner != null &&
-                                    learner.id != resumeLearner.id) ||
-                                !availability.canLaunch;
-                            return Opacity(
-                              opacity: isLockedOut ? 0.58 : 1,
-                              child: GestureDetector(
-                                onTap: isLockedOut
-                                    ? null
-                                    : () {
-                                        setState(() {
-                                          selectedLearner = learner;
-                                        });
-                                      },
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(28),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? LumoTheme.primary
-                                          : Colors.transparent,
-                                      width: 2,
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7ED),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFFED7AA),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.person_search_rounded,
+                                      color: Color(0xFF9A3412),
                                     ),
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      Positioned.fill(
-                                        child: _LearnerCard(
-                                          learner: learner,
-                                          state: state,
-                                          dense: true,
-                                          isActive: isSelected,
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'No learner is launchable yet',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 20,
+                                          color: Color(0xFF9A3412),
                                         ),
                                       ),
-                                      Positioned(
-                                        top: 12,
-                                        right: 12,
-                                        child: StatusPill(
-                                          text: availability.label,
-                                          color: _learnerAvailabilityColor(
-                                            availability.kind,
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned(
-                                        left: 12,
-                                        right: 12,
-                                        bottom: 12,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.95,
-                                            ),
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                            border: Border.all(
-                                              color: const Color(0xFFE2E8F0),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                learner.podLabel ??
-                                                    learner.cohort,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF1E3A8A),
-                                                  fontWeight: FontWeight.w800,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                availability.detail,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF475569),
-                                                  height: 1.3,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  registrationBlocker == null
+                                      ? 'Every learner card below is blocked for ${lesson.title}. Use the card badges to see who needs sync, who is assignment-blocked, and who is simply on the wrong tablet before handing this device to a child.'
+                                      : 'Every learner card below is blocked for ${lesson.title}, and registration is currently blocked too. ${registrationBlocker.trim()} Refresh live sync, then re-check the learner badges before launch.',
+                                  style: const TextStyle(
+                                    color: Color(0xFF7C2D12),
+                                    height: 1.45,
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    );
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    StatusPill(
+                                      text: blockerSummary,
+                                      color: LumoTheme.accentOrange,
+                                    ),
+                                    StatusPill(
+                                      text: state.rosterFreshnessLabel,
+                                      color: state.usingFallbackData
+                                          ? LumoTheme.accentOrange
+                                          : LumoTheme.accentGreen,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          if (shrinkWrap)
+                            buildLearnerCards()
+                          else
+                            Expanded(child: buildLearnerCards()),
+                        ],
+                      );
+                    }
+
+                    return buildLearnerCards();
                   }
 
                   final contentChildren = <Widget>[
@@ -5874,6 +5990,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                         ? null
                         : () async {
                             final learner = selectedLearner!;
+                            final messenger = ScaffoldMessenger.of(context);
                             await state.markLearnerAbsentForLesson(
                               learner,
                               lesson,
@@ -5883,7 +6000,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             setState(() {
                               selectedLearner = null;
                             });
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   '${learner.name} marked absent for ${lesson.title}.',
@@ -5901,6 +6018,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
 
                   if (useCompactLayout) {
                     return SingleChildScrollView(
+                      primary: false,
+                      physics: const ClampingScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,

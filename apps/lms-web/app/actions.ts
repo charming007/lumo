@@ -611,7 +611,6 @@ export async function createLessonAction(formData: FormData) {
 
   const lesson = await apiWrite<{ id: string; title?: string; moduleId?: string; subjectId?: string }>('/api/v1/lessons', 'POST', payload);
   revalidatePath('/content');
-  revalidatePath('/english');
   revalidatePath(`/content/lessons/${lesson.id}`);
 
   const lessonTitle = lesson.title ?? payload.title;
@@ -659,7 +658,6 @@ export async function updateLessonAction(formData: FormData) {
 
   await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', payload);
   revalidatePath('/content');
-  revalidatePath('/english');
   revalidatePath(`/content/lessons/${lessonId}`);
   redirect(appendSearchParams(returnPath, {
     message: 'Lesson authoring pack saved',
@@ -953,7 +951,6 @@ export async function createCanvasModuleLessonShellsAction(formData: FormData) {
 
   revalidatePath('/canvas');
   revalidatePath('/content');
-  revalidatePath('/english');
   redirect(appendSearchParams(returnPath, {
     message: `${shellTitles.length} draft lesson shell${shellTitles.length === 1 ? '' : 's'} created for ${moduleTitle}`,
   }));
@@ -1011,7 +1008,6 @@ export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) 
 
   revalidatePath('/canvas');
   revalidatePath('/content');
-  revalidatePath('/english');
   revalidatePath(`/content/lessons/${lessonId}`);
   redirect(appendSearchParams(returnPath, {
     message: assessmentId && assessmentTitle ? 'Lesson gate link saved from canvas' : 'Lesson gate link cleared from canvas',

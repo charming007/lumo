@@ -425,7 +425,7 @@ export function EnglishStudioAuthoringForm({
       {confirmationDialog}
       <form action={action} onSubmitCapture={() => allowNextNavigation()} style={cardStyle}>
       <input type="hidden" name="subjectId" value={englishSubject?.id ?? ''} />
-      <input type="hidden" name="returnPath" value="/english" />
+      <input type="hidden" name="returnPath" value="/content" />
       <input type="hidden" name="targetAgeRange" value={targetAgeRange} />
       <input type="hidden" name="voicePersona" value={voicePersona} />
       <input type="hidden" name="learningObjectives" value={JSON.stringify(learningObjectives)} />
@@ -445,7 +445,7 @@ export function EnglishStudioAuthoringForm({
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button type="button" onClick={regenerateFromBlueprint} style={ghostButtonStyle}>Reset spine from generator</button>
-          <Link href={`/content/lessons/new?subjectId=${englishSubject?.id ?? ''}&moduleId=${moduleId}&from=%2Fenglish`} style={{ ...ghostButtonStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+          <Link href={`/content/lessons/new?subjectId=${englishSubject?.id ?? ''}&moduleId=${moduleId}&from=%2Fcontent`} style={{ ...ghostButtonStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Open full lesson studio
           </Link>
         </div>
