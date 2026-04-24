@@ -5459,6 +5459,24 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => AllStudentsPage(
+                                            state: state,
+                                            onChanged: widget.onChanged,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.groups_rounded),
+                                    label: const Text('Open student list'),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -5874,6 +5892,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                         ? null
                         : () async {
                             final learner = selectedLearner!;
+                            final messenger = ScaffoldMessenger.of(context);
                             await state.markLearnerAbsentForLesson(
                               learner,
                               lesson,
@@ -5883,7 +5902,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             setState(() {
                               selectedLearner = null;
                             });
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   '${learner.name} marked absent for ${lesson.title}.',

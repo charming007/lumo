@@ -2500,11 +2500,17 @@ void main() {
     expect(
         find.text('No learners available for this lesson yet'), findsOneWidget);
     expect(find.text('Refresh live sync'), findsOneWidget);
+    expect(find.text('Open student list'), findsOneWidget);
     expect(find.text('Register first learner'), findsNothing);
     expect(
       find.textContaining('registration is currently blocked'),
       findsOneWidget,
     );
+
+    await tester.tap(find.text('Open student list'));
+    await pumpForUi(tester);
+
+    expect(find.text('All learners'), findsOneWidget);
   });
 
   testWidgets(
