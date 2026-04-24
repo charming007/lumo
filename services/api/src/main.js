@@ -1640,6 +1640,12 @@ app.get('/api/v1/meta', (req, res) => {
       bootId: configAudit.build.bootId,
       startedAt: configAudit.build.startedAt,
     },
+    runtimeFingerprint: 'pod-device-contract-v2',
+    podDeviceContract: {
+      podCreateRequiresCenterId: false,
+      deviceRegistrationRequiresDeviceIdentifier: false,
+      deviceRegistrationUsesPodDerivedIdentifier: true,
+    },
     seedSummary: seed.getSeedSummary(),
     store: storeMeta,
     configAudit,
