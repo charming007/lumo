@@ -860,30 +860,30 @@ export default async function HomePage() {
           )}
         </Card>
 
-        <Card title="LMS route map" eyebrow="Pilot shell">
+        <Card title="LMS route map" eyebrow="Admin shell">
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Shipped pilot routes</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Admin routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Dashboard', 'Content Library', 'Assignments', 'Progress', 'Settings'].map((label) => (
+                {['Dashboard', 'Content Library', 'Curriculum Canvas', 'Students', 'Mallams', 'Pods', 'Devices', 'Attendance', 'Assignments', 'Assessments', 'Progress', 'Reports', 'Rewards', 'English Studio', 'Guide', 'Settings'].map((label) => (
                   <Pill key={label} label={label} tone="#DCFCE7" text="#166534" />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                This deployment target is intentionally scoped to the five launch-critical LMS surfaces. If a route is not in this list, it should not be treated as part of pilot sign-off just because source files exist elsewhere in the repo.
+                The LMS dashboard should expose the real admin shell reviewers and operators use in production. Hiding live routes behind a pilot-only map turns the front door into a misleading deployment surface.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why this stays narrow</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why full scope matters</div>
               <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                Deployment review gets dangerous when the dashboard implies a different admin scope than the pilot shell actually ships. Keep the route map honest so reviewers validate the real launch path instead of getting dumped into placeholder surfaces.
+                Deployment review gets dangerous when the dashboard implies a narrower product than the LMS actually ships. Keep the route map honest so navigation, screenshots, and operator trust all match the real admin surface.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open dashboard</Link>
-              <Link href="/content" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open content</Link>
-              <Link href="/assignments" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open assignments</Link>
-              <Link href="/progress" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open progress</Link>
+              <Link href="/students" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open students</Link>
+              <Link href="/mallams" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open mallams</Link>
+              <Link href="/reports" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open reports</Link>
               <Link href="/settings" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open settings</Link>
             </div>
           </div>
