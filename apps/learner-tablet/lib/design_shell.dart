@@ -23,17 +23,22 @@ class LumoTopBar extends StatelessWidget {
         northernLocations[DateTime.now().day % northernLocations.length];
     final date = DateTime.now();
     final formattedDate = '${date.day}/${date.month}/${date.year}';
-    final chips = <Widget>[
+    final metadataChips = <Widget>[
       _TopChip(text: item['city']!),
       _TopChip(text: item['lga']!),
       _TopChip(text: formattedDate),
-      ...extraChips,
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 900 || extraChips.isNotEmpty;
         final stackedCompact = constraints.maxWidth < 600;
+        final showMetadataChips =
+            extraChips.isEmpty || constraints.maxWidth >= 840;
+        final chips = <Widget>[
+          if (showMetadataChips) ...metadataChips,
+          ...extraChips,
+        ];
 
         if (compact) {
           final logo = GestureDetector(
@@ -48,54 +53,32 @@ class LumoTopBar extends StatelessWidget {
           final chipWrap = Wrap(
             spacing: 8,
             runSpacing: 8,
-            alignment: stackedCompact ? WrapAlignment.start : WrapAlignment.end,
+            alignment: WrapAlignment.start,
             children: chips,
           );
 
-          if (stackedCompact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    logo,
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Lumo',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                chipWrap,
-              ],
-            );
-          }
-
-          return Row(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              logo,
-              const SizedBox(width: 12),
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text(
-                  'Lumo',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-                ),
+              Row(
+                children: [
+                  logo,
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Lumo',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: chipWrap,
-                ),
-              ),
+              if (chips.isNotEmpty) ...[
+                SizedBox(height: stackedCompact ? 12 : 10),
+                chipWrap,
+              ],
             ],
           );
         }

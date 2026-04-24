@@ -1090,26 +1090,29 @@ class HomePage extends StatelessWidget {
     final viewportSize = MediaQuery.sizeOf(context);
     final viewportHeight = viewportSize.height;
     final viewportWidth = viewportSize.width;
+    final ultraShortHeight = viewportHeight <= 560;
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
-        state.registrationBlockerReason != null ||
-        state.assignedLessons.any((lesson) => lesson.isAssignmentPlaceholder) ||
-        state.lastSyncedAt == null;
-    final showTrustBanner = hasSyncWarnings;
-    final trustBannerCompact =
-        viewportWidth < 900 || viewportHeight <= 840;
+        state.registrationBlockerReason != null;
+    final showTrustBanner = hasSyncWarnings && !ultraShortHeight;
+    final trustBannerCompact = viewportWidth < 900 || viewportHeight <= 1040;
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            ultraShortHeight ? 12 : 24,
+            24,
+            ultraShortHeight ? 12 : 20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              LumoTopBar(
-                onLogoTap: () {},
-                extraChips: _buildOperatorStatusChips(state),
-              ),
+              if (!ultraShortHeight)
+                LumoTopBar(
+                  onLogoTap: () {},
+                ),
               if (showTrustBanner) ...[
                 const SizedBox(height: 12),
                 _HomeTrustBanner(
@@ -1118,7 +1121,7 @@ class HomePage extends StatelessWidget {
                   compact: trustBannerCompact,
                 ),
               ],
-              if (state.hasPendingRecoveredSession) ...[
+              if (state.hasPendingRecoveredSession && !ultraShortHeight) ...[
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
@@ -1161,7 +1164,7 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: 6),
+              SizedBox(height: ultraShortHeight ? 0 : 6),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -1172,9 +1175,19 @@ class HomePage extends StatelessWidget {
                     ).length;
                     final denseSubjectLayout =
                         shortHeight && visibleSubjectCount > 3;
-                    final mallamStageHeight = denseSubjectLayout
+                    final preferredMallamStageHeight = denseSubjectLayout
                         ? (compact ? 156.0 : 196.0)
                         : (compact ? 204.0 : 252.0);
+                    final mallamStageHeight = math.min(
+                      preferredMallamStageHeight,
+                      math.max(
+                        ultraShortHeight ? 64.0 : (compact ? 88.0 : 108.0),
+                        constraints.maxHeight *
+                            (ultraShortHeight
+                                ? 0.22
+                                : (denseSubjectLayout ? 0.32 : 0.4)),
+                      ),
+                    );
 
                     void openRegister() {
                       final blocker = state.registrationBlockerReason;
@@ -1210,6 +1223,10 @@ class HomePage extends StatelessWidget {
                     }
 
                     Widget buildActionPanel() {
+                      if (ultraShortHeight) {
+                        return const SizedBox.shrink();
+                      }
+
                       final registrationBlocked =
                           state.registrationBlockerReason != null;
                       final actions = [
@@ -1426,17 +1443,19 @@ class HomePage extends StatelessWidget {
                                       ? preferredSingleRowCount
                                       : adaptiveCrossAxisCount;
 
-                              final aspectRatio = shortHeight
-                                  ? (subjectConstraints.maxWidth < 700
-                                      ? 1.48
-                                      : subjectConstraints.maxWidth < 1100
-                                          ? 1.6
-                                          : 1.72)
-                                  : (subjectConstraints.maxWidth < 700
-                                      ? 1.34
-                                      : subjectConstraints.maxWidth < 1100
-                                          ? 1.42
-                                          : 1.48);
+                              final aspectRatio = ultraShortHeight
+                                  ? 1.02
+                                  : shortHeight
+                                      ? (subjectConstraints.maxWidth < 700
+                                          ? 1.48
+                                          : subjectConstraints.maxWidth < 1100
+                                              ? 1.6
+                                              : 1.72)
+                                      : (subjectConstraints.maxWidth < 700
+                                          ? 1.34
+                                          : subjectConstraints.maxWidth < 1100
+                                              ? 1.42
+                                              : 1.48);
 
                               final preferredTileWidth = shortHeight
                                   ? (compact ? 214.0 : 292.0)
@@ -1509,6 +1528,7 @@ class HomePage extends StatelessWidget {
                     }
 
                     return Stack(
+                      fit: StackFit.expand,
                       children: [
                         Align(
                           alignment: Alignment.topCenter,
@@ -1520,15 +1540,25 @@ class HomePage extends StatelessWidget {
                                   : MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                if (shortHeight)
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      top: 0,
-                                      right: compact ? 0 : 8,
-                                    ),
-                                    child: SizedBox(
-                                      height: mallamStageHeight,
-                                      child: _HomeMallamStage(state: state),
+                                if (ultraShortHeight)
+                                  const SizedBox.shrink()
+                                else if (shortHeight)
+                                  Flexible(
+                                    flex: denseSubjectLayout ? 2 : 3,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 0,
+                                        right: compact ? 0 : 8,
+                                      ),
+                                      child: Align(
+                                        alignment: Alignment.topCenter,
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxHeight: mallamStageHeight,
+                                          ),
+                                          child: _HomeMallamStage(state: state),
+                                        ),
+                                      ),
                                     ),
                                   )
                                 else
@@ -1543,7 +1573,9 @@ class HomePage extends StatelessWidget {
                                     ),
                                   ),
                                 SizedBox(
-                                  height: shortHeight ? 0 : (compact ? 0 : 2),
+                                  height: ultraShortHeight
+                                      ? 0
+                                      : (shortHeight ? 0 : (compact ? 0 : 2)),
                                 ),
                                 buildSubjectSection(),
                               ],
@@ -1757,6 +1789,26 @@ class _HomeTrustBanner extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
+                      StatusPill(
+                        text: state.operatorSourceLabel,
+                        color: _operatorStatusColor(state.operatorSourceLabel),
+                      ),
+                      if (state.curriculumSourceLabel !=
+                          state.operatorSourceLabel)
+                        StatusPill(
+                          text: state.curriculumSourceLabel,
+                          color:
+                              _operatorStatusColor(state.curriculumSourceLabel),
+                        ),
+                      if (state.operatorHealthLabel !=
+                              state.operatorSourceLabel &&
+                          state.operatorHealthLabel !=
+                              state.curriculumSourceLabel)
+                        StatusPill(
+                          text: state.operatorHealthLabel,
+                          color:
+                              _operatorStatusColor(state.operatorHealthLabel),
+                        ),
                       StatusPill(
                         text: state.rosterFreshnessLabel,
                         color: state.usingFallbackData
@@ -2021,6 +2073,10 @@ class _HomeMallamStage extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (constraints.maxHeight < 72) {
+          return const SizedBox.shrink();
+        }
+
         final compact =
             constraints.maxWidth < 900 || constraints.maxHeight < 500;
         final shortHeight = constraints.maxHeight < 280;
