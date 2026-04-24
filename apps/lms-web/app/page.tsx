@@ -793,8 +793,8 @@ export default async function HomePage() {
                     : 'The runtime audit cannot prove the asset routes are mounted cleanly in this API build yet. Treat that as a release smell until settings or the asset board says otherwise.'}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <Link href="/content/assets" style={{ ...quickActionStyle, background: assetReadinessTone(assetRuntime.summary.readiness).text, color: 'white', padding: '10px 12px' }}>
-                    Open asset library
+                  <Link href="/content" style={{ ...quickActionStyle, background: assetReadinessTone(assetRuntime.summary.readiness).text, color: 'white', padding: '10px 12px' }}>
+                    Open content library
                   </Link>
                   <Link href="/settings" style={{ ...quickActionStyle, background: '#fff', color: assetReadinessTone(assetRuntime.summary.readiness).text, border: `1px solid ${assetReadinessTone(assetRuntime.summary.readiness).text}`, padding: '10px 12px' }}>
                     Open settings + config audit
