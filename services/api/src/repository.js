@@ -1,5 +1,9 @@
 const data = require('./data');
 
+function uniqueStringList(values = []) {
+  return [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || '').trim()).filter(Boolean))];
+}
+
 function commit(value) {
   data.persist();
   return value;
@@ -150,6 +154,74 @@ function updateLocalGovernment(id, input) {
   return commit(record);
 }
 
+function syncTeacherPodCoverage(teacherId, nextPodIds = [], previousPodIds = []) {
+  const nextIds = new Set(uniqueStringList(nextPodIds));
+  const previousIds = new Set(uniqueStringList(previousPodIds));
+
+  data.pods.forEach((pod) => {
+    const mallamIds = new Set(uniqueStringList(pod.mallamIds));
+    if (nextIds.has(pod.id)) {
+      mallamIds.add(teacherId);
+    } else if (previousIds.has(pod.id) || mallamIds.has(teacherId)) {
+      mallamIds.delete(teacherId);
+    }
+    pod.mallamIds = [...mallamIds];
+  });
+}
+
+function syncPodMallamCoverage(podId, nextMallamIds = [], previousMallamIds = []) {
+  const nextIds = new Set(uniqueStringList(nextMallamIds));
+  const previousIds = new Set(uniqueStringList(previousMallamIds));
+
+  data.teachers.forEach((teacher) => {
+    const podIds = new Set(uniqueStringList(teacher.podIds));
+    if (nextIds.has(teacher.id)) {
+      podIds.add(podId);
+    } else if (previousIds.has(teacher.id) || podIds.has(podId)) {
+      podIds.delete(podId);
+    }
+
+    const normalizedPodIds = [...podIds];
+    teacher.podIds = normalizedPodIds;
+    teacher.primaryPodId = normalizedPodIds.includes(teacher.primaryPodId)
+      ? teacher.primaryPodId
+      : normalizedPodIds[0] || null;
+  });
+}
+
+function findPrimaryPodIdForTeacher(teacherId) {
+  const teacher = teacherId ? findTeacherById(teacherId) : null;
+  return teacher?.primaryPodId || teacher?.podIds?.[0] || null;
+}
+
+function deriveMallamIdFromPodId(podId) {
+  if (!podId) return null;
+  const pod = findPodById(podId);
+  if (!pod) return null;
+  return (Array.isArray(pod.mallamIds) && pod.mallamIds.length ? pod.mallamIds[0] : null)
+    || listTeachers().find((teacher) => Array.isArray(teacher.podIds) && teacher.podIds.includes(podId))?.id
+    || null;
+}
+
+function resolveStudentReferences(input = {}, existing = null) {
+  const has = (key) => Object.prototype.hasOwnProperty.call(input, key);
+  const nextCohortId = has('cohortId') ? input.cohortId : existing?.cohortId;
+  const nextMallamId = has('mallamId') ? input.mallamId : existing?.mallamId;
+  const cohort = nextCohortId ? findCohortById(nextCohortId) : null;
+  const derivedPodIdFromMallam = findPrimaryPodIdForTeacher(nextMallamId);
+  const nextPodId = has('podId')
+    ? input.podId
+    : cohort?.podId || derivedPodIdFromMallam || existing?.podId || null;
+
+  return {
+    cohortId: nextCohortId ?? null,
+    podId: nextPodId ?? null,
+    mallamId: nextMallamId !== undefined
+      ? nextMallamId
+      : deriveMallamIdFromPodId(nextPodId) ?? null,
+  };
+}
+
 function listPods() {
   return data.pods;
 }
@@ -191,6 +263,7 @@ function deletePod(id) {
   }
 
   data.pods = data.pods.filter((item) => item.id !== id);
+  syncTeacherPodAssignments();
   return commit(pod);
 }
 
@@ -216,10 +289,11 @@ function createPod(input) {
     capacity: Number(input.capacity || 0),
     learnersActive: Number(input.learnersActive || 0),
     connectivity: input.connectivity || 'offline-first',
-    mallamIds: Array.isArray(input.mallamIds) ? [...input.mallamIds] : [],
+    mallamIds: uniqueStringList(input.mallamIds),
   };
 
   data.pods.push(pod);
+  syncTeacherPodAssignments();
   return commit(pod);
 }
 
@@ -238,9 +312,10 @@ function updatePod(id, input) {
     capacity: input.capacity !== undefined ? Number(input.capacity) : pod.capacity,
     learnersActive: input.learnersActive !== undefined ? Number(input.learnersActive) : pod.learnersActive,
     connectivity: input.connectivity ?? pod.connectivity,
-    mallamIds: input.mallamIds ?? pod.mallamIds,
+    mallamIds: input.mallamIds !== undefined ? uniqueStringList(input.mallamIds) : pod.mallamIds,
   });
 
+  syncTeacherPodAssignments();
   return commit(pod);
 }
 
@@ -260,6 +335,43 @@ function findTeacherById(id) {
   return data.teachers.find((item) => item.id === id) || null;
 }
 
+function syncTeacherPodAssignments() {
+  const podCoverageByTeacher = new Map();
+
+  (data.pods || []).forEach((pod) => {
+    pod.mallamIds = uniqueStringList(pod.mallamIds);
+    (pod.mallamIds || []).forEach((teacherId) => {
+      if (!teacherId) return;
+      const current = podCoverageByTeacher.get(teacherId) || [];
+      if (!current.includes(pod.id)) current.push(pod.id);
+      podCoverageByTeacher.set(teacherId, current);
+    });
+  });
+
+  (data.teachers || []).forEach((teacher) => {
+    teacher.podIds = uniqueStringList(teacher.podIds);
+    teacher.podIds.forEach((podId) => {
+      if (!podId) return;
+      const pod = findPodById(podId);
+      if (!pod) return;
+      const mallamIds = new Set(uniqueStringList(pod.mallamIds));
+      mallamIds.add(teacher.id);
+      pod.mallamIds = [...mallamIds];
+      const current = podCoverageByTeacher.get(teacher.id) || [];
+      if (!current.includes(podId)) current.push(podId);
+      podCoverageByTeacher.set(teacher.id, current);
+    });
+  });
+
+  (data.teachers || []).forEach((teacher) => {
+    const explicitAssignments = uniqueStringList(podCoverageByTeacher.get(teacher.id) || []);
+    teacher.podIds = explicitAssignments;
+    teacher.primaryPodId = explicitAssignments.includes(teacher.primaryPodId)
+      ? teacher.primaryPodId
+      : explicitAssignments[0] || null;
+  });
+}
+
 function createTeacher(input) {
   const normalizedPodIds = Array.isArray(input.podIds)
     ? [...input.podIds]
@@ -268,12 +380,21 @@ function createTeacher(input) {
       : input.podId
         ? [input.podId]
         : [];
+  const primaryPodId = input.primaryPodId || input.podId || normalizedPodIds[0] || null;
+  const primaryPod = primaryPodId ? findPodById(primaryPodId) : null;
+  const derivedCenter = input.centerId
+    ? findCenterById(input.centerId)
+    : primaryPod?.centerId
+      ? findCenterById(primaryPod.centerId)
+      : data.centers.find((center) => center.stateId === input.stateId && center.localGovernmentId === input.localGovernmentId) || null;
 
   const teacher = {
     id: `teacher-${data.teachers.length + 1}`,
-    centerId: input.centerId,
+    centerId: derivedCenter?.id || input.centerId || null,
+    stateId: input.stateId || primaryPod?.stateId || derivedCenter?.stateId || null,
+    localGovernmentId: input.localGovernmentId || primaryPod?.localGovernmentId || derivedCenter?.localGovernmentId || null,
     podIds: normalizedPodIds,
-    primaryPodId: input.primaryPodId || input.podId || normalizedPodIds[0] || null,
+    primaryPodId,
     name: input.name,
     displayName: input.displayName || input.name,
     role: input.role || 'mallam-lead',
@@ -284,6 +405,7 @@ function createTeacher(input) {
   };
 
   data.teachers.push(teacher);
+  syncTeacherPodAssignments();
   return commit(teacher);
 }
 
@@ -295,11 +417,20 @@ function updateTeacher(id, input) {
   }
 
   const nextPodIds = input.podIds ?? (input.primaryPodId ? [input.primaryPodId] : input.podId ? [input.podId] : teacher.podIds);
+  const nextPrimaryPodId = input.primaryPodId ?? input.podId ?? nextPodIds?.[0] ?? teacher.primaryPodId ?? null;
+  const nextPrimaryPod = nextPrimaryPodId ? findPodById(nextPrimaryPodId) : null;
+  const derivedCenter = input.centerId
+    ? findCenterById(input.centerId)
+    : nextPrimaryPod?.centerId
+      ? findCenterById(nextPrimaryPod.centerId)
+      : data.centers.find((center) => center.stateId === (input.stateId ?? teacher.stateId) && center.localGovernmentId === (input.localGovernmentId ?? teacher.localGovernmentId)) || null;
 
   Object.assign(teacher, {
-    centerId: input.centerId ?? teacher.centerId,
-    podIds: nextPodIds,
-    primaryPodId: input.primaryPodId ?? input.podId ?? nextPodIds?.[0] ?? teacher.primaryPodId ?? null,
+    centerId: input.centerId !== undefined ? (input.centerId || derivedCenter?.id || null) : (derivedCenter?.id || teacher.centerId),
+    stateId: input.stateId !== undefined ? (input.stateId || nextPrimaryPod?.stateId || derivedCenter?.stateId || null) : (nextPrimaryPod?.stateId || teacher.stateId),
+    localGovernmentId: input.localGovernmentId !== undefined ? (input.localGovernmentId || nextPrimaryPod?.localGovernmentId || derivedCenter?.localGovernmentId || null) : (nextPrimaryPod?.localGovernmentId || teacher.localGovernmentId),
+    podIds: uniqueStringList(nextPodIds),
+    primaryPodId: nextPrimaryPodId,
     name: input.name ?? teacher.name,
     displayName: input.displayName ?? teacher.displayName,
     role: input.role ?? teacher.role,
@@ -309,6 +440,7 @@ function updateTeacher(id, input) {
     certificationLevel: input.certificationLevel ?? teacher.certificationLevel,
   });
 
+  syncTeacherPodAssignments();
   return commit(teacher);
 }
 
@@ -329,7 +461,11 @@ function deleteTeacher(id) {
 
   data.assignments = data.assignments.filter((assignment) => assignment.assignedBy !== id);
   data.observations = data.observations.filter((observation) => observation.teacherId !== id);
+  (data.pods || []).forEach((pod) => {
+    pod.mallamIds = uniqueStringList(pod.mallamIds).filter((teacherId) => teacherId !== id);
+  });
 
+  syncTeacherPodAssignments();
   return commit(teacher);
 }
 
@@ -342,11 +478,12 @@ function findStudentById(id) {
 }
 
 function createStudent(input) {
+  const references = resolveStudentReferences(input);
   const student = {
     id: `student-${data.students.length + 1}`,
-    cohortId: input.cohortId,
-    podId: input.podId,
-    mallamId: input.mallamId,
+    cohortId: references.cohortId,
+    podId: references.podId,
+    mallamId: references.mallamId,
     name: input.name,
     age: Number(input.age),
     gender: input.gender || 'unspecified',
@@ -375,11 +512,12 @@ function updateStudent(id, input) {
   }
 
   const has = (key) => Object.prototype.hasOwnProperty.call(input, key);
+  const references = resolveStudentReferences(input, student);
 
   Object.assign(student, {
-    cohortId: has('cohortId') ? input.cohortId : student.cohortId,
-    podId: has('podId') ? input.podId : student.podId,
-    mallamId: has('mallamId') ? input.mallamId : student.mallamId,
+    cohortId: has('cohortId') ? references.cohortId : student.cohortId,
+    podId: has('podId') ? references.podId : (has('cohortId') || has('mallamId') ? references.podId : student.podId),
+    mallamId: has('mallamId') ? references.mallamId : (has('podId') || has('cohortId') ? references.mallamId : student.mallamId),
     name: input.name ?? student.name,
     age: input.age !== undefined ? Number(input.age) : student.age,
     gender: input.gender ?? student.gender,
@@ -1372,16 +1510,61 @@ function findDeviceRegistrationById(id) {
   return listDeviceRegistrations().find((item) => item.id === id) || null;
 }
 
-function findDeviceRegistrationByIdentifier(deviceIdentifier) {
-  if (!deviceIdentifier) return null;
-  return listDeviceRegistrations().find((item) => item.deviceIdentifier === deviceIdentifier) || null;
-}
 
 function findDeviceRegistrationByIdentifier(deviceIdentifier) {
   if (!deviceIdentifier) return null;
   const normalized = String(deviceIdentifier).trim().toLowerCase();
   if (!normalized) return null;
   return listDeviceRegistrations().find((item) => String(item.deviceIdentifier || '').trim().toLowerCase() === normalized) || null;
+}
+
+function deriveMallamIdFromPod(pod) {
+  if (!pod) return null;
+  const explicitPodMallamId = Array.isArray(pod.mallamIds) && pod.mallamIds.length ? pod.mallamIds[0] : null;
+  if (explicitPodMallamId) return explicitPodMallamId;
+  return listTeachers().find((teacher) => Array.isArray(teacher.podIds) && teacher.podIds.includes(pod.id))?.id || null;
+}
+
+function deriveTabletName({ tabletName, deviceIdentifier, podLabel } = {}) {
+  const explicitName = String(tabletName || '').trim();
+  if (explicitName) return explicitName;
+  return extractTabletNameFromIdentifier(deviceIdentifier, podLabel);
+}
+
+function buildDeviceRegistrationRecord(input, existingRecord = null) {
+  const nextPodId = input.podId ?? existingRecord?.podId ?? null;
+  const pod = nextPodId ? findPodById(nextPodId) : null;
+  const nextCenterId = input.centerId ?? pod?.centerId ?? existingRecord?.centerId ?? null;
+  const center = nextCenterId ? findCenterById(nextCenterId) : null;
+  const providedDeviceIdentifier = input.deviceIdentifier === undefined
+    ? existingRecord?.deviceIdentifier ?? null
+    : (input.deviceIdentifier || null);
+  const nextTabletName = deriveTabletName({
+    tabletName: input.tabletName,
+    deviceIdentifier: providedDeviceIdentifier,
+    podLabel: pod?.label || '',
+  }) || existingRecord?.tabletName || null;
+  const nextDeviceIdentifier = pod?.label && nextTabletName
+    ? buildTabletIdentifier({ podLabel: pod.label, tabletName: nextTabletName })
+    : (providedDeviceIdentifier || null);
+
+  return {
+    id: input.id || existingRecord?.id || `device-${listDeviceRegistrations().length + 1}`,
+    podId: nextPodId,
+    stateId: pod?.stateId || center?.stateId || input.stateId || existingRecord?.stateId || null,
+    localGovernmentId: pod?.localGovernmentId || center?.localGovernmentId || input.localGovernmentId || existingRecord?.localGovernmentId || null,
+    centerId: nextCenterId,
+    assignedMallamId: input.assignedMallamId ?? deriveMallamIdFromPod(pod) ?? existingRecord?.assignedMallamId ?? null,
+    tabletName: nextTabletName,
+    deviceIdentifier: nextDeviceIdentifier,
+    serialNumber: input.serialNumber !== undefined ? input.serialNumber || null : (existingRecord?.serialNumber || null),
+    platform: input.platform ?? existingRecord?.platform ?? 'android',
+    appVersion: input.appVersion !== undefined ? input.appVersion || null : (existingRecord?.appVersion || null),
+    status: input.status ?? existingRecord?.status ?? 'active',
+    metadata: input.metadata !== undefined ? (input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null) : (existingRecord?.metadata ?? null),
+    lastSeenAt: input.lastSeenAt !== undefined ? input.lastSeenAt : (existingRecord?.lastSeenAt ?? null),
+    registeredAt: input.registeredAt ?? existingRecord?.registeredAt ?? new Date().toISOString(),
+  };
 }
 
 function createDeviceRegistration(input) {

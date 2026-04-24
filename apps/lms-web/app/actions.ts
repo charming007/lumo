@@ -312,6 +312,8 @@ export async function createStudentAction(formData: FormData) {
     name: String(formData.get('name') || ''),
     age: Number(formData.get('age') || 0),
     gender: String(formData.get('gender') || 'unspecified'),
+    stateId: String(formData.get('stateId') || ''),
+    localGovernmentId: String(formData.get('localGovernmentId') || ''),
     cohortId: String(formData.get('cohortId') || ''),
     podId: String(formData.get('podId') || ''),
     mallamId: String(formData.get('mallamId') || ''),
@@ -333,6 +335,8 @@ export async function updateStudentAction(formData: FormData) {
   const studentId = String(formData.get('studentId') || '');
   const payload = {
     name: String(formData.get('name') || ''),
+    stateId: String(formData.get('stateId') || ''),
+    localGovernmentId: String(formData.get('localGovernmentId') || ''),
     cohortId: String(formData.get('cohortId') || ''),
     podId: String(formData.get('podId') || ''),
     mallamId: String(formData.get('mallamId') || ''),
@@ -398,11 +402,14 @@ export async function createMallamAction(formData: FormData) {
     name: String(formData.get('name') || ''),
     displayName: String(formData.get('displayName') || ''),
     centerId: String(formData.get('centerId') || ''),
+    stateId: String(formData.get('stateId') || ''),
+    localGovernmentId: String(formData.get('localGovernmentId') || ''),
     role: String(formData.get('role') || 'mallam-lead'),
     status: String(formData.get('status') || 'active'),
     learnerCount: Number(formData.get('learnerCount') || 0),
     certificationLevel: String(formData.get('certificationLevel') || 'Level 1'),
     podIds,
+    primaryPodId: podIds[0] || '',
     languages: String(formData.get('languages') || 'Hausa, English').split(',').map((item) => item.trim()).filter(Boolean),
   };
 
@@ -419,11 +426,14 @@ export async function updateMallamAction(formData: FormData) {
     name: String(formData.get('name') || ''),
     displayName: String(formData.get('displayName') || ''),
     centerId: String(formData.get('centerId') || ''),
+    stateId: String(formData.get('stateId') || ''),
+    localGovernmentId: String(formData.get('localGovernmentId') || ''),
     role: String(formData.get('role') || ''),
     status: String(formData.get('status') || ''),
     learnerCount: Number(formData.get('learnerCount') || 0),
     certificationLevel: String(formData.get('certificationLevel') || ''),
     podIds,
+    primaryPodId: podIds[0] || '',
     languages: String(formData.get('languages') || '').split(',').map((item) => item.trim()).filter(Boolean),
   };
 

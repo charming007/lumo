@@ -58,6 +58,14 @@ function deriveLocalGovernmentIdFromCenter(centerId: string | null | undefined, 
   return centers.find((item) => item.id === centerId)?.localGovernmentId || '';
 }
 
+function deriveStateIdFromMallam(mallam: Mallam, centers: Center[]) {
+  return deriveStateIdFromCenter(mallam.centerId, centers) || '';
+}
+
+function deriveLocalGovernmentIdFromMallam(mallam: Mallam, centers: Center[]) {
+  return deriveLocalGovernmentIdFromCenter(mallam.centerId, centers) || '';
+}
+
 export function StudentGeographySelectors({
   cohorts,
   pods,
@@ -105,22 +113,34 @@ export function StudentGeographySelectors({
     });
   }, [pods, centers, stateId, localGovernmentId]);
 
-  const filteredCohorts = useMemo(
-    () => cohorts.filter((cohort) => !podId || cohort.podId === podId),
-    [cohorts, podId],
-  );
-
-  const filteredMallams = useMemo(() => {
-    return mallams.filter((mallam) => {
-      const center = centers.find((item) => item.id === mallam.centerId);
-      const mallamStateId = deriveStateIdFromCenter(center?.id, centers);
-      const mallamLocalGovernmentId = deriveLocalGovernmentIdFromCenter(center?.id, centers);
-      if (stateId && mallamStateId !== stateId) return false;
-      if (localGovernmentId && mallamLocalGovernmentId !== localGovernmentId) return false;
-      if (podId && !(mallam.podIds || []).includes(podId)) return false;
+  const filteredCohorts = useMemo(() => {
+    return cohorts.filter((cohort) => {
+      const cohortPod = pods.find((item) => item.id === cohort.podId);
+      const center = cohortPod ? centers.find((item) => item.id === cohortPod.centerId) : centers.find((item) => item.id === cohort.centerId);
+      const cohortStateId = cohortPod?.stateId || center?.stateId || '';
+      const cohortLocalGovernmentId = cohortPod?.localGovernmentId || center?.localGovernmentId || '';
+      if (podId) return cohort.podId === podId;
+      if (stateId && cohortStateId !== stateId) return false;
+      if (localGovernmentId && cohortLocalGovernmentId !== localGovernmentId) return false;
       return true;
     });
-  }, [mallams, centers, stateId, localGovernmentId, podId]);
+  }, [cohorts, pods, centers, podId, stateId, localGovernmentId]);
+
+  const filteredMallams = useMemo(() => {
+    const selectedPod = podId ? pods.find((item) => item.id === podId) : null;
+    return mallams.filter((mallam) => {
+      const mallamStateId = deriveStateIdFromMallam(mallam, centers);
+      const mallamLocalGovernmentId = deriveLocalGovernmentIdFromMallam(mallam, centers);
+      if (stateId && mallamStateId !== stateId) return false;
+      if (localGovernmentId && mallamLocalGovernmentId !== localGovernmentId) return false;
+      if (podId) {
+        const coversPodFromMallam = (mallam.podIds || []).includes(podId);
+        const coversPodFromPodRecord = (selectedPod?.mallamIds || []).includes(mallam.id);
+        if (!coversPodFromMallam && !coversPodFromPodRecord) return false;
+      }
+      return true;
+    });
+  }, [mallams, centers, pods, stateId, localGovernmentId, podId]);
 
   useEffect(() => {
     if (localGovernmentId && !filteredLocalGovernments.some((item) => item.id === localGovernmentId)) {
@@ -129,19 +149,31 @@ export function StudentGeographySelectors({
   }, [filteredLocalGovernments, localGovernmentId]);
 
   useEffect(() => {
-    if (podId && !filteredPods.some((item) => item.id === podId)) {
+    if (!filteredPods.length) {
+      if (podId) setPodId('');
+      return;
+    }
+    if (!podId || !filteredPods.some((item) => item.id === podId)) {
       setPodId(filteredPods[0]?.id || '');
     }
   }, [filteredPods, podId]);
 
   useEffect(() => {
-    if (cohortId && !filteredCohorts.some((item) => item.id === cohortId)) {
+    if (!filteredCohorts.length) {
+      if (cohortId) setCohortId('');
+      return;
+    }
+    if (!cohortId || !filteredCohorts.some((item) => item.id === cohortId)) {
       setCohortId(filteredCohorts[0]?.id || '');
     }
   }, [filteredCohorts, cohortId]);
 
   useEffect(() => {
-    if (mallamId && !filteredMallams.some((item) => item.id === mallamId)) {
+    if (!filteredMallams.length) {
+      if (mallamId) setMallamId('');
+      return;
+    }
+    if (!mallamId || !filteredMallams.some((item) => item.id === mallamId)) {
       setMallamId(filteredMallams[0]?.id || '');
     }
   }, [filteredMallams, mallamId]);
