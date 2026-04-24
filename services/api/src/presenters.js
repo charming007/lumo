@@ -144,13 +144,21 @@ function presentRewardSnapshot(studentId) {
   return rewards.buildLearnerRewards(studentId);
 }
 
+function resolveStudentPod(student, cohort = null, mallam = null) {
+  return repository.findPodById(student.podId)
+    || (cohort?.podId ? repository.findPodById(cohort.podId) : null)
+    || repository.findPodById(mallam?.primaryPodId || mallam?.podIds?.[0] || null)
+    || null;
+}
+
 function presentStudent(student) {
   const cohort = repository.findCohortById(student.cohortId);
-  const pod = repository.findPodById(student.podId);
   const mallam = repository.findTeacherById(student.mallamId);
+  const pod = resolveStudentPod(student, cohort, mallam);
 
   return {
     ...student,
+    podId: student.podId ?? pod?.id ?? null,
     cohortName: cohort?.name ?? null,
     podLabel: pod?.label ?? null,
     stateId: pod?.stateId ?? null,
@@ -164,8 +172,8 @@ function presentStudent(student) {
 
 function presentLearnerProfile(student) {
   const cohort = repository.findCohortById(student.cohortId);
-  const pod = repository.findPodById(student.podId);
   const mallam = repository.findTeacherById(student.mallamId);
+  const pod = resolveStudentPod(student, cohort, mallam);
   const progressEntries = repository.listProgress().filter((entry) => entry.studentId === student.id);
   const attendanceEntries = repository
     .listAttendance()
