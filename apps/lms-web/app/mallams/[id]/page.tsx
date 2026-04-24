@@ -3,7 +3,6 @@ import { DeleteMallamForm, UpdateMallamForm } from '../../../components/admin-fo
 import { MallamRosterManager } from '../../../components/mallam-roster-manager';
 import { ModalLauncher } from '../../../components/modal-launcher';
 import { fetchCenters, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../../lib/api';
-import { mallamGeographyLabel } from '../../../lib/geography';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
 export default async function MallamDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,7 +56,6 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
                 { label: 'Pods', value: String(mallam.podLabels?.length || 0) },
                 { label: 'Status', value: mallam.status || '—' },
                 { label: 'Center', value: mallam.centerName || '—' },
-                { label: 'Geography', value: mallamGeographyLabel(mallam, centers, states, localGovernments) },
               ]}
             />
           </Card>

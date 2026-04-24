@@ -3,7 +3,6 @@ import { DeleteStudentForm, UpdateStudentForm } from '../../../components/admin-
 import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../../components/modal-launcher';
 import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../../lib/api';
-import { studentGeographyLabel } from '../../../lib/geography';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
 function percent(value: number | null | undefined) {
@@ -60,7 +59,6 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                 { label: 'Stage', value: student.stage || '—' },
                 { label: 'Attendance', value: percent(student.attendanceRate) },
                 { label: 'Pod', value: student.podLabel || 'Unassigned' },
-                { label: 'Geography', value: studentGeographyLabel(student, pods, centers, states, localGovernments) },
               ]}
             />
           </Card>

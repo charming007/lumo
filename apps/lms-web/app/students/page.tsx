@@ -68,7 +68,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
         resetHref="/students"
         fields={[
           { name: 'stateId', label: 'State', value: stateId, options: states.map((state) => ({ value: state.id, label: state.name })) },
-          { name: 'localGovernmentId', label: 'Local government', value: localGovernmentId, dependsOn: 'stateId', emptyLabel: 'Select state first', options: localGovernments.map((item) => ({ value: item.id, label: item.name, stateId: item.stateId })) },
+          { name: 'localGovernmentId', label: 'Local government', value: localGovernmentId, options: localGovernments.filter((item) => !stateId || item.stateId === stateId).map((item) => ({ value: item.id, label: item.name })) },
           { name: 'podId', label: 'Pod', value: podId, options: pods.map((pod) => ({ value: pod.id, label: pod.label })) },
           { name: 'cohortId', label: 'Cohort', value: cohortId, options: cohorts.map((cohort) => ({ value: cohort.id, label: cohort.name })) },
           { name: 'mallamId', label: 'Mallam', value: mallamId, options: mallams.map((mallam) => ({ value: mallam.id, label: mallam.displayName || mallam.name })) },
