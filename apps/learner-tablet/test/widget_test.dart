@@ -244,6 +244,34 @@ void main() {
   });
 
   testWidgets(
+    'home screen keeps the trust banner visible on compact tablets when pilot warnings exist',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = true
+        ..backendError = 'backend offline';
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(
+            state: state,
+            onChanged: _noop,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('No trusted live sync on this tablet'), findsOneWidget);
+      expect(find.textContaining('Reconnect to'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'home subject cards stay in a single 3-card row on the learner tablet layout',
     (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);

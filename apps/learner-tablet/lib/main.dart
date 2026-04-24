@@ -1095,8 +1095,9 @@ class HomePage extends StatelessWidget {
         state.registrationBlockerReason != null ||
         state.assignedLessons.any((lesson) => lesson.isAssignmentPlaceholder) ||
         state.lastSyncedAt == null;
-    final showTrustBanner =
-        hasSyncWarnings && viewportHeight > 840 && viewportWidth >= 900;
+    final showTrustBanner = hasSyncWarnings;
+    final trustBannerCompact =
+        viewportWidth < 900 || viewportHeight <= 840;
 
     return Scaffold(
       body: SafeArea(
@@ -1114,7 +1115,7 @@ class HomePage extends StatelessWidget {
                 _HomeTrustBanner(
                   state: state,
                   onChanged: onChanged,
-                  compact: true,
+                  compact: trustBannerCompact,
                 ),
               ],
               if (state.hasPendingRecoveredSession) ...[
