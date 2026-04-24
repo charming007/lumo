@@ -322,15 +322,16 @@ void main() {
     test('bootstrap automatically sends the persisted tablet device identifier',
         () async {
       SharedPreferences.setMockInitialValues({});
-      late String capturedHeader;
+      String? capturedHeader;
+      String? capturedContentType;
       late String capturedQuery;
       final state = LumoAppState(
         includeSeedDemoContent: false,
         apiClient: LumoApiClient(
           client: MockClient((request) async {
             if (request.url.path == '/api/v1/learner-app/bootstrap') {
-              capturedHeader =
-                  request.headers['x-lumo-device-identifier'] ?? '';
+              capturedHeader = request.headers['x-lumo-device-identifier'];
+              capturedContentType = request.headers['content-type'];
               capturedQuery =
                   request.url.queryParameters['deviceIdentifier'] ?? '';
               return http.Response(
@@ -356,7 +357,8 @@ void main() {
       final deviceIdentifier = state.stableDeviceIdentifier;
       await state.bootstrap();
 
-      expect(capturedHeader, deviceIdentifier);
+      expect(capturedHeader, isNull);
+      expect(capturedContentType, isNull);
       expect(capturedQuery, deviceIdentifier);
       state.dispose();
     });

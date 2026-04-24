@@ -8,14 +8,17 @@ import 'package:lumo_learner_tablet/models.dart';
 
 void main() {
   group('LumoApiClient tablet identity', () {
-    test('sends stable device identifier on bootstrap requests', () async {
+    test(
+        'sends bootstrap device identifier via query and avoids brittle GET headers',
+        () async {
       final client = LumoApiClient(
         client: MockClient((request) async {
           expect(request.url.path, '/api/v1/learner-app/bootstrap');
           expect(request.url.queryParameters['deviceIdentifier'],
               'lumo-tablet-stable-01');
-          expect(request.headers['x-lumo-device-identifier'],
-              'lumo-tablet-stable-01');
+          expect(request.headers['x-lumo-device-identifier'], isNull);
+          expect(request.headers['content-type'], isNull);
+          expect(request.headers['accept'], 'application/json');
           return http.Response(
             jsonEncode({
               'learners': const [],

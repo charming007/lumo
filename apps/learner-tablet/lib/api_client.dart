@@ -41,6 +41,7 @@ class LumoApiClient {
   final String baseUrl;
   String? deviceIdentifier;
   static const Duration _requestTimeout = Duration(seconds: 12);
+  static const Duration _bootstrapTimeout = Duration(seconds: 3);
 
   static String normalizeBaseUrl(String rawBaseUrl) {
     final trimmed = rawBaseUrl.trim();
@@ -136,17 +137,23 @@ class LumoApiClient {
     return segments;
   }
 
-  Map<String, String> _jsonHeadersWithDevice(
-      [String? overrideDeviceIdentifier]) {
+  Map<String, String> _jsonHeadersWithDevice({
+    String? overrideDeviceIdentifier,
+    bool includeContentType = true,
+    bool includeDeviceIdentifierHeader = true,
+  }) {
     final headers = <String, String>{
-      'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
     final resolvedDeviceIdentifier =
         overrideDeviceIdentifier?.trim().isNotEmpty == true
             ? overrideDeviceIdentifier!.trim()
             : deviceIdentifier?.trim();
-    if (resolvedDeviceIdentifier != null &&
+    if (includeDeviceIdentifierHeader &&
+        resolvedDeviceIdentifier != null &&
         resolvedDeviceIdentifier.isNotEmpty) {
       headers['x-lumo-device-identifier'] = resolvedDeviceIdentifier;
     }
@@ -184,10 +191,16 @@ class LumoApiClient {
       includeDeviceIdentifierQuery: true,
     );
     final response = await _send(
-      () => _client.get(
-        uri,
-        headers: _jsonHeadersWithDevice(overrideDeviceIdentifier),
-      ),
+      () => _client
+          .get(
+            uri,
+            headers: _jsonHeadersWithDevice(
+              overrideDeviceIdentifier: overrideDeviceIdentifier,
+              includeContentType: false,
+              includeDeviceIdentifierHeader: false,
+            ),
+          )
+          .timeout(_bootstrapTimeout),
       action: 'load learner app bootstrap',
       uri: uri,
     );
@@ -253,7 +266,9 @@ class LumoApiClient {
     final response = await _send(
       () => _client.post(
         uri,
-        headers: _jsonHeadersWithDevice(overrideDeviceIdentifier),
+        headers: _jsonHeadersWithDevice(
+          overrideDeviceIdentifier: overrideDeviceIdentifier,
+        ),
         body: jsonEncode(payload),
       ),
       action: 'register learner',
@@ -271,7 +286,7 @@ class LumoApiClient {
     final response = await _send(
       () => _client.get(
         uri,
-        headers: _jsonHeadersWithDevice(),
+        headers: _jsonHeadersWithDevice(includeContentType: false),
       ),
       action: 'load module details for $moduleId',
       uri: uri,
@@ -304,7 +319,7 @@ class LumoApiClient {
     final response = await _send(
       () => _client.get(
         uri,
-        headers: _jsonHeadersWithDevice(),
+        headers: _jsonHeadersWithDevice(includeContentType: false),
       ),
       action: 'load learner runtime sessions',
       uri: uri,
@@ -402,7 +417,10 @@ class LumoApiClient {
       queryParameters: query.isEmpty ? null : query,
     );
     final response = await _send(
-      () => _client.get(uri, headers: _jsonHeadersWithDevice()),
+      () => _client.get(
+        uri,
+        headers: _jsonHeadersWithDevice(includeContentType: false),
+      ),
       action: 'load learner rewards',
       uri: uri,
     );
