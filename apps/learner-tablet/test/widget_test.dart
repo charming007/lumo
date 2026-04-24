@@ -1061,6 +1061,19 @@ void main() {
     expect(firstSubjectTop, lessThan(540));
   });
 
+  testWidgets('home screen stays usable on 800x600 pilot tablets', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(800, 600));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('English'), findsOneWidget);
+    expect(find.text('Math'), findsOneWidget);
+    expect(find.text('Life Skills'), findsOneWidget);
+    expect(find.text('Register'), findsNothing);
+    expect(find.text('Student list'), findsNothing);
+  });
+
   testWidgets(
       'home subject grid becomes scrollable when live subject count exceeds one tablet view',
       (

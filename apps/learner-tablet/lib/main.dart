@@ -1090,7 +1090,7 @@ class HomePage extends StatelessWidget {
     final viewportSize = MediaQuery.sizeOf(context);
     final viewportHeight = viewportSize.height;
     final viewportWidth = viewportSize.width;
-    final ultraShortHeight = viewportHeight <= 560;
+    final ultraShortHeight = viewportHeight <= 640;
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null;
