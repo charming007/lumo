@@ -120,6 +120,10 @@ function presentMallam(teacher) {
   const podIds = Array.isArray(teacher.podIds) ? teacher.podIds : [];
   const primaryPodId = teacher.primaryPodId || podIds[0] || null;
   const primaryPod = primaryPodId ? repository.findPodById(primaryPodId) : null;
+  const resolvedStateId = primaryPod?.stateId || center?.stateId || teacher.stateId || null;
+  const resolvedLocalGovernmentId = primaryPod?.localGovernmentId || center?.localGovernmentId || teacher.localGovernmentId || null;
+  const resolvedStateName = primaryPod?.stateName || (resolvedStateId ? repository.findStateById(resolvedStateId)?.name ?? null : null);
+  const resolvedLocalGovernmentName = primaryPod?.localGovernmentName || (resolvedLocalGovernmentId ? repository.findLocalGovernmentById(resolvedLocalGovernmentId)?.name ?? null : null);
   const podLabels = repository
     .listPods()
     .filter((pod) => podIds.includes(pod.id))
@@ -131,11 +135,11 @@ function presentMallam(teacher) {
     primaryPodId,
     primaryPodLabel: primaryPod?.label ?? null,
     centerName: center?.name ?? null,
-    region: center?.region ?? null,
-    stateId: primaryPod?.stateId || center?.stateId || null,
-    stateName: primaryPod?.stateName || (center?.stateId ? repository.findStateById(center.stateId)?.name ?? null : null),
-    localGovernmentId: primaryPod?.localGovernmentId || center?.localGovernmentId || null,
-    localGovernmentName: primaryPod?.localGovernmentName || (center?.localGovernmentId ? repository.findLocalGovernmentById(center.localGovernmentId)?.name ?? null : null),
+    region: center?.region ?? resolvedStateName ?? null,
+    stateId: resolvedStateId,
+    stateName: resolvedStateName,
+    localGovernmentId: resolvedLocalGovernmentId,
+    localGovernmentName: resolvedLocalGovernmentName,
     podLabels,
   };
 }

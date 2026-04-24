@@ -168,15 +168,19 @@ export type Mallam = {
   displayName: string;
   name: string;
   learnerCount: number;
-  region: string;
+  region: string | null;
   status: string;
   certificationLevel: string;
   role: string;
   languages?: string[];
   podIds?: string[];
   podLabels: string[];
-  centerId?: string;
+  centerId?: string | null;
   centerName?: string | null;
+  stateId?: string | null;
+  stateName?: string | null;
+  localGovernmentId?: string | null;
+  localGovernmentName?: string | null;
 };
 
 export type Subject = {

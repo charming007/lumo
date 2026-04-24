@@ -247,8 +247,8 @@ export function CreateMallamForm({ centers, pods, states, localGovernments }: { 
         pods={pods}
         states={states}
         localGovernments={localGovernments}
-        initialCenterId={centers[0]?.id}
-        initialPodIds={pods[0]?.id ? [pods[0].id] : []}
+        initialCenterId=""
+        initialPodIds={[]}
       />
       <GeographyHint>
         Mallam deployment is geography-aware now: choose state and local government first, then select the center and pod coverage inside that footprint.

@@ -200,7 +200,7 @@ function validateProgress(body, { partial = false } = {}) {
 
 function validateStudent(body, { partial = false } = {}) {
   if (!partial) {
-    requireFields(body, ['name', 'age', 'cohortId', 'podId', 'mallamId']);
+    requireFields(body, ['name', 'age', 'cohortId']);
   }
 
   assertExists('cohortId', body.cohortId, repository.findCohortById);
@@ -215,13 +215,45 @@ function validateStudent(body, { partial = false } = {}) {
     error.statusCode = 400;
     throw error;
   }
+
+  const cohort = body.cohortId ? repository.findCohortById(body.cohortId) : null;
+  const pod = body.podId ? repository.findPodById(body.podId) : cohort?.podId ? repository.findPodById(cohort.podId) : null;
+  const mallam = body.mallamId ? repository.findTeacherById(body.mallamId) : null;
+
+  if (body.podId && cohort?.podId && cohort.podId !== body.podId) {
+    const error = new Error(`Student podId must match cohort podId: ${cohort.podId}`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const scopedPodId = body.podId || cohort?.podId || null;
+  if (mallam && scopedPodId && !((mallam.podIds || []).includes(scopedPodId) || mallam.primaryPodId === scopedPodId)) {
+    const error = new Error(`Student mallamId is not assigned to pod: ${scopedPodId}`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!partial && !scopedPodId && !pod && !mallam) {
+    const error = new Error('Student requires a cohort linked to a pod, or an explicit podId/mallamId.');
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 function validateTeacher(body, { partial = false } = {}) {
   if (!partial) {
-    requireFields(body, ['name', 'displayName', 'centerId']);
+    requireFields(body, ['name', 'displayName']);
   }
 
+  if (!partial && !body.centerId && !body.stateId && !body.localGovernmentId && !(body.podIds || []).length && !body.podId) {
+    const error = new Error('Missing required fields: centerId or geography details');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  assertExists('centerId', body.centerId, repository.findCenterById);
+  assertExists('stateId', body.stateId, repository.findStateById);
+  assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
   (body.podIds || []).forEach((podId) => assertExists('podId', podId, repository.findPodById));
   assertExists('primaryPodId', body.primaryPodId, repository.findPodById);
   assertExists('podId', body.podId, repository.findPodById);

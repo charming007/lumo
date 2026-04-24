@@ -34,8 +34,8 @@ export function cohortGeographyLabel(cohort: Cohort, pods: Pod[], centers: Cente
 
 export function mallamGeographyLabel(mallam: Mallam, centers: Center[], states: State[], localGovernments: LocalGovernment[]) {
   const center = centers.find((item) => item.id === mallam.centerId) ?? null;
-  const state = findStateForCenter(center, states);
-  const localGovernment = findLocalGovernmentForCenter(center, localGovernments);
+  const state = findStateForCenter(center, states) ?? (mallam.stateId ? states.find((item) => item.id === mallam.stateId) ?? null : null);
+  const localGovernment = findLocalGovernmentForCenter(center, localGovernments) ?? (mallam.localGovernmentId ? localGovernments.find((item) => item.id === mallam.localGovernmentId) ?? null : null);
   return [state?.name, localGovernment?.name].filter(Boolean).join(' / ') || mallam.region || 'Geography pending';
 }
 
@@ -80,8 +80,10 @@ export function filterMallamsByGeography(
 ) {
   return mallams.filter((mallam) => {
     const center = centers.find((item) => item.id === mallam.centerId);
-    if (filters.stateId && center?.stateId !== filters.stateId) return false;
-    if (filters.localGovernmentId && center?.localGovernmentId !== filters.localGovernmentId) return false;
+    const mallamStateId = center?.stateId || mallam.stateId;
+    const mallamLocalGovernmentId = center?.localGovernmentId || mallam.localGovernmentId;
+    if (filters.stateId && mallamStateId !== filters.stateId) return false;
+    if (filters.localGovernmentId && mallamLocalGovernmentId !== filters.localGovernmentId) return false;
     if (filters.podId && !(mallam.podIds || []).includes(filters.podId)) return false;
     return true;
   });
