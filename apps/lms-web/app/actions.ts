@@ -1565,6 +1565,7 @@ export async function updateDeviceRegistrationAction(formData: FormData) {
   }
 
   revalidatePath('/pods');
+  revalidatePath('/devices');
   revalidatePath('/settings');
   redirect(appendSearchParams(returnPath, {
     message: 'Device registration updated',

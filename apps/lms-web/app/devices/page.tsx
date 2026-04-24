@@ -24,12 +24,31 @@ function toneForStatus(status?: string | null) {
   return ['#E2E8F0', '#334155'] as const;
 }
 
+function routeAlert(message: string, tone: 'warning' | 'error' = 'warning') {
+  const palette = tone === 'error'
+    ? { background: '#FEF2F2', border: '#FCA5A5', text: '#B91C1C' }
+    : { background: '#FFF7ED', border: '#FDBA74', text: '#9A3412' };
+
+  return (
+    <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, fontWeight: 700, lineHeight: 1.6 }}>
+      {message}
+    </div>
+  );
+}
+
 export default async function DevicesPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
-  const [registrations, pods] = await Promise.all([
+  const [registrationsResult, podsResult] = await Promise.allSettled([
     fetchDeviceRegistrations(),
     fetchPods(),
   ]);
+
+  const registrations = registrationsResult.status === 'fulfilled' ? registrationsResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const failedSources = [
+    registrationsResult.status === 'rejected' ? 'device registrations' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+  ].filter(Boolean);
 
   const activeCount = registrations.filter((item) => (item.status || '').toLowerCase() === 'active').length;
   const assignedCount = registrations.filter((item) => item.podId).length;
@@ -58,6 +77,8 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       }
     >
       <FeedbackBanner message={query?.message} />
+      {failedSources.length ? routeAlert(`Devices is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Registration and reassignment can still run, but confirm pod ownership before assuming the tablet map is current.`) : null}
+      {!registrations.length ? routeAlert('No tablet registrations are loading right now. That might be a truly empty fleet, but it can also mean the admin feed is degraded. Verify the pod registry before calling the rollout clean.', failedSources.length ? 'error' : 'warning') : null}
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[

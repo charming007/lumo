@@ -16,9 +16,21 @@ function formatDateTime(value?: string | null) {
   }).format(new Date(value));
 }
 
+function routeAlert(message: string, tone: 'warning' | 'error' = 'warning') {
+  const palette = tone === 'error'
+    ? { background: '#FEF2F2', border: '#FCA5A5', text: '#B91C1C' }
+    : { background: '#FFF7ED', border: '#FDBA74', text: '#9A3412' };
+
+  return (
+    <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, fontWeight: 700, lineHeight: 1.6 }}>
+      {message}
+    </div>
+  );
+}
+
 export default async function PodsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   const query = await searchParams;
-  const [pods, centers, states, localGovernments, mallams, deviceRegistrations] = await Promise.all([
+  const [podsResult, centersResult, statesResult, localGovernmentsResult, mallamsResult, deviceRegistrationsResult] = await Promise.allSettled([
     fetchPods(),
     fetchCenters(),
     fetchStates(),
@@ -26,6 +38,21 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
     fetchMallams(),
     fetchDeviceRegistrations(),
   ]);
+
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const centers = centersResult.status === 'fulfilled' ? centersResult.value : [];
+  const states = statesResult.status === 'fulfilled' ? statesResult.value : [];
+  const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
+  const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+  const deviceRegistrations = deviceRegistrationsResult.status === 'fulfilled' ? deviceRegistrationsResult.value : [];
+  const failedSources = [
+    podsResult.status === 'rejected' ? 'pods' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    deviceRegistrationsResult.status === 'rejected' ? 'device registrations' : null,
+  ].filter(Boolean);
 
   const activePods = pods.filter((pod) => (pod.status || '').toLowerCase() === 'active').length;
 
@@ -55,6 +82,8 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
       }
     >
       <FeedbackBanner message={query?.message} />
+      {failedSources.length ? routeAlert(`Pods is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Pod edits stay live when possible, but verify geography and linked tablets before treating this screen as authoritative.`) : null}
+      {!pods.length ? routeAlert('No pods are loading right now. That could mean a genuinely empty registry or a still-broken upstream seed. Do not treat this as proof the deployment footprint is clean.', failedSources.length ? 'error' : 'warning') : null}
 
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
         {pods.slice(0, 3).map((pod) => {
