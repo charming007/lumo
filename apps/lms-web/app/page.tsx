@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
+import { navigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
@@ -865,8 +866,10 @@ export default async function HomePage() {
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Admin routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Dashboard', 'Content Library', 'Curriculum Canvas', 'Students', 'Mallams', 'Pods', 'Devices', 'Attendance', 'Assignments', 'Assessments', 'Progress', 'Reports', 'Rewards', 'English Studio', 'Guide', 'Settings'].map((label) => (
-                  <Pill key={label} label={label} tone="#DCFCE7" text="#166534" />
+
+		{navigationItems.map((item) => (
+		<Pill key={item.id} label={item.label} tone="#DCFCE7" text="#166534" />
+
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
