@@ -1512,6 +1512,7 @@ class HomePage extends StatelessWidget {
                                                 module: subject.module,
                                                 subjectTitle: subject.title,
                                                 subjectKey: subject.id,
+                                                forceUnscopedLessons: true,
                                               ),
                                             ),
                                           );
@@ -3493,6 +3494,7 @@ class SubjectModulesPage extends StatelessWidget {
   final LearningModule module;
   final String subjectTitle;
   final String subjectKey;
+  final bool forceUnscopedLessons;
 
   SubjectModulesPage({
     super.key,
@@ -3501,17 +3503,18 @@ class SubjectModulesPage extends StatelessWidget {
     required this.module,
     String? subjectTitle,
     String? subjectKey,
+    this.forceUnscopedLessons = false,
   })  : subjectTitle = subjectTitle ??
             _resolvedSubjectTitleForModule(
               state: state,
               module: module,
-              learner: state.currentLearner,
+              learner: forceUnscopedLessons ? null : state.currentLearner,
             ),
         subjectKey = subjectKey ??
             _resolvedSubjectKeyForModule(
               state: state,
               module: module,
-              learner: state.currentLearner,
+              learner: forceUnscopedLessons ? null : state.currentLearner,
             );
 
   LessonCardModel? _resolveHighlightedLesson(List<LessonCardModel> lessons) {
@@ -3573,7 +3576,7 @@ class SubjectModulesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scopedLearner = state.currentLearner;
+    final scopedLearner = forceUnscopedLessons ? null : state.currentLearner;
     final lessons = state
         .lessonsForLearnerAndSubject(scopedLearner, subjectKey)
         .where((lesson) {
