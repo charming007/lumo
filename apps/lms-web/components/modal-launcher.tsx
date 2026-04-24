@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
 const defaultTriggerStyle: CSSProperties = {
   background: 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)',
@@ -31,7 +32,28 @@ export function ModalLauncher({
   disabled?: boolean;
   children: ReactNode;
 }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setOpen(false);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleRouteChange = () => setOpen(false);
+
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('hashchange', handleRouteChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('hashchange', handleRouteChange);
+    };
+  }, [open]);
 
   return (
     <>
@@ -47,6 +69,7 @@ export function ModalLauncher({
       {open ? (
         <div
           role="dialog"
+          key={typeof window !== 'undefined' ? window.location.pathname : 'modal'}
           aria-modal="true"
           style={{
             position: 'fixed',
