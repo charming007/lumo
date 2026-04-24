@@ -9,6 +9,7 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
+import { pilotNavigationItems } from '../lib/pilot-routes';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -188,7 +189,15 @@ function assetReadinessTone(readiness: AssetRuntimeReport['summary']['readiness'
   return { background: '#ECFDF5', border: '1px solid #BBF7D0', text: '#166534' };
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ blockedRoute?: string | string[] | undefined }>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const blockedRouteParam = resolvedSearchParams?.blockedRoute;
+  const blockedRoute = Array.isArray(blockedRouteParam) ? blockedRouteParam[0] : blockedRouteParam;
+
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -581,6 +590,12 @@ export default async function HomePage() {
         </div>
       )}
     >
+      {blockedRoute ? (
+        <div style={{ marginBottom: 16 }}>
+          {sectionAlert(`Route ${blockedRoute} is outside the pilot deployment shell. Reviewers should validate only ${pilotNavigationItems.map((item) => item.label).join(', ')} from this build.`, 'warning')}
+        </div>
+      ) : null}
+
       {failedSources.length ? (
         <div style={{ marginBottom: 16 }}>
           {sectionAlert(`Dashboard is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.`, 'warning')}
@@ -865,8 +880,8 @@ export default async function HomePage() {
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Shipped pilot routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['Dashboard', 'Content Library', 'Assignments', 'Progress', 'Settings'].map((label) => (
-                  <Pill key={label} label={label} tone="#DCFCE7" text="#166534" />
+                {pilotNavigationItems.map((item) => (
+                  <Pill key={item.id} label={item.label} tone="#DCFCE7" text="#166534" />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
