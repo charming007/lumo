@@ -1094,7 +1094,9 @@ class HomePage extends StatelessWidget {
         state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null;
-    final showTrustBanner = hasSyncWarnings && !ultraShortHeight;
+    final canAffordTrustBanner = viewportWidth >= 700 && viewportHeight >= 900;
+    final showTrustBanner =
+        hasSyncWarnings && !ultraShortHeight && canAffordTrustBanner;
     final trustBannerCompact = viewportWidth < 900 || viewportHeight <= 1040;
 
     return Scaffold(
@@ -1187,17 +1189,6 @@ class HomePage extends StatelessWidget {
                     );
 
                     void openRegister() {
-                      final blocker = state.registrationBlockerReason;
-                      if (blocker != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(blocker),
-                            backgroundColor: LumoTheme.accentOrange,
-                          ),
-                        );
-                        return;
-                      }
-
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
@@ -1226,9 +1217,7 @@ class HomePage extends StatelessWidget {
                           state.registrationBlockerReason != null;
                       final actions = [
                         _HomeQuickAction(
-                          title: registrationBlocked
-                              ? 'Registration offline'
-                              : 'Register',
+                          title: 'Register',
                           icon: registrationBlocked
                               ? Icons.sync_problem_rounded
                               : Icons.person_add_alt_1_rounded,
@@ -1948,7 +1937,7 @@ class _MallamStageShell extends StatelessWidget {
     final showHeader = title != null || description != null;
 
     return Container(
-      height: double.infinity,
+      width: double.infinity,
       padding: frameless ? EdgeInsets.zero : const EdgeInsets.all(18),
       decoration: frameless
           ? const BoxDecoration(color: Colors.transparent)
@@ -10568,10 +10557,10 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
   }
 
   List<Widget> _layoutChildrenForColumn(double viewportHeight) {
-    final resolvedViewportHeight = viewportHeight.isFinite && viewportHeight > 0
-        ? viewportHeight
-        : 900.0;
-    final paneHeight = resolvedViewportHeight.clamp(820.0, 1180.0).toDouble();
+    final resolvedViewportHeight =
+        viewportHeight.isFinite && viewportHeight > 0 ? viewportHeight : 900.0;
+    final paneHeight =
+        (resolvedViewportHeight * 0.48).clamp(520.0, 760.0).toDouble();
 
     return List.generate(children.length, (index) {
       final child = children[index];

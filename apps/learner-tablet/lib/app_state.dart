@@ -251,13 +251,36 @@ class LumoAppState {
       ),
     );
     final hasLiveAssignments = data.assignmentPacks.isNotEmpty;
-    if (hasLearnerVisibleLessons || hasLiveAssignments) return null;
-
     final hasVisibleCurriculumShell =
         data.modules.isNotEmpty || data.learners.isNotEmpty;
-    if (!hasVisibleCurriculumShell) return null;
 
-    return 'Production bootstrap returned the learner roster and curriculum shell, but zero learner-visible lessons and zero assignments. That tablet would open into a dead-end learner experience.';
+    if (!hasLearnerVisibleLessons &&
+        !hasLiveAssignments &&
+        hasVisibleCurriculumShell) {
+      return 'Production bootstrap returned the learner roster and curriculum shell, but zero learner-visible lessons and zero assignments. That tablet would open into a dead-end learner experience.';
+    }
+
+    final scopedRegistration = data.registrationContext.tabletRegistration;
+    if (scopedRegistration == null) {
+      final hasRegistrationRouting = data.registrationContext.isReady ||
+          data.registrationContext.defaultTarget != null;
+      final explicitUnregisteredBootstrap = _apiClient.runtimeType
+          .toString()
+          .contains('UnregisteredTabletBootstrapApiClient');
+      if (!kReleaseBuild &&
+          !hasRegistrationRouting &&
+          !explicitUnregisteredBootstrap) {
+        return null;
+      }
+      final requestedIdentifier = tabletDeviceIdentifier?.trim();
+      final identifierDetail = requestedIdentifier == null ||
+              requestedIdentifier.isEmpty
+          ? 'This tablet has no provisioned device identifier yet.'
+          : 'Backend did not recognize device identifier "$requestedIdentifier".';
+      return 'Production bootstrap did not return a tablet registration for this device. $identifierDetail The LMS device registry and the learner tablet identifier are out of contract, so the tablet cannot trust the live roster or pod scope yet.';
+    }
+
+    return null;
   }
 
   String get pendingSyncSummary {
@@ -1170,6 +1193,7 @@ class LumoAppState {
     final normalizedBadge = module.badge.trim().toLowerCase();
     final normalizedStatus = module.status.trim().toLowerCase();
     return normalizedId.startsWith('fundamentals-') ||
+        normalizedId.startsWith('lumo-fundamentals') ||
         normalizedTitle.contains('fundamentals') ||
         normalizedBadge.contains('bundled') ||
         normalizedBadge.contains('offline') ||
@@ -1193,7 +1217,9 @@ class LumoAppState {
     final normalizedSubject = lesson.subject.trim().toLowerCase();
     final normalizedStatus = lesson.status.trim().toLowerCase();
     return normalizedId.startsWith('fundamentals-') ||
+        normalizedId.startsWith('lf-') ||
         normalizedModuleId.startsWith('fundamentals-') ||
+        normalizedModuleId.startsWith('lumo-fundamentals') ||
         normalizedSubject.contains('fundamentals') ||
         normalizedStatus.contains('bundled');
   }
@@ -3401,8 +3427,8 @@ class LumoAppState {
   }) {
     final existing = recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
     final now = DateTime.now();
-    final resolvedSessionId =
-        sessionId ?? '$status-${lesson.id}-${DateTime.now().millisecondsSinceEpoch}';
+    final resolvedSessionId = sessionId ??
+        '$status-${lesson.id}-${DateTime.now().millisecondsSinceEpoch}';
     final activityAt = lastActivityAt ?? completedAt ?? now;
     final terminalAt = completedAt ?? activityAt;
     final projected = BackendLessonSession(
