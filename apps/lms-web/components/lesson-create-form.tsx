@@ -7,6 +7,7 @@ import { LessonActivityStructuredBuilders } from './lesson-activity-structured-b
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { filterModulesForSubject } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
   getLessonStepTypeGuidance,
@@ -268,16 +269,19 @@ export function LessonCreateForm({
     ?? (duplicateLesson?.subjectName
       ? subjects.find((item) => item.name === duplicateLesson.subjectName)?.id
       : undefined);
-  const initialSubjectIsValid = Boolean(initialSubjectId && subjects.some((subject) => subject.id === initialSubjectId));
-  const fallbackSubjectId = initialSubjectIsValid ? initialSubjectId : (duplicateSubjectId ?? subjects[0]?.id);
-  const [subjectId, setSubjectId] = useState(String(fallbackSubjectId ?? subjects[0]?.id ?? ''));
-  const filteredModules = useMemo(() => modules.filter((module) => module.subjectId === subjectId), [modules, subjectId]);
+  const initialSubject = (initialSubjectId ? subjects.find((subject) => subject.id === initialSubjectId) : null)
+    ?? (duplicateSubjectId ? subjects.find((subject) => subject.id === duplicateSubjectId) : null)
+    ?? subjects[0]
+    ?? null;
+  const [subjectId, setSubjectId] = useState(String(initialSubject?.id ?? ''));
+  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? initialSubject ?? null, [initialSubject, subjectId, subjects]);
+  const filteredModules = useMemo(() => filterModulesForSubject(modules, activeSubject), [activeSubject, modules]);
   const initialModule = initialModuleId ? modules.find((item) => item.id === initialModuleId) : null;
   const duplicateModule = duplicateLesson?.moduleId
     ? modules.find((item) => item.id === duplicateLesson.moduleId)
     : modules.find((item) => item.title === duplicateLesson?.moduleTitle);
-  const fallbackModuleId = (initialModule && initialModule.subjectId === subjectId ? initialModule.id : undefined)
-    ?? (duplicateModule && duplicateModule.subjectId === subjectId ? duplicateModule.id : undefined)
+  const fallbackModuleId = (initialModule && filteredModules.some((module) => module.id === initialModule.id) ? initialModule.id : undefined)
+    ?? (duplicateModule && filteredModules.some((module) => module.id === duplicateModule.id) ? duplicateModule.id : undefined)
     ?? filteredModules[0]?.id
     ?? '';
   const [moduleId, setModuleId] = useState(String(fallbackModuleId));
@@ -296,7 +300,7 @@ export function LessonCreateForm({
   const [assessmentItemsText, setAssessmentItemsText] = useState(asArray<{ prompt?: string; evidence?: string }>(duplicateLesson?.lessonAssessment?.items).map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`).join('\n'));
   const [activityDrafts, setActivityDrafts] = useState(buildDraftsFromLesson(duplicateLesson));
   const baselineSnapshot = useMemo(() => JSON.stringify({
-    subjectId: String(fallbackSubjectId ?? subjects[0]?.id ?? ''),
+    subjectId: String(initialSubject?.id ?? ''),
     moduleId: String(fallbackModuleId),
     title: duplicateLesson ? `${duplicateLesson.title} copy` : 'New lesson title',
     durationMinutes: String(duplicateLesson?.durationMinutes ?? 8),
@@ -312,7 +316,7 @@ export function LessonCreateForm({
     assessmentKind: String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'),
     assessmentItemsText: asArray<{ prompt?: string; evidence?: string }>(duplicateLesson?.lessonAssessment?.items).map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`).join('\n'),
     activityDrafts: buildDraftsFromLesson(duplicateLesson),
-  }), [duplicateLesson, fallbackModuleId, fallbackSubjectId, subjects]);
+  }), [duplicateLesson, fallbackModuleId, initialSubject]);
 
   const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0] ?? modules[0];
   const dependencyBlockers = useMemo(() => ([
@@ -480,7 +484,8 @@ export function LessonCreateForm({
           <select value={subjectId} onChange={(event) => {
             const next = event.target.value;
             setSubjectId(next);
-            const nextModules = modules.filter((module) => module.subjectId === next);
+            const nextSubject = subjects.find((subject) => subject.id === next) ?? null;
+            const nextModules = filterModulesForSubject(modules, nextSubject);
             setModuleId(nextModules[0]?.id ?? modules[0]?.id ?? '');
           }} style={inputStyle}>
             {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}

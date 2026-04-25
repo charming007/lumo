@@ -4,6 +4,7 @@ import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
 import { normalizeLessonAssetsForAuthoring } from '../../../../lib/lesson-authoring-normalize';
+import { filterModulesForSubject } from '../../../../lib/module-subject-match';
 import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import type { Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
@@ -130,9 +131,12 @@ export default async function LessonStudioCreatePage({
   const requestedModule = requestedModuleId ? modules.find((module) => module.id === requestedModuleId) ?? null : null;
   const requestedSubject = requestedSubjectId ? subjects.find((subject) => subject.id === requestedSubjectId) ?? null : null;
   const requestedModuleSubjectId = requestedModule?.subjectId?.trim() ?? '';
-  const requestedModuleHasRecoverableSubject = Boolean(
-    requestedModule && requestedModuleSubjectId && subjects.some((subject) => subject.id === requestedModuleSubjectId),
-  );
+  const requestedModuleRecoveredSubject = requestedModule
+    ? subjects.find((subject) => subject.id === requestedModuleSubjectId)
+      ?? subjects.find((subject) => subject.name.trim().toLowerCase() === (requestedModule.subjectName?.trim().toLowerCase() ?? ''))
+      ?? null
+    : null;
+  const requestedModuleHasRecoverableSubject = Boolean(requestedModuleRecoveredSubject);
 
   if (requestedModule && !requestedModuleHasRecoverableSubject) {
     return (
@@ -164,7 +168,7 @@ export default async function LessonStudioCreatePage({
         ]}
         fixItems={[
           { label: 'Blocked module', value: requestedModule.title },
-          { label: 'Missing context', value: requestedModuleSubjectId ? `Subject ${requestedModuleSubjectId} is not available in authoring context` : 'Module subjectId is missing' },
+          { label: 'Missing context', value: requestedModuleSubjectId ? `Subject ${requestedModuleSubjectId} is not available in authoring context` : requestedModule.subjectName?.trim() ? `No loaded subject matches module subject name “${requestedModule.subjectName.trim()}”` : 'Module subjectId and subjectName are both missing' },
           { label: 'Operator action', value: 'Recover subject context on the content blockers board before creating the lesson pack' },
         ]}
         docs={[
@@ -175,11 +179,12 @@ export default async function LessonStudioCreatePage({
     );
   }
 
-  const subjectId = requestedSubjectId || (requestedModuleHasRecoverableSubject ? requestedModuleSubjectId : undefined) || subjects[0]?.id || '';
-  const moduleId = requestedModuleId || modules.find((module) => module.subjectId === subjectId)?.id || modules[0]?.id || '';
+  const subjectId = requestedSubjectId || requestedModuleRecoveredSubject?.id || subjects[0]?.id || '';
+  const selectedSubject = requestedSubject ?? requestedModuleRecoveredSubject ?? subjects.find((subject) => subject.id === requestedModule?.subjectId) ?? subjects[0] ?? null;
+  const subjectScopedModules = filterModulesForSubject(modules, selectedSubject);
+  const moduleId = requestedModuleId || subjectScopedModules[0]?.id || modules[0]?.id || '';
 
-  const selectedModule = modules.find((module) => module.id === moduleId) ?? modules.find((module) => module.subjectId === subjectId) ?? modules[0] ?? null;
-  const selectedSubject = requestedSubject ?? subjects.find((subject) => subject.id === requestedModuleSubjectId) ?? subjects.find((subject) => subject.id === selectedModule?.subjectId) ?? subjects[0] ?? null;
+  const selectedModule = modules.find((module) => module.id === moduleId) ?? subjectScopedModules[0] ?? modules[0] ?? null;
 
   return (
     <PageShell
