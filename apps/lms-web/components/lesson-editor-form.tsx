@@ -8,6 +8,7 @@ import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
 import { findModuleForLesson } from '../lib/module-lesson-match';
+import { filterModulesForSubject } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
   getLessonStepTypeGuidance,
@@ -289,10 +290,11 @@ export function LessonEditorForm({
       : [makeActivityDraft(0)],
   }), [lesson, modules, subjects]);
 
+  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? subjects[0] ?? null, [subjectId, subjects]);
   const filteredModules = useMemo(() => {
-    const scoped = modules.filter((module) => module.subjectId === subjectId);
+    const scoped = filterModulesForSubject(modules, activeSubject);
     return scoped.length ? scoped : modules;
-  }, [modules, subjectId]);
+  }, [activeSubject, modules]);
 
   const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0] ?? modules[0];
   const readinessCount = useMemo(() => {
@@ -517,7 +519,8 @@ export function LessonEditorForm({
           <select value={subjectId} onChange={(event) => {
             const next = event.target.value;
             setSubjectId(next);
-            const nextModules = modules.filter((module) => module.subjectId === next);
+            const nextSubject = subjects.find((subject) => subject.id === next) ?? null;
+            const nextModules = filterModulesForSubject(modules, nextSubject);
             setModuleId(nextModules[0]?.id ?? modules[0]?.id ?? '');
           }} style={inputStyle}>
             {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
