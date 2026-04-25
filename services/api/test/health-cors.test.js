@@ -68,6 +68,25 @@ test('OPTIONS preflight exposes auth headers needed by browser admin clients', a
   });
 });
 
+test('OPTIONS preflight also allows learner tablet device identity headers', async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/v1/learner-app/bootstrap`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'http://localhost:3000',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'x-lumo-device-identifier,x-lumo-device-id',
+      },
+    });
+
+    assert.equal(response.status, 204);
+
+    const allowedHeaders = String(response.headers.get('access-control-allow-headers') || '').toLowerCase();
+    assert.match(allowedHeaders, /x-lumo-device-identifier/);
+    assert.match(allowedHeaders, /x-lumo-device-id/);
+  });
+});
+
 test('responses carry request tracing and secure default headers, including invalid json errors', async () => {
   await withServer(async (baseUrl) => {
     const traced = await fetch(`${baseUrl}/health`, {
