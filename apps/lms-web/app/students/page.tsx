@@ -9,7 +9,7 @@ import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '
 
 function percent(value: number | null | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-  return `${Math.round(value)}%`;
+  return `${Math.round(value * 100)}%`;
 }
 
 export default async function StudentsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
