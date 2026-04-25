@@ -21,3 +21,21 @@ export function moduleBelongsToSubject(module: CurriculumModule, subject: Subjec
 export function filterModulesForSubject(modules: CurriculumModule[], subject: Subject | null | undefined) {
   return modules.filter((module) => moduleBelongsToSubject(module, subject));
 }
+
+export function resolveModuleSubjectId(
+  module: Pick<CurriculumModule, 'subjectId' | 'subjectName'>,
+  subjects: Pick<Subject, 'id' | 'name'>[],
+) {
+  const directSubjectId = module.subjectId?.trim();
+
+  if (directSubjectId) {
+    return directSubjectId;
+  }
+
+  const normalizedSubjectName = normalize(module.subjectName);
+  if (!normalizedSubjectName) {
+    return '';
+  }
+
+  return subjects.find((subject) => normalize(subject.name) === normalizedSubjectName)?.id ?? '';
+}
