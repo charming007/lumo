@@ -344,7 +344,7 @@ export default async function HomePage() {
         return null;
       }
 
-      const subjectId = module.subjectId?.trim() ?? '';
+      const subjectId = module.subjectId?.trim() || subjects.find((subject) => subject.name === module.subjectName)?.id || '';
 
       return {
         id: module.id,
