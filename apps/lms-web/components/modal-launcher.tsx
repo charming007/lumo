@@ -1,7 +1,7 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 
 const defaultTriggerStyle: CSSProperties = {
   background: 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)',
@@ -33,13 +33,18 @@ export function ModalLauncher({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const routeSignature = useMemo(() => {
+    const query = searchParams.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  }, [pathname, searchParams]);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
       setOpen(false);
     }
-  }, [pathname]);
+  }, [open, routeSignature]);
 
   useEffect(() => {
     if (!open) return;
@@ -69,7 +74,7 @@ export function ModalLauncher({
       {open ? (
         <div
           role="dialog"
-          key={typeof window !== 'undefined' ? window.location.pathname : 'modal'}
+          key={routeSignature}
           aria-modal="true"
           style={{
             position: 'fixed',
