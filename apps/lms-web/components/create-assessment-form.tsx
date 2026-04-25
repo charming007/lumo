@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createAssessmentAction } from '../app/actions';
+import { filterModulesForSubject } from '../lib/module-subject-match';
 import type { CurriculumModule, Subject } from '../lib/types';
 import { ActionButton } from './action-button';
 
@@ -52,16 +53,23 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 export function CreateAssessmentFormClient({ modules, subjects, returnPath }: { modules: CurriculumModule[]; subjects: Subject[]; returnPath?: string }) {
   const defaultModule = modules[0] ?? null;
-  const defaultSubjectId = defaultModule?.subjectId ?? subjects[0]?.id ?? '';
-  const [subjectId, setSubjectId] = useState(defaultSubjectId);
+  const defaultSubject = subjects.find((subject) => subject.id === defaultModule?.subjectId)
+    ?? (defaultModule?.subjectName ? subjects.find((subject) => subject.name === defaultModule.subjectName) : null)
+    ?? subjects[0]
+    ?? null;
+  const [subjectId, setSubjectId] = useState(defaultSubject?.id ?? '');
+  const activeSubject = useMemo(
+    () => subjects.find((subject) => subject.id === subjectId) ?? defaultSubject ?? null,
+    [defaultSubject, subjectId, subjects],
+  );
 
   const filteredModules = useMemo(
-    () => modules.filter((module) => module.subjectId === subjectId),
-    [modules, subjectId],
+    () => filterModulesForSubject(modules, activeSubject),
+    [activeSubject, modules],
   );
 
   const [moduleId, setModuleId] = useState(() => {
-    if (defaultModule && (!defaultModule.subjectId || defaultModule.subjectId === defaultSubjectId)) {
+    if (defaultModule && filteredModules.some((module) => module.id === defaultModule.id)) {
       return defaultModule.id;
     }
     return filteredModules[0]?.id ?? '';

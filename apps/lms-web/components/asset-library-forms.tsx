@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { archiveLessonAssetAction, deleteLessonAssetAction, registerLessonAssetAction, updateLessonAssetAction, uploadLessonAssetAction } from '../app/actions';
 import { API_BASE } from '../lib/config';
+import { filterModulesForSubject, moduleBelongsToSubject } from '../lib/module-subject-match';
 import type { CurriculumModule, Lesson, LessonAsset, Subject } from '../lib/types';
 import { DeleteConfirmSubmit } from './delete-confirm-submit';
 import { AssetPreview, AssetRuntimeLink } from './asset-preview';
@@ -27,9 +28,13 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{label}{children}</label>;
 }
 
-function scopeMatchesLesson(lesson: Lesson, subjectId: string, moduleId: string) {
+function scopeMatchesLesson(lesson: Lesson, subjectId: string, moduleId: string, subjects: Subject[] = []) {
   if (moduleId) return lesson.moduleId === moduleId;
-  if (subjectId) return lesson.subjectId === subjectId;
+  if (subjectId) {
+    if (lesson.subjectId === subjectId) return true;
+    const activeSubject = subjects.find((subject) => subject.id === subjectId);
+    return Boolean(activeSubject && lesson.subjectName === activeSubject.name);
+  }
   return true;
 }
 
@@ -62,13 +67,14 @@ function ScopeFields({
   const [subjectId, setSubjectId] = useState(asset?.subjectId ?? '');
   const [moduleId, setModuleId] = useState(asset?.moduleId ?? '');
   const [lessonId, setLessonId] = useState(asset?.lessonId ?? '');
+  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? null, [subjectId, subjects]);
 
   const visibleModules = useMemo(() => {
-    if (!subjectId) return modules;
-    return modules.filter((item) => item.subjectId === subjectId);
-  }, [modules, subjectId]);
+    if (!activeSubject) return modules;
+    return filterModulesForSubject(modules, activeSubject);
+  }, [activeSubject, modules]);
 
-  const visibleLessons = useMemo(() => lessons.filter((item) => scopeMatchesLesson(item, subjectId, moduleId)), [lessons, moduleId, subjectId]);
+  const visibleLessons = useMemo(() => lessons.filter((item) => scopeMatchesLesson(item, subjectId, moduleId, subjects)), [lessons, moduleId, subjectId, subjects]);
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
@@ -85,12 +91,13 @@ function ScopeFields({
               setSubjectId(nextSubjectId);
               setModuleId((currentModuleId) => {
                 if (!currentModuleId) return '';
-                const moduleStillValid = modules.some((item) => item.id === currentModuleId && (!nextSubjectId || item.subjectId === nextSubjectId));
+                const nextSubject = subjects.find((subject) => subject.id === nextSubjectId) ?? null;
+                const moduleStillValid = modules.some((item) => item.id === currentModuleId && (!nextSubject || moduleBelongsToSubject(item, nextSubject)));
                 return moduleStillValid ? currentModuleId : '';
               });
               setLessonId((currentLessonId) => {
                 if (!currentLessonId) return '';
-                const lessonStillValid = lessons.some((item) => item.id === currentLessonId && scopeMatchesLesson(item, nextSubjectId, moduleId));
+                const lessonStillValid = lessons.some((item) => item.id === currentLessonId && scopeMatchesLesson(item, nextSubjectId, moduleId, subjects));
                 return lessonStillValid ? currentLessonId : '';
               });
             }}
@@ -109,7 +116,7 @@ function ScopeFields({
               setModuleId(nextModuleId);
               setLessonId((currentLessonId) => {
                 if (!currentLessonId) return '';
-                const lessonStillValid = lessons.some((item) => item.id === currentLessonId && scopeMatchesLesson(item, subjectId, nextModuleId));
+                const lessonStillValid = lessons.some((item) => item.id === currentLessonId && scopeMatchesLesson(item, subjectId, nextModuleId, subjects));
                 return lessonStillValid ? currentLessonId : '';
               });
             }}
@@ -226,13 +233,14 @@ export function AssetLibraryFilters({ subjects, modules, lessons, filters, total
   const [subjectId, setSubjectId] = useState(filters.subjectId || '');
   const [moduleId, setModuleId] = useState(filters.moduleId || '');
   const activeFilters = activeFilterEntries(filters);
+  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? null, [subjectId, subjects]);
 
   const visibleModules = useMemo(() => {
-    if (!subjectId) return modules;
-    return modules.filter((item) => item.subjectId === subjectId);
-  }, [modules, subjectId]);
+    if (!activeSubject) return modules;
+    return filterModulesForSubject(modules, activeSubject);
+  }, [activeSubject, modules]);
 
-  const visibleLessons = useMemo(() => lessons.filter((item) => scopeMatchesLesson(item, subjectId, moduleId)), [lessons, moduleId, subjectId]);
+  const visibleLessons = useMemo(() => lessons.filter((item) => scopeMatchesLesson(item, subjectId, moduleId, subjects)), [lessons, moduleId, subjectId, subjects]);
 
   return <div style={{ display: 'grid', gap: 14 }}>
     <form method="GET" style={{ ...cardStyle, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', alignItems: 'end' }}>

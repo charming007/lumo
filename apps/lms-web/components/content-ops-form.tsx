@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { filterModulesForSubject } from '../lib/module-subject-match';
 import type { CurriculumModule, Subject } from '../lib/types';
 
 const cardStyle = {
@@ -50,10 +51,10 @@ export function DynamicLessonCreateForm({
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? 'english');
   const [moduleId, setModuleId] = useState(modules[0]?.id ?? '');
 
-  const filteredModules = useMemo(() => modules.filter((module) => module.subjectId === subjectId), [modules, subjectId]);
+  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? subjects[0] ?? null, [subjectId, subjects]);
+  const filteredModules = useMemo(() => filterModulesForSubject(modules, activeSubject), [activeSubject, modules]);
 
   const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0];
-  const activeSubject = subjects.find((item) => item.id === subjectId) ?? subjects[0];
   const dependencyBlockers = [
     subjects.length > 0 ? null : 'Create or reload a subject before creating a lesson.',
     subjectId ? null : 'Pick a subject before creating a lesson.',
@@ -72,7 +73,8 @@ export function DynamicLessonCreateForm({
         <select name="subjectId" value={subjectId} onChange={(event) => {
           const next = event.target.value;
           setSubjectId(next);
-          const nextModules = modules.filter((module) => module.subjectId === next);
+          const nextSubject = subjects.find((subject) => subject.id === next) ?? null;
+          const nextModules = filterModulesForSubject(modules, nextSubject);
           setModuleId(nextModules[0]?.id ?? '');
         }} style={inputStyle}>
           {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
