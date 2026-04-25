@@ -472,6 +472,8 @@ function applyCors(req, res) {
     'x-lumo-actor',
     'x-lumo-sync-batch',
     'x-lumo-client-id',
+    'x-lumo-device-identifier',
+    'x-lumo-device-id',
     'x-lumo-confirm-action',
     'idempotency-key',
     'x-idempotency-key',
