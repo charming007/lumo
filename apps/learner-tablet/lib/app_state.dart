@@ -1345,14 +1345,9 @@ class LumoAppState {
     if (registrationLabel != null && registrationLabel.isNotEmpty) {
       return registrationLabel;
     }
-    final podId = tabletPodId;
+    final podId = tabletPodId?.trim();
     if (podId == null || podId.isEmpty) return null;
-    final matchingCohort =
-        registrationContext.cohorts.cast<BackendCohort?>().firstWhere(
-              (cohort) => cohort?.podId == podId,
-              orElse: () => null,
-            );
-    return matchingCohort?.name ?? podId;
+    return podId;
   }
 
   bool learnerMatchesTabletPod(LearnerProfile learner) {
@@ -2143,8 +2138,9 @@ class LumoAppState {
     final registrationTarget = registrationContext.defaultTarget;
     final scopedPodId =
         tabletRegistration?.podId ?? registrationTarget?.cohort.podId;
-    final scopedPodLabel =
-        tabletRegistration?.podLabel ?? registrationTarget?.cohort.name;
+    final scopedPodLabel = tabletRegistration?.podLabel ??
+        tabletRegistration?.podId ??
+        registrationTarget?.cohort.podId;
     final scopedMallamId =
         tabletRegistration?.mallamId ?? registrationTarget?.mallam.id;
     final scopedMallamName =

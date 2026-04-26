@@ -148,10 +148,9 @@ function presentRewardSnapshot(studentId) {
   return rewards.buildLearnerRewards(studentId);
 }
 
-function resolveStudentPod(student, cohort = null, mallam = null) {
+function resolveStudentPod(student, cohort = null) {
   return repository.findPodById(student.podId)
     || (cohort?.podId ? repository.findPodById(cohort.podId) : null)
-    || repository.findPodById(mallam?.primaryPodId || mallam?.podIds?.[0] || null)
     || null;
 }
 
