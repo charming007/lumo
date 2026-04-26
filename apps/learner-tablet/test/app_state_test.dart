@@ -1479,6 +1479,137 @@ void main() {
       restored.dispose();
     });
 
+    test('restored offline roster keeps learner pod scope and drops cross-pod learners',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'tabletDeviceIdentifier': 'lumo-tablet-kano-01',
+          'learners': [
+            {
+              'id': 'learner-pod-1',
+              'name': 'Safiya',
+              'age': 8,
+              'cohort': 'Cohort A',
+              'cohortId': 'cohort-1',
+              'podId': 'pod-1',
+              'podLabel': 'Pod 1',
+              'mallamId': 'mallam-1',
+              'mallamName': 'Mallam Idris',
+              'streakDays': 0,
+              'guardianName': 'Guardian',
+              'preferredLanguage': 'Hausa',
+              'readinessLabel': 'Voice-first beginner',
+              'village': 'Pod 1',
+              'guardianPhone': '',
+              'sex': 'Girl',
+              'baselineLevel': 'No prior exposure',
+              'consentCaptured': true,
+              'learnerCode': 'SAF-001',
+              'caregiverRelationship': 'Guardian',
+              'enrollmentStatus': 'Active',
+              'attendanceBand': 'Stable attendance',
+              'supportPlan': 'Prompt and praise.',
+              'lastLessonSummary': 'Ready',
+              'lastAttendance': 'Checked in today',
+            },
+            {
+              'id': 'learner-pod-2',
+              'name': 'Musa',
+              'age': 9,
+              'cohort': 'Cohort B',
+              'cohortId': 'cohort-2',
+              'podId': 'pod-2',
+              'podLabel': 'Pod 2',
+              'mallamId': 'mallam-2',
+              'mallamName': 'Mallama Zarah',
+              'streakDays': 0,
+              'guardianName': 'Guardian',
+              'preferredLanguage': 'Hausa',
+              'readinessLabel': 'Voice-first beginner',
+              'village': 'Pod 2',
+              'guardianPhone': '',
+              'sex': 'Boy',
+              'baselineLevel': 'No prior exposure',
+              'consentCaptured': true,
+              'learnerCode': 'MUS-002',
+              'caregiverRelationship': 'Guardian',
+              'enrollmentStatus': 'Active',
+              'attendanceBand': 'Stable attendance',
+              'supportPlan': 'Prompt and praise.',
+              'lastLessonSummary': 'Ready',
+              'lastAttendance': 'Checked in today',
+            },
+          ],
+          'modules': const [],
+          'assignedLessons': const [],
+          'assignmentPacks': const [],
+          'registrationContext': {
+            'cohorts': [
+              {'id': 'cohort-1', 'name': 'Cohort A', 'podId': 'pod-1'},
+              {'id': 'cohort-2', 'name': 'Cohort B', 'podId': 'pod-2'},
+            ],
+            'mallams': [
+              {'id': 'mallam-1', 'name': 'Mallam Idris', 'podIds': ['pod-1']},
+              {'id': 'mallam-2', 'name': 'Mallama Zarah', 'podIds': ['pod-2']},
+            ],
+            'tabletRegistration': {
+              'id': 'device-1',
+              'deviceIdentifier': 'lumo-tablet-kano-01',
+              'podId': 'pod-1',
+              'podLabel': 'Pod 1',
+              'mallamId': 'mallam-1',
+              'mallamName': 'Mallam Idris',
+            },
+          },
+          'usingFallbackData': true,
+          'snapshotTrustedFromLiveBootstrap': true,
+        }),
+      });
+
+      final restored = LumoAppState(includeSeedDemoContent: false);
+      await restored.restorePersistedState();
+
+      expect(restored.learners.map((item) => item.id), ['learner-pod-1']);
+      expect(restored.learners.every((item) => item.podId == 'pod-1'), isTrue);
+      restored.dispose();
+    });
+
+    test('tablet pod filter rejects learners with missing pod scope', () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.registrationContext = RegistrationContext(
+        tabletRegistration: const TabletRegistration(
+          id: 'device-1',
+          deviceIdentifier: 'lumo-tablet-kano-01',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+        ),
+      );
+
+      expect(
+        state.learnerMatchesTabletPod(
+          const LearnerProfile(
+            id: 'learner-unknown',
+            name: 'Unknown',
+            age: 7,
+            cohort: 'Fallback',
+            streakDays: 0,
+            guardianName: 'Guardian',
+            preferredLanguage: 'Hausa',
+            readinessLabel: 'Voice-first beginner',
+            village: 'Unknown',
+            guardianPhone: '',
+            sex: 'Boy',
+            baselineLevel: 'No prior exposure',
+            consentCaptured: true,
+            learnerCode: 'UNK-001',
+          ),
+        ),
+        isFalse,
+      );
+      state.dispose();
+    });
+
     test('persists registration draft photos across tablet restarts', () async {
       SharedPreferences.setMockInitialValues({});
       final state = LumoAppState(includeSeedDemoContent: true);

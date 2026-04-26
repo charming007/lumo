@@ -594,6 +594,8 @@ class LumoAppState {
       tabletDeviceIdentifier = persistedDeviceIdentifier;
       _apiClient.deviceIdentifier = persistedDeviceIdentifier;
 
+      final restoredRegistrationContext =
+          _decodeRegistrationContext(snapshot['registrationContext']);
       final restoredLearners = (snapshot['learners'] as List?)
               ?.whereType<Map>()
               .map((item) => _decodeLearner(Map<String, dynamic>.from(item)))
@@ -616,13 +618,16 @@ class LumoAppState {
               .toList() ??
           const <LearnerAssignmentPack>[];
 
+      final restoredScopedLearners = _learnersWithinTabletPodScope(
+        restoredLearners.isEmpty && _includeSeedDemoContent
+            ? learnerProfilesSeed
+            : restoredLearners,
+        registrationContext: restoredRegistrationContext,
+      );
+
       learners
         ..clear()
-        ..addAll(
-          restoredLearners.isEmpty && _includeSeedDemoContent
-              ? learnerProfilesSeed
-              : restoredLearners,
-        );
+        ..addAll(restoredScopedLearners);
       modules
         ..clear()
         ..addAll(
@@ -730,8 +735,8 @@ class LumoAppState {
 
       registrationDraft =
           _decodeRegistrationDraft(snapshot['registrationDraft']);
-      registrationContext =
-          _decodeRegistrationContext(snapshot['registrationContext']);
+      registrationContext = restoredRegistrationContext;
+      learners.retainWhere(learnerMatchesTabletPod);
       usingFallbackData = snapshot['usingFallbackData'] != false;
       acknowledgedOfflineFallbackRisk =
           !kReleaseBuild && snapshot['acknowledgedOfflineFallbackRisk'] == true;
@@ -821,6 +826,7 @@ class LumoAppState {
 
     try {
       final data = await _apiClient.fetchBootstrap();
+      registrationContext = data.registrationContext;
       final existingLearnersById = {
         for (final learner in learners) learner.id: learner,
       };
@@ -829,9 +835,12 @@ class LumoAppState {
           if (learner.learnerCode.trim().isNotEmpty)
             learner.learnerCode: learner,
       };
-      final bootstrapLearners = data.learners.isEmpty && _includeSeedDemoContent
-          ? learnerProfilesSeed
-          : data.learners;
+      final bootstrapLearners = _learnersWithinTabletPodScope(
+        data.learners.isEmpty && _includeSeedDemoContent
+            ? learnerProfilesSeed
+            : data.learners,
+        registrationContext: data.registrationContext,
+      );
       learners
         ..clear()
         ..addAll(
@@ -886,7 +895,6 @@ class LumoAppState {
             : ContentOrigin.liveBackend,
       );
 
-      registrationContext = data.registrationContext;
       assignmentPacks
         ..clear()
         ..addAll(data.assignmentPacks);
@@ -962,7 +970,7 @@ class LumoAppState {
         learners.isNotEmpty && modules.isNotEmpty && assignedLessons.isNotEmpty;
     if (hasOfflinePath) return;
 
-    if (learners.isEmpty) {
+    if (learners.isEmpty && !_hasTabletPodScope()) {
       learners
         ..clear()
         ..addAll(learnerProfilesSeed);
@@ -1296,7 +1304,15 @@ class LumoAppState {
     return learners.first;
   }
 
-  String? get tabletPodId {
+  String? get tabletPodId => _tabletPodIdFor(registrationContext);
+
+
+  bool _hasTabletPodScope({RegistrationContext? registrationContext}) {
+    final podId = _tabletPodIdFor(registrationContext ?? this.registrationContext);
+    return podId != null && podId.isNotEmpty;
+  }
+
+  String? _tabletPodIdFor(RegistrationContext registrationContext) {
     final tabletRegistration = registrationContext.tabletRegistration;
     if (tabletRegistration?.podId?.trim().isNotEmpty == true) {
       return tabletRegistration!.podId!.trim();
@@ -1307,6 +1323,19 @@ class LumoAppState {
       return targetPodId;
     }
     return null;
+  }
+
+  List<LearnerProfile> _learnersWithinTabletPodScope(
+    Iterable<LearnerProfile> source, {
+    RegistrationContext? registrationContext,
+  }) {
+    final podId = _tabletPodIdFor(registrationContext ?? this.registrationContext);
+    if (podId == null || podId.isEmpty) {
+      return source.toList(growable: false);
+    }
+    return source
+        .where((learner) => learner.podId?.trim() == podId)
+        .toList(growable: false);
   }
 
   String? get tabletPodLabel {
@@ -1329,7 +1358,7 @@ class LumoAppState {
     final podId = tabletPodId?.trim();
     if (podId == null || podId.isEmpty) return true;
     final learnerPodId = learner.podId?.trim();
-    if (learnerPodId == null || learnerPodId.isEmpty) return true;
+    if (learnerPodId == null || learnerPodId.isEmpty) return false;
     return learnerPodId == podId;
   }
 
@@ -2109,13 +2138,28 @@ class LumoAppState {
   }
 
   LearnerProfile _registerLearnerLocally() {
+    final tabletRegistration = registrationContext.tabletRegistration;
+    final registrationTarget = registrationContext.defaultTarget;
+    final scopedPodId = tabletRegistration?.podId ?? registrationTarget?.cohort.podId;
+    final scopedPodLabel =
+        tabletRegistration?.podLabel ?? registrationTarget?.cohort.name;
+    final scopedMallamId =
+        tabletRegistration?.mallamId ?? registrationTarget?.mallam.id;
+    final scopedMallamName =
+        tabletRegistration?.mallamName ?? registrationTarget?.mallam.name;
+    final scopedCohortId = registrationTarget?.cohort.id;
     final learner = LearnerProfile(
       id: 'student-${learners.length + 1}',
       name: registrationDraft.name.trim(),
       age: int.parse(registrationDraft.age.trim()),
       cohort: registrationDraft.cohort.trim().isEmpty
-          ? 'Fallback cohort'
+          ? (registrationTarget?.cohort.name ?? 'Fallback cohort')
           : registrationDraft.cohort.trim(),
+      cohortId: scopedCohortId,
+      podId: scopedPodId,
+      podLabel: scopedPodLabel,
+      mallamId: scopedMallamId,
+      mallamName: scopedMallamName,
       streakDays: 0,
       guardianName: registrationDraft.guardianName.trim(),
       preferredLanguage: registrationDraft.preferredLanguage,
@@ -4785,6 +4829,11 @@ class LumoAppState {
         'name': learner.name,
         'age': learner.age,
         'cohort': learner.cohort,
+        'cohortId': learner.cohortId,
+        'podId': learner.podId,
+        'podLabel': learner.podLabel,
+        'mallamId': learner.mallamId,
+        'mallamName': learner.mallamName,
         'streakDays': learner.streakDays,
         'guardianName': learner.guardianName,
         'preferredLanguage': learner.preferredLanguage,
@@ -4813,6 +4862,11 @@ class LumoAppState {
         name: raw['name']?.toString() ?? 'Learner',
         age: _asInt(raw['age']) ?? 0,
         cohort: raw['cohort']?.toString() ?? 'Cohort',
+        cohortId: _readNullableString(raw['cohortId']),
+        podId: _readNullableString(raw['podId']),
+        podLabel: _readNullableString(raw['podLabel']),
+        mallamId: _readNullableString(raw['mallamId']),
+        mallamName: _readNullableString(raw['mallamName']),
         streakDays: _asInt(raw['streakDays']) ?? 0,
         guardianName: raw['guardianName']?.toString() ?? 'Guardian',
         preferredLanguage: raw['preferredLanguage']?.toString() ?? 'Hausa',
