@@ -547,8 +547,11 @@ function resolveLearnerTabletRegistration(req, body = null) {
   const registration = deviceIdentifier
     ? store.findDeviceRegistrationByIdentifier(deviceIdentifier)
     : null;
+  const canonicalRegistration = registration
+    ? presenters.presentDeviceRegistration(registration)
+    : null;
 
-  return { deviceIdentifier, registration };
+  return { deviceIdentifier, registration: canonicalRegistration };
 }
 
 function getDefaultRegistrationTarget({ podId = null, assignedMallamId = null } = {}) {
