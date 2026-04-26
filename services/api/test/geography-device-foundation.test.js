@@ -193,6 +193,34 @@ test('pod updates can persist geography without changing cohort semantics', asyn
   assert.equal(cohorts.body.find((item) => item.id === 'cohort-1').podId, 'pod-1');
 });
 
+test('student creation accepts pod-only placement so geography fields stay helper filters', async () => {
+  const created = await request('/api/v1/students', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      name: 'Pod Canonical Learner',
+      age: 9,
+      gender: 'female',
+      podId: 'pod-1',
+      mallamId: 'teacher-1',
+      level: 'beginner',
+      stage: 'foundation-a',
+      attendanceRate: 0.9,
+      guardianName: 'Guardian Pending',
+      deviceAccess: 'shared-tablet',
+      stateId: 'state-kano',
+      localGovernmentId: 'lga-nassarawa',
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.podId, 'pod-1');
+  assert.equal(created.body.cohortId, null);
+  assert.equal(created.body.mallamId, 'teacher-1');
+  assert.equal(created.body.stateId, 'state-kano');
+  assert.equal(created.body.localGovernmentId, 'lga-fagge');
+});
+
 test('admin geography edits survive a storage reload instead of snapping back to the baked Nigeria seed', async () => {
   const statePatch = await request('/api/v1/states/state-kano', {
     method: 'PATCH',

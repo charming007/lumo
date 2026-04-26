@@ -308,15 +308,17 @@ export async function createObservationAction(formData: FormData) {
 }
 
 export async function createStudentAction(formData: FormData) {
+  const cohortId = String(formData.get('cohortId') || '').trim();
+  const podId = String(formData.get('podId') || '').trim();
+  const mallamId = String(formData.get('mallamId') || '').trim();
+
   const payload = {
     name: String(formData.get('name') || ''),
     age: Number(formData.get('age') || 0),
     gender: String(formData.get('gender') || 'unspecified'),
-    stateId: String(formData.get('stateId') || ''),
-    localGovernmentId: String(formData.get('localGovernmentId') || ''),
-    cohortId: String(formData.get('cohortId') || ''),
-    podId: String(formData.get('podId') || ''),
-    mallamId: String(formData.get('mallamId') || ''),
+    cohortId,
+    podId,
+    mallamId,
     level: String(formData.get('level') || 'beginner'),
     stage: String(formData.get('stage') || 'foundation-a'),
     attendanceRate: Number(formData.get('attendanceRate') || 0.85),
@@ -335,11 +337,9 @@ export async function updateStudentAction(formData: FormData) {
   const studentId = String(formData.get('studentId') || '');
   const payload = {
     name: String(formData.get('name') || ''),
-    stateId: String(formData.get('stateId') || ''),
-    localGovernmentId: String(formData.get('localGovernmentId') || ''),
-    cohortId: String(formData.get('cohortId') || ''),
-    podId: String(formData.get('podId') || ''),
-    mallamId: String(formData.get('mallamId') || ''),
+    cohortId: String(formData.get('cohortId') || '').trim(),
+    podId: String(formData.get('podId') || '').trim(),
+    mallamId: String(formData.get('mallamId') || '').trim(),
     level: String(formData.get('level') || ''),
     stage: String(formData.get('stage') || ''),
     attendanceRate: Number(formData.get('attendanceRate') || 0),
