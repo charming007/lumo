@@ -232,9 +232,9 @@ function resolveStudentReferences(input = {}, existing = null) {
     ? input.podId
     : cohort?.podId || existing?.podId || null;
   const derivedMallamId = deriveMallamIdFromPodId(nextPodId) ?? null;
-  const nextMallamId = has('mallamId')
-    ? input.mallamId
-    : (has('podId') || has('cohortId') ? derivedMallamId : (existing?.mallamId ?? derivedMallamId));
+  const nextMallamId = nextPodId
+    ? derivedMallamId
+    : (has('mallamId') ? input.mallamId : (existing?.mallamId ?? null));
 
   return {
     cohortId: nextCohortId ?? null,
@@ -1584,13 +1584,17 @@ function buildDeviceRegistrationRecord(input, existingRecord = null) {
     ? buildTabletIdentifier({ podLabel: pod.label, tabletName: nextTabletName })
     : null);
 
+  const canonicalAssignedMallamId = nextPodId
+    ? deriveMallamIdFromPod(pod) ?? null
+    : (input.assignedMallamId ?? existingRecord?.assignedMallamId ?? null);
+
   return {
     id: input.id || existingRecord?.id || `device-${listDeviceRegistrations().length + 1}`,
     podId: nextPodId,
     stateId: pod?.stateId || center?.stateId || input.stateId || existingRecord?.stateId || null,
     localGovernmentId: pod?.localGovernmentId || center?.localGovernmentId || input.localGovernmentId || existingRecord?.localGovernmentId || null,
     centerId: nextCenterId,
-    assignedMallamId: input.assignedMallamId ?? deriveMallamIdFromPod(pod) ?? existingRecord?.assignedMallamId ?? null,
+    assignedMallamId: canonicalAssignedMallamId,
     tabletName: nextTabletName,
     deviceIdentifier: nextDeviceIdentifier,
     serialNumber: input.serialNumber !== undefined ? input.serialNumber || null : (existingRecord?.serialNumber || null),

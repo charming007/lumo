@@ -321,7 +321,7 @@ test('module bundle still exposes assigned unpublished lessons for internal rout
   assert.equal(bundle.body.lessonCount >= 2, true, JSON.stringify(bundle.body));
 });
 
-test('learner bootstrap derives learner geography from the assigned pod instead of mallam fallback geography', async () => {
+test('learner bootstrap derives learner geography and mallam from the assigned pod instead of stale mallam fallback data', async () => {
   repository.updateTeacher('teacher-2', { podIds: ['pod-2'], primaryPodId: 'pod-2' });
   const student = repository.createStudent({
     cohortId: 'cohort-1',
@@ -344,8 +344,8 @@ test('learner bootstrap derives learner geography from the assigned pod instead 
   assert.equal(presented.podId, 'pod-1');
   assert.equal(presented.podLabel, 'Kano Pod 01');
   assert.equal(presented.village, 'Kano Pod 01');
-  assert.equal(presented.mallamId, 'teacher-2');
-  assert.equal(presented.mallamName, 'Mallam Musa Ibrahim');
+  assert.equal(presented.mallamId, 'teacher-1');
+  assert.equal(presented.mallamName, 'Mallama Amina Yusuf');
 });
 
 

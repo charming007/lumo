@@ -125,6 +125,33 @@ test('device registrations reject a mallam that does not match the pod primary m
   assert.match(String(created.body?.message || ''), /pod primary mallam/i);
 });
 
+test('device registration updates keep mallam assignment canonical to the pod even if stale values were stored earlier', async () => {
+  const created = await request('/api/v1/device-registrations', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      podId: 'pod-1',
+      deviceIdentifier: 'lumo-tablet-kano-canonical-update',
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+
+  const repository = require('../src/repository');
+  const stored = repository.findDeviceRegistrationByIdentifier('lumo-tablet-kano-canonical-update');
+  stored.assignedMallamId = 'teacher-2';
+
+  const updated = await request(`/api/v1/device-registrations/${stored.id}`, {
+    method: 'PATCH',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({ serialNumber: 'KANO-CANONICAL-001' }),
+  });
+
+  assert.equal(updated.status, 200, JSON.stringify(updated.body));
+  assert.equal(updated.body.assignedMallamId, 'teacher-1');
+  assert.equal(updated.body.assignedMallamName, 'Mallama Amina Yusuf');
+});
+
 test('pods reject multiple primary mallams', async () => {
   const created = await request('/api/v1/pods', {
     method: 'POST',
