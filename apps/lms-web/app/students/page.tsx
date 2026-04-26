@@ -4,13 +4,9 @@ import { GeographyFilterBar } from '../../components/geography-filter-bar';
 import { LearnerMallamAssignmentForm } from '../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
+import { averageAttendancePercent, formatAttendancePercent } from '../../lib/attendance';
 import { filterStudentsByGeography, studentGeographyLabel } from '../../lib/geography';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
-
-function percent(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-  return `${Math.round(value)}%`;
-}
 
 export default async function StudentsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
@@ -31,9 +27,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
   ]);
   const filteredStudents = filterStudentsByGeography(students, pods, centers, { stateId, localGovernmentId, podId, cohortId, mallamId });
   const activeStudents = filteredStudents.filter((student) => (student.stage || '').toLowerCase() !== 'inactive');
-  const avgAttendance = filteredStudents.length
-    ? Math.round(filteredStudents.reduce((sum, student) => sum + (Number(student.attendanceRate) || 0), 0) / filteredStudents.length)
-    : 0;
+  const avgAttendance = averageAttendancePercent(filteredStudents.map((student) => student.attendanceRate));
 
   return (
     <PageShell
@@ -87,7 +81,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
           student.cohortName || '—',
           student.podLabel || '—',
           student.mallamName || '—',
-          percent(student.attendanceRate),
+          formatAttendancePercent(student.attendanceRate),
           <div key={`${student.id}-actions`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Link href={`/students/${student.id}`} title="View learner" aria-label="View learner" style={{ textDecoration: 'none', borderRadius: 10, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#3730A3', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
               👁
