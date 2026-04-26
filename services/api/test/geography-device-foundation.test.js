@@ -87,13 +87,12 @@ test('geography create routes reject duplicate ids instead of silently polluting
   assert.match(String(duplicateLga.body?.message || ''), /Local government already exists/i);
 });
 
-test('device registrations inherit pod geography and expose it through the API', async () => {
+test('device registrations inherit pod geography and primary mallam through the API', async () => {
   const created = await request('/api/v1/device-registrations', {
     method: 'POST',
     headers: { 'x-lumo-role': 'admin' },
     body: JSON.stringify({
       podId: 'pod-2',
-      assignedMallamId: 'teacher-2',
       deviceIdentifier: 'lumo-tablet-kaduna-02',
       serialNumber: 'KAD-TAB-002',
     }),
@@ -103,11 +102,44 @@ test('device registrations inherit pod geography and expose it through the API',
   assert.equal(created.body.podId, 'pod-2');
   assert.equal(created.body.stateId, 'state-kaduna');
   assert.equal(created.body.localGovernmentId, 'lga-igabi');
+  assert.equal(created.body.assignedMallamId, 'teacher-2');
   assert.equal(created.body.assignedMallamName, 'Mallam Musa Ibrahim');
 
   const listed = await request('/api/v1/device-registrations?podId=pod-2');
   assert.equal(listed.status, 200);
   assert.equal(listed.body.some((item) => item.deviceIdentifier === 'lumo-tablet-kaduna-02'), true, JSON.stringify(listed.body));
+});
+
+test('device registrations reject a mallam that does not match the pod primary mallam', async () => {
+  const created = await request('/api/v1/device-registrations', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      podId: 'pod-1',
+      assignedMallamId: 'teacher-2',
+      deviceIdentifier: 'lumo-tablet-kano-wrong-mallam',
+    }),
+  });
+
+  assert.equal(created.status, 400, JSON.stringify(created.body));
+  assert.match(String(created.body?.message || ''), /pod primary mallam/i);
+});
+
+test('pods reject multiple primary mallams', async () => {
+  const created = await request('/api/v1/pods', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      centerId: 'center-1',
+      stateId: 'state-kano',
+      localGovernmentId: 'lga-nassarawa',
+      podName: 'Too Many Mallams',
+      mallamIds: ['teacher-1', 'teacher-2'],
+    }),
+  });
+
+  assert.equal(created.status, 400, JSON.stringify(created.body));
+  assert.match(String(created.body?.message || ''), /one primary mallam|exactly one primary mallam/i);
 });
 
 test('reward queue summary exposes the LMS contract fields used by the rewards admin surface', async () => {

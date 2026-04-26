@@ -630,11 +630,19 @@ function resolveScopeFilters(input = {}) {
   };
 }
 
+function studentMatchesMallamScope(student, mallamId) {
+  if (!mallamId) return true;
+  const mallam = store.findTeacherById(mallamId);
+  if (!mallam) return false;
+  const podIds = new Set([...(Array.isArray(mallam.podIds) ? mallam.podIds : []), mallam.primaryPodId].filter(Boolean));
+  return podIds.has(student.podId);
+}
+
 function filterStudentsByScope(students, scope = {}) {
   return students.filter((student) => {
     if (scope.cohortId && student.cohortId !== scope.cohortId) return false;
     if (scope.podId && student.podId !== scope.podId) return false;
-    if (scope.mallamId && student.mallamId !== scope.mallamId) return false;
+    if (!studentMatchesMallamScope(student, scope.mallamId)) return false;
     return true;
   });
 }
@@ -2171,7 +2179,7 @@ app.get('/api/v1/device-registrations', (req, res) => {
   const mallamId = coerceOptionalString(req.query.mallamId);
   const items = store.listDeviceRegistrations()
     .filter((item) => !podId || item.podId === podId)
-    .filter((item) => !mallamId || item.assignedMallamId === mallamId)
+    .filter((item) => !mallamId || studentMatchesMallamScope({ podId: item.podId }, mallamId))
     .map(presenters.presentDeviceRegistration);
   res.json(items);
 });
@@ -3255,7 +3263,7 @@ app.get('/api/v1/rewards/transactions', (req, res) => {
   const scopedStudentIds = new Set(
     store
       .listStudents()
-      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId))
+      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && studentMatchesMallamScope(student, mallamId))
       .map((student) => student.id),
   );
   const items = store
@@ -3402,7 +3410,7 @@ app.get('/api/v1/progression-overrides', (req, res) => {
   const scopedStudentIds = new Set(
     store
       .listStudents()
-      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId))
+      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && studentMatchesMallamScope(student, mallamId))
       .map((student) => student.id),
   );
   const items = store
@@ -3709,7 +3717,7 @@ app.get('/api/v1/session-repairs', (req, res) => {
   const scopedStudentIds = new Set(
     store
       .listStudents()
-      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId))
+      .filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && studentMatchesMallamScope(student, mallamId))
       .map((student) => student.id),
   );
   const items = store

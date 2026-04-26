@@ -158,6 +158,7 @@ function presentStudent(student) {
   const cohort = repository.findCohortById(student.cohortId);
   const mallam = repository.findTeacherById(student.mallamId);
   const pod = resolveStudentPod(student, cohort, mallam);
+  const podPrimaryMallam = repository.findTeacherById((pod?.mallamIds || [])[0] || null);
 
   return {
     ...student,
@@ -168,7 +169,8 @@ function presentStudent(student) {
     stateName: pod?.stateId ? repository.findStateById(pod.stateId)?.name ?? null : null,
     localGovernmentId: pod?.localGovernmentId ?? null,
     localGovernmentName: pod?.localGovernmentId ? repository.findLocalGovernmentById(pod.localGovernmentId)?.name ?? null : null,
-    mallamName: mallam?.displayName ?? mallam?.name ?? null,
+    mallamId: student.mallamId ?? podPrimaryMallam?.id ?? null,
+    mallamName: mallam?.displayName ?? mallam?.name ?? podPrimaryMallam?.displayName ?? podPrimaryMallam?.name ?? null,
     rewards: presentRewardSnapshot(student.id),
   };
 }
@@ -177,6 +179,7 @@ function presentLearnerProfile(student) {
   const cohort = repository.findCohortById(student.cohortId);
   const mallam = repository.findTeacherById(student.mallamId);
   const pod = resolveStudentPod(student, cohort, mallam);
+  const podPrimaryMallam = repository.findTeacherById((pod?.mallamIds || [])[0] || null);
   const progressEntries = repository.listProgress().filter((entry) => entry.studentId === student.id);
   const attendanceEntries = repository
     .listAttendance()
@@ -198,8 +201,8 @@ function presentLearnerProfile(student) {
     cohortId: cohort?.id ?? student.cohortId ?? null,
     podId: student.podId ?? null,
     podLabel: pod?.label ?? null,
-    mallamId: student.mallamId ?? null,
-    mallamName: mallam?.displayName ?? mallam?.name ?? null,
+    mallamId: student.mallamId ?? podPrimaryMallam?.id ?? null,
+    mallamName: mallam?.displayName ?? mallam?.name ?? podPrimaryMallam?.displayName ?? podPrimaryMallam?.name ?? null,
     streakDays: latestProgress?.lessonsCompleted ?? 0,
     guardianName: student.guardianName || 'Unknown guardian',
     preferredLanguage: student.preferredLanguage || 'Hausa',
@@ -499,7 +502,8 @@ function presentDeviceRegistration(entry) {
       : center?.localGovernmentId
         ? repository.findLocalGovernmentById(center.localGovernmentId)
         : null;
-  const mallam = entry.assignedMallamId ? repository.findTeacherById(entry.assignedMallamId) : null;
+  const resolvedAssignedMallamId = entry.assignedMallamId || (pod?.mallamIds || [])[0] || null;
+  const mallam = resolvedAssignedMallamId ? repository.findTeacherById(resolvedAssignedMallamId) : null;
 
   return {
     ...entry,
@@ -510,6 +514,7 @@ function presentDeviceRegistration(entry) {
     stateName: state?.name ?? null,
     localGovernmentId: entry.localGovernmentId || pod?.localGovernmentId || center?.localGovernmentId || null,
     localGovernmentName: localGovernment?.name ?? null,
+    assignedMallamId: resolvedAssignedMallamId,
     assignedMallamName: mallam?.displayName ?? mallam?.name ?? null,
   };
 }
