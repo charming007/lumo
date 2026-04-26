@@ -19,6 +19,8 @@ typedef VoiceReplayStop = Future<void> Function();
 const bool kEnableSeedDemoContent =
     bool.fromEnvironment('LUMO_ENABLE_SEED_DEMO_CONTENT');
 const bool kReleaseBuild = bool.fromEnvironment('dart.vm.product');
+const String kConfiguredDeviceIdentifier =
+    String.fromEnvironment('LUMO_DEVICE_IDENTIFIER');
 const String _kPersistenceStorageKey = 'lumo_learner_tablet_state_v1';
 const String _kPersistenceSchemaVersion = '2026-04-13-runtime-persist';
 const Duration _kTrustedOfflineSnapshotMaxAge = Duration(hours: 24);
@@ -92,16 +94,22 @@ class LumoAppState {
     LumoApiClient? apiClient,
     BundledContentLoader? bundledContentLoader,
     bool includeSeedDemoContent = kEnableSeedDemoContent,
+    String? configuredDeviceIdentifier = kConfiguredDeviceIdentifier,
   })  : _apiClient = apiClient ?? LumoApiClient(),
         _bundledContentLoader =
             bundledContentLoader ?? const BundledContentLoader(),
-        _includeSeedDemoContent = includeSeedDemoContent {
+        _includeSeedDemoContent = includeSeedDemoContent,
+        _configuredDeviceIdentifier =
+            _normalizeDeviceIdentifier(configuredDeviceIdentifier) {
+    _apiClient.deviceIdentifier = _configuredDeviceIdentifier;
+    tabletDeviceIdentifier = _configuredDeviceIdentifier;
     _primeInitialContentOrigins();
   }
 
   final LumoApiClient _apiClient;
   final BundledContentLoader _bundledContentLoader;
   final bool _includeSeedDemoContent;
+  final String? _configuredDeviceIdentifier;
   VoiceReplay? voiceReplay;
   VoiceReplayStop? voiceReplayStop;
   Timer? _syncRetryTimer;
@@ -163,6 +171,12 @@ class LumoAppState {
 
   String get backendBaseUrl => _apiClient.baseUrl;
   String? get stableDeviceIdentifier => tabletDeviceIdentifier;
+
+  static String? _normalizeDeviceIdentifier(String? raw) {
+    final trimmed = raw?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
+  }
 
   void attachVoiceReplay(VoiceReplay replay, {VoiceReplayStop? onStop}) {
     voiceReplay = replay;
@@ -579,10 +593,12 @@ class LumoAppState {
       final snapshot = Map<String, dynamic>.from(decoded);
       final persistedDeviceIdentifier =
           _readNullableString(snapshot['tabletDeviceIdentifier']);
+      final effectiveDeviceIdentifier =
+          _configuredDeviceIdentifier ?? persistedDeviceIdentifier;
       if (snapshot['schemaVersion']?.toString() != _kPersistenceSchemaVersion) {
-        if (persistedDeviceIdentifier != null) {
-          tabletDeviceIdentifier = persistedDeviceIdentifier;
-          _apiClient.deviceIdentifier = persistedDeviceIdentifier;
+        if (effectiveDeviceIdentifier != null) {
+          tabletDeviceIdentifier = effectiveDeviceIdentifier;
+          _apiClient.deviceIdentifier = effectiveDeviceIdentifier;
         } else {
           await ensureStableDeviceIdentifier();
         }
@@ -591,8 +607,8 @@ class LumoAppState {
         return;
       }
 
-      tabletDeviceIdentifier = persistedDeviceIdentifier;
-      _apiClient.deviceIdentifier = persistedDeviceIdentifier;
+      tabletDeviceIdentifier = effectiveDeviceIdentifier;
+      _apiClient.deviceIdentifier = effectiveDeviceIdentifier;
 
       final restoredRegistrationContext =
           _decodeRegistrationContext(snapshot['registrationContext']);
@@ -5325,6 +5341,17 @@ class LumoAppState {
   }
 
   Future<String> ensureStableDeviceIdentifier() async {
+    final configured = _configuredDeviceIdentifier;
+    if (configured != null) {
+      final changed = tabletDeviceIdentifier != configured;
+      tabletDeviceIdentifier = configured;
+      _apiClient.deviceIdentifier = configured;
+      if (changed) {
+        await _persistStateNow();
+      }
+      return configured;
+    }
+
     final existing = tabletDeviceIdentifier?.trim();
     if (existing != null && existing.isNotEmpty) {
       _apiClient.deviceIdentifier = existing;
