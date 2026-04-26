@@ -867,6 +867,10 @@ class LumoAppState {
         ),
         registrationContext: registrationContext,
       );
+      registrationContext = _normalizeRegistrationContextPodLabel(
+        registrationContext,
+        bootstrapLearners,
+      );
       learners
         ..clear()
         ..addAll(
@@ -1415,6 +1419,48 @@ class LumoAppState {
       return labels.first;
     }
     return null;
+  }
+
+  RegistrationContext _normalizeRegistrationContextPodLabel(
+    RegistrationContext registrationContext,
+    Iterable<LearnerProfile> source,
+  ) {
+    final tabletRegistration = registrationContext.tabletRegistration;
+    if (tabletRegistration == null) return registrationContext;
+
+    final canonicalPodLabel =
+        _canonicalTabletPodLabelFromLearners(source, registrationContext);
+    final currentPodLabel = tabletRegistration.podLabel?.trim();
+    if (canonicalPodLabel == null || canonicalPodLabel == currentPodLabel) {
+      return registrationContext;
+    }
+
+    final canonicalPodId = _tabletPodIdFor(registrationContext)?.trim();
+    final registrationPodId = tabletRegistration.podId?.trim();
+    final registrationPodDisagreesWithScope = canonicalPodId != null &&
+        canonicalPodId.isNotEmpty &&
+        registrationPodId != null &&
+        registrationPodId.isNotEmpty &&
+        registrationPodId != canonicalPodId;
+    if (registrationPodDisagreesWithScope &&
+        currentPodLabel != null &&
+        currentPodLabel.isNotEmpty) {
+      return registrationContext;
+    }
+
+    return RegistrationContext(
+      cohorts: registrationContext.cohorts,
+      mallams: registrationContext.mallams,
+      defaultTarget: registrationContext.defaultTarget,
+      tabletRegistration: TabletRegistration(
+        id: tabletRegistration.id,
+        deviceIdentifier: tabletRegistration.deviceIdentifier,
+        podId: tabletRegistration.podId,
+        podLabel: canonicalPodLabel,
+        mallamId: tabletRegistration.mallamId,
+        mallamName: tabletRegistration.mallamName,
+      ),
+    );
   }
 
   String? _tabletPodLabelFor(

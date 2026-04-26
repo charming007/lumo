@@ -307,7 +307,7 @@ void main() {
     expect(state.tabletPodId, 'pod-zaria');
     expect(state.tabletPodLabel, 'Kaduna / Zaria');
     expect(state.registrationContext.tabletRegistration?.podLabel,
-        'Wrong Shell Label');
+        'Kaduna / Zaria');
     expect(state.learners.single.podLabel, 'Kaduna / Zaria');
   });
 
@@ -430,7 +430,7 @@ void main() {
     expect(state.tabletPodId, 'pod-zaria');
     expect(state.tabletPodLabel, 'Kaduna / Zaria');
     expect(state.registrationContext.tabletRegistration?.podLabel,
-        'Wrong Shell Label');
+        'Kaduna / Zaria');
     expect(state.learners.single.podLabel, 'Kaduna / Zaria');
   });
 
