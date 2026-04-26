@@ -8,7 +8,7 @@ export function MallamRosterManager({ mallam, roster, candidateLearners, mallams
       <form action={assignLearnerToMallamAction} style={{ background: 'white', borderRadius: 20, padding: 24, display: 'grid', gap: 14, border: '1px solid #eef2f7' }}>
         <div>
           <h2 style={{ margin: 0 }}>Add learner to this mallam</h2>
-          <p style={{ color: '#64748b', margin: '8px 0 0' }}>Pick any learner and attach them to {mallam.displayName}. If they already belong to another mallam, this reassigns them here.</p>
+          <p style={{ color: '#64748b', margin: '8px 0 0' }}>Pick a learner inside {mallam.displayName}’s pod coverage and attach them here. If they already belong to another mallam, this reassigns them here.</p>
         </div>
         <input type="hidden" name="mallamId" value={mallam.id} />
         <input type="hidden" name="returnPath" value={returnPath} />

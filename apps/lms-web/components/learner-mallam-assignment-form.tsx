@@ -14,7 +14,7 @@ export function LearnerMallamAssignmentForm({ student, mallams, returnPath }: { 
       <select name="mallamId" defaultValue={student.mallamId ?? 'unassigned'} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14 }}>
         <option value="unassigned">No mallam assigned</option>
         {mallams.map((mallam) => (
-          <option key={mallam.id} value={mallam.id}>{mallam.displayName} · {mallam.podLabels.join(', ') || 'No pods'}</option>
+          <option key={mallam.id} value={mallam.id}>{mallam.displayName} · {mallam.podLabels[0] || 'No primary pod'}</option>
         ))}
       </select>
       <ActionButton label="Save mallam assignment" pendingLabel="Saving assignment…" style={{ background: '#6C63FF', color: 'white', border: 0, borderRadius: 12, padding: '12px 16px', fontWeight: 700 }} />

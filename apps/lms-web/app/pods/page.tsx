@@ -73,7 +73,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
               items={[
                 { label: 'Pods', value: String(pods.length) },
                 { label: 'Active pods', value: String(activePods) },
-                { label: 'Mallams linked', value: String(pods.filter((pod) => (pod.mallamIds || []).length).length) },
+                { label: 'Pods with primary mallam', value: String(pods.filter((pod) => (pod.mallamIds || []).length > 0).length) },
                 { label: 'Tablets attached', value: String(deviceRegistrations.filter((device) => device.podId).length) },
               ]}
             />
@@ -93,7 +93,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
               <div style={{ display: 'grid', gap: 10 }}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Pill label={`${pod.learnersActive || 0} learners`} tone="#EEF2FF" text="#3730A3" />
-                  <Pill label={(pod.mallamNames || []).join(', ') || 'No mallam'} tone="#ECFDF5" text="#166534" />
+                  <Pill label={pod.mallamNames?.[0] || 'No primary mallam'} tone="#ECFDF5" text="#166534" />
                   <Pill label={`${podDevices.length} tablet${podDevices.length === 1 ? '' : 's'}`} tone="#F5F3FF" text="#6D28D9" />
                 </div>
                 <div style={{ color: '#475569', lineHeight: 1.6 }}>
@@ -118,7 +118,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
                 <Pill key={`${pod.id}-status`} label={pod.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
                 podGeographyLabel(pod, centers, states, localGovernments),
                 String(pod.learnersActive || 0),
-                (pod.mallamNames || []).join(', ') || '—',
+                pod.mallamNames?.[0] || '—',
                 String(podDevices.length),
                 pod.centerName || 'Derived from geography',
                 <div key={`${pod.id}-actions`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -152,9 +152,9 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
         <Card title="Why this matters" eyebrow="Closeout note">
           <div style={{ display: 'grid', gap: 12 }}>
             {[
-              'Pods own their mallam linkage directly instead of forcing operators to reverse-engineer ownership from device rows.',
-              'Center stays de-emphasized in pod creation. Geography and assigned mallam drive the pod; center is derived where possible.',
-              'Devices still show up here for context, but the standalone Devices route handles registration and reassignment cleanly.',
+              'Pods own their mallam linkage directly, with one primary mallam per pod instead of a fuzzy multi-owner list.',
+              'Center stays de-emphasized in pod creation. Geography drives the pod; mallam deployment should align to that footprint, not override it.',
+              'Devices still show up here for context, but the standalone Devices route handles the single-tablet-per-pod scope cleanly.',
             ].map((detail) => (
               <div key={detail} style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#475569', lineHeight: 1.7 }}>{detail}</div>
             ))}
