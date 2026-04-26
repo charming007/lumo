@@ -4131,7 +4131,7 @@ void main() {
     });
 
     test(
-        'bootstrap merges bundled Meet Mallam content without overriding live lessons',
+        'healthy live bootstrap does not inject bundled Meet Mallam content',
         () async {
       final liveLesson = LessonCardModel(
         id: 'live-lesson-1',
@@ -4314,7 +4314,7 @@ void main() {
       expect(state.modules, isNotEmpty);
       expect(
         state.modules.any((module) => module.id == 'lumo-fundamentals'),
-        isTrue,
+        isFalse,
       );
       expect(
         state.assignedLessons.any((lesson) => lesson.id == liveLesson.id),
@@ -4322,7 +4322,7 @@ void main() {
       );
       expect(
         state.assignedLessons.any((lesson) => lesson.id == bundledLesson.id),
-        isTrue,
+        isFalse,
       );
     });
 
@@ -4588,7 +4588,7 @@ void main() {
     });
 
     test(
-        'bundled fundamentals lesson wins over live lesson body with same stable id',
+        'healthy live bootstrap keeps the live lesson body even when bundled fundamentals share the same id',
         () async {
       final bundledLesson = LessonCardModel(
         id: 'fundamentals-meet-mallam.lesson-01',
@@ -4762,11 +4762,11 @@ void main() {
       final resolvedLesson = state.assignedLessons.firstWhere(
         (lesson) => lesson.id == bundledLesson.id,
       );
-      expect(resolvedLesson.steps.length, 2);
-      expect(resolvedLesson.steps.first.id, 'bundled-step-1');
+      expect(resolvedLesson.steps.length, 1);
+      expect(resolvedLesson.steps.first.id, 'live-step-1');
       expect(
         resolvedLesson.scenario,
-        'Bundled offline intro lesson.',
+        'Live server variant that should not replace the bundled body.',
       );
     });
 
@@ -4891,7 +4891,7 @@ void main() {
     });
 
     test(
-        'bootstrap keeps live subjects alongside bundled fundamentals instead of collapsing to the offline pack',
+        'healthy live bootstrap does not merge bundled fundamentals into learner curriculum',
         () async {
       final bundledLesson = LessonCardModel(
         id: 'lf-meet-mallam',
@@ -4942,31 +4942,25 @@ void main() {
 
       expect(
         state.modules.map((module) => module.id),
-        equals(['english', 'math', 'life-skills', 'lumo-fundamentals']),
+        equals(['english', 'math', 'life-skills']),
       );
       expect(
         state.modules.map((module) => module.title),
-        containsAll([
-          'English',
-          'Basic Mathematics',
-          'Life Skills',
-          'Lumo Fundamentals',
-        ]),
+        equals(['English', 'Basic Mathematics', 'Life Skills']),
       );
       expect(
         state.assignedLessons.map((lesson) => lesson.id),
-        containsAll([
-          'english-live-1',
-          'math-live-1',
-          'life-live-1',
-          'lf-meet-mallam',
-        ]),
+        equals(['english-live-1', 'math-live-1', 'life-live-1']),
+      );
+      expect(
+        state.assignedLessons.any((lesson) => lesson.id == 'lf-meet-mallam'),
+        isFalse,
       );
       state.dispose();
     });
 
     test(
-        'healthy live bootstrap does not report bundled fundamentals as curriculum mixed',
+        'healthy live bootstrap stays purely live even when bundled fundamentals exist locally',
         () async {
       final bundledLesson = LessonCardModel(
         id: 'lf-meet-mallam',
@@ -5016,9 +5010,17 @@ void main() {
       await state.bootstrap();
 
       expect(state.usingFallbackData, isFalse);
+      expect(
+        state.visibleCurriculumOrigins,
+        equals({ContentOrigin.liveBackend}),
+      );
       expect(state.curriculumHasMixedOrigins, isFalse);
       expect(state.curriculumSourceLabel, 'Curriculum live');
       expect(state.curriculumTruthWarning, isNull);
+      expect(
+        state.assignedLessons.any((lesson) => lesson.id == 'lf-meet-mallam'),
+        isFalse,
+      );
       state.dispose();
     });
 
@@ -5146,21 +5148,21 @@ void main() {
 
       final liveLesson = state.assignedLessons
           .firstWhere((lesson) => lesson.id == 'english-live-1');
-      final bundledResolvedLesson = state.assignedLessons
-          .firstWhere((lesson) => lesson.id == 'lf-meet-mallam');
       final liveModule =
           state.modules.firstWhere((module) => module.id == 'english');
-      final bundledModule = state.modules
-          .firstWhere((module) => module.id == 'lumo-fundamentals');
 
       expect(state.sourceStatusForLesson(liveLesson).origin,
           ContentOrigin.liveBackend);
-      expect(state.sourceStatusForLesson(bundledResolvedLesson).origin,
-          ContentOrigin.bundledOfflinePack);
       expect(state.sourceStatusForModule(liveModule).origin,
           ContentOrigin.liveBackend);
-      expect(state.sourceStatusForModule(bundledModule).origin,
-          ContentOrigin.bundledOfflinePack);
+      expect(
+        state.assignedLessons.any((lesson) => lesson.id == 'lf-meet-mallam'),
+        isFalse,
+      );
+      expect(
+        state.modules.any((module) => module.id == 'lumo-fundamentals'),
+        isFalse,
+      );
       state.dispose();
     });
 
