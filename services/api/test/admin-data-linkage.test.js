@@ -65,7 +65,7 @@ test('teacher-pod linkage stays bidirectional when teacher coverage is created f
   assert.ok(repository.findTeacherById(mallam.id).podIds.includes(pod.id));
 });
 
-test('student pod stays anchored to cohort pod instead of being derived from mallam geography', () => {
+test('student pod stays anchored to cohort pod and keeps its mallam derived from that pod', () => {
   const payload = {
     name: 'Pod Anchored Learner',
     age: 9,
@@ -78,7 +78,7 @@ test('student pod stays anchored to cohort pod instead of being derived from mal
   const updated = repository.updateStudent(student.id, { mallamId: kadunaMallam.id });
 
   assert.equal(updated.podId, 'pod-1');
-  assert.equal(updated.mallamId, 'teacher-2');
+  assert.equal(updated.mallamId, 'teacher-1');
 });
 
 test('student presenter falls back to the pod primary mallam when learner record mallam is stale', () => {
@@ -95,4 +95,32 @@ test('student presenter falls back to the pod primary mallam when learner record
   assert.equal(presented.podId, 'pod-1');
   assert.equal(presented.mallamId, 'teacher-1');
   assert.equal(presented.mallamName, 'Mallama Amina Yusuf');
+});
+
+test('student repository keeps mallam derived from pod even when update payload tries to override it', () => {
+  const student = repository.createStudent({
+    name: 'Derived Mallam Learner',
+    age: 8,
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-1',
+  });
+
+  const updated = repository.updateStudent(student.id, { mallamId: 'teacher-2' });
+
+  assert.equal(updated.podId, 'pod-1');
+  assert.equal(updated.mallamId, 'teacher-1');
+});
+
+test('device presenter prefers the pod primary mallam over stale stored assignment data', () => {
+  const record = repository.createDeviceRegistration({
+    podId: 'pod-1',
+    deviceIdentifier: 'lumo-tablet-kano-canonical-device',
+  });
+
+  record.assignedMallamId = 'teacher-2';
+
+  const presented = presenters.presentDeviceRegistration(record);
+  assert.equal(presented.podId, 'pod-1');
+  assert.equal(presented.assignedMallamId, 'teacher-1');
+  assert.equal(presented.assignedMallamName, 'Mallama Amina Yusuf');
 });
