@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 
 const defaultTriggerStyle: CSSProperties = {
   background: 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)',
@@ -39,12 +39,14 @@ export function ModalLauncher({
     return query ? `${pathname}?${query}` : pathname;
   }, [pathname, searchParams]);
   const [open, setOpen] = useState(false);
+  const previousRouteSignature = useRef(routeSignature);
 
   useEffect(() => {
-    if (open) {
+    if (previousRouteSignature.current !== routeSignature) {
       setOpen(false);
+      previousRouteSignature.current = routeSignature;
     }
-  }, [open, routeSignature]);
+  }, [routeSignature]);
 
   useEffect(() => {
     if (!open) return;
