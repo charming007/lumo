@@ -131,13 +131,6 @@ function MallamAssignmentSelector({ mallams, selectedMallamId, centers, states, 
       <div style={{ ...responsiveGrid(220), gap: 10 }}>
         {mallams.length ? (
           <>
-            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155' }}>
-              <input type="radio" name="mallamId" value="" defaultChecked={!selectedMallamId} style={{ marginTop: 3 }} />
-              <span>
-                <strong style={{ display: 'block' }}>No primary mallam yet</strong>
-                <span style={{ color: '#64748b', fontSize: 13 }}>Leave the pod operationally unowned until staffing is confirmed.</span>
-              </span>
-            </label>
             {mallams.map((mallam) => (
               <label key={mallam.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 14, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155' }}>
                 <input type="radio" name="mallamId" value={mallam.id} defaultChecked={selectedMallamId === mallam.id} style={{ marginTop: 3 }} />
@@ -148,9 +141,9 @@ function MallamAssignmentSelector({ mallams, selectedMallamId, centers, states, 
               </label>
             ))}
           </>
-        ) : <div style={{ color: '#64748b', fontSize: 14 }}>No mallams loaded for assignment yet.</div>}
+        ) : <div style={{ color: '#64748b', fontSize: 14 }}>No mallams loaded for assignment yet. Create the mallam profile first, then attach the pod.</div>}
       </div>
-      <SectionHint>One pod, one primary mallam. Device rows should inherit that ownership, not invent a second truth.</SectionHint>
+      <SectionHint>One pod, one primary mallam. Learners and tablets should inherit that ownership, not invent a second truth.</SectionHint>
     </div>
   );
 }
@@ -173,7 +166,7 @@ export function CreateStudentForm({ cohorts, pods, mallams, centers, states, loc
         localGovernments={localGovernments}
       />
       <GeographyHint>
-        Geography is explicit now: pick <strong>state → local government → pod</strong> in order. Pod remains the real operational anchor, and cohort plus mallam options narrow from the selected pod.
+        Geography is explicit now: pick <strong>state → local government → pod</strong> in order. Pod is the operational anchor, and the learner’s mallam now derives from that pod automatically.
       </GeographyHint>
       <div style={twoColumnGrid}>
         <FieldLabel>Level<select name="level" defaultValue="beginner" style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
@@ -210,7 +203,7 @@ export function UpdateStudentForm({ student, cohorts, pods, mallams, centers, st
           initialMallamId={student.mallamId}
         />
         <GeographyHint>
-          State and local government stay visible during learner edits, but pod is still the authoritative assignment. Cohort and mallam choices narrow from that selected pod so operators do not cross-wire locations.
+          State and local government stay visible during learner edits, but pod is still the authoritative assignment. Cohort narrows from that selected pod, and mallam ownership is derived from the pod’s primary mallam so operators do not cross-wire locations.
         </GeographyHint>
         <div style={twoColumnGrid}>
           <FieldLabel>Level<select name="level" defaultValue={student.level} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
@@ -259,7 +252,7 @@ export function CreateMallamForm({ centers, pods, states, localGovernments }: { 
         initialPodIds={[]}
       />
       <GeographyHint>
-        Mallam deployment is geography-aware now: choose state and local government first, then select the center and pod coverage inside that footprint.
+        Mallam profiles can exist independently, but pod assignment is the operational move. Choose geography first, then attach this mallam to the pod footprint they will actually own or support.
       </GeographyHint>
       <FieldLabel>Languages<input name="languages" defaultValue="Hausa, English" style={inputStyle} /></FieldLabel>
       <div style={twoColumnGrid}>
@@ -292,7 +285,7 @@ export function UpdateMallamForm({ mallam, centers, pods, states, localGovernmen
           initialPodIds={mallam.podIds ?? []}
         />
         <GeographyHint>
-          Keep the mallam anchored to a real state and local government first, then choose the center and pods within that geography. That avoids the classic mess of treating cohort like a place.
+          Keep the mallam anchored to a real state and local government first, then choose the pods within that geography. Pod ownership is the real operational truth; this profile should reflect it, not fight it.
         </GeographyHint>
         <FieldLabel>Languages<input name="languages" defaultValue={(mallam.languages ?? []).join(', ')} style={inputStyle} /></FieldLabel>
         <div style={twoColumnGrid}>
@@ -317,7 +310,7 @@ export function CreatePodForm({ centers, mallams, states, localGovernments }: { 
       <input type="hidden" name="returnPath" value="/pods" />
       <h2 style={{ margin: 0 }}>Add pod</h2>
       <SectionHint>
-        Pods are now first-class admin records. Pick the geography first, then enter the short pod name and we will generate the final label in the required <strong>state-LG-Pod_name</strong> format.
+        Pods are the operational anchor now. Pick the geography first, assign the one required primary mallam, then enter the short pod name and we will generate the final label in the required <strong>state-LG-Pod_name</strong> format.
       </SectionHint>
       <PodGeographySelectors
         centers={centers}
@@ -330,6 +323,7 @@ export function CreatePodForm({ centers, mallams, states, localGovernments }: { 
         Center is now derived from the selected geography or assigned mallam coverage. Operators should not have to babysit a redundant center picker just to create a pod.
       </GeographyHint>
       <MallamAssignmentSelector mallams={mallams} selectedMallamId={null} centers={centers} states={states} localGovernments={localGovernments} />
+      <SectionHint>Every pod must leave this form with one primary mallam. If the person does not exist yet, create the mallam profile first, then come back and open the pod.</SectionHint>
       <div style={twoColumnGrid}>
         <FieldLabel>Type<select name="type" defaultValue="community-pod" style={inputStyle}><option value="community-pod">Community pod</option><option value="solar-container">Solar container</option><option value="classroom-kit">Classroom kit</option></select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="pilot">Pilot</option><option value="inactive">Inactive</option></select></FieldLabel>
@@ -351,7 +345,7 @@ export function UpdatePodForm({ pod, centers, mallams, states, localGovernments,
         <input type="hidden" name="podId" value={pod.id} />
         <input type="hidden" name="returnPath" value={returnPath} />
         <h2 style={{ margin: 0 }}>Update pod</h2>
-        <SectionHint>Pods are operational records now. Edit the geography, label source, and single primary mallam here instead of faking pod edits through device assignment.</SectionHint>
+        <SectionHint>Pods are operational records now. Edit the geography, label source, and required single primary mallam here instead of faking pod edits through device assignment.</SectionHint>
         <PodGeographySelectors centers={centers} states={states} localGovernments={localGovernments} initialCenterId={pod.centerId} initialStateId={pod.stateId} initialLocalGovernmentId={pod.localGovernmentId} initialLabel={pod.label} initialPodName={pod.label.split('-').slice(2).join('-') || pod.label} showCenter={false} />
         <MallamAssignmentSelector mallams={mallams} selectedMallamId={pod.mallamIds?.[0] ?? null} centers={centers} states={states} localGovernments={localGovernments} />
         <div style={twoColumnGrid}>

@@ -251,6 +251,40 @@ function isStorageAvailabilityError(message: string) {
     || normalized.includes('failed to write');
 }
 
+async function resolvePodOwnership(podId: string | null | undefined) {
+  if (!podId) {
+    return { podId: null, primaryMallamId: null };
+  }
+
+  try {
+    const pods = await apiRead<Array<{ id: string; mallamIds?: string[] | null; primaryMallamId?: string | null }>>('/api/v1/pods', 'admin');
+    const pod = pods.find((item) => item.id === podId) || null;
+    return {
+      podId: pod?.id || podId,
+      primaryMallamId: pod?.primaryMallamId || pod?.mallamIds?.[0] || null,
+    };
+  } catch {
+    return { podId, primaryMallamId: null };
+  }
+}
+
+async function resolvePrimaryMallamIdForPod(podId: string | null | undefined) {
+  const ownership = await resolvePodOwnership(podId);
+  return ownership.primaryMallamId;
+}
+
+async function resolvePrimaryPodIdForMallam(mallamId: string | null | undefined) {
+  if (!mallamId) return null;
+
+  try {
+    const mallams = await apiRead<Array<{ id: string; primaryPodId?: string | null; podIds?: string[] | null }>>('/api/v1/mallams', 'admin');
+    const mallam = mallams.find((item) => item.id === mallamId) || null;
+    return mallam?.primaryPodId || mallam?.podIds?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
 async function updateStudentMallamAssignment(studentId: string, mallamId: string | null) {
   // Keep roster ownership writes on the stable student PATCH route.
   // The specialized mallam assignment endpoints are easier to miss in older deployments and were the source of 404s.
@@ -310,7 +344,11 @@ export async function createObservationAction(formData: FormData) {
 export async function createStudentAction(formData: FormData) {
   const cohortId = String(formData.get('cohortId') || '').trim();
   const podId = String(formData.get('podId') || '').trim();
-  const mallamId = String(formData.get('mallamId') || '').trim();
+  const mallamId = await resolvePrimaryMallamIdForPod(podId);
+
+  if (!podId) {
+    redirect('/students?message=Learner%20creation%20failed%3A%20select%20a%20pod%20first');
+  }
 
   const payload = {
     name: String(formData.get('name') || ''),
@@ -335,11 +373,12 @@ export async function createStudentAction(formData: FormData) {
 
 export async function updateStudentAction(formData: FormData) {
   const studentId = String(formData.get('studentId') || '');
+  const podId = String(formData.get('podId') || '').trim();
   const payload = {
     name: String(formData.get('name') || ''),
     cohortId: String(formData.get('cohortId') || '').trim(),
-    podId: String(formData.get('podId') || '').trim(),
-    mallamId: String(formData.get('mallamId') || '').trim(),
+    podId,
+    mallamId: await resolvePrimaryMallamIdForPod(podId),
     level: String(formData.get('level') || ''),
     stage: String(formData.get('stage') || ''),
     attendanceRate: Number(formData.get('attendanceRate') || 0),
@@ -368,31 +407,58 @@ export async function deleteStudentAction(formData: FormData) {
 export async function assignLearnerMallamAction(formData: FormData) {
   const studentId = String(formData.get('studentId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), `/students/${studentId}`);
-  const mallamId = String(formData.get('mallamId') || 'unassigned');
-  const resolvedMallamId = mallamId === 'unassigned' ? null : mallamId;
+  const podId = String(formData.get('podId') || '').trim();
+  const mallamId = await resolvePrimaryMallamIdForPod(podId);
 
-  await updateStudentMallamAssignment(studentId, resolvedMallamId);
+  if (!podId) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Learner routing failed: select a pod first',
+    }));
+  }
+
+  await apiWrite(`/api/v1/students/${studentId}`, 'PATCH', { podId, mallamId }, 'admin');
   revalidatePath('/');
   revalidatePath('/students');
   revalidatePath('/mallams');
+  revalidatePath('/pods');
   revalidatePath(returnPath);
   redirect(appendSearchParams(returnPath, {
-    message: resolvedMallamId ? 'Mallam assignment saved' : 'Mallam assignment cleared',
+    message: mallamId ? 'Learner moved and primary mallam derived from pod' : 'Learner moved, but the selected pod still needs a primary mallam',
   }));
 }
 
 export async function assignLearnerToMallamAction(formData: FormData) {
-  const mallamId = String(formData.get('mallamId') || '');
+  const mallamId = String(formData.get('mallamId') || '').trim();
   const studentId = String(formData.get('studentId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), `/mallams/${mallamId}`);
 
-  await updateStudentMallamAssignment(studentId, mallamId || null);
+  if (!mallamId) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Learner move failed: missing mallam id',
+    }));
+  }
+
+  const targetPodId = await resolvePrimaryPodIdForMallam(mallamId);
+  if (!targetPodId) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Learner move failed: this mallam has no primary pod yet',
+    }));
+  }
+
+  const ownership = await resolvePodOwnership(targetPodId);
+  await apiWrite(`/api/v1/students/${studentId}`, 'PATCH', {
+    podId: ownership.podId,
+    mallamId: ownership.primaryMallamId,
+  }, 'admin');
   revalidatePath('/');
   revalidatePath('/students');
   revalidatePath('/mallams');
+  revalidatePath('/pods');
   revalidatePath(returnPath);
   redirect(appendSearchParams(returnPath, {
-    message: 'Learner assignment saved',
+    message: ownership.primaryMallamId
+      ? 'Learner moved and primary mallam derived from pod'
+      : 'Learner moved, but this mallam still needs a primary pod owner',
   }));
 }
 
@@ -1408,6 +1474,13 @@ export async function expireStaleRewardRequestsAction(formData: FormData) {
 export async function createPodAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
   const primaryMallamId = String(formData.get('mallamId') || '').trim();
+
+  if (!primaryMallamId) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Pod creation failed: every pod needs one primary mallam',
+    }));
+  }
+
   const payload = {
     centerId: String(formData.get('centerId') || '').trim() || null,
     stateId: String(formData.get('stateId') || '').trim(),
@@ -1505,8 +1578,14 @@ export async function deletePodAction(formData: FormData) {
 
 export async function createDeviceRegistrationAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/devices');
+  const podId = String(formData.get('podId') || '').trim();
+
+  if (!podId) {
+    redirect(appendSearchParams(returnPath, { message: 'Device registration failed: select a pod first' }));
+  }
+
   const payload = {
-    podId: String(formData.get('podId') || '').trim() || null,
+    podId,
     deviceIdentifier: String(formData.get('deviceIdentifier') || '').trim(),
     serialNumber: String(formData.get('serialNumber') || '').trim() || null,
     platform: String(formData.get('platform') || 'android').trim(),
@@ -1559,9 +1638,15 @@ export async function updateDeviceRegistrationAction(formData: FormData) {
     }));
   }
 
+  if (!podIdValue) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Device update failed: every active tablet should stay attached to a pod',
+    }));
+  }
+
   try {
     await apiWrite(`/api/v1/device-registrations/${registrationId}`, 'PATCH', {
-      podId: podIdValue || null,
+      podId: podIdValue,
       status: status || undefined,
       appVersion: appVersion || null,
     }, 'admin');

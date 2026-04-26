@@ -46,7 +46,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
   return (
     <PageShell
       title="Mallams"
-      subtitle="Manage facilitator coverage, assigned pods, languages, and center distribution."
+      subtitle="Manage facilitator profiles with pod assignment as the main operational workflow."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -54,7 +54,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             <ModalLauncher
               buttonLabel="Add mallam"
               title="Add mallam"
-              description="Create a mallam from a focused popup instead of burying a long form inside the page grid."
+              description="Create an independent mallam profile, then attach it to pods as the operational assignment flow."
               eyebrow="Mallam admin"
               disabled={hasCoreRosterGap}
             >

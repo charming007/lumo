@@ -46,7 +46,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   return (
     <PageShell
       title={student.name}
-      subtitle="Learner admin detail for roster edits, mallam assignment, and deletion controls."
+      subtitle="Learner admin detail for roster edits, pod routing, and deletion controls."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Students', href: '/students' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -100,11 +100,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               Age: <strong>{student.age || '—'}</strong><br />
               Guardian: <strong>{student.guardianName || '—'}</strong><br />
               Device access: <strong>{student.deviceAccess || '—'}</strong><br />
-              Mallam: <strong>{student.mallamName || 'Unassigned'}</strong>
+              Mallam: <strong>{student.mallamName || 'Derived from pod once assigned'}</strong>
             </div>
           </div>
         </Card>
-        <LearnerMallamAssignmentForm student={student} mallams={mallams} returnPath={`/students/${student.id}`} />
+        <LearnerMallamAssignmentForm student={student} pods={pods} returnPath={`/students/${student.id}`} />
       </section>
 
     </PageShell>
