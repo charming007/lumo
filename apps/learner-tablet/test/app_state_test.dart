@@ -363,6 +363,72 @@ void main() {
       state.dispose();
     });
 
+    test('configured device identifier overrides persisted tablet identity',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'savedAt': '2026-04-27T00:00:00.000Z',
+          'tabletDeviceIdentifier': 'lumo-tablet-random-legacy',
+          'learners': const [],
+          'modules': const [],
+          'assignedLessons': const [],
+          'assignmentPacks': const [],
+          'pendingSyncEvents': const [],
+          'registrationContext': const {},
+        }),
+      });
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        configuredDeviceIdentifier: 'lumo-tablet-kano-01',
+      );
+
+      await state.restorePersistedState();
+
+      expect(state.stableDeviceIdentifier, 'lumo-tablet-kano-01');
+      state.dispose();
+    });
+
+    test(
+        'configured device identifier prevents runtime generation and wins during bootstrap',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      late String capturedQuery;
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        configuredDeviceIdentifier: 'lumo-tablet-kano-01',
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              capturedQuery =
+                  request.url.queryParameters['deviceIdentifier'] ?? '';
+              return http.Response(
+                jsonEncode({
+                  'learners': const [],
+                  'modules': const [],
+                  'lessons': const [],
+                  'assignments': const [],
+                  'registrationContext': const {},
+                  'meta': const {},
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+
+      await state.restorePersistedState();
+      await state.bootstrap();
+
+      expect(state.stableDeviceIdentifier, 'lumo-tablet-kano-01');
+      expect(capturedQuery, 'lumo-tablet-kano-01');
+      state.dispose();
+    });
+
     test(
         'live registration automatically sends the stable device identifier and does not rely on manual backendTarget input',
         () async {
@@ -611,7 +677,8 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/subjects/life-skills') {
+            if (request.url.path ==
+                '/api/v1/learner-app/subjects/life-skills') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'life-skills',
