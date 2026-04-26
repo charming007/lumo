@@ -1306,9 +1306,9 @@ class LumoAppState {
 
   String? get tabletPodId => _tabletPodIdFor(registrationContext);
 
-
   bool _hasTabletPodScope({RegistrationContext? registrationContext}) {
-    final podId = _tabletPodIdFor(registrationContext ?? this.registrationContext);
+    final podId =
+        _tabletPodIdFor(registrationContext ?? this.registrationContext);
     return podId != null && podId.isNotEmpty;
   }
 
@@ -1329,7 +1329,8 @@ class LumoAppState {
     Iterable<LearnerProfile> source, {
     RegistrationContext? registrationContext,
   }) {
-    final podId = _tabletPodIdFor(registrationContext ?? this.registrationContext);
+    final podId =
+        _tabletPodIdFor(registrationContext ?? this.registrationContext);
     if (podId == null || podId.isEmpty) {
       return source.toList(growable: false);
     }
@@ -2140,7 +2141,8 @@ class LumoAppState {
   LearnerProfile _registerLearnerLocally() {
     final tabletRegistration = registrationContext.tabletRegistration;
     final registrationTarget = registrationContext.defaultTarget;
-    final scopedPodId = tabletRegistration?.podId ?? registrationTarget?.cohort.podId;
+    final scopedPodId =
+        tabletRegistration?.podId ?? registrationTarget?.cohort.podId;
     final scopedPodLabel =
         tabletRegistration?.podLabel ?? registrationTarget?.cohort.name;
     final scopedMallamId =
