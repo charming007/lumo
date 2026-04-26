@@ -855,7 +855,7 @@ export function LessonEditorForm({
                   </div>
 
                   <div style={{ padding: 12, borderRadius: 14, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.6, fontSize: 13 }}>
-                    Asset entries are references, not uploads. Paste the final URL, storage path, or stable asset key you expect runtime to resolve.
+                    Asset entries are references, not uploads. Prefer canonical values like asset:&lt;id&gt;; older URLs, storage paths, or stable keys may still resolve but should be normalized when possible.
                   </div>
 
                   <LessonAssetLibraryPanel

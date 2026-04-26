@@ -158,7 +158,7 @@ function stepSupportsAssetKind(stepType: string, kind: string) {
 }
 
 function getPreferredAssetValue(asset: LessonAsset) {
-  return asset.fileUrl ?? asset.storagePath ?? asset.fileName ?? asset.id;
+  return `asset:${asset.id}`;
 }
 
 function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string) {
@@ -331,7 +331,7 @@ export function LessonAssetLibraryPanel({
                       <code style={{ display: 'block', padding: 10, borderRadius: 12, background: '#F8FAFC', color: '#334155', fontSize: 12, overflowWrap: 'anywhere' }}>{preferredValue}</code>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                         <div style={{ color: '#64748B', fontSize: 12 }}>
-                          Inserts <strong>{asset.fileUrl ? 'runtime URL' : asset.storagePath ? 'storage path' : 'asset key'}</strong> so authors are not stuck copy-pasting from the asset board.
+                          Inserts <strong>asset reference</strong> so lesson data stays publish-safe while authors still pick from the real asset board.
                         </div>
                         <AssetRuntimeLink asset={asset} label="Open preview" />
                       </div>

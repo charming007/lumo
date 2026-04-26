@@ -320,7 +320,7 @@ function stepSupportsAssetKind(stepType: string, kind: string) {
 }
 
 function getPreferredAssetValue(asset: LessonAsset) {
-  return asset.fileUrl ?? asset.storagePath ?? asset.fileName ?? asset.id;
+  return `asset:${asset.id}`;
 }
 
 function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string) {
@@ -344,7 +344,12 @@ function findAssetByValue(assets: LessonAsset[], value: string) {
   if (!trimmed) return null;
   return assets.find((asset) => {
     const preferred = getPreferredAssetValue(asset);
-    return asset.id === trimmed || asset.storagePath === trimmed || asset.fileUrl === trimmed || asset.fileName === trimmed || preferred === trimmed;
+    return trimmed === `asset:${asset.id}`
+      || asset.id === trimmed
+      || asset.storagePath === trimmed
+      || asset.fileUrl === trimmed
+      || asset.fileName === trimmed
+      || preferred === trimmed;
   }) ?? null;
 }
 
