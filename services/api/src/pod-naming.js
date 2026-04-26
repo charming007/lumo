@@ -21,7 +21,22 @@ function buildPodLabelParts({ stateName, localGovernmentName, podName } = {}) {
   };
 }
 
+function parseCanonicalPodLabel(label) {
+  const normalized = String(label || '').trim().toLowerCase();
+  if (!normalized) return null;
+
+  const parts = normalized.split('-').filter(Boolean);
+  if (parts.length < 3) return null;
+
+  return {
+    stateSegment: parts[0],
+    localGovernmentSegment: parts[1],
+    podSegment: parts.slice(2).join('-'),
+  };
+}
+
 module.exports = {
   slugifyPodSegment,
   buildPodLabelParts,
+  parseCanonicalPodLabel,
 };
