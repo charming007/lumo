@@ -1319,16 +1319,37 @@ class LumoAppState {
   }
 
   String? _tabletPodIdFor(RegistrationContext registrationContext) {
-    final tabletRegistration = registrationContext.tabletRegistration;
-    if (tabletRegistration?.podId?.trim().isNotEmpty == true) {
-      return tabletRegistration!.podId!.trim();
+    String? normalize(String? value) {
+      final trimmed = value?.trim();
+      return trimmed == null || trimmed.isEmpty ? null : trimmed;
     }
-    final defaultTarget = registrationContext.defaultTarget;
-    final targetPodId = defaultTarget?.cohort.podId.trim();
-    if (targetPodId != null && targetPodId.isNotEmpty) {
-      return targetPodId;
+
+    final scopedCohortPodIds = registrationContext.cohorts
+        .map((cohort) => normalize(cohort.podId))
+        .whereType<String>()
+        .toSet();
+    final tabletRegistrationPodId =
+        normalize(registrationContext.tabletRegistration?.podId);
+    final defaultTargetPodId =
+        normalize(registrationContext.defaultTarget?.cohort.podId);
+
+    if (tabletRegistrationPodId != null &&
+        (scopedCohortPodIds.isEmpty ||
+            scopedCohortPodIds.contains(tabletRegistrationPodId))) {
+      return tabletRegistrationPodId;
     }
-    return null;
+
+    if (defaultTargetPodId != null &&
+        (scopedCohortPodIds.isEmpty ||
+            scopedCohortPodIds.contains(defaultTargetPodId))) {
+      return defaultTargetPodId;
+    }
+
+    if (scopedCohortPodIds.length == 1) {
+      return scopedCohortPodIds.first;
+    }
+
+    return tabletRegistrationPodId ?? defaultTargetPodId;
   }
 
   List<LearnerProfile> _learnersWithinTabletPodScope(
@@ -1345,17 +1366,17 @@ class LumoAppState {
     return source
         .where((learner) => learner.podId?.trim() == podId)
         .map((learner) {
-          final resolvedPodLabel = canonicalPodLabel ?? learner.podLabel;
-          final villageLooksPodScoped = learner.village.trim().isEmpty ||
-              learner.village.trim() == learner.podLabel?.trim();
-          return learner.copyWith(
-            podId: podId,
-            podLabel: resolvedPodLabel,
-            village:
-                villageLooksPodScoped ? (resolvedPodLabel ?? learner.village) : learner.village,
-          );
-        })
-        .toList(growable: false);
+      final resolvedPodLabel = canonicalPodLabel ?? learner.podLabel;
+      final villageLooksPodScoped = learner.village.trim().isEmpty ||
+          learner.village.trim() == learner.podLabel?.trim();
+      return learner.copyWith(
+        podId: podId,
+        podLabel: resolvedPodLabel,
+        village: villageLooksPodScoped
+            ? (resolvedPodLabel ?? learner.village)
+            : learner.village,
+      );
+    }).toList(growable: false);
   }
 
   String? _tabletPodLabelFor(RegistrationContext registrationContext) {
