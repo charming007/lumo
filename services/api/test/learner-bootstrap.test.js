@@ -321,7 +321,25 @@ test('module bundle still exposes assigned unpublished lessons for internal rout
   assert.equal(bundle.body.lessonCount >= 2, true, JSON.stringify(bundle.body));
 });
 
-test('tablet-scoped bootstrap only returns learners and registration targets for the registered pod', async () => {
+test('tablet-scoped bootstrap only returns pod-scoped learners across roster, assignment, and launch availability payloads', async () => {
+  const scopedLesson = repository.createLesson({
+    subjectId: 'english',
+    moduleId: 'module-1',
+    title: 'Scoped pod launch roster check',
+    durationMinutes: 8,
+    status: 'published',
+    mode: 'guided',
+    activitySteps: [{ type: 'listen_repeat', prompt: 'Say scoped.' }],
+  });
+
+  repository.createAssignment({
+    cohortId: 'cohort-1',
+    lessonId: scopedLesson.id,
+    assignedBy: 'teacher-1',
+    dueDate: '2026-04-24',
+    status: 'active',
+  });
+
   const response = await request('/api/v1/learner-app/bootstrap?deviceIdentifier=lumo-tablet-kano-01');
 
   assert.equal(response.status, 200);
@@ -340,6 +358,44 @@ test('tablet-scoped bootstrap only returns learners and registration targets for
   );
   assert.equal(response.body.registrationContext.tabletRegistration.deviceIdentifier, 'lumo-tablet-kano-01');
   assert.equal(response.body.meta.scopedPodId, 'pod-1');
+
+  const scopedAssignment = response.body.assignments.find(
+    (assignment) => assignment.lessonPack?.lessonId === scopedLesson.id,
+  );
+  assert.ok(scopedAssignment, JSON.stringify(response.body.assignments));
+  assert.equal(scopedAssignment.eligibleLearners.length >= 1, true, JSON.stringify(scopedAssignment));
+  assert.equal(
+    scopedAssignment.eligibleLearners.every((learner) => learner.podId === 'pod-1'),
+    true,
+    JSON.stringify(scopedAssignment),
+  );
+  assert.equal(
+    scopedAssignment.eligibleLearners.some((learner) => learner.id === 'student-4'),
+    false,
+    JSON.stringify(scopedAssignment),
+  );
+
+  const scopedAvailability = response.body.lessonAvailability.find(
+    (entry) => entry.lessonId === scopedLesson.id,
+  );
+  assert.ok(scopedAvailability, JSON.stringify(response.body.lessonAvailability));
+  assert.equal(
+    scopedAvailability.availableLearners.every((learner) => learner.podId === 'pod-1'),
+    true,
+    JSON.stringify(scopedAvailability),
+  );
+  assert.equal(
+    scopedAvailability.availableLearners.some((learner) => learner.id === 'student-4'),
+    false,
+    JSON.stringify(scopedAvailability),
+  );
+
+  const scopedLearnerIds = new Set(response.body.learners.map((learner) => learner.id));
+  assert.equal(
+    response.body.learnerStatuses.every((status) => scopedLearnerIds.has(status.learnerId)),
+    true,
+    JSON.stringify(response.body.learnerStatuses),
+  );
 });
 
 test('tablet-scoped learner registration rejects cross-pod cohort selection and pins valid learners to the tablet pod', async () => {
