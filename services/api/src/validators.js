@@ -217,8 +217,10 @@ function validateStudent(body, { partial = false } = {}) {
   }
 
   const cohort = body.cohortId ? repository.findCohortById(body.cohortId) : null;
-  const pod = body.podId ? repository.findPodById(body.podId) : cohort?.podId ? repository.findPodById(cohort.podId) : null;
+  const scopedPodId = body.podId || cohort?.podId || null;
+  const pod = scopedPodId ? repository.findPodById(scopedPodId) : null;
   const mallam = body.mallamId ? repository.findTeacherById(body.mallamId) : null;
+  const primaryMallamId = Array.isArray(pod?.mallamIds) ? pod.mallamIds[0] || null : null;
 
   if (body.podId && cohort?.podId && cohort.podId !== body.podId) {
     const error = new Error(`Student podId must match cohort podId: ${cohort.podId}`);
@@ -226,15 +228,20 @@ function validateStudent(body, { partial = false } = {}) {
     throw error;
   }
 
-  const scopedPodId = body.podId || cohort?.podId || null;
   if (mallam && scopedPodId && !((mallam.podIds || []).includes(scopedPodId) || mallam.primaryPodId === scopedPodId)) {
     const error = new Error(`Student mallamId is not assigned to pod: ${scopedPodId}`);
     error.statusCode = 400;
     throw error;
   }
 
-  if (!partial && !scopedPodId && !pod && !mallam) {
-    const error = new Error('Student requires a cohort linked to a pod, or an explicit podId/mallamId.');
+  if (mallam && primaryMallamId && mallam.id !== primaryMallamId) {
+    const error = new Error(`Student mallamId must match the pod primary mallam: ${primaryMallamId}`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!partial && !scopedPodId) {
+    const error = new Error('Student requires a cohort linked to a pod, or an explicit podId.');
     error.statusCode = 400;
     throw error;
   }
@@ -298,6 +305,11 @@ function validatePod(body, { partial = false } = {}) {
   assertExists('stateId', body.stateId, repository.findStateById);
   assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
   (body.mallamIds || []).forEach((teacherId) => assertExists('mallamId', teacherId, repository.findTeacherById));
+  if (Array.isArray(body.mallamIds) && body.mallamIds.length > 1) {
+    const error = new Error('Pod supports exactly one primary mallam');
+    error.statusCode = 400;
+    throw error;
+  }
   assertAllowed('status', body.status, ['active', 'pilot', 'inactive']);
 }
 
@@ -311,6 +323,14 @@ function validateDeviceRegistration(body, { partial = false } = {}) {
   assertExists('localGovernmentId', body.localGovernmentId, repository.findLocalGovernmentById);
   assertExists('assignedMallamId', body.assignedMallamId, repository.findTeacherById);
   assertAllowed('status', body.status, ['active', 'inactive', 'retired', 'repair']);
+
+  const pod = body.podId ? repository.findPodById(body.podId) : null;
+  const primaryMallamId = Array.isArray(pod?.mallamIds) ? pod.mallamIds[0] || null : null;
+  if (body.assignedMallamId && primaryMallamId && body.assignedMallamId !== primaryMallamId) {
+    const error = new Error(`Device registration mallam must match the pod primary mallam: ${primaryMallamId}`);
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 const CURRICULUM_LANE_STATUSES = ['draft', 'review', 'published'];

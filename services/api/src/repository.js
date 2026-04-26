@@ -194,6 +194,10 @@ function findPrimaryPodIdForTeacher(teacherId) {
   return teacher?.primaryPodId || teacher?.podIds?.[0] || null;
 }
 
+function normalizePodMallamIds(mallamIds = []) {
+  return uniqueStringList(mallamIds).slice(0, 1);
+}
+
 function deriveMallamIdFromPodId(podId) {
   if (!podId) return null;
   const pod = findPodById(podId);
@@ -206,19 +210,19 @@ function deriveMallamIdFromPodId(podId) {
 function resolveStudentReferences(input = {}, existing = null) {
   const has = (key) => Object.prototype.hasOwnProperty.call(input, key);
   const nextCohortId = has('cohortId') ? input.cohortId : existing?.cohortId;
-  const nextMallamId = has('mallamId') ? input.mallamId : existing?.mallamId;
   const cohort = nextCohortId ? findCohortById(nextCohortId) : null;
-  const derivedPodIdFromMallam = findPrimaryPodIdForTeacher(nextMallamId);
   const nextPodId = has('podId')
     ? input.podId
-    : cohort?.podId || derivedPodIdFromMallam || existing?.podId || null;
+    : cohort?.podId || existing?.podId || null;
+  const derivedMallamId = deriveMallamIdFromPodId(nextPodId) ?? null;
+  const nextMallamId = has('mallamId')
+    ? input.mallamId
+    : (has('podId') || has('cohortId') ? derivedMallamId : (existing?.mallamId ?? derivedMallamId));
 
   return {
     cohortId: nextCohortId ?? null,
     podId: nextPodId ?? null,
-    mallamId: nextMallamId !== undefined
-      ? nextMallamId
-      : deriveMallamIdFromPodId(nextPodId) ?? null,
+    mallamId: nextMallamId ?? null,
   };
 }
 
@@ -268,14 +272,9 @@ function deletePod(id) {
 }
 
 function createPod(input) {
-  const matchingMallam = Array.isArray(input.mallamIds) && input.mallamIds.length
-    ? findTeacherById(input.mallamIds[0])
-    : null;
   const derivedCenter = input.centerId
     ? findCenterById(input.centerId)
-    : matchingMallam?.centerId
-      ? findCenterById(matchingMallam.centerId)
-      : (data.centers || []).find((item) => item.stateId === input.stateId && item.localGovernmentId === input.localGovernmentId) || null;
+    : (data.centers || []).find((item) => item.stateId === input.stateId && item.localGovernmentId === input.localGovernmentId) || null;
 
   const pod = {
     id: input.id || `pod-${data.pods.length + 1}`,
@@ -289,7 +288,7 @@ function createPod(input) {
     capacity: Number(input.capacity || 0),
     learnersActive: Number(input.learnersActive || 0),
     connectivity: input.connectivity || 'offline-first',
-    mallamIds: uniqueStringList(input.mallamIds),
+    mallamIds: normalizePodMallamIds(input.mallamIds),
   };
 
   data.pods.push(pod);
@@ -312,7 +311,7 @@ function updatePod(id, input) {
     capacity: input.capacity !== undefined ? Number(input.capacity) : pod.capacity,
     learnersActive: input.learnersActive !== undefined ? Number(input.learnersActive) : pod.learnersActive,
     connectivity: input.connectivity ?? pod.connectivity,
-    mallamIds: input.mallamIds !== undefined ? uniqueStringList(input.mallamIds) : pod.mallamIds,
+    mallamIds: input.mallamIds !== undefined ? normalizePodMallamIds(input.mallamIds) : normalizePodMallamIds(pod.mallamIds),
   });
 
   syncTeacherPodAssignments();
@@ -339,7 +338,7 @@ function syncTeacherPodAssignments() {
   const podCoverageByTeacher = new Map();
 
   (data.pods || []).forEach((pod) => {
-    pod.mallamIds = uniqueStringList(pod.mallamIds);
+    pod.mallamIds = normalizePodMallamIds(pod.mallamIds);
     (pod.mallamIds || []).forEach((teacherId) => {
       if (!teacherId) return;
       const current = podCoverageByTeacher.get(teacherId) || [];
@@ -354,9 +353,8 @@ function syncTeacherPodAssignments() {
       if (!podId) return;
       const pod = findPodById(podId);
       if (!pod) return;
-      const mallamIds = new Set(uniqueStringList(pod.mallamIds));
-      mallamIds.add(teacher.id);
-      pod.mallamIds = [...mallamIds];
+      const mallamIds = normalizePodMallamIds([teacher.id, ...(pod.mallamIds || [])]);
+      pod.mallamIds = mallamIds;
       const current = podCoverageByTeacher.get(teacher.id) || [];
       if (!current.includes(podId)) current.push(podId);
       podCoverageByTeacher.set(teacher.id, current);
@@ -1525,6 +1523,24 @@ function deriveMallamIdFromPod(pod) {
   return listTeachers().find((teacher) => Array.isArray(teacher.podIds) && teacher.podIds.includes(pod.id))?.id || null;
 }
 
+function extractTabletNameFromIdentifier(deviceIdentifier, podLabel = '') {
+  const normalizedIdentifier = String(deviceIdentifier || '').trim();
+  if (!normalizedIdentifier) return null;
+
+  const normalizedPodLabel = String(podLabel || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const identifierParts = normalizedIdentifier.toLowerCase().split('-').filter(Boolean);
+  const podParts = normalizedPodLabel ? normalizedPodLabel.split('-').filter(Boolean) : [];
+  const tail = identifierParts.slice(Math.min(identifierParts.length, 2 + podParts.length)).join('-');
+
+  return tail || identifierParts.slice(-1)[0] || null;
+}
+
+function buildTabletIdentifier({ podLabel, tabletName } = {}) {
+  const normalizedPod = String(podLabel || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const normalizedTablet = String(tabletName || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return ['lumo', 'tablet', normalizedPod, normalizedTablet].filter(Boolean).join('-');
+}
+
 function deriveTabletName({ tabletName, deviceIdentifier, podLabel } = {}) {
   const explicitName = String(tabletName || '').trim();
   if (explicitName) return explicitName;
@@ -1544,9 +1560,9 @@ function buildDeviceRegistrationRecord(input, existingRecord = null) {
     deviceIdentifier: providedDeviceIdentifier,
     podLabel: pod?.label || '',
   }) || existingRecord?.tabletName || null;
-  const nextDeviceIdentifier = pod?.label && nextTabletName
+  const nextDeviceIdentifier = providedDeviceIdentifier || (pod?.label && nextTabletName
     ? buildTabletIdentifier({ podLabel: pod.label, tabletName: nextTabletName })
-    : (providedDeviceIdentifier || null);
+    : null);
 
   return {
     id: input.id || existingRecord?.id || `device-${listDeviceRegistrations().length + 1}`,
@@ -1568,25 +1584,7 @@ function buildDeviceRegistrationRecord(input, existingRecord = null) {
 }
 
 function createDeviceRegistration(input) {
-  const pod = input.podId ? findPodById(input.podId) : null;
-  const center = input.centerId ? findCenterById(input.centerId) : pod ? findCenterById(pod.centerId) : null;
-  const record = {
-    id: input.id || `device-${listDeviceRegistrations().length + 1}`,
-    podId: input.podId,
-    stateId: input.stateId || pod?.stateId || center?.stateId || null,
-    localGovernmentId: input.localGovernmentId || pod?.localGovernmentId || center?.localGovernmentId || null,
-    centerId: input.centerId || pod?.centerId || null,
-    assignedMallamId: input.assignedMallamId || null,
-    deviceIdentifier: input.deviceIdentifier,
-    serialNumber: input.serialNumber || null,
-    platform: input.platform || 'android',
-    appVersion: input.appVersion || null,
-    status: input.status || 'active',
-    metadata: input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null,
-    lastSeenAt: input.lastSeenAt || null,
-    registeredAt: input.registeredAt || new Date().toISOString(),
-  };
-
+  const record = buildDeviceRegistrationRecord(input);
   data.deviceRegistrations.push(record);
   return commit(record);
 }
@@ -1603,26 +1601,7 @@ function updateDeviceRegistration(id, input) {
   const record = findDeviceRegistrationById(id);
   if (!record) return null;
 
-  const nextPodId = input.podId ?? record.podId;
-  const pod = nextPodId ? findPodById(nextPodId) : null;
-  const center = (input.centerId ?? record.centerId) ? findCenterById(input.centerId ?? record.centerId) : pod ? findCenterById(pod.centerId) : null;
-
-  Object.assign(record, {
-    podId: nextPodId,
-    stateId: input.stateId ?? pod?.stateId ?? center?.stateId ?? record.stateId,
-    localGovernmentId: input.localGovernmentId ?? pod?.localGovernmentId ?? center?.localGovernmentId ?? record.localGovernmentId,
-    centerId: input.centerId ?? pod?.centerId ?? record.centerId,
-    assignedMallamId: input.assignedMallamId ?? record.assignedMallamId,
-    deviceIdentifier: input.deviceIdentifier ?? record.deviceIdentifier,
-    serialNumber: input.serialNumber !== undefined ? input.serialNumber : record.serialNumber,
-    platform: input.platform ?? record.platform,
-    appVersion: input.appVersion !== undefined ? input.appVersion : record.appVersion,
-    status: input.status ?? record.status,
-    metadata: input.metadata !== undefined ? (input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : null) : record.metadata,
-    lastSeenAt: input.lastSeenAt !== undefined ? input.lastSeenAt : record.lastSeenAt,
-    registeredAt: input.registeredAt ?? record.registeredAt,
-  });
-
+  Object.assign(record, buildDeviceRegistrationRecord(input, record));
   return commit(record);
 }
 

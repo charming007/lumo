@@ -18,8 +18,16 @@ function inRange(value, { since = null, until = null } = {}) {
   return true;
 }
 
+function studentMatchesMallamScope(student, mallamId) {
+  if (!mallamId) return true;
+  const mallam = repository.findTeacherById(mallamId);
+  if (!mallam) return false;
+  const podIds = new Set([...(Array.isArray(mallam.podIds) ? mallam.podIds : []), mallam.primaryPodId].filter(Boolean));
+  return podIds.has(student.podId);
+}
+
 function buildScopedStudentSet({ cohortId = null, podId = null, mallamId = null } = {}) {
-  return repository.listStudents().filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && (!mallamId || student.mallamId === mallamId));
+  return repository.listStudents().filter((student) => (!cohortId || student.cohortId === cohortId) && (!podId || student.podId === podId) && studentMatchesMallamScope(student, mallamId));
 }
 
 function buildOverviewReport() {
@@ -237,10 +245,7 @@ function buildMallamProfile(mallamId) {
   }
 
   const mallam = presenters.presentMallam(teacher);
-  const roster = repository
-    .listStudents()
-    .filter((student) => student.mallamId === mallamId)
-    .map(presenters.presentStudent);
+  const roster = buildScopedStudentSet({ mallamId }).map(presenters.presentStudent);
   const assignments = repository
     .listAssignments()
     .filter((assignment) => assignment.assignedBy === mallamId)

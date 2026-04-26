@@ -61,6 +61,38 @@ test('teacher-pod linkage stays bidirectional when teacher coverage is created f
   });
 
   const refreshedPod = repository.findPodById(pod.id);
-  assert.ok(refreshedPod.mallamIds.includes(mallam.id), JSON.stringify(refreshedPod));
+  assert.deepEqual(refreshedPod.mallamIds, [mallam.id], JSON.stringify(refreshedPod));
   assert.ok(repository.findTeacherById(mallam.id).podIds.includes(pod.id));
+});
+
+test('student pod stays anchored to cohort pod instead of being derived from mallam geography', () => {
+  const payload = {
+    name: 'Pod Anchored Learner',
+    age: 9,
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-1',
+  };
+
+  const student = repository.createStudent(payload);
+  const kadunaMallam = repository.updateTeacher('teacher-2', { podIds: ['pod-2'], primaryPodId: 'pod-2' });
+  const updated = repository.updateStudent(student.id, { mallamId: kadunaMallam.id });
+
+  assert.equal(updated.podId, 'pod-1');
+  assert.equal(updated.mallamId, 'teacher-2');
+});
+
+test('student presenter falls back to the pod primary mallam when learner record mallam is stale', () => {
+  const student = repository.createStudent({
+    name: 'Presenter Fallback Learner',
+    age: 8,
+    cohortId: 'cohort-1',
+    podId: 'pod-1',
+  });
+
+  const updated = repository.updateStudent(student.id, { mallamId: null });
+  const presented = presenters.presentStudent(updated);
+
+  assert.equal(presented.podId, 'pod-1');
+  assert.equal(presented.mallamId, 'teacher-1');
+  assert.equal(presented.mallamName, 'Mallama Amina Yusuf');
 });
