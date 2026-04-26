@@ -13,7 +13,7 @@ const { getDbMode, getDbModeMeta } = require('./db-mode');
 const { getActor, requireRole, getAuthAudit } = require('./auth');
 const { getBuildInfo } = require('./build-info');
 const { synthesizeTutorVoice } = require('./voice');
-const { buildPodLabelParts } = require('./pod-naming');
+const { buildPodLabelParts, parseCanonicalPodLabel } = require('./pod-naming');
 
 const app = express();
 app.set('trust proxy', true);
@@ -2148,6 +2148,16 @@ app.patch('/api/v1/pods/:id', ...protectedMutation(['admin']), (req, res, next) 
       || (store.listCenters() || []).find((item) => item.stateId === stateId && item.localGovernmentId === localGovernmentId)
       || (current.centerId ? (store.listCenters() || []).find((item) => item.id === current.centerId) : null)
       || null;
+    const parsedCurrentLabel = parseCanonicalPodLabel(current.label);
+    const shouldRefreshCanonicalLabel = Boolean(
+      podName
+        || req.body?.stateId !== undefined
+        || req.body?.localGovernmentId !== undefined,
+    );
+    const derivedPodName = podName || parsedCurrentLabel?.podSegment || null;
+    const nextCanonicalLabel = shouldRefreshCanonicalLabel && derivedPodName
+      ? buildPodLabelParts({ stateName: state?.name, localGovernmentName: localGovernment?.name, podName: derivedPodName }).label
+      : undefined;
 
     const payload = {
       ...req.body,
@@ -2155,7 +2165,7 @@ app.patch('/api/v1/pods/:id', ...protectedMutation(['admin']), (req, res, next) 
       stateId: stateId || center?.stateId || null,
       localGovernmentId: localGovernmentId || center?.localGovernmentId || null,
       mallamIds,
-      label: podName ? buildPodLabelParts({ stateName: state?.name, localGovernmentName: localGovernment?.name, podName }).label : req.body?.label,
+      label: nextCanonicalLabel ?? req.body?.label,
     };
 
     validators.validatePod(payload, { partial: true });

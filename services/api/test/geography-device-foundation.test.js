@@ -220,6 +220,38 @@ test('pod updates can persist geography without changing cohort semantics', asyn
   assert.equal(cohorts.body.find((item) => item.id === 'cohort-1').podId, 'pod-1');
 });
 
+test('pod geography updates regenerate canonical pod labels so learner cards stay aligned with live tablet geography', async () => {
+  const created = await request('/api/v1/pods', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      centerId: 'center-1',
+      stateId: 'state-kano',
+      localGovernmentId: 'lga-nassarawa',
+      podName: 'Pod 02',
+      status: 'active',
+      mallamIds: ['teacher-1'],
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.label, 'kano-nassarawa-pod_02');
+
+  const updated = await request(`/api/v1/pods/${created.body.id}`, {
+    method: 'PATCH',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      stateId: 'state-kaduna',
+      localGovernmentId: 'lga-kagarko',
+    }),
+  });
+
+  assert.equal(updated.status, 200, JSON.stringify(updated.body));
+  assert.equal(updated.body.stateId, 'state-kaduna');
+  assert.equal(updated.body.localGovernmentId, 'lga-kagarko');
+  assert.equal(updated.body.label, 'kaduna-kagarko-pod_02');
+});
+
 test('student creation accepts pod-only placement so geography fields stay helper filters', async () => {
   const created = await request('/api/v1/students', {
     method: 'POST',
