@@ -41,6 +41,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
   const geographyFilterDegraded = centersResult.status === 'rejected' || statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
   const filteredMallams = filterMallamsByGeography(mallams, centers, { stateId, localGovernmentId, podId });
   const active = filteredMallams.filter((mallam) => (mallam.status || '').toLowerCase() === 'active');
+  const podCoverageCount = new Set(mallams.flatMap((mallam) => mallam.podLabels || [])).size;
   const primaryPodCoverageCount = new Set(filteredMallams.map((mallam) => mallam.podLabels?.[0]).filter(Boolean)).size;
 
   return (
@@ -67,6 +68,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
                 { label: 'Mallams', value: String(filteredMallams.length) },
                 { label: 'Active', value: String(active.length) },
                 { label: 'Primary pods covered', value: String(primaryPodCoverageCount) },
+                { label: 'Pods covered', value: String(podCoverageCount) },
               ]}
             />
           </Card>
