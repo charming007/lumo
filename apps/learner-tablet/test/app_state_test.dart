@@ -1479,7 +1479,8 @@ void main() {
       restored.dispose();
     });
 
-    test('restored offline roster keeps learner pod scope and drops cross-pod learners',
+    test(
+        'restored offline roster keeps learner pod scope and drops cross-pod learners',
         () async {
       SharedPreferences.setMockInitialValues({
         'lumo_learner_tablet_state_v1': jsonEncode({
@@ -1550,8 +1551,16 @@ void main() {
               {'id': 'cohort-2', 'name': 'Cohort B', 'podId': 'pod-2'},
             ],
             'mallams': [
-              {'id': 'mallam-1', 'name': 'Mallam Idris', 'podIds': ['pod-1']},
-              {'id': 'mallam-2', 'name': 'Mallama Zarah', 'podIds': ['pod-2']},
+              {
+                'id': 'mallam-1',
+                'name': 'Mallam Idris',
+                'podIds': ['pod-1']
+              },
+              {
+                'id': 'mallam-2',
+                'name': 'Mallama Zarah',
+                'podIds': ['pod-2']
+              },
             ],
             'tabletRegistration': {
               'id': 'device-1',
@@ -2351,7 +2360,8 @@ void main() {
         isTrue,
       );
 
-      final pendingEvents = (snapshot['pendingSyncEvents'] as List?) ?? const [];
+      final pendingEvents =
+          (snapshot['pendingSyncEvents'] as List?) ?? const [];
       expect(
         pendingEvents.any(
           (item) => item is Map && item['type'] == 'lesson_completed',
@@ -3686,6 +3696,106 @@ void main() {
       expect(state.operatorHealthLabel, 'Backend healthy');
       expect(state.lastSyncAttemptAt, isNotNull);
       expect(state.lastSyncAttemptAt!.isAfter(staleAttemptAt), isTrue);
+
+      state.dispose();
+    });
+
+    test(
+        'restore filters persisted fallback learners to the registered tablet pod',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'learners': [
+            {
+              'id': 'student-pod-2',
+              'name': 'Wrong Pod Learner',
+              'age': 9,
+              'cohort': 'Pod 2 Cohort',
+              'podId': 'pod-2',
+              'podLabel': 'Pod 2',
+              'streakDays': 1,
+              'guardianName': 'Guardian',
+              'preferredLanguage': 'Hausa',
+              'readinessLabel': 'Voice-first beginner',
+              'village': 'Pod 2',
+              'guardianPhone': '08030000000',
+              'sex': 'Girl',
+              'baselineLevel': 'Starter',
+              'consentCaptured': true,
+              'learnerCode': 'WRONG-POD',
+            },
+          ],
+          'modules': const [],
+          'assignedLessons': const [],
+          'assignmentPacks': const [],
+          'pendingSyncEvents': const [],
+          'recentRuntimeSessionsByLearnerId': const {},
+          'registrationDraft': const {},
+          'registrationContext': {
+            'tabletRegistration': {
+              'id': 'tablet-1',
+              'deviceIdentifier': 'tablet-1',
+              'podId': 'pod-1',
+              'podLabel': 'Pod 1',
+            },
+          },
+          'speakerMode': 'guiding',
+          'usingFallbackData': true,
+        }),
+      });
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      await state.restorePersistedState();
+
+      expect(state.tabletPodId, 'pod-1');
+      expect(state.learners, isEmpty);
+
+      state.dispose();
+    });
+
+    test('bootstrap does not let seed fallback widen a pod-scoped roster',
+        () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          if (request.url.path == '/api/v1/learner-app/bootstrap') {
+            return http.Response(
+              jsonEncode({
+                'learners': const [],
+                'modules': const [],
+                'lessons': const [],
+                'assignments': const [],
+                'registrationContext': {
+                  'tabletRegistration': {
+                    'id': 'tablet-1',
+                    'deviceIdentifier': 'tablet-1',
+                    'podId': 'pod-1',
+                    'podLabel': 'Pod 1',
+                  },
+                },
+                'meta': {
+                  'generatedAt': '2026-04-23T00:00:00.000Z',
+                  'contractVersion': 'learner-app-v2.5',
+                  'assignmentCount': 0,
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('Not found', 404);
+        }),
+        baseUrl: 'https://example.com',
+      );
+      final state = LumoAppState(
+        apiClient: client,
+        includeSeedDemoContent: true,
+      );
+
+      await state.bootstrap();
+
+      expect(state.tabletPodId, 'pod-1');
+      expect(state.learners, isEmpty);
 
       state.dispose();
     });
