@@ -618,10 +618,13 @@ class LumoAppState {
               .toList() ??
           const <LearnerAssignmentPack>[];
 
-      final restoredScopedLearners = _learnersWithinTabletPodScope(
-        restoredLearners.isEmpty && _includeSeedDemoContent
-            ? learnerProfilesSeed
-            : restoredLearners,
+      final restoredScopedLearners = _normalizeLearnersToRegistrationContext(
+        _learnersWithinTabletPodScope(
+          restoredLearners.isEmpty && _includeSeedDemoContent
+              ? learnerProfilesSeed
+              : restoredLearners,
+          registrationContext: restoredRegistrationContext,
+        ),
         registrationContext: restoredRegistrationContext,
       );
 
@@ -835,10 +838,13 @@ class LumoAppState {
           if (learner.learnerCode.trim().isNotEmpty)
             learner.learnerCode: learner,
       };
-      final bootstrapLearners = _learnersWithinTabletPodScope(
-        data.learners.isEmpty && _includeSeedDemoContent
-            ? learnerProfilesSeed
-            : data.learners,
+      final bootstrapLearners = _normalizeLearnersToRegistrationContext(
+        _learnersWithinTabletPodScope(
+          data.learners.isEmpty && _includeSeedDemoContent
+              ? learnerProfilesSeed
+              : data.learners,
+          registrationContext: data.registrationContext,
+        ),
         registrationContext: data.registrationContext,
       );
       learners
@@ -1329,26 +1335,59 @@ class LumoAppState {
     Iterable<LearnerProfile> source, {
     RegistrationContext? registrationContext,
   }) {
-    final podId =
-        _tabletPodIdFor(registrationContext ?? this.registrationContext);
+    final scopedRegistrationContext =
+        registrationContext ?? this.registrationContext;
+    final podId = _tabletPodIdFor(scopedRegistrationContext);
     if (podId == null || podId.isEmpty) {
       return source.toList(growable: false);
     }
+    final canonicalPodLabel = _tabletPodLabelFor(scopedRegistrationContext);
     return source
         .where((learner) => learner.podId?.trim() == podId)
+        .map(
+          (learner) => learner.copyWith(
+            podId: podId,
+            podLabel: canonicalPodLabel ?? learner.podLabel,
+          ),
+        )
         .toList(growable: false);
   }
 
-  String? get tabletPodLabel {
+  String? _tabletPodLabelFor(RegistrationContext registrationContext) {
     final tabletRegistration = registrationContext.tabletRegistration;
     final registrationLabel = tabletRegistration?.podLabel?.trim();
     if (registrationLabel != null && registrationLabel.isNotEmpty) {
       return registrationLabel;
     }
-    final podId = tabletPodId?.trim();
+    final podId = _tabletPodIdFor(registrationContext)?.trim();
     if (podId == null || podId.isEmpty) return null;
     return podId;
   }
+
+  List<LearnerProfile> _normalizeLearnersToRegistrationContext(
+    Iterable<LearnerProfile> source, {
+    RegistrationContext? registrationContext,
+  }) {
+    final scopedRegistrationContext =
+        registrationContext ?? this.registrationContext;
+    final canonicalPodId = _tabletPodIdFor(scopedRegistrationContext);
+    final canonicalPodLabel = _tabletPodLabelFor(scopedRegistrationContext);
+    if ((canonicalPodId == null || canonicalPodId.isEmpty) &&
+        (canonicalPodLabel == null || canonicalPodLabel.isEmpty)) {
+      return source.toList(growable: false);
+    }
+
+    return source
+        .map(
+          (learner) => learner.copyWith(
+            podId: canonicalPodId ?? learner.podId,
+            podLabel: canonicalPodLabel ?? learner.podLabel,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  String? get tabletPodLabel => _tabletPodLabelFor(registrationContext);
 
   bool learnerMatchesTabletPod(LearnerProfile learner) {
     final podId = tabletPodId?.trim();
@@ -5133,6 +5172,17 @@ class LumoAppState {
             : {
                 'cohortId': context.defaultTarget!.cohort.id,
                 'mallamId': context.defaultTarget!.mallam.id,
+              },
+        'tabletRegistration': context.tabletRegistration == null
+            ? null
+            : {
+                'id': context.tabletRegistration!.id,
+                'deviceIdentifier':
+                    context.tabletRegistration!.deviceIdentifier,
+                'podId': context.tabletRegistration!.podId,
+                'podLabel': context.tabletRegistration!.podLabel,
+                'mallamId': context.tabletRegistration!.mallamId,
+                'mallamName': context.tabletRegistration!.mallamName,
               },
       };
 
