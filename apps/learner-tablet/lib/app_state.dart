@@ -940,9 +940,6 @@ class LumoAppState {
       lastSyncError = null;
 
       await _hydrateModuleBundles(mergedModules);
-      if (liveBootstrapRuntimeBlocker == null) {
-        await _mergeBundledOfflineContent();
-      }
 
       if (learners.isNotEmpty) {
         final existingLearnerId = currentLearner?.id;
@@ -1671,9 +1668,66 @@ class LumoAppState {
     );
   }
 
+  List<LessonCardModel> _registeredContextLessonPool() {
+    if (!_hasTabletPodScope()) {
+      return assignedLessons;
+    }
+
+    final scopedLearners = learners.where(learnerMatchesTabletPod).toList(
+          growable: false,
+        );
+    if (scopedLearners.isEmpty) {
+      return const <LessonCardModel>[];
+    }
+
+    final orderedLessons = <LessonCardModel>[];
+    final seenLessonIds = <String>{};
+
+    void addLesson(LessonCardModel? lesson) {
+      if (lesson == null) return;
+      final key = lesson.id.trim();
+      if (key.isEmpty || seenLessonIds.contains(key)) return;
+      orderedLessons.add(lesson);
+      seenLessonIds.add(key);
+    }
+
+    for (final learner in scopedLearners) {
+      for (final lesson in backendAssignedLessonsForLearner(learner)) {
+        addLesson(lesson);
+      }
+      addLesson(resumableLessonForLearner(learner));
+    }
+    if (orderedLessons.isNotEmpty) {
+      return orderedLessons;
+    }
+
+    for (final learner in scopedLearners) {
+      final backendModuleId = learner.backendRecommendedModuleId?.trim();
+      if (backendModuleId == null || backendModuleId.isEmpty) continue;
+      for (final lesson in assignedLessons) {
+        if (lesson.moduleId.trim() == backendModuleId) {
+          addLesson(lesson);
+        }
+      }
+    }
+    if (orderedLessons.isNotEmpty) {
+      return orderedLessons;
+    }
+
+    if (usingFallbackData) {
+      for (final learner in scopedLearners) {
+        for (final lesson in lessonsForLearner(learner)) {
+          addLesson(lesson);
+        }
+      }
+    }
+
+    return orderedLessons;
+  }
+
   List<LearningModule> learnerFacingSubjects({LearnerProfile? learner}) {
     final lessonPool =
-        learner == null ? assignedLessons : lessonsForLearner(learner);
+        learner == null ? _registeredContextLessonPool() : lessonsForLearner(learner);
     final groupedLessons = <String, List<LessonCardModel>>{};
     final subjectTitles = <String, String>{};
 
@@ -1704,8 +1758,9 @@ class LumoAppState {
     String subjectId,
   ) {
     final normalizedSubjectId = _normalizeSubjectKey(subjectId);
-    final lessonPool =
-        learner == null ? assignedLessons : lessonsForLearner(learner);
+    final lessonPool = learner == null
+        ? _registeredContextLessonPool()
+        : lessonsForLearner(learner);
     return lessonPool.where((lesson) {
       if (!_isPublishedLearnerLesson(lesson)) return false;
       return _normalizeSubjectKey(_subjectTitleForLesson(lesson)) ==

@@ -942,71 +942,20 @@ void main() {
   });
 
   testWidgets(
-    'home subject grid keeps live subjects visible when bundled fundamentals is merged in',
+    'home subject grid renders only the live subject set when live curriculum is active',
     (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      final bundledLesson = LessonCardModel(
-        id: 'lf-meet-mallam',
-        moduleId: 'lumo-fundamentals',
-        title: 'Meet Mallam',
-        subject: 'Lumo Fundamentals',
-        durationMinutes: 6,
-        status: 'bundled',
-        mascotName: 'Mallam',
-        readinessFocus: 'Offline starter',
-        scenario: 'Bundled offline intro lesson.',
-        steps: const [
-          LessonStep(
-            id: 'bundled-step-1',
-            type: LessonStepType.practice,
-            title: 'Meet Mallam',
-            instruction: 'Say hello to Mallam.',
-            expectedResponse: 'Hello Mallam',
-            coachPrompt: 'Say hello to Mallam.',
-            facilitatorTip: 'Model the phrase once.',
-            realWorldCheck: 'Learner greets Mallam.',
-            speakerMode: SpeakerMode.guiding,
-          ),
-        ],
-      );
-
-      final state = LumoAppState(
-        includeSeedDemoContent: false,
-        bundledContentLoader: _FakeBundledContentLoader(
-          BundledContentLibrary(
-            modules: const [
-              LearningModule(
-                id: 'lumo-fundamentals',
-                title: 'Lumo Fundamentals',
-                description: 'Offline starter pack',
-                voicePrompt: 'Meet Mallam offline.',
-                readinessGoal: 'Ready for offline startup.',
-                badge: 'Bundled pack',
-              ),
-            ],
-            lessons: [bundledLesson],
-          ),
-        ),
-      );
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.usingFallbackData = false;
       state.modules
         ..clear()
-        ..addAll([
-          ...learningModules,
-          const LearningModule(
-            id: 'lumo-fundamentals',
-            title: 'Lumo Fundamentals',
-            description: 'Offline starter pack',
-            voicePrompt: 'Meet Mallam offline.',
-            readinessGoal: 'Ready for offline startup.',
-            badge: 'Bundled pack',
-          ),
-        ]);
+        ..addAll(learningModules);
       state.assignedLessons
         ..clear()
-        ..addAll([...assignedLessonsSeed, bundledLesson]);
+        ..addAll(assignedLessonsSeed);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -1020,12 +969,12 @@ void main() {
         find.byWidgetPredicate(
           (widget) => widget.runtimeType.toString() == '_SubjectCard',
         ),
-        findsNWidgets(4),
+        findsNWidgets(3),
       );
       expect(find.text('English'), findsOneWidget);
       expect(find.text('Math'), findsOneWidget);
       expect(find.text('Life Skills'), findsOneWidget);
-      expect(find.text('Lumo Fundamentals'), findsOneWidget);
+      expect(find.text('Lumo Fundamentals'), findsNothing);
 
       state.dispose();
     },
@@ -1718,6 +1667,7 @@ void main() {
 
     state.dispose();
   });
+
 
   testWidgets('subject modules page stays usable on narrow tablet widths', (
     tester,
