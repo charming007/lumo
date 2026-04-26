@@ -617,7 +617,7 @@ class LumoAppState {
       tabletDeviceIdentifier = effectiveDeviceIdentifier;
       _apiClient.deviceIdentifier = effectiveDeviceIdentifier;
 
-      final restoredRegistrationContext =
+      var restoredRegistrationContext =
           _decodeRegistrationContext(snapshot['registrationContext']);
       final restoredLearners = (snapshot['learners'] as List?)
               ?.whereType<Map>()
@@ -649,6 +649,10 @@ class LumoAppState {
           registrationContext: restoredRegistrationContext,
         ),
         registrationContext: restoredRegistrationContext,
+      );
+      restoredRegistrationContext = _normalizeRegistrationContextPodLabel(
+        restoredRegistrationContext,
+        restoredScopedLearners,
       );
 
       learners
@@ -866,9 +870,9 @@ class LumoAppState {
           data.learners.isEmpty && _includeSeedDemoContent
               ? learnerProfilesSeed
               : data.learners,
-          registrationContext: data.registrationContext,
+          registrationContext: registrationContext,
         ),
-        registrationContext: data.registrationContext,
+        registrationContext: registrationContext,
       );
       learners
         ..clear()
@@ -1382,7 +1386,10 @@ class LumoAppState {
     if (podId == null || podId.isEmpty) {
       return source.toList(growable: false);
     }
-    final canonicalPodLabel = _tabletPodLabelFor(scopedRegistrationContext);
+    final canonicalPodLabel = _tabletPodLabelFor(
+      scopedRegistrationContext,
+      source: source,
+    );
     return source
         .where((learner) => learner.podId?.trim() == podId)
         .map((learner) {
@@ -1399,15 +1406,55 @@ class LumoAppState {
     }).toList(growable: false);
   }
 
-  String? _tabletPodLabelFor(RegistrationContext registrationContext) {
-    final tabletRegistration = registrationContext.tabletRegistration;
-    final registrationLabel = tabletRegistration?.podLabel?.trim();
-    if (registrationLabel != null && registrationLabel.isNotEmpty) {
-      return registrationLabel;
-    }
+  String? _canonicalTabletPodLabelFromLearners(
+    Iterable<LearnerProfile> source,
+    RegistrationContext registrationContext,
+  ) {
     final podId = _tabletPodIdFor(registrationContext)?.trim();
     if (podId == null || podId.isEmpty) return null;
-    return podId;
+    final labels = source
+        .where((learner) => learner.podId?.trim() == podId)
+        .map((learner) => learner.podLabel?.trim())
+        .whereType<String>()
+        .where((label) => label.isNotEmpty)
+        .toSet();
+    if (labels.length == 1) {
+      return labels.first;
+    }
+    return null;
+  }
+
+  String? _tabletPodLabelFor(
+    RegistrationContext registrationContext, {
+    Iterable<LearnerProfile>? source,
+  }) {
+    final canonicalPodId = _tabletPodIdFor(registrationContext)?.trim();
+    final tabletRegistration = registrationContext.tabletRegistration;
+    final registrationPodId = tabletRegistration?.podId?.trim();
+    final registrationLabel = tabletRegistration?.podLabel?.trim();
+    final canonicalLearnerPodLabel = _canonicalTabletPodLabelFromLearners(
+      source ?? learners,
+      registrationContext,
+    );
+
+    if (registrationLabel != null && registrationLabel.isNotEmpty) {
+      if (canonicalPodId == null ||
+          canonicalPodId.isEmpty ||
+          registrationPodId == null ||
+          registrationPodId.isEmpty ||
+          registrationPodId != canonicalPodId) {
+        return registrationLabel;
+      }
+      return canonicalLearnerPodLabel ?? registrationLabel;
+    }
+
+    if (canonicalLearnerPodLabel != null &&
+        canonicalLearnerPodLabel.isNotEmpty) {
+      return canonicalLearnerPodLabel;
+    }
+
+    if (canonicalPodId == null || canonicalPodId.isEmpty) return null;
+    return canonicalPodId;
   }
 
   List<LearnerProfile> _normalizeLearnersToRegistrationContext(
@@ -1417,7 +1464,10 @@ class LumoAppState {
     final scopedRegistrationContext =
         registrationContext ?? this.registrationContext;
     final canonicalPodId = _tabletPodIdFor(scopedRegistrationContext);
-    final canonicalPodLabel = _tabletPodLabelFor(scopedRegistrationContext);
+    final canonicalPodLabel = _tabletPodLabelFor(
+      scopedRegistrationContext,
+      source: source,
+    );
     if ((canonicalPodId == null || canonicalPodId.isEmpty) &&
         (canonicalPodLabel == null || canonicalPodLabel.isEmpty)) {
       return source.toList(growable: false);
@@ -1733,8 +1783,9 @@ class LumoAppState {
   }
 
   List<LearningModule> learnerFacingSubjects({LearnerProfile? learner}) {
-    final lessonPool =
-        learner == null ? _registeredContextLessonPool() : lessonsForLearner(learner);
+    final lessonPool = learner == null
+        ? _registeredContextLessonPool()
+        : lessonsForLearner(learner);
     final groupedLessons = <String, List<LessonCardModel>>{};
     final subjectTitles = <String, String>{};
 
