@@ -1643,6 +1643,7 @@ void main() {
       expect(restored.learners, hasLength(1));
       expect(restored.learners.single.podId, 'pod-1');
       expect(restored.learners.single.podLabel, 'Pod 1');
+      expect(restored.learners.single.village, 'Pod 1');
       restored.dispose();
     });
 

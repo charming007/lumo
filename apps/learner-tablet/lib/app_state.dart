@@ -1344,12 +1344,17 @@ class LumoAppState {
     final canonicalPodLabel = _tabletPodLabelFor(scopedRegistrationContext);
     return source
         .where((learner) => learner.podId?.trim() == podId)
-        .map(
-          (learner) => learner.copyWith(
+        .map((learner) {
+          final resolvedPodLabel = canonicalPodLabel ?? learner.podLabel;
+          final villageLooksPodScoped = learner.village.trim().isEmpty ||
+              learner.village.trim() == learner.podLabel?.trim();
+          return learner.copyWith(
             podId: podId,
-            podLabel: canonicalPodLabel ?? learner.podLabel,
-          ),
-        )
+            podLabel: resolvedPodLabel,
+            village:
+                villageLooksPodScoped ? (resolvedPodLabel ?? learner.village) : learner.village,
+          );
+        })
         .toList(growable: false);
   }
 
