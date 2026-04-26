@@ -207,6 +207,23 @@ function deriveMallamIdFromPodId(podId) {
     || null;
 }
 
+function normalizeStudentRecord(student) {
+  if (!student || typeof student !== 'object') return student;
+
+  const cohort = student.cohortId ? findCohortById(student.cohortId) : null;
+  const canonicalPodId = cohort?.podId ?? student.podId ?? null;
+
+  if (student.podId !== canonicalPodId) {
+    student.podId = canonicalPodId;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(student, 'podLabel')) {
+    delete student.podLabel;
+  }
+
+  return student;
+}
+
 function resolveStudentReferences(input = {}, existing = null) {
   const has = (key) => Object.prototype.hasOwnProperty.call(input, key);
   const nextCohortId = has('cohortId') ? input.cohortId : existing?.cohortId;
@@ -468,11 +485,12 @@ function deleteTeacher(id) {
 }
 
 function listStudents() {
-  return data.students;
+  return data.students.map((student) => normalizeStudentRecord(student));
 }
 
 function findStudentById(id) {
-  return data.students.find((item) => item.id === id) || null;
+  const student = data.students.find((item) => item.id === id) || null;
+  return normalizeStudentRecord(student);
 }
 
 function createStudent(input) {
@@ -498,6 +516,7 @@ function createStudent(input) {
     deviceAccess: input.deviceAccess || 'shared-tablet',
   };
 
+  normalizeStudentRecord(student);
   data.students.push(student);
   return commit(student);
 }
@@ -532,6 +551,7 @@ function updateStudent(id, input) {
     deviceAccess: input.deviceAccess ?? student.deviceAccess,
   });
 
+  normalizeStudentRecord(student);
   return commit(student);
 }
 
