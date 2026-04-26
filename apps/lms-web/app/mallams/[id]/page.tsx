@@ -7,7 +7,7 @@ import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/
 
 export default async function MallamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [mallams, centers, pods, students, states, localGovernments] = await Promise.all([
+  const [mallamsResult, centersResult, podsResult, studentsResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
     fetchMallams(),
     fetchCenters(),
     fetchPods(),
@@ -15,6 +15,22 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
     fetchStates(),
     fetchLocalGovernments(),
   ]);
+
+  const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+  const centers = centersResult.status === 'fulfilled' ? centersResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const students = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
+  const states = statesResult.status === 'fulfilled' ? statesResult.value : [];
+  const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
+
+  const failedSources = [
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    studentsResult.status === 'rejected' ? 'students' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+  ].filter(Boolean) as string[];
 
   const mallam = mallams.find((item) => item.id === id);
   if (!mallam) notFound();
@@ -62,6 +78,12 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
         </div>
       }
     >
+      {failedSources.length ? (
+        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', lineHeight: 1.6, fontWeight: 700 }}>
+          Mallam detail recovered with degraded feeds: {failedSources.join(', ')}. Core facilitator record is still loaded, but roster management and profile forms may have reduced geography or learner context until those feeds recover.
+        </div>
+      ) : null}
+
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <Card title="Mallam profile" eyebrow={mallam.role || 'Mallam'}>
           <div style={{ display: 'grid', gap: 10 }}>
