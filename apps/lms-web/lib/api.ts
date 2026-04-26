@@ -43,7 +43,15 @@ function getAdminApiKey() {
   return String(process.env.LUMO_ADMIN_API_KEY || '').trim();
 }
 
-function assertProtectedApiKeyConfigured(role = 'admin') {
+function isProtectedApiPath(path: string) {
+  return path.startsWith('/api/v1/admin/');
+}
+
+function assertProtectedApiKeyConfigured(path: string, role = 'admin') {
+  if (!isProtectedApiPath(path)) {
+    return;
+  }
+
   if (role !== 'admin' && role !== 'teacher' && role !== 'facilitator') {
     return;
   }
@@ -57,12 +65,12 @@ function assertProtectedApiKeyConfigured(role = 'admin') {
   }
 }
 
-function buildApiHeaders(role = 'admin') {
+function buildApiHeaders(path: string, role = 'admin') {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
     'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
   };
-  assertProtectedApiKeyConfigured(role);
+  assertProtectedApiKeyConfigured(path, role);
   const adminApiKey = getAdminApiKey();
 
   if (adminApiKey) {
@@ -174,7 +182,7 @@ async function getJson<T>(path: string): Promise<T> {
   try {
     const response = await fetch(requestUrl, {
       cache: 'no-store',
-      headers: buildApiHeaders(),
+      headers: buildApiHeaders(path),
       signal: AbortSignal.timeout(API_REQUEST_TIMEOUT_MS),
     });
 
