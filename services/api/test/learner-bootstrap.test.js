@@ -321,6 +321,33 @@ test('module bundle still exposes assigned unpublished lessons for internal rout
   assert.equal(bundle.body.lessonCount >= 2, true, JSON.stringify(bundle.body));
 });
 
+test('learner bootstrap derives learner geography from the assigned pod instead of mallam fallback geography', async () => {
+  repository.updateTeacher('teacher-2', { podIds: ['pod-2'], primaryPodId: 'pod-2' });
+  const student = repository.createStudent({
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-2',
+    name: 'Canonical pod learner',
+    age: 8,
+    gender: 'female',
+    level: 'beginner',
+    stage: 'foundation-a',
+    attendanceRate: 0.87,
+    guardianName: 'Guardian Canonical',
+    deviceAccess: 'shared-tablet',
+  });
+
+  const response = await request('/api/v1/learner-app/bootstrap?deviceIdentifier=lumo-tablet-kano-01');
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+
+  const presented = response.body.learners.find((learner) => learner.id === student.id);
+  assert.ok(presented, JSON.stringify(response.body.learners));
+  assert.equal(presented.podId, 'pod-1');
+  assert.equal(presented.podLabel, 'Kano Pod 01');
+  assert.equal(presented.village, 'Kano Pod 01');
+  assert.equal(presented.mallamId, 'teacher-2');
+  assert.equal(presented.mallamName, 'Mallam Musa Ibrahim');
+});
+
 test('tablet-scoped bootstrap only returns pod-scoped learners across roster, assignment, and launch availability payloads', async () => {
   const scopedLesson = repository.createLesson({
     subjectId: 'english',

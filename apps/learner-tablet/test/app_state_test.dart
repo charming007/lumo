@@ -1584,6 +1584,23 @@ void main() {
       restored.dispose();
     });
 
+    test('tablet pod label does not fall back to cohort names when canonical pod label is missing', () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.registrationContext = const RegistrationContext(
+        cohorts: [
+          BackendCohort(id: 'cohort-1', name: 'Morning Cohort', podId: 'pod-1'),
+        ],
+        tabletRegistration: TabletRegistration(
+          id: 'device-1',
+          deviceIdentifier: 'lumo-tablet-kano-01',
+          podId: 'pod-1',
+        ),
+      );
+
+      expect(state.tabletPodLabel, 'pod-1');
+      state.dispose();
+    });
+
     test('tablet pod filter rejects learners with missing pod scope', () {
       final state = LumoAppState(includeSeedDemoContent: false);
       state.registrationContext = RegistrationContext(
