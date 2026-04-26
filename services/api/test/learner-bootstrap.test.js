@@ -654,6 +654,36 @@ test('tablet-scoped learner registration also resolves pod scope from body devic
 });
 
 
+test('tablet-scoped bootstrap and learner registration use the pod canonical mallam even when device registration stores a stale mallam', async () => {
+  const registration = repository.findDeviceRegistrationByIdentifier('lumo-tablet-kano-01');
+  assert.ok(registration);
+  registration.assignedMallamId = 'teacher-2';
+
+  const bootstrap = await request('/api/v1/learner-app/bootstrap?deviceIdentifier=lumo-tablet-kano-01');
+  assert.equal(bootstrap.status, 200, JSON.stringify(bootstrap.body));
+  assert.equal(bootstrap.body.registrationContext.tabletRegistration.podId, 'pod-1');
+  assert.equal(bootstrap.body.registrationContext.tabletRegistration.mallamId, 'teacher-1');
+  assert.equal(bootstrap.body.registrationContext.tabletRegistration.mallamName, 'Mallama Amina Yusuf');
+  assert.equal(bootstrap.body.registrationContext.defaultTarget.mallamId, 'teacher-1');
+
+  const created = await request('/api/v1/learner-app/learners', {
+    method: 'POST',
+    headers: { 'x-lumo-device-identifier': 'lumo-tablet-kano-01' },
+    body: JSON.stringify({
+      name: 'Canonical device mallam learner',
+      age: 8,
+      cohortId: 'cohort-1',
+      preferredLanguage: 'Hausa',
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.podId, 'pod-1');
+  assert.equal(created.body.mallamId, 'teacher-1');
+  assert.equal(created.body.mallamName, 'Mallama Amina Yusuf');
+});
+
+
 test('learner bootstrap exposes pod-scoped learner availability and per-learner lesson statuses for lesson launch', async () => {
   const lesson = repository.createLesson({
     subjectId: 'english',
