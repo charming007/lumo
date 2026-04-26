@@ -11046,6 +11046,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                             state: widget.state,
                                             onChanged: () {},
                                             module: recommendedModule,
+                                            forceUnscopedLessons: true,
                                           ),
                                         ),
                                       );
