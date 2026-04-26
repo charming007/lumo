@@ -4418,6 +4418,109 @@ void main() {
     });
 
     test(
+        'production-like bootstrap stays live when routing exists without tablet registration',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'id': 'english',
+                      'subjectId': 'english',
+                      'subjectName': 'English',
+                      'title': 'English',
+                      'level': 'beginner',
+                      'status': 'published',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'lesson-1',
+                      'moduleId': 'english',
+                      'moduleTitle': 'English',
+                      'subjectId': 'english',
+                      'subjectName': 'English',
+                      'title': 'Live English lesson',
+                      'description': 'Live payload',
+                      'status': 'published',
+                      'activityType': 'listen_repeat',
+                      'activitySteps': [
+                        {
+                          'id': 'step-1',
+                          'type': 'listen_repeat',
+                          'prompt': 'Say hello',
+                        },
+                      ],
+                    },
+                  ],
+                  'assignments': [
+                    {
+                      'id': 'assignment-1',
+                      'lessonId': 'lesson-1',
+                      'learnerId': beginner.id,
+                    },
+                  ],
+                  'registrationContext': {
+                    'cohorts': [
+                      {
+                        'id': 'cohort-1',
+                        'name': beginner.cohort,
+                        'podId': 'pod-1',
+                      },
+                    ],
+                    'mallams': [
+                      {
+                        'id': 'mallam-1',
+                        'displayName': 'Mallam Zainab',
+                        'podIds': ['pod-1'],
+                      },
+                    ],
+                    'defaultTarget': {
+                      'cohortId': 'cohort-1',
+                      'mallamId': 'mallam-1',
+                    },
+                  },
+                  'meta': {
+                    'generatedAt': '2026-04-21T06:30:09.634Z',
+                    'contractVersion': 'learner-app-v2.3',
+                    'assignmentCount': 1,
+                  },
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      addTearDown(state.dispose);
+
+      await state.bootstrap();
+
+      expect(state.usingFallbackData, isFalse);
+      expect(state.deploymentBlockerReason, isNull);
+      expect(state.backendError, isNull);
+      expect(state.tabletPodId, 'pod-1');
+    });
+
+    test(
         'bundled fundamentals lesson wins over live lesson body with same stable id',
         () async {
       final bundledLesson = LessonCardModel(

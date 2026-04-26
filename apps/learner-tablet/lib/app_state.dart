@@ -267,6 +267,13 @@ class LumoAppState {
       final explicitUnregisteredBootstrap = _apiClient.runtimeType
           .toString()
           .contains('UnregisteredTabletBootstrapApiClient');
+
+      if (hasRegistrationRouting &&
+          (hasLearnerVisibleLessons || hasLiveAssignments) &&
+          !explicitUnregisteredBootstrap) {
+        return null;
+      }
+
       if (!kReleaseBuild &&
           !hasRegistrationRouting &&
           !explicitUnregisteredBootstrap) {
