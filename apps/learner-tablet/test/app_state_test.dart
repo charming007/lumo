@@ -581,7 +581,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'english',
@@ -596,7 +596,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/math') {
+            if (request.url.path == '/api/v1/learner-app/subjects/math') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'math',
@@ -611,7 +611,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/life-skills') {
+            if (request.url.path == '/api/v1/learner-app/subjects/life-skills') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'life-skills',
@@ -728,7 +728,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'english',
@@ -858,7 +858,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'english',
@@ -961,7 +961,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'english',
@@ -1179,7 +1179,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'english',
@@ -1364,7 +1364,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'english',
@@ -1860,7 +1860,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'english',
@@ -1898,7 +1898,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/math') {
+            if (request.url.path == '/api/v1/learner-app/subjects/math') {
               throw Exception('math bundle timed out');
             }
 
@@ -2000,7 +2000,7 @@ void main() {
               );
             }
 
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'subjectId': 'english',
@@ -4197,7 +4197,7 @@ void main() {
                 headers: {'content-type': 'application/json'},
               );
             }
-            if (request.url.path == '/api/v1/learner-app/modules/english') {
+            if (request.url.path == '/api/v1/learner-app/subjects/english') {
               return http.Response(
                 jsonEncode({
                   'module': {
@@ -4540,7 +4540,7 @@ void main() {
               );
             }
             if (request.url.path ==
-                '/api/v1/learner-app/modules/fundamentals-meet-mallam') {
+                '/api/v1/learner-app/subjects/fundamentals-meet-mallam') {
               return http.Response(
                 jsonEncode({
                   'module': {

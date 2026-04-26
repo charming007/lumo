@@ -22,6 +22,7 @@ void main() {
           return http.Response(
             jsonEncode({
               'learners': const [],
+              'subjects': const [],
               'modules': const [],
               'lessons': const [],
               'assignments': const [],
@@ -195,12 +196,12 @@ void main() {
     });
   });
 
-  group('LumoApiClient module bundles', () {
-    test('parses nested module payloads without collapsing the subject id',
+  group('LumoApiClient subject bundles', () {
+    test('parses nested subject payloads without collapsing the subject id',
         () async {
       final client = LumoApiClient(
         client: MockClient((request) async {
-          expect(request.url.path, '/api/v1/learner-app/modules/english');
+          expect(request.url.path, '/api/v1/learner-app/subjects/english');
           return http.Response(
             jsonEncode({
               'module': {
@@ -484,6 +485,7 @@ void main() {
                   'level': 'beginner',
                 },
               ],
+              'subjects': const [],
               'modules': const [],
               'lessons': const [],
               'assignments': const [],

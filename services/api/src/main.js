@@ -890,7 +890,7 @@ function buildLearnerSubjects({ includeAssigned = false, podId = null } = {}) {
 function buildLearnerAppBootstrap({ registration = null } = {}) {
   const podId = registration?.podId || null;
   const learners = buildScopedLearners({ podId });
-  const modules = buildLearnerSubjects({ includeAssigned: false, podId });
+  const subjects = buildLearnerSubjects({ includeAssigned: false, podId });
   const assignments = buildLearnerAssignmentIndex({ podId });
   const lessons = buildLearnerLessons({ includeAssigned: false, podId, includeAvailability: true });
   const lessonAvailability = lessons.map((lesson) => lesson.learnerAvailability).filter(Boolean);
@@ -900,7 +900,8 @@ function buildLearnerAppBootstrap({ registration = null } = {}) {
 
   return {
     learners,
-    modules,
+    subjects,
+    modules: subjects,
     lessons,
     assignments,
     assignmentPacks: assignments,
@@ -921,7 +922,8 @@ function buildLearnerAppBootstrap({ registration = null } = {}) {
       learnerCount: learners.length,
       scopedPodId: podId,
       scopedDeviceIdentifier: registration?.deviceIdentifier || null,
-      moduleCount: modules.length,
+      subjectCount: subjects.length,
+      moduleCount: subjects.length,
       lessonCount: lessons.length,
       assignmentCount: assignments.length,
       assignmentPackCount: assignments.length,
@@ -929,7 +931,7 @@ function buildLearnerAppBootstrap({ registration = null } = {}) {
       lessonAvailabilityCount: lessonAvailability.length,
       learnerStatusCount: learnerStatuses.length,
       generatedAt: new Date().toISOString(),
-      contractVersion: 'learner-app-v2.5',
+      contractVersion: 'learner-app-v2.6',
       supports: ['cors-local-origins', 'assignment-index', 'sync-dedupe', 'progress-upsert', 'rewards-on-sync', 'lesson-localization', 'assessment-packs', 'learner-rewards', 'subject-first-navigation', 'tablet-pod-scope', 'lesson-learner-availability', 'per-learner-lesson-status'],
     },
   };
@@ -1854,8 +1856,12 @@ app.post('/api/v1/learner-app/sync-batches', learnerSyncThrottle, (req, res, nex
   }
 });
 
+app.get('/api/v1/learner-app/subjects', (_req, res) => {
+  res.json(buildLearnerSubjects({ includeAssigned: true }));
+});
+
 app.get('/api/v1/learner-app/modules', (_req, res) => {
-  res.json(buildLearnerModules({ includeAssigned: true }));
+  res.json(buildLearnerSubjects({ includeAssigned: true }));
 });
 
 app.get('/api/v1/learner-app/assignments', (_req, res) => {
@@ -1949,10 +1955,10 @@ app.post('/api/v1/learner-app/voice/replay', async (req, res, next) => {
   }
 });
 
-app.get('/api/v1/learner-app/modules/:id', (req, res) => {
+function respondWithLearnerSubjectBundle(subjectId, res) {
   const sourceModule = store
     .listModules()
-    .find((module) => module.id === req.params.id || presenters.presentLearnerModule(module).id === req.params.id);
+    .find((module) => module.id === subjectId || presenters.presentLearnerModule(module).id === subjectId);
 
   if (!sourceModule) {
     return res.status(404).json({ message: 'Module not found' });
@@ -1975,10 +1981,19 @@ app.get('/api/v1/learner-app/modules/:id', (req, res) => {
 
   return res.json({
     ...module,
+    subject: module,
     lessons,
     assignmentPacks,
     assessments,
   });
+}
+
+app.get('/api/v1/learner-app/subjects/:id', (req, res) => {
+  return respondWithLearnerSubjectBundle(req.params.id, res);
+});
+
+app.get('/api/v1/learner-app/modules/:id', (req, res) => {
+  return respondWithLearnerSubjectBundle(req.params.id, res);
 });
 
 app.get('/api/v1/dashboard/summary', (_req, res) => {

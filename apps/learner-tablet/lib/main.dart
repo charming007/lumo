@@ -392,7 +392,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                         const _DeploymentCheckRow(
                           title: 'Backend bootstrap',
                           expected:
-                              'GET /api/v1/learner-app/bootstrap returns production learners, modules, lessons, assignments, and registration targets.',
+                              'GET /api/v1/learner-app/bootstrap returns production learners, subjects, lessons, assignments, and registration targets.',
                           failure:
                               'Tablet opens to an offline blocker because the live roster cannot be trusted yet.',
                         ),

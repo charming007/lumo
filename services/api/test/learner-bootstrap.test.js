@@ -120,13 +120,14 @@ test('learner bootstrap projects published subjects first while keeping lesson s
 
   assert.equal(response.status, 200);
 
-  const subjectIds = response.body.modules.map((subject) => subject.id);
-  assert.equal(subjectIds.includes('english'), true, JSON.stringify(response.body.modules));
-  assert.equal(subjectIds.includes('module-1'), false, JSON.stringify(response.body.modules));
-  assert.equal(subjectIds.includes('module-5'), false, JSON.stringify(response.body.modules));
+  const subjectIds = response.body.subjects.map((subject) => subject.id);
+  assert.equal(subjectIds.includes('english'), true, JSON.stringify(response.body.subjects));
+  assert.equal(subjectIds.includes('module-1'), false, JSON.stringify(response.body.subjects));
+  assert.equal(subjectIds.includes('module-5'), false, JSON.stringify(response.body.subjects));
+  assert.deepEqual(response.body.subjects, response.body.modules);
 
-  const englishSubject = response.body.modules.find((subject) => subject.id === 'english');
-  assert.ok(englishSubject, JSON.stringify(response.body.modules));
+  const englishSubject = response.body.subjects.find((subject) => subject.id === 'english');
+  assert.ok(englishSubject, JSON.stringify(response.body.subjects));
   assert.equal(englishSubject.lessonCount >= 2, true, JSON.stringify(englishSubject));
 
   const lessonSubjectIds = response.body.lessons
@@ -141,7 +142,7 @@ test('learner bootstrap projects published subjects first while keeping lesson s
   assert.deepEqual(assignmentModuleIds, ['module-1', 'module-5']);
 });
 
-test('learner module bundle keeps the same projected lessons visible in bootstrap', async () => {
+test('learner subject bundle keeps the same projected lessons visible in bootstrap', async () => {
   const lessonA = repository.createLesson({
     subjectId: 'english',
     moduleId: 'module-1',
@@ -164,7 +165,7 @@ test('learner module bundle keeps the same projected lessons visible in bootstra
   const bootstrap = await request('/api/v1/learner-app/bootstrap');
   assert.equal(bootstrap.status, 200);
 
-  const bundle = await request('/api/v1/learner-app/modules/module-1');
+  const bundle = await request('/api/v1/learner-app/subjects/module-1');
   assert.equal(bundle.status, 200);
 
   const bootstrapLessonIds = bootstrap.body.lessons
@@ -214,10 +215,10 @@ test('learner bootstrap keeps unpublished module labels hidden while assigned le
   const response = await request('/api/v1/learner-app/bootstrap');
 
   assert.equal(response.status, 200);
-  const englishSubject = response.body.modules.find((module) => module.id === 'english');
-  assert.ok(englishSubject, JSON.stringify(response.body.modules));
-  const hiddenReviewModule = response.body.modules.find((module) => module.id === 'module-4');
-  assert.equal(hiddenReviewModule, undefined, JSON.stringify(response.body.modules));
+  const englishSubject = response.body.subjects.find((module) => module.id === 'english');
+  assert.ok(englishSubject, JSON.stringify(response.body.subjects));
+  const hiddenReviewModule = response.body.subjects.find((module) => module.id === 'module-4');
+  assert.equal(hiddenReviewModule, undefined, JSON.stringify(response.body.subjects));
 
   const projectedLesson = response.body.lessons.find((lesson) => lesson.id === reviewLesson.id);
   assert.equal(projectedLesson, undefined, JSON.stringify(response.body.lessons));
