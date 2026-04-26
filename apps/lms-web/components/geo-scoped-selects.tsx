@@ -135,33 +135,19 @@ export function StudentGeographySelectors({
   }, [pods, centers, stateId, localGovernmentId]);
 
   const filteredCohorts = useMemo(() => {
-    return cohorts.filter((cohort) => {
-      const cohortPod = pods.find((item) => item.id === cohort.podId);
-      const center = cohortPod ? centers.find((item) => item.id === cohortPod.centerId) : centers.find((item) => item.id === cohort.centerId);
-      const cohortStateId = cohortPod?.stateId || center?.stateId || '';
-      const cohortLocalGovernmentId = cohortPod?.localGovernmentId || center?.localGovernmentId || '';
-      if (podId) return cohort.podId === podId;
-      if (stateId && cohortStateId !== stateId) return false;
-      if (localGovernmentId && cohortLocalGovernmentId !== localGovernmentId) return false;
-      return true;
-    });
-  }, [cohorts, pods, centers, podId, stateId, localGovernmentId]);
+    if (!podId) return [];
+    return cohorts.filter((cohort) => cohort.podId === podId);
+  }, [cohorts, podId]);
 
   const filteredMallams = useMemo(() => {
-    const selectedPod = podId ? pods.find((item) => item.id === podId) : null;
+    if (!podId) return [];
+    const selectedPod = pods.find((item) => item.id === podId);
     return mallams.filter((mallam) => {
-      const mallamStateId = deriveStateIdFromMallam(mallam, centers);
-      const mallamLocalGovernmentId = deriveLocalGovernmentIdFromMallam(mallam, centers);
-      if (stateId && mallamStateId !== stateId) return false;
-      if (localGovernmentId && mallamLocalGovernmentId !== localGovernmentId) return false;
-      if (podId) {
-        const coversPodFromMallam = (mallam.podIds || []).includes(podId);
-        const coversPodFromPodRecord = (selectedPod?.mallamIds || []).includes(mallam.id);
-        if (!coversPodFromMallam && !coversPodFromPodRecord) return false;
-      }
-      return true;
+      const coversPodFromMallam = (mallam.podIds || []).includes(podId);
+      const coversPodFromPodRecord = (selectedPod?.mallamIds || []).includes(mallam.id);
+      return coversPodFromMallam || coversPodFromPodRecord;
     });
-  }, [mallams, centers, pods, stateId, localGovernmentId, podId]);
+  }, [mallams, pods, podId]);
 
   useEffect(() => {
     if (localGovernmentId && !filteredLocalGovernments.some((item) => item.id === localGovernmentId)) {
@@ -170,32 +156,20 @@ export function StudentGeographySelectors({
   }, [filteredLocalGovernments, localGovernmentId]);
 
   useEffect(() => {
-    if (!filteredPods.length) {
-      if (podId) setPodId('');
-      return;
-    }
-    if (!podId || !filteredPods.some((item) => item.id === podId)) {
-      setPodId(filteredPods[0]?.id || '');
+    if (podId && !filteredPods.some((item) => item.id === podId)) {
+      setPodId('');
     }
   }, [filteredPods, podId]);
 
   useEffect(() => {
-    if (!filteredCohorts.length) {
-      if (cohortId) setCohortId('');
-      return;
-    }
-    if (!cohortId || !filteredCohorts.some((item) => item.id === cohortId)) {
-      setCohortId(filteredCohorts[0]?.id || '');
+    if (cohortId && !filteredCohorts.some((item) => item.id === cohortId)) {
+      setCohortId('');
     }
   }, [filteredCohorts, cohortId]);
 
   useEffect(() => {
-    if (!filteredMallams.length) {
-      if (mallamId) setMallamId('');
-      return;
-    }
-    if (!mallamId || !filteredMallams.some((item) => item.id === mallamId)) {
-      setMallamId(filteredMallams[0]?.id || '');
+    if (mallamId && !filteredMallams.some((item) => item.id === mallamId)) {
+      setMallamId('');
     }
   }, [filteredMallams, mallamId]);
 
@@ -233,20 +207,23 @@ export function StudentGeographySelectors({
           <option value="">Select pod</option>
           {filteredPods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label} · {podGeographyLabel(pod, centers, states, localGovernments)}</option>)}
         </select>
+        <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('pod', filteredPods.length, localGovernmentId ? 'No pods for this local government yet' : stateId ? 'Pick a local government to narrow pods' : 'Pick state and local government first')}</span>
       </FieldLabel>
       <FieldLabel>
         Cohort
-        <select name="cohortId" value={cohortId} onChange={(event) => setCohortId(event.target.value)} style={inputStyle} disabled={!filteredCohorts.length}>
-          <option value="">Select cohort</option>
+        <select name="cohortId" value={cohortId} onChange={(event) => setCohortId(event.target.value)} style={inputStyle} disabled={!podId}>
+          <option value="">{podId ? 'Select cohort' : 'Select pod first'}</option>
           {filteredCohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name} · {cohortGeographyLabel(cohort, pods, centers, states, localGovernments)}</option>)}
         </select>
+        <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('cohort', filteredCohorts.length, podId ? 'No cohorts linked to this pod yet' : 'Pod drives cohort scope')}</span>
       </FieldLabel>
       <FieldLabel>
         Mallam
-        <select name="mallamId" value={mallamId} onChange={(event) => setMallamId(event.target.value)} style={inputStyle} disabled={!filteredMallams.length}>
-          <option value="">Select mallam</option>
+        <select name="mallamId" value={mallamId} onChange={(event) => setMallamId(event.target.value)} style={inputStyle} disabled={!podId}>
+          <option value="">{podId ? 'Select mallam' : 'Select pod first'}</option>
           {filteredMallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName} · {mallamGeographyLabel(mallam, centers, states, localGovernments)}</option>)}
         </select>
+        <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('mallam', filteredMallams.length, podId ? 'No mallams linked to this pod yet' : 'Pod drives mallam scope')}</span>
       </FieldLabel>
     </>
   );

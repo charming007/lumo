@@ -171,12 +171,9 @@ export function CreateStudentForm({ cohorts, pods, mallams, centers, states, loc
         centers={centers}
         states={states}
         localGovernments={localGovernments}
-        initialPodId={pods[0]?.id}
-        initialCohortId={cohorts[0]?.id}
-        initialMallamId={mallams[0]?.id}
       />
       <GeographyHint>
-        Geography is explicit now: pick <strong>state → local government</strong> first, then the form narrows pod, cohort, and mallam choices to that footprint.
+        Geography is explicit now: pick <strong>state → local government → pod</strong> in order. Pod remains the real operational anchor, and cohort plus mallam options narrow from the selected pod.
       </GeographyHint>
       <div style={twoColumnGrid}>
         <FieldLabel>Level<select name="level" defaultValue="beginner" style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
@@ -213,7 +210,7 @@ export function UpdateStudentForm({ student, cohorts, pods, mallams, centers, st
           initialMallamId={student.mallamId}
         />
         <GeographyHint>
-          State and local government stay visible during learner edits, then pod and cohort stay pinned to that same geography so operators do not accidentally cross-wire locations.
+          State and local government stay visible during learner edits, but pod is still the authoritative assignment. Cohort and mallam choices narrow from that selected pod so operators do not cross-wire locations.
         </GeographyHint>
         <div style={twoColumnGrid}>
           <FieldLabel>Level<select name="level" defaultValue={student.level} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
