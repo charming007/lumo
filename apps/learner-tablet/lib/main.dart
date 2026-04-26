@@ -12416,7 +12416,7 @@ class _LearnerCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Age ${learner.age} • ${learner.village}',
+                            'Age ${learner.age} • ${state?.tabletPodLabel ?? learner.podLabel ?? learner.village}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(color: Color(0xFF6B7280)),

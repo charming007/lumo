@@ -1584,7 +1584,98 @@ void main() {
       restored.dispose();
     });
 
-    test('tablet pod label does not fall back to cohort names when canonical pod label is missing', () {
+    test(
+        'restored scoped learners adopt the canonical tablet pod label instead of stale persisted labels',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'learners': [
+            {
+              'id': 'learner-pod-1',
+              'name': 'Safiya',
+              'age': 8,
+              'cohort': 'Cohort A',
+              'cohortId': 'cohort-1',
+              'podId': 'pod-1',
+              'podLabel': 'Pod 9',
+              'mallamId': 'mallam-1',
+              'mallamName': 'Mallam Idris',
+              'streakDays': 0,
+              'guardianName': 'Guardian',
+              'preferredLanguage': 'Hausa',
+              'readinessLabel': 'Voice-first beginner',
+              'village': 'Pod 9',
+              'guardianPhone': '',
+              'sex': 'Girl',
+              'baselineLevel': 'No prior exposure',
+              'consentCaptured': true,
+              'learnerCode': 'SAF-001',
+              'caregiverRelationship': 'Guardian',
+              'enrollmentStatus': 'Active',
+              'attendanceBand': 'Stable attendance',
+              'supportPlan': 'Prompt and praise.',
+              'lastLessonSummary': 'Ready',
+              'lastAttendance': 'Checked in today',
+            },
+          ],
+          'modules': const [],
+          'assignedLessons': const [],
+          'assignmentPacks': const [],
+          'registrationContext': {
+            'tabletRegistration': {
+              'id': 'device-1',
+              'deviceIdentifier': 'lumo-tablet-kano-01',
+              'podId': 'pod-1',
+              'podLabel': 'Pod 1',
+              'mallamId': 'mallam-1',
+              'mallamName': 'Mallam Idris',
+            },
+          },
+          'usingFallbackData': true,
+          'snapshotTrustedFromLiveBootstrap': true,
+        }),
+      });
+
+      final restored = LumoAppState(includeSeedDemoContent: false);
+      await restored.restorePersistedState();
+
+      expect(restored.learners, hasLength(1));
+      expect(restored.learners.single.podId, 'pod-1');
+      expect(restored.learners.single.podLabel, 'Pod 1');
+      restored.dispose();
+    });
+
+    test('persists tablet registration inside registration context snapshots',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'device-1',
+          deviceIdentifier: 'lumo-tablet-kano-01',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+          mallamId: 'mallam-1',
+          mallamName: 'Mallam Idris',
+        ),
+      );
+
+      await state.flushPersistence();
+      state.dispose();
+
+      final restored = LumoAppState(includeSeedDemoContent: false);
+      await restored.restorePersistedState();
+
+      expect(restored.registrationContext.tabletRegistration, isNotNull);
+      expect(restored.tabletPodId, 'pod-1');
+      expect(restored.tabletPodLabel, 'Pod 1');
+      restored.dispose();
+    });
+
+    test(
+        'tablet pod label does not fall back to cohort names when canonical pod label is missing',
+        () {
       final state = LumoAppState(includeSeedDemoContent: false);
       state.registrationContext = const RegistrationContext(
         cohorts: [
