@@ -48,8 +48,7 @@ class LumoApp extends StatefulWidget {
 
 class _LumoAppState extends State<LumoApp> {
   late final bool _ownsState = widget.stateOverride == null;
-  late final LumoAppState state =
-      widget.stateOverride ??
+  late final LumoAppState state = widget.stateOverride ??
       LumoAppState(includeSeedDemoContent: widget.includeSeedDemoContent);
   late final VoiceReplayService voiceReplayService = VoiceReplayService(
     apiClient: LumoApiClient(baseUrl: state.backendBaseUrl),
@@ -151,17 +150,17 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
       if (!mounted) return;
       final recoveredRoute =
           session.completionState == LessonCompletionState.complete
-          ? MaterialPageRoute(
-              builder: (_) =>
-                  LessonCompletePage(state: widget.state, lesson: lesson),
-            )
-          : MaterialPageRoute(
-              builder: (_) => LessonSessionPage(
-                state: widget.state,
-                lesson: lesson,
-                onChanged: widget.onChanged,
-              ),
-            );
+              ? MaterialPageRoute(
+                  builder: (_) =>
+                      LessonCompletePage(state: widget.state, lesson: lesson),
+                )
+              : MaterialPageRoute(
+                  builder: (_) => LessonSessionPage(
+                    state: widget.state,
+                    lesson: lesson,
+                    onChanged: widget.onChanged,
+                  ),
+                );
       Navigator.of(context).push(recoveredRoute);
     });
   }
@@ -290,8 +289,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final blockerReason =
-        state.deploymentBlockerReason ??
+    final blockerReason = state.deploymentBlockerReason ??
         state.backendError ??
         'Learner bootstrap could not reach the production backend.';
     final configuredBackend = state.backendBaseUrl;
@@ -721,15 +719,14 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
         final availableLessonCount = state
             .lessonsForLearnerAndSubject(learner, subject.id)
             .where((lesson) {
-              if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
-                return false;
-              }
-              if (learner != null || state.learners.isEmpty) {
-                return true;
-              }
-              return state.availableLearnersForLesson(lesson).isNotEmpty;
-            })
-            .length;
+          if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
+            return false;
+          }
+          if (learner != null || state.learners.isEmpty) {
+            return true;
+          }
+          return state.availableLearnersForLesson(lesson).isNotEmpty;
+        }).length;
 
         return LearnerSubjectCardModel(
           id: subject.id,
@@ -738,8 +735,7 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
           voicePrompt: subject.voicePrompt,
           readinessGoal: subject.readinessGoal,
           badge: subject.badge,
-          module:
-              state.primaryModuleForSubject(
+          module: state.primaryModuleForSubject(
                 learner: learner,
                 subjectId: subject.id,
               ) ??
@@ -1090,8 +1086,7 @@ class HomePage extends StatelessWidget {
     final viewportHeight = viewportSize.height;
     final viewportWidth = viewportSize.width;
     final ultraShortHeight = viewportHeight <= 560;
-    final hasSyncWarnings =
-        state.usingFallbackData ||
+    final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null;
     final canAffordTrustBanner = viewportWidth >= 700 && viewportHeight >= 900;
@@ -1267,16 +1262,17 @@ class HomePage extends StatelessWidget {
                                 final headline = state.isBootstrapping
                                     ? 'Refreshing live subjects for this tablet.'
                                     : 'No live subjects are ready on this tablet yet.';
-                                final detail =
-                                    state.registrationBlockerReason != null
+                                final detail = state
+                                            .registrationBlockerReason !=
+                                        null
                                     ? '${state.registrationBlockerReason!} Fix the roster feed before expecting learner-ready subjects.'
                                     : assignmentGapCount > 0
-                                    ? assignmentGapCount == 1
-                                          ? '1 assigned lesson is still only a placeholder. Refresh sync after the publish finishes so learners do not hit a dead-end card.'
-                                          : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync after publish finishes so learners do not hit a dead-end card.'
-                                    : state.usingFallbackData
-                                    ? 'The tablet is running on fallback data and there are still no learner-safe published subjects to show. Refresh live sync before handoff.'
-                                    : 'Publish at least one learner-safe subject with live lesson content before handing the tablet to a learner.';
+                                        ? assignmentGapCount == 1
+                                            ? '1 assigned lesson is still only a placeholder. Refresh sync after the publish finishes so learners do not hit a dead-end card.'
+                                            : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync after publish finishes so learners do not hit a dead-end card.'
+                                        : state.usingFallbackData
+                                            ? 'The tablet is running on fallback data and there are still no learner-safe published subjects to show. Refresh live sync before handoff.'
+                                            : 'Publish at least one learner-safe subject with live lesson content before handing the tablet to a learner.';
 
                                 return Center(
                                   child: ConstrainedBox(
@@ -1401,49 +1397,48 @@ class HomePage extends StatelessWidget {
 
                               final minTileWidth = compact ? 210.0 : 260.0;
                               final crossAxisSpacing = compact ? 10.0 : 14.0;
-                              final preferredSingleRowCount =
-                                  !compact &&
+                              final preferredSingleRowCount = !compact &&
                                       subjectCards.length <= 4 &&
                                       subjectCards.isNotEmpty
                                   ? subjectCards.length
                                   : 0;
-                              final singleRowTileWidth = compact
-                                  ? 210.0
-                                  : 220.0;
+                              final singleRowTileWidth =
+                                  compact ? 210.0 : 220.0;
                               final shouldForceSingleRowSubjectStrip =
                                   preferredSingleRowCount > 0 &&
-                                  subjectConstraints.maxWidth >=
-                                      ((singleRowTileWidth *
-                                              preferredSingleRowCount) +
-                                          (crossAxisSpacing *
-                                              (preferredSingleRowCount - 1)));
+                                      subjectConstraints.maxWidth >=
+                                          ((singleRowTileWidth *
+                                                  preferredSingleRowCount) +
+                                              (crossAxisSpacing *
+                                                  (preferredSingleRowCount -
+                                                      1)));
                               final adaptiveCrossAxisCount = _adaptiveGridCount(
                                 subjectConstraints.maxWidth,
                                 minTileWidth: minTileWidth,
                                 maxCount: shouldForceSingleRowSubjectStrip
                                     ? preferredSingleRowCount
                                     : shortHeight
-                                    ? (compact ? 2 : 3)
-                                    : 3,
+                                        ? (compact ? 2 : 3)
+                                        : 3,
                               );
                               final crossAxisCount =
                                   shouldForceSingleRowSubjectStrip
-                                  ? preferredSingleRowCount
-                                  : adaptiveCrossAxisCount;
+                                      ? preferredSingleRowCount
+                                      : adaptiveCrossAxisCount;
 
                               final aspectRatio = ultraShortHeight
                                   ? 1.02
                                   : shortHeight
-                                  ? (subjectConstraints.maxWidth < 700
-                                        ? 1.48
-                                        : subjectConstraints.maxWidth < 1100
-                                        ? 1.6
-                                        : 1.72)
-                                  : (subjectConstraints.maxWidth < 700
-                                        ? 1.34
-                                        : subjectConstraints.maxWidth < 1100
-                                        ? 1.42
-                                        : 1.48);
+                                      ? (subjectConstraints.maxWidth < 700
+                                          ? 1.48
+                                          : subjectConstraints.maxWidth < 1100
+                                              ? 1.6
+                                              : 1.72)
+                                      : (subjectConstraints.maxWidth < 700
+                                          ? 1.34
+                                          : subjectConstraints.maxWidth < 1100
+                                              ? 1.42
+                                              : 1.48);
 
                               final preferredTileWidth = shortHeight
                                   ? (compact ? 214.0 : 292.0)
@@ -1466,13 +1461,13 @@ class HomePage extends StatelessWidget {
                                     shrinkWrap: false,
                                     gridDelegate:
                                         SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: crossAxisCount,
-                                          mainAxisSpacing: shortHeight
-                                              ? (compact ? 6 : 8)
-                                              : (compact ? 12 : 14),
-                                          crossAxisSpacing: crossAxisSpacing,
-                                          childAspectRatio: aspectRatio,
-                                        ),
+                                      crossAxisCount: crossAxisCount,
+                                      mainAxisSpacing: shortHeight
+                                          ? (compact ? 6 : 8)
+                                          : (compact ? 12 : 14),
+                                      crossAxisSpacing: crossAxisSpacing,
+                                      childAspectRatio: aspectRatio,
+                                    ),
                                     itemBuilder: (context, index) {
                                       final subject = subjectCards[index];
                                       return _SubjectCard(
@@ -1495,13 +1490,13 @@ class HomePage extends StatelessWidget {
                                             MaterialPageRoute(
                                               builder: (_) =>
                                                   SubjectModulesPage(
-                                                    state: state,
-                                                    onChanged: onChanged,
-                                                    module: subject.module,
-                                                    subjectTitle: subject.title,
-                                                    subjectKey: subject.id,
-                                                    forceUnscopedLessons: true,
-                                                  ),
+                                                state: state,
+                                                onChanged: onChanged,
+                                                module: subject.module,
+                                                subjectTitle: subject.title,
+                                                subjectKey: subject.id,
+                                                forceUnscopedLessons: true,
+                                              ),
                                             ),
                                           );
                                         },
@@ -1621,8 +1616,8 @@ class _HomeTrustBanner extends StatelessWidget {
     final compactWarning = registrationBlocked != null
         ? '$registrationBlocked Fix backend reachability first.'
         : assignmentGapCount == 1
-        ? '1 assigned lesson is still a placeholder. Refresh sync before launch.'
-        : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync before launch.';
+            ? '1 assigned lesson is still a placeholder. Refresh sync before launch.'
+            : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync before launch.';
 
     return Container(
       width: double.infinity,
@@ -1880,8 +1875,8 @@ class _HomeTrustBanner extends StatelessWidget {
                       registrationBlocked != null
                           ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
                           : assignmentGapCount == 1
-                          ? '1 assigned lesson is still only a placeholder on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
-                          : '$assignmentGapCount assigned lessons are still placeholders on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
+                              ? '1 assigned lesson is still only a placeholder on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                              : '$assignmentGapCount assigned lessons are still placeholders on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
                       style: const TextStyle(
                         color: Color(0xFF7C2D12),
                         height: 1.4,
@@ -2030,9 +2025,15 @@ String _buildLearnerHumanMoment(LearnerProfile learner) {
 String _buildHomeMallamReplayPrompt(LumoAppState state) {
   final learner = state.suggestedLearnerForHome;
   final nextLesson = state.nextAssignedLessonForLearner(learner);
-  final module = learner == null
+  final module =
+      learner == null ? null : state.recommendedModuleForLearner(learner);
+  final subjectTitle = module == null
       ? null
-      : state.recommendedModuleForLearner(learner);
+      : _resolvedSubjectTitleForModule(
+          state: state,
+          module: module,
+          learner: learner,
+        );
   final greeting = _timeAwareMallamGreeting();
   final registrationBlocked = state.registrationBlockerReason != null;
 
@@ -2045,11 +2046,11 @@ String _buildHomeMallamReplayPrompt(LumoAppState state) {
   final learnerName = learner.name.split(' ').first;
   final learnerMoment = _buildLearnerHumanMoment(learner);
   if (nextLesson != null) {
-    return '$greeting $learnerName is ready for ${nextLesson.title}. $learnerMoment Tap Student List to open learner cards, or open ${module?.title ?? nextLesson.subject} to continue the lesson path.';
+    return '$greeting $learnerName is ready for ${nextLesson.title}. $learnerMoment Tap Student List to open learner cards, or open ${subjectTitle ?? nextLesson.subject} to continue the lesson path.';
   }
 
   if (module != null) {
-    return '$greeting $learnerName is ready to keep learning. $learnerMoment Tap Student List to open learner cards, or choose ${module.title} to keep the next lesson moving.';
+    return '$greeting $learnerName is ready to keep learning. $learnerMoment Tap Student List to open learner cards, or choose ${subjectTitle ?? module.title} to keep the next lesson moving.';
   }
 
   return '$greeting $learnerName is on the home page. $learnerMoment Tap Register to add another learner, Student List to see all learners, or choose a subject to see its lessons.';
@@ -2073,38 +2074,43 @@ class _HomeMallamStage extends StatelessWidget {
         final shortHeight = constraints.maxHeight < 280;
         final learner = state.suggestedLearnerForHome;
         final nextLesson = state.nextAssignedLessonForLearner(learner);
-        final module = learner == null
+        final module =
+            learner == null ? null : state.recommendedModuleForLearner(learner);
+        final subjectTitle = module == null
             ? null
-            : state.recommendedModuleForLearner(learner);
+            : _resolvedSubjectTitleForModule(
+                state: state,
+                module: module,
+                learner: learner,
+              );
         final learnerName = learner?.name.split(' ').first;
-        final learnerMoment = learner == null
-            ? null
-            : _buildLearnerHumanMoment(learner);
+        final learnerMoment =
+            learner == null ? null : _buildLearnerHumanMoment(learner);
         final showCompactSummary = constraints.maxHeight < 340;
         final showSummaryChips =
             constraints.maxWidth >= 620 && !showCompactSummary;
         final summaryTitle = learnerName == null
             ? 'Mallam is ready to welcome the next learner.'
             : nextLesson != null
-            ? 'Mallam is ready for $learnerName\'s next step.'
-            : '$learnerName is back on the mat.';
+                ? 'Mallam is ready for $learnerName\'s next step.'
+                : '$learnerName is back on the mat.';
         final summaryBody = showCompactSummary
             ? learnerName == null
-                  ? 'Register or open Student list, then choose a subject.'
-                  : nextLesson != null
-                  ? 'Open ${module?.title ?? nextLesson.subject} to keep $learnerName moving.'
-                  : 'Open ${module?.title ?? 'a subject'} to keep $learnerName learning.'
+                ? 'Register or open Student list, then choose a subject.'
+                : nextLesson != null
+                    ? 'Open ${subjectTitle ?? nextLesson.subject} to keep $learnerName moving.'
+                    : 'Open ${subjectTitle ?? 'a subject'} to keep $learnerName learning.'
             : learnerName == null
-            ? 'Register a learner or open Student list, then choose a subject to keep the tablet moving.'
-            : nextLesson != null
-            ? '$learnerName can jump straight into ${nextLesson.title}. Open ${module?.title ?? nextLesson.subject} to keep the flow calm and continuous.'
-            : 'Open ${module?.title ?? 'a subject'} to keep $learnerName learning without hunting around the tablet.';
+                ? 'Register a learner or open Student list, then choose a subject to keep the tablet moving.'
+                : nextLesson != null
+                    ? '$learnerName can jump straight into ${nextLesson.title}. Open ${subjectTitle ?? nextLesson.subject} to keep the flow calm and continuous.'
+                    : 'Open ${subjectTitle ?? 'a subject'} to keep $learnerName learning without hunting around the tablet.';
         final portraitSize = math.min(
           shortHeight
               ? 176.0
               : compact
-              ? 238.0
-              : 332.0,
+                  ? 238.0
+                  : 332.0,
           math.max(132.0, constraints.maxHeight - (compact ? 18.0 : 20.0)),
         );
 
@@ -2216,15 +2222,14 @@ class AllStudentsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final leaderboard = buildLearnerLeaderboard(state.learners);
     final topLearner = leaderboard.firstOrNull;
-    final unsyncedLearners = state.learners
-        .where(_learnerNeedsBackendSync)
-        .toList(growable: false);
+    final unsyncedLearners =
+        state.learners.where(_learnerNeedsBackendSync).toList(growable: false);
     final averagePoints = state.learners.isEmpty
         ? 0
         : state.learners
-                  .map(learnerMotivationPoints)
-                  .reduce((value, item) => value + item) ~/
-              state.learners.length;
+                .map(learnerMotivationPoints)
+                .reduce((value, item) => value + item) ~/
+            state.learners.length;
 
     return Scaffold(
       body: SafeArea(
@@ -2240,10 +2245,10 @@ class AllStudentsPage extends StatelessWidget {
             final childAspectRatio = availableWidth < 520
                 ? 0.8
                 : availableWidth < 900
-                ? 0.78
-                : availableWidth < 1280
-                ? 0.92
-                : 1.02;
+                    ? 0.78
+                    : availableWidth < 1280
+                        ? 0.92
+                        : 1.02;
             final headingWidth = availableWidth < 520 ? availableWidth : 520.0;
 
             return SingleChildScrollView(
@@ -2329,8 +2334,8 @@ class AllStudentsPage extends StatelessWidget {
                               unsyncedLearners.isNotEmpty
                                   ? '${unsyncedLearners.length} learner ${unsyncedLearners.length == 1 ? 'still needs' : 'still need'} backend sync. Their cards are marked clearly so Mallam does not mistake local-only profiles for confirmed roster records.'
                                   : topLearner == null
-                                  ? 'Open any learner card to view rewards, streaks, and assigned lessons.'
-                                  : '${topLearner.learner.name} is leading the board right now. Tap Profile for the full reward view or Start assigned to continue momentum.',
+                                      ? 'Open any learner card to view rewards, streaks, and assigned lessons.'
+                                      : '${topLearner.learner.name} is leading the board right now. Tap Profile for the full reward view or Start assigned to continue momentum.',
                               style: const TextStyle(
                                 color: Color(0xFF475569),
                                 height: 1.4,
@@ -2434,8 +2439,8 @@ class AllStudentsPage extends StatelessWidget {
                             );
                           },
                           onStartLesson: () {
-                            final nextLesson = state
-                                .nextAssignedLessonForLearner(learner);
+                            final nextLesson =
+                                state.nextAssignedLessonForLearner(learner);
                             if (nextLesson == null) return;
                             state.selectLearner(learner);
                             onChanged();
@@ -2782,6 +2787,11 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final nextLesson = state.nextAssignedLessonForLearner(learner);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
     final recommendedModule = state.recommendedModuleForLearner(learner);
+    final recommendedSubjectTitle = _resolvedSubjectTitleForModule(
+      state: state,
+      module: recommendedModule,
+      learner: learner,
+    );
     final recentSessions = state.recentRuntimeSessionsForLearner(learner);
     final resumableSession = state.resumableRuntimeSessionForLearner(learner);
     final leaderboard = buildLearnerLeaderboard(state.learners);
@@ -3003,18 +3013,18 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           ),
                                         ]
                                       : rewards.badges
-                                            .take(6)
-                                            .map(
-                                              (badge) => StatusPill(
-                                                text: badge.earned
-                                                    ? '${badge.icon} ${badge.title}'
-                                                    : '${badge.title} ${badge.progress}/${badge.target}',
-                                                color: badge.earned
-                                                    ? LumoTheme.accentGreen
-                                                    : LumoTheme.accentOrange,
-                                              ),
-                                            )
-                                            .toList(),
+                                          .take(6)
+                                          .map(
+                                            (badge) => StatusPill(
+                                              text: badge.earned
+                                                  ? '${badge.icon} ${badge.title}'
+                                                  : '${badge.title} ${badge.progress}/${badge.target}',
+                                              color: badge.earned
+                                                  ? LumoTheme.accentGreen
+                                                  : LumoTheme.accentOrange,
+                                            ),
+                                          )
+                                          .toList(),
                                 ),
                               ],
                             ),
@@ -3034,8 +3044,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                             history: state.rewardRedemptionHistoryForLearner(
                               learner,
                             ),
-                            spendablePoints: state
-                                .spendableRewardPointsForLearner(learner),
+                            spendablePoints:
+                                state.spendableRewardPointsForLearner(learner),
                           ),
                           const SizedBox(height: 18),
                         ],
@@ -3121,7 +3131,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                               const SizedBox(height: 12),
                               InfoRow(
                                 label: 'Recommended subject',
-                                value: recommendedModule.title,
+                                value: recommendedSubjectTitle,
                               ),
                               if (nextAssignmentPack != null) ...[
                                 InfoRow(
@@ -3130,8 +3140,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                 ),
                                 InfoRow(
                                   label: 'Assessment',
-                                  value:
-                                      nextAssignmentPack.assessmentTitle ??
+                                  value: nextAssignmentPack.assessmentTitle ??
                                       'No assessment gate',
                                 ),
                               ],
@@ -3173,9 +3182,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                               ),
                               if (recentSessions.isNotEmpty) ...[
                                 const SizedBox(height: 12),
-                                ...recentSessions
-                                    .take(3)
-                                    .map(
+                                ...recentSessions.take(3).map(
                                       (session) => Container(
                                         width: double.infinity,
                                         margin: const EdgeInsets.only(
@@ -3210,8 +3217,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                 ),
                                                 StatusPill(
                                                   text: session.statusLabel,
-                                                  color:
-                                                      session.status ==
+                                                  color: session.status ==
                                                           'completed'
                                                       ? LumoTheme.accentGreen
                                                       : LumoTheme.accentOrange,
@@ -3258,8 +3264,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                   onPressed: () {
                                                     final resumeLesson = state
                                                         .lessonForBackendSession(
-                                                          session,
-                                                        );
+                                                      session,
+                                                    );
                                                     if (resumeLesson == null) {
                                                       ScaffoldMessenger.of(
                                                         context,
@@ -3323,8 +3329,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                     text: assignedLessons.isEmpty
                                         ? 'None yet'
                                         : hiddenAssignedLessonCount > 0
-                                        ? '${assignedLessons.length} of ${allAssignedLessons.length} shown'
-                                        : '${assignedLessons.length} shown',
+                                            ? '${assignedLessons.length} of ${allAssignedLessons.length} shown'
+                                            : '${assignedLessons.length} shown',
                                     color: assignedLessons.isEmpty
                                         ? const Color(0xFF94A3B8)
                                         : LumoTheme.accentOrange,
@@ -3386,7 +3392,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             resumableSession == null
                                                 ? Icons.play_arrow_rounded
                                                 : Icons
-                                                      .play_circle_fill_rounded,
+                                                    .play_circle_fill_rounded,
                                           ),
                                           label: Text(
                                             resumableSession == null
@@ -3434,16 +3440,16 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             StatusPill(
                                               text:
                                                   lesson.isAssignmentPlaceholder
-                                                  ? 'Sync first'
-                                                  : matchesResumableSession
-                                                  ? 'Resume ready'
-                                                  : 'Ready',
-                                              color:
-                                                  lesson.isAssignmentPlaceholder
+                                                      ? 'Sync first'
+                                                      : matchesResumableSession
+                                                          ? 'Resume ready'
+                                                          : 'Ready',
+                                              color: lesson
+                                                      .isAssignmentPlaceholder
                                                   ? LumoTheme.accentOrange
                                                   : matchesResumableSession
-                                                  ? LumoTheme.primary
-                                                  : LumoTheme.accentGreen,
+                                                      ? LumoTheme.primary
+                                                      : LumoTheme.accentGreen,
                                             ),
                                           ],
                                         ),
@@ -3465,36 +3471,37 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           child: FilledButton.tonalIcon(
                                             onPressed:
                                                 lesson.isAssignmentPlaceholder
-                                                ? null
-                                                : () {
-                                                    state.selectLearner(
-                                                      learner,
-                                                    );
-                                                    launchLessonFlow(
-                                                      context: context,
-                                                      state: state,
-                                                      onChanged: () {},
-                                                      lesson: lesson,
-                                                      resumeFrom:
-                                                          matchesResumableSession
-                                                          ? resumableSession
-                                                          : null,
-                                                    );
-                                                  },
+                                                    ? null
+                                                    : () {
+                                                        state.selectLearner(
+                                                          learner,
+                                                        );
+                                                        launchLessonFlow(
+                                                          context: context,
+                                                          state: state,
+                                                          onChanged: () {},
+                                                          lesson: lesson,
+                                                          resumeFrom:
+                                                              matchesResumableSession
+                                                                  ? resumableSession
+                                                                  : null,
+                                                        );
+                                                      },
                                             icon: Icon(
                                               lesson.isAssignmentPlaceholder
                                                   ? Icons.sync_rounded
                                                   : matchesResumableSession
-                                                  ? Icons
-                                                        .play_circle_fill_rounded
-                                                  : Icons.open_in_new_rounded,
+                                                      ? Icons
+                                                          .play_circle_fill_rounded
+                                                      : Icons
+                                                          .open_in_new_rounded,
                                             ),
                                             label: Text(
                                               lesson.isAssignmentPlaceholder
                                                   ? 'Refresh sync before starting'
                                                   : matchesResumableSession
-                                                  ? 'Resume lesson'
-                                                  : 'Open lesson',
+                                                      ? 'Resume lesson'
+                                                      : 'Open lesson',
                                             ),
                                           ),
                                         ),
@@ -3583,20 +3590,18 @@ class SubjectModulesPage extends StatelessWidget {
     String? subjectTitle,
     String? subjectKey,
     this.forceUnscopedLessons = false,
-  }) : subjectTitle =
-           subjectTitle ??
-           _resolvedSubjectTitleForModule(
-             state: state,
-             module: module,
-             learner: forceUnscopedLessons ? null : state.currentLearner,
-           ),
-       subjectKey =
-           subjectKey ??
-           _resolvedSubjectKeyForModule(
-             state: state,
-             module: module,
-             learner: forceUnscopedLessons ? null : state.currentLearner,
-           );
+  })  : subjectTitle = subjectTitle ??
+            _resolvedSubjectTitleForModule(
+              state: state,
+              module: module,
+              learner: forceUnscopedLessons ? null : state.currentLearner,
+            ),
+        subjectKey = subjectKey ??
+            _resolvedSubjectKeyForModule(
+              state: state,
+              module: module,
+              learner: forceUnscopedLessons ? null : state.currentLearner,
+            );
 
   LessonCardModel? _resolveHighlightedLesson(List<LessonCardModel> lessons) {
     if (lessons.isEmpty) return null;
@@ -3608,9 +3613,9 @@ class SubjectModulesPage extends StatelessWidget {
       );
       if (learnerPreferred != null) {
         final inSubjectMatch = lessons.cast<LessonCardModel?>().firstWhere(
-          (lesson) => lesson?.id == learnerPreferred.id,
-          orElse: () => null,
-        );
+              (lesson) => lesson?.id == learnerPreferred.id,
+              orElse: () => null,
+            );
         if (inSubjectMatch != null) return inSubjectMatch;
       }
 
@@ -3636,24 +3641,24 @@ class SubjectModulesPage extends StatelessWidget {
       for (final lesson in lessons) {
         final learners = state.availableLearnersForLesson(lesson);
         final matchingLearner = learners.cast<LearnerProfile?>().firstWhere(
-          (learner) =>
-              learner != null &&
-              learnerLessonAvailability(
-                    state: state,
-                    learner: learner,
-                    lesson: lesson,
-                  ).kind ==
-                  kind,
-          orElse: () => null,
-        );
+              (learner) =>
+                  learner != null &&
+                  learnerLessonAvailability(
+                        state: state,
+                        learner: learner,
+                        lesson: lesson,
+                      ).kind ==
+                      kind,
+              orElse: () => null,
+            );
         if (matchingLearner != null) return lesson;
       }
     }
 
     return lessons.cast<LessonCardModel?>().firstWhere(
-      (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
-      orElse: () => lessons.first,
-    );
+          (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
+          orElse: () => lessons.first,
+        );
   }
 
   @override
@@ -3662,29 +3667,28 @@ class SubjectModulesPage extends StatelessWidget {
     final lessons = state
         .lessonsForLearnerAndSubject(scopedLearner, subjectKey)
         .where((lesson) {
-          if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
-            return false;
-          }
-          if (scopedLearner != null) {
-            return learnerLessonAvailability(
-              state: state,
-              learner: scopedLearner,
-              lesson: lesson,
-            ).canLaunch;
-          }
-          return state.availableLearnersForLesson(lesson).isNotEmpty;
-        })
-        .toList();
+      if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
+        return false;
+      }
+      if (scopedLearner != null) {
+        return learnerLessonAvailability(
+          state: state,
+          learner: scopedLearner,
+          lesson: lesson,
+        ).canLaunch;
+      }
+      return state.availableLearnersForLesson(lesson).isNotEmpty;
+    }).toList();
     final nextAssignedLesson = _resolveHighlightedLesson(lessons);
     final registrationBlocked = state.registrationBlockerReason;
     final usingFallbackData = state.usingFallbackData;
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
-      (lesson) => lesson?.id == nextAssignedLesson?.id,
-      orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
-        (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
-        orElse: () => lessons.isNotEmpty ? lessons.first : null,
-      ),
-    );
+          (lesson) => lesson?.id == nextAssignedLesson?.id,
+          orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
+                (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
+                orElse: () => lessons.isNotEmpty ? lessons.first : null,
+              ),
+        );
 
     void openLesson(LessonCardModel lesson) {
       if (lesson.isAssignmentPlaceholder) return;
@@ -3763,12 +3767,12 @@ class SubjectModulesPage extends StatelessWidget {
 
                             Widget buildJourneyPath() {
                               if (lessons.isEmpty) {
-                                final emptyStateMessage =
-                                    registrationBlocked != null
+                                final emptyStateMessage = registrationBlocked !=
+                                        null
                                     ? '$registrationBlocked Refresh live sync before reopening $subjectTitle so the learner-safe lesson path can load.'
                                     : usingFallbackData
-                                    ? 'This tablet is still leaning on fallback content and $subjectTitle does not have a learner-safe lesson path yet. Refresh live sync before handing it over.'
-                                    : '$subjectTitle is visible, but its learner-safe lesson path has not landed on this tablet yet. Refresh live sync or reopen the student list before launch.';
+                                        ? 'This tablet is still leaning on fallback content and $subjectTitle does not have a learner-safe lesson path yet. Refresh live sync before handing it over.'
+                                        : '$subjectTitle is visible, but its learner-safe lesson path has not landed on this tablet yet. Refresh live sync or reopen the student list before launch.';
 
                                 return SoftPanel(
                                   child: Column(
@@ -3881,8 +3885,7 @@ class SubjectModulesPage extends StatelessWidget {
                                                 highlightedLesson?.id,
                                             nextLessonId:
                                                 nextAssignedLesson?.id,
-                                            onTap:
-                                                lessons[i]
+                                            onTap: lessons[i]
                                                     .isAssignmentPlaceholder
                                                 ? null
                                                 : () => openLesson(lessons[i]),
@@ -4000,9 +4003,8 @@ class _LessonJourneyStepCard extends StatelessWidget {
       syncPending: syncPending,
       emphasized: isHighlighted || isNext,
     );
-    final labelColor = syncPending
-        ? const Color(0xFF92400E)
-        : const Color(0xFF0F172A);
+    final labelColor =
+        syncPending ? const Color(0xFF92400E) : const Color(0xFF0F172A);
 
     return SizedBox(
       width: 170,
@@ -4088,10 +4090,10 @@ class _LessonJourneyStepCard extends StatelessWidget {
                   syncPending
                       ? 'Waiting for sync'
                       : isNext
-                      ? 'Start next lesson'
-                      : isHighlighted
-                      ? 'Ready now'
-                      : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
+                          ? 'Start next lesson'
+                          : isHighlighted
+                              ? 'Ready now'
+                              : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -4102,8 +4104,8 @@ class _LessonJourneyStepCard extends StatelessWidget {
                     color: syncPending
                         ? const Color(0xFFB45309)
                         : isNext || isHighlighted
-                        ? palette.first
-                        : const Color(0xFF64748B),
+                            ? palette.first
+                            : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -4286,6 +4288,17 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  String? _safeDropdownInitialValue(
+    String rawValue,
+    Iterable<String> allowedValues,
+  ) {
+    final trimmed = rawValue.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    return allowedValues.contains(trimmed) ? trimmed : null;
+  }
+
   Future<void> _captureProfilePhoto() async {
     try {
       final photo = await _imagePicker.pickImage(
@@ -4341,6 +4354,10 @@ class _RegisterPageState extends State<RegisterPage> {
       mallamId: selectedMallamId,
     );
     final recommendedModule = widget.state.recommendedModuleForDraft;
+    final recommendedSubjectTitle = _resolvedSubjectTitleForModule(
+      state: widget.state,
+      module: recommendedModule,
+    );
     final registrationTarget = widget.state.registrationTargetForDraft;
 
     return Scaffold(
@@ -4387,8 +4404,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: DetailCard(
                   child: LayoutBuilder(
                     builder: (context, cardConstraints) {
-                      final compactCard =
-                          cardConstraints.maxWidth < 560 ||
+                      final compactCard = cardConstraints.maxWidth < 560 ||
                           cardConstraints.maxHeight < 900;
 
                       final formBody = Column(
@@ -4408,8 +4424,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                   widget.state.registrationContext.cohorts;
                               final cohortValue =
                                   cohortController.text.trim().isEmpty
-                                  ? null
-                                  : cohortController.text.trim();
+                                      ? null
+                                      : cohortController.text.trim();
                               final fields = [
                                 TextField(
                                   controller: ageController,
@@ -4429,13 +4445,12 @@ class _RegisterPageState extends State<RegisterPage> {
                                       )
                                     : DropdownButtonFormField<String>(
                                         isExpanded: true,
-                                        initialValue:
-                                            backendCohorts.any(
-                                              (cohort) =>
-                                                  cohort.name == cohortValue,
-                                            )
-                                            ? cohortValue
-                                            : null,
+                                        initialValue: _safeDropdownInitialValue(
+                                          cohortValue ?? '',
+                                          backendCohorts.map(
+                                            (cohort) => cohort.name,
+                                          ),
+                                        ),
                                         items: backendCohorts
                                             .map(
                                               (cohort) => DropdownMenuItem(
@@ -4498,9 +4513,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
                               return DropdownButtonFormField<String>(
                                 isExpanded: true,
-                                initialValue: hasSelectedMallam
-                                    ? selectedMallamId
-                                    : null,
+                                initialValue: _safeDropdownInitialValue(
+                                  hasSelectedMallam ? selectedMallamId : '',
+                                  mallams.map((mallam) => mallam.id),
+                                ),
                                 items: mallams
                                     .map(
                                       (mallam) => DropdownMenuItem(
@@ -4539,7 +4555,16 @@ class _RegisterPageState extends State<RegisterPage> {
                               final fields = [
                                 DropdownButtonFormField<String>(
                                   isExpanded: true,
-                                  initialValue: caregiverRelationship,
+                                  initialValue: _safeDropdownInitialValue(
+                                    caregiverRelationship,
+                                    const [
+                                      'Mother',
+                                      'Father',
+                                      'Aunt',
+                                      'Uncle',
+                                      'Guardian',
+                                    ],
+                                  ),
                                   items: const [
                                     DropdownMenuItem(
                                       value: 'Mother',
@@ -4624,7 +4649,10 @@ class _RegisterPageState extends State<RegisterPage> {
                               final fields = [
                                 DropdownButtonFormField<String>(
                                   isExpanded: true,
-                                  initialValue: sex,
+                                  initialValue: _safeDropdownInitialValue(
+                                    sex,
+                                    const ['Boy', 'Girl'],
+                                  ),
                                   items: const [
                                     DropdownMenuItem(
                                       value: 'Boy',
@@ -4648,7 +4676,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                                 DropdownButtonFormField<String>(
                                   isExpanded: true,
-                                  initialValue: baselineLevel,
+                                  initialValue: _safeDropdownInitialValue(
+                                    baselineLevel,
+                                    const [
+                                      'No prior exposure',
+                                      'Can repeat with support',
+                                      'Answers with short sentences',
+                                    ],
+                                  ),
                                   items: const [
                                     DropdownMenuItem(
                                       value: 'No prior exposure',
@@ -4707,7 +4742,10 @@ class _RegisterPageState extends State<RegisterPage> {
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
                             isExpanded: true,
-                            initialValue: preferredLanguage,
+                            initialValue: _safeDropdownInitialValue(
+                              preferredLanguage,
+                              const ['Hausa', 'Hausa + English', 'English'],
+                            ),
                             items: const [
                               DropdownMenuItem(
                                 value: 'Hausa',
@@ -4736,7 +4774,14 @@ class _RegisterPageState extends State<RegisterPage> {
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
                             isExpanded: true,
-                            initialValue: readinessLabel,
+                            initialValue: _safeDropdownInitialValue(
+                              readinessLabel,
+                              const [
+                                'Voice-first beginner',
+                                'Ready for guided practice',
+                                'Confident responder',
+                              ],
+                            ),
                             items: const [
                               DropdownMenuItem(
                                 value: 'Voice-first beginner',
@@ -4926,7 +4971,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                       ),
                                       InfoRow(
                                         label: 'Recommended start',
-                                        value: recommendedModule.title,
+                                        value: recommendedSubjectTitle,
                                       ),
                                     ],
                                   ),
@@ -4952,8 +4997,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                       InfoRow(
                                         label: 'Backend target',
                                         value: widget
-                                            .state
-                                            .registrationTargetSummary,
+                                            .state.registrationTargetSummary,
                                       ),
                                       if (registrationTarget != null)
                                         InfoRow(
@@ -5006,14 +5050,14 @@ class _RegisterPageState extends State<RegisterPage> {
                       final saveButton = SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed:
-                              draft.isValid && widget.state.canRegisterLearner
+                          onPressed: draft.isValid &&
+                                  widget.state.canRegisterLearner
                               ? () async {
                                   syncDraft();
                                   setState(() {});
                                   try {
-                                    final learner = await widget.state
-                                        .registerLearner();
+                                    final learner =
+                                        await widget.state.registerLearner();
                                     if (!context.mounted) return;
                                     widget.onChanged();
                                     Navigator.of(context).pushReplacement(
@@ -5041,8 +5085,8 @@ class _RegisterPageState extends State<RegisterPage> {
                             widget.state.isRegisteringLearner
                                 ? 'Saving learner...'
                                 : registrationBlocker == null
-                                ? 'Save learner'
-                                : 'Backend required to save learner',
+                                    ? 'Save learner'
+                                    : 'Backend required to save learner',
                           ),
                         ),
                       );
@@ -5212,6 +5256,11 @@ class RegistrationSuccessPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recommendedModule = state.recommendedModuleForLearner(learner);
+    final recommendedSubjectTitle = _resolvedSubjectTitleForModule(
+      state: state,
+      module: recommendedModule,
+      learner: learner,
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -5256,7 +5305,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                         ('Language', learner.preferredLanguage),
                         ('Readiness', learner.readinessLabel),
                         ('Learner code', learner.learnerCode),
-                        ('Recommended start', recommendedModule.title),
+                        ('Recommended start', recommendedSubjectTitle),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -5348,21 +5397,17 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
         .toList(growable: false);
 
     if (normalizedTitle.isNotEmpty) {
-      final exactTitleMatch = candidates
-          .where((lesson) {
-            return lesson.title.trim().toLowerCase() == normalizedTitle;
-          })
-          .toList(growable: false);
+      final exactTitleMatch = candidates.where((lesson) {
+        return lesson.title.trim().toLowerCase() == normalizedTitle;
+      }).toList(growable: false);
       if (exactTitleMatch.length == 1) {
         return exactTitleMatch.first;
       }
 
-      final titleWithinModule = exactTitleMatch
-          .where((lesson) {
-            return normalizedModuleId.isNotEmpty &&
-                lesson.moduleId.trim().toLowerCase() == normalizedModuleId;
-          })
-          .toList(growable: false);
+      final titleWithinModule = exactTitleMatch.where((lesson) {
+        return normalizedModuleId.isNotEmpty &&
+            lesson.moduleId.trim().toLowerCase() == normalizedModuleId;
+      }).toList(growable: false);
       if (titleWithinModule.length == 1) {
         return titleWithinModule.first;
       }
@@ -5370,11 +5415,9 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
 
     if (normalizedModuleId.isEmpty) return null;
 
-    final moduleMatches = candidates
-        .where((lesson) {
-          return lesson.moduleId.trim().toLowerCase() == normalizedModuleId;
-        })
-        .toList(growable: false);
+    final moduleMatches = candidates.where((lesson) {
+      return lesson.moduleId.trim().toLowerCase() == normalizedModuleId;
+    }).toList(growable: false);
 
     return moduleMatches.length == 1 ? moduleMatches.first : null;
   }
@@ -5456,19 +5499,16 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
               constraints: const BoxConstraints(maxWidth: 1320),
               child: LayoutBuilder(
                 builder: (context, viewportConstraints) {
-                  final useCompactLayout =
-                      viewportConstraints.maxWidth < 760 ||
+                  final useCompactLayout = viewportConstraints.maxWidth < 760 ||
                       viewportConstraints.maxHeight < 900;
 
                   Widget buildLearnerGrid({required bool shrinkWrap}) {
-                    final learnerChoices = state.learners
-                        .where((learner) {
-                          return state.learnerMatchesTabletPod(learner) ||
-                              (_resumeLocksLearner &&
-                                  resumeLearner != null &&
-                                  learner.id == resumeLearner.id);
-                        })
-                        .toList(growable: false);
+                    final learnerChoices = state.learners.where((learner) {
+                      return state.learnerMatchesTabletPod(learner) ||
+                          (_resumeLocksLearner &&
+                              resumeLearner != null &&
+                              learner.id == resumeLearner.id);
+                    }).toList(growable: false);
                     final launchableLearnerCount = learnerChoices
                         .where(
                           (learner) => learnerLessonAvailability(
@@ -5492,8 +5532,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           final mainAxisExtent = constraints.maxWidth < 760
                               ? 310.0
                               : constraints.maxWidth < 1180
-                              ? 326.0
-                              : 340.0;
+                                  ? 326.0
+                                  : 340.0;
 
                           return GridView.builder(
                             padding: const EdgeInsets.only(bottom: 12),
@@ -5504,11 +5544,11 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 : null,
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  mainAxisSpacing: 12,
-                                  crossAxisSpacing: 12,
-                                  mainAxisExtent: mainAxisExtent,
-                                ),
+                              crossAxisCount: crossAxisCount,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              mainAxisExtent: mainAxisExtent,
+                            ),
                             itemBuilder: (context, index) {
                               final learner = learnerChoices[index];
                               final availability = learnerLessonAvailability(
@@ -5518,8 +5558,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                               );
                               final isSelected =
                                   selectedLearner?.id == learner.id;
-                              final isLockedOut =
-                                  (_resumeLocksLearner &&
+                              final isLockedOut = (_resumeLocksLearner &&
                                       resumeLearner != null &&
                                       learner.id != resumeLearner.id) ||
                                   !availability.canLaunch;
@@ -5680,13 +5719,13 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                             );
                                           }
                                         : state.isBootstrapping
-                                        ? null
-                                        : () async {
-                                            await state.bootstrap();
-                                            widget.onChanged();
-                                            if (!mounted) return;
-                                            setState(() {});
-                                          },
+                                            ? null
+                                            : () async {
+                                                await state.bootstrap();
+                                                widget.onChanged();
+                                                if (!mounted) return;
+                                                setState(() {});
+                                              },
                                     icon: Icon(
                                       registrationBlocker == null
                                           ? Icons.person_add_alt_1_rounded
@@ -5696,8 +5735,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                       registrationBlocker == null
                                           ? 'Register first learner'
                                           : state.isBootstrapping
-                                          ? 'Refreshing live sync…'
-                                          : 'Refresh live sync',
+                                              ? 'Refreshing live sync…'
+                                              : 'Refresh live sync',
                                     ),
                                   ),
                                 ),
@@ -5868,8 +5907,8 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             syncPendingLesson
                                 ? '${lesson.title} is still waiting for the real lesson payload to sync to this tablet. Keep the assignment visible, but do not start runtime until the full lesson content lands.'
                                 : _resumeLocksLearner
-                                ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
-                                : 'Pick which available learner is taking ${lesson.title}. Shared-tablet handoff happens here so the lesson starts under the right learner.',
+                                    ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
+                                    : 'Pick which available learner is taking ${lesson.title}. Shared-tablet handoff happens here so the lesson starts under the right learner.',
                             style: const TextStyle(
                               color: Color(0xFF475569),
                               height: 1.45,
@@ -5989,10 +6028,10 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 (() {
                                   final availability =
                                       learnerLessonAvailability(
-                                        state: state,
-                                        learner: selectedLearner!,
-                                        lesson: lesson,
-                                      );
+                                    state: state,
+                                    learner: selectedLearner!,
+                                    lesson: lesson,
+                                  );
                                   if (_resumeLocksLearner) {
                                     return '${selectedLearner!.name} is locked for this resume session.';
                                   }
@@ -6034,28 +6073,28 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             await _refreshSyncPendingLesson();
                           }
                         : state.availableLearnersForLesson(lesson).isEmpty ||
-                              resumeMissingLearner ||
-                              selectedAvailability?.canLaunch != true
-                        ? null
-                        : () {
-                            final learner = selectedLearner!;
-                            state.selectLearner(learner);
-                            state.selectModule(widget.module);
-                            widget.onChanged();
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => LessonCountdownPage(
-                                  state: state,
-                                  onChanged: widget.onChanged,
-                                  learner: learner,
-                                  lesson: lesson,
-                                  resumeFrom:
-                                      selectedAvailability?.resumableSession ??
-                                      widget.resumeFrom,
-                                ),
-                              ),
-                            );
-                          },
+                                resumeMissingLearner ||
+                                selectedAvailability?.canLaunch != true
+                            ? null
+                            : () {
+                                final learner = selectedLearner!;
+                                state.selectLearner(learner);
+                                state.selectModule(widget.module);
+                                widget.onChanged();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonCountdownPage(
+                                      state: state,
+                                      onChanged: widget.onChanged,
+                                      learner: learner,
+                                      lesson: lesson,
+                                      resumeFrom: selectedAvailability
+                                              ?.resumableSession ??
+                                          widget.resumeFrom,
+                                    ),
+                                  ),
+                                );
+                              },
                     icon: Icon(
                       _resumeLocksLearner
                           ? Icons.play_circle_fill_rounded
@@ -6065,16 +6104,17 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       syncPendingLesson
                           ? 'Refresh sync before starting'
                           : state.availableLearnersForLesson(lesson).isEmpty
-                          ? 'No learner ready on this tablet'
-                          : resumeMissingLearner
-                          ? 'Sync learner to resume'
-                          : selectedLearner == null
-                          ? 'Select learner to continue'
-                          : _resumeLocksLearner ||
-                                selectedAvailability?.kind ==
-                                    LearnerLessonAvailabilityKind.resumeReady
-                          ? 'Resume with ${selectedLearner!.name}'
-                          : 'Start with ${selectedLearner!.name}',
+                              ? 'No learner ready on this tablet'
+                              : resumeMissingLearner
+                                  ? 'Sync learner to resume'
+                                  : selectedLearner == null
+                                      ? 'Select learner to continue'
+                                      : _resumeLocksLearner ||
+                                              selectedAvailability?.kind ==
+                                                  LearnerLessonAvailabilityKind
+                                                      .resumeReady
+                                          ? 'Resume with ${selectedLearner!.name}'
+                                          : 'Start with ${selectedLearner!.name}',
                     ),
                   );
 
@@ -6423,8 +6463,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final hasSavedAudio =
         session.latestLearnerAudioPath?.trim().isNotEmpty ?? false;
     final currentDraft = responseController.text.trim();
-    final canReplaceDraft =
-        !preserveManualEdits ||
+    final canReplaceDraft = !preserveManualEdits ||
         currentDraft.isEmpty ||
         currentDraft == _latestFinalTranscript.trim() ||
         currentDraft == liveTranscript.trim();
@@ -6450,10 +6489,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     microphoneStatus = hasSavedAudio
         ? 'We picked up ${widget.lesson.title} with the learner voice saved. Listen once, then keep going from here.'
         : hasDraftResponse
-        ? 'We picked up ${widget.lesson.title} with a draft answer ready. Check it once, then keep going.'
-        : _resumedSession
-        ? 'Back in ${widget.lesson.title}, step ${session.stepIndex + 1}. ${session.automationStatus}'
-        : session.automationStatus;
+            ? 'We picked up ${widget.lesson.title} with a draft answer ready. Check it once, then keep going.'
+            : _resumedSession
+                ? 'Back in ${widget.lesson.title}, step ${session.stepIndex + 1}. ${session.automationStatus}'
+                : session.automationStatus;
   }
 
   @override
@@ -6494,8 +6533,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final currentDraft = responseController.text.trim();
     final sessionIdChanged =
         oldWidget.state.activeSession?.sessionId != session.sessionId;
-    final staleVisibleDraft =
-        currentDraft.isEmpty ||
+    final staleVisibleDraft = currentDraft.isEmpty ||
         currentDraft == _latestFinalTranscript.trim() ||
         currentDraft == liveTranscript.trim();
     if (sessionIdChanged ||
@@ -6561,8 +6599,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }) async {
     final session = widget.state.activeSession;
     if (session == null) return;
-    final hasSavedAudio =
-        session.latestLearnerAudioPath != null &&
+    final hasSavedAudio = session.latestLearnerAudioPath != null &&
         session.latestLearnerAudioPath!.trim().isNotEmpty;
     if (!hasSavedAudio) return;
 
@@ -6647,8 +6684,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       return false;
     }
 
-    final shouldLeave =
-        await showDialog<bool>(
+    final shouldLeave = await showDialog<bool>(
           context: context,
           builder: (context) {
             return AlertDialog(
@@ -6657,8 +6693,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 _hasPendingLessonEvidence
                     ? 'Lumo will keep this learner step, saved voice, and draft answer so you can resume cleanly instead of losing the take.'
                     : isRecording || isSpeaking || speechRecognitionActive
-                    ? 'Lumo is actively speaking or listening. Leaving now will pause the hands-free loop so the learner does not get interrupted mid-turn.'
-                    : 'Lumo will pause the hands-free loop and keep this lesson ready to resume from the same step.',
+                        ? 'Lumo is actively speaking or listening. Leaving now will pause the hands-free loop so the learner does not get interrupted mid-turn.'
+                        : 'Lumo will pause the hands-free loop and keep this lesson ready to resume from the same step.',
               ),
               actions: [
                 TextButton(
@@ -6710,8 +6746,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }) async {
     final session = widget.state.activeSession;
     final hadLiveCapture = isRecording || isSpeaking || speechRecognitionActive;
-    final shouldProtectSession =
-        hadLiveCapture ||
+    final shouldProtectSession = hadLiveCapture ||
         (session != null &&
             (isAutoMode ||
                 responseController.text.trim().isNotEmpty ||
@@ -6740,8 +6775,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       isSpeaking = false;
       speechRecognitionActive = false;
       currentRecordingDuration = Duration.zero;
-      transcriptReviewPending =
-          transcriptReviewPending ||
+      transcriptReviewPending = transcriptReviewPending ||
           responseController.text.trim().isNotEmpty ||
           (widget.state.activeSession?.latestLearnerAudioPath
                   ?.trim()
@@ -6749,8 +6783,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               false);
       microphoneStatus = wasAutoMode
           ? (transcriptReviewPending
-                ? '$interruptionReason, so Lumo stopped live mic playback/capture to protect the learner session. The saved answer is still attached for review before Mallam continues.'
-                : '$interruptionReason, so Lumo stopped live mic playback/capture to protect the learner session. When the tablet or browser is active again, tap Resume hands-free loop so Mallam can safely replay the step and reopen the mic.')
+              ? '$interruptionReason, so Lumo stopped live mic playback/capture to protect the learner session. The saved answer is still attached for review before Mallam continues.'
+              : '$interruptionReason, so Lumo stopped live mic playback/capture to protect the learner session. When the tablet or browser is active again, tap Resume hands-free loop so Mallam can safely replay the step and reopen the mic.')
           : '$interruptionReason, so Lumo stopped live mic playback/capture. The saved audio and draft answer are still attached for manual review.';
       if (forceResumePrompt) {
         _resumePromptPendingFromLifecycle = true;
@@ -6843,8 +6877,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   Future<void> _handleSpeechRuntimeError(String error) async {
     if (!mounted) return;
     final normalized = error.toLowerCase();
-    final shouldForceAudioReview =
-        normalized.contains('microphone') ||
+    final shouldForceAudioReview = normalized.contains('microphone') ||
         normalized.contains('blocked') ||
         normalized.contains('aborted') ||
         normalized.contains('permission') ||
@@ -7001,26 +7034,26 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   String get _learnerResponseHintText => _isAudioOnlyReviewState
       ? 'No transcript was captured. Listen to the saved voice note, then type the learner response here if needed.'
       : _avoidConcurrentSpeechCapture
-      ? 'Browser recording saves the learner voice only. Type the learner response here after playback.'
-      : _draftTranscriptNeedsVoiceCheck
-      ? 'Saved audio and a draft transcript are attached. Listen once, then edit or confirm the text here.'
-      : 'Transcript or typed response appears here';
+          ? 'Browser recording saves the learner voice only. Type the learner response here after playback.'
+          : _draftTranscriptNeedsVoiceCheck
+              ? 'Saved audio and a draft transcript are attached. Listen once, then edit or confirm the text here.'
+              : 'Transcript or typed response appears here';
 
   String get _reviewBannerTitle => _isAudioOnlyReviewState
       ? 'Review saved voice before advancing'
       : _hasTranscriptSafetyBlock
-      ? 'Transcript blocked from auto-advance'
-      : _draftTranscriptNeedsVoiceCheck
-      ? 'Verify draft transcript with saved voice'
-      : 'Review transcript before advancing';
+          ? 'Transcript blocked from auto-advance'
+          : _draftTranscriptNeedsVoiceCheck
+              ? 'Verify draft transcript with saved voice'
+              : 'Review transcript before advancing';
 
   String get _reviewBannerBody => _isAudioOnlyReviewState
       ? 'Use the saved clip as the source of truth before Mallam continues.'
       : _hasTranscriptSafetyBlock
-      ? _transcriptAutoAdvanceSafetyReason!
-      : _draftTranscriptNeedsVoiceCheck
-      ? 'Quick audio check first, then confirm the text.'
-      : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
+          ? _transcriptAutoAdvanceSafetyReason!
+          : _draftTranscriptNeedsVoiceCheck
+              ? 'Quick audio check first, then confirm the text.'
+              : 'Check the draft transcript, edit it if needed, then confirm before moving on.';
 
   String get _transcriptSourceOfTruthLabel {
     if (_isAudioOnlyReviewState ||
@@ -7058,8 +7091,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   String get _transcriptModeLabel => speechRecognitionActive
       ? speechTranscriptionService.activeModeLabel
       : _avoidConcurrentSpeechCapture
-      ? 'Recorder owns microphone'
-      : speechTranscriptionService.activeModeLabel;
+          ? 'Recorder owns microphone'
+          : speechTranscriptionService.activeModeLabel;
 
   bool get _transcriptReadyToArm =>
       !_avoidConcurrentSpeechCapture && speechTranscriptionService.isAvailable;
@@ -7169,8 +7202,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   String get _reviewPrimaryCtaLabel => _isAudioOnlyReviewState
       ? (isAutoMode
-            ? 'Save note and continue'
-            : 'Save note + resume hands-free')
+          ? 'Save note and continue'
+          : 'Save note + resume hands-free')
       : 'Confirm transcript';
 
   String get _reviewSecondaryCtaLabel => _isAudioOnlyReviewState
@@ -7230,9 +7263,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   String get _spokenStepBlockedFeedback {
     final expected = widget.state.personalizeExpectedResponse(
-      widget
-          .lesson
-          .steps[widget.state.activeSession?.stepIndex ?? 0]
+      widget.lesson.steps[widget.state.activeSession?.stepIndex ?? 0]
           .expectedResponse,
     );
     if ((widget.state.activeSession?.latestLearnerAudioPath
@@ -7341,8 +7372,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       .strategyActionItems(preferAudioOnly: _avoidConcurrentSpeechCapture);
 
   Future<void> _toggleSavedAudioPlayback() async {
-    final audioPath = widget.state.activeSession?.latestLearnerAudioPath
-        ?.trim();
+    final audioPath =
+        widget.state.activeSession?.latestLearnerAudioPath?.trim();
     if (audioPath == null || audioPath.isEmpty) return;
 
     try {
@@ -7469,8 +7500,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        microphoneStatus =
-            fallbackMessage ??
+        microphoneStatus = fallbackMessage ??
             microphoneStatus ??
             'Mallam finished. Start recording when the learner is ready.';
       });
@@ -7491,8 +7521,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       }
     });
 
-    final supportPrompt =
-        widget.state.activeSession?.transcript.last.text ??
+    final supportPrompt = widget.state.activeSession?.transcript.last.text ??
         widget.state.buildCoachSupportPrompt(
           supportType: supportType,
           step: session.currentStep,
@@ -7500,8 +7529,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final mode = supportType == 'model'
         ? SpeakerMode.affirming
         : supportType == 'wait'
-        ? SpeakerMode.waiting
-        : SpeakerMode.guiding;
+            ? SpeakerMode.waiting
+            : SpeakerMode.guiding;
     final status = LearnerDialogue.supportStatus(supportType);
 
     await _speakAndMaybeAutoRecord(
@@ -7907,11 +7936,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         final readinessText = hasValue
             ? switch (kind) {
                 'prompt-card' ||
-                'story-card' => 'Learner sees this card text in runtime.',
+                'story-card' =>
+                  'Learner sees this card text in runtime.',
                 'trace-card' => 'Learner sees a tracing support card.',
                 'letter-card' => 'Learner sees the letter anchor immediately.',
                 'tile' ||
-                'word-card' => 'Learner sees this as a build/read card.',
+                'word-card' =>
+                  'Learner sees this as a build/read card.',
                 'hint' => 'Learner sees extra support text.',
                 'transcript' => 'Learner sees the script text clearly.',
                 _ => 'Learner runtime keeps this asset visible.',
@@ -8039,12 +8070,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   onPressed: focusText == null && activity.mediaValue == null
                       ? null
                       : () => _speakActivityText(
-                          _learnerFacingCueText(
-                                focusText,
-                                activity.mediaValue,
-                              ) ??
-                              'Audio cue ready',
-                        ),
+                            _learnerFacingCueText(
+                                  focusText,
+                                  activity.mediaValue,
+                                ) ??
+                                'Audio cue ready',
+                          ),
                   icon: const Icon(Icons.volume_up_rounded),
                   label: const Text('Hear letter'),
                 ),
@@ -8140,8 +8171,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                       final previewHeight = cardWidth >= 240
                           ? 156.0
                           : cardWidth >= 180
-                          ? 128.0
-                          : 96.0;
+                              ? 128.0
+                              : 96.0;
                       return Wrap(
                         spacing: spacing,
                         runSpacing: spacing,
@@ -8152,12 +8183,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                               : '🖼️';
                           final isSelected =
                               selectedChoiceLabel.toLowerCase() ==
-                              choiceItem.label.trim().toLowerCase();
+                                  choiceItem.label.trim().toLowerCase();
                           final hasAudio =
                               _firstMediaOfKind(choiceItem.mediaItems, const [
-                                'audio',
-                              ]) !=
-                              null;
+                                    'audio',
+                                  ]) !=
+                                  null;
                           return InkWell(
                             key: ValueKey('choice-card-${choiceItem.id}'),
                             onTap: () =>
@@ -8210,9 +8241,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             child: Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 8,
-                                                  ),
+                                                horizontal: 12,
+                                                vertical: 8,
+                                              ),
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFF2563EB),
                                                 borderRadius:
@@ -8348,9 +8379,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   onPressed: targetResponse == null
                       ? null
                       : () => _speakActivityText(
-                          targetResponse,
-                          mode: SpeakerMode.affirming,
-                        ),
+                            targetResponse,
+                            mode: SpeakerMode.affirming,
+                          ),
                   icon: const Icon(Icons.volume_up_rounded),
                   label: const Text('Hear target answer'),
                 ),
@@ -8440,8 +8471,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final supportType = practiceMode == PracticeMode.repeatAfterMe
         ? 'slow'
         : outcome.attemptNumber >= 2
-        ? 'model'
-        : 'hint';
+            ? 'model'
+            : 'hint';
     await _runCoachSupport(supportType);
   }
 
@@ -8458,8 +8489,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       final previousDraft = responseController.text.trim();
       final previousLearnerResponse =
           widget.state.activeSession?.latestLearnerResponse?.trim() ?? '';
-      final shouldClearStaleDraft =
-          previousDraft.isNotEmpty &&
+      final shouldClearStaleDraft = previousDraft.isNotEmpty &&
           !transcriptReviewPending &&
           (previousDraft == previousLearnerResponse ||
               previousDraft == _latestFinalTranscript.trim() ||
@@ -8505,8 +8535,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 final cleaned = transcript.trim();
                 if (cleaned.isEmpty) return;
                 final existingDraft = responseController.text.trim();
-                final canMirrorIntoResponseBox =
-                    existingDraft.isEmpty ||
+                final canMirrorIntoResponseBox = existingDraft.isEmpty ||
                     existingDraft == liveTranscript.trim() ||
                     existingDraft == _latestFinalTranscript.trim();
                 setState(() {
@@ -8527,7 +8556,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   }
                   transcriptCapturedThisTake =
                       cleaned.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').length >=
-                      2;
+                          2;
                 });
               },
               onStatus: _handleSpeechStatus,
@@ -8687,15 +8716,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     _speechAutoStopDebounce?.cancel();
     recordingTicker?.cancel();
     await speechTranscriptionService.stop();
-    final transcript =
-        (_latestFinalTranscript.isNotEmpty
-                ? _latestFinalTranscript
-                : liveTranscript)
-            .trim();
+    final transcript = (_latestFinalTranscript.isNotEmpty
+            ? _latestFinalTranscript
+            : liveTranscript)
+        .trim();
     final expectedResponse = widget.state.personalizeExpectedResponse(
-      widget
-          .lesson
-          .steps[widget.state.activeSession?.stepIndex ?? 0]
+      widget.lesson.steps[widget.state.activeSession?.stepIndex ?? 0]
           .expectedResponse,
     );
     final transcriptSafetyReason = _buildTranscriptSafetyReason(
@@ -8704,8 +8730,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
     final transcriptIsStable =
         transcript.isNotEmpty && _capturedStableFinalTranscript;
-    final transcriptNeedsManualReview =
-        transcript.isNotEmpty &&
+    final transcriptNeedsManualReview = transcript.isNotEmpty &&
         (!transcriptIsStable || transcriptSafetyReason != null);
     final wasSpeechRecognitionActive = speechRecognitionActive;
     final result = await audioCaptureService.stop();
@@ -8748,8 +8773,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           widget.state.activeSession?.latestLearnerResponse?.trim() ?? '';
       final draftMatchesOldTranscript =
           responseController.text.trim().isNotEmpty &&
-          (responseController.text.trim() == previousLearnerResponse ||
-              responseController.text.trim() == liveTranscript.trim());
+              (responseController.text.trim() == previousLearnerResponse ||
+                  responseController.text.trim() == liveTranscript.trim());
       if (draftMatchesOldTranscript) {
         responseController.clear();
       }
@@ -8762,18 +8787,18 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       currentRecordingDuration = result.duration;
       final savedLabel = transcript.isNotEmpty
           ? (transcriptSafetyReason != null
-                ? 'Learner voice saved (${formatDuration(result.duration)}). Transcript capture finished, but Lumo blocked auto-advance because the text looks incomplete for this step.'
-                : transcriptNeedsManualReview
-                ? 'Learner voice saved (${formatDuration(result.duration)}). Lumo captured only a draft transcript, so it is waiting for a manual voice check before advancing.'
-                : 'Learner voice saved (${formatDuration(result.duration)}). Transcript captured and ready.')
+              ? 'Learner voice saved (${formatDuration(result.duration)}). Transcript capture finished, but Lumo blocked auto-advance because the text looks incomplete for this step.'
+              : transcriptNeedsManualReview
+                  ? 'Learner voice saved (${formatDuration(result.duration)}). Lumo captured only a draft transcript, so it is waiting for a manual voice check before advancing.'
+                  : 'Learner voice saved (${formatDuration(result.duration)}). Transcript captured and ready.')
           : 'Learner voice saved (${formatDuration(result.duration)}). No transcript was detected, so the app kept the audio and is ready for a manual check.';
       final recoveryLabel = transcriptNeedsManualReview
           ? ' Auto mode paused so the facilitator can verify the saved voice against the draft transcript.'
           : _consecutiveTranscriptMisses >= 3
-          ? ' Auto mode paused after repeated transcript misses. Confirm the answer manually or keep teaching with audio-first support.'
-          : _consecutiveTranscriptMisses >= 2
-          ? ' Transcript help is struggling, so Repeat mode is now active for a safer hands-free loop.'
-          : '';
+              ? ' Auto mode paused after repeated transcript misses. Confirm the answer manually or keep teaching with audio-first support.'
+              : _consecutiveTranscriptMisses >= 2
+                  ? ' Transcript help is struggling, so Repeat mode is now active for a safer hands-free loop.'
+                  : '';
       microphoneStatus = markReadyForResume && !transcriptReviewPending
           ? '$savedLabel Ready for Mallam or the next learner attempt.$recoveryLabel'
           : '$savedLabel$recoveryLabel';
@@ -8860,8 +8885,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final session = widget.state.activeSession;
     final transcriptHealthy = speechTranscriptionService.isAvailable;
     final backendHealthy = widget.state.hasLiveBackendConnection;
-    final syncWarn =
-        widget.state.pendingSyncEvents.isNotEmpty ||
+    final syncWarn = widget.state.pendingSyncEvents.isNotEmpty ||
         widget.state.lastSyncError != null ||
         widget.state.lastSyncWarnings.isNotEmpty;
     final recordingHealthy =
@@ -8947,9 +8971,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...diagnosticCallouts
-                    .take(3)
-                    .map(
+                ...diagnosticCallouts.take(3).map(
                       (callout) => Padding(
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Row(
@@ -9002,8 +9024,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 label: _micPermissionGranted
                     ? 'Mic permission granted'
                     : (_micPermissionState == AudioPermissionState.denied
-                          ? 'Mic permission blocked'
-                          : 'Mic permission unknown'),
+                        ? 'Mic permission blocked'
+                        : 'Mic permission unknown'),
                 healthy: micPermissionHealthy,
                 warn: !micPermissionHealthy,
               ),
@@ -9028,8 +9050,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 label: backendHealthy
                     ? 'Backend sync live'
                     : (widget.state.usingFallbackData
-                          ? 'Offline seed fallback'
-                          : 'Backend sync degraded'),
+                        ? 'Offline seed fallback'
+                        : 'Backend sync degraded'),
                 healthy: backendHealthy,
                 warn: !backendHealthy,
               ),
@@ -9043,11 +9065,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           ),
           const SizedBox(height: 12),
           Text(
-            'Microphone: ${_micPermissionGranted
-                ? 'Permission granted for learner capture.'
-                : _micPermissionState == AudioPermissionState.denied
-                ? 'Permission blocked. Open browser or device settings and allow the mic for this app.'
-                : 'Permission state is still unknown until the recorder checks the device.'}',
+            'Microphone: ${_micPermissionGranted ? 'Permission granted for learner capture.' : _micPermissionState == AudioPermissionState.denied ? 'Permission blocked. Open browser or device settings and allow the mic for this app.' : 'Permission state is still unknown until the recorder checks the device.'}',
             style: const TextStyle(color: Color(0xFF475569), height: 1.35),
           ),
           const SizedBox(height: 6),
@@ -9129,10 +9147,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...widget.state
-                    .runtimeSyncActionItems()
-                    .take(3)
-                    .map(
+                ...widget.state.runtimeSyncActionItems().take(3).map(
                       (action) => Padding(
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Row(
@@ -9227,10 +9242,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
   String compactPath(String path) {
     final normalized = path.replaceAll('\\', '/');
-    final segments = normalized
-        .split('/')
-        .where((segment) => segment.isNotEmpty)
-        .toList();
+    final segments =
+        normalized.split('/').where((segment) => segment.isNotEmpty).toList();
     if (segments.length <= 2) return normalized;
     return '.../${segments[segments.length - 2]}/${segments.last}';
   }
@@ -9253,8 +9266,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final isChoiceStep = _isChoiceActivityType(currentActivity?.type);
     final isListenRepeatStep =
         currentActivity?.type == LessonActivityType.listenRepeat;
-    final isSimplifiedSpokenStep =
-        isListenRepeatStep ||
+    final isSimplifiedSpokenStep = isListenRepeatStep ||
         currentActivity?.type == LessonActivityType.listenAnswer ||
         currentActivity?.type == LessonActivityType.speakAnswer;
     final hasDraftResponse = responseController.text.trim().isNotEmpty;
@@ -9295,15 +9307,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             final previewHeight = choiceCount <= 2
                 ? 190.0
                 : choiceCount >= 6
-                ? 132.0
-                : 148.0;
+                    ? 132.0
+                    : 148.0;
             final childAspectRatio = choiceCount <= 2
                 ? (columns == 1 ? 1.55 : 1.18)
                 : choiceCount >= 6
-                ? 0.86
-                : columns >= 3
-                ? 0.86
-                : 0.96;
+                    ? 0.86
+                    : columns >= 3
+                        ? 0.86
+                        : 0.96;
 
             return GridView.builder(
               key: const ValueKey('choice-grid'),
@@ -9321,12 +9333,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 final emoji = index < activity.choiceEmoji.length
                     ? activity.choiceEmoji[index]
                     : '🖼️';
-                final isSelected =
-                    selectedChoiceLabel.toLowerCase() ==
+                final isSelected = selectedChoiceLabel.toLowerCase() ==
                     choiceItem.label.trim().toLowerCase();
                 final hasAudio =
                     _firstMediaOfKind(choiceItem.mediaItems, const ['audio']) !=
-                    null;
+                        null;
                 return InkWell(
                   onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
                   borderRadius: BorderRadius.circular(28),
@@ -9334,9 +9345,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                     duration: const Duration(milliseconds: 180),
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFFEFF6FF)
-                          : Colors.white,
+                      color:
+                          isSelected ? const Color(0xFFEFF6FF) : Colors.white,
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
                         color: isSelected
@@ -9623,66 +9633,62 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
                         final primaryAction = isChoiceStep
                             ? (canAdvanceChoiceStep
-                                  ? () async {
-                                      final outcome = widget.state
-                                          .submitLearnerResponse(
-                                            responseController.text,
-                                          );
-                                      transcriptReviewPending = false;
-                                      _latestTranscriptNeedsManualReview =
-                                          false;
-                                      widget.onChanged();
-                                      if (!mounted) return;
-                                      setState(() {
-                                        microphoneStatus =
-                                            outcome.automationStatus;
-                                      });
-                                      if (!outcome.accepted) {
-                                        return;
-                                      }
-                                      await _afterCorrectResponse();
+                                ? () async {
+                                    final outcome =
+                                        widget.state.submitLearnerResponse(
+                                      responseController.text,
+                                    );
+                                    transcriptReviewPending = false;
+                                    _latestTranscriptNeedsManualReview = false;
+                                    widget.onChanged();
+                                    if (!mounted) return;
+                                    setState(() {
+                                      microphoneStatus =
+                                          outcome.automationStatus;
+                                    });
+                                    if (!outcome.accepted) {
+                                      return;
                                     }
-                                  : null)
+                                    await _afterCorrectResponse();
+                                  }
+                                : null)
                             : (transcriptReviewPending
-                                  ? (responseController.text.trim().isEmpty
-                                        ? null
-                                        : _confirmTranscriptAndAdvance)
-                                  : (isSimplifiedSpokenStep
-                                        ? (_spokenStepReadyToContinue
-                                              ? () async {
-                                                  final candidate =
-                                                      responseController.text
-                                                          .trim()
-                                                          .isNotEmpty
-                                                      ? responseController.text
-                                                            .trim()
-                                                      : session.latestLearnerResponse
-                                                                ?.trim() ??
-                                                            '';
-                                                  final latestAccepted =
-                                                      session
-                                                          .latestLearnerResponse
-                                                          ?.trim() ??
-                                                      '';
-                                                  if (candidate.isNotEmpty &&
-                                                      candidate !=
-                                                          latestAccepted) {
-                                                    await _handleSubmittedResponse(
-                                                      candidate,
-                                                    );
-                                                    if (!mounted ||
-                                                        !_spokenStepReadyToContinue) {
-                                                      return;
-                                                    }
-                                                  }
-                                                  await _afterCorrectResponse();
-                                                }
-                                              : null)
-                                        : (session.hasLearnerInput
-                                              ? () async {
-                                                  await _afterCorrectResponse();
-                                                }
-                                              : null)));
+                                ? (responseController.text.trim().isEmpty
+                                    ? null
+                                    : _confirmTranscriptAndAdvance)
+                                : (isSimplifiedSpokenStep
+                                    ? (_spokenStepReadyToContinue
+                                        ? () async {
+                                            final candidate = responseController
+                                                    .text
+                                                    .trim()
+                                                    .isNotEmpty
+                                                ? responseController.text.trim()
+                                                : session.latestLearnerResponse
+                                                        ?.trim() ??
+                                                    '';
+                                            final latestAccepted = session
+                                                    .latestLearnerResponse
+                                                    ?.trim() ??
+                                                '';
+                                            if (candidate.isNotEmpty &&
+                                                candidate != latestAccepted) {
+                                              await _handleSubmittedResponse(
+                                                candidate,
+                                              );
+                                              if (!mounted ||
+                                                  !_spokenStepReadyToContinue) {
+                                                return;
+                                              }
+                                            }
+                                            await _afterCorrectResponse();
+                                          }
+                                        : null)
+                                    : (session.hasLearnerInput
+                                        ? () async {
+                                            await _afterCorrectResponse();
+                                          }
+                                        : null)));
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -9714,9 +9720,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                           children: [
                                             Text(
                                               step.title,
-                                              maxLines: compactSessionHeader
-                                                  ? 2
-                                                  : 3,
+                                              maxLines:
+                                                  compactSessionHeader ? 2 : 3,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 fontSize: compactSessionHeader
@@ -9745,8 +9750,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                       isChoiceStep
                                           ? buildChoiceSelectionPanel()
                                           : (isSimplifiedSpokenStep
-                                                ? buildListenRepeatPromptPanel()
-                                                : _buildActivityPanel(step)),
+                                              ? buildListenRepeatPromptPanel()
+                                              : _buildActivityPanel(step)),
                                       const SizedBox(height: 16),
                                     ],
                                     if (!isChoiceStep)
@@ -9781,15 +9786,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               Text(
                                                 _avoidConcurrentSpeechCapture
                                                     ? (transcriptReviewPending
-                                                          ? 'Listen to the saved learner voice, then type or confirm the answer here before Mallam continues.'
-                                                          : (isRecording
-                                                                ? 'Listening now and saving learner audio for manual review.'
-                                                                : 'Start listening, capture the learner voice, then type or confirm the answer here.'))
+                                                        ? 'Listen to the saved learner voice, then type or confirm the answer here before Mallam continues.'
+                                                        : (isRecording
+                                                            ? 'Listening now and saving learner audio for manual review.'
+                                                            : 'Start listening, capture the learner voice, then type or confirm the answer here.'))
                                                     : (transcriptReviewPending
-                                                          ? 'Check the learner words here, then confirm before Mallam continues.'
-                                                          : (isRecording
-                                                                ? 'Listening to the learner now.'
-                                                                : 'Start listening, capture the learner voice, then review the text here.')),
+                                                        ? 'Check the learner words here, then confirm before Mallam continues.'
+                                                        : (isRecording
+                                                            ? 'Listening to the learner now.'
+                                                            : 'Start listening, capture the learner voice, then review the text here.')),
                                                 style: const TextStyle(
                                                   color: Color(0xFF475569),
                                                   height: 1.35,
@@ -9827,11 +9832,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                       children: [
                                                         Container(
                                                           padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 12,
-                                                                vertical: 8,
-                                                              ),
-                                                          decoration: BoxDecoration(
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 12,
+                                                            vertical: 8,
+                                                          ),
+                                                          decoration:
+                                                              BoxDecoration(
                                                             color: isRecording
                                                                 ? const Color(
                                                                     0xFFDC2626,
@@ -9840,9 +9847,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                                     0xFF2563EB,
                                                                   ),
                                                             borderRadius:
-                                                                BorderRadius.circular(
-                                                                  999,
-                                                                ),
+                                                                BorderRadius
+                                                                    .circular(
+                                                              999,
+                                                            ),
                                                           ),
                                                           child: Text(
                                                             isRecording
@@ -9850,12 +9858,12 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                                 : 'Start listening',
                                                             style:
                                                                 const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w800,
-                                                                ),
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                            ),
                                                           ),
                                                         ),
                                                         const SizedBox(
@@ -9866,14 +9874,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                             _listeningReadinessHeadline,
                                                             style:
                                                                 const TextStyle(
-                                                                  fontSize: 16,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w800,
-                                                                  color: Color(
-                                                                    0xFF0F172A,
-                                                                  ),
-                                                                ),
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                              color: Color(
+                                                                0xFF0F172A,
+                                                              ),
+                                                            ),
                                                           ),
                                                         ),
                                                       ],
@@ -9894,8 +9902,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                       runSpacing: 12,
                                                       children: [
                                                         FilledButton.icon(
-                                                          onPressed:
-                                                              isRecording ||
+                                                          onPressed: isRecording ||
                                                                   !_micPermissionGranted
                                                               ? null
                                                               : startRecording,
@@ -9910,16 +9917,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                           onPressed: isRecording
                                                               ? stopRecording
                                                               : null,
-                                                          style:
-                                                              FilledButton.styleFrom(
-                                                                backgroundColor:
-                                                                    const Color(
-                                                                      0xFFDC2626,
-                                                                    ),
-                                                                foregroundColor:
-                                                                    Colors
-                                                                        .white,
-                                                              ),
+                                                          style: FilledButton
+                                                              .styleFrom(
+                                                            backgroundColor:
+                                                                const Color(
+                                                              0xFFDC2626,
+                                                            ),
+                                                            foregroundColor:
+                                                                Colors.white,
+                                                          ),
                                                           icon: const Icon(
                                                             Icons.stop_rounded,
                                                           ),
@@ -9949,15 +9955,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                               Text(
                                                 _avoidConcurrentSpeechCapture
                                                     ? (transcriptReviewPending
-                                                          ? 'Listen to the saved learner voice, then type or confirm the answer here before Mallam continues.'
-                                                          : (isRecording
-                                                                ? 'Listening now and saving learner audio for manual review.'
-                                                                : 'Capture the learner answer, then type or confirm it here.'))
+                                                        ? 'Listen to the saved learner voice, then type or confirm the answer here before Mallam continues.'
+                                                        : (isRecording
+                                                            ? 'Listening now and saving learner audio for manual review.'
+                                                            : 'Capture the learner answer, then type or confirm it here.'))
                                                     : (transcriptReviewPending
-                                                          ? 'Check the learner words here, then confirm before Mallam continues.'
-                                                          : (isRecording
-                                                                ? 'Listening to the learner now.'
-                                                                : 'Capture the learner answer, then confirm the transcript here.')),
+                                                        ? 'Check the learner words here, then confirm before Mallam continues.'
+                                                        : (isRecording
+                                                            ? 'Listening to the learner now.'
+                                                            : 'Capture the learner answer, then confirm the transcript here.')),
                                                 style: const TextStyle(
                                                   color: Color(0xFF475569),
                                                   height: 1.35,
@@ -9969,19 +9975,19 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 runSpacing: 10,
                                                 children: [
                                                   Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 8,
-                                                        ),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8,
+                                                    ),
                                                     decoration: BoxDecoration(
                                                       color: const Color(
                                                         0xFFF1F5F9,
                                                       ),
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                            999,
-                                                          ),
+                                                        999,
+                                                      ),
                                                     ),
                                                     child: const Text(
                                                       'Learner transcript',
@@ -9995,19 +10001,19 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                     ),
                                                   ),
                                                   Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 8,
-                                                        ),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8,
+                                                    ),
                                                     decoration: BoxDecoration(
                                                       color: const Color(
                                                         0xFFEFF6FF,
                                                       ),
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                            999,
-                                                          ),
+                                                        999,
+                                                      ),
                                                     ),
                                                     child: const Text(
                                                       'Learner response',
@@ -10040,17 +10046,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 ),
                                                 enabledBorder:
                                                     OutlineInputBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            18,
-                                                          ),
-                                                      borderSide:
-                                                          const BorderSide(
-                                                            color: Color(
-                                                              0xFFE2E8F0,
-                                                            ),
-                                                          ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                    18,
+                                                  ),
+                                                  borderSide: const BorderSide(
+                                                    color: Color(
+                                                      0xFFE2E8F0,
                                                     ),
+                                                  ),
+                                                ),
                                               ),
                                             ),
                                             if (isSimplifiedSpokenStep &&
@@ -10099,15 +10104,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                       liveTranscript.isNotEmpty
                                                           ? liveTranscript
                                                           : responseController
-                                                                .text
-                                                                .trim()
-                                                                .isNotEmpty
-                                                          ? responseController
-                                                                .text
-                                                                .trim()
-                                                          : speechRecognitionActive
-                                                          ? 'Listening for the learner...'
-                                                          : 'Learner audio was captured. Confirm or edit the transcript here before Mallam continues.',
+                                                                  .text
+                                                                  .trim()
+                                                                  .isNotEmpty
+                                                              ? responseController
+                                                                  .text
+                                                                  .trim()
+                                                              : speechRecognitionActive
+                                                                  ? 'Listening for the learner...'
+                                                                  : 'Learner audio was captured. Confirm or edit the transcript here before Mallam continues.',
                                                       style: const TextStyle(
                                                         color: Color(
                                                           0xFF4338CA,
@@ -10159,8 +10164,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                 runSpacing: 12,
                                                 children: [
                                                   FilledButton.icon(
-                                                    onPressed:
-                                                        isRecording ||
+                                                    onPressed: isRecording ||
                                                             !_micPermissionGranted
                                                         ? null
                                                         : startRecording,
@@ -10177,13 +10181,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                         : null,
                                                     style:
                                                         FilledButton.styleFrom(
-                                                          backgroundColor:
-                                                              const Color(
-                                                                0xFFDC2626,
-                                                              ),
-                                                          foregroundColor:
-                                                              Colors.white,
-                                                        ),
+                                                      backgroundColor:
+                                                          const Color(
+                                                        0xFFDC2626,
+                                                      ),
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                    ),
                                                     icon: const Icon(
                                                       Icons.stop_rounded,
                                                     ),
@@ -10229,19 +10233,20 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                     ),
                                                     const SizedBox(height: 10),
                                                     Container(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 10,
-                                                            vertical: 6,
-                                                          ),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 6,
+                                                      ),
                                                       decoration: BoxDecoration(
                                                         color: const Color(
                                                           0xFFEFF6FF,
                                                         ),
                                                         borderRadius:
-                                                            BorderRadius.circular(
-                                                              999,
-                                                            ),
+                                                            BorderRadius
+                                                                .circular(
+                                                          999,
+                                                        ),
                                                       ),
                                                       child: Text(
                                                         _lessonModeLabel,
@@ -10284,64 +10289,70 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                       children: [
                                                         Container(
                                                           padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 10,
-                                                                vertical: 6,
-                                                              ),
-                                                          decoration: BoxDecoration(
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 6,
+                                                          ),
+                                                          decoration:
+                                                              BoxDecoration(
                                                             color: const Color(
                                                               0xFFEFF6FF,
                                                             ),
                                                             borderRadius:
-                                                                BorderRadius.circular(
-                                                                  999,
-                                                                ),
+                                                                BorderRadius
+                                                                    .circular(
+                                                              999,
+                                                            ),
                                                           ),
                                                           child: Text(
                                                             _transcriptSourceOfTruthLabel,
                                                             style:
                                                                 const TextStyle(
-                                                                  color: Color(
-                                                                    0xFF1D4ED8,
-                                                                  ),
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w800,
-                                                                ),
+                                                              color: Color(
+                                                                0xFF1D4ED8,
+                                                              ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                            ),
                                                           ),
                                                         ),
                                                         Container(
                                                           padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 10,
-                                                                vertical: 6,
-                                                              ),
-                                                          decoration: BoxDecoration(
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 6,
+                                                          ),
+                                                          decoration:
+                                                              BoxDecoration(
                                                             color: const Color(
                                                               0xFFF8FAFC,
                                                             ),
                                                             borderRadius:
-                                                                BorderRadius.circular(
-                                                                  999,
-                                                                ),
+                                                                BorderRadius
+                                                                    .circular(
+                                                              999,
+                                                            ),
                                                             border: Border.all(
                                                               color:
                                                                   const Color(
-                                                                    0xFFE2E8F0,
-                                                                  ),
+                                                                0xFFE2E8F0,
+                                                              ),
                                                             ),
                                                           ),
                                                           child: Text(
                                                             _automationSafetyLabel,
                                                             style:
                                                                 const TextStyle(
-                                                                  color: Color(
-                                                                    0xFF334155,
-                                                                  ),
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w800,
-                                                                ),
+                                                              color: Color(
+                                                                0xFF334155,
+                                                              ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                            ),
                                                           ),
                                                         ),
                                                       ],
@@ -10413,9 +10424,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                   learnerAudioPlaybackService
                                                           .isPlaying
                                                       ? Icons
-                                                            .pause_circle_rounded
+                                                          .pause_circle_rounded
                                                       : Icons
-                                                            .play_circle_fill_rounded,
+                                                          .play_circle_fill_rounded,
                                                 ),
                                                 label: Text(
                                                   learnerAudioPlaybackService
@@ -10492,8 +10503,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                       transcriptReviewPending
                                           ? _reviewPrimaryCtaLabel
                                           : (session.isLastStep
-                                                ? 'Finish lesson'
-                                                : 'Continue'),
+                                              ? 'Finish lesson'
+                                              : 'Continue'),
                                     ),
                                   ),
                                 ),
@@ -10728,6 +10739,11 @@ class _LessonCompletePageState extends State<LessonCompletePage>
       completedLessonId: lesson.id,
     );
     final recommendedModule = widget.state.recommendedModuleForLearner(learner);
+    final recommendedSubjectTitle = _resolvedSubjectTitleForModule(
+      state: widget.state,
+      module: recommendedModule,
+      learner: learner,
+    );
     final routeSummary = widget.state.nextLessonRouteSummaryForLearner(
       learner,
       completedLessonId: lesson.id,
@@ -10779,8 +10795,8 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                 Text(
                                   widget.state
                                       .rewardCelebrationHeadlineForLearner(
-                                        learner,
-                                      ),
+                                    learner,
+                                  ),
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 30,
@@ -10821,11 +10837,9 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                     if (compact) {
                                       return Column(
                                         children: [
-                                          for (
-                                            var i = 0;
-                                            i < tiles.length;
-                                            i++
-                                          ) ...[
+                                          for (var i = 0;
+                                              i < tiles.length;
+                                              i++) ...[
                                             SizedBox(
                                               width: double.infinity,
                                               child: tiles[i],
@@ -10839,11 +10853,9 @@ class _LessonCompletePageState extends State<LessonCompletePage>
 
                                     return Row(
                                       children: [
-                                        for (
-                                          var i = 0;
-                                          i < tiles.length;
-                                          i++
-                                        ) ...[
+                                        for (var i = 0;
+                                            i < tiles.length;
+                                            i++) ...[
                                           Expanded(child: tiles[i]),
                                           if (i < tiles.length - 1)
                                             const SizedBox(width: 12),
@@ -10923,8 +10935,8 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                           ),
                                           valueColor:
                                               const AlwaysStoppedAnimation<
-                                                Color
-                                              >(LumoTheme.accentOrange),
+                                                      Color>(
+                                                  LumoTheme.accentOrange),
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
@@ -10989,12 +11001,12 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                             'Backend route',
                                             widget.state
                                                 .backendRoutingSummaryForLearner(
-                                                  learner,
-                                                ),
+                                              learner,
+                                            ),
                                           ),
                                           (
                                             'Recommended subject',
-                                            recommendedModule.title,
+                                            recommendedSubjectTitle,
                                           ),
                                           (
                                             'Next lesson',
@@ -11019,11 +11031,11 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                           MaterialPageRoute(
                                             builder: (_) =>
                                                 LessonLaunchSetupPage(
-                                                  state: widget.state,
-                                                  onChanged: () {},
-                                                  lesson: nextLesson,
-                                                  module: recommendedModule,
-                                                ),
+                                              state: widget.state,
+                                              onChanged: () {},
+                                              lesson: nextLesson,
+                                              module: recommendedModule,
+                                            ),
                                           ),
                                         );
                                         return;
@@ -11170,8 +11182,7 @@ class _CelebrationConfettiPainter extends CustomPainter {
       final lane = (index * 0.173) % 1;
       final swaySeed = (index % 7) + 1;
       final drop = ((progress + (index * 0.037)) % 1.0);
-      final x =
-          lane * size.width +
+      final x = lane * size.width +
           math.sin((progress * math.pi * 2) + index) * (10 + swaySeed * 2);
       final y = -24 + drop * (size.height + 80);
       final width = 8 + (index % 4) * 2.0;
@@ -11258,8 +11269,8 @@ class _LessonStageStrip extends StatelessWidget {
               final icon = isDone
                   ? Icons.check_rounded
                   : (isActive
-                        ? Icons.play_arrow_rounded
-                        : Icons.radio_button_unchecked_rounded);
+                      ? Icons.play_arrow_rounded
+                      : Icons.radio_button_unchecked_rounded);
 
               return Container(
                 constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
@@ -11323,11 +11334,8 @@ class _LessonTranscriptPanelState extends State<_LessonTranscriptPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final turns = widget.session.transcript.reversed
-        .take(4)
-        .toList()
-        .reversed
-        .toList();
+    final turns =
+        widget.session.transcript.reversed.take(4).toList().reversed.toList();
 
     return SoftPanel(
       child: Column(
@@ -11372,9 +11380,8 @@ class _LessonTranscriptPanelState extends State<_LessonTranscriptPanel> {
             ...turns.map((turn) {
               final isMallam = turn.speaker == 'Mallam';
               final speaker = isMallam ? 'Mallam' : widget.learnerName;
-              final color = isMallam
-                  ? LumoTheme.primary
-                  : LumoTheme.accentGreen;
+              final color =
+                  isMallam ? LumoTheme.primary : LumoTheme.accentGreen;
               return Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 10),
@@ -11416,9 +11423,8 @@ class _RosterFreshnessBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFallback = state.usingFallbackData;
     final color = isFallback ? LumoTheme.accentOrange : LumoTheme.accentGreen;
-    final icon = isFallback
-        ? Icons.warning_amber_rounded
-        : Icons.update_rounded;
+    final icon =
+        isFallback ? Icons.warning_amber_rounded : Icons.update_rounded;
 
     return Container(
       width: double.infinity,
@@ -11504,8 +11510,10 @@ class _BackendStatusBanner extends StatelessWidget {
     final color = hasCriticalSyncBlocker
         ? const Color(0xFFB91C1C)
         : isLive
-        ? LumoTheme.accentGreen
-        : (state.isBootstrapping ? LumoTheme.primary : LumoTheme.accentOrange);
+            ? LumoTheme.accentGreen
+            : (state.isBootstrapping
+                ? LumoTheme.primary
+                : LumoTheme.accentOrange);
 
     return Container(
       width: double.infinity,
@@ -11615,10 +11623,7 @@ class _BackendStatusBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                ...state
-                    .runtimeSyncActionItems()
-                    .take(2)
-                    .map(
+                ...state.runtimeSyncActionItems().take(2).map(
                       (action) => Padding(
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Row(
@@ -12099,9 +12104,8 @@ class _CurrentLearnerBanner extends StatelessWidget {
                 ),
               ),
               StatusPill(
-                text: nextLesson == null
-                    ? 'Profile ready'
-                    : 'Ready to continue',
+                text:
+                    nextLesson == null ? 'Profile ready' : 'Ready to continue',
                 color: nextLesson == null
                     ? LumoTheme.accentOrange
                     : LumoTheme.accentGreen,
@@ -12348,9 +12352,8 @@ class _LearnerCard extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: isActive
-                  ? const Color(0xFFC7D2FE)
-                  : const Color(0xFFEAEAF4),
+              color:
+                  isActive ? const Color(0xFFC7D2FE) : const Color(0xFFEAEAF4),
               width: isActive ? 1.5 : 1,
             ),
             boxShadow: [
@@ -12447,14 +12450,13 @@ class _LearnerCard extends StatelessWidget {
                     StatusPill(
                       text: isActive
                           ? (compactHeight
-                                ? 'Selected learner'
-                                : 'Active learner')
+                              ? 'Selected learner'
+                              : 'Active learner')
                           : (compactHeight
-                                ? 'Ready now'
-                                : learner.readinessLabel),
-                      color: isActive
-                          ? LumoTheme.primary
-                          : LumoTheme.accentGreen,
+                              ? 'Ready now'
+                              : learner.readinessLabel),
+                      color:
+                          isActive ? LumoTheme.primary : LumoTheme.accentGreen,
                     ),
                     StatusPill(
                       text: identityCue.label,
@@ -12514,19 +12516,18 @@ class _LearnerCard extends StatelessWidget {
                 Text(
                   compactHeight
                       ? (nextPack == null
-                            ? 'Ready for ${learner.readinessLabel.toLowerCase()} work'
-                            : 'Assigned next: ${nextPack.lessonTitle}')
+                          ? 'Ready for ${learner.readinessLabel.toLowerCase()} work'
+                          : 'Assigned next: ${nextPack.lessonTitle}')
                       : (nextPack == null
-                            ? learner.supportPlan
-                            : nextPack.lessonTitle),
+                          ? learner.supportPlan
+                          : nextPack.lessonTitle),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: const Color(0xFF475569),
                     height: 1.35,
-                    fontWeight: compactHeight
-                        ? FontWeight.w600
-                        : FontWeight.w500,
+                    fontWeight:
+                        compactHeight ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -12599,8 +12600,8 @@ class _LearnerCard extends StatelessWidget {
                             compactHeight
                                 ? 'Start'
                                 : (nextPack == null
-                                      ? 'Start lesson'
-                                      : 'Start assigned'),
+                                    ? 'Start lesson'
+                                    : 'Start assigned'),
                           ),
                         ),
                     ],
@@ -12635,8 +12636,7 @@ int learnerMotivationPoints(LearnerProfile learner) =>
 List<LearnerLeaderboardEntry> buildLearnerLeaderboard(
   List<LearnerProfile> learners,
 ) {
-  final sorted = [...learners]
-    ..sort((a, b) {
+  final sorted = [...learners]..sort((a, b) {
       final pointCompare = learnerMotivationPoints(
         b,
       ).compareTo(learnerMotivationPoints(a));
@@ -12645,9 +12645,8 @@ List<LearnerLeaderboardEntry> buildLearnerLeaderboard(
       if (streakCompare != 0) return streakCompare;
       return a.name.compareTo(b.name);
     });
-  final leaderPoints = sorted.isEmpty
-      ? 0
-      : learnerMotivationPoints(sorted.first);
+  final leaderPoints =
+      sorted.isEmpty ? 0 : learnerMotivationPoints(sorted.first);
   return [
     for (var i = 0; i < sorted.length; i++)
       LearnerLeaderboardEntry(
@@ -12871,9 +12870,9 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: resolvedFeaturedReward.unlocked
                         ? () => _showRewardRedeemDialog(
-                            context,
-                            resolvedFeaturedReward,
-                          )
+                              context,
+                              resolvedFeaturedReward,
+                            )
                         : null,
                     icon: const Icon(Icons.redeem_rounded),
                     label: Text(
@@ -12950,9 +12949,7 @@ class _RewardRedemptionPlannerPanel extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
-            ...history
-                .take(3)
-                .map(
+            ...history.take(3).map(
                   (entry) => Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 10),
@@ -13050,9 +13047,7 @@ class _LearnerLeaderboardPanel extends StatelessWidget {
           if (leaderboard.isEmpty)
             const Text('No learners available yet.')
           else
-            ...leaderboard
-                .take(5)
-                .map(
+            ...leaderboard.take(5).map(
                   (entry) => Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),

@@ -917,14 +917,14 @@ void main() {
     },
   );
 
-  testWidgets('home screen keeps the Mallam stage and subjects tightly stacked', (
+  testWidgets('home screen keeps the Mallam stage and subjects tightly stacked',
+      (
     tester,
   ) async {
     await pumpAppAtSize(tester, const Size(1280, 800));
 
-    final replayButtonBottom = tester
-        .getBottomLeft(find.text('Hear Mallam again'))
-        .dy;
+    final replayButtonBottom =
+        tester.getBottomLeft(find.text('Hear Mallam again')).dy;
     final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
 
     expect(
@@ -1690,6 +1690,48 @@ void main() {
     },
   );
 
+  testWidgets(
+    'registration success page shows learner subject label instead of backend module title',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final recommendedModule = state.recommendedModuleForLearner(learner);
+      final expectedSubject = state
+          .lessonsForLearnerAndModule(learner, recommendedModule.id)
+          .map((lesson) => lesson.subject.trim())
+          .firstWhere((subject) => subject.isNotEmpty);
+      final moduleIndex = state.modules
+          .indexWhere((module) => module.id == recommendedModule.id);
+      state.modules[moduleIndex] = LearningModule(
+        id: recommendedModule.id,
+        title: 'Backend Module Alias',
+        description: recommendedModule.description,
+        voicePrompt: recommendedModule.voicePrompt,
+        readinessGoal: recommendedModule.readinessGoal,
+        badge: recommendedModule.badge,
+        status: recommendedModule.status,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RegistrationSuccessPage(
+            state: state,
+            learner: learner,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text(expectedSubject), findsWidgets);
+      expect(find.text('Backend Module Alias'), findsNothing);
+    },
+  );
+
   testWidgets('lesson complete page stays usable on narrow tablet widths', (
     tester,
   ) async {
@@ -2416,13 +2458,12 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      final state =
-          LumoAppState(
-              apiClient: _SeedApiClient(),
-              includeSeedDemoContent: false,
-            )
-            ..usingFallbackData = true
-            ..backendError = 'Backend registration is offline.';
+      final state = LumoAppState(
+        apiClient: _SeedApiClient(),
+        includeSeedDemoContent: false,
+      )
+        ..usingFallbackData = true
+        ..backendError = 'Backend registration is offline.';
       final module = learningModules.first;
       final lesson = assignedLessonsSeed.firstWhere(
         (item) => item.moduleId == module.id,
