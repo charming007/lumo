@@ -168,10 +168,16 @@ export function StudentGeographySelectors({
   }, [filteredCohorts, cohortId]);
 
   useEffect(() => {
-    if (mallamId && !filteredMallams.some((item) => item.id === mallamId)) {
+    if (!podId) {
       setMallamId('');
+      return;
     }
-  }, [filteredMallams, mallamId]);
+
+    const derivedMallamId = filteredMallams[0]?.id || '';
+    if (derivedMallamId !== mallamId) {
+      setMallamId(derivedMallamId);
+    }
+  }, [filteredMallams, mallamId, podId]);
 
   useEffect(() => {
     if (!podId) return;
@@ -217,13 +223,17 @@ export function StudentGeographySelectors({
         </select>
         <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('cohort', filteredCohorts.length, podId ? 'No cohorts linked to this pod yet' : 'Pod drives cohort scope')}</span>
       </FieldLabel>
+      <input type="hidden" name="mallamId" value={mallamId} />
       <FieldLabel>
-        Mallam
-        <select name="mallamId" value={mallamId} onChange={(event) => setMallamId(event.target.value)} style={inputStyle} disabled={!podId}>
-          <option value="">{podId ? 'Select mallam' : 'Select pod first'}</option>
-          {filteredMallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName} · {mallamGeographyLabel(mallam, centers, states, localGovernments)}</option>)}
-        </select>
-        <span style={{ color: '#64748b', fontSize: 12 }}>{geographySelectHint('mallam', filteredMallams.length, podId ? 'No mallams linked to this pod yet' : 'Pod drives mallam scope')}</span>
+        Derived primary mallam
+        <div style={{ ...inputStyle, background: '#f8fafc', color: '#0f172a' }}>
+          {podId
+            ? (filteredMallams[0]?.displayName || filteredMallams[0]?.name || 'No primary mallam linked to this pod yet')
+            : 'Select pod first'}
+        </div>
+        <span style={{ color: '#64748b', fontSize: 12 }}>
+          Learners inherit mallam ownership from the selected pod. Change the pod if routing changes; do not hand-wire a separate mallam here.
+        </span>
       </FieldLabel>
     </>
   );

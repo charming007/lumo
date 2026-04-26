@@ -32,7 +32,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
   return (
     <PageShell
       title="Students"
-      subtitle="Track learner roster health, attendance, pods, and mallam assignment from one place."
+      subtitle="Track learner roster health, attendance, and pod-based ownership from one place."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -106,12 +106,12 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
             </ModalLauncher>
             <ModalLauncher
               buttonLabel={<span aria-hidden="true">🧭</span>}
-              title={`Assign mallam for ${student.name}`}
-              description="Change or clear learner ownership from a focused popup."
+              title={`Route ${student.name} by pod`}
+              description="Move the learner by pod and let the primary mallam derive from that pod."
               eyebrow="Learner routing"
               triggerStyle={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#ecfdf5', color: '#166534', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
             >
-              <LearnerMallamAssignmentForm student={student} mallams={mallams} returnPath="/students" />
+              <LearnerMallamAssignmentForm student={student} pods={pods} returnPath="/students" />
             </ModalLauncher>
           </div>,
         ])}

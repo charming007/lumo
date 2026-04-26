@@ -69,7 +69,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
             <MetricList items={[
               { label: 'Registered tablets', value: String(registrations.length) },
               { label: 'Assigned to pods', value: String(assignedCount) },
-              { label: 'Waiting for pod assignment', value: String(registrations.length - assignedCount) },
+              { label: 'Records missing pod linkage', value: String(registrations.length - assignedCount) },
               { label: 'Active status', value: String(activeCount) },
             ]} />
           </Card>
@@ -77,7 +77,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       }
     >
       <FeedbackBanner message={query?.message} />
-      {failedSources.length ? routeAlert(`Devices is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Registration and reassignment can still run, but confirm pod ownership before assuming the tablet map is current.`) : null}
+      {failedSources.length ? routeAlert(`Devices is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Registration and reassignment can still run, but pod ownership is the real source of truth here, so verify the selected pod before assuming the tablet map is current.`) : null}
       {!registrations.length ? routeAlert('No tablet registrations are loading right now. That might be a truly empty fleet, but it can also mean the admin feed is degraded. Verify the pod registry before calling the rollout clean.', failedSources.length ? 'error' : 'warning') : null}
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
@@ -94,7 +94,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       <Card title="Tablet registry" eyebrow="Standalone device admin">
         <div style={{ display: 'grid', gap: 16 }}>
           <SimpleTable
-            columns={['Device', 'Pod', 'Mallam', 'Geography', 'Status', 'Last seen', 'Actions']}
+            columns={['Device', 'Pod', 'Primary mallam', 'Geography', 'Status', 'Last seen', 'Actions']}
             rows={registrations.length ? registrations.map((registration) => {
               const [tone, text] = toneForStatus(registration.status);
               return [
@@ -104,20 +104,20 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
                 </div>,
                 registration.podLabel || 'Unassigned',
                 registration.assignedMallamName || '—',
-                registration.stateName && registration.localGovernmentName ? `${registration.stateName} / ${registration.localGovernmentName}` : registration.centerName || 'Pending geography',
+                registration.stateName && registration.localGovernmentName ? `${registration.stateName} / ${registration.localGovernmentName}` : registration.centerName || 'Derived from selected pod',
                 <Pill key={`${registration.id}-status`} label={registration.status || 'Unknown'} tone={tone} text={text} />,
                 formatDateTime(registration.lastSeenAt),
                 <div key={`${registration.id}-actions`} style={{ display: 'grid', gap: 10 }}>
                   <form action={updateDeviceRegistrationAction} style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 16, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <input type="hidden" name="registrationId" value={registration.id} />
                     <input type="hidden" name="returnPath" value="/devices" />
-                    <select name="podId" defaultValue={registration.podId || ''} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: 'white', fontSize: 14 }}>
-                      <option value="">Unassigned pod</option>
+                    <select name="podId" defaultValue={registration.podId || ''} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: 'white', fontSize: 14 }} required>
+                      <option value="">Select pod</option>
                       {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}
                     </select>
                     <div style={{ padding: '10px 12px', borderRadius: 10, background: 'white', border: '1px solid #e2e8f0', color: '#475569', fontSize: 14 }}>
                       <strong style={{ color: '#0f172a' }}>Device identifier:</strong> {registration.deviceIdentifier}
-                      <div style={{ marginTop: 4, color: '#64748b' }}>Tablet identity is stable here. Re-point the pod if ops moved the device; do not rename it casually.</div>
+                      <div style={{ marginTop: 4, color: '#64748b' }}>Tablet identity is stable here. Re-point the pod if ops moved the device; mallam and geography should follow from that pod, not from a second ad-hoc device field.</div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <select name="status" defaultValue={registration.status || 'active'} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: 'white', fontSize: 14 }}>
