@@ -11,6 +11,10 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function isLessonAuthoringPath(pathname: string) {
+  return pathname === '/content/lessons/new' || pathname.startsWith('/content/lessons/');
+}
+
 function itemMonogram(label: string) {
   return label
     .split(' ')
@@ -37,6 +41,19 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const previousPathnameRef = useRef(pathname);
+  const lessonAuthoringRoute = isLessonAuthoringPath(pathname);
+  const shellLabel = lessonAuthoringRoute ? 'Lesson Studio workspace' : 'Admin workspace';
+  const shellHeadline = lessonAuthoringRoute ? 'Authoring routes active' : 'Admin routes active';
+  const brandDetail = lessonAuthoringRoute
+    ? 'Focused authoring shell for building and editing lesson packs without dropping context, assets, or curriculum alignment.'
+    : 'Full admin shell for curriculum, learners, pods, devices, assignments, attendance, progress, settings, and release operations.';
+  const calloutDetail = lessonAuthoringRoute
+    ? 'Stay inside the real lesson authoring flow: create, duplicate, edit, and asset-hop without getting dumped back into generic control-room copy.'
+    : 'Keep curriculum, learner ops, release checks, and settings in one consistent admin shell instead of dropping authors into leftover pilot-era framing.';
+  const footerTitle = lessonAuthoringRoute ? 'Lesson authoring workspace' : 'Admin workspace';
+  const footerDetail = lessonAuthoringRoute
+    ? 'This shell stays focused on lesson creation and editing, while the rest of the admin surfaces remain reachable when you deliberately step back out to the broader LMS board.'
+    : 'This shell now stays consistent across the full admin surface, so content authors do not bounce from Content Library into a pilot-branded sidebar when they open Lesson Studio.';
 
   useEffect(() => {
     if (previousPathnameRef.current !== pathname && mobileNavOpen) {
@@ -169,8 +186,8 @@ export function Sidebar({
         </nav>
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>This shell now stays consistent across the full admin surface, so content authors do not bounce from Content Library into a pilot-branded sidebar when they open Lesson Studio.</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>{footerTitle}</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>{footerDetail}</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>

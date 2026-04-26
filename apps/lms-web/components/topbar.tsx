@@ -1,3 +1,4 @@
+import { usePathname } from 'next/navigation';
 import type { BuildSignature } from '../lib/build-signature';
 import { describeDashboardStatus } from '../lib/trust-copy';
 
@@ -7,6 +8,10 @@ type TopbarProps = {
   seedCount?: number;
   buildSignature: BuildSignature;
 };
+
+function isLessonAuthoringPath(pathname: string) {
+  return pathname === '/content/lessons/new' || pathname.startsWith('/content/lessons/');
+}
 
 const desktopSidebarToggleStyle: React.CSSProperties = {
   border: '1px solid #d7deea',
@@ -25,7 +30,12 @@ export function Topbar({
   seedCount = 0,
   buildSignature,
 }: TopbarProps) {
+  const pathname = usePathname();
+  const lessonAuthoringRoute = isLessonAuthoringPath(pathname);
   const dashboardStatus = describeDashboardStatus(seedCount);
+  const workspaceLabel = lessonAuthoringRoute ? 'Lesson Studio workspace' : 'Admin workspace';
+  const workspaceTitle = lessonAuthoringRoute ? 'Lesson Studio shell' : 'Lumo admin shell';
+  const roleChip = lessonAuthoringRoute ? 'Authoring' : 'Admin';
 
   return (
     <div
@@ -56,17 +66,17 @@ export function Topbar({
           {sidebarCollapsed ? '⇥ Expand nav' : '⇤ Collapse nav'}
         </button>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>Admin workspace</div>
-          <div style={{ fontSize: 'clamp(22px, 3vw, 28px)', fontWeight: 900, color: '#0f172a', overflowWrap: 'anywhere' }}>Lumo admin shell</div>
+          <div style={{ fontSize: 13, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{workspaceLabel}</div>
+          <div style={{ fontSize: 'clamp(22px, 3vw, 28px)', fontWeight: 900, color: '#0f172a', overflowWrap: 'anywhere' }}>{workspaceTitle}</div>
         </div>
       </div>
       <div className="topbar__meta" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0, flex: '1 1 280px' }}>
-        <div className="topbar__meta-chip" style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>Admin workspace</div>
+        <div className="topbar__meta-chip" style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>{workspaceLabel}</div>
         <div className="topbar__meta-chip" style={{ background: '#eef2ff', color: '#3730a3', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }} title={buildSignature.summary}>
           Live shell: v{buildSignature.version} · {buildSignature.commitShort} · {buildSignature.deploymentLabel}
         </div>
         <div className="topbar__meta-chip" style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{dashboardStatus}</div>
-        <div className="topbar__meta-chip" style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Admin</div>
+        <div className="topbar__meta-chip" style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{roleChip}</div>
       </div>
 
       <style>{`
