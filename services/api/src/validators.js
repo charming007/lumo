@@ -200,7 +200,13 @@ function validateProgress(body, { partial = false } = {}) {
 
 function validateStudent(body, { partial = false } = {}) {
   if (!partial) {
-    requireFields(body, ['name', 'age', 'cohortId']);
+    requireFields(body, ['name', 'age']);
+
+    if (!body.cohortId && !body.podId) {
+      const error = new Error('Student requires a cohortId or podId. Pod is the canonical placement anchor.');
+      error.statusCode = 400;
+      throw error;
+    }
   }
 
   assertExists('cohortId', body.cohortId, repository.findCohortById);
