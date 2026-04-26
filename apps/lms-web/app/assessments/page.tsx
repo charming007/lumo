@@ -1,4 +1,6 @@
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { fetchAssessments, fetchWorkboard } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
@@ -14,6 +16,47 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
 }
 
 export default async function AssessmentsPage() {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Assessments"
+        subtitle="Production wiring is incomplete, so progression and gate review stop here instead of faking a clean readiness picture."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: assessments API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the assessments board cannot be trusted for progression gates, readiness review, or manual verification. Fix the env var, redeploy, then verify live assessment data.
+          </>
+        )}
+        whyBlocked={[
+          'Assessments is part of the pilot release gate. Showing empty or partial rows here would imply learners are ready to move when the LMS is actually disconnected.',
+          'This route depends on live assessment records plus workboard readiness data. Missing production wiring turns every “looks clear” state into fiction.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Assessment table',
+            expected: 'Live assessment rows load with subject, module, trigger, gate, and status data from the backend',
+            failure: 'Blank or tiny table that looks safe only because the API never connected',
+          },
+          {
+            surface: 'Readiness summary',
+            expected: 'The readiness count reflects the live workboard instead of a fallback shell',
+            failure: 'A calm zero or stale number appears while the app is disconnected',
+          },
+          {
+            surface: 'Pilot progression review',
+            expected: 'Operators can cross-check gate definitions against real learner readiness before advancing anyone',
+            failure: 'The route suggests progression is reviewable even though the backend is unreachable',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Progress board', href: '/progress', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const [assessmentsResult, workboardResult] = await Promise.allSettled([fetchAssessments(), fetchWorkboard()]);
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
   const workboard = workboardResult.status === 'fulfilled' ? workboardResult.value : [];

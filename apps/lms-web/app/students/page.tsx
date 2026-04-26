@@ -6,7 +6,7 @@ import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
 import { averageAttendancePercent, formatAttendancePercent } from '../../lib/attendance';
 import { filterStudentsByGeography, studentGeographyLabel } from '../../lib/geography';
-import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
+import { Card, MetricList, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 export default async function StudentsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
@@ -16,7 +16,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
   const cohortId = typeof query?.cohortId === 'string' ? query.cohortId : '';
   const mallamId = typeof query?.mallamId === 'string' ? query.mallamId : '';
 
-  const [students, cohorts, pods, mallams, centers, states, localGovernments] = await Promise.all([
+  const [studentsResult, cohortsResult, podsResult, mallamsResult, centersResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
     fetchStudents(),
     fetchCohorts(),
     fetchPods(),
@@ -25,6 +25,27 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
     fetchStates(),
     fetchLocalGovernments(),
   ]);
+
+  const students = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
+  const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+  const centers = centersResult.status === 'fulfilled' ? centersResult.value : [];
+  const states = statesResult.status === 'fulfilled' ? statesResult.value : [];
+  const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
+
+  const failedSources = [
+    studentsResult.status === 'rejected' ? 'students' : null,
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+  ].filter(Boolean) as string[];
+
+  const hasCoreRosterGap = studentsResult.status === 'rejected';
+  const geographyFilterDegraded = podsResult.status === 'rejected' || centersResult.status === 'rejected' || statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
   const filteredStudents = filterStudentsByGeography(students, pods, centers, { stateId, localGovernmentId, podId, cohortId, mallamId });
   const activeStudents = filteredStudents.filter((student) => (student.stage || '').toLowerCase() !== 'inactive');
   const avgAttendance = averageAttendancePercent(filteredStudents.map((student) => student.attendanceRate));
@@ -42,6 +63,7 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
               title="Add learner"
               description="Create a learner without dumping a giant form into the roster page."
               eyebrow="Learner admin"
+              disabled={hasCoreRosterGap}
             >
               <CreateStudentForm cohorts={cohorts} pods={pods} mallams={mallams} centers={centers} states={states} localGovernments={localGovernments} />
             </ModalLauncher>
@@ -58,6 +80,14 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
         </div>
       }
     >
+      {failedSources.length ? (
+        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: hasCoreRosterGap ? '#fef2f2' : '#fff7ed', border: `1px solid ${hasCoreRosterGap ? '#fecaca' : '#fed7aa'}`, color: hasCoreRosterGap ? '#b91c1c' : '#9a3412', lineHeight: 1.6, fontWeight: 700 }}>
+          {hasCoreRosterGap
+            ? `Learner admin is degraded because the ${failedSources.join(', ')} feed${failedSources.length === 1 ? ' has' : 's have'} failed. The page stays visible so operators get an honest outage surface instead of a crash, but learner roster writes are not trustworthy until the students feed recovers.`
+            : `Learner admin recovered with degraded feeds: ${failedSources.join(', ')}. Core learner actions stay live, but geography labels and supporting selectors may be incomplete until those feeds recover.`}
+        </div>
+      ) : null}
+
       <GeographyFilterBar
         resetHref="/students"
         fields={[
@@ -67,11 +97,18 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
           { name: 'cohortId', label: 'Cohort', value: cohortId, options: cohorts.map((cohort) => ({ value: cohort.id, label: cohort.name })) },
           { name: 'mallamId', label: 'Mallam', value: mallamId, options: mallams.map((mallam) => ({ value: mallam.id, label: mallam.displayName || mallam.name })) },
         ]}
-        helper={`Showing ${filteredStudents.length} learner${filteredStudents.length === 1 ? '' : 's'} in the current geography/program slice.`}
+        helper={hasCoreRosterGap
+          ? 'Learner roster feed is unavailable, so this page is showing an outage-safe shell instead of pretending the roster is empty.'
+          : geographyFilterDegraded
+            ? `Showing ${filteredStudents.length} learner${filteredStudents.length === 1 ? '' : 's'} with degraded geography context because one of the support feeds is down.`
+            : `Showing ${filteredStudents.length} learner${filteredStudents.length === 1 ? '' : 's'} in the current geography/program slice.`}
       />
       <SimpleTable
         columns={['Learner', 'Stage', 'Geography', 'Cohort', 'Pod', 'Mallam', 'Attendance', 'Actions']}
-        rows={filteredStudents.map((student) => [
+        rows={hasCoreRosterGap ? [[
+          <span key="students-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Learner roster unavailable. Recover the students feed before using learner admin actions.</span>,
+          '', '', '', '', '', '', '',
+        ]] : filteredStudents.map((student) => [
           <div key={`${student.id}-name`}>
             <strong>{student.name}</strong>
             <div style={{ color: '#64748b', marginTop: 4 }}>Age {student.age || '—'} · {student.gender || 'N/A'}</div>

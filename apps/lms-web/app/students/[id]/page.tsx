@@ -12,7 +12,7 @@ function percent(value: number | null | undefined) {
 
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [students, cohorts, pods, mallams, centers, states, localGovernments] = await Promise.all([
+  const [studentsResult, cohortsResult, podsResult, mallamsResult, centersResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
     fetchStudents(),
     fetchCohorts(),
     fetchPods(),
@@ -21,6 +21,24 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     fetchStates(),
     fetchLocalGovernments(),
   ]);
+
+  const students = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
+  const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+  const centers = centersResult.status === 'fulfilled' ? centersResult.value : [];
+  const states = statesResult.status === 'fulfilled' ? statesResult.value : [];
+  const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
+
+  const failedSources = [
+    studentsResult.status === 'rejected' ? 'students' : null,
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+  ].filter(Boolean) as string[];
 
   const student = students.find((item) => item.id === id);
   if (!student) notFound();
@@ -65,6 +83,12 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         </div>
       }
     >
+      {failedSources.length ? (
+        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', lineHeight: 1.6, fontWeight: 700 }}>
+          Learner detail recovered with degraded feeds: {failedSources.join(', ')}. Core learner record is still loaded, but edit forms and assignment selectors may have reduced geography or roster context until those feeds recover.
+        </div>
+      ) : null}
+
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <Card title="Learner profile" eyebrow={student.cohortName || 'Learner'}>
           <div style={{ display: 'grid', gap: 10 }}>
