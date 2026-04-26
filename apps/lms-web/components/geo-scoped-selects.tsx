@@ -97,6 +97,27 @@ export function StudentGeographySelectors({
   const [cohortId, setCohortId] = useState(initialCohortId || '');
   const [mallamId, setMallamId] = useState(initialMallamId || '');
 
+  const handleStateChange = (nextStateId: string) => {
+    setStateId(nextStateId);
+    setLocalGovernmentId('');
+    setPodId('');
+    setCohortId('');
+    setMallamId('');
+  };
+
+  const handleLocalGovernmentChange = (nextLocalGovernmentId: string) => {
+    setLocalGovernmentId(nextLocalGovernmentId);
+    setPodId('');
+    setCohortId('');
+    setMallamId('');
+  };
+
+  const handlePodChange = (nextPodId: string) => {
+    setPodId(nextPodId);
+    setCohortId('');
+    setMallamId('');
+  };
+
   const filteredLocalGovernments = useMemo(
     () => localGovernments.filter((item) => !stateId || item.stateId === stateId),
     [localGovernments, stateId],
@@ -191,7 +212,7 @@ export function StudentGeographySelectors({
       <div style={twoColumnGrid}>
         <FieldLabel>
           State
-          <select name="stateId" value={stateId} onChange={(event) => setStateId(event.target.value)} style={inputStyle}>
+          <select name="stateId" value={stateId} onChange={(event) => handleStateChange(event.target.value)} style={inputStyle}>
             <option value="">Select state</option>
             {states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}
           </select>
@@ -199,7 +220,7 @@ export function StudentGeographySelectors({
         </FieldLabel>
         <FieldLabel>
           Local government
-          <select name="localGovernmentId" value={localGovernmentId} onChange={(event) => setLocalGovernmentId(event.target.value)} style={inputStyle}>
+          <select name="localGovernmentId" value={localGovernmentId} onChange={(event) => handleLocalGovernmentChange(event.target.value)} style={inputStyle} disabled={!filteredLocalGovernments.length}>
             <option value="">Select local government</option>
             {filteredLocalGovernments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
@@ -208,21 +229,21 @@ export function StudentGeographySelectors({
       </div>
       <FieldLabel>
         Pod
-        <select name="podId" value={podId} onChange={(event) => setPodId(event.target.value)} style={inputStyle}>
+        <select name="podId" value={podId} onChange={(event) => handlePodChange(event.target.value)} style={inputStyle} disabled={!filteredPods.length}>
           <option value="">Select pod</option>
           {filteredPods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label} · {podGeographyLabel(pod, centers, states, localGovernments)}</option>)}
         </select>
       </FieldLabel>
       <FieldLabel>
         Cohort
-        <select name="cohortId" value={cohortId} onChange={(event) => setCohortId(event.target.value)} style={inputStyle}>
+        <select name="cohortId" value={cohortId} onChange={(event) => setCohortId(event.target.value)} style={inputStyle} disabled={!filteredCohorts.length}>
           <option value="">Select cohort</option>
           {filteredCohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name} · {cohortGeographyLabel(cohort, pods, centers, states, localGovernments)}</option>)}
         </select>
       </FieldLabel>
       <FieldLabel>
         Mallam
-        <select name="mallamId" value={mallamId} onChange={(event) => setMallamId(event.target.value)} style={inputStyle}>
+        <select name="mallamId" value={mallamId} onChange={(event) => setMallamId(event.target.value)} style={inputStyle} disabled={!filteredMallams.length}>
           <option value="">Select mallam</option>
           {filteredMallams.map((mallam) => <option key={mallam.id} value={mallam.id}>{mallam.displayName} · {mallamGeographyLabel(mallam, centers, states, localGovernments)}</option>)}
         </select>
