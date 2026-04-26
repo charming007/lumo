@@ -348,6 +348,39 @@ test('learner bootstrap derives learner geography from the assigned pod instead 
   assert.equal(presented.mallamName, 'Mallam Musa Ibrahim');
 });
 
+
+test('learner bootstrap normalizes stale learner pod fields to the canonical cohort pod', async () => {
+  const student = repository.createStudent({
+    cohortId: 'cohort-1',
+    podId: 'pod-1',
+    mallamId: 'teacher-1',
+    name: 'Stale Pod Label Learner',
+    age: 8,
+    gender: 'female',
+    level: 'beginner',
+    stage: 'foundation-a',
+    guardianName: 'Guardian Stale',
+    deviceAccess: 'shared-tablet',
+  });
+
+  const persisted = repository.findStudentById(student.id);
+  persisted.podId = 'pod-2';
+  persisted.podLabel = 'Wrong Pod Label';
+
+  const response = await request('/api/v1/learner-app/bootstrap?deviceIdentifier=lumo-tablet-kano-01');
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+
+  const presented = response.body.learners.find((learner) => learner.id === student.id);
+  assert.ok(presented, JSON.stringify(response.body.learners));
+  assert.equal(presented.podId, 'pod-1');
+  assert.equal(presented.podLabel, 'Kano Pod 01');
+  assert.equal(response.body.learners.some((learner) => learner.id === student.id && learner.podId === 'pod-2'), false);
+
+  const normalized = repository.findStudentById(student.id);
+  assert.equal(normalized.podId, 'pod-1');
+  assert.equal(Object.hasOwn(normalized, 'podLabel'), false);
+});
+
 test('tablet-scoped bootstrap only returns pod-scoped learners across roster, assignment, and launch availability payloads', async () => {
   const scopedLesson = repository.createLesson({
     subjectId: 'english',
