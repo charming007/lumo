@@ -98,7 +98,10 @@ LearnerProfile _learner({
   );
 }
 
-RegistrationContext _registrationContext({String? tabletPodId}) {
+RegistrationContext _registrationContext({
+  String? tabletPodId,
+  String tabletPodLabel = 'Kaduna / Zaria',
+}) {
   return RegistrationContext.fromJson({
     'cohorts': [
       {
@@ -122,7 +125,7 @@ RegistrationContext _registrationContext({String? tabletPodId}) {
       'id': 'device-zaria',
       'deviceIdentifier': 'lumo-tablet-zaria-01',
       'podId': tabletPodId,
-      'podLabel': 'Kaduna / Zaria',
+      'podLabel': tabletPodLabel,
       'mallamId': 'mallam-zaria',
       'mallamName': 'Mallam Zaria',
     },
@@ -271,6 +274,163 @@ void main() {
     expect(state.learners.map((learner) => learner.id).toList(),
         ['learner-zaria']);
     expect(state.learners.single.podId, 'pod-zaria');
+    expect(state.learners.single.podLabel, 'Kaduna / Zaria');
+  });
+
+  test(
+      'bootstrap replaces stale tablet shell pod labels with the canonical scoped learner label',
+      () async {
+    final state = LumoAppState(
+      apiClient: _FakeApiClient(
+        LumoBootstrap(
+          learners: [
+            _learner(
+              id: 'learner-zaria',
+              podId: 'pod-zaria',
+              podLabel: 'Kaduna / Zaria',
+            ),
+          ],
+          modules: const [],
+          lessons: const [],
+          registrationContext: _registrationContext(
+            tabletPodId: 'pod-zaria',
+            tabletPodLabel: 'Wrong Shell Label',
+          ),
+        ),
+      ),
+      bundledContentLoader: const _EmptyBundledContentLoader(),
+      includeSeedDemoContent: false,
+    );
+
+    await state.bootstrap();
+
+    expect(state.tabletPodId, 'pod-zaria');
+    expect(state.tabletPodLabel, 'Kaduna / Zaria');
+    expect(state.registrationContext.tabletRegistration?.podLabel,
+        'Wrong Shell Label');
+    expect(state.learners.single.podLabel, 'Kaduna / Zaria');
+  });
+
+  test(
+      'bootstrap prefers learner-backed canonical pod labels when tablet registration keeps a stale location label',
+      () async {
+    final state = LumoAppState(
+      apiClient: _FakeApiClient(
+        LumoBootstrap(
+          learners: [
+            _learner(
+              id: 'learner-zaria',
+              podId: 'pod-zaria',
+              podLabel: 'Kaduna / Zaria',
+            ),
+          ],
+          modules: const [],
+          lessons: const [],
+          registrationContext: RegistrationContext.fromJson({
+            'cohorts': [
+              {
+                'id': 'cohort-bridge',
+                'name': 'Bridge Cohort',
+                'podId': 'pod-zaria',
+              },
+            ],
+            'mallams': [
+              {
+                'id': 'mallam-zaria',
+                'displayName': 'Mallam Zaria',
+                'podIds': ['pod-zaria'],
+              },
+            ],
+            'defaultTarget': {
+              'cohortId': 'cohort-bridge',
+              'mallamId': 'mallam-zaria',
+            },
+            'tabletRegistration': {
+              'id': 'device-zaria',
+              'deviceIdentifier': 'lumo-tablet-zaria-01',
+              'podId': 'pod-zaria',
+              'podLabel': 'Wrong persisted location',
+              'mallamId': 'mallam-zaria',
+              'mallamName': 'Mallam Zaria',
+            },
+          }),
+        ),
+      ),
+      bundledContentLoader: const _EmptyBundledContentLoader(),
+      includeSeedDemoContent: false,
+    );
+
+    await state.bootstrap();
+
+    expect(state.tabletPodId, 'pod-zaria');
+    expect(state.tabletPodLabel, 'Kaduna / Zaria');
+    expect(state.learners.single.podLabel, 'Kaduna / Zaria');
+  });
+
+  test(
+      'restorePersistedState replaces stale tablet shell pod labels with the canonical scoped learner label',
+      () async {
+    final zariaLearner = _learner(
+      id: 'learner-zaria',
+      podId: 'pod-zaria',
+      podLabel: 'Kaduna / Zaria',
+    );
+
+    final snapshot = {
+      'schemaVersion': '2026-04-13-runtime-persist',
+      'tabletDeviceIdentifier': 'lumo-tablet-zaria-01',
+      'registrationContext': {
+        'cohorts': [
+          {
+            'id': 'cohort-bridge',
+            'name': 'Bridge Cohort',
+            'podId': 'pod-zaria',
+          },
+        ],
+        'mallams': [
+          {
+            'id': 'mallam-zaria',
+            'displayName': 'Mallam Zaria',
+            'podIds': ['pod-zaria'],
+          },
+        ],
+        'defaultTarget': {
+          'cohortId': 'cohort-bridge',
+          'mallamId': 'mallam-zaria',
+        },
+        'tabletRegistration': {
+          'id': 'device-zaria',
+          'deviceIdentifier': 'lumo-tablet-zaria-01',
+          'podId': 'pod-zaria',
+          'podLabel': 'Wrong Shell Label',
+          'mallamId': 'mallam-zaria',
+          'mallamName': 'Mallam Zaria',
+        },
+      },
+      'learners': [_encodedLearner(zariaLearner)],
+      'modules': const [],
+      'assignedLessons': const [],
+      'assignmentPacks': const [],
+      'pendingSyncEvents': const [],
+      'usingFallbackData': true,
+      'snapshotTrustedFromLiveBootstrap': true,
+    };
+
+    SharedPreferences.setMockInitialValues({
+      'lumo_learner_tablet_state_v1': jsonEncode(snapshot),
+    });
+
+    final state = LumoAppState(
+      bundledContentLoader: const _EmptyBundledContentLoader(),
+      includeSeedDemoContent: false,
+    );
+
+    await state.restorePersistedState();
+
+    expect(state.tabletPodId, 'pod-zaria');
+    expect(state.tabletPodLabel, 'Kaduna / Zaria');
+    expect(state.registrationContext.tabletRegistration?.podLabel,
+        'Wrong Shell Label');
     expect(state.learners.single.podLabel, 'Kaduna / Zaria');
   });
 
