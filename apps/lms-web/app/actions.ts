@@ -1407,6 +1407,7 @@ export async function expireStaleRewardRequestsAction(formData: FormData) {
 
 export async function createPodAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
+  const primaryMallamId = String(formData.get('mallamId') || '').trim();
   const payload = {
     centerId: String(formData.get('centerId') || '').trim() || null,
     stateId: String(formData.get('stateId') || '').trim(),
@@ -1418,7 +1419,8 @@ export async function createPodAction(formData: FormData) {
     capacity: Number(formData.get('capacity') || 0),
     learnersActive: Number(formData.get('learnersActive') || 0),
     connectivity: String(formData.get('connectivity') || 'offline-first').trim(),
-    mallamIds: formData.getAll('mallamIds').map((value) => String(value).trim()).filter(Boolean),
+    mallamIds: primaryMallamId ? [primaryMallamId] : [],
+    primaryMallamId: primaryMallamId || null,
   };
 
   if (!payload.stateId || !payload.localGovernmentId || !payload.podName) {
@@ -1451,6 +1453,7 @@ export async function updatePodAction(formData: FormData) {
     redirect(appendSearchParams(returnPath, { message: 'Pod update failed: missing pod id' }));
   }
 
+  const primaryMallamId = String(formData.get('mallamId') || '').trim();
   const payload = {
     centerId: String(formData.get('centerId') || '').trim() || null,
     stateId: String(formData.get('stateId') || '').trim() || null,
@@ -1462,7 +1465,8 @@ export async function updatePodAction(formData: FormData) {
     capacity: formData.get('capacity') === null ? undefined : Number(formData.get('capacity') || 0),
     learnersActive: formData.get('learnersActive') === null ? undefined : Number(formData.get('learnersActive') || 0),
     connectivity: String(formData.get('connectivity') || '').trim() || undefined,
-    mallamIds: formData.getAll('mallamIds').map((value) => String(value).trim()).filter(Boolean),
+    mallamIds: primaryMallamId ? [primaryMallamId] : [],
+    primaryMallamId: primaryMallamId || null,
   };
 
   try {
@@ -1503,10 +1507,6 @@ export async function createDeviceRegistrationAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/devices');
   const payload = {
     podId: String(formData.get('podId') || '').trim() || null,
-    centerId: String(formData.get('centerId') || '').trim() || null,
-    stateId: String(formData.get('stateId') || '').trim() || null,
-    localGovernmentId: String(formData.get('localGovernmentId') || '').trim() || null,
-    assignedMallamId: String(formData.get('assignedMallamId') || '').trim() || null,
     deviceIdentifier: String(formData.get('deviceIdentifier') || '').trim(),
     serialNumber: String(formData.get('serialNumber') || '').trim() || null,
     platform: String(formData.get('platform') || 'android').trim(),
@@ -1550,7 +1550,6 @@ export async function updateDeviceRegistrationAction(formData: FormData) {
   const registrationId = String(formData.get('registrationId') || '').trim();
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
   const podIdValue = String(formData.get('podId') || '').trim();
-  const assignedMallamIdValue = String(formData.get('assignedMallamId') || '').trim();
   const status = String(formData.get('status') || '').trim();
   const appVersion = String(formData.get('appVersion') || '').trim();
 
@@ -1563,7 +1562,6 @@ export async function updateDeviceRegistrationAction(formData: FormData) {
   try {
     await apiWrite(`/api/v1/device-registrations/${registrationId}`, 'PATCH', {
       podId: podIdValue || null,
-      assignedMallamId: assignedMallamIdValue || null,
       status: status || undefined,
       appVersion: appVersion || null,
     }, 'admin');

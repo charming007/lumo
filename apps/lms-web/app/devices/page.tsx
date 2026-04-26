@@ -56,7 +56,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
   return (
     <PageShell
       title="Devices"
-      subtitle="Register and manage tablets from the route operators are actually using, with pod selection as the source of truth for geography and mallam context."
+      subtitle="Register and manage tablets with pod selection as the source of truth for geography and ownership. One pod should map to one active tablet scope."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -83,7 +83,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
           ['Pods receiving devices', String(new Set(registrations.map((item) => item.podId).filter(Boolean)).size)],
-          ['Mallams derived from pods', String(registrations.filter((item) => item.assignedMallamId).length)],
+          ['Pods with duplicate tablets', String(Array.from(new Set(registrations.map((item) => item.podId).filter(Boolean))).filter((podId) => registrations.filter((item) => item.podId === podId && (item.status || '').toLowerCase() !== 'retired').length > 1).length)],
           ['Repair queue', String(registrations.filter((item) => (item.status || '').toLowerCase() === 'repair').length)],
           ['Retired devices', String(registrations.filter((item) => (item.status || '').toLowerCase() === 'retired').length)],
         ].map(([label, value]) => (
@@ -115,7 +115,10 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
                       <option value="">Unassigned pod</option>
                       {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}
                     </select>
-                    <input name="tabletName" defaultValue={registration.tabletName || ''} placeholder="Tablet name" style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: 'white', fontSize: 14 }} />
+                    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'white', border: '1px solid #e2e8f0', color: '#475569', fontSize: 14 }}>
+                      <strong style={{ color: '#0f172a' }}>Device identifier:</strong> {registration.deviceIdentifier}
+                      <div style={{ marginTop: 4, color: '#64748b' }}>Tablet identity is stable here. Re-point the pod if ops moved the device; do not rename it casually.</div>
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <select name="status" defaultValue={registration.status || 'active'} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: 'white', fontSize: 14 }}>
                         <option value="active">Active</option>

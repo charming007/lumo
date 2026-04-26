@@ -19,8 +19,13 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
   const mallam = mallams.find((item) => item.id === id);
   if (!mallam) notFound();
 
+  const coveredPodIds = new Set(mallam.podIds || []);
   const assignedLearners = students.filter((student) => student.mallamId === mallam.id);
-  const unassignedLearners = students.filter((student) => !student.mallamId || student.mallamId !== mallam.id);
+  const unassignedLearners = students.filter((student) => {
+    if (student.mallamId === mallam.id) return false;
+    if (!coveredPodIds.size) return !student.mallamId;
+    return coveredPodIds.has(student.podId || '') && student.mallamId !== mallam.id;
+  });
 
   return (
     <PageShell
