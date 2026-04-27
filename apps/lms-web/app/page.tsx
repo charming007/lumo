@@ -273,6 +273,7 @@ export default async function HomePage() {
       || assetRuntime.summary.unresolvedReferenceCount > 0
     ),
   );
+  const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
   const assetOpsCriticalFailure = assetRuntimeResult.status === 'rejected'
     ? 'asset runtime'
     : assetOpsVisibleBlocker
@@ -292,7 +293,6 @@ export default async function HomePage() {
     { label: 'asset runtime', result: assetRuntimeResult },
     { label: 'subjects', result: subjectsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
-  const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
     !workboardAvailable ? 'workboard' : null,
@@ -303,7 +303,7 @@ export default async function HomePage() {
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
-    assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
+    assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
   const hasDashboardPageBlocker = criticalDashboardFailures.length > 0 || criticalReleaseFailures.length > 0;
