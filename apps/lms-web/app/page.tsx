@@ -9,6 +9,7 @@ import { navigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
+import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 
 const quickActionStyle = {
@@ -306,13 +307,18 @@ export default async function HomePage() {
     assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
+  const hasDashboardPageBlocker = shouldBlockDashboardPage({
+    criticalDashboardFailureCount: criticalDashboardFailures.length,
+    criticalReleaseFailureCount: criticalReleaseFailures.length,
+    hasCriticalAssetOpsGap,
+  });
   const healthyFeedCount = 10 - failedSources.length;
-  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
+  const dashboardTrustBadge = hasDashboardPageBlocker
     ? 'Blocked'
     : failedSources.length
       ? 'Partial live pull'
       : 'Fresh live pull';
-  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
+  const dashboardTrustTone = hasDashboardPageBlocker
     ? { tone: '#FEE2E2', text: '#991B1B' }
     : failedSources.length
       ? { tone: '#FEF3C7', text: '#92400E' }
