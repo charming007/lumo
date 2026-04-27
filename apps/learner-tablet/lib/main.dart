@@ -206,6 +206,7 @@ class LearnerBootstrapLoadingPage extends StatelessWidget {
                 children: [
                   LumoTopBar(
                     onLogoTap: () {},
+                    metadataLabels: _buildTopBarMetadataLabels(state),
                     extraChips: _buildOperatorStatusChips(state),
                   ),
                   const SizedBox(height: 24),
@@ -312,6 +313,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                 children: [
                   LumoTopBar(
                     onLogoTap: () {},
+                    metadataLabels: _buildTopBarMetadataLabels(state),
                     extraChips: _buildOperatorStatusChips(state),
                   ),
                   const SizedBox(height: 24),
@@ -973,6 +975,16 @@ void launchLessonFlow({
   );
 }
 
+List<String> _buildTopBarMetadataLabels(LumoAppState state) {
+  final labels = <String>[];
+  final geographyLabel =
+      state.tabletPodLabel?.trim() ?? state.currentLearner?.podLabel?.trim();
+  if (geographyLabel != null && geographyLabel.isNotEmpty) {
+    labels.add(geographyLabel);
+  }
+  return labels;
+}
+
 List<Widget> _buildOperatorStatusChips(LumoAppState state) {
   return [
     _OperatorStatusChip(
@@ -1111,7 +1123,11 @@ class HomePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!ultraShortHeight) LumoTopBar(onLogoTap: () {}),
+              if (!ultraShortHeight)
+                LumoTopBar(
+                  onLogoTap: () {},
+                  metadataLabels: _buildTopBarMetadataLabels(state),
+                ),
               if (showTrustBanner) ...[
                 const SizedBox(height: 12),
                 _HomeTrustBanner(
@@ -2255,6 +2271,7 @@ class AllStudentsPage extends StatelessWidget {
                     onLogoTap: () => Navigator.of(
                       context,
                     ).popUntil((route) => route.isFirst),
+                    metadataLabels: _buildTopBarMetadataLabels(state),
                     extraChips: _buildOperatorStatusChips(state),
                   ),
                   const SizedBox(height: 20),
