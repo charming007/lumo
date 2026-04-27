@@ -495,26 +495,32 @@ function presentObservation(entry) {
 
 function presentDeviceRegistration(entry) {
   const pod = entry.podId ? repository.findPodById(entry.podId) : null;
-  const center = entry.centerId ? repository.findCenterById(entry.centerId) : pod?.centerId ? repository.findCenterById(pod.centerId) : null;
-  const state = entry.stateId ? repository.findStateById(entry.stateId) : pod?.stateId ? repository.findStateById(pod.stateId) : center?.stateId ? repository.findStateById(center.stateId) : null;
-  const localGovernment = entry.localGovernmentId
-    ? repository.findLocalGovernmentById(entry.localGovernmentId)
-    : pod?.localGovernmentId
-      ? repository.findLocalGovernmentById(pod.localGovernmentId)
-      : center?.localGovernmentId
-        ? repository.findLocalGovernmentById(center.localGovernmentId)
+  const center = pod?.centerId ? repository.findCenterById(pod.centerId) : entry.centerId ? repository.findCenterById(entry.centerId) : null;
+  const state = pod?.stateId
+    ? repository.findStateById(pod.stateId)
+    : center?.stateId
+      ? repository.findStateById(center.stateId)
+      : entry.stateId
+        ? repository.findStateById(entry.stateId)
+        : null;
+  const localGovernment = pod?.localGovernmentId
+    ? repository.findLocalGovernmentById(pod.localGovernmentId)
+    : center?.localGovernmentId
+      ? repository.findLocalGovernmentById(center.localGovernmentId)
+      : entry.localGovernmentId
+        ? repository.findLocalGovernmentById(entry.localGovernmentId)
         : null;
   const resolvedAssignedMallamId = (pod?.mallamIds || [])[0] || entry.assignedMallamId || null;
   const mallam = resolvedAssignedMallamId ? repository.findTeacherById(resolvedAssignedMallamId) : null;
 
   return {
     ...entry,
-    centerId: entry.centerId || pod?.centerId || null,
+    centerId: pod?.centerId || entry.centerId || null,
     centerName: center?.name ?? null,
     podLabel: pod?.label ?? null,
-    stateId: entry.stateId || pod?.stateId || center?.stateId || null,
+    stateId: pod?.stateId || center?.stateId || entry.stateId || null,
     stateName: state?.name ?? null,
-    localGovernmentId: entry.localGovernmentId || pod?.localGovernmentId || center?.localGovernmentId || null,
+    localGovernmentId: pod?.localGovernmentId || center?.localGovernmentId || entry.localGovernmentId || null,
     localGovernmentName: localGovernment?.name ?? null,
     assignedMallamId: resolvedAssignedMallamId,
     assignedMallamName: mallam?.displayName ?? mallam?.name ?? null,
