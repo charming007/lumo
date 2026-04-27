@@ -59,7 +59,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
   return (
     <PageShell
       title="Pods"
-      subtitle="Create, update, retire, and inspect operational pods as the anchor for mallam, learner, and tablet ownership."
+      subtitle="Create, update, retire, and inspect operational pods as the anchor for primary mallam, learner, and tablet ownership."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -110,7 +110,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
       <div style={{ marginBottom: 20 }}>
         <Card title="Pod registry" eyebrow="CRUD admin">
           <SimpleTable
-            columns={['Pod', 'Status', 'Geography', 'Learners', 'Mallams', 'Tablets', 'Center', 'Actions']}
+            columns={['Pod', 'Status', 'Geography', 'Learners', 'Primary mallam', 'Tablets', 'Center', 'Actions']}
             rows={pods.map((pod) => {
               const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
               return [

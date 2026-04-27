@@ -7,7 +7,7 @@ export function LearnerMallamAssignmentForm({ student, pods, returnPath }: { stu
     <form action={assignLearnerMallamAction} style={{ background: 'white', borderRadius: 20, padding: 24, display: 'grid', gap: 14, border: '1px solid #eef2f7' }}>
       <div>
         <h2 style={{ margin: 0 }}>Pod routing</h2>
-        <p style={{ color: '#64748b', margin: '8px 0 0' }}>Move the learner by pod. Mallam ownership follows the pod’s primary mallam automatically.</p>
+        <p style={{ color: '#64748b', margin: '8px 0 0' }}>Move the learner by pod. Primary mallam ownership follows the selected pod automatically.</p>
       </div>
       <input type="hidden" name="studentId" value={student.id} />
       <input type="hidden" name="returnPath" value={returnPath} />

@@ -23,10 +23,13 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
   const filteredMallams = filterMallamsByGeography(mallams, centers, { stateId, localGovernmentId, podId });
   const active = filteredMallams.filter((mallam) => (mallam.status || '').toLowerCase() === 'active');
 
+const primaryPodCoverageCount = new Set(filteredMallams.map((mallam) => mallam.podLabels?.[0]).filter(Boolean)).size;
+
+
   return (
     <PageShell
       title="Mallams"
-      subtitle="Manage facilitator profiles with pod assignment as the main operational workflow."
+      subtitle="Manage facilitator profiles with primary pod assignment as the main operational workflow."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -34,7 +37,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             <ModalLauncher
               buttonLabel="Add mallam"
               title="Add mallam"
-              description="Create an independent mallam profile, then attach it to pods as the operational assignment flow."
+              description="Create a mallam profile, then attach it to the primary pod they will actually own or support."
               eyebrow="Mallam admin"
             >
               <CreateMallamForm centers={centers} pods={pods} states={states} localGovernments={localGovernments} />
@@ -45,7 +48,8 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
               items={[
                 { label: 'Mallams', value: String(filteredMallams.length) },
                 { label: 'Active', value: String(active.length) },
-                { label: 'Pods covered', value: String(new Set(mallams.flatMap((mallam) => mallam.podLabels || [])).size) },
+
+                { label: 'Primary pods covered', value: String(primaryPodCoverageCount) },
               ]}
             />
           </Card>
@@ -62,8 +66,14 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
         helper={`Showing ${filteredMallams.length} mallam profile${filteredMallams.length === 1 ? '' : 's'} in the selected geography slice.`}
       />
       <SimpleTable
-        columns={['Mallam', 'Status', 'Geography', 'Learners', 'Primary pod', 'Languages', 'Center', 'Actions']}
-        rows={filteredMallams.map((mallam) => [
+
+        columns={['Mallam', 'Status', 'Geography', 'Learners', 'Primary pod', 'Pod coverage', 'Languages', 'Center', 'Actions']}
+        rows={hasCoreRosterGap ? [[
+          <span key="mallams-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Mallam roster unavailable. Recover the mallams feed before using facilitator admin actions.</span>,
+          '', '', '', '', '', '', '', '',
+        ]] : filteredMallams.map((malam) => [
+
+
           <div key={`${mallam.id}-name`}>
             <strong>{mallam.displayName || mallam.name}</strong>
             <div style={{ color: '#64748b', marginTop: 4 }}>{mallam.role || 'Mallam'} · {mallam.region || 'Unknown region'}</div>
@@ -72,6 +82,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
           mallamGeographyLabel(mallam, centers, states, localGovernments),
           String(mallam.learnerCount || 0),
           mallam.podLabels?.[0] || '—',
+          String(mallam.podLabels?.length || 0),
           (mallam.languages || []).join(', ') || '—',
           mallam.centerName || '—',
           <div key={`${mallam.id}-actions`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -106,7 +117,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
               <div style={{ display: 'grid', gap: 16 }}>
                 <Card title="Mallam roster manager" eyebrow="Roster control">
                   <div style={{ color: '#475569', lineHeight: 1.6 }}>
-                    Use the mallam profile for the full roster surface. This quick action is intentionally lightweight from the table.
+                    Use the mallam profile for the full roster surface. This quick action stays lightweight here so pod-first routing still happens in one focused place.
                   </div>
                 </Card>
                 <Link href={`/mallams/${mallam.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>

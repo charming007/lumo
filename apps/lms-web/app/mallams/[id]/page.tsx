@@ -30,7 +30,7 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
   return (
     <PageShell
       title={mallam.displayName || mallam.name}
-      subtitle="Mallam admin detail for profile updates, roster control, and deletion."
+      subtitle="Mallam admin detail for profile updates, pod-first roster control, and deletion."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }, { label: 'Mallams', href: '/mallams' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -58,7 +58,7 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
             <MetricList
               items={[
                 { label: 'Learners', value: String(mallam.learnerCount || 0) },
-                { label: 'Pods', value: String(mallam.podLabels?.length || 0) },
+                { label: 'Pod coverage', value: String(mallam.podLabels?.length || 0) },
                 { label: 'Status', value: mallam.status || '—' },
                 { label: 'Center', value: mallam.centerName || '—' },
               ]}
@@ -76,7 +76,8 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
             </div>
             <div style={{ color: '#475569', lineHeight: 1.7 }}>
               Languages: <strong>{(mallam.languages || []).join(', ') || '—'}</strong><br />
-              Pods: <strong>{(mallam.podLabels || []).join(', ') || '—'}</strong><br />
+              Primary pod: <strong>{mallam.podLabels?.[0] || '—'}</strong><br />
+              Pod coverage: <strong>{(mallam.podLabels || []).join(', ') || '—'}</strong><br />
               Region: <strong>{mallam.region || '—'}</strong>
             </div>
           </div>
