@@ -109,7 +109,7 @@ const assignedLessonsSeed = [
     title: 'Greetings at the learning circle',
     subject: 'English',
     durationMinutes: 8,
-    status: 'Assigned',
+    status: 'Published',
     mascotName: 'Mallam',
     readinessFocus: 'Hear a prompt and answer with a full sentence',
     scenario: 'The learner has just joined the circle and is meeting Mallam.',
@@ -194,7 +194,7 @@ const assignedLessonsSeed = [
     title: 'Counting oranges at the market',
     subject: 'Math',
     durationMinutes: 7,
-    status: 'Assigned',
+    status: 'Published',
     mascotName: 'Mallam',
     readinessFocus: 'Track simple number order by listening and repeating',
     scenario:
@@ -254,7 +254,7 @@ const assignedLessonsSeed = [
     title: 'Handwashing before food',
     subject: 'Life Skills',
     durationMinutes: 6,
-    status: 'Assigned',
+    status: 'Published',
     mascotName: 'Mallam',
     readinessFocus: 'Follow spoken hygiene steps in sequence',
     scenario:

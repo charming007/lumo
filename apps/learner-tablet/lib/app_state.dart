@@ -40,6 +40,20 @@ bool isLearnerVisibleLessonStatus(String status,
   return usingFallbackData && normalizedStatus == 'offline';
 }
 
+bool isPublishedLearnerLessonStatus(String status,
+    {required bool usingFallbackData}) {
+  final normalizedStatus = status.trim().toLowerCase();
+  if (normalizedStatus.isEmpty) return true;
+  if (normalizedStatus == 'published' || normalizedStatus == 'live') {
+    return true;
+  }
+  if (usingFallbackData &&
+      (normalizedStatus == 'bundled' || normalizedStatus == 'offline')) {
+    return true;
+  }
+  return false;
+}
+
 enum ContentOrigin {
   liveBackend,
   localCache,
@@ -259,7 +273,7 @@ class LumoAppState {
     if (_includeSeedDemoContent) return null;
 
     final hasLearnerVisibleLessons = data.lessons.any(
-      (lesson) => isLearnerVisibleLessonStatus(
+      (lesson) => isPublishedLearnerLessonStatus(
         lesson.status,
         usingFallbackData: false,
       ),
@@ -1738,7 +1752,7 @@ class LumoAppState {
 
   bool _isPublishedLearnerLesson(LessonCardModel lesson) {
     if (lesson.isAssignmentPlaceholder) return false;
-    return isLearnerVisibleLessonStatus(
+    return isPublishedLearnerLessonStatus(
       lesson.status,
       usingFallbackData: usingFallbackData,
     );

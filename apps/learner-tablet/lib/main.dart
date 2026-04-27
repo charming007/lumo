@@ -696,16 +696,10 @@ bool _isLearnerVisibleLesson({
   required LumoAppState state,
   required LessonCardModel lesson,
 }) {
-  final normalizedStatus = lesson.status.trim().toLowerCase();
-  if (normalizedStatus.isEmpty ||
-      normalizedStatus == 'published' ||
-      normalizedStatus == 'live' ||
-      normalizedStatus == 'assigned' ||
-      normalizedStatus == 'bundled') {
-    return true;
-  }
-
-  return state.usingFallbackData && normalizedStatus == 'offline';
+  return isPublishedLearnerLessonStatus(
+    lesson.status,
+    usingFallbackData: state.usingFallbackData,
+  );
 }
 
 List<LearnerSubjectCardModel> buildLearnerSubjectCards({

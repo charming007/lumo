@@ -4413,6 +4413,95 @@ void main() {
     });
 
     test(
+        'production-like bootstrap hard-blocks when live backend returns only assigned lessons',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/bootstrap') {
+              return http.Response(
+                jsonEncode({
+                  'learners': [
+                    {
+                      'id': beginner.id,
+                      'name': beginner.name,
+                      'age': beginner.age,
+                      'cohortName': beginner.cohort,
+                      'guardianName': beginner.guardianName,
+                      'attendanceRate': 0.9,
+                      'level': 'beginner',
+                    },
+                  ],
+                  'modules': [
+                    {
+                      'id': 'english',
+                      'subjectId': 'english',
+                      'subjectName': 'English',
+                      'title': 'English',
+                      'level': 'beginner',
+                      'status': 'published',
+                    },
+                  ],
+                  'lessons': [
+                    {
+                      'id': 'assigned-only-lesson',
+                      'moduleId': 'english',
+                      'moduleName': 'English',
+                      'subject': 'English',
+                      'title': 'Assigned but not published',
+                      'status': 'assigned',
+                      'activitySteps': [
+                        {
+                          'id': 'assigned-step-1',
+                          'type': 'listen_repeat',
+                          'title': 'Say hello',
+                          'prompt': 'Say hello.',
+                          'detail': 'Greeting step',
+                          'evidence': 'Learner greets',
+                        },
+                      ],
+                    },
+                  ],
+                  'assignments': [],
+                  'registrationContext': {
+                    'cohorts': [],
+                    'mallams': [],
+                  },
+                  'meta': {
+                    'generatedAt': '2026-04-21T06:30:09.634Z',
+                    'contractVersion': 'learner-app-v2.3',
+                    'assignmentCount': 0,
+                  },
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      addTearDown(state.dispose);
+
+      await state.bootstrap();
+
+      expect(state.learners, isNotEmpty);
+      expect(state.modules, isNotEmpty);
+      expect(
+        state.assignedLessons.map((lesson) => lesson.id),
+        contains('assigned-only-lesson'),
+      );
+      expect(state.assignmentPacks, isEmpty);
+      expect(state.usingFallbackData, isTrue);
+      expect(
+        state.deploymentBlockerReason,
+        contains('zero learner-visible lessons and zero assignments'),
+      );
+    });
+
+    test(
         'production-like bootstrap hard-blocks when live backend returns no lessons or assignments',
         () async {
       final state = LumoAppState(
@@ -5217,13 +5306,28 @@ void main() {
           state.sourceStatusForLesson(lesson).origin, ContentOrigin.localCache);
     });
 
-    test('subject-first cards keep assigned and bundled lessons visible', () {
+    test('subject-first cards hide assigned lessons but keep bundled fallback lessons visible', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       final englishModule =
           state.modules.firstWhere((module) => module.id == 'english');
       final englishSeed = state.assignedLessons
           .firstWhere((lesson) => lesson.moduleId == 'english');
       state.usingFallbackData = true;
+
+      state.assignedLessons.add(
+        LessonCardModel(
+          id: 'english-published-core',
+          moduleId: 'english',
+          title: 'Published English core',
+          subject: englishModule.title,
+          durationMinutes: englishSeed.durationMinutes,
+          status: 'published',
+          mascotName: englishSeed.mascotName,
+          readinessFocus: 'Published practice',
+          scenario: 'Published lesson that should anchor the subject card.',
+          steps: englishSeed.steps,
+        ),
+      );
 
       state.modules.add(const LearningModule(
         id: 'lumo-fundamentals',
@@ -5244,7 +5348,7 @@ void main() {
           mascotName: englishSeed.mascotName,
           readinessFocus: 'Assigned practice',
           scenario:
-              'Live assignment that should stay visible in subject-first UI.',
+              'Live assignment should not leak into the learner-facing subject grid before publish.',
           steps: englishSeed.steps,
         ),
         LessonCardModel(
@@ -5270,13 +5374,15 @@ void main() {
       expect(subjectIds, contains('lumo-fundamentals'));
       expect(
         state
-            .lessonsForLearnerAndModule(null, 'english')
+            .lessonsForLearnerAndSubject(null, englishModule.title)
             .map((lesson) => lesson.id),
-        contains('english-assigned-extra'),
+        isNot(contains('english-assigned-extra')),
       );
       expect(
-        subjectCards.map((card) => card.id),
-        contains('lumo-fundamentals'),
+        state
+            .lessonsForLearnerAndSubject(null, 'Lumo Fundamentals')
+            .map((lesson) => lesson.id),
+        contains('fundamentals-bundled-extra'),
       );
       state.dispose();
     });
