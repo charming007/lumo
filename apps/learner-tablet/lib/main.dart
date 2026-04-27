@@ -11084,7 +11084,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                 const SizedBox(height: 24),
                                 _ResponsiveButtonRow(
                                   primary: FilledButton(
-                                    onPressed: () {
+                                    onPressed: () async {
                                       final handoffLearner =
                                           _nextLearnerAfter(learner);
                                       final handoffSubjectKey =
@@ -11107,12 +11107,15 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                         fallbackSubjectKey: handoffSubjectKey,
                                       );
 
+                                      await widget.state
+                                          .finalizeCompletedLessonHandoff();
                                       widget.state.selectLearner(
                                         handoffLearner,
                                       );
                                       widget.state.selectModule(
                                         handoffModule,
                                       );
+                                      if (!context.mounted) return;
                                       if (nextLesson != null &&
                                           handoffLearner.id == learner.id) {
                                         Navigator.of(context).pushReplacement(
@@ -11144,7 +11147,10 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                     child: const Text('Go to next learner'),
                                   ),
                                   secondary: OutlinedButton(
-                                    onPressed: () {
+                                    onPressed: () async {
+                                      await widget.state
+                                          .finalizeCompletedLessonHandoff();
+                                      if (!context.mounted) return;
                                       Navigator.of(
                                         context,
                                       ).popUntil((route) => route.isFirst);

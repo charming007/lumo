@@ -3755,6 +3755,19 @@ class LumoAppState {
     await refreshLearnerRuntimeSessions(updatedLearner);
   }
 
+  Future<void> finalizeCompletedLessonHandoff() async {
+    final session = activeSession;
+    if (session == null ||
+        session.completionState != LessonCompletionState.complete) {
+      return;
+    }
+
+    activeSession = null;
+    pendingRecoveredSessionSnapshot = null;
+    persistStateSoon();
+    await flushPersistence();
+  }
+
   void _replaceLearner(LearnerProfile learner) {
     final learnerIndex = learners.indexWhere((item) => item.id == learner.id);
     if (learnerIndex != -1) {
