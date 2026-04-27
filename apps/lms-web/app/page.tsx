@@ -9,6 +9,7 @@ import { navigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
+import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { resolveModuleSubjectId } from '../lib/module-subject-match';
 
@@ -306,6 +307,11 @@ export default async function HomePage() {
     assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
+  const hasDashboardPageBlocker = shouldBlockDashboardPage({
+    criticalDashboardFailureCount: criticalDashboardFailures.length,
+    criticalReleaseFailureCount: criticalReleaseFailures.length,
+    hasCriticalAssetOpsGap,
+  });
   const healthyFeedCount = 10 - failedSources.length;
   const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
     ? 'Blocked'
