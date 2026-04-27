@@ -11174,12 +11174,40 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                 const SizedBox(height: 24),
                                 _ResponsiveButtonRow(
                                   primary: FilledButton(
-                                    onPressed: () {
-                                      widget.state.selectLearner(learner);
+                                    onPressed: () async {
+                                      final handoffLearner =
+                                          _nextLearnerAfter(learner);
+                                      final handoffSubjectKey =
+                                          _resolvedSubjectKeyForModule(
+                                        state: widget.state,
+                                        module: recommendedModule,
+                                        learner: learner,
+                                      );
+                                      final handoffSubjectTitle =
+                                          _resolvedSubjectTitleForModule(
+                                        state: widget.state,
+                                        module: recommendedModule,
+                                        learner: learner,
+                                      );
+                                      final handoffModule =
+                                          _handoffModuleForLearner(
+                                        learner: handoffLearner,
+                                        completedLesson: lesson,
+                                        fallbackModule: recommendedModule,
+                                        fallbackSubjectKey: handoffSubjectKey,
+                                      );
+
+                                      await widget.state
+                                          .finalizeCompletedLessonHandoff();
+                                      widget.state.selectLearner(
+                                        handoffLearner,
+                                      );
                                       widget.state.selectModule(
                                         recommendedModule,
                                       );
-                                      if (nextLesson != null) {
+                                      if (!context.mounted) return;
+                                      if (nextLesson != null &&
+                                          handoffLearner.id == learner.id) {
                                         Navigator.of(context).pushReplacement(
                                           MaterialPageRoute(
                                             builder: (_) =>
@@ -11206,7 +11234,10 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                     child: const Text('Go to next learner'),
                                   ),
                                   secondary: OutlinedButton(
-                                    onPressed: () {
+                                    onPressed: () async {
+                                      await widget.state
+                                          .finalizeCompletedLessonHandoff();
+                                      if (!context.mounted) return;
                                       Navigator.of(
                                         context,
                                       ).popUntil((route) => route.isFirst);

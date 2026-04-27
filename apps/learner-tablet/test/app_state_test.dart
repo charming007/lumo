@@ -2687,6 +2687,42 @@ void main() {
     );
 
     test(
+      'finalizing completed lesson handoff clears sticky active session state',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final learner = state.learners.first;
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'english',
+        );
+
+        state.selectLearner(learner);
+        state.selectModule(
+          state.modules.firstWhere((item) => item.id == 'english'),
+        );
+        state.startLesson(lesson);
+        await state.completeLesson(lesson);
+
+        expect(
+          state.activeSession?.completionState,
+          LessonCompletionState.complete,
+        );
+
+        await state.finalizeCompletedLessonHandoff();
+
+        expect(state.activeSession, isNull);
+        expect(state.hasPendingRecoveredSession, isFalse);
+
+        final prefs = await SharedPreferences.getInstance();
+        final raw = prefs.getString('lumo_learner_tablet_state_v1');
+        expect(raw, isNotNull);
+        final snapshot = jsonDecode(raw!) as Map<String, dynamic>;
+        expect(snapshot['activeSession'], isNull);
+        state.dispose();
+      },
+    );
+
+    test(
       'falls back to backend recommended module after lesson completion',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);
