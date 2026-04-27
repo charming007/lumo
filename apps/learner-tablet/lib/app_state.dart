@@ -1097,6 +1097,10 @@ class LumoAppState {
     final baselineLessons =
         _sanitizeLessons(List<LessonCardModel>.from(assignedLessons));
     final lessonsByModule = <String, List<LessonCardModel>>{};
+    final baselineModuleIds = baselineLessons
+        .map((lesson) => lesson.moduleId.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
 
     for (final lesson in baselineLessons) {
       final moduleId = lesson.moduleId.trim();
@@ -1107,6 +1111,14 @@ class LumoAppState {
     }
 
     for (final module in sourceModules) {
+      final moduleId = module.id.trim();
+      final canHydrateFromBundle =
+          moduleId.isNotEmpty && baselineModuleIds.contains(moduleId);
+      if (!canHydrateFromBundle) {
+        hydratedModules.add(module);
+        continue;
+      }
+
       try {
         final bundle = await _apiClient.fetchModuleBundle(module.id);
         hydratedModules.add(bundle.module);
