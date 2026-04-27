@@ -3,29 +3,30 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'location_data.dart';
 import 'models.dart';
 import 'theme.dart';
 
 class LumoTopBar extends StatelessWidget {
   final VoidCallback onLogoTap;
+  final List<String> metadataLabels;
   final List<Widget> extraChips;
 
   const LumoTopBar({
     super.key,
     required this.onLogoTap,
+    this.metadataLabels = const <String>[],
     this.extraChips = const <Widget>[],
   });
 
   @override
   Widget build(BuildContext context) {
-    final item =
-        northernLocations[DateTime.now().day % northernLocations.length];
     final date = DateTime.now();
     final formattedDate = '${date.day}/${date.month}/${date.year}';
     final metadataChips = <Widget>[
-      _TopChip(text: item['city']!),
-      _TopChip(text: item['lga']!),
+      ...metadataLabels
+          .map((label) => label.trim())
+          .where((label) => label.isNotEmpty)
+          .map((label) => _TopChip(text: label)),
       _TopChip(text: formattedDate),
     ];
 
