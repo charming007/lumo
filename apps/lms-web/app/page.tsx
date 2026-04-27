@@ -306,13 +306,14 @@ export default async function HomePage() {
     assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
+  const hasDashboardPageBlocker = criticalDashboardFailures.length > 0 || criticalReleaseFailures.length > 0;
   const healthyFeedCount = 10 - failedSources.length;
-  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
+  const dashboardTrustBadge = hasDashboardPageBlocker || hasCriticalAssetOpsGap
     ? 'Blocked'
     : failedSources.length
       ? 'Partial live pull'
       : 'Fresh live pull';
-  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
+  const dashboardTrustTone = hasDashboardPageBlocker || hasCriticalAssetOpsGap
     ? { tone: '#FEE2E2', text: '#991B1B' }
     : failedSources.length
       ? { tone: '#FEF3C7', text: '#92400E' }
@@ -393,7 +394,7 @@ export default async function HomePage() {
       ? 'Recover subject context first'
       : 'Open exact blocker';
 
-  if (hasCriticalDashboardGap || criticalReleaseFailures.length || hasCriticalAssetOpsGap) {
+  if (hasDashboardPageBlocker) {
     const blockerDetail = hasCriticalDashboardGap
       ? !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
         ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
@@ -583,7 +584,11 @@ export default async function HomePage() {
         </div>
       )}
     >
-      {failedSources.length ? (
+      {assetRuntimeAuthBlocked ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontWeight: 700, lineHeight: 1.6 }}>
+          Dashboard asset audit is auth-blocked: the LMS cannot unlock <code>/api/v1/admin/assets/runtime</code>. Core learner, assignment, and progression signals below may still be live, but do not call this deployment content-safe until <code>LUMO_ADMIN_API_KEY</code> is fixed and settings + asset library agree.
+        </div>
+      ) : failedSources.length ? (
         <div style={{ marginBottom: 16 }}>
           {sectionAlert(`Dashboard is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable.`, 'warning')}
         </div>
@@ -598,9 +603,13 @@ export default async function HomePage() {
               <div style={{ color: '#64748b', lineHeight: 1.6 }}>
                 {hasCriticalDashboardGap
                   ? 'Critical dashboard feeds are down, so deployment review is blocked until summary, progression, facilitator coverage, and assignment pressure are trustworthy again.'
-                  : failedSources.length
-                    ? 'Some dashboard feeds are degraded, so use the route links below to verify detail before acting.'
-                    : 'Use this page to spot who needs intervention, who is ready to progress, and whether facilitators are actually covered.'}
+                  : hasCriticalAssetOpsGap
+                    ? assetRuntimeAuthBlocked
+                      ? 'Core dashboard signals are live, but protected asset audit auth is broken. Treat this as an operations view with a loud content-safety blocker, not a clean deploy sign-off.'
+                      : 'Core dashboard signals are live, but asset operations are blocked. Treat this as an operations view with a loud content-safety blocker, not a clean deploy sign-off.'
+                    : failedSources.length
+                      ? 'Some dashboard feeds are degraded, so use the route links below to verify detail before acting.'
+                      : 'Use this page to spot who needs intervention, who is ready to progress, and whether facilitators are actually covered.'}
               </div>
             </div>
             <Pill
@@ -800,6 +809,21 @@ export default async function HomePage() {
                   </Link>
                   <Link href="/settings" style={{ ...quickActionStyle, background: '#fff', color: assetReadinessTone(assetRuntime.summary.readiness).text, border: `1px solid ${assetReadinessTone(assetRuntime.summary.readiness).text}`, padding: '10px 12px' }}>
                     Open settings + config audit
+                  </Link>
+                </div>
+              </div>
+            ) : assetRuntimeAuthBlocked ? (
+              <div style={{ padding: '16px 18px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+                <strong style={{ color: '#991B1B' }}>Asset operations are blocked on dashboard auth</strong>
+                <div style={{ color: '#991B1B', lineHeight: 1.6 }}>
+                  The dashboard could still pull core learner and delivery feeds, but it could not authenticate to the protected asset runtime audit. Fix <code>LUMO_ADMIN_API_KEY</code> in the LMS deployment, then confirm settings and the asset library stop disagreeing before calling this stack production-safe.
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href="/settings" style={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' }}>
+                    Open settings
+                  </Link>
+                  <Link href="/content/assets" style={{ ...quickActionStyle, background: '#fff', color: '#991B1B', border: '1px solid #FECACA', padding: '10px 12px' }}>
+                    Open asset library
                   </Link>
                 </div>
               </div>
