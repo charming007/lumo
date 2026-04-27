@@ -449,6 +449,7 @@ export function LessonCreateForm({
       {confirmationDialog}
       <form action={action} style={cardStyle} onSubmitCapture={() => allowNextNavigation()}>
       <input type="hidden" name="returnPath" value={returnPath} />
+      <input type="hidden" name="openEditorAfterCreate" value="1" />
       <input type="hidden" name="subjectId" value={subjectId} />
       <input type="hidden" name="learningObjectives" value={safeStringify(learningObjectives)} />
       <input type="hidden" name="localization" value={safeStringify(localization)} />
