@@ -752,7 +752,21 @@ String _resolvedSubjectTitleForModule({
       .lessonsForLearnerAndModule(learner, module.id)
       .map((lesson) => lesson.subject.trim())
       .firstWhere((subject) => subject.isNotEmpty, orElse: () => '');
-  return lessonBackedSubject.isNotEmpty ? lessonBackedSubject : module.title;
+  if (lessonBackedSubject.isNotEmpty) {
+    return lessonBackedSubject;
+  }
+
+  final learnerScopedSubject = learner == null
+      ? ''
+      : state
+          .lessonsForLearner(learner)
+          .map((lesson) => lesson.subject.trim())
+          .firstWhere((subject) => subject.isNotEmpty, orElse: () => '');
+  if (learnerScopedSubject.isNotEmpty) {
+    return learnerScopedSubject;
+  }
+
+  return module.title;
 }
 
 String _resolvedSubjectKeyForModule({
@@ -10676,6 +10690,44 @@ class _LessonCompletePageState extends State<LessonCompletePage>
   int _secondsRemaining = _revealSeconds;
   bool _resultsVisible = false;
 
+  LearnerProfile _nextLearnerAfter(LearnerProfile learner) {
+    final learners = widget.state.learners;
+    if (learners.isEmpty) return learner;
+    final currentIndex = learners.indexWhere((item) => item.id == learner.id);
+    if (currentIndex == -1 || learners.length == 1) {
+      return learners.firstWhere(
+        (item) => item.id != learner.id,
+        orElse: () => learner,
+      );
+    }
+
+    for (var offset = 1; offset < learners.length; offset += 1) {
+      final candidate = learners[(currentIndex + offset) % learners.length];
+      if (candidate.id != learner.id) {
+        return candidate;
+      }
+    }
+
+    return learner;
+  }
+
+  LearningModule _handoffModuleForLearner({
+    required LearnerProfile learner,
+    required LessonCardModel completedLesson,
+    required LearningModule fallbackModule,
+    required String fallbackSubjectKey,
+  }) {
+    final lessonModule = resolveLessonModule(
+      state: widget.state,
+      lesson: completedLesson,
+    );
+    final subjectModule = widget.state.primaryModuleForSubject(
+      learner: learner,
+      subjectId: fallbackSubjectKey,
+    );
+    return subjectModule ?? lessonModule ?? fallbackModule;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -11033,11 +11085,36 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                 _ResponsiveButtonRow(
                                   primary: FilledButton(
                                     onPressed: () {
-                                      widget.state.selectLearner(learner);
-                                      widget.state.selectModule(
-                                        recommendedModule,
+                                      final handoffLearner =
+                                          _nextLearnerAfter(learner);
+                                      final handoffSubjectKey =
+                                          _resolvedSubjectKeyForModule(
+                                        state: widget.state,
+                                        module: recommendedModule,
+                                        learner: learner,
                                       );
-                                      if (nextLesson != null) {
+                                      final handoffSubjectTitle =
+                                          _resolvedSubjectTitleForModule(
+                                        state: widget.state,
+                                        module: recommendedModule,
+                                        learner: learner,
+                                      );
+                                      final handoffModule =
+                                          _handoffModuleForLearner(
+                                        learner: handoffLearner,
+                                        completedLesson: lesson,
+                                        fallbackModule: recommendedModule,
+                                        fallbackSubjectKey: handoffSubjectKey,
+                                      );
+
+                                      widget.state.selectLearner(
+                                        handoffLearner,
+                                      );
+                                      widget.state.selectModule(
+                                        handoffModule,
+                                      );
+                                      if (nextLesson != null &&
+                                          handoffLearner.id == learner.id) {
                                         Navigator.of(context).pushReplacement(
                                           MaterialPageRoute(
                                             builder: (_) =>
@@ -11045,7 +11122,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                               state: widget.state,
                                               onChanged: () {},
                                               lesson: nextLesson,
-                                              module: recommendedModule,
+                                              module: handoffModule,
                                             ),
                                           ),
                                         );
@@ -11056,7 +11133,9 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                           builder: (_) => SubjectModulesPage(
                                             state: widget.state,
                                             onChanged: () {},
-                                            module: recommendedModule,
+                                            module: handoffModule,
+                                            subjectTitle: handoffSubjectTitle,
+                                            subjectKey: handoffSubjectKey,
                                             forceUnscopedLessons: true,
                                           ),
                                         ),

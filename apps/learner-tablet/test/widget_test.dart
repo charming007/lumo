@@ -99,6 +99,49 @@ class _SeedApiClient extends LumoApiClient {
   }
 }
 
+class _OfflineCompleteLessonApiClient extends _SeedApiClient {
+  @override
+  Future<LumoSyncResult> syncEvents(List<SyncEvent> events) async {
+    return LumoSyncResult(
+      accepted: events.length,
+      ignored: 0,
+      syncedAt: DateTime.now(),
+      raw: {
+        'accepted': events.length,
+        'ignored': 0,
+        'duplicates': 0,
+        'results': const <Map<String, dynamic>>[],
+      },
+    );
+  }
+
+  @override
+  Future<RewardSnapshot> fetchLearnerRewards({
+    String? learnerId,
+    String? learnerCode,
+  }) async {
+    return RewardSnapshot(
+      learnerId: learnerId ?? learnerCode ?? 'learner',
+      totalXp: 0,
+      points: 0,
+      level: 1,
+      levelLabel: 'Starter',
+      xpIntoLevel: 0,
+      xpForNextLevel: 80,
+      progressToNextLevel: 0,
+      badgesUnlocked: 0,
+    );
+  }
+
+  @override
+  Future<List<BackendLessonSession>> fetchRecentSessions({
+    String? learnerCode,
+    int limit = 5,
+  }) async {
+    return const <BackendLessonSession>[];
+  }
+}
+
 class _AmbiguousPlaceholderRecoveryApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap({
@@ -1774,6 +1817,108 @@ void main() {
 
       expect(find.text(expectedSubject), findsWidgets);
       expect(find.text('Backend Module Alias'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'lesson complete page keeps the next learner handoff visible when backend module ids drift',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(900, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(
+        apiClient: _OfflineCompleteLessonApiClient(),
+        includeSeedDemoContent: false,
+      );
+      addTearDown(state.dispose);
+      final currentLearner = const LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Alpha',
+        streakDays: 0,
+        guardianName: 'Zainab',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Ready for guided practice',
+        village: 'Pod 1',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-AL07',
+        backendRecommendedModuleId: 'english-reading-module-v2',
+      );
+      final nextLearner = currentLearner.copyWith(
+        id: 'learner-2',
+        name: 'Bala',
+        learnerCode: 'BAL-AL07',
+      );
+      const lesson = LessonCardModel(
+        id: 'english-reading-lesson',
+        moduleId: 'english',
+        title: 'Read the greeting',
+        subject: 'English',
+        durationMinutes: 12,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Next learner handoff should stay inside English.',
+        steps: [
+          LessonStep(
+            id: 'step-1',
+            type: LessonStepType.prompt,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Say hello.',
+            coachPrompt: 'Coach the learner to say hello.',
+            facilitatorTip: 'Keep the greeting calm and short.',
+            realWorldCheck: 'Learner greets clearly before continuing.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      state.learners
+        ..clear()
+        ..addAll([currentLearner, nextLearner]);
+      state.modules
+        ..clear()
+        ..add(const LearningModule(
+          id: 'english-reading-module-v2',
+          title: 'Reading Foundations',
+          description: 'Operator-facing module alias from backend metadata.',
+          voicePrompt: 'Open Reading Foundations.',
+          readinessGoal: 'Reading practice',
+          badge: '1 lesson',
+          status: 'published',
+        ));
+      state.assignedLessons
+        ..clear()
+        ..add(lesson);
+      state.selectLearner(currentLearner);
+      state.selectModule(state.modules.first);
+      state.startLesson(lesson);
+      await state.completeLesson(lesson);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonCompletePage(state: state, lesson: lesson),
+        ),
+      );
+      await pumpForUi(tester);
+
+      final nextLearnerButton = find.text('Go to next learner');
+      expect(nextLearnerButton, findsOneWidget);
+      await tester.ensureVisible(nextLearnerButton);
+      await tester.tap(nextLearnerButton);
+      await pumpForUi(tester);
+
+      expect(find.text('No learner-safe lessons are ready in English yet.'),
+          findsNothing);
+      expect(find.text('Read the greeting'), findsOneWidget);
+      expect(state.currentLearner?.id, nextLearner.id);
+      expect(state.selectedModule?.id, 'english-reading-module-v2');
     },
   );
 
