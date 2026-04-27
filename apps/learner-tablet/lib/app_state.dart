@@ -221,7 +221,7 @@ class LumoAppState {
 
   String? get offlineSnapshotTrustProblem {
     if (!hasOfflineSnapshotPayload) {
-      return 'This device has no locally cached learner roster, module pack, and assignment set yet.';
+      return 'This device has no locally cached learner roster, subject pack, and lesson assignment set yet.';
     }
     if (!snapshotTrustedFromLiveBootstrap || lastSyncedAt == null) {
       return 'Cached learner data exists, but it was never confirmed by a successful live bootstrap on this device.';
@@ -393,7 +393,7 @@ class LumoAppState {
       origin: origin,
       scopeLabel: module.title,
       detail:
-          '${origin.detail} This module currently opens from the ${origin.label.toLowerCase()} path.',
+          '${origin.detail} This subject currently opens from the ${origin.label.toLowerCase()} path.',
     );
   }
 
@@ -1769,6 +1769,29 @@ class LumoAppState {
     return 'Learning';
   }
 
+  String _subjectTitleForModuleId(String moduleId, {String? fallbackTitle}) {
+    final normalizedModuleId = moduleId.trim().toLowerCase();
+    if (normalizedModuleId.isNotEmpty) {
+      final lessonSubject = assignedLessons
+          .where(
+            (lesson) =>
+                lesson.moduleId.trim().toLowerCase() == normalizedModuleId,
+          )
+          .map((lesson) => lesson.subject.trim())
+          .firstWhere(
+            (subject) => subject.isNotEmpty,
+            orElse: () => '',
+          );
+      if (lessonSubject.isNotEmpty) {
+        return lessonSubject;
+      }
+    }
+
+    final fallback = fallbackTitle?.trim() ?? '';
+    if (fallback.isNotEmpty) return fallback;
+    return 'Learning';
+  }
+
   LearningModule _buildLearnerFacingSubject({
     required String key,
     required String title,
@@ -2265,7 +2288,7 @@ class LumoAppState {
             completedLessonId: completedLessonId,
           );
     if (nextLesson == null) {
-      return 'No next lesson is ready yet. Open ${recommendedModuleForLearner(learner).title} to keep going.';
+      return 'No next lesson is ready yet. Open ${recommendedModuleLabelForLearner(learner)} to keep going.';
     }
 
     if (_isBundledFundamentalsLesson(nextLesson)) {
@@ -2276,7 +2299,7 @@ class LumoAppState {
     final viaLabel =
         routeSource != null && routeSource.lessonId == nextLesson.id
             ? 'from the live backend assignment'
-            : 'from ${recommendedModuleForLearner(learner).title}';
+            : 'from ${recommendedModuleLabelForLearner(learner)}';
     return 'Next up: ${nextLesson.title} • routed $viaLabel.';
   }
 
@@ -4500,7 +4523,8 @@ class LumoAppState {
   }
 
   String recommendedModuleLabelForLearner(LearnerProfile learner) {
-    return recommendedModuleForLearner(learner).title;
+    final module = recommendedModuleForLearner(learner);
+    return _subjectTitleForModuleId(module.id, fallbackTitle: module.title);
   }
 
   List<String> _preferredModuleIdsForLearner(LearnerProfile learner) {
@@ -4772,9 +4796,12 @@ class LumoAppState {
               orElse: () => null,
             )
             ?.title;
-    return moduleTitle == null
+    final subjectTitle = moduleTitle == null
+        ? null
+        : _subjectTitleForModuleId(moduleId ?? '', fallbackTitle: moduleTitle);
+    return subjectTitle == null
         ? '$lessonsCompleted lesson(s) completed in the live backend runtime.'
-        : '$lessonsCompleted lesson(s) completed. Backend now routes ${learner.name} toward $moduleTitle.';
+        : '$lessonsCompleted lesson(s) completed. Backend now routes ${learner.name} toward $subjectTitle.';
   }
 
   void _queueSessionEvent({

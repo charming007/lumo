@@ -804,7 +804,7 @@ class LearningModule {
         ? moduleId
         : subjectId != null && subjectId.isNotEmpty
             ? subjectId
-            : 'module';
+            : 'subject';
     final resolvedSubjectId = subjectId != null && subjectId.isNotEmpty
         ? subjectId
         : resolvedModuleId;
@@ -817,7 +817,7 @@ class LearningModule {
         ? title
         : subjectName != null && subjectName.isNotEmpty
             ? subjectName
-            : 'Learning module';
+            : 'Learning subject';
     final description = json['description']?.toString().trim();
     final voicePrompt = json['voicePrompt']?.toString().trim();
     final readinessGoal = json['readinessGoal']?.toString().trim();
@@ -827,10 +827,10 @@ class LearningModule {
       title: moduleTitle,
       description: description != null && description.isNotEmpty
           ? description
-          : 'Live ${moduleTitle.toLowerCase()} path for ${subjectName?.toLowerCase() ?? 'learning'} learners.',
+          : 'Live ${subjectName?.toLowerCase() ?? moduleTitle.toLowerCase()} path for ${subjectName?.toLowerCase() ?? 'learning'} learners.',
       voicePrompt: voicePrompt != null && voicePrompt.isNotEmpty
           ? voicePrompt
-          : 'We are opening $moduleTitle. Follow Mallam one step at a time.',
+          : 'We are opening ${subjectName ?? moduleTitle}. Follow Mallam one step at a time.',
       readinessGoal: readinessGoal != null && readinessGoal.isNotEmpty
           ? readinessGoal
           : _moduleGoal(level, resolvedSubjectId),
@@ -1249,7 +1249,8 @@ class RegistrationContext {
 
   String get summary {
     if (tabletRegistration != null) {
-      final pod = tabletRegistration!.podLabel ?? tabletRegistration!.podId ?? 'Pod';
+      final pod =
+          tabletRegistration!.podLabel ?? tabletRegistration!.podId ?? 'Pod';
       final mallam = tabletRegistration!.mallamName;
       if (mallam != null && mallam.isNotEmpty) return '$pod • $mallam';
       return pod;

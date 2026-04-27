@@ -659,7 +659,7 @@ LearningModule resolveLessonModule({
         id: lesson.moduleId,
         title: lesson.subject,
         description:
-            'Continue this ${lesson.subject.toLowerCase()} lesson while live module metadata is still syncing.',
+            'Continue this ${lesson.subject.toLowerCase()} lesson while live subject details are still syncing.',
         voicePrompt: "Let's continue ${lesson.subject} together.",
         readinessGoal: lesson.readinessFocus,
         badge: 'Lesson ready',

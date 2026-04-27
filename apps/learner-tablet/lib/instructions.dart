@@ -1,7 +1,7 @@
 const homeInstruction =
     'Start with the learner who is physically ready now, then use the profile snapshot to choose the most believable next voice lesson.';
 const modulesInstruction =
-    'Each module is voice-led. Review the scenario, facilitator tip, and readiness goal before you send the learner into the lesson flow.';
+    'Each subject is voice-led. Review the scenario, facilitator tip, and readiness goal before you send the learner into the lesson flow.';
 const selectStudentInstruction =
     'Choose the learner who is ready now. Mallam will carry their readiness, attendance, and support plan into the next lesson.';
 const lessonInstruction =
