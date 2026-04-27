@@ -1693,6 +1693,48 @@ void main() {
       state.dispose();
     });
 
+    test(
+        'registration target summary prefers canonical tablet pod label over stale registration geography',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'device-zaria',
+          deviceIdentifier: 'lumo-tablet-zaria-01',
+          podId: 'pod-zaria',
+          podLabel: 'Wrong persisted location',
+          mallamName: 'Mallam Zaria',
+        ),
+      );
+      state.learners
+        ..clear()
+        ..add(
+          const LearnerProfile(
+            id: 'learner-zaria',
+            name: 'Amina',
+            age: 8,
+            cohort: 'Bridge Cohort',
+            podId: 'pod-zaria',
+            podLabel: 'Kaduna / Zaria',
+            streakDays: 1,
+            guardianName: 'Zainab',
+            preferredLanguage: 'Hausa',
+            readinessLabel: 'Voice-first beginner',
+            village: 'Kaduna / Zaria',
+            guardianPhone: '0800000000',
+            sex: 'Girl',
+            baselineLevel: 'No prior exposure',
+            consentCaptured: true,
+            learnerCode: 'AMI-ZA08',
+            supportPlan: 'Needs confidence',
+          ),
+        );
+
+      expect(state.tabletPodLabel, 'Kaduna / Zaria');
+      expect(state.registrationTargetSummary, 'Kaduna / Zaria • Mallam Zaria');
+      state.dispose();
+    });
+
     test('tablet pod filter rejects learners with missing pod scope', () {
       final state = LumoAppState(includeSeedDemoContent: false);
       state.registrationContext = RegistrationContext(

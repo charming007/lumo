@@ -2303,8 +2303,21 @@ class LumoAppState {
 
   String get registrationTargetSummary {
     final target = registrationTargetForDraft;
-    if (target == null) return registrationContext.summary;
-    return '${target.cohort.name} • ${target.mallam.name}';
+    if (target != null) {
+      return '${target.cohort.name} • ${target.mallam.name}';
+    }
+
+    final canonicalPodLabel = tabletPodLabel?.trim();
+    final tabletRegistration = registrationContext.tabletRegistration;
+    final mallamName = tabletRegistration?.mallamName?.trim();
+    if (canonicalPodLabel != null && canonicalPodLabel.isNotEmpty) {
+      if (mallamName != null && mallamName.isNotEmpty) {
+        return '$canonicalPodLabel • $mallamName';
+      }
+      return canonicalPodLabel;
+    }
+
+    return registrationContext.summary;
   }
 
   String? get registrationBlockerReason {
