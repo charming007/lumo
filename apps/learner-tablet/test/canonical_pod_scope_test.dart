@@ -688,4 +688,90 @@ void main() {
       ['learner-zaria'],
     );
   });
+
+  test(
+      'bootstrap still exposes published live subjects for a scoped tablet before assignments are synced',
+      () async {
+    final state = LumoAppState(
+      apiClient: _FakeApiClient(
+        LumoBootstrap(
+          learners: [
+            _learner(
+              id: 'learner-zaria',
+              podId: 'pod-zaria',
+              podLabel: 'Legacy wrong label',
+            ),
+            _learner(
+              id: 'learner-kano',
+              podId: 'pod-1',
+              podLabel: 'Kano Pod 01',
+            ),
+          ],
+          modules: const [
+            LearningModule(
+              id: 'english',
+              title: 'English',
+              description: 'Live English path',
+              voicePrompt: 'Open English.',
+              readinessGoal: 'Live greeting flow',
+              badge: 'Live backend',
+            ),
+          ],
+          lessons: const [
+            LessonCardModel(
+              id: 'english-live-1',
+              moduleId: 'english',
+              title: 'Live English hello',
+              subject: 'English',
+              durationMinutes: 8,
+              status: 'published',
+              mascotName: 'Mallam',
+              readinessFocus: 'Live greeting flow',
+              scenario: 'Live lesson from backend bootstrap.',
+              steps: [
+                LessonStep(
+                  id: 'english-step-1',
+                  type: LessonStepType.practice,
+                  title: 'Live hello',
+                  instruction: 'Say hello.',
+                  expectedResponse: 'Hello',
+                  coachPrompt: 'Say hello.',
+                  facilitatorTip: 'Keep it short.',
+                  realWorldCheck: 'Learner greets',
+                  speakerMode: SpeakerMode.guiding,
+                ),
+              ],
+            ),
+          ],
+          registrationContext: _registrationContext(tabletPodId: 'pod-1'),
+        ),
+      ),
+      bundledContentLoader: const _BundledFundamentalsLoader(),
+      includeSeedDemoContent: false,
+    );
+
+    await state.bootstrap();
+
+    expect(
+      state.learnerFacingSubjects().map((subject) => subject.title).toList(),
+      ['English'],
+    );
+    expect(
+      state
+          .lessonsForLearnerAndSubject(null, 'english')
+          .map((lesson) => lesson.id)
+          .toList(),
+      ['english-live-1'],
+    );
+    expect(
+      state.learnerFacingSubjects().any(
+            (subject) => subject.title == 'Lumo Fundamentals',
+          ),
+      isFalse,
+    );
+    expect(
+      state.learners.map((learner) => learner.id).toList(),
+      ['learner-zaria'],
+    );
+  });
 }

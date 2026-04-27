@@ -748,6 +748,102 @@ void main() {
   });
 
   testWidgets(
+    'home screen still shows published live subjects for a scoped tablet before assignments sync',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-zaria',
+            deviceIdentifier: 'tablet-zaria-01',
+            podId: 'pod-zaria',
+            podLabel: 'Kaduna / Zaria',
+          ),
+        );
+      state.learners.add(
+        const LearnerProfile(
+          id: 'learner-zaria',
+          name: 'Amina Zaria',
+          age: 8,
+          cohort: 'Bridge Cohort',
+          cohortId: 'cohort-bridge',
+          podId: 'pod-zaria',
+          podLabel: 'Kaduna / Zaria',
+          mallamId: 'mallam-zaria',
+          mallamName: 'Mallam Zaria',
+          streakDays: 2,
+          guardianName: 'Zainab',
+          preferredLanguage: 'Hausa + English',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kaduna / Zaria',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-ZA08',
+        ),
+      );
+      state.modules.add(
+        const LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Live English path',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Live greeting flow',
+          badge: 'Live backend',
+        ),
+      );
+      state.assignedLessons.add(
+        const LessonCardModel(
+          id: 'english-live-1',
+          moduleId: 'english',
+          title: 'Live English hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Live greeting flow',
+          scenario: 'Live lesson from backend bootstrap.',
+          steps: [
+            LessonStep(
+              id: 'english-step-1',
+              type: LessonStepType.practice,
+              title: 'Live hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Keep it short.',
+              realWorldCheck: 'Learner greets.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      );
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(GridView), findsOneWidget);
+      expect(find.text('English'), findsOneWidget);
+      expect(
+        find.text('No live subjects are ready on this tablet yet.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
     'home screen keeps sync-pending placeholders out of the learner subject grid',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
@@ -1709,7 +1805,6 @@ void main() {
 
     state.dispose();
   });
-
 
   testWidgets('subject modules page stays usable on narrow tablet widths', (
     tester,

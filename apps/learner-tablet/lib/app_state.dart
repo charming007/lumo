@@ -1470,6 +1470,21 @@ class LumoAppState {
     );
   }
 
+  bool _looksGenericPodOrdinalLabel(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) return false;
+    return RegExp(r'^pod(?:\s+|[-_/])?\d+[a-z]?$').hasMatch(normalized);
+  }
+
+  bool _podOrdinalLabelMatchesPodId(String label, String? podId) {
+    final normalizedPodId = podId?.trim().toLowerCase();
+    if (normalizedPodId == null || normalizedPodId.isEmpty) return false;
+    final labelMatch = RegExp(r'(\d+[a-z]?)').firstMatch(label.toLowerCase());
+    final podIdMatch = RegExp(r'(\d+[a-z]?)').firstMatch(normalizedPodId);
+    if (labelMatch == null || podIdMatch == null) return false;
+    return labelMatch.group(1) == podIdMatch.group(1);
+  }
+
   String? _tabletPodLabelFor(
     RegistrationContext registrationContext, {
     Iterable<LearnerProfile>? source,
@@ -1490,6 +1505,21 @@ class LumoAppState {
           registrationPodId.isEmpty ||
           registrationPodId != canonicalPodId) {
         return registrationLabel;
+      }
+      if (canonicalLearnerPodLabel != null &&
+          canonicalLearnerPodLabel.isNotEmpty) {
+        final registrationLooksCanonical =
+            _looksGenericPodOrdinalLabel(registrationLabel) &&
+                _podOrdinalLabelMatchesPodId(registrationLabel, canonicalPodId);
+        final learnerLooksMismatchedGeneric =
+            _looksGenericPodOrdinalLabel(canonicalLearnerPodLabel) &&
+                !_podOrdinalLabelMatchesPodId(
+                  canonicalLearnerPodLabel,
+                  canonicalPodId,
+                );
+        if (registrationLooksCanonical && learnerLooksMismatchedGeneric) {
+          return registrationLabel;
+        }
       }
       return canonicalLearnerPodLabel ?? registrationLabel;
     }
@@ -1811,6 +1841,15 @@ class LumoAppState {
         if (lesson.moduleId.trim() == backendModuleId) {
           addLesson(lesson);
         }
+      }
+    }
+    if (orderedLessons.isNotEmpty) {
+      return orderedLessons;
+    }
+
+    for (final lesson in assignedLessons) {
+      if (_isPublishedLearnerLesson(lesson)) {
+        addLesson(lesson);
       }
     }
     if (orderedLessons.isNotEmpty) {
