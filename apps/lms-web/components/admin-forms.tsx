@@ -119,7 +119,7 @@ function PodSelector({ pods, selectedPodIds, centers, states, localGovernments }
           </label>
         ))}
       </div>
-      <SectionHint>Pick the actual pod coverage here instead of typing raw IDs and hoping nobody fat-fingers them.</SectionHint>
+      <SectionHint>Pick the actual pod coverage here. Keep the first selected pod aligned with the primary pod you expect this mallam to own operationally.</SectionHint>
     </div>
   );
 }
@@ -252,7 +252,7 @@ export function CreateMallamForm({ centers, pods, states, localGovernments }: { 
         initialPodIds={[]}
       />
       <GeographyHint>
-        Mallam profiles can exist independently, but pod assignment is the operational move. Choose geography first, then attach this mallam to the pod footprint they will actually own or support.
+        Mallam profiles can exist independently, but primary pod assignment is the operational move. Choose geography first, then attach this mallam to the pod footprint they will actually own or support.
       </GeographyHint>
       <FieldLabel>Languages<input name="languages" defaultValue="Hausa, English" style={inputStyle} /></FieldLabel>
       <div style={twoColumnGrid}>
@@ -285,7 +285,7 @@ export function UpdateMallamForm({ mallam, centers, pods, states, localGovernmen
           initialPodIds={mallam.podIds ?? []}
         />
         <GeographyHint>
-          Keep the mallam anchored to a real state and local government first, then choose the pods within that geography. Pod ownership is the real operational truth; this profile should reflect it, not fight it.
+          Keep the mallam anchored to a real state and local government first, then choose the pods within that geography. Primary pod ownership is the real operational truth; this profile should reflect it, not fight it.
         </GeographyHint>
         <FieldLabel>Languages<input name="languages" defaultValue={(mallam.languages ?? []).join(', ')} style={inputStyle} /></FieldLabel>
         <div style={twoColumnGrid}>
@@ -323,7 +323,7 @@ export function CreatePodForm({ centers, mallams, states, localGovernments }: { 
         Center is now derived from the selected geography or assigned mallam coverage. Operators should not have to babysit a redundant center picker just to create a pod.
       </GeographyHint>
       <MallamAssignmentSelector mallams={mallams} selectedMallamId={null} centers={centers} states={states} localGovernments={localGovernments} />
-      <SectionHint>Every pod must leave this form with one primary mallam. If the person does not exist yet, create the mallam profile first, then come back and open the pod.</SectionHint>
+      <SectionHint>Every pod must leave this form with one primary mallam. If the person does not exist yet, create the mallam profile first, then come back and finish the pod.</SectionHint>
       <div style={twoColumnGrid}>
         <FieldLabel>Type<select name="type" defaultValue="community-pod" style={inputStyle}><option value="community-pod">Community pod</option><option value="solar-container">Solar container</option><option value="classroom-kit">Classroom kit</option></select></FieldLabel>
         <FieldLabel>Status<select name="status" defaultValue="active" style={inputStyle}><option value="active">Active</option><option value="pilot">Pilot</option><option value="inactive">Inactive</option></select></FieldLabel>
