@@ -10,6 +10,7 @@ process.env.LUMO_DB_MODE = 'file';
 process.env.PORT = '0';
 
 const repository = require('../src/repository');
+const rewards = require('../src/rewards');
 const { startServer } = require('../src/main');
 
 let server;
@@ -620,6 +621,46 @@ test('learner availability supports absent terminal status from offline tablet s
   assert.equal(learnerEntry.lessonStatus.status, 'absent');
   assert.equal(learnerEntry.lessonStatus.canStart, false);
   assert.equal(learnerEntry.lessonStatus.isTerminalUnavailable, true);
+});
+
+test('learner reward redemption sync accepts stable student identifiers and updates reward totals', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-1');
+  assert.ok(learner);
+
+  const before = rewards.buildLearnerRewards(learner.id);
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [
+        {
+          id: 'reward-redemption-student-1',
+          type: 'learner_reward_redeemed',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          rewardId: 'tablet-reward-1',
+          optionId: 'helper-star',
+          title: 'Helper Star',
+          category: 'celebration',
+          cost: 15,
+          redeemedAt: '2026-04-23T11:30:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.accepted, 1, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.results[0].type, 'learner_reward_redeemed');
+  assert.equal(syncResponse.body.results[0].rewards.totalXp, before.totalXp - 15);
+
+  const after = rewards.buildLearnerRewards(learner.id);
+  assert.equal(after.totalXp, before.totalXp - 15);
+
+  const redemption = repository.listRewardTransactions().find((entry) => entry.metadata?.clientRewardId === 'tablet-reward-1');
+  assert.ok(redemption, JSON.stringify(repository.listRewardTransactions()));
+  assert.equal(redemption.studentId, learner.id);
+  assert.equal(redemption.kind, 'redemption');
+  assert.equal(redemption.xpDelta, -15);
 });
 
 test('tablet-scoped learner registration also resolves pod scope from body deviceIdentifier when the header is absent', async () => {
