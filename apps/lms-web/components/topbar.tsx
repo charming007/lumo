@@ -36,6 +36,8 @@ export function Topbar({
   const workspaceLabel = lessonAuthoringRoute ? 'Lesson Studio workspace' : 'Admin workspace';
   const workspaceTitle = lessonAuthoringRoute ? 'Lesson Studio shell' : 'Lumo admin shell';
   const roleChip = lessonAuthoringRoute ? 'Authoring' : 'Admin';
+  const buildLabel = `Live shell v${buildSignature.version}`;
+  const buildMeta = `${buildSignature.commitShort} · ${buildSignature.deploymentLabel}`;
 
   return (
     <div
@@ -72,8 +74,9 @@ export function Topbar({
       </div>
       <div className="topbar__meta" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0, flex: '1 1 280px' }}>
         <div className="topbar__meta-chip" style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>{workspaceLabel}</div>
-        <div className="topbar__meta-chip" style={{ background: '#eef2ff', color: '#3730a3', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }} title={buildSignature.summary}>
-          Live shell: v{buildSignature.version} · {buildSignature.commitShort} · {buildSignature.deploymentLabel}
+        <div className="topbar__meta-chip topbar__meta-chip--build" style={{ background: '#eef2ff', color: '#3730a3', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }} title={buildSignature.summary}>
+          <span className="topbar__build-label">{buildLabel}</span>
+          <span className="topbar__build-meta">{buildMeta}</span>
         </div>
         <div className="topbar__meta-chip" style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{dashboardStatus}</div>
         <div className="topbar__meta-chip" style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{roleChip}</div>
@@ -93,10 +96,31 @@ export function Topbar({
           text-align: center;
         }
 
+        .topbar__meta-chip--build {
+          display: grid;
+          gap: 2px;
+          justify-items: center;
+          text-align: center;
+        }
+
+        .topbar__build-label {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+
+        .topbar__build-meta {
+          font-size: 13px;
+          line-height: 1.4;
+        }
 
         @media (max-width: 960px) {
           .topbar__sidebar-toggle {
             display: none;
+          }
+
+          .topbar__meta-chip--build {
+            flex: 1 1 100%;
           }
         }
 
@@ -107,9 +131,24 @@ export function Topbar({
           }
 
           .topbar__meta-chip {
-            flex: 1 1 100%;
+            flex: 1 1 calc(50% - 10px);
+            min-width: min(180px, 100%);
           }
 
+          .topbar__meta-chip--build {
+            order: -1;
+            flex-basis: 100%;
+          }
+
+          .topbar__build-meta {
+            font-size: 12px;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .topbar__meta-chip {
+            flex-basis: 100%;
+          }
         }
       `}</style>
     </div>
