@@ -42,18 +42,18 @@ export function Sidebar({
   const pathname = usePathname();
   const previousPathnameRef = useRef(pathname);
   const lessonAuthoringRoute = isLessonAuthoringPath(pathname);
-  const shellLabel = lessonAuthoringRoute ? 'Lesson Studio workspace' : 'Admin workspace';
-  const shellHeadline = lessonAuthoringRoute ? 'Authoring routes active' : 'Admin routes active';
+  const shellLabel = lessonAuthoringRoute ? 'Lesson Studio workspace' : 'Pilot workspace';
+  const shellHeadline = lessonAuthoringRoute ? 'Authoring routes active' : 'Pilot routes active';
   const brandDetail = lessonAuthoringRoute
     ? 'Focused authoring shell for building and editing lesson packs without dropping context, assets, or curriculum alignment.'
-    : 'Full admin shell for curriculum, learners, pods, devices, assignments, attendance, progress, settings, and release operations.';
+    : 'Pilot-only LMS shell for daily deployment checks: dashboard, content, assignments, progress, and settings.';
   const calloutDetail = lessonAuthoringRoute
     ? 'Stay inside the real lesson authoring flow: create, duplicate, edit, and asset-hop without getting dumped back into generic control-room copy.'
-    : 'Keep curriculum, learner ops, release checks, and settings in one consistent admin shell instead of dropping authors into leftover pilot-era framing.';
-  const footerTitle = lessonAuthoringRoute ? 'Lesson authoring workspace' : 'Admin workspace';
+    : 'Keep operators inside the real pilot loop instead of advertising side routes that are not part of deployment sign-off.';
+  const footerTitle = lessonAuthoringRoute ? 'Lesson authoring workspace' : 'Pilot workspace';
   const footerDetail = lessonAuthoringRoute
     ? 'This shell stays focused on lesson creation and editing, while the rest of the admin surfaces remain reachable when you deliberately step back out to the broader LMS board.'
-    : 'This shell now stays consistent across the full admin surface, so content authors do not bounce from Content Library into a pilot-branded sidebar when they open Lesson Studio.';
+    : 'This shell now matches the actual pilot launch path, so walkthroughs and screenshots stop sending operators into dead-end side routes.';
 
   useEffect(() => {
     if (previousPathnameRef.current !== pathname && mobileNavOpen) {
