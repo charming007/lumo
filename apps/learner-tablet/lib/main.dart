@@ -10671,6 +10671,42 @@ class _LessonCompletePageState extends State<LessonCompletePage>
   int _secondsRemaining = _revealSeconds;
   bool _resultsVisible = false;
 
+  LearnerProfile _nextLearnerAfter(LearnerProfile learner) {
+    final learners = widget.state.learners;
+    if (learners.isEmpty) return learner;
+    final currentIndex = learners.indexWhere((item) => item.id == learner.id);
+    if (currentIndex == -1 || learners.length == 1) {
+      return learners.firstWhere(
+        (item) => item.id != learner.id,
+        orElse: () => learner,
+      );
+    }
+
+    for (var offset = 1; offset < learners.length; offset += 1) {
+      final candidate = learners[(currentIndex + offset) % learners.length];
+      if (candidate.id != learner.id) {
+        return candidate;
+      }
+    }
+
+    return learner;
+  }
+
+  LearningModule _handoffModuleForLearner({
+    required LearnerProfile learner,
+    required LessonCardModel completedLesson,
+    required LearningModule fallbackModule,
+    required String fallbackSubjectKey,
+  }) {
+    final lessonModule = widget.state.modules
+        .where((item) => item.id == completedLesson.moduleId)
+        .firstOrNull;
+    final subjectModule = widget.state.primaryModuleForSubject(
+      learner: learner,
+      subjectId: fallbackSubjectKey,
+    );
+    return subjectModule ?? lessonModule ?? fallbackModule;
+  }
   @override
   void initState() {
     super.initState();
