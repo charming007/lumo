@@ -21,7 +21,7 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
   return haystack.includes(query);
 }
 
-export default async function ProgressPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; subject?: string | string[]; status?: string | string[] }> }) {
+export default async function ProgressPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; student?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; subject?: string | string[]; status?: string | string[] }> }) {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -93,6 +93,7 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
   const canCaptureProgress = students.length > 0 && subjects.length > 0 && modules.length > 0;
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
+  const studentFilter = normalizeFilterValue(query?.student).trim();
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();
   const podFilter = normalizeFilterValue(query?.pod).trim();
   const mallamFilter = normalizeFilterValue(query?.mallam).trim();
@@ -100,14 +101,16 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
   const statusFilter = normalizeFilterValue(query?.status).trim();
 
   const filteredStudents = students.filter((student) => {
+    const studentMatches = !studentFilter || student.id === studentFilter;
     const cohortMatches = !cohortFilter || student.cohortId === cohortFilter;
     const podMatches = !podFilter || student.podId === podFilter;
     const mallamMatches = !mallamFilter || student.mallamId === mallamFilter;
-    return cohortMatches && podMatches && mallamMatches;
+    return studentMatches && cohortMatches && podMatches && mallamMatches;
   });
   const filteredStudentIds = new Set(filteredStudents.map((student) => student.id));
   const filteredProgress = progress.filter((item) => {
     const student = students.find((entry) => entry.id === item.studentId);
+    const studentMatches = !studentFilter || item.studentId === studentFilter;
     const cohortMatches = !cohortFilter || student?.cohortId === cohortFilter;
     const podMatches = !podFilter || student?.podId === podFilter;
     const mallamMatches = !mallamFilter || student?.mallamId === mallamFilter;
@@ -122,9 +125,9 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
       student?.podLabel,
       student?.mallamName,
     ], searchText);
-    return cohortMatches && podMatches && mallamMatches && subjectMatches && statusMatches && queryMatches;
+    return studentMatches && cohortMatches && podMatches && mallamMatches && subjectMatches && statusMatches && queryMatches;
   });
-  const filtersActive = Boolean(searchText || cohortFilter || podFilter || mallamFilter || subjectFilter || statusFilter);
+  const filtersActive = Boolean(searchText || studentFilter || cohortFilter || podFilter || mallamFilter || subjectFilter || statusFilter);
 
   return (
     <PageShell title="Progress" subtitle="Track mastery, progression readiness, and admin override decisions across learners.">
@@ -140,6 +143,10 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
           <form style={{ display: 'grid', gap: 12 }}>
             <div style={{ ...responsiveGrid(220), gap: 12 }}>
               <input name="q" defaultValue={searchText} placeholder="Search learner, module, or next move" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
+              <select name="student" defaultValue={studentFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All learners</option>
+                {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
+              </select>
               <select name="cohort" defaultValue={cohortFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
                 <option value="">All cohorts</option>
                 {cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
