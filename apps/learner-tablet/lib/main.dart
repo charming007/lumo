@@ -6348,6 +6348,37 @@ class _LessonCountdownPageState extends State<LessonCountdownPage> {
   }
 }
 
+String resolveCapturedTranscriptForReview({
+  required String latestFinalTranscript,
+  required String liveTranscript,
+  required bool transcriptCapturedThisTake,
+  String? responseDraft,
+  String? visibleLearnerText,
+}) {
+  final primaryTranscript = latestFinalTranscript.trim().isNotEmpty
+      ? latestFinalTranscript.trim()
+      : liveTranscript.trim();
+  if (primaryTranscript.isNotEmpty) {
+    return primaryTranscript;
+  }
+
+  if (!transcriptCapturedThisTake) {
+    return '';
+  }
+
+  final draftFallback = responseDraft?.trim() ?? '';
+  if (draftFallback.isNotEmpty) {
+    return draftFallback;
+  }
+
+  final visibleFallback = visibleLearnerText?.trim() ?? '';
+  if (visibleFallback.isNotEmpty) {
+    return visibleFallback;
+  }
+
+  return '';
+}
+
 class LessonSessionPage extends StatefulWidget {
   final LumoAppState state;
   final LessonCardModel lesson;
@@ -8725,11 +8756,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     _speechAutoStopDebounce?.cancel();
     recordingTicker?.cancel();
     await speechTranscriptionService.stop();
-    final transcript =
-        (_latestFinalTranscript.isNotEmpty
-                ? _latestFinalTranscript
-                : liveTranscript)
-            .trim();
+    final transcript = resolveCapturedTranscriptForReview(
+      latestFinalTranscript: _latestFinalTranscript,
+      liveTranscript: liveTranscript,
+      transcriptCapturedThisTake: transcriptCapturedThisTake,
+      responseDraft: responseController.text,
+      visibleLearnerText: _bestVisibleLearnerText(widget.state.activeSession),
+    );
     final expectedResponse = widget.state.personalizeExpectedResponse(
       widget
           .lesson
@@ -8897,6 +8930,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   Widget _buildDeviceDiagnosticsPanel() {
     final session = widget.state.activeSession;
     final transcriptHealthy = speechTranscriptionService.isAvailable;
+    final webSpeechRuntime = speechTranscriptionService.runtimeSnapshot;
     final backendHealthy = widget.state.hasLiveBackendConnection;
     final syncWarn =
         widget.state.pendingSyncEvents.isNotEmpty ||
@@ -8914,6 +8948,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             : 'Mic access has not been confirmed on this device yet.',
       if (!transcriptHealthy)
         'Transcript help is degraded, so saved learner audio is the source of truth for now.',
+      if (webSpeechRuntime != null && !webSpeechRuntime.isSecureContext)
+        'This page is not in a secure browser context yet. Chrome only allows live web speech on HTTPS or localhost.',
+      if (webSpeechRuntime != null &&
+          !webSpeechRuntime.isSpeechRecognitionExposed)
+        'The browser is not exposing SpeechRecognition/webkitSpeechRecognition to Lumo right now.',
+      if (webSpeechRuntime != null &&
+          (!webSpeechRuntime.hasMediaDevices ||
+              !webSpeechRuntime.hasGetUserMedia))
+        'The browser is missing mediaDevices/getUserMedia, so the mic route is not fully available to the app.',
+      if (webSpeechRuntime != null && !webSpeechRuntime.isOnline)
+        'The browser is offline, so Chrome speech recognition cannot reach its network service yet.',
       if (_autoPausedByTranscriptFailure)
         'Hands-free paused itself safely after transcript trouble on this step.',
       if (!backendHealthy)
@@ -8936,6 +8981,21 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       'speechAvailable': transcriptHealthy,
       'speechStatus': speechTranscriptionService.lastStatus,
       'speechAvailability': speechTranscriptionService.availabilityLabel,
+      'webSpeechRuntime': webSpeechRuntime == null
+          ? null
+          : {
+              'speechApiExposed': webSpeechRuntime.isSpeechRecognitionExposed,
+              'speechApiName': webSpeechRuntime.exposedSpeechRecognitionApi,
+              'secureContext': webSpeechRuntime.isSecureContext,
+              'origin': webSpeechRuntime.origin,
+              'host': webSpeechRuntime.host,
+              'protocol': webSpeechRuntime.protocol,
+              'localhostLike': webSpeechRuntime.isLocalhostLike,
+              'online': webSpeechRuntime.isOnline,
+              'mediaDevices': webSpeechRuntime.hasMediaDevices,
+              'getUserMedia': webSpeechRuntime.hasGetUserMedia,
+              'summary': webSpeechRuntime.debugSummary,
+            },
       'backendConnected': backendHealthy,
       'backendStatus': widget.state.backendStatusLabel,
       'backendDetail': widget.state.backendStatusDetail,

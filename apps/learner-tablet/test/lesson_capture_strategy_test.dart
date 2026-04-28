@@ -14,6 +14,8 @@ void main() {
           isSecureContext: true,
           isOnline: true,
           userAgent: 'Chrome',
+          hasMediaDevices: true,
+          hasGetUserMedia: true,
         ),
       ),
       isFalse,

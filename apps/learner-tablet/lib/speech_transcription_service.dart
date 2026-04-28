@@ -15,7 +15,7 @@ abstract class SpeechRecognitionEngine {
     bool debugLogging = false,
   });
 
-  Future<void> listen({
+  Future<bool> listen({
     required void Function(String transcript, bool isFinal) onResult,
     required SpeechListenOptions options,
     required Duration pauseFor,
@@ -48,13 +48,13 @@ class SpeechToTextEngine implements SpeechRecognitionEngine {
   }
 
   @override
-  Future<void> listen({
+  Future<bool> listen({
     required void Function(String transcript, bool isFinal) onResult,
     required SpeechListenOptions options,
     required Duration pauseFor,
     required Duration listenFor,
-  }) {
-    return _speech.listen(
+  }) async {
+    await _speech.listen(
       onResult: (SpeechRecognitionResult result) {
         onResult(result.recognizedWords, result.finalResult);
       },
@@ -62,6 +62,7 @@ class SpeechToTextEngine implements SpeechRecognitionEngine {
       pauseFor: pauseFor,
       listenFor: listenFor,
     );
+    return _speech.isListening;
   }
 
   @override
@@ -75,8 +76,8 @@ class SpeechTranscriptionService {
   SpeechTranscriptionService({
     SpeechRecognitionEngine? engine,
     WebSpeechRuntimeSupport? Function()? inspectWebRuntime,
-  })  : _engine = engine ?? SpeechToTextEngine(),
-        _inspectWebRuntime = inspectWebRuntime ?? inspectWebSpeechRuntime;
+  }) : _engine = engine ?? SpeechToTextEngine(),
+       _inspectWebRuntime = inspectWebRuntime ?? inspectWebSpeechRuntime;
 
   final SpeechRecognitionEngine _engine;
   final WebSpeechRuntimeSupport? Function() _inspectWebRuntime;
@@ -96,6 +97,7 @@ class SpeechTranscriptionService {
   String get lastStatus => _lastStatus;
   String get activeModeLabel => _activeModeLabel;
   bool get isListening => _engine.isListening;
+  WebSpeechRuntimeSupport? get runtimeSnapshot => _inspectWebRuntime();
   bool get isInRetryCooldown =>
       _retryBlockedUntil != null &&
       DateTime.now().isBefore(_retryBlockedUntil!);
@@ -114,8 +116,8 @@ class SpeechTranscriptionService {
       return 'Speech recognition is ready for live transcript capture.';
     }
     final remainingCooldown = retryCooldownRemaining;
-    final cooldownDetail = remainingCooldown != null &&
-            remainingCooldown > Duration.zero
+    final cooldownDetail =
+        remainingCooldown != null && remainingCooldown > Duration.zero
         ? ' Retry cooldown: ${remainingCooldown.inSeconds}s remaining before the next transcript restart.'
         : '';
     final failureDetail = _consecutiveStartFailures >= 2
@@ -194,7 +196,8 @@ class SpeechTranscriptionService {
   }) async {
     final now = DateTime.now();
     final retryBlockedUntil = _retryBlockedUntil;
-    final recentRepeatedFailures = _consecutiveStartFailures >= 3 &&
+    final recentRepeatedFailures =
+        _consecutiveStartFailures >= 3 &&
         _lastStartFailureAt != null &&
         now.difference(_lastStartFailureAt!) < _retryCooldown;
     if (forceRetry &&
@@ -260,10 +263,7 @@ class SpeechTranscriptionService {
     void Function(String status)? onStatus,
     void Function(String error)? onError,
   }) async {
-    final ready = await initialize(
-      forceRetry: !_available,
-      onError: onError,
-    );
+    final ready = await initialize(forceRetry: !_available, onError: onError);
     if (!ready) {
       onStatus?.call(_lastStatus);
       return false;
@@ -274,7 +274,7 @@ class SpeechTranscriptionService {
       await _engine.stop();
     }
 
-    Future<void> startListening(SpeechListenOptions options) {
+    Future<bool> startListening(SpeechListenOptions options) {
       return _engine.listen(
         onResult: (transcript, isFinal) {
           final text = transcript.trim();
@@ -324,14 +324,24 @@ class SpeechTranscriptionService {
     }
 
     try {
-      await startListening(primaryOptions);
+      final started = await startListening(primaryOptions);
+      if (!started) {
+        throw StateError(
+          'Speech recognition never actually started listening.',
+        );
+      }
       _available = true;
       _activeModeLabel = kIsWeb
           ? 'Browser short-phrase transcript active'
           : 'On-device dictation active';
     } catch (_) {
       try {
-        await startListening(secondaryOptions);
+        final started = await startListening(secondaryOptions);
+        if (!started) {
+          throw StateError(
+            'Speech recognition never actually started listening.',
+          );
+        }
         _available = true;
         _activeModeLabel = kIsWeb
             ? 'Browser dictation fallback'
@@ -388,7 +398,8 @@ class SpeechTranscriptionService {
   String _describeWebRuntimeBlock(WebSpeechRuntimeSupport runtime) {
     if (!runtime.isSpeechRecognitionExposed) {
       final userAgent = runtime.userAgent?.toLowerCase() ?? '';
-      final browserHint = userAgent.contains('chrome') ||
+      final browserHint =
+          userAgent.contains('chrome') ||
               userAgent.contains('edg/') ||
               userAgent.contains('edga/')
           ? 'Even though this looks Chromium-based, the browser is not exposing the Web Speech API to Flutter right now.'
@@ -406,6 +417,9 @@ class SpeechTranscriptionService {
 
   String _normalizeError(String raw) {
     final lower = raw.toLowerCase();
+    if (lower.contains('never actually started listening')) {
+      return 'Speech recognition initialized, but the browser never actually started listening. Lumo will keep the saved learner audio and wait for manual confirmation until the mic wakes up properly.';
+    }
     if (lower.contains('permission')) {
       return 'Speech recognition permission was denied. Audio capture can still run, but transcript help is unavailable until mic permissions are allowed.';
     }
