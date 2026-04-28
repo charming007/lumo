@@ -19,9 +19,11 @@ import 'design_shell.dart';
 import 'dialogue.dart';
 import 'instructions.dart';
 import 'learner_audio_playback_service.dart';
+import 'lesson_capture_strategy.dart';
 import 'models.dart';
 import 'speech_transcription_service.dart';
 import 'theme.dart';
+import 'web_speech_runtime_probe.dart';
 import 'voice_replay_service.dart';
 import 'widgets.dart';
 
@@ -6905,17 +6907,22 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     return hasDraft || hasSavedAudio;
   }
 
-  bool get _avoidConcurrentSpeechCapture {
-    if (kIsWeb) return true;
-    return switch (defaultTargetPlatform) {
-      TargetPlatform.macOS || TargetPlatform.iOS => true,
-      _ => false,
-    };
-  }
+  WebSpeechRuntimeSupport? get _currentWebSpeechRuntime =>
+      kIsWeb ? inspectWebSpeechRuntime() : null;
+
+  bool get _avoidConcurrentSpeechCapture => shouldAvoidConcurrentSpeechCapture(
+    isWeb: kIsWeb,
+    platform: defaultTargetPlatform,
+    webRuntime: _currentWebSpeechRuntime,
+  );
 
   String get _concurrentSpeechCaptureFallbackReason {
     if (kIsWeb) {
-      return 'Live transcript is paused during browser recording because web speech recognition and the recorder fight over the same microphone session. Lumo will keep the learner recording and let the facilitator confirm the answer manually.';
+      final runtime = _currentWebSpeechRuntime;
+      if (runtime == null || runtime.looksSupported) {
+        return 'Live transcript is paused during browser recording while Lumo protects the current microphone session. The learner audio is still saved locally so the facilitator can confirm the answer manually.';
+      }
+      return speechTranscriptionService.availabilityLabel;
     }
     return 'Live transcript is paused on this device while local audio capture is running to avoid the mic handoff crash. Lumo will keep the learner recording and let the facilitator confirm the answer manually.';
   }
