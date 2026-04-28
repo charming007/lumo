@@ -3090,6 +3090,57 @@ void main() {
       expect(evaluation.review, ResponseReview.needsSupport);
     });
 
+    test(
+        'standard mode does not accept a single contained word for spoken answers',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.learners.add(beginner);
+      state.currentLearner = beginner;
+
+      const lesson = LessonCardModel(
+        id: 'spoken-contained-word-guardrail',
+        moduleId: 'english',
+        title: 'Spoken contained word guardrail',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Single contained words must not unlock continue.',
+        scenario:
+            'A response that is only one word from a longer expected phrase should still need support.',
+        steps: [
+          LessonStep(
+            id: 'spoken-step-1',
+            type: LessonStepType.practice,
+            title: 'Say the full answer',
+            instruction: 'Repeat the full phrase.',
+            expectedResponse: 'the yellow sun is bright',
+            coachPrompt: 'Say: the yellow sun is bright.',
+            facilitatorTip: 'Do not accept only one borrowed word.',
+            realWorldCheck:
+                'Continue stays locked for partial one-word drafts.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.listenAnswer,
+              prompt: 'Say: the yellow sun is bright.',
+              targetResponse: 'the yellow sun is bright',
+            ),
+          ),
+        ],
+      );
+
+      state.assignedLessons.add(lesson);
+      state.startLesson(lesson);
+
+      final partialEvaluation = state.evaluateLearnerResponse('sun');
+      expect(partialEvaluation.review, ResponseReview.needsSupport);
+
+      final longerPhraseEvaluation = state.evaluateLearnerResponse(
+        'yellow sun is bright',
+      );
+      expect(longerPhraseEvaluation.review, ResponseReview.onTrack);
+    });
+
     test('tap choice respects authored choice correctness over targetResponse',
         () {
       final state = LumoAppState(includeSeedDemoContent: false);

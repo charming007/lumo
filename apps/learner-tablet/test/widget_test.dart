@@ -917,14 +917,14 @@ void main() {
     },
   );
 
-  testWidgets('home screen keeps the Mallam stage and subjects tightly stacked', (
+  testWidgets('home screen keeps the Mallam stage and subjects tightly stacked',
+      (
     tester,
   ) async {
     await pumpAppAtSize(tester, const Size(1280, 800));
 
-    final replayButtonBottom = tester
-        .getBottomLeft(find.text('Hear Mallam again'))
-        .dy;
+    final replayButtonBottom =
+        tester.getBottomLeft(find.text('Hear Mallam again')).dy;
     final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
 
     expect(
@@ -2365,13 +2365,12 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      final state =
-          LumoAppState(
-              apiClient: _SeedApiClient(),
-              includeSeedDemoContent: false,
-            )
-            ..usingFallbackData = true
-            ..backendError = 'Backend registration is offline.';
+      final state = LumoAppState(
+        apiClient: _SeedApiClient(),
+        includeSeedDemoContent: false,
+      )
+        ..usingFallbackData = true
+        ..backendError = 'Backend registration is offline.';
       final module = learningModules.first;
       final lesson = assignedLessonsSeed.firstWhere(
         (item) => item.moduleId == module.id,
@@ -2837,6 +2836,99 @@ void main() {
         tester.widget<FilledButton>(reviewButtonFinder).onPressed,
         isNotNull,
       );
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'transcript review keeps continue locked for a single contained word from a longer phrase',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'spoken-review-contained-word-gate',
+        moduleId: 'english',
+        title: 'Spoken review contained word gate',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Single contained words must not unlock continue.',
+        scenario:
+            'Manual transcript edits should not pass when they only copy one word from a longer expected phrase.',
+        steps: [
+          LessonStep(
+            id: 'spoken-review-step-phrase',
+            type: LessonStepType.practice,
+            title: 'Say the whole phrase',
+            instruction: 'Hear the clue and answer with the full phrase.',
+            expectedResponse: 'the yellow sun is bright',
+            coachPrompt: 'Say: the yellow sun is bright.',
+            facilitatorTip: 'Do not advance on a one-word fragment.',
+            realWorldCheck:
+                'Continue stays locked for one-word drafts from the full phrase.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.listenAnswer,
+              prompt: 'Say: the yellow sun is bright.',
+              targetResponse: 'the yellow sun is bright',
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+      state.attachLearnerAudioCapture(
+        path: 'https://example.com/audio/review-phrase.m4a',
+        duration: const Duration(seconds: 2),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      Finder reviewButton() {
+        for (final label in const [
+          'Save note and continue',
+          'Save note + resume hands-free',
+          'Confirm transcript',
+        ]) {
+          final finder = find.widgetWithText(FilledButton, label);
+          if (finder.evaluate().isNotEmpty) {
+            return finder;
+          }
+        }
+        return find.widgetWithText(FilledButton, '__missing_review_button__');
+      }
+
+      await tester.enterText(find.byType(TextField), 'sun');
+      await pumpForUi(tester);
+      var reviewButtonFinder = reviewButton();
+      expect(reviewButtonFinder, findsOneWidget);
+      expect(tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), 'yellow sun is bright');
+      await pumpForUi(tester);
+      reviewButtonFinder = reviewButton();
+      expect(
+          tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNotNull);
 
       state.dispose();
     },

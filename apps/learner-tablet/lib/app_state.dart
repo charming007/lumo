@@ -2669,8 +2669,11 @@ class LumoAppState {
       (target) =>
           target == normalizedResponse ||
           (practiceMode != PracticeMode.repeatAfterMe &&
-              (target.contains(normalizedResponse) ||
-                  normalizedResponse.contains(target))),
+              (_containsContiguousTokenPhrase(target, normalizedResponse) ||
+                  _containsContiguousTokenPhrase(
+                    normalizedResponse,
+                    target,
+                  ))),
     );
     if (exactOrContains) {
       return ResponseEvaluation(
@@ -2789,6 +2792,31 @@ class LumoAppState {
         .where((item) => item.length > 1 && !ignoredTokens.contains(item))
         .toList();
     return meaningful.isNotEmpty ? meaningful : tokens;
+  }
+
+  bool _containsContiguousTokenPhrase(String container, String candidate) {
+    final containerTokens = _comparisonTokens(container);
+    final candidateTokens = _comparisonTokens(candidate);
+    if (containerTokens.isEmpty || candidateTokens.isEmpty) return false;
+    if (candidateTokens.length > containerTokens.length) return false;
+    if (candidateTokens.length < 2 &&
+        candidateTokens.length != containerTokens.length) {
+      return false;
+    }
+
+    for (var start = 0;
+        start <= containerTokens.length - candidateTokens.length;
+        start += 1) {
+      var matches = true;
+      for (var offset = 0; offset < candidateTokens.length; offset += 1) {
+        if (containerTokens[start + offset] != candidateTokens[offset]) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) return true;
+    }
+    return false;
   }
 
   double _tokenCoverage(
@@ -3765,10 +3793,9 @@ class LumoAppState {
     RewardSnapshot incoming,
   ) {
     if (local == null) return incoming;
-    final backendDoesNotRegressLocal =
-        incoming.totalXp >= local.totalXp &&
-            incoming.badgesUnlocked >= local.badgesUnlocked &&
-            incoming.points >= local.points;
+    final backendDoesNotRegressLocal = incoming.totalXp >= local.totalXp &&
+        incoming.badgesUnlocked >= local.badgesUnlocked &&
+        incoming.points >= local.points;
     if (backendDoesNotRegressLocal) {
       return incoming;
     }
