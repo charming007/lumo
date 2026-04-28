@@ -198,6 +198,26 @@ void main() {
 
     expect(await service.initialize(forceRetry: true), isFalse);
     expect(service.lastStatus, 'web-runtime-blocked');
-    expect(service.lastError, contains('secure HTTPS context'));
+    expect(service.lastError, contains('HTTPS or localhost'));
+  });
+
+  test('explains when browser transcript is blocked by missing media apis',
+      () async {
+    final engine = FakeSpeechRecognitionEngine();
+    final service = SpeechTranscriptionService(
+      engine: engine,
+      inspectWebRuntime: () => const WebSpeechRuntimeSupport(
+        isSpeechRecognitionExposed: true,
+        isSecureContext: true,
+        isOnline: true,
+        userAgent: 'Chrome',
+        hasMediaDevices: false,
+        hasGetUserMedia: false,
+      ),
+    );
+
+    expect(await service.initialize(forceRetry: true), isFalse);
+    expect(service.lastStatus, 'web-runtime-blocked');
+    expect(service.lastError, contains('mediaDevices/getUserMedia'));
   });
 }

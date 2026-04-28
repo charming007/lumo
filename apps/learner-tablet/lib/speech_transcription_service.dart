@@ -15,7 +15,7 @@ abstract class SpeechRecognitionEngine {
     bool debugLogging = false,
   });
 
-  Future<void> listen({
+  Future<bool> listen({
     required void Function(String transcript, bool isFinal) onResult,
     required SpeechListenOptions options,
     required Duration pauseFor,
@@ -96,6 +96,7 @@ class SpeechTranscriptionService {
   String get lastStatus => _lastStatus;
   String get activeModeLabel => _activeModeLabel;
   bool get isListening => _engine.isListening;
+  WebSpeechRuntimeSupport? get runtimeSnapshot => _inspectWebRuntime();
   bool get isInRetryCooldown =>
       _retryBlockedUntil != null &&
       DateTime.now().isBefore(_retryBlockedUntil!);
@@ -386,22 +387,28 @@ class SpeechTranscriptionService {
   }
 
   String _describeWebRuntimeBlock(WebSpeechRuntimeSupport runtime) {
+    final runtimeSummary = runtime.debugSummary;
     if (!runtime.isSpeechRecognitionExposed) {
       final userAgent = runtime.userAgent?.toLowerCase() ?? '';
       final browserHint = userAgent.contains('chrome') ||
               userAgent.contains('edg/') ||
-              userAgent.contains('edga/')
-          ? 'Even though this looks Chromium-based, the browser is not exposing the Web Speech API to Flutter right now.'
+              userAgent.contains('edga/') ||
+              userAgent.contains('crios/')
+          ? 'This looks Chromium-based, but the page still is not exposing SpeechRecognition/webkitSpeechRecognition to Flutter right now.'
           : 'Safari and Firefox commonly omit the Web Speech API for Flutter web dictation.';
-      return 'This browser does not expose live speech recognition to Lumo, so live transcript cannot start here. $browserHint Keep saving learner audio and confirm answers manually, or switch to Chrome/Edge over HTTPS for hands-free transcript help.';
+      return 'This browser does not expose live speech recognition to Lumo, so live transcript cannot start here. $browserHint Keep saving learner audio and confirm answers manually, or switch to Chrome/Edge over HTTPS for hands-free transcript help. Runtime check: $runtimeSummary.';
     }
     if (!runtime.isSecureContext) {
-      return 'Live browser transcription is blocked because this lesson is not running in a secure HTTPS context. The mic recorder can still save learner audio, but transcript help will stay off until the app is opened over HTTPS or localhost.';
+      final origin = runtime.origin ?? runtime.host ?? 'this page';
+      return 'Live browser transcription is blocked because $origin is not running in a secure context. Chrome only allows microphone + Web Speech help on HTTPS or localhost. The mic recorder can still save learner audio, but transcript help will stay off until the app is opened over HTTPS or localhost. Runtime check: $runtimeSummary.';
+    }
+    if (!runtime.hasMediaDevices || !runtime.hasGetUserMedia) {
+      return 'This browser is missing the mediaDevices/getUserMedia APIs Lumo needs for microphone capture, so transcript help cannot start safely here. Keep saving learner audio and confirm answers manually, or retry on current Chrome/Edge. Runtime check: $runtimeSummary.';
     }
     if (!runtime.isOnline) {
-      return 'The browser is offline, so live transcript help will stay paused until the connection returns. Lumo can still save learner audio locally in the meantime.';
+      return 'The browser is offline, so live transcript help will stay paused until the connection returns. Lumo can still save learner audio locally in the meantime. Runtime check: $runtimeSummary.';
     }
-    return 'Browser speech recognition is unavailable here, so Lumo will save learner audio and let the facilitator confirm answers manually.';
+    return 'Browser speech recognition is unavailable here, so Lumo will save learner audio and let the facilitator confirm answers manually. Runtime check: $runtimeSummary.';
   }
 
   String _normalizeError(String raw) {
