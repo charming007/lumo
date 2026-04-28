@@ -835,8 +835,11 @@ class LumoAppState {
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
       activeSession = _decodeActiveSession(activeSessionRaw);
+      if (activeSession != null && currentLearner == null) {
+        activeSession = null;
+      }
       pendingRecoveredSessionSnapshot =
-          activeSession == null && activeSessionRaw is Map
+          activeSessionRaw is Map && activeSession == null
               ? Map<String, dynamic>.from(activeSessionRaw)
               : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
@@ -5070,10 +5073,6 @@ class LumoAppState {
   void _recoverPendingSessionAfterRefresh() {
     final snapshot = pendingRecoveredSessionSnapshot;
     if (snapshot == null || activeSession != null) return;
-    final recovered = _decodeActiveSession(snapshot);
-    if (recovered == null) return;
-    activeSession = recovered;
-    pendingRecoveredSessionSnapshot = null;
     final learnerId = snapshot['currentLearnerId']?.toString();
     if (learnerId != null && learnerId.trim().isNotEmpty) {
       currentLearner = learners.cast<LearnerProfile?>().firstWhere(
@@ -5081,6 +5080,13 @@ class LumoAppState {
             orElse: () => currentLearner,
           );
     }
+    if (currentLearner == null) {
+      return;
+    }
+    final recovered = _decodeActiveSession(snapshot);
+    if (recovered == null) return;
+    activeSession = recovered;
+    pendingRecoveredSessionSnapshot = null;
   }
 
   LessonCardModel? _resolvePersistedSessionLesson(Map<String, dynamic> raw) {

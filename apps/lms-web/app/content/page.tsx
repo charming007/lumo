@@ -187,10 +187,14 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const statusFilter = normalizeFilterValue(query?.status).trim();
   const viewFilter = normalizeFilterValue(query?.view).trim();
   const returnPath = buildContentReturnPath(query);
-  const subjectFilterName = subjects.find((subject) => subject.id === subjectFilter)?.name;
-
+  const normalizedSubjectFilter = subjectFilter.toLowerCase();
+  const subjectFilterName = subjects.find((subject) => subject.id.trim().toLowerCase() === normalizedSubjectFilter)
+    ?.name ?? subjects.find((subject) => subject.name.trim().toLowerCase() === normalizedSubjectFilter)?.name;
   const filteredModules = modules.filter((module) => {
-    const subjectMatches = !subjectFilter || module.subjectId === subjectFilter || module.subjectName === subjectFilterName;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [module.subjectId],
+      subjectNames: [module.subjectName],
+    });
     const statusMatches = !statusFilter || module.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'modules' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
@@ -198,9 +202,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   });
 
   const filteredLessons = lessons.filter((lesson) => {
-    const lessonSubjectId = lesson.subjectId ?? subjects.find((subject) => subject.name === lesson.subjectName)?.id;
     const moduleForLesson = findModuleForLesson(modules, lesson);
-    const subjectMatches = !subjectFilter || lessonSubjectId === subjectFilter || lesson.subjectName === subjectFilterName || moduleForLesson?.subjectId === subjectFilter;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [lesson.subjectId, moduleForLesson?.subjectId],
+      subjectNames: [lesson.subjectName, moduleForLesson?.subjectName],
+    });
     const statusMatches = !statusFilter || lesson.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'lessons';
     const queryMatches = matchesQuery([lesson.title, lesson.subjectName, lesson.moduleTitle, lesson.mode, lesson.status, lesson.targetAgeRange], searchText);
@@ -208,8 +214,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   });
 
   const filteredAssessments = assessments.filter((assessment) => {
-    const assessmentSubjectId = assessment.subjectId ?? subjects.find((subject) => subject.name === assessment.subjectName)?.id;
-    const subjectMatches = !subjectFilter || assessmentSubjectId === subjectFilter || assessment.subjectName === subjectFilterName;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [assessment.subjectId],
+      subjectNames: [assessment.subjectName],
+    });
     const statusMatches = !statusFilter || assessment.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'assessments' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([assessment.title, assessment.moduleTitle, assessment.subjectName, assessment.triggerLabel, assessment.kind, assessment.status], searchText);
@@ -227,7 +235,10 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
-    const subjectMatches = !subjectFilter || module.subjectId === subjectFilter || module.subjectName === subjectFilterName;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [module.subjectId],
+      subjectNames: [module.subjectName],
+    });
     const viewMatches = !viewFilter || viewFilter === 'blocked';
     const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
     return subjectMatches && viewMatches && queryMatches;
