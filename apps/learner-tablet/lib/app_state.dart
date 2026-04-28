@@ -3752,10 +3752,7 @@ class LumoAppState {
     persistStateSoon();
     await flushPersistence();
     await syncPendingEvents();
-    await refreshLearnerRewards(
-      updatedLearner,
-      preferIncomingSnapshot: true,
-    );
+    await refreshLearnerRewards(updatedLearner);
     await refreshLearnerRuntimeSessions(updatedLearner);
   }
 
@@ -3876,10 +3873,9 @@ class LumoAppState {
     RewardSnapshot incoming,
   ) {
     if (local == null) return incoming;
-    final backendDoesNotRegressLocal =
-        incoming.totalXp >= local.totalXp &&
-            incoming.badgesUnlocked >= local.badgesUnlocked &&
-            incoming.points >= local.points;
+    final backendDoesNotRegressLocal = incoming.totalXp >= local.totalXp &&
+        incoming.badgesUnlocked >= local.badgesUnlocked &&
+        incoming.points >= local.points;
     if (backendDoesNotRegressLocal) {
       return incoming;
     }

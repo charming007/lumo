@@ -3484,16 +3484,16 @@ void main() {
               return http.Response(
                 jsonEncode({
                   'learnerId': beginner.id,
-                  'totalXp': 44,
-                  'points': 44,
+                  'totalXp': 80,
+                  'points': 80,
                   'level': 2,
                   'levelLabel': 'Explorer',
                   'nextLevel': 3,
                   'nextLevelLabel': 'Bright Reader',
-                  'xpIntoLevel': 4,
-                  'xpForNextLevel': 36,
-                  'progressToNextLevel': 0.1,
-                  'badgesUnlocked': 1,
+                  'xpIntoLevel': 40,
+                  'xpForNextLevel': 0,
+                  'progressToNextLevel': 1,
+                  'badgesUnlocked': 5,
                   'badges': const [
                     {
                       'id': 'voice-starter',
@@ -3553,9 +3553,106 @@ void main() {
       await state.completeLesson(lesson);
 
       final rewards = state.currentLearner!.rewards!;
-      expect(rewards.totalXp, 44);
+      expect(rewards.totalXp, 80);
       expect(rewards.levelLabel, 'Explorer');
-      expect(rewards.badgesUnlocked, 1);
+      expect(rewards.badgesUnlocked, 5);
+      state.dispose();
+    });
+
+    test('completeLesson keeps optimistic rewards when backend projection lags',
+        () async {
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/sync') {
+              return http.Response(
+                jsonEncode({
+                  'accepted': 1,
+                  'ignored': 0,
+                  'results': [
+                    {
+                      'type': 'lesson_completed',
+                      'status': 'accepted',
+                      'progress': {
+                        'studentId': beginner.id,
+                        'progressionStatus': 'on-track',
+                        'recommendedNextModuleId': 'english',
+                        'lessonsCompleted': 1,
+                      },
+                    },
+                  ],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path == '/api/v1/learner-app/rewards') {
+              return http.Response(
+                jsonEncode({
+                  'learnerId': beginner.id,
+                  'totalXp': 0,
+                  'points': 0,
+                  'level': 1,
+                  'levelLabel': 'Starter',
+                  'nextLevel': 2,
+                  'nextLevelLabel': 'Rising Voice',
+                  'xpIntoLevel': 0,
+                  'xpForNextLevel': 40,
+                  'progressToNextLevel': 0,
+                  'badgesUnlocked': 0,
+                  'badges': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.url.path == '/api/v1/learner-app/sessions') {
+              return http.Response(
+                jsonEncode({'sessions': const []}),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      state.usingFallbackData = false;
+      state.learners
+        ..clear()
+        ..add(beginner.copyWith(
+          rewards: const RewardSnapshot(
+            learnerId: 'learner-1',
+            totalXp: 40,
+            points: 40,
+            level: 1,
+            levelLabel: 'Starter',
+            nextLevel: 2,
+            nextLevelLabel: 'Explorer',
+            xpIntoLevel: 40,
+            xpForNextLevel: 20,
+            progressToNextLevel: 0.67,
+            badgesUnlocked: 0,
+            badges: [],
+          ),
+        ));
+      state.currentLearner = state.learners.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+
+      state.startLesson(lesson);
+      state.submitLearnerResponse('I am ready');
+      state.submitLearnerResponse('I can answer about English');
+      await state.completeLesson(lesson);
+
+      final rewards = state.currentLearner!.rewards!;
+      expect(rewards.points, greaterThan(40));
+      expect(rewards.totalXp, greaterThan(40));
+      expect(rewards.points, rewards.totalXp);
+      expect(rewards.badgesUnlocked, greaterThanOrEqualTo(0));
       state.dispose();
     });
 
