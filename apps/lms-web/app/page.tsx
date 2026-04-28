@@ -877,8 +877,8 @@ export default async function HomePage() {
                       Next module: {item.recommendedNextModuleTitle ?? 'No recommendation yet'}
                     </div>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      <Link href={`/students/${item.studentId}`} style={{ ...quickActionStyle, background: '#F8FAFC', color: '#0F172A', border: '1px solid #CBD5E1', padding: '10px 12px' }}>
-                        Open learner detail
+                      <Link href={item.studentId ? `/progress?student=${encodeURIComponent(item.studentId)}&q=${encodeURIComponent(item.studentName)}` : `/progress?q=${encodeURIComponent(item.studentName)}`} style={{ ...quickActionStyle, background: '#F8FAFC', color: '#0F172A', border: '1px solid #CBD5E1', padding: '10px 12px' }}>
+                        Open learner progress
                       </Link>
                       <Link href="/progress" style={{ ...quickActionStyle, background: '#111827', color: 'white', padding: '10px 12px' }}>
                         Open progress board
