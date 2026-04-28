@@ -31,11 +31,7 @@ class WebSpeechRuntimeSupport {
   final String? exposedSpeechRecognitionApi;
 
   bool get looksSupported =>
-      isSpeechRecognitionExposed &&
-      isSecureContext &&
-      isOnline &&
-      hasMediaDevices &&
-      hasGetUserMedia;
+      isSpeechRecognitionExposed && isSecureContext && isOnline;
 
   String get debugSummary {
     final parts = <String>[

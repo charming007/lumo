@@ -208,6 +208,27 @@ void main() {
   );
 
   test(
+    'allows web transcript when speech api is exposed even if mediaDevices probe is missing',
+    () async {
+      final engine = FakeSpeechRecognitionEngine();
+      final service = SpeechTranscriptionService(
+        engine: engine,
+        inspectWebRuntime: () => const WebSpeechRuntimeSupport(
+          isSpeechRecognitionExposed: true,
+          isSecureContext: true,
+          isOnline: true,
+          userAgent: 'Chrome',
+          hasMediaDevices: false,
+          hasGetUserMedia: false,
+        ),
+      );
+
+      expect(await service.initialize(forceRetry: true), isTrue);
+      expect(service.isAvailable, isTrue);
+    },
+  );
+
+  test(
     'explains when browser transcript is blocked by insecure context',
     () async {
       final engine = FakeSpeechRecognitionEngine();
