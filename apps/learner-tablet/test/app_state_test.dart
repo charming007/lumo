@@ -3119,6 +3119,66 @@ void main() {
       state.dispose();
     });
 
+    test('restore keeps orphaned active sessions pending until learner returns', () async {
+      SharedPreferences.setMockInitialValues({
+        'lumo_learner_tablet_state_v1': jsonEncode({
+          'schemaVersion': '2026-04-13-runtime-persist',
+          'learners': const [],
+          'modules': const [],
+          'assignedLessons': [
+            {
+              'id': 'lesson-recover',
+              'moduleId': 'english',
+              'title': 'Recovered English lesson',
+              'subject': 'English',
+              'durationMinutes': 12,
+              'status': 'Ready now',
+              'mascotName': 'Mallam',
+              'readinessFocus': 'Resume guidance',
+              'scenario': 'Restore safely after a lesson update',
+              'steps': [
+                {
+                  'id': 'step-1',
+                  'title': 'Warm-up',
+                  'instruction': 'Say hello.',
+                  'expectedResponse': 'Hello',
+                  'coachPrompt': 'Let us begin.',
+                  'facilitatorTip': 'Encourage a confident start.',
+                  'realWorldCheck': 'The learner greets Mallam.',
+                  'speakerMode': 'guiding',
+                },
+              ],
+            },
+          ],
+          'currentLearnerId': 'missing-learner',
+          'activeSession': {
+            'sessionId': 'session-missing-learner',
+            'lessonId': 'lesson-recover',
+            'lessonTitle': 'Recovered English lesson',
+            'moduleId': 'english',
+            'currentLearnerId': 'missing-learner',
+            'stepIndex': 0,
+            'completionState': 'inProgress',
+            'speakerMode': 'guiding',
+            'latestReview': 'pending',
+            'transcript': const [],
+          },
+        }),
+      });
+
+      final state = LumoAppState(includeSeedDemoContent: false);
+      await state.restorePersistedState();
+
+      expect(state.currentLearner, isNull);
+      expect(state.activeSession, isNull);
+      expect(state.hasPendingRecoveredSession, isTrue);
+      expect(
+        state.pendingRecoveredSessionLabel,
+        contains('Recovered English lesson'),
+      );
+      state.dispose();
+    });
+
     test('restored active sessions clamp stale step indexes safely', () async {
       SharedPreferences.setMockInitialValues({
         'lumo_learner_tablet_state_v1': jsonEncode({
