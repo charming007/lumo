@@ -3752,7 +3752,11 @@ class LumoAppState {
     persistStateSoon();
     await flushPersistence();
     await syncPendingEvents();
-    await refreshLearnerRewards(updatedLearner);
+    await refreshLearnerRewards(
+      updatedLearner,
+      preferIncomingSnapshot: learner.rewards == null,
+      minimumAcceptedSnapshot: learner.rewards,
+    );
     await refreshLearnerRuntimeSessions(updatedLearner);
   }
 
@@ -4368,6 +4372,7 @@ class LumoAppState {
   Future<void> refreshLearnerRewards(
     LearnerProfile learner, {
     bool preferIncomingSnapshot = false,
+    RewardSnapshot? minimumAcceptedSnapshot,
   }) async {
     if (usingFallbackData) return;
     if (learner.id.trim().isEmpty && learner.learnerCode.trim().isEmpty) return;
@@ -4381,8 +4386,14 @@ class LumoAppState {
       if (learnerIndex == -1) return;
 
       final existingLearner = learners[learnerIndex];
+      final trustIncomingSnapshot = preferIncomingSnapshot ||
+          (minimumAcceptedSnapshot != null &&
+              snapshot.totalXp >= minimumAcceptedSnapshot.totalXp &&
+              snapshot.points >= minimumAcceptedSnapshot.points &&
+              snapshot.badgesUnlocked >=
+                  minimumAcceptedSnapshot.badgesUnlocked);
       final refreshedLearner = existingLearner.copyWith(
-        rewards: preferIncomingSnapshot
+        rewards: trustIncomingSnapshot
             ? snapshot
             : _mergeRewardSnapshot(existingLearner.rewards, snapshot),
       );
