@@ -1,12 +1,11 @@
 // ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
 
 import 'dart:html' as html;
-import 'dart:js_util' as js_util;
 
 import 'web_speech_runtime_probe.dart';
 
-bool _looksLocalhost(String host) {
-  final normalized = host.trim().toLowerCase();
+bool _looksLocalhost(String? host) {
+  final normalized = host?.trim().toLowerCase() ?? '';
   return normalized == 'localhost' ||
       normalized == '127.0.0.1' ||
       normalized == '::1';
@@ -18,12 +17,14 @@ WebSpeechRuntimeSupport inspectPlatformWebSpeechRuntime() {
   final host = location.hostname;
   final protocol = location.protocol;
   final origin = location.origin;
-  final speechRecognitionApi = js_util.hasProperty(html.window, 'SpeechRecognition')
+  final dynamic window = html.window;
+  final speechRecognitionApi = window.SpeechRecognition != null
       ? 'SpeechRecognition'
-      : js_util.hasProperty(html.window, 'webkitSpeechRecognition')
+      : window.webkitSpeechRecognition != null
           ? 'webkitSpeechRecognition'
           : null;
   final mediaDevices = html.window.navigator.mediaDevices;
+  final dynamic dynamicMediaDevices = mediaDevices;
 
   return WebSpeechRuntimeSupport(
     isSpeechRecognitionExposed: speechRecognitionApi != null,
@@ -36,7 +37,7 @@ WebSpeechRuntimeSupport inspectPlatformWebSpeechRuntime() {
     isLocalhostLike: _looksLocalhost(host),
     hasMediaDevices: mediaDevices != null,
     hasGetUserMedia:
-        mediaDevices != null && js_util.hasProperty(mediaDevices, 'getUserMedia'),
+        mediaDevices != null && dynamicMediaDevices.getUserMedia != null,
     exposedSpeechRecognitionApi: speechRecognitionApi,
   );
 }
