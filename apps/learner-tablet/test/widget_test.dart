@@ -1668,7 +1668,6 @@ void main() {
     state.dispose();
   });
 
-
   testWidgets('subject modules page stays usable on narrow tablet widths', (
     tester,
   ) async {
@@ -2748,6 +2747,102 @@ void main() {
   );
 
   testWidgets(
+    'transcript review keeps continue locked until the typed answer verifies',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'spoken-review-gate',
+        moduleId: 'english',
+        title: 'Spoken review gate',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Only verified spoken answers should unlock continue.',
+        scenario: 'Typed drafts cannot bypass transcript review validation.',
+        steps: [
+          LessonStep(
+            id: 'spoken-review-step-1',
+            type: LessonStepType.practice,
+            title: 'Say the word',
+            instruction: 'Hear the clue and answer.',
+            expectedResponse: 'sun',
+            coachPrompt: 'What shines in the sky?',
+            facilitatorTip: 'Only continue after a verified answer.',
+            realWorldCheck: 'Typed drafts must not bypass answer checking.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.listenAnswer,
+              prompt: 'What shines in the sky?',
+              targetResponse: 'sun',
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+      state.attachLearnerAudioCapture(
+        path: 'https://example.com/audio/review-take.m4a',
+        duration: const Duration(seconds: 2),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      Finder reviewButton() {
+        for (final label in const [
+          'Save note and continue',
+          'Save note + resume hands-free',
+          'Confirm transcript',
+        ]) {
+          final finder = find.widgetWithText(FilledButton, label);
+          if (finder.evaluate().isNotEmpty) {
+            return finder;
+          }
+        }
+        return find.widgetWithText(FilledButton, '__missing_review_button__');
+      }
+
+      var reviewButtonFinder = reviewButton();
+      expect(reviewButtonFinder, findsOneWidget);
+      expect(tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), 'moon');
+      await pumpForUi(tester);
+      reviewButtonFinder = reviewButton();
+      expect(tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), 'sun');
+      await pumpForUi(tester);
+      reviewButtonFinder = reviewButton();
+      expect(
+        tester.widget<FilledButton>(reviewButtonFinder).onPressed,
+        isNotNull,
+      );
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'lesson session keeps voice capture flow explicit for spoken steps',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
@@ -2869,12 +2964,13 @@ void main() {
       );
       await pumpForUi(tester, const Duration(milliseconds: 300));
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
-      await pumpForUi(tester);
+      final continueButton = find.widgetWithText(FilledButton, 'Continue');
+      expect(continueButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
 
       expect(state.activeSession?.stepIndex, 0);
       expect(state.activeSession?.currentStep.id, 'choice-step-1');
-      expect(state.activeSession?.latestReview, ResponseReview.needsSupport);
+      expect(state.activeSession?.latestReview, ResponseReview.pending);
       expect(find.text('Second step'), findsNothing);
       expect(find.text('Continue'), findsOneWidget);
 

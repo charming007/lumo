@@ -7238,18 +7238,32 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     return '$durationLabel clip saved for review';
   }
 
+  bool get _hasVerifiedLearnerResponse {
+    final session = widget.state.activeSession;
+    if (session == null) return false;
+
+    final draft = responseController.text.trim();
+    if (draft.isNotEmpty) {
+      final evaluation = widget.state.evaluateLearnerResponse(draft);
+      return evaluation.review == ResponseReview.onTrack;
+    }
+
+    final latestAcceptedResponse = session.latestLearnerResponse?.trim() ?? '';
+    if (latestAcceptedResponse.isNotEmpty) {
+      return session.latestReview == ResponseReview.onTrack;
+    }
+
+    final hasSavedAudio =
+        session.latestLearnerAudioPath?.trim().isNotEmpty ?? false;
+    return hasSavedAudio && session.latestReview == ResponseReview.onTrack;
+  }
+
   bool get _spokenStepReadyToContinue {
     final session = widget.state.activeSession;
     if (session == null) return false;
     if (transcriptReviewPending || isRecording) return false;
 
-    final candidate = responseController.text.trim().isNotEmpty
-        ? responseController.text.trim()
-        : session.latestLearnerResponse?.trim() ?? '';
-    if (candidate.isEmpty) return false;
-
-    final evaluation = widget.state.evaluateLearnerResponse(candidate);
-    return evaluation.review == ResponseReview.onTrack;
+    return _hasVerifiedLearnerResponse;
   }
 
   String get _spokenStepBlockedFeedback {
@@ -9283,7 +9297,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         currentActivity?.type == LessonActivityType.speakAnswer;
     final hasDraftResponse = responseController.text.trim().isNotEmpty;
     final canAdvanceChoiceStep =
-        isChoiceStep && hasDraftResponse && !transcriptReviewPending;
+        isChoiceStep && !transcriptReviewPending && _hasVerifiedLearnerResponse;
 
     Widget buildChoiceSelectionPanel() {
       final activity = step.activity;
@@ -9668,9 +9682,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                     }
                                   : null)
                             : (transcriptReviewPending
-                                  ? (responseController.text.trim().isEmpty
-                                        ? null
-                                        : _confirmTranscriptAndAdvance)
+                                  ? (_hasVerifiedLearnerResponse
+                                        ? _confirmTranscriptAndAdvance
+                                        : null)
                                   : (isSimplifiedSpokenStep
                                         ? (_spokenStepReadyToContinue
                                               ? () async {
@@ -9702,8 +9716,33 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                                   await _afterCorrectResponse();
                                                 }
                                               : null)
-                                        : (session.hasLearnerInput
+                                        : (_hasVerifiedLearnerResponse
                                               ? () async {
+                                                  final candidate =
+                                                      responseController.text
+                                                          .trim()
+                                                          .isNotEmpty
+                                                      ? responseController.text
+                                                            .trim()
+                                                      : session.latestLearnerResponse
+                                                                ?.trim() ??
+                                                            '';
+                                                  final latestAccepted =
+                                                      session
+                                                          .latestLearnerResponse
+                                                          ?.trim() ??
+                                                      '';
+                                                  if (candidate.isNotEmpty &&
+                                                      candidate !=
+                                                          latestAccepted) {
+                                                    await _handleSubmittedResponse(
+                                                      candidate,
+                                                    );
+                                                    if (!mounted ||
+                                                        !_hasVerifiedLearnerResponse) {
+                                                      return;
+                                                    }
+                                                  }
                                                   await _afterCorrectResponse();
                                                 }
                                               : null)));
@@ -10581,10 +10620,12 @@ class _ResponsiveWorkspaceRow extends StatelessWidget {
   }
 
   List<Widget> _layoutChildrenForColumn(double viewportHeight) {
-    final resolvedViewportHeight =
-        viewportHeight.isFinite && viewportHeight > 0 ? viewportHeight : 900.0;
-    final paneHeight =
-        (resolvedViewportHeight * 0.48).clamp(520.0, 760.0).toDouble();
+    final resolvedViewportHeight = viewportHeight.isFinite && viewportHeight > 0
+        ? viewportHeight
+        : 900.0;
+    final paneHeight = (resolvedViewportHeight * 0.48)
+        .clamp(520.0, 760.0)
+        .toDouble();
 
     return List.generate(children.length, (index) {
       final child = children[index];
@@ -10714,6 +10755,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
     );
     return subjectModule ?? lessonModule ?? fallbackModule;
   }
+
   @override
   void initState() {
     super.initState();
