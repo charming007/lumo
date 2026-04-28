@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { DeleteStudentForm, UpdateStudentForm } from '../../../components/admin-forms';
 import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../../components/modal-launcher';
-import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../../lib/api';
+import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudent } from '../../../lib/api';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
 function percent(value: number | null | undefined) {
@@ -10,10 +10,15 @@ function percent(value: number | null | undefined) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatRewardKind(value: string | null | undefined) {
+  if (!value) return 'Reward update';
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [studentsResult, cohortsResult, podsResult, mallamsResult, centersResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
-    fetchStudents(),
+  const [studentResult, cohortsResult, podsResult, mallamsResult, centersResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
+    fetchStudent(id),
     fetchCohorts(),
     fetchPods(),
     fetchMallams(),
@@ -22,7 +27,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     fetchLocalGovernments(),
   ]);
 
-  const students = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
+  const student = studentResult.status === 'fulfilled' ? studentResult.value : null;
   const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
   const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
   const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
@@ -31,7 +36,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
 
   const failedSources = [
-    studentsResult.status === 'rejected' ? 'students' : null,
+    studentResult.status === 'rejected' ? 'student detail' : null,
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
@@ -40,7 +45,6 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
 
-  const student = students.find((item) => item.id === id);
   if (!student) notFound();
 
   return (
@@ -77,6 +81,8 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                 { label: 'Stage', value: student.stage || '—' },
                 { label: 'Attendance', value: percent(student.attendanceRate) },
                 { label: 'Pod', value: student.podLabel || 'Unassigned' },
+                { label: 'Earned points', value: String(student.rewards?.points ?? student.rewards?.totalXp ?? 0) },
+                { label: 'Badges', value: String(student.rewards?.badgesUnlocked ?? 0) },
               ]}
             />
           </Card>
@@ -95,12 +101,49 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Pill label={student.level || 'Unknown'} tone="#EEF2FF" text="#3730A3" />
               <Pill label={student.stage || 'Unknown stage'} tone="#ECFDF5" text="#166534" />
+              <Pill label={`${student.rewards?.points ?? student.rewards?.totalXp ?? 0} pts`} tone="#FEF3C7" text="#92400E" />
+              <Pill label={`${student.rewards?.badgesUnlocked ?? 0} badge${(student.rewards?.badgesUnlocked ?? 0) === 1 ? '' : 's'}`} tone="#FDF2F8" text="#9D174D" />
             </div>
             <div style={{ color: '#475569', lineHeight: 1.7 }}>
               Age: <strong>{student.age || '—'}</strong><br />
               Guardian: <strong>{student.guardianName || '—'}</strong><br />
               Device access: <strong>{student.deviceAccess || '—'}</strong><br />
               Mallam: <strong>{student.mallamName || 'Derived from pod once assigned'}</strong>
+            </div>
+          </div>
+        </Card>
+        <Card title="Reward progress" eyebrow="Live learner rewards">
+          <div style={{ display: 'grid', gap: 14 }}>
+            <MetricList
+              items={[
+                { label: 'Earned points', value: String(student.rewards?.points ?? student.rewards?.totalXp ?? 0) },
+                { label: 'Reward level', value: student.rewards?.levelLabel ? `Level ${student.rewards.level} · ${student.rewards.levelLabel}` : '—' },
+                { label: 'Next level in', value: `${student.rewards?.xpForNextLevel ?? 0} pts` },
+                { label: 'Badges unlocked', value: String(student.rewards?.badgesUnlocked ?? 0) },
+              ]}
+            />
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: '#475569', fontSize: 14 }}>
+                <span>Progress to next reward level</span>
+                <strong style={{ color: '#0f172a' }}>{Math.round((student.rewards?.progressToNextLevel ?? 0) * 100)}%</strong>
+              </div>
+              <div style={{ height: 10, borderRadius: 999, background: '#E2E8F0', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.round((student.rewards?.progressToNextLevel ?? 0) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #6366F1, #F59E0B)' }} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Recent reward activity</div>
+              {student.rewards?.recentTransactions?.length ? student.rewards.recentTransactions.slice(0, 5).map((transaction) => (
+                <div key={transaction.id} style={{ borderRadius: 14, border: '1px solid #E2E8F0', padding: '12px 14px', display: 'grid', gap: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <strong style={{ color: '#0f172a' }}>{transaction.label || formatRewardKind(transaction.kind)}</strong>
+                    <span style={{ color: transaction.xpDelta >= 0 ? '#166534' : '#B91C1C', fontWeight: 800 }}>{transaction.xpDelta >= 0 ? '+' : ''}{transaction.xpDelta} pts</span>
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: 14 }}>
+                    {formatRewardKind(transaction.kind)}{transaction.createdAt ? ` · ${new Date(transaction.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}
+                  </div>
+                </div>
+              )) : <div style={{ color: '#64748b', lineHeight: 1.6 }}>No reward transactions yet. Tablet-earned lesson completions and admin adjustments will appear here from the same live reward feed.</div>}
             </div>
           </div>
         </Card>

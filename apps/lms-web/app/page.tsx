@@ -839,6 +839,7 @@ export default async function HomePage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <Pill label={`Attendance ${Math.round(item.attendanceRate * 100)}%`} tone="#F8FAFC" text="#334155" />
                       <Pill label={`Mastery ${Math.round(item.mastery * 100)}%`} tone="#EEF2FF" text="#3730A3" />
+                      <Pill label={`${item.totalXp} pts`} tone="#FEF3C7" text="#92400E" />
                       <Pill label={`Level ${item.levelLabel}`} tone="#ECFDF5" text="#166534" />
                       <Pill label={`${item.badgesUnlocked} badge${item.badgesUnlocked === 1 ? '' : 's'}`} tone="#FDF2F8" text="#9D174D" />
                     </div>
@@ -846,6 +847,9 @@ export default async function HomePage() {
                       Next module: {item.recommendedNextModuleTitle ?? 'No recommendation yet'}
                     </div>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <Link href={`/students/${item.studentId}`} style={{ ...quickActionStyle, background: '#F8FAFC', color: '#0F172A', border: '1px solid #CBD5E1', padding: '10px 12px' }}>
+                        Open learner detail
+                      </Link>
                       <Link href="/progress" style={{ ...quickActionStyle, background: '#111827', color: 'white', padding: '10px 12px' }}>
                         Open progress board
                       </Link>
