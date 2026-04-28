@@ -48,13 +48,13 @@ class SpeechToTextEngine implements SpeechRecognitionEngine {
   }
 
   @override
-  Future<void> listen({
+  Future<bool> listen({
     required void Function(String transcript, bool isFinal) onResult,
     required SpeechListenOptions options,
     required Duration pauseFor,
     required Duration listenFor,
-  }) {
-    return _speech.listen(
+  }) async {
+    await _speech.listen(
       onResult: (SpeechRecognitionResult result) {
         onResult(result.recognizedWords, result.finalResult);
       },
@@ -62,6 +62,7 @@ class SpeechToTextEngine implements SpeechRecognitionEngine {
       pauseFor: pauseFor,
       listenFor: listenFor,
     );
+    return _speech.isListening;
   }
 
   @override
@@ -275,8 +276,8 @@ class SpeechTranscriptionService {
       await _engine.stop();
     }
 
-    Future<void> startListening(SpeechListenOptions options) {
-      return _engine.listen(
+    Future<void> startListening(SpeechListenOptions options) async {
+      final started = await _engine.listen(
         onResult: (transcript, isFinal) {
           final text = transcript.trim();
           if (text.isEmpty) return;
@@ -292,6 +293,9 @@ class SpeechTranscriptionService {
             ? const Duration(seconds: 45)
             : const Duration(seconds: 75),
       );
+      if (!started) {
+        throw Exception('speech recognition did not start listening');
+      }
     }
 
     late final SpeechListenOptions primaryOptions;
@@ -435,6 +439,9 @@ class SpeechTranscriptionService {
     if (lower.contains('audio-capture') ||
         lower.contains('microphone unavailable')) {
       return 'The microphone became unavailable mid-session. Reconnect the mic if needed; Lumo will keep using saved audio until live transcript help recovers.';
+    }
+    if (lower.contains('did not start listening')) {
+      return 'The browser exposed speech recognition, but this take never actually started listening. Lumo will keep the learner audio and fall back to manual review instead of pretending transcript help is active.';
     }
     if (lower.contains('language-not-supported') ||
         lower.contains('locale') ||

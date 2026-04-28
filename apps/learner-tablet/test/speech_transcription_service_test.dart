@@ -10,6 +10,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     this.failInitializeAttempts = 0,
     this.failInitializeError = 'not available',
     this.failListenAttempts = 0,
+    this.listenStarts = true,
     this.emitTranscriptOnListen,
   });
 
@@ -17,6 +18,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   int failInitializeAttempts;
   String failInitializeError;
   int failListenAttempts;
+  bool listenStarts;
   void Function(void Function(String transcript, bool isFinal) onResult)?
       emitTranscriptOnListen;
   int listenCalls = 0;
@@ -43,7 +45,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   }
 
   @override
-  Future<void> listen({
+  Future<bool> listen({
     required void Function(String transcript, bool isFinal) onResult,
     required SpeechListenOptions options,
     required Duration pauseFor,
@@ -54,8 +56,11 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
       failListenAttempts -= 1;
       throw Exception('not available');
     }
-    _isListening = true;
-    emitTranscriptOnListen?.call(onResult);
+    _isListening = listenStarts;
+    if (_isListening) {
+      emitTranscriptOnListen?.call(onResult);
+    }
+    return _isListening;
   }
 
   @override
@@ -165,6 +170,26 @@ void main() {
     expect(seenErrors, isNotEmpty);
     expect(seenErrors.last, contains('microphone became unavailable'));
     expect(service.lastError, contains('microphone became unavailable'));
+  });
+
+  test('treats a silent listen start failure as unavailable instead of active',
+      () async {
+    final engine = FakeSpeechRecognitionEngine(listenStarts: false);
+    final service = SpeechTranscriptionService(engine: engine);
+    final seenErrors = <String>[];
+
+    expect(
+      await service.start(
+        onResult: (_, __) {},
+        onError: seenErrors.add,
+      ),
+      isFalse,
+    );
+
+    expect(service.isAvailable, isFalse);
+    expect(service.activeModeLabel, 'Audio fallback review');
+    expect(service.lastError, contains('never actually started listening'));
+    expect(seenErrors.last, contains('never actually started listening'));
   });
 
   test('explains when the browser does not expose speech recognition', () async {
