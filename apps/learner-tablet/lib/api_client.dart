@@ -426,9 +426,19 @@ class LumoApiClient {
     );
 
     _ensureOk(response, 'load learner rewards', uri);
-    return RewardSnapshot.fromJson(
-      _decodeObject(response.body, action: 'load learner rewards', uri: uri),
+    final decoded = _decodeObject(
+      response.body,
+      action: 'load learner rewards',
+      uri: uri,
     );
+    final snapshotPayload = decoded['snapshot'];
+    if (snapshotPayload is Map<String, dynamic>) {
+      return RewardSnapshot.fromJson(snapshotPayload);
+    }
+    if (snapshotPayload is Map) {
+      return RewardSnapshot.fromJson(Map<String, dynamic>.from(snapshotPayload));
+    }
+    return RewardSnapshot.fromJson(decoded);
   }
 
   String _canonicalSyncEventType(String type) {

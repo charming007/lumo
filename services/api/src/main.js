@@ -2462,6 +2462,16 @@ app.get('/api/v1/learner-app/rewards', (req, res) => {
     return res.status(404).json({ message: 'Learner not found' });
   }
 
+  return res.json(rewards.buildLearnerRewards(learner.id));
+});
+
+app.get('/api/v1/learner-app/rewards/hub', (req, res) => {
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+
+  if (!learner) {
+    return res.status(404).json({ message: 'Learner not found' });
+  }
+
   return res.json(rewards.buildLearnerRewardHub(learner.id));
 });
 
