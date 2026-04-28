@@ -1,7 +1,8 @@
 // ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
 
 import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'web_speech_runtime_probe.dart';
 
@@ -18,10 +19,11 @@ WebSpeechRuntimeSupport inspectPlatformWebSpeechRuntime() {
   final host = location.hostname;
   final protocol = location.protocol;
   final origin = location.origin;
+  final window = html.window as JSObject;
   final speechRecognitionApi =
-      js_util.hasProperty(html.window, 'SpeechRecognition')
+      window.has('SpeechRecognition')
           ? 'SpeechRecognition'
-          : js_util.hasProperty(html.window, 'webkitSpeechRecognition')
+          : window.has('webkitSpeechRecognition')
               ? 'webkitSpeechRecognition'
               : null;
   final mediaDevices = html.window.navigator.mediaDevices;
@@ -37,7 +39,7 @@ WebSpeechRuntimeSupport inspectPlatformWebSpeechRuntime() {
     isLocalhostLike: _looksLocalhost(host),
     hasMediaDevices: mediaDevices != null,
     hasGetUserMedia: mediaDevices != null &&
-        js_util.hasProperty(mediaDevices, 'getUserMedia'),
+        (mediaDevices as JSObject).has('getUserMedia'),
     exposedSpeechRecognitionApi: speechRecognitionApi,
   );
 }
