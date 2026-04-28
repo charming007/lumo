@@ -20,6 +20,7 @@ import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
+import { resolveModuleSubjectId } from '../../lib/module-subject-match';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -447,6 +448,12 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const isDraftModule = module.status === 'draft';
                   const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
 
+                  const moduleSubjectId = resolveModuleSubjectId(module, subjects);
+                  const canLaunchLessonCreate = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
+                  const createLessonHref = canLaunchLessonCreate
+                    ? `/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent&focus=blockers`
+                    : null;
+
                   return [
                     <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
                       <strong>{module.title}</strong>
@@ -477,9 +484,15 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       </span>
                     </div>,
                     <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
-                      <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
-                        Add lesson pack
-                      </Link>
+                      {createLessonHref ? (
+                        <Link href={createLessonHref} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                          Add lesson pack
+                        </Link>
+                      ) : (
+                        <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA', textAlign: 'center', lineHeight: 1.5 }}>
+                          Recover subject context first
+                        </div>
+                      )}
                       {!hasAssessment ? (
                         <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate from the blockers board instead of hunting through the full content lane." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
                           <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
@@ -581,7 +594,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const hasAssessment = moduleHasAssessmentGate(module);
                 const isDraftModule = module.status === 'draft';
                 const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
-                const moduleSubjectId = module.subjectId?.trim() ?? '';
+                const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                 const canLaunchLessonCreate = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
                 const createLessonHref = canLaunchLessonCreate
                   ? `/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent%3Fview%3Dblocked&focus=blockers`

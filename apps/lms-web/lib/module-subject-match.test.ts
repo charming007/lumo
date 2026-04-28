@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { filterModulesForSubject, moduleBelongsToSubject } from './module-subject-match.ts';
+import { filterModulesForSubject, moduleBelongsToSubject, resolveModuleSubjectId } from './module-subject-match.ts';
 
 test('module subject matching keeps modules visible when subject names line up but ids drift', () => {
   const subject = {
@@ -51,4 +51,59 @@ test('module subject matching returns an empty list when no subject is selected'
   ];
 
   assert.deepEqual(filterModulesForSubject(modules as any, null as any), []);
+});
+
+test('resolveModuleSubjectId keeps an explicit subject id when it matches a loaded subject', () => {
+  assert.equal(
+    resolveModuleSubjectId(
+      {
+        subjectId: 'subject-math',
+        subjectName: 'Mathematics',
+      } as any,
+      [{ id: 'subject-math', name: 'Mathematics' }] as any,
+    ),
+    'subject-math',
+  );
+});
+
+test('resolveModuleSubjectId falls back to matching subject name when the explicit subject id is stale', () => {
+  assert.equal(
+    resolveModuleSubjectId(
+      {
+        subjectId: 'legacy-math-id',
+        subjectName: 'Mathematics',
+      } as any,
+      [{ id: 'subject-math', name: 'Mathematics' }] as any,
+    ),
+    'subject-math',
+  );
+});
+
+test('resolveModuleSubjectId falls back to the matching subject name when module subject id is missing', () => {
+  assert.equal(
+    resolveModuleSubjectId(
+      {
+        subjectId: '   ',
+        subjectName: ' English ',
+      } as any,
+      [
+        { id: 'subject-arabic', name: 'Arabic' },
+        { id: 'subject-english', name: 'english' },
+      ] as any,
+    ),
+    'subject-english',
+  );
+});
+
+test('resolveModuleSubjectId returns empty string when no subject context can be recovered', () => {
+  assert.equal(
+    resolveModuleSubjectId(
+      {
+        subjectId: null,
+        subjectName: 'Unknown subject',
+      } as any,
+      [{ id: 'subject-arabic', name: 'Arabic' }] as any,
+    ),
+    '',
+  );
 });
