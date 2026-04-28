@@ -53,14 +53,27 @@ test('module subject matching returns an empty list when no subject is selected'
   assert.deepEqual(filterModulesForSubject(modules as any, null as any), []);
 });
 
-test('resolveModuleSubjectId keeps an explicit subject id when present', () => {
+test('resolveModuleSubjectId keeps an explicit subject id when it matches a loaded subject', () => {
   assert.equal(
     resolveModuleSubjectId(
       {
         subjectId: 'subject-math',
         subjectName: 'Mathematics',
       } as any,
-      [{ id: 'subject-other', name: 'Mathematics' }] as any,
+      [{ id: 'subject-math', name: 'Mathematics' }] as any,
+    ),
+    'subject-math',
+  );
+});
+
+test('resolveModuleSubjectId falls back to matching subject name when the explicit subject id is stale', () => {
+  assert.equal(
+    resolveModuleSubjectId(
+      {
+        subjectId: 'legacy-math-id',
+        subjectName: 'Mathematics',
+      } as any,
+      [{ id: 'subject-math', name: 'Mathematics' }] as any,
     ),
     'subject-math',
   );

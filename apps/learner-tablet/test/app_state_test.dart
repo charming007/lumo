@@ -87,7 +87,7 @@ class _SubjectShellBootstrapApiClient extends LumoApiClient {
   Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
     requestedBundleModuleIds.add(moduleId);
     throw Exception(
-        'No live module bundle exists for learner subject shell "${moduleId}".');
+        'No live module bundle exists for learner subject shell "$moduleId".');
   }
 }
 

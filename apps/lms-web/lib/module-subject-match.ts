@@ -29,13 +29,17 @@ export function resolveModuleSubjectId(
   const directSubjectId = module.subjectId?.trim();
 
   if (directSubjectId) {
-    return directSubjectId;
+    const directMatch = subjects.find((subject) => normalize(subject.id) === normalize(directSubjectId));
+    if (directMatch) {
+      return directMatch.id;
+    }
   }
 
   const normalizedSubjectName = normalize(module.subjectName);
   if (!normalizedSubjectName) {
-    return '';
+    return directSubjectId ?? '';
   }
 
-  return subjects.find((subject) => normalize(subject.name) === normalizedSubjectName)?.id ?? '';
+  const subjectNameMatch = subjects.find((subject) => normalize(subject.name) === normalizedSubjectName);
+  return subjectNameMatch?.id ?? directSubjectId ?? '';
 }
