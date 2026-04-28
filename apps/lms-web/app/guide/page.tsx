@@ -1,260 +1,163 @@
-import Link from 'next/link';
-import { Card, PageShell, Pill, responsiveGrid } from '../../lib/ui';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
-export const dynamic = 'force-dynamic';
-
-const sectionLinks = [
-  ['overview', 'What this guide is for'],
-  ['route-map', 'Route map and live entry points'],
-  ['workflow', 'Recommended workflow'],
-  ['resource-library', 'Resource library'],
-  ['spotlight', 'Guide spotlight'],
-] as const;
-
-const routeGuides = [
-  {
-    title: 'Dashboard',
-    href: '/',
-    detail: 'Operational cockpit for rollout health, blockers, and where intervention is needed first.',
-    tone: '#E0E7FF',
-    text: '#3730A3',
-  },
-  {
-    title: 'Content Library',
-    href: '/content',
-    detail: 'Canonical curriculum spine: subject → strand → module → lesson → assessment gate.',
-    tone: '#DBEAFE',
-    text: '#1D4ED8',
-  },
-  {
-    title: 'Assignments',
-    href: '/assignments',
-    detail: 'Where content becomes delivery work, not just structure sitting on a shelf.',
-    tone: '#DCFCE7',
-    text: '#166534',
-  },
-  {
-    title: 'Progress',
-    href: '/progress',
-    detail: 'Progress and completion visibility, useful only when sync truth is trustworthy.',
-    tone: '#F3E8FF',
-    text: '#7E22CE',
-  },
-  {
-    title: 'Settings',
-    href: '/settings',
-    detail: 'Runtime trust, environment posture, and operator-facing controls.',
-    tone: '#F8FAFC',
-    text: '#334155',
-  },
-] as const;
-
-const workflow = [
-  'Confirm the curriculum structure in Content Library before authoring around it.',
-  'Use lesson authoring surfaces to build something real, not just metadata wallpaper.',
-  'Assign deliberately so delivery has an owner, target cohort, and visible next step.',
-  'Check progress and reporting with a healthy level of suspicion when sync or degraded-mode warnings appear.',
-  'Use the fallback catalog and QA/UAT guide when the product feels fine but truth may be lying underneath.',
-] as const;
-
-const resources = [
+const GUIDE_FILES = [
   {
     title: 'LMS Dashboard Guide',
-    href: '/LMS_DASHBOARD_GUIDE.html',
-    eyebrow: 'Recovered core guide',
-    format: 'HTML handbook',
-    summary: 'The original operator-facing LMS walkthrough: route purpose, dashboards, content flow, and admin UX guidance.',
-    bestFor: 'New operators, product walkthroughs, and route-by-route orientation.',
-    highlight: 'Recovered from the earliest guide implementation and kept as the central handbook.',
+    description: 'Main operator handbook for the LMS dashboard, content flow, reporting surfaces, and admin workflow.',
+    htmlFile: 'LMS_DASHBOARD_GUIDE.html',
   },
   {
-    title: 'Admin Video Tutorial Pack',
-    href: '/LMS_ADMIN_VIDEO_TUTORIAL_PACK.html',
-    eyebrow: 'Training pack',
-    format: 'HTML tutorial scripts',
-    summary: 'Recording-ready training scripts and run-of-show structure for onboarding LMS admins fast.',
-    bestFor: 'Enablement, training recordings, and fast operator onboarding.',
-    highlight: 'Restores the tutorial pack that used to be surfaced from the guide route.',
-  },
-  {
-    title: 'LMS Data Map',
-    href: '/LMS_DATA_MAP.html',
-    eyebrow: 'Truth source map',
-    format: 'HTML systems doc',
-    summary: 'Explains what each LMS surface shows and whether the data is live backend truth, learner sync, derived UI rollup, or fallback copy.',
-    bestFor: 'Debugging trust questions and separating reality from presentation.',
-    highlight: 'Brings back the data lineage reference added after the guide launched.',
-  },
-  {
-    title: 'Fallback & Failure Modes Catalog',
-    href: '/LMS_FALLBACK_FAILURE_CATALOG.html',
-    eyebrow: 'Failure guide',
-    format: 'HTML field guide',
-    summary: 'Covers degraded states, sync trouble, stale content, reporting confidence gaps, and where operators need to intervene.',
-    bestFor: 'Pilot operations, incident handling, and not getting fooled by a polished but lying UI.',
-    highlight: 'Recovered from later docs work and surfaced where operators will actually find it.',
+    title: 'Rewards System Guide',
+    description: 'Current-state guide for backend vs learner-tablet rewards, canonical truth, sync behavior, and interim operating rules.',
+    htmlFile: 'REWARDS_SYSTEM_GUIDE.html',
   },
   {
     title: 'MVP QA / UAT Guide',
-    href: '/LUMO_MVP_QA_UAT_GUIDE.html',
-    eyebrow: 'Test playbook',
-    format: 'HTML QA guide',
-    summary: 'Structured acceptance and validation flows for checking the LMS and learner ecosystem without hand-wavy testing.',
-    bestFor: 'Pre-pilot checks, regression passes, and disciplined UAT sessions.',
-    highlight: 'Restores a practical test artifact that should never have been stranded as a raw static file.',
-  },
-  {
-    title: 'Lumo Positioning Brief',
-    href: '/LUMO_POSITIONING_BRIEF.html',
-    eyebrow: 'Product context',
-    format: 'HTML brief',
-    summary: 'Narrative and positioning context for explaining what Lumo is, how it should be framed, and what story the product is meant to tell.',
-    bestFor: 'Stakeholder briefings, demos, and team alignment.',
-    highlight: 'Recovered as a supporting artifact linked by historical guide-related commits.',
+    description: 'Structured test guide for validating the Lumo MVP across the LMS and learner tablet app.',
+    htmlFile: 'LUMO_MVP_QA_UAT_GUIDE.html',
   },
 ] as const;
 
-function ActionLink({ href, children, tone = '#EEF2FF', text = '#3730A3' }: { href: string; children: React.ReactNode; tone?: string; text?: string }) {
-  return (
-    <Link
-      href={href}
-      style={{
-        borderRadius: 16,
-        padding: '12px 14px',
-        fontWeight: 800,
-        background: tone,
-        color: text,
-        textDecoration: 'none',
-      }}
-    >
-      {children}
-    </Link>
-  );
+async function loadGuideHtml(fileName: string) {
+  const docsPath = path.join(process.cwd(), '..', '..', 'docs', fileName);
+  return fs.readFile(docsPath, 'utf8');
 }
 
-export default function GuidePage() {
+export default async function GuidePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const requestedGuide = typeof resolvedSearchParams.doc === 'string' ? resolvedSearchParams.doc : GUIDE_FILES[0].htmlFile;
+  const activeGuide = GUIDE_FILES.find((guide) => guide.htmlFile === requestedGuide) ?? GUIDE_FILES[0];
+  const activeHtml = await loadGuideHtml(activeGuide.htmlFile);
+
   return (
-    <PageShell
-      title="LMS Guide"
-      subtitle="Restored as the useful version again: route map, operating workflow, and the docs/tutorial resources that were already in this repo instead of a dead-end blocker card."
-      breadcrumbs={[
-        { label: 'Dashboard', href: '/' },
-        { label: 'Settings', href: '/settings' },
-        { label: 'LMS Guide' },
-      ]}
-      aside={
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <ActionLink href="/content">Open content library</ActionLink>
-          <ActionLink href="/assignments" tone="#ECFDF5" text="#166534">
-            Open assignments
-          </ActionLink>
-          <a href="/LMS_DASHBOARD_GUIDE.html" target="_blank" rel="noreferrer" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 800, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
-            Open handbook
-          </a>
+    <main style={{ padding: '32px clamp(18px, 4vw, 40px) 56px' }}>
+      <section
+        style={{
+          background: 'linear-gradient(135deg, #0f172a, #312e81 60%, #4f46e5)',
+          color: 'white',
+          borderRadius: 28,
+          padding: '28px clamp(20px, 4vw, 34px)',
+          boxShadow: '0 20px 50px rgba(15, 23, 42, 0.18)',
+        }}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+          <span style={badgeStyle}>Lumo docs</span>
+          <span style={badgeStyle}>Guide dashboard</span>
+          <span style={badgeStyle}>HTML / PDF ready</span>
         </div>
-      }
-    >
-      <section id="overview" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 16, marginBottom: 20 }}>
-        <Card title="Guide contents" eyebrow="Jump links">
-          <div style={{ display: 'grid', gap: 10 }}>
-            {sectionLinks.map(([id, label]) => (
-              <a key={id} href={`#${id}`} style={{ color: '#475569', textDecoration: 'none', fontWeight: 700 }}>
-                {label}
-              </a>
-            ))}
-          </div>
-        </Card>
-
-        <Card title="What this guide is for" eyebrow="Recovered docs surface">
-          <div style={{ display: 'grid', gap: 14 }}>
-            <div style={{ color: '#475569', lineHeight: 1.7 }}>
-              This route used to be an actual docs surface, then got flattened into a pilot-scope blocker. That was tidy from a navigation-politics standpoint, but stupid for operators who still need the handbook, training pack, data map, QA guide, and failure catalog. So this page now does the sane thing again.
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {['Guide', 'Tutorials', 'Data map', 'QA/UAT', 'Fallbacks', 'Product brief'].map((item) => (
-                <Pill key={item} label={item} tone="#F8FAFC" text="#334155" />
-              ))}
-            </div>
-          </div>
-        </Card>
+        <h1 style={{ margin: 0, fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1.05 }}>Guide library</h1>
+        <p style={{ margin: '12px 0 0', maxWidth: 860, color: 'rgba(255,255,255,0.88)', fontSize: '1.02rem' }}>
+          Open the live HTML handbook you need, then print to PDF if you want a shareable export. No scavenger hunt, no mystery meat docs.
+        </p>
       </section>
 
-      <section id="route-map" style={{ ...responsiveGrid(240), marginBottom: 20 }}>
-        {routeGuides.map((item) => (
-          <Card key={item.title} title={item.title} eyebrow="Live route">
-            <div style={{ display: 'grid', gap: 12 }}>
-              <Pill label="Pilot route" tone={item.tone} text={item.text} />
-              <div style={{ color: '#64748b', lineHeight: 1.7 }}>{item.detail}</div>
-              <Link href={item.href} style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
-                Open route →
-              </Link>
-            </div>
-          </Card>
-        ))}
-      </section>
-
-      <section id="workflow" style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16, marginBottom: 20 }}>
-        <Card title="Recommended operator workflow" eyebrow="Use the thing properly">
-          <ol style={{ margin: 0, paddingLeft: 18, color: '#475569', lineHeight: 1.8 }}>
-            {workflow.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        </Card>
-
-        <Card title="What was historically restored" eyebrow="Audit result">
+      <section style={{ display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 20, marginTop: 22, alignItems: 'start' }}>
+        <aside
+          style={{
+            background: '#fff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 24,
+            padding: 20,
+            boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
+            position: 'sticky',
+            top: 18,
+          }}
+        >
+          <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 800, color: '#7c3aed', marginBottom: 12 }}>
+            Available guides
+          </div>
           <div style={{ display: 'grid', gap: 12 }}>
-            {[
-              'The original rich LMS guide page structure and embedded handbook flow.',
-              'Deep-linked docs assets added later in guide-related commits.',
-              'Training/tutorial resources that were stranded in public/ as orphaned HTML files.',
-              'Operational references for data truth, QA/UAT, and failure/degraded-mode behavior.',
-            ].map((item) => (
-              <div key={item} style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#475569', lineHeight: 1.6 }}>
-                {item}
-              </div>
-            ))}
+            {GUIDE_FILES.map((guide) => {
+              const isActive = guide.htmlFile === activeGuide.htmlFile;
+              return (
+                <a
+                  key={guide.htmlFile}
+                  href={`/guide?doc=${encodeURIComponent(guide.htmlFile)}`}
+                  style={{
+                    textDecoration: 'none',
+                    color: isActive ? '#1e1b4b' : '#0f172a',
+                    background: isActive ? '#eef2ff' : '#f8fafc',
+                    border: isActive ? '1px solid #c7d2fe' : '1px solid #e2e8f0',
+                    borderRadius: 18,
+                    padding: 16,
+                    display: 'grid',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ fontWeight: 800 }}>{guide.title}</div>
+                  <div style={{ color: '#475569', fontSize: 14, lineHeight: 1.5 }}>{guide.description}</div>
+                </a>
+              );
+            })}
           </div>
-        </Card>
-      </section>
+        </aside>
 
-      <section id="resource-library" style={{ ...responsiveGrid(300), marginBottom: 20 }}>
-        {resources.map((resource) => (
-          <Card key={resource.title} title={resource.title} eyebrow={resource.eyebrow}>
-            <div style={{ display: 'grid', gap: 12 }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <Pill label={resource.format} tone="#EEF2FF" text="#3730A3" />
-                <Pill label={resource.bestFor} tone="#ECFDF5" text="#166534" />
-              </div>
-              <div style={{ color: '#64748b', lineHeight: 1.7 }}>{resource.summary}</div>
-              <div style={{ color: '#475569', lineHeight: 1.6, padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                <strong style={{ color: '#0f172a' }}>Why it matters:</strong> {resource.highlight}
-              </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <a href={resource.href} target="_blank" rel="noreferrer" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
-                  Open resource →
-                </a>
-                <a href={resource.href} download style={{ color: '#64748b', fontWeight: 700, textDecoration: 'none' }}>
-                  Download
-                </a>
-              </div>
+        <section style={{ display: 'grid', gap: 16 }}>
+          <div
+            style={{
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: 24,
+              padding: 20,
+              boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
+            }}
+          >
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 800, color: '#7c3aed', marginBottom: 10 }}>
+              Active document
             </div>
-          </Card>
-        ))}
-      </section>
-
-      <section id="spotlight" style={{ display: 'grid', gap: 16 }}>
-        <Card title="Guide spotlight: embedded handbook" eyebrow="Inline reference">
-          <div style={{ color: '#64748b', marginBottom: 14, lineHeight: 1.6 }}>
-            The main LMS handbook is embedded below so operators can read it without leaving the app. That was one of the better parts of the old guide, so it stays.
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h2 style={{ margin: 0 }}>{activeGuide.title}</h2>
+                <p style={{ margin: '8px 0 0', color: '#475569' }}>{activeGuide.description}</p>
+              </div>
+              <a
+                href={`/guide?doc=${encodeURIComponent(activeGuide.htmlFile)}`}
+                style={{
+                  textDecoration: 'none',
+                  padding: '12px 16px',
+                  borderRadius: 999,
+                  background: '#4f46e5',
+                  color: 'white',
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                This page is PDF-ready
+              </a>
+            </div>
           </div>
-          <iframe
-            src="/LMS_DASHBOARD_GUIDE.html"
-            title="Lumo LMS dashboard guide"
-            style={{ width: '100%', minHeight: '75vh', border: '1px solid #e2e8f0', borderRadius: 20, background: 'white' }}
-          />
-        </Card>
+
+          <article
+            style={{
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: 24,
+              overflow: 'hidden',
+              boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
+            }}
+          >
+            <div dangerouslySetInnerHTML={{ __html: activeHtml }} />
+          </article>
+        </section>
       </section>
-    </PageShell>
+    </main>
   );
 }
+
+const badgeStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '8px 12px',
+  borderRadius: 999,
+  fontSize: '0.92rem',
+  fontWeight: 700,
+  background: 'rgba(255,255,255,0.12)',
+  color: 'white',
+  border: '1px solid rgba(255,255,255,0.14)',
+};
