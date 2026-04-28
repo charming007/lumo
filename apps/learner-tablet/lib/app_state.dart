@@ -3752,7 +3752,10 @@ class LumoAppState {
     persistStateSoon();
     await flushPersistence();
     await syncPendingEvents();
-    await refreshLearnerRewards(updatedLearner);
+    await refreshLearnerRewards(
+      updatedLearner,
+      preferIncomingSnapshot: true,
+    );
     await refreshLearnerRuntimeSessions(updatedLearner);
   }
 
@@ -4366,7 +4369,10 @@ class LumoAppState {
     return '$resumeLabel${latest.statusLabel} • $lessonLabel • ${latest.progressLabel} • updated $activityLabel';
   }
 
-  Future<void> refreshLearnerRewards(LearnerProfile learner) async {
+  Future<void> refreshLearnerRewards(
+    LearnerProfile learner, {
+    bool preferIncomingSnapshot = false,
+  }) async {
     if (usingFallbackData) return;
     if (learner.id.trim().isEmpty && learner.learnerCode.trim().isEmpty) return;
 
@@ -4380,7 +4386,9 @@ class LumoAppState {
 
       final existingLearner = learners[learnerIndex];
       final refreshedLearner = existingLearner.copyWith(
-        rewards: _mergeRewardSnapshot(existingLearner.rewards, snapshot),
+        rewards: preferIncomingSnapshot
+            ? snapshot
+            : _mergeRewardSnapshot(existingLearner.rewards, snapshot),
       );
       _replaceLearner(refreshedLearner);
       persistStateSoon();
