@@ -3649,6 +3649,7 @@ class LumoAppState {
         type: 'lesson_completed',
         payload: completedSession.syncPayloadPreview(
           learnerCode: updatedLearner.learnerCode,
+          studentId: updatedLearner.id,
         ),
       ),
     );
@@ -3764,10 +3765,11 @@ class LumoAppState {
     RewardSnapshot incoming,
   ) {
     if (local == null) return incoming;
-    final canTrustBackendSnapshot = lastSyncAttemptAt != null &&
-        lastSyncError == null &&
-        pendingSyncEvents.isEmpty;
-    if (canTrustBackendSnapshot || incoming.totalXp >= local.totalXp) {
+    final backendDoesNotRegressLocal =
+        incoming.totalXp >= local.totalXp &&
+            incoming.badgesUnlocked >= local.badgesUnlocked &&
+            incoming.points >= local.points;
+    if (backendDoesNotRegressLocal) {
       return incoming;
     }
 
@@ -4749,7 +4751,8 @@ class LumoAppState {
     required LessonSessionState session,
     Map<String, dynamic> extra = const {},
   }) {
-    final learnerCode = currentLearner?.learnerCode;
+    final learner = currentLearner;
+    final learnerCode = learner?.learnerCode;
     if (learnerCode == null || learnerCode.trim().isEmpty) return;
 
     pendingSyncEvents.add(
@@ -4758,6 +4761,8 @@ class LumoAppState {
         type: type,
         payload: {
           'sessionId': session.sessionId,
+          if (learner != null && learner.id.trim().isNotEmpty)
+            'studentId': learner.id,
           'learnerCode': learnerCode,
           'lessonId': session.lesson.id,
           'moduleId': session.lesson.moduleId,

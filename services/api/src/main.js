@@ -1442,13 +1442,13 @@ function syncLearnerAppEvents(events = [], options = {}) {
       };
     }
 
-    if (['lesson_completed', 'learner_marked_absent', 'lesson_skipped'].includes(type)) {
-      const student = payload.studentId
-        ? store.findStudentById(payload.studentId)
+    if (['lesson_completed', 'learner_marked_absent', 'lesson_skipped', 'learner_reward_redeemed'].includes(type)) {
+      const student = payload.studentId || payload.learnerId
+        ? store.findStudentById(payload.studentId || payload.learnerId)
         : findStudentByLearnerCode(payload.learnerCode);
 
       if (!student) {
-        const error = new Error(`Unknown learner for sync event: ${payload.learnerCode || payload.studentId || 'missing identifier'}`);
+        const error = new Error(`Unknown learner for sync event: ${payload.learnerCode || payload.studentId || payload.learnerId || 'missing identifier'}`);
         error.statusCode = 400;
         throw error;
       }
@@ -1494,6 +1494,42 @@ function syncLearnerAppEvents(events = [], options = {}) {
                 supportLevel: payload.review === 'needsSupport' ? 'guided' : 'independent',
               });
             });
+        }
+      }
+
+      if (type === 'learner_reward_redeemed') {
+        const xpCost = Math.max(0, Number(payload.cost || 0));
+        const existingRedemption = store
+          .listRewardTransactions()
+          .find((entry) => entry.studentId === student.id
+            && entry.kind === 'redemption'
+            && entry.metadata?.clientRewardId
+            && entry.metadata.clientRewardId === (payload.rewardId || clientId));
+
+        if (existingRedemption) {
+          rewardResult = { snapshot: rewards.buildLearnerRewards(student.id), delta: { xpDelta: 0, awardedBadgeIds: [] } };
+        } else {
+          store.createRewardTransaction({
+            studentId: student.id,
+            kind: 'redemption',
+            xpDelta: xpCost > 0 ? -xpCost : 0,
+            label: payload.title || 'Tablet reward redeemed',
+            metadata: {
+              source: 'learner-app-sync',
+              clientRewardId: payload.rewardId || clientId || null,
+              optionId: payload.optionId || null,
+              category: payload.category || null,
+              celebrationCue: payload.celebrationCue || null,
+              note: payload.note || null,
+              redeemedAt: payload.redeemedAt || null,
+              learnerCode: payload.learnerCode || null,
+              status: payload.status || 'redeemed',
+            },
+          });
+          rewardResult = {
+            snapshot: rewards.buildLearnerRewards(student.id),
+            delta: { xpDelta: xpCost > 0 ? -xpCost : 0, awardedBadgeIds: [] },
+          };
         }
       }
 

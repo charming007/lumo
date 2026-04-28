@@ -1003,8 +1003,13 @@ class LessonSessionState {
     return diff <= 0 ? 1 : diff;
   }
 
-  Map<String, dynamic> syncPayloadPreview({required String learnerCode}) => {
+  Map<String, dynamic> syncPayloadPreview({
+    required String learnerCode,
+    String? studentId,
+  }) => {
         'sessionId': sessionId,
+        if (studentId != null && studentId.trim().isNotEmpty)
+          'studentId': studentId,
         'learnerCode': learnerCode,
         'lessonId': lesson.id,
         'moduleId': lesson.moduleId,

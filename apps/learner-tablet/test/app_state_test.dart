@@ -2736,6 +2736,47 @@ void main() {
       state.dispose();
     });
 
+    test('sync payload includes studentId for tablet lesson events', () async {
+      late Map<String, dynamic> capturedBody;
+      final state = LumoAppState(
+        includeSeedDemoContent: true,
+        apiClient: LumoApiClient(
+          client: MockClient((request) async {
+            if (request.url.path == '/api/v1/learner-app/sync') {
+              capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
+              final events = capturedBody['events'] as List<dynamic>;
+              return http.Response(
+                jsonEncode({
+                  'accepted': events.length,
+                  'ignored': 0,
+                  'syncedAt': '2026-04-12T10:00:00.000Z',
+                  'results': const [],
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            throw Exception('Unexpected request: ${request.url}');
+          }),
+          baseUrl: 'https://example.com',
+        ),
+      );
+      addTearDown(state.dispose);
+      state.usingFallbackData = false;
+      state.backendError = null;
+      state.currentLearner = beginner;
+
+      state.startLesson(state.assignedLessons.first);
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final events = capturedBody['events'] as List<dynamic>;
+      expect(events, isNotEmpty);
+      expect(events.first['studentId'], beginner.id);
+      expect(events.first['learnerCode'], beginner.learnerCode);
+    });
+
     test(
         'blocks registration when live learner save fails instead of queuing a local fallback',
         () async {
