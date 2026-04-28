@@ -10717,10 +10717,9 @@ class _LessonCompletePageState extends State<LessonCompletePage>
     required LearningModule fallbackModule,
     required String fallbackSubjectKey,
   }) {
-    final lessonModule = resolveLessonModule(
-      state: widget.state,
-      lesson: completedLesson,
-    );
+    final lessonModule = widget.state.modules
+        .where((item) => item.id == completedLesson.moduleId)
+        .firstOrNull;
     final subjectModule = widget.state.primaryModuleForSubject(
       learner: learner,
       subjectId: fallbackSubjectKey,
