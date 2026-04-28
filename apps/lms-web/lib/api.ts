@@ -36,6 +36,7 @@ import type {
 } from './types';
 
 import { API_BASE } from './config';
+import { isProtectedEndpointAuthFailureValue } from './protected-endpoint-auth';
 import type { RewardCatalog } from './rewards';
 import type { CurriculumCanvasApiTree } from './curriculum-canvas';
 
@@ -162,16 +163,7 @@ export class ApiRequestTimeoutError extends Error {
 }
 
 export function isProtectedEndpointAuthFailure(error: unknown) {
-  if (!(error instanceof ApiRequestError)) {
-    return false;
-  }
-
-  if (error.status !== 401 && error.status !== 403) {
-    return false;
-  }
-
-  const evidence = `${error.diagnostic.backendMessage ?? ''} ${error.diagnostic.bodySnippet ?? ''}`.toLowerCase();
-  return evidence.includes('missing or invalid api key') || evidence.includes('protected endpoint');
+  return isProtectedEndpointAuthFailureValue(error);
 }
 
 const API_REQUEST_TIMEOUT_MS = 8000;
