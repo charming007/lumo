@@ -29,6 +29,29 @@ export function matchesSubjectFilter(
   );
 }
 
+export function findSubjectByContext(
+  subjects: Pick<Subject, 'id' | 'name'>[],
+  options: {
+    subjectId?: string | null;
+    subjectName?: string | null;
+  },
+) {
+  const normalizedSubjectId = normalize(options.subjectId);
+  if (normalizedSubjectId) {
+    const directMatch = subjects.find((subject) => normalize(subject.id) === normalizedSubjectId);
+    if (directMatch) {
+      return directMatch;
+    }
+  }
+
+  const normalizedSubjectName = normalize(options.subjectName);
+  if (!normalizedSubjectName) {
+    return null;
+  }
+
+  return subjects.find((subject) => normalize(subject.name) === normalizedSubjectName) ?? null;
+}
+
 export function moduleBelongsToSubject(module: CurriculumModule, subject: Subject | null | undefined) {
   if (!subject) return false;
 

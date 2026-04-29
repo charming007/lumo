@@ -5,6 +5,7 @@ import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
 import { normalizeLessonAssetsForAuthoring, normalizeLessonForAuthoring } from '../../../../lib/lesson-authoring-normalize';
 import { sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
+import { findSubjectByContext } from '../../../../lib/module-subject-match';
 import type { CurriculumModule, Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
@@ -31,7 +32,7 @@ function buildFallbackSubject(
 ) {
   const subjectId = lesson.subjectId?.trim() || module?.subjectId?.trim();
   const subjectName = lesson.subjectName?.trim() || module?.subjectName?.trim();
-  const matched = subjects.find((subject) => subject.id === subjectId || (subjectName && subject.name === subjectName));
+  const matched = findSubjectByContext(subjects, { subjectId, subjectName });
 
   if (matched) return matched;
 
@@ -184,7 +185,10 @@ export default async function LessonStudioEditPage({
   }
 
   const selectedModule = modules.find((module) => module.id === lesson.moduleId || (lesson.moduleTitle && module.title === lesson.moduleTitle)) ?? fallbackModule ?? modules[0] ?? null;
-  const selectedSubject = subjects.find((subject) => subject.id === (lesson.subjectId ?? selectedModule?.subjectId) || (lesson.subjectName && subject.name === lesson.subjectName)) ?? fallbackSubject ?? subjects[0] ?? null;
+  const selectedSubject = findSubjectByContext(subjects, {
+    subjectId: lesson.subjectId ?? selectedModule?.subjectId,
+    subjectName: lesson.subjectName ?? selectedModule?.subjectName,
+  }) ?? fallbackSubject ?? subjects[0] ?? null;
   const moduleAssessments = assessments.filter((assessment) => assessment.moduleId === selectedModule?.id);
   const linkedAssessmentTitle = typeof lesson.lessonAssessment?.title === 'string' ? lesson.lessonAssessment.title : null;
   const linkedAssessment = linkedAssessmentTitle
