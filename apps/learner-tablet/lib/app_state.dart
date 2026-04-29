@@ -948,6 +948,7 @@ class LumoAppState {
       lastSyncError = null;
 
       await _hydrateModuleBundles(mergedModules);
+      await _mergeBundledOfflineContent();
 
       if (learners.isNotEmpty) {
         final existingLearnerId = currentLearner?.id;
@@ -1435,19 +1436,6 @@ class LumoAppState {
       return registrationContext;
     }
 
-    final canonicalPodId = _tabletPodIdFor(registrationContext)?.trim();
-    final registrationPodId = tabletRegistration.podId?.trim();
-    final registrationPodDisagreesWithScope = canonicalPodId != null &&
-        canonicalPodId.isNotEmpty &&
-        registrationPodId != null &&
-        registrationPodId.isNotEmpty &&
-        registrationPodId != canonicalPodId;
-    if (registrationPodDisagreesWithScope &&
-        currentPodLabel != null &&
-        currentPodLabel.isNotEmpty) {
-      return registrationContext;
-    }
-
     return RegistrationContext(
       cohorts: registrationContext.cohorts,
       mallams: registrationContext.mallams,
@@ -1477,14 +1465,28 @@ class LumoAppState {
     );
 
     if (registrationLabel != null && registrationLabel.isNotEmpty) {
-      if (canonicalPodId == null ||
+      String normalizeToken(String value) =>
+          value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+      final scopedPodId = canonicalPodId ?? registrationPodId;
+      final registrationPodMatchesScope =
+          canonicalPodId == null ||
           canonicalPodId.isEmpty ||
           registrationPodId == null ||
           registrationPodId.isEmpty ||
-          registrationPodId != canonicalPodId) {
+          registrationPodId == canonicalPodId;
+      final registrationLooksCanonical = scopedPodId != null &&
+          scopedPodId.isNotEmpty &&
+          normalizeToken(registrationLabel) == normalizeToken(scopedPodId);
+
+      if (!registrationPodMatchesScope || registrationLooksCanonical) {
         return registrationLabel;
       }
-      return canonicalLearnerPodLabel ?? registrationLabel;
+      if (canonicalLearnerPodLabel != null &&
+          canonicalLearnerPodLabel.isNotEmpty) {
+        return canonicalLearnerPodLabel;
+      }
+      return registrationLabel;
     }
 
     if (canonicalLearnerPodLabel != null &&
@@ -3793,10 +3795,15 @@ class LumoAppState {
     RewardSnapshot incoming,
   ) {
     if (local == null) return incoming;
-    final backendDoesNotRegressLocal = incoming.totalXp >= local.totalXp &&
-        incoming.badgesUnlocked >= local.badgesUnlocked &&
-        incoming.points >= local.points;
-    if (backendDoesNotRegressLocal) {
+    final backendClearlyAhead = incoming.totalXp > local.totalXp ||
+        incoming.points > local.points ||
+        incoming.level > local.level ||
+        incoming.badgesUnlocked > local.badgesUnlocked;
+    final backendClearlyBehind = incoming.totalXp < local.totalXp &&
+        incoming.points < local.points &&
+        incoming.level <= local.level &&
+        incoming.badgesUnlocked <= local.badgesUnlocked;
+    if (backendClearlyAhead || !backendClearlyBehind) {
       return incoming;
     }
 
@@ -3891,8 +3898,8 @@ class LumoAppState {
     LessonSessionState session,
   ) {
     final existingRewards = learner.rewards;
-    final baseTotalXp = existingRewards?.totalXp ?? learner.totalXp;
-    final basePoints = existingRewards?.points ?? learner.totalXp;
+    final baseTotalXp = existingRewards?.totalXp ?? 0;
+    final basePoints = existingRewards?.points ?? 0;
     final earnedXp = (12 +
             min(session.totalResponses, 4) +
             (session.supportActionsUsed == 0 ? 3 : 0) +
