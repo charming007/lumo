@@ -1,6 +1,8 @@
 export const navigationItems = [
   { id: 'dashboard', label: 'Dashboard', href: '/' },
   { id: 'content', label: 'Content Library', href: '/content' },
+  { id: 'canvas', label: 'Curriculum Studio', href: '/canvas' },
+  { id: 'english', label: 'English Studio', href: '/english' },
   { id: 'students', label: 'Students', href: '/students' },
   { id: 'mallams', label: 'Mallams', href: '/mallams' },
   { id: 'pods', label: 'Pods', href: '/pods' },
