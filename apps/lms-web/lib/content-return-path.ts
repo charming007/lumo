@@ -67,9 +67,9 @@ export function buildAssessmentReviewHref({
   moduleId?: string;
   subjectId?: string;
 }) {
-  const query = returnPath.startsWith('/content') && returnPath.includes('?')
-    ? returnPath.split('?', 2)[1] ?? ''
-    : '';
+  const [pathname, query = ''] = returnPath.startsWith('/content')
+    ? returnPath.split('?', 2)
+    : ['/content', ''];
   const params = new URLSearchParams(query);
 
   params.set('view', 'assessments');
@@ -85,7 +85,7 @@ export function buildAssessmentReviewHref({
     params.set('subject', normalizedSubjectId);
   }
 
-  return params.size ? `/content?${params.toString()}` : '/content?view=assessments';
+  return params.size ? `${pathname}?${params.toString()}` : `${pathname}?view=assessments`;
 }
 
 export function buildCanvasReturnPath(query?: {
