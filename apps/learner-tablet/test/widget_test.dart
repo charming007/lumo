@@ -2837,6 +2837,11 @@ void main() {
         isNotNull,
       );
 
+      await tester.enterText(find.byType(TextField), 'moon');
+      await pumpForUi(tester);
+      reviewButtonFinder = reviewButton();
+      expect(tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNull);
+
       state.dispose();
     },
   );

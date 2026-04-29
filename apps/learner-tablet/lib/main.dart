@@ -6561,6 +6561,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (draft == _lastPersistedResponseDraft) return;
     _lastPersistedResponseDraft = draft;
     widget.state.updateCurrentStepLearnerDraft(draft);
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _primeDiagnostics() async {
