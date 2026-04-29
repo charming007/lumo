@@ -99,13 +99,13 @@ class LumoAppState {
     BundledContentLoader? bundledContentLoader,
     bool includeSeedDemoContent = kEnableSeedDemoContent,
     String? configuredDeviceIdentifier = kConfiguredDeviceIdentifier,
-  }) : _apiClient = apiClient ?? LumoApiClient(),
-       _bundledContentLoader =
-           bundledContentLoader ?? const BundledContentLoader(),
-       _includeSeedDemoContent = includeSeedDemoContent,
-       _configuredDeviceIdentifier = _normalizeDeviceIdentifier(
-         configuredDeviceIdentifier,
-       ) {
+  })  : _apiClient = apiClient ?? LumoApiClient(),
+        _bundledContentLoader =
+            bundledContentLoader ?? const BundledContentLoader(),
+        _includeSeedDemoContent = includeSeedDemoContent,
+        _configuredDeviceIdentifier = _normalizeDeviceIdentifier(
+          configuredDeviceIdentifier,
+        ) {
     _apiClient.deviceIdentifier = _configuredDeviceIdentifier;
     tabletDeviceIdentifier = _configuredDeviceIdentifier;
     _primeInitialContentOrigins();
@@ -142,9 +142,9 @@ class LumoAppState {
   );
   final List<LearnerAssignmentPack> assignmentPacks = [];
   final Map<String, List<BackendLessonSession>>
-  recentRuntimeSessionsByLearnerId = {};
+      recentRuntimeSessionsByLearnerId = {};
   final Map<String, List<RewardRedemptionRecord>>
-  rewardRedemptionHistoryByLearnerId = {};
+      rewardRedemptionHistoryByLearnerId = {};
   final Map<String, ContentOrigin> _moduleContentOrigins = {};
   final Map<String, ContentOrigin> _lessonContentOrigins = {};
 
@@ -279,8 +279,7 @@ class LumoAppState {
 
     final scopedRegistration = data.registrationContext.tabletRegistration;
     if (scopedRegistration == null) {
-      final hasRegistrationRouting =
-          data.registrationContext.isReady ||
+      final hasRegistrationRouting = data.registrationContext.isReady ||
           data.registrationContext.defaultTarget != null;
       final explicitUnregisteredBootstrap = _apiClient.runtimeType
           .toString()
@@ -291,8 +290,8 @@ class LumoAppState {
         return null;
       }
       final requestedIdentifier = tabletDeviceIdentifier?.trim();
-      final identifierDetail =
-          requestedIdentifier == null || requestedIdentifier.isEmpty
+      final identifierDetail = requestedIdentifier == null ||
+              requestedIdentifier.isEmpty
           ? 'This tablet has no provisioned device identifier yet.'
           : 'Backend did not recognize device identifier "$requestedIdentifier".';
       return 'Production bootstrap did not return a tablet registration for this device. $identifierDetail The LMS device registry and the learner tablet identifier are out of contract, so the tablet cannot trust the live roster or pod scope yet.';
@@ -312,8 +311,7 @@ class LumoAppState {
   Future<void> allowLimitedOfflineRecoveryMode() async {
     if (kReleaseBuild && !hasUsableOfflineSnapshot) {
       acknowledgedOfflineFallbackRisk = false;
-      deploymentBlockerReason ??=
-          offlineSnapshotTrustProblem ??
+      deploymentBlockerReason ??= offlineSnapshotTrustProblem ??
           backendError ??
           'Learner bootstrap could not reach the production backend.';
       persistStateSoon();
@@ -362,8 +360,8 @@ class LumoAppState {
         (_isBundledFundamentalsLesson(lesson)
             ? ContentOrigin.bundledOfflinePack
             : usingFallbackData && restoredFromPersistence
-            ? ContentOrigin.localCache
-            : ContentOrigin.seedDemoFallback);
+                ? ContentOrigin.localCache
+                : ContentOrigin.seedDemoFallback);
   }
 
   ContentOrigin moduleOriginFor(LearningModule module) {
@@ -371,8 +369,8 @@ class LumoAppState {
         (restoredFromPersistence && usingFallbackData
             ? ContentOrigin.localCache
             : module.badge.toLowerCase().contains('bundled')
-            ? ContentOrigin.bundledOfflinePack
-            : ContentOrigin.seedDemoFallback);
+                ? ContentOrigin.bundledOfflinePack
+                : ContentOrigin.seedDemoFallback);
   }
 
   ContentSourceStatus sourceStatusForLesson(LessonCardModel lesson) {
@@ -578,8 +576,8 @@ class LumoAppState {
       final syncLabel = lastSyncAttemptAt == null
           ? 'No sync attempt yet.'
           : lastSyncError == null
-          ? 'Last sync pushed $lastSyncAcceptedCount accepted / $lastSyncIgnoredCount ignored at ${_formatTime(lastSyncAttemptAt!)}.'
-          : 'Last sync attempt failed at ${_formatTime(lastSyncAttemptAt!)}: $lastSyncError';
+              ? 'Last sync pushed $lastSyncAcceptedCount accepted / $lastSyncIgnoredCount ignored at ${_formatTime(lastSyncAttemptAt!)}.'
+              : 'Last sync attempt failed at ${_formatTime(lastSyncAttemptAt!)}: $lastSyncError';
       return 'Learners, lessons, and registration targets were fetched from $backendBaseUrl at ${_formatTime(lastSyncedAt!)}. $generatedLabel $queueLabel $syncLabel';
     }
     if (backendError != null) {
@@ -623,26 +621,22 @@ class LumoAppState {
       var restoredRegistrationContext = _decodeRegistrationContext(
         snapshot['registrationContext'],
       );
-      final restoredLearners =
-          (snapshot['learners'] as List?)
+      final restoredLearners = (snapshot['learners'] as List?)
               ?.whereType<Map>()
               .map((item) => _decodeLearner(Map<String, dynamic>.from(item)))
               .toList() ??
           const <LearnerProfile>[];
-      final restoredModules =
-          (snapshot['modules'] as List?)
+      final restoredModules = (snapshot['modules'] as List?)
               ?.whereType<Map>()
               .map((item) => _decodeModule(Map<String, dynamic>.from(item)))
               .toList() ??
           const <LearningModule>[];
-      final restoredLessons =
-          (snapshot['assignedLessons'] as List?)
+      final restoredLessons = (snapshot['assignedLessons'] as List?)
               ?.whereType<Map>()
               .map((item) => _decodeLesson(Map<String, dynamic>.from(item)))
               .toList() ??
           const <LessonCardModel>[];
-      final restoredAssignmentPacks =
-          (snapshot['assignmentPacks'] as List?)
+      final restoredAssignmentPacks = (snapshot['assignmentPacks'] as List?)
               ?.whereType<Map>()
               .map(
                 (item) => LearnerAssignmentPack.fromJson(
@@ -754,14 +748,13 @@ class LumoAppState {
 
       final persistedRecentRuntimeSessions =
           (snapshot['recentRuntimeSessionsByLearnerId'] as Map?) ??
-          (snapshot['recentRuntimeSessions'] as Map?) ??
-          const {};
+              (snapshot['recentRuntimeSessions'] as Map?) ??
+              const {};
       recentRuntimeSessionsByLearnerId
         ..clear()
         ..addAll(
           persistedRecentRuntimeSessions.map((key, value) {
-            final sessions =
-                (value as List?)
+            final sessions = (value as List?)
                     ?.whereType<Map>()
                     .map(
                       (item) => BackendLessonSession.fromJson(
@@ -780,8 +773,7 @@ class LumoAppState {
         ..clear()
         ..addAll(
           persistedRewardHistory.map((key, value) {
-            final history =
-                (value as List?)
+            final history = (value as List?)
                     ?.whereType<Map>()
                     .map(
                       (item) => RewardRedemptionRecord.fromJson(
@@ -821,8 +813,7 @@ class LumoAppState {
       lastSyncIgnoredCount = _asInt(snapshot['lastSyncIgnoredCount']) ?? 0;
       lastSyncDuplicateCount = _asInt(snapshot['lastSyncDuplicateCount']) ?? 0;
       lastSyncResultCount = _asInt(snapshot['lastSyncResultCount']) ?? 0;
-      lastSyncWarnings =
-          (snapshot['lastSyncWarnings'] as List?)
+      lastSyncWarnings = (snapshot['lastSyncWarnings'] as List?)
               ?.map((item) => item.toString())
               .where((item) => item.trim().isNotEmpty)
               .toList() ??
@@ -835,25 +826,22 @@ class LumoAppState {
           _parseDate(snapshot['snapshotSavedAt']) ?? snapshotSavedAt;
 
       final activeSessionRaw = snapshot['activeSession'];
-      final learnerId =
-          _readNullableString(snapshot['currentLearnerId']) ??
+      final learnerId = _readNullableString(snapshot['currentLearnerId']) ??
           (activeSessionRaw is Map
               ? _readNullableString(activeSessionRaw['currentLearnerId'])
               : null);
-      currentLearner = learners
-          .where((item) => item.id == learnerId)
-          .firstOrNull;
+      currentLearner =
+          learners.where((item) => item.id == learnerId).firstOrNull;
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
       activeSession = _decodeActiveSession(activeSessionRaw);
       pendingRecoveredSessionSnapshot =
           activeSession == null && activeSessionRaw is Map
-          ? Map<String, dynamic>.from(activeSessionRaw)
-          : null;
+              ? Map<String, dynamic>.from(activeSessionRaw)
+              : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
-      deploymentBlockerReason = hasUsableOfflineSnapshot
-          ? null
-          : offlineSnapshotTrustProblem;
+      deploymentBlockerReason =
+          hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
       restoredFromPersistence = true;
       await ensureStableDeviceIdentifier();
       persistenceError = null;
@@ -882,9 +870,8 @@ class LumoAppState {
     isBootstrapping = true;
     backendError = null;
 
-    final invalidProductionBaseUrlReason = kReleaseBuild
-        ? _apiClient.invalidProductionBaseUrlReason
-        : null;
+    final invalidProductionBaseUrlReason =
+        kReleaseBuild ? _apiClient.invalidProductionBaseUrlReason : null;
     if (invalidProductionBaseUrlReason != null) {
       usingFallbackData = true;
       backendError = invalidProductionBaseUrlReason;
@@ -924,8 +911,7 @@ class LumoAppState {
           bootstrapLearners
               .map(
                 (learner) => _mergeLearnerProfile(
-                  existingLearner:
-                      existingLearnersById[learner.id] ??
+                  existingLearner: existingLearnersById[learner.id] ??
                       existingLearnersByCode[learner.learnerCode],
                   incomingLearner: learner,
                 ),
@@ -1004,9 +990,9 @@ class LumoAppState {
         currentLearner = existingLearnerId == null
             ? null
             : learners.cast<LearnerProfile?>().firstWhere(
-                (item) => item?.id == existingLearnerId,
-                orElse: () => null,
-              );
+                  (item) => item?.id == existingLearnerId,
+                  orElse: () => null,
+                );
         if (currentLearner != null) {
           unawaited(refreshLearnerRuntimeSessions(currentLearner!));
         }
@@ -1023,8 +1009,7 @@ class LumoAppState {
     } catch (error) {
       usingFallbackData = true;
       backendError = error.toString().replaceFirst('Exception: ', '');
-      final needsProductionBlocker =
-          kReleaseBuild &&
+      final needsProductionBlocker = kReleaseBuild &&
           !_includeSeedDemoContent &&
           !hasUsableOfflineSnapshot;
       deploymentBlockerReason = needsProductionBlocker
@@ -1214,9 +1199,8 @@ class LumoAppState {
       return mergedHydrated;
     }
 
-    final hydratedIds = mergedHydrated
-        .map((lesson) => lesson.id.trim())
-        .toSet();
+    final hydratedIds =
+        mergedHydrated.map((lesson) => lesson.id.trim()).toSet();
     final preservedBaseline = baselineLessons
         .where((lesson) => !hydratedIds.contains(lesson.id.trim()))
         .toList();
@@ -1341,8 +1325,7 @@ class LumoAppState {
       final candidateLessonCount = _readModuleLessonCount(normalizedBadge);
       final candidateLooksLive = normalizedBadge.contains('lesson');
       final existingLooksLive = existing.badge.toLowerCase().contains('lesson');
-      final shouldReplace =
-          candidateLessonCount > currentLessonCount ||
+      final shouldReplace = candidateLessonCount > currentLessonCount ||
           (candidateLessonCount == currentLessonCount &&
               candidateLooksLive &&
               !existingLooksLive) ||
@@ -1439,19 +1422,17 @@ class LumoAppState {
     return source
         .where((learner) => learner.podId?.trim() == podId)
         .map((learner) {
-          final resolvedPodLabel = canonicalPodLabel ?? learner.podLabel;
-          final villageLooksPodScoped =
-              learner.village.trim().isEmpty ||
-              learner.village.trim() == learner.podLabel?.trim();
-          return learner.copyWith(
-            podId: podId,
-            podLabel: resolvedPodLabel,
-            village: villageLooksPodScoped
-                ? (resolvedPodLabel ?? learner.village)
-                : learner.village,
-          );
-        })
-        .toList(growable: false);
+      final resolvedPodLabel = canonicalPodLabel ?? learner.podLabel;
+      final villageLooksPodScoped = learner.village.trim().isEmpty ||
+          learner.village.trim() == learner.podLabel?.trim();
+      return learner.copyWith(
+        podId: podId,
+        podLabel: resolvedPodLabel,
+        village: villageLooksPodScoped
+            ? (resolvedPodLabel ?? learner.village)
+            : learner.village,
+      );
+    }).toList(growable: false);
   }
 
   String? _canonicalTabletPodLabelFromLearners(
@@ -1521,14 +1502,12 @@ class LumoAppState {
           value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
 
       final scopedPodId = canonicalPodId ?? registrationPodId;
-      final registrationPodMatchesScope =
-          canonicalPodId == null ||
+      final registrationPodMatchesScope = canonicalPodId == null ||
           canonicalPodId.isEmpty ||
           registrationPodId == null ||
           registrationPodId.isEmpty ||
           registrationPodId == canonicalPodId;
-      final registrationLooksCanonical =
-          scopedPodId != null &&
+      final registrationLooksCanonical = scopedPodId != null &&
           scopedPodId.isNotEmpty &&
           normalizeToken(registrationLabel) == normalizeToken(scopedPodId);
 
@@ -1663,8 +1642,7 @@ class LumoAppState {
       if (session.lessonId != lesson.id) continue;
       final normalizedStatus = session.status.trim().toLowerCase();
       final normalizedCompletion = session.completionState.trim().toLowerCase();
-      final completed =
-          normalizedStatus == 'completed' ||
+      final completed = normalizedStatus == 'completed' ||
           normalizedCompletion == 'completed' ||
           normalizedCompletion == 'complete';
       if (completed) return session;
@@ -1681,8 +1659,7 @@ class LumoAppState {
       if (session.lessonId != lesson.id) continue;
       final normalizedStatus = session.status.trim().toLowerCase();
       final normalizedCompletion = session.completionState.trim().toLowerCase();
-      final isTerminal =
-          normalizedStatus == 'completed' ||
+      final isTerminal = normalizedStatus == 'completed' ||
           normalizedStatus == 'absent' ||
           normalizedStatus == 'skipped' ||
           normalizedCompletion == 'completed' ||
@@ -1810,14 +1787,11 @@ class LumoAppState {
     return LearningModule(
       id: key,
       title: title,
-      description:
-          matchingModule?.description ??
+      description: matchingModule?.description ??
           'Open $title to see the published learner lessons for this subject.',
-      voicePrompt:
-          matchingModule?.voicePrompt ??
+      voicePrompt: matchingModule?.voicePrompt ??
           'We are opening $title. Choose a lesson, then choose the learner.',
-      readinessGoal:
-          matchingModule?.readinessGoal ??
+      readinessGoal: matchingModule?.readinessGoal ??
           'Published lessons ready for learner launch',
       badge: '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
     );
@@ -1828,9 +1802,8 @@ class LumoAppState {
       return assignedLessons;
     }
 
-    final scopedLearners = learners
-        .where(learnerMatchesTabletPod)
-        .toList(growable: false);
+    final scopedLearners =
+        learners.where(learnerMatchesTabletPod).toList(growable: false);
     if (scopedLearners.isEmpty) {
       return const <LessonCardModel>[];
     }
@@ -1895,17 +1868,16 @@ class LumoAppState {
       subjectTitles.putIfAbsent(key, () => subjectTitle);
     }
 
-    final subjects =
-        groupedLessons.entries
-            .map(
-              (entry) => _buildLearnerFacingSubject(
-                key: entry.key,
-                title: subjectTitles[entry.key] ?? 'Learning',
-                lessons: entry.value,
-              ),
-            )
-            .toList(growable: false)
-          ..sort((left, right) => left.title.compareTo(right.title));
+    final subjects = groupedLessons.entries
+        .map(
+          (entry) => _buildLearnerFacingSubject(
+            key: entry.key,
+            title: subjectTitles[entry.key] ?? 'Learning',
+            lessons: entry.value,
+          ),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => left.title.compareTo(right.title));
 
     return subjects;
   }
@@ -1918,13 +1890,11 @@ class LumoAppState {
     final lessonPool = learner == null
         ? _registeredContextLessonPool()
         : lessonsForLearner(learner);
-    return lessonPool
-        .where((lesson) {
-          if (!_isPublishedLearnerLesson(lesson)) return false;
-          return _normalizeSubjectKey(_subjectTitleForLesson(lesson)) ==
-              normalizedSubjectId;
-        })
-        .toList(growable: false);
+    return lessonPool.where((lesson) {
+      if (!_isPublishedLearnerLesson(lesson)) return false;
+      return _normalizeSubjectKey(_subjectTitleForLesson(lesson)) ==
+          normalizedSubjectId;
+    }).toList(growable: false);
   }
 
   LearningModule? primaryModuleForSubject({
@@ -1951,18 +1921,19 @@ class LumoAppState {
 
     for (final candidate in rankedModuleIds) {
       final match = modules.cast<LearningModule?>().firstWhere(
-        (module) => module?.id == candidate.key,
-        orElse: () => null,
-      );
+            (module) => module?.id == candidate.key,
+            orElse: () => null,
+          );
       if (match != null) return match;
     }
 
     return modules.cast<LearningModule?>().firstWhere(
-      (module) =>
-          module != null &&
-          _normalizeSubjectKey(module.title) == _normalizeSubjectKey(subjectId),
-      orElse: () => null,
-    );
+          (module) =>
+              module != null &&
+              _normalizeSubjectKey(module.title) ==
+                  _normalizeSubjectKey(subjectId),
+          orElse: () => null,
+        );
   }
 
   Set<String> _moduleKeyVariants(LearningModule module) {
@@ -2012,12 +1983,10 @@ class LumoAppState {
       ..sort((left, right) {
         final leftRank = preferredModuleIds.indexOf(left.moduleId);
         final rightRank = preferredModuleIds.indexOf(right.moduleId);
-        final normalizedLeft = leftRank == -1
-            ? preferredModuleIds.length
-            : leftRank;
-        final normalizedRight = rightRank == -1
-            ? preferredModuleIds.length
-            : rightRank;
+        final normalizedLeft =
+            leftRank == -1 ? preferredModuleIds.length : leftRank;
+        final normalizedRight =
+            rightRank == -1 ? preferredModuleIds.length : rightRank;
         if (normalizedLeft != normalizedRight) {
           return normalizedLeft.compareTo(normalizedRight);
         }
@@ -2091,8 +2060,8 @@ class LumoAppState {
     final moduleId = (pack.curriculumModuleId?.trim().isNotEmpty ?? false)
         ? pack.curriculumModuleId!.trim()
         : pack.moduleId.trim().isNotEmpty
-        ? pack.moduleId.trim()
-        : 'pending-module';
+            ? pack.moduleId.trim()
+            : 'pending-module';
     final dueLabel = pack.dueDate == null || pack.dueDate!.trim().isEmpty
         ? 'No due date yet.'
         : 'Due ${pack.dueDate!.split('T').first}.';
@@ -2165,9 +2134,9 @@ class LumoAppState {
   ) {
     final normalizedSubjectId = moduleId.trim().toLowerCase();
     final matchedModule = modules.cast<LearningModule?>().firstWhere(
-      (module) => module?.id.trim().toLowerCase() == normalizedSubjectId,
-      orElse: () => null,
-    );
+          (module) => module?.id.trim().toLowerCase() == normalizedSubjectId,
+          orElse: () => null,
+        );
 
     return lessonsForLearner(learner).where((lesson) {
       final lessonSubject = lesson.subject.trim().toLowerCase();
@@ -2207,15 +2176,15 @@ class LumoAppState {
     if (learner == null || assignedLessons.isEmpty) return null;
     final recommendedModule = recommendedModuleForLearner(learner);
     final moduleFallback = assignedLessons.cast<LessonCardModel?>().firstWhere(
-      (lesson) =>
-          lesson != null &&
-          lesson.moduleId == recommendedModule.id &&
-          isAllowed(lesson),
-      orElse: () => assignedLessons.cast<LessonCardModel?>().firstWhere(
-        (lesson) => lesson != null && isAllowed(lesson),
-        orElse: () => null,
-      ),
-    );
+          (lesson) =>
+              lesson != null &&
+              lesson.moduleId == recommendedModule.id &&
+              isAllowed(lesson),
+          orElse: () => assignedLessons.cast<LessonCardModel?>().firstWhere(
+                (lesson) => lesson != null && isAllowed(lesson),
+                orElse: () => null,
+              ),
+        );
     return moduleFallback;
   }
 
@@ -2234,25 +2203,23 @@ class LumoAppState {
     final assignmentPack = nextAssignmentPackForLearner(learner);
     if (assignmentPack != null &&
         assignmentPack.lessonId != completedLessonId) {
-      final assignmentLesson = assignedLessons
-          .cast<LessonCardModel?>()
-          .firstWhere(
-            (lesson) => lesson?.id == assignmentPack.lessonId,
-            orElse: () => null,
-          );
+      final assignmentLesson =
+          assignedLessons.cast<LessonCardModel?>().firstWhere(
+                (lesson) => lesson?.id == assignmentPack.lessonId,
+                orElse: () => null,
+              );
       if (assignmentLesson != null) return assignmentLesson;
     }
 
     final recommendedModuleId = recommendedModuleForLearner(learner).id;
-    final recommendedModuleLesson = assignedLessons
-        .cast<LessonCardModel?>()
-        .firstWhere(
-          (lesson) =>
-              lesson != null &&
-              lesson.moduleId == recommendedModuleId &&
-              lesson.id != completedLessonId,
-          orElse: () => null,
-        );
+    final recommendedModuleLesson =
+        assignedLessons.cast<LessonCardModel?>().firstWhere(
+              (lesson) =>
+                  lesson != null &&
+                  lesson.moduleId == recommendedModuleId &&
+                  lesson.id != completedLessonId,
+              orElse: () => null,
+            );
     if (recommendedModuleLesson != null) return recommendedModuleLesson;
 
     return nextAssignedLessonForLearner(
@@ -2292,8 +2259,8 @@ class LumoAppState {
     final routeSource = nextAssignmentPackForLearner(learner);
     final viaLabel =
         routeSource != null && routeSource.lessonId == nextLesson.id
-        ? 'from the live backend assignment'
-        : 'from ${recommendedModuleForLearner(learner).title}';
+            ? 'from the live backend assignment'
+            : 'from ${recommendedModuleForLearner(learner).title}';
     return 'Next up: ${nextLesson.title} • routed $viaLabel.';
   }
 
@@ -2447,8 +2414,7 @@ class LumoAppState {
     final registrationTarget = registrationContext.defaultTarget;
     final scopedPodId =
         tabletRegistration?.podId ?? registrationTarget?.cohort.podId;
-    final scopedPodLabel =
-        tabletRegistration?.podLabel ??
+    final scopedPodLabel = tabletRegistration?.podLabel ??
         tabletRegistration?.podId ??
         registrationTarget?.cohort.podId;
     final scopedMallamId =
@@ -2614,13 +2580,13 @@ class LumoAppState {
     final practiceMode = session.practiceMode;
     final supportType = review == ResponseReview.needsSupport
         ? (practiceMode == PracticeMode.repeatAfterMe
-              ? 'Repeat with Mallam'
-              : nextAttempts >= 2
-              ? 'Model answer played'
-              : 'Hint given')
+            ? 'Repeat with Mallam'
+            : nextAttempts >= 2
+                ? 'Model answer played'
+                : 'Hint given')
         : practiceMode == PracticeMode.independentCheck
-        ? 'Learner answered independently'
-        : 'Learner answered on track';
+            ? 'Learner answered independently'
+            : 'Learner answered on track';
     final automationStatus = review == ResponseReview.onTrack
         ? LearnerDialogue.successStatus(
             independent: practiceMode == PracticeMode.independentCheck,
@@ -2727,14 +2693,8 @@ class LumoAppState {
       ...aliases,
     }.where((item) => item.isNotEmpty).toList();
 
-    final exactOrContains = allTargets.any(
-      (target) =>
-          target == normalizedResponse ||
-          (practiceMode != PracticeMode.repeatAfterMe &&
-              (_containsContiguousTokenPhrase(target, normalizedResponse) ||
-                  _containsContiguousTokenPhrase(normalizedResponse, target))),
-    );
-    if (exactOrContains) {
+    final exactMatch = allTargets.any((target) => target == normalizedResponse);
+    if (exactMatch) {
       return ResponseEvaluation(
         review: ResponseReview.onTrack,
         similarityScore: 1,
@@ -2787,8 +2747,7 @@ class LumoAppState {
     };
 
     final activityType = activity?.type;
-    final acceptByCoverage =
-        responseHasEnoughSignal &&
+    final acceptByCoverage = responseHasEnoughSignal &&
         _passesCoverageGate(
           practiceMode: practiceMode,
           activityType: activityType,
@@ -2796,8 +2755,7 @@ class LumoAppState {
           coverage: bestCoverage,
           orderedCoverage: bestOrderedCoverage,
         );
-    final passedBySimilarity =
-        responseWordCount >= requiredWords &&
+    final passedBySimilarity = responseWordCount >= requiredWords &&
         bestSimilarity >= requiredSimilarity;
 
     return ResponseEvaluation(
@@ -2867,11 +2825,9 @@ class LumoAppState {
       return false;
     }
 
-    for (
-      var start = 0;
-      start <= containerTokens.length - candidateTokens.length;
-      start += 1
-    ) {
+    for (var start = 0;
+        start <= containerTokens.length - candidateTokens.length;
+        start += 1) {
       var matches = true;
       for (var offset = 0; offset < candidateTokens.length; offset += 1) {
         if (containerTokens[start + offset] != candidateTokens[offset]) {
@@ -2943,10 +2899,8 @@ class LumoAppState {
 
   double _tokenSimilarity(String left, String right) {
     final leftTokens = left.split(' ').where((item) => item.isNotEmpty).toSet();
-    final rightTokens = right
-        .split(' ')
-        .where((item) => item.isNotEmpty)
-        .toSet();
+    final rightTokens =
+        right.split(' ').where((item) => item.isNotEmpty).toSet();
     if (leftTokens.isEmpty || rightTokens.isEmpty) return 0;
     final overlap = leftTokens.intersection(rightTokens).length;
     final union = leftTokens.union(rightTokens).length;
@@ -3071,14 +3025,12 @@ class LumoAppState {
     final session = activeSession;
     if (session == null) return;
 
-    final hasSavedAudio =
-        session.latestLearnerAudioPath != null &&
+    final hasSavedAudio = session.latestLearnerAudioPath != null &&
         session.latestLearnerAudioPath!.trim().isNotEmpty;
     if (!hasSavedAudio) return;
 
-    final review = asOnTrack
-        ? ResponseReview.onTrack
-        : ResponseReview.needsSupport;
+    final review =
+        asOnTrack ? ResponseReview.onTrack : ResponseReview.needsSupport;
     final learnerName = currentLearner?.name ?? 'Learner';
     final evidenceNote = (note == null || note.trim().isEmpty)
         ? 'Facilitator confirmed the saved learner voice response.'
@@ -3195,8 +3147,7 @@ class LumoAppState {
 
     activeSession = session.copyWith(
       latestReview: ResponseReview.pending,
-      automationStatus:
-          automationStatus ??
+      automationStatus: automationStatus ??
           'Previous learner evidence was cleared for a fresh take.',
       clearLatestLearnerResponse: true,
       clearLatestLearnerAudio: true,
@@ -3382,8 +3333,8 @@ class LumoAppState {
     final badgeLine = unlocked.isEmpty
         ? 'Keep going to unlock the first badge.'
         : unlocked.length == 1
-        ? 'Unlocked ${unlocked.first.title}.'
-        : 'Unlocked ${unlocked.length} badges so far: ${unlocked.take(2).map((badge) => badge.title).join(' and ')}${unlocked.length > 2 ? ' +' : ''}.';
+            ? 'Unlocked ${unlocked.first.title}.'
+            : 'Unlocked ${unlocked.length} badges so far: ${unlocked.take(2).map((badge) => badge.title).join(' and ')}${unlocked.length > 2 ? ' +' : ''}.';
     final nextLine = rewards.nextLevelLabel == null
         ? 'Every new lesson now grows confidence, points, and streaks.'
         : '${rewards.xpForNextLevel} XP until ${rewards.nextLevelLabel}.';
@@ -3815,8 +3766,7 @@ class LumoAppState {
   }) {
     final existing = recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
     final now = DateTime.now();
-    final resolvedSessionId =
-        sessionId ??
+    final resolvedSessionId = sessionId ??
         '$status-${lesson.id}-${DateTime.now().millisecondsSinceEpoch}';
     final activityAt = lastActivityAt ?? completedAt ?? now;
     final terminalAt = completedAt ?? activityAt;
@@ -3870,20 +3820,17 @@ class LumoAppState {
   ) {
     if (local == null) return incoming;
 
-    final primary = _shouldPreferIncomingRewardSnapshot(local, incoming)
-        ? incoming
-        : local;
+    final primary =
+        _shouldPreferIncomingRewardSnapshot(local, incoming) ? incoming : local;
     final secondary = identical(primary, incoming) ? local : incoming;
     final mergedBadges = _mergeRewardBadges(primary.badges, secondary.badges);
-    final mergedBadgesUnlocked = mergedBadges
-        .where((badge) => badge.earned)
-        .length;
+    final mergedBadgesUnlocked =
+        mergedBadges.where((badge) => badge.earned).length;
     final mergedPoints = max(primary.points, secondary.points);
     final mergedLevel = max(primary.level, secondary.level);
     final prefersPrimaryLevel = primary.level >= secondary.level;
-    final rewardsForProgress = primary.totalXp >= secondary.totalXp
-        ? primary
-        : secondary;
+    final rewardsForProgress =
+        primary.totalXp >= secondary.totalXp ? primary : secondary;
 
     return RewardSnapshot(
       learnerId: primary.learnerId.isNotEmpty
@@ -3892,15 +3839,13 @@ class LumoAppState {
       totalXp: max(primary.totalXp, secondary.totalXp),
       points: mergedPoints,
       level: mergedLevel,
-      levelLabel: prefersPrimaryLevel
-          ? primary.levelLabel
-          : secondary.levelLabel,
+      levelLabel:
+          prefersPrimaryLevel ? primary.levelLabel : secondary.levelLabel,
       nextLevel: rewardsForProgress.nextLevel ?? secondary.nextLevel,
       nextLevelLabel:
           rewardsForProgress.nextLevelLabel ?? secondary.nextLevelLabel,
       xpIntoLevel: max(primary.xpIntoLevel, secondary.xpIntoLevel),
-      xpForNextLevel:
-          rewardsForProgress.xpForNextLevel > 0 &&
+      xpForNextLevel: rewardsForProgress.xpForNextLevel > 0 &&
               (secondary.xpForNextLevel <= 0 ||
                   rewardsForProgress.xpForNextLevel <= secondary.xpForNextLevel)
           ? rewardsForProgress.xpForNextLevel
@@ -3975,13 +3920,11 @@ class LumoAppState {
   ) {
     final merged = <String, BackendLessonSession>{};
     for (final session in [...existing, ...incoming]) {
-      final key = session.sessionId.trim().isEmpty
-          ? session.id
-          : session.sessionId;
+      final key =
+          session.sessionId.trim().isEmpty ? session.id : session.sessionId;
       final prior = merged[key];
-      merged[key] = prior == null
-          ? session
-          : _preferRuntimeSession(prior, session);
+      merged[key] =
+          prior == null ? session : _preferRuntimeSession(prior, session);
     }
 
     final sessions = merged.values.toList(growable: false)
@@ -4010,8 +3953,7 @@ class LumoAppState {
 
     final currentTime =
         current.lastActivityAt ?? current.completedAt ?? current.startedAt;
-    final candidateTime =
-        candidate.lastActivityAt ??
+    final candidateTime = candidate.lastActivityAt ??
         candidate.completedAt ??
         candidate.startedAt;
     if (currentTime != null &&
@@ -4045,25 +3987,22 @@ class LumoAppState {
     final existingRewards = learner.rewards;
     final baseTotalXp = existingRewards?.totalXp ?? 0;
     final basePoints = existingRewards?.points ?? 0;
-    final earnedXp =
-        (12 +
-                min(session.totalResponses, 4) +
-                (session.supportActionsUsed == 0 ? 3 : 0) +
-                (session.totalAudioCaptures > 0 ? 2 : 0) +
-                ((usingFallbackData || pendingSyncEvents.isNotEmpty) ? 2 : 0))
-            .toInt();
+    final earnedXp = (12 +
+            min(session.totalResponses, 4) +
+            (session.supportActionsUsed == 0 ? 3 : 0) +
+            (session.totalAudioCaptures > 0 ? 2 : 0) +
+            ((usingFallbackData || pendingSyncEvents.isNotEmpty) ? 2 : 0))
+        .toInt();
     final newTotalXp = baseTotalXp + earnedXp;
     final newPoints = basePoints + earnedXp;
     final level = _rewardLevelForXp(newTotalXp);
     final levelFloor = _xpFloorForLevel(level);
     final nextLevel = level >= _rewardLevelTitles.length ? null : level + 1;
-    final nextLevelFloor = nextLevel == null
-        ? null
-        : _xpFloorForLevel(nextLevel);
+    final nextLevelFloor =
+        nextLevel == null ? null : _xpFloorForLevel(nextLevel);
     final xpIntoLevel = newTotalXp - levelFloor;
-    final xpForNextLevel = nextLevelFloor == null
-        ? 0
-        : nextLevelFloor - newTotalXp;
+    final xpForNextLevel =
+        nextLevelFloor == null ? 0 : nextLevelFloor - newTotalXp;
     final rawProgress = nextLevelFloor == null
         ? 1.0
         : xpIntoLevel / max(1, nextLevelFloor - levelFloor);
@@ -4194,12 +4133,11 @@ class LumoAppState {
           session.supportActionsUsed == 0 && session.totalAudioCaptures > 0
               ? 1
               : 0,
-        'signal-keeper' =>
-          usingFallbackData ||
-                  pendingSyncEvents.isNotEmpty ||
-                  (lastSyncError != null && lastSyncError!.trim().isNotEmpty)
-              ? 1
-              : 0,
+        'signal-keeper' => usingFallbackData ||
+                pendingSyncEvents.isNotEmpty ||
+                (lastSyncError != null && lastSyncError!.trim().isNotEmpty)
+            ? 1
+            : 0,
         _ => 0,
       };
       badges.add(
@@ -4395,9 +4333,8 @@ class LumoAppState {
       if (lesson.id == session.lessonId) return lesson;
     }
 
-    final normalizedSessionTitle = (session.lessonTitle ?? '')
-        .trim()
-        .toLowerCase();
+    final normalizedSessionTitle =
+        (session.lessonTitle ?? '').trim().toLowerCase();
     if (normalizedSessionTitle.isNotEmpty) {
       final titleMatches = assigned
           .where(
@@ -4435,9 +4372,8 @@ class LumoAppState {
     final latest = resumable ?? sessions.first;
     final activityTime =
         latest.lastActivityAt ?? latest.completedAt ?? latest.startedAt;
-    final activityLabel = activityTime == null
-        ? 'time pending'
-        : _formatTime(activityTime);
+    final activityLabel =
+        activityTime == null ? 'time pending' : _formatTime(activityTime);
     final lessonLabel = latest.lessonTitle ?? 'Live lesson session';
     final resumeLabel = resumable == null ? '' : 'Resume ready • ';
     return '$resumeLabel${latest.statusLabel} • $lessonLabel • ${latest.progressLabel} • updated $activityLabel';
@@ -4622,28 +4558,27 @@ class LumoAppState {
   LearningModule recommendedModuleForLearner(LearnerProfile learner) {
     final backendModuleId = learner.backendRecommendedModuleId;
     final backendModule = modules.cast<LearningModule?>().firstWhere(
-      (item) => item?.id == backendModuleId,
-      orElse: () => null,
-    );
+          (item) => item?.id == backendModuleId,
+          orElse: () => null,
+        );
     if (backendModule != null) return backendModule;
 
     final nextPack = nextAssignmentPackForLearner(learner);
     if (nextPack != null) {
       final assignedModule = modules.cast<LearningModule?>().firstWhere(
-        (item) => item?.id == nextPack.moduleId,
-        orElse: () => null,
-      );
+            (item) => item?.id == nextPack.moduleId,
+            orElse: () => null,
+          );
       if (assignedModule != null) return assignedModule;
     }
 
     final preferredModuleIds = _preferredModuleIdsForLearner(learner);
-    final preferredModuleId = preferredModuleIds.isEmpty
-        ? null
-        : preferredModuleIds.first;
+    final preferredModuleId =
+        preferredModuleIds.isEmpty ? null : preferredModuleIds.first;
     return modules.cast<LearningModule?>().firstWhere(
-          (item) => item?.id == preferredModuleId,
-          orElse: () => modules.isEmpty ? null : modules.first,
-        ) ??
+              (item) => item?.id == preferredModuleId,
+              orElse: () => modules.isEmpty ? null : modules.first,
+            ) ??
         const LearningModule(
           id: 'pending-module',
           title: 'Subject sync pending',
@@ -4717,15 +4652,14 @@ class LumoAppState {
       final learnerName = currentLearner?.name ?? 'the learner';
       return isResuming
           ? (resumeFrom?.automationStatus.trim().isNotEmpty == true
-                ? '${resumeFrom!.automationStatus} Resume from ${resumeFrom.progressLabel.toLowerCase()}.'
-                : 'Mallam is resuming ${lesson.title} with $learnerName from ${resumeFrom?.progressLabel.toLowerCase() ?? 'the saved step'}.')
+              ? '${resumeFrom!.automationStatus} Resume from ${resumeFrom.progressLabel.toLowerCase()}.'
+              : 'Mallam is resuming ${lesson.title} with $learnerName from ${resumeFrom?.progressLabel.toLowerCase() ?? 'the saved step'}.')
           : 'Mallam is opening the lesson and preparing the first voice prompt.';
     }
 
     final learner = currentLearner;
-    final firstName = learner == null
-        ? 'my friend'
-        : _learnerFirstName(learner);
+    final firstName =
+        learner == null ? 'my friend' : _learnerFirstName(learner);
     final stepPrompt = personalizePrompt(step.coachPrompt);
     if (isResuming) {
       final base = resumeFrom?.automationStatus.trim().isNotEmpty == true
@@ -4828,16 +4762,15 @@ class LumoAppState {
             : _mergeRewardSnapshot(existingLearner.rewards, rewardSnapshot),
         backendRecommendedModuleId:
             _readRecommendedModuleIdFromProgress(progressJson) ??
-            existingLearner.backendRecommendedModuleId,
-        enrollmentStatus:
-            _readEnrollmentStatusFromProgress(progressJson) ??
+                existingLearner.backendRecommendedModuleId,
+        enrollmentStatus: _readEnrollmentStatusFromProgress(progressJson) ??
             existingLearner.enrollmentStatus,
         supportPlan:
             _readSupportPlanFromProgress(progressJson, existingLearner) ??
-            existingLearner.supportPlan,
+                existingLearner.supportPlan,
         lastLessonSummary:
             _readLessonSummaryFromProgress(progressJson, existingLearner) ??
-            existingLearner.lastLessonSummary,
+                existingLearner.lastLessonSummary,
       );
 
       _replaceLearner(updatedLearner);
@@ -4850,16 +4783,14 @@ class LumoAppState {
     required Object? rewardsJson,
     required Object? progressJson,
   }) {
-    final rewardLearnerId = rewardsJson is Map
-        ? rewardsJson['learnerId']?.toString()
-        : null;
+    final rewardLearnerId =
+        rewardsJson is Map ? rewardsJson['learnerId']?.toString() : null;
     if (rewardLearnerId != null && rewardLearnerId.trim().isNotEmpty) {
       return rewardLearnerId;
     }
 
-    final progressLearnerId = progressJson is Map
-        ? progressJson['studentId']?.toString()
-        : null;
+    final progressLearnerId =
+        progressJson is Map ? progressJson['studentId']?.toString() : null;
     if (progressLearnerId != null && progressLearnerId.trim().isNotEmpty) {
       return progressLearnerId;
     }
@@ -4867,9 +4798,9 @@ class LumoAppState {
     final learnerCode = item['learnerCode']?.toString();
     if (learnerCode == null || learnerCode.trim().isEmpty) return null;
     final learner = learners.cast<LearnerProfile?>().firstWhere(
-      (entry) => entry?.learnerCode == learnerCode,
-      orElse: () => null,
-    );
+          (entry) => entry?.learnerCode == learnerCode,
+          orElse: () => null,
+        );
     return learner?.id;
   }
 
@@ -4879,19 +4810,19 @@ class LumoAppState {
     if (raw == null || raw.trim().isEmpty) return null;
 
     final directMatch = modules.cast<LearningModule?>().firstWhere(
-      (module) => module?.id == raw,
-      orElse: () => null,
-    );
+          (module) => module?.id == raw,
+          orElse: () => null,
+        );
     if (directMatch != null) return directMatch.id;
 
     final normalized = raw.toLowerCase();
     final subjectMatch = modules.cast<LearningModule?>().firstWhere(
-      (module) =>
-          module != null &&
-          (module.id.toLowerCase() == normalized ||
-              module.title.toLowerCase().contains(normalized)),
-      orElse: () => null,
-    );
+          (module) =>
+              module != null &&
+              (module.id.toLowerCase() == normalized ||
+                  module.title.toLowerCase().contains(normalized)),
+          orElse: () => null,
+        );
     return subjectMatch?.id;
   }
 
@@ -4933,12 +4864,12 @@ class LumoAppState {
     final moduleTitle = moduleId == null
         ? null
         : modules
-              .cast<LearningModule?>()
-              .firstWhere(
-                (module) => module?.id == moduleId,
-                orElse: () => null,
-              )
-              ?.title;
+            .cast<LearningModule?>()
+            .firstWhere(
+              (module) => module?.id == moduleId,
+              orElse: () => null,
+            )
+            ?.title;
     return moduleTitle == null
         ? '$lessonsCompleted lesson(s) completed in the live backend runtime.'
         : '$lessonsCompleted lesson(s) completed. Backend now routes ${learner.name} toward $moduleTitle.';
@@ -4996,18 +4927,17 @@ class LumoAppState {
         (key, value) =>
             MapEntry(key, value.map(_encodeBackendLessonSession).toList()),
       ),
-      'rewardRedemptionHistoryByLearnerId': rewardRedemptionHistoryByLearnerId
-          .map(
-            (key, value) => MapEntry(
-              key,
-              value.map(_encodeRewardRedemptionRecord).toList(),
-            ),
-          ),
+      'rewardRedemptionHistoryByLearnerId':
+          rewardRedemptionHistoryByLearnerId.map(
+        (key, value) => MapEntry(
+          key,
+          value.map(_encodeRewardRedemptionRecord).toList(),
+        ),
+      ),
       'currentLearnerId': currentLearner?.id,
       'selectedModuleId': selectedModule?.id,
-      'activeSession': activeSession == null
-          ? null
-          : _encodeLessonSession(activeSession!),
+      'activeSession':
+          activeSession == null ? null : _encodeLessonSession(activeSession!),
       'speakerMode': speakerMode.name,
       'usingFallbackData': usingFallbackData,
       'acknowledgedOfflineFallbackRisk': acknowledgedOfflineFallbackRisk,
@@ -5089,8 +5019,7 @@ class LumoAppState {
     final output = <String, List<BackendLessonSession>>{};
     if (raw is! Map) return output;
     for (final entry in raw.entries) {
-      output[entry.key.toString()] =
-          (entry.value as List?)
+      output[entry.key.toString()] = (entry.value as List?)
               ?.whereType<Map>()
               .map(
                 (item) => BackendLessonSession.fromJson(
@@ -5109,8 +5038,7 @@ class LumoAppState {
     final output = <String, List<RewardRedemptionRecord>>{};
     if (raw is! Map) return output;
     for (final entry in raw.entries) {
-      output[entry.key.toString()] =
-          (entry.value as List?)
+      output[entry.key.toString()] = (entry.value as List?)
               ?.whereType<Map>()
               .map(
                 (item) => RewardRedemptionRecord.fromJson(
@@ -5149,9 +5077,9 @@ class LumoAppState {
     final learnerId = snapshot['currentLearnerId']?.toString();
     if (learnerId != null && learnerId.trim().isNotEmpty) {
       currentLearner = learners.cast<LearnerProfile?>().firstWhere(
-        (item) => item?.id == learnerId,
-        orElse: () => currentLearner,
-      );
+            (item) => item?.id == learnerId,
+            orElse: () => currentLearner,
+          );
     }
   }
 
@@ -5162,9 +5090,9 @@ class LumoAppState {
     final lessonId = _readNullableString(raw['lessonId']);
     if (lessonId != null) {
       final exactMatch = assigned.cast<LessonCardModel?>().firstWhere(
-        (item) => item?.id == lessonId,
-        orElse: () => null,
-      );
+            (item) => item?.id == lessonId,
+            orElse: () => null,
+          );
       if (exactMatch != null) return exactMatch;
     }
 
@@ -5176,16 +5104,13 @@ class LumoAppState {
         (raw['transcript'] as List?)?.whereType<Map>().length ?? 0;
 
     if (normalizedTitle.isNotEmpty) {
-      final titleMatches = assigned
-          .where((lesson) {
-            final lessonTitle = lesson.title.trim().toLowerCase();
-            final lessonModuleId = lesson.moduleId.trim().toLowerCase();
-            final moduleMatches =
-                normalizedModuleId.isEmpty ||
-                lessonModuleId == normalizedModuleId;
-            return lessonTitle == normalizedTitle && moduleMatches;
-          })
-          .toList(growable: false);
+      final titleMatches = assigned.where((lesson) {
+        final lessonTitle = lesson.title.trim().toLowerCase();
+        final lessonModuleId = lesson.moduleId.trim().toLowerCase();
+        final moduleMatches =
+            normalizedModuleId.isEmpty || lessonModuleId == normalizedModuleId;
+        return lessonTitle == normalizedTitle && moduleMatches;
+      }).toList(growable: false);
       if (titleMatches.length == 1) return titleMatches.first;
       if (titleMatches.length > 1 && persistedStepCount > 0) {
         final stepCountMatches = titleMatches
@@ -5218,8 +5143,7 @@ class LumoAppState {
     final boundedStepIndex = lesson.steps.isEmpty
         ? 0
         : max(0, min(lesson.steps.length - 1, _asInt(raw['stepIndex']) ?? 0));
-    final transcript =
-        (raw['transcript'] as List?)
+    final transcript = (raw['transcript'] as List?)
             ?.whereType<Map>()
             .map(
               (item) => SessionTurn(
@@ -5268,8 +5192,7 @@ class LumoAppState {
       ),
       supportActionsUsed: _asInt(raw['supportActionsUsed']) ?? 0,
       attemptsThisStep: _asInt(raw['attemptsThisStep']) ?? 0,
-      facilitatorObservations:
-          (raw['facilitatorObservations'] as List?)
+      facilitatorObservations: (raw['facilitatorObservations'] as List?)
               ?.map((item) => item.toString())
               .toList() ??
           const <String>[],
@@ -5286,10 +5209,10 @@ class LumoAppState {
       ),
       latestLearnerAudioDuration:
           _asInt(raw['latestLearnerAudioDurationSeconds']) == null
-          ? null
-          : Duration(
-              seconds: _asInt(raw['latestLearnerAudioDurationSeconds'])!,
-            ),
+              ? null
+              : Duration(
+                  seconds: _asInt(raw['latestLearnerAudioDurationSeconds'])!,
+                ),
       lastSupportType: raw['lastSupportType']?.toString() ?? 'Prompt replay',
       automationStatus:
           raw['automationStatus']?.toString() ?? 'Mallam is ready to begin.',
@@ -5302,121 +5225,123 @@ class LumoAppState {
   }
 
   Map<String, dynamic> _encodeLearner(LearnerProfile learner) => {
-    'id': learner.id,
-    'name': learner.name,
-    'age': learner.age,
-    'cohort': learner.cohort,
-    'cohortId': learner.cohortId,
-    'podId': learner.podId,
-    'podLabel': learner.podLabel,
-    'mallamId': learner.mallamId,
-    'mallamName': learner.mallamName,
-    'streakDays': learner.streakDays,
-    'guardianName': learner.guardianName,
-    'preferredLanguage': learner.preferredLanguage,
-    'readinessLabel': learner.readinessLabel,
-    'village': learner.village,
-    'guardianPhone': learner.guardianPhone,
-    'sex': learner.sex,
-    'baselineLevel': learner.baselineLevel,
-    'consentCaptured': learner.consentCaptured,
-    'learnerCode': learner.learnerCode,
-    'caregiverRelationship': learner.caregiverRelationship,
-    'enrollmentStatus': learner.enrollmentStatus,
-    'attendanceBand': learner.attendanceBand,
-    'supportPlan': learner.supportPlan,
-    'profilePhotoBase64': learner.profilePhotoBase64,
-    'lastLessonSummary': learner.lastLessonSummary,
-    'lastAttendance': learner.lastAttendance,
-    'backendRecommendedModuleId': learner.backendRecommendedModuleId,
-    'rewards': learner.rewards == null
-        ? null
-        : _encodeRewardSnapshot(learner.rewards!),
-  };
+        'id': learner.id,
+        'name': learner.name,
+        'age': learner.age,
+        'cohort': learner.cohort,
+        'cohortId': learner.cohortId,
+        'podId': learner.podId,
+        'podLabel': learner.podLabel,
+        'mallamId': learner.mallamId,
+        'mallamName': learner.mallamName,
+        'streakDays': learner.streakDays,
+        'guardianName': learner.guardianName,
+        'preferredLanguage': learner.preferredLanguage,
+        'readinessLabel': learner.readinessLabel,
+        'village': learner.village,
+        'guardianPhone': learner.guardianPhone,
+        'sex': learner.sex,
+        'baselineLevel': learner.baselineLevel,
+        'consentCaptured': learner.consentCaptured,
+        'learnerCode': learner.learnerCode,
+        'caregiverRelationship': learner.caregiverRelationship,
+        'enrollmentStatus': learner.enrollmentStatus,
+        'attendanceBand': learner.attendanceBand,
+        'supportPlan': learner.supportPlan,
+        'profilePhotoBase64': learner.profilePhotoBase64,
+        'lastLessonSummary': learner.lastLessonSummary,
+        'lastAttendance': learner.lastAttendance,
+        'backendRecommendedModuleId': learner.backendRecommendedModuleId,
+        'rewards': learner.rewards == null
+            ? null
+            : _encodeRewardSnapshot(learner.rewards!),
+      };
 
   LearnerProfile _decodeLearner(Map<String, dynamic> raw) => LearnerProfile(
-    id: raw['id']?.toString() ?? 'student-unknown',
-    name: raw['name']?.toString() ?? 'Learner',
-    age: _asInt(raw['age']) ?? 0,
-    cohort: raw['cohort']?.toString() ?? 'Cohort',
-    cohortId: _readNullableString(raw['cohortId']),
-    podId: _readNullableString(raw['podId']),
-    podLabel: _readNullableString(raw['podLabel']),
-    mallamId: _readNullableString(raw['mallamId']),
-    mallamName: _readNullableString(raw['mallamName']),
-    streakDays: _asInt(raw['streakDays']) ?? 0,
-    guardianName: raw['guardianName']?.toString() ?? 'Guardian',
-    preferredLanguage: raw['preferredLanguage']?.toString() ?? 'Hausa',
-    readinessLabel: raw['readinessLabel']?.toString() ?? 'Voice-first beginner',
-    village: raw['village']?.toString() ?? 'Village pending',
-    guardianPhone: raw['guardianPhone']?.toString() ?? '',
-    sex: raw['sex']?.toString() ?? 'Boy',
-    baselineLevel: raw['baselineLevel']?.toString() ?? 'No prior exposure',
-    consentCaptured: raw['consentCaptured'] == true,
-    learnerCode: raw['learnerCode']?.toString() ?? '',
-    caregiverRelationship:
-        raw['caregiverRelationship']?.toString() ?? 'Guardian',
-    enrollmentStatus: raw['enrollmentStatus']?.toString() ?? 'Active',
-    attendanceBand: raw['attendanceBand']?.toString() ?? 'Stable attendance',
-    supportPlan:
-        raw['supportPlan']?.toString() ??
-        'Short prompts and praise after every answer.',
-    profilePhotoBase64: _readNullableString(raw['profilePhotoBase64']),
-    lastLessonSummary:
-        raw['lastLessonSummary']?.toString() ?? 'No lesson captured yet.',
-    lastAttendance: raw['lastAttendance']?.toString() ?? 'Checked in today',
-    backendRecommendedModuleId: _readNullableString(
-      raw['backendRecommendedModuleId'],
-    ),
-    rewards: raw['rewards'] is Map
-        ? _decodeRewardSnapshot(Map<String, dynamic>.from(raw['rewards']))
-        : null,
-  );
+        id: raw['id']?.toString() ?? 'student-unknown',
+        name: raw['name']?.toString() ?? 'Learner',
+        age: _asInt(raw['age']) ?? 0,
+        cohort: raw['cohort']?.toString() ?? 'Cohort',
+        cohortId: _readNullableString(raw['cohortId']),
+        podId: _readNullableString(raw['podId']),
+        podLabel: _readNullableString(raw['podLabel']),
+        mallamId: _readNullableString(raw['mallamId']),
+        mallamName: _readNullableString(raw['mallamName']),
+        streakDays: _asInt(raw['streakDays']) ?? 0,
+        guardianName: raw['guardianName']?.toString() ?? 'Guardian',
+        preferredLanguage: raw['preferredLanguage']?.toString() ?? 'Hausa',
+        readinessLabel:
+            raw['readinessLabel']?.toString() ?? 'Voice-first beginner',
+        village: raw['village']?.toString() ?? 'Village pending',
+        guardianPhone: raw['guardianPhone']?.toString() ?? '',
+        sex: raw['sex']?.toString() ?? 'Boy',
+        baselineLevel: raw['baselineLevel']?.toString() ?? 'No prior exposure',
+        consentCaptured: raw['consentCaptured'] == true,
+        learnerCode: raw['learnerCode']?.toString() ?? '',
+        caregiverRelationship:
+            raw['caregiverRelationship']?.toString() ?? 'Guardian',
+        enrollmentStatus: raw['enrollmentStatus']?.toString() ?? 'Active',
+        attendanceBand:
+            raw['attendanceBand']?.toString() ?? 'Stable attendance',
+        supportPlan: raw['supportPlan']?.toString() ??
+            'Short prompts and praise after every answer.',
+        profilePhotoBase64: _readNullableString(raw['profilePhotoBase64']),
+        lastLessonSummary:
+            raw['lastLessonSummary']?.toString() ?? 'No lesson captured yet.',
+        lastAttendance: raw['lastAttendance']?.toString() ?? 'Checked in today',
+        backendRecommendedModuleId: _readNullableString(
+          raw['backendRecommendedModuleId'],
+        ),
+        rewards: raw['rewards'] is Map
+            ? _decodeRewardSnapshot(Map<String, dynamic>.from(raw['rewards']))
+            : null,
+      );
 
   Map<String, dynamic> _encodeRewardRedemptionRecord(
     RewardRedemptionRecord record,
-  ) => {
-    'id': record.id,
-    'learnerId': record.learnerId,
-    'optionId': record.optionId,
-    'title': record.title,
-    'icon': record.icon,
-    'category': record.category,
-    'cost': record.cost,
-    'celebrationCue': record.celebrationCue,
-    'note': record.note,
-    'redeemedAt': record.redeemedAt.toIso8601String(),
-    'pointsRemaining': record.pointsRemaining,
-    'status': record.status,
-  };
+  ) =>
+      {
+        'id': record.id,
+        'learnerId': record.learnerId,
+        'optionId': record.optionId,
+        'title': record.title,
+        'icon': record.icon,
+        'category': record.category,
+        'cost': record.cost,
+        'celebrationCue': record.celebrationCue,
+        'note': record.note,
+        'redeemedAt': record.redeemedAt.toIso8601String(),
+        'pointsRemaining': record.pointsRemaining,
+        'status': record.status,
+      };
 
   Map<String, dynamic> _encodeRewardSnapshot(RewardSnapshot reward) => {
-    'learnerId': reward.learnerId,
-    'totalXp': reward.totalXp,
-    'points': reward.points,
-    'level': reward.level,
-    'levelLabel': reward.levelLabel,
-    'nextLevel': reward.nextLevel,
-    'nextLevelLabel': reward.nextLevelLabel,
-    'xpIntoLevel': reward.xpIntoLevel,
-    'xpForNextLevel': reward.xpForNextLevel,
-    'progressToNextLevel': reward.progressToNextLevel,
-    'badgesUnlocked': reward.badgesUnlocked,
-    'badges': reward.badges
-        .map(
-          (badge) => {
-            'id': badge.id,
-            'title': badge.title,
-            'description': badge.description,
-            'icon': badge.icon,
-            'category': badge.category,
-            'earned': badge.earned,
-            'progress': badge.progress,
-            'target': badge.target,
-          },
-        )
-        .toList(),
-  };
+        'learnerId': reward.learnerId,
+        'totalXp': reward.totalXp,
+        'points': reward.points,
+        'level': reward.level,
+        'levelLabel': reward.levelLabel,
+        'nextLevel': reward.nextLevel,
+        'nextLevelLabel': reward.nextLevelLabel,
+        'xpIntoLevel': reward.xpIntoLevel,
+        'xpForNextLevel': reward.xpForNextLevel,
+        'progressToNextLevel': reward.progressToNextLevel,
+        'badgesUnlocked': reward.badgesUnlocked,
+        'badges': reward.badges
+            .map(
+              (badge) => {
+                'id': badge.id,
+                'title': badge.title,
+                'description': badge.description,
+                'icon': badge.icon,
+                'category': badge.category,
+                'earned': badge.earned,
+                'progress': badge.progress,
+                'target': badge.target,
+              },
+            )
+            .toList(),
+      };
 
   RewardSnapshot _decodeRewardSnapshot(Map<String, dynamic> raw) =>
       RewardSnapshot(
@@ -5432,8 +5357,7 @@ class LumoAppState {
         progressToNextLevel:
             double.tryParse(raw['progressToNextLevel']?.toString() ?? '') ?? 0,
         badgesUnlocked: _asInt(raw['badgesUnlocked']) ?? 0,
-        badges:
-            (raw['badges'] as List?)?.whereType<Map>().map((item) {
+        badges: (raw['badges'] as List?)?.whereType<Map>().map((item) {
               final badge = Map<String, dynamic>.from(item);
               return RewardBadge(
                 id: badge['id']?.toString() ?? 'badge-unknown',
@@ -5450,58 +5374,58 @@ class LumoAppState {
       );
 
   Map<String, dynamic> _encodeModule(LearningModule module) => {
-    'id': module.id,
-    'title': module.title,
-    'description': module.description,
-    'voicePrompt': module.voicePrompt,
-    'readinessGoal': module.readinessGoal,
-    'badge': module.badge,
-    'status': module.status,
-  };
+        'id': module.id,
+        'title': module.title,
+        'description': module.description,
+        'voicePrompt': module.voicePrompt,
+        'readinessGoal': module.readinessGoal,
+        'badge': module.badge,
+        'status': module.status,
+      };
 
   LearningModule _decodeModule(Map<String, dynamic> raw) =>
       LearningModule.fromBackend(raw);
 
   Map<String, dynamic> _encodeLesson(LessonCardModel lesson) => {
-    'id': lesson.id,
-    'moduleId': lesson.moduleId,
-    'title': lesson.title,
-    'subject': lesson.subject,
-    'durationMinutes': lesson.durationMinutes,
-    'status': lesson.status,
-    'mascotName': lesson.mascotName,
-    'readinessFocus': lesson.readinessFocus,
-    'scenario': lesson.scenario,
-    'activitySteps': lesson.steps
-        .map(
-          (step) => {
-            'id': step.id,
-            'type': step.type.name,
-            'title': step.title,
-            'instruction': step.instruction,
-            'expectedResponse': step.expectedResponse,
-            'acceptableResponses': step.acceptableResponses,
-            'coachPrompt': step.coachPrompt,
-            'facilitatorTip': step.facilitatorTip,
-            'realWorldCheck': step.realWorldCheck,
-            'speakerMode': step.speakerMode.name,
-            if (step.activity != null)
-              'activity': {
-                'type': step.activity!.type.name,
-                'prompt': step.activity!.prompt,
-                'focusText': step.activity!.focusText,
-                'supportText': step.activity!.supportText,
-                'choices': step.activity!.choiceItems.isEmpty
-                    ? step.activity!.choices
-                    : step.activity!.choiceItems
-                          .map(
-                            (choice) => {
-                              'id': choice.id,
-                              'label': choice.label,
-                              'isCorrect': choice.isCorrect,
-                              'media': choice.mediaItems.isEmpty
-                                  ? null
-                                  : choice.mediaItems
+        'id': lesson.id,
+        'moduleId': lesson.moduleId,
+        'title': lesson.title,
+        'subject': lesson.subject,
+        'durationMinutes': lesson.durationMinutes,
+        'status': lesson.status,
+        'mascotName': lesson.mascotName,
+        'readinessFocus': lesson.readinessFocus,
+        'scenario': lesson.scenario,
+        'activitySteps': lesson.steps
+            .map(
+              (step) => {
+                'id': step.id,
+                'type': step.type.name,
+                'title': step.title,
+                'instruction': step.instruction,
+                'expectedResponse': step.expectedResponse,
+                'acceptableResponses': step.acceptableResponses,
+                'coachPrompt': step.coachPrompt,
+                'facilitatorTip': step.facilitatorTip,
+                'realWorldCheck': step.realWorldCheck,
+                'speakerMode': step.speakerMode.name,
+                if (step.activity != null)
+                  'activity': {
+                    'type': step.activity!.type.name,
+                    'prompt': step.activity!.prompt,
+                    'focusText': step.activity!.focusText,
+                    'supportText': step.activity!.supportText,
+                    'choices': step.activity!.choiceItems.isEmpty
+                        ? step.activity!.choices
+                        : step.activity!.choiceItems
+                            .map(
+                              (choice) => {
+                                'id': choice.id,
+                                'label': choice.label,
+                                'isCorrect': choice.isCorrect,
+                                'media': choice.mediaItems.isEmpty
+                                    ? null
+                                    : choice.mediaItems
                                         .map(
                                           (media) => {
                                             'kind': media.kind,
@@ -5511,71 +5435,70 @@ class LumoAppState {
                                           },
                                         )
                                         .toList(),
-                            },
-                          )
-                          .toList(),
-                'choiceEmoji': step.activity!.choiceEmoji,
-                'targetResponse': step.activity!.targetResponse,
-                'expectedAnswers': step.activity!.expectedAnswers,
-                'successFeedback': step.activity!.successFeedback,
-                'retryFeedback': step.activity!.retryFeedback,
-                'media': step.activity!.mediaItems.isEmpty
-                    ? null
-                    : step.activity!.mediaItems
-                          .map(
-                            (media) => {
-                              'kind': media.kind,
-                              'value': media.values.length <= 1
-                                  ? media.firstValue
-                                  : media.values,
-                            },
-                          )
-                          .toList(),
+                              },
+                            )
+                            .toList(),
+                    'choiceEmoji': step.activity!.choiceEmoji,
+                    'targetResponse': step.activity!.targetResponse,
+                    'expectedAnswers': step.activity!.expectedAnswers,
+                    'successFeedback': step.activity!.successFeedback,
+                    'retryFeedback': step.activity!.retryFeedback,
+                    'media': step.activity!.mediaItems.isEmpty
+                        ? null
+                        : step.activity!.mediaItems
+                            .map(
+                              (media) => {
+                                'kind': media.kind,
+                                'value': media.values.length <= 1
+                                    ? media.firstValue
+                                    : media.values,
+                              },
+                            )
+                            .toList(),
+                  },
               },
-          },
-        )
-        .toList(),
-  };
+            )
+            .toList(),
+      };
 
   LessonCardModel _decodeLesson(Map<String, dynamic> raw) =>
       LessonCardModel.fromBackend(raw);
 
   Map<String, dynamic> _encodeAssignmentPack(LearnerAssignmentPack pack) => {
-    'assignmentId': pack.assignmentId,
-    'lessonPack': {
-      'lessonId': pack.lessonId,
-      'moduleKey': pack.moduleId,
-      'curriculumModuleId': pack.curriculumModuleId,
-      'lessonTitle': pack.lessonTitle,
-    },
-    'cohortName': pack.cohortName,
-    'mallamName': pack.mallamName,
-    'dueDate': pack.dueDate,
-    'assessment': pack.assessmentTitle == null
-        ? null
-        : {'title': pack.assessmentTitle},
-    'eligibleLearners': pack.eligibleLearnerIds
-        .map((id) => {'id': id})
-        .toList(),
-  };
+        'assignmentId': pack.assignmentId,
+        'lessonPack': {
+          'lessonId': pack.lessonId,
+          'moduleKey': pack.moduleId,
+          'curriculumModuleId': pack.curriculumModuleId,
+          'lessonTitle': pack.lessonTitle,
+        },
+        'cohortName': pack.cohortName,
+        'mallamName': pack.mallamName,
+        'dueDate': pack.dueDate,
+        'assessment': pack.assessmentTitle == null
+            ? null
+            : {'title': pack.assessmentTitle},
+        'eligibleLearners':
+            pack.eligibleLearnerIds.map((id) => {'id': id}).toList(),
+      };
 
   Map<String, dynamic> _encodeRegistrationDraft(RegistrationDraft draft) => {
-    'name': draft.name,
-    'age': draft.age,
-    'cohort': draft.cohort,
-    'guardianName': draft.guardianName,
-    'preferredLanguage': draft.preferredLanguage,
-    'readinessLabel': draft.readinessLabel,
-    'village': draft.village,
-    'guardianPhone': draft.guardianPhone,
-    'sex': draft.sex,
-    'baselineLevel': draft.baselineLevel,
-    'consentCaptured': draft.consentCaptured,
-    'caregiverRelationship': draft.caregiverRelationship,
-    'supportPlan': draft.supportPlan,
-    'profilePhotoBase64': draft.profilePhotoBase64,
-    'mallamId': draft.mallamId,
-  };
+        'name': draft.name,
+        'age': draft.age,
+        'cohort': draft.cohort,
+        'guardianName': draft.guardianName,
+        'preferredLanguage': draft.preferredLanguage,
+        'readinessLabel': draft.readinessLabel,
+        'village': draft.village,
+        'guardianPhone': draft.guardianPhone,
+        'sex': draft.sex,
+        'baselineLevel': draft.baselineLevel,
+        'consentCaptured': draft.consentCaptured,
+        'caregiverRelationship': draft.caregiverRelationship,
+        'supportPlan': draft.supportPlan,
+        'profilePhotoBase64': draft.profilePhotoBase64,
+        'mallamId': draft.mallamId,
+      };
 
   RegistrationDraft _decodeRegistrationDraft(Object? raw) {
     if (raw is! Map) return const RegistrationDraft();
@@ -5594,8 +5517,7 @@ class LumoAppState {
       consentCaptured: raw['consentCaptured'] == true,
       caregiverRelationship:
           raw['caregiverRelationship']?.toString() ?? 'Mother',
-      supportPlan:
-          raw['supportPlan']?.toString() ??
+      supportPlan: raw['supportPlan']?.toString() ??
           'Use short prompts and repeat once when needed.',
       profilePhotoBase64: _readNullableString(raw['profilePhotoBase64']),
       mallamId: raw['mallamId']?.toString() ?? '',
@@ -5604,42 +5526,44 @@ class LumoAppState {
 
   Map<String, dynamic> _encodeRegistrationContext(
     RegistrationContext context,
-  ) => {
-    'cohorts': context.cohorts
-        .map(
-          (cohort) => {
-            'id': cohort.id,
-            'name': cohort.name,
-            'podId': cohort.podId,
-          },
-        )
-        .toList(),
-    'mallams': context.mallams
-        .map(
-          (mallam) => {
-            'id': mallam.id,
-            'displayName': mallam.name,
-            'podIds': mallam.podIds,
-          },
-        )
-        .toList(),
-    'defaultTarget': context.defaultTarget == null
-        ? null
-        : {
-            'cohortId': context.defaultTarget!.cohort.id,
-            'mallamId': context.defaultTarget!.mallam.id,
-          },
-    'tabletRegistration': context.tabletRegistration == null
-        ? null
-        : {
-            'id': context.tabletRegistration!.id,
-            'deviceIdentifier': context.tabletRegistration!.deviceIdentifier,
-            'podId': context.tabletRegistration!.podId,
-            'podLabel': context.tabletRegistration!.podLabel,
-            'mallamId': context.tabletRegistration!.mallamId,
-            'mallamName': context.tabletRegistration!.mallamName,
-          },
-  };
+  ) =>
+      {
+        'cohorts': context.cohorts
+            .map(
+              (cohort) => {
+                'id': cohort.id,
+                'name': cohort.name,
+                'podId': cohort.podId,
+              },
+            )
+            .toList(),
+        'mallams': context.mallams
+            .map(
+              (mallam) => {
+                'id': mallam.id,
+                'displayName': mallam.name,
+                'podIds': mallam.podIds,
+              },
+            )
+            .toList(),
+        'defaultTarget': context.defaultTarget == null
+            ? null
+            : {
+                'cohortId': context.defaultTarget!.cohort.id,
+                'mallamId': context.defaultTarget!.mallam.id,
+              },
+        'tabletRegistration': context.tabletRegistration == null
+            ? null
+            : {
+                'id': context.tabletRegistration!.id,
+                'deviceIdentifier':
+                    context.tabletRegistration!.deviceIdentifier,
+                'podId': context.tabletRegistration!.podId,
+                'podLabel': context.tabletRegistration!.podLabel,
+                'mallamId': context.tabletRegistration!.mallamId,
+                'mallamName': context.tabletRegistration!.mallamName,
+              },
+      };
 
   RegistrationContext _decodeRegistrationContext(Object? raw) {
     if (raw is! Map) return const RegistrationContext();
@@ -5647,74 +5571,75 @@ class LumoAppState {
   }
 
   Map<String, dynamic> _encodeSyncEvent(SyncEvent event) => {
-    'id': event.id,
-    'type': event.type,
-    'payload': event.payload,
-  };
+        'id': event.id,
+        'type': event.type,
+        'payload': event.payload,
+      };
 
   Map<String, dynamic> _encodeBackendLessonSession(
     BackendLessonSession session,
-  ) => {
-    'id': session.id,
-    'sessionId': session.sessionId,
-    'studentId': session.studentId,
-    'learnerCode': session.learnerCode,
-    'lessonId': session.lessonId,
-    'lessonTitle': session.lessonTitle,
-    'moduleId': session.moduleId,
-    'moduleTitle': session.moduleTitle,
-    'status': session.status,
-    'completionState': session.completionState,
-    'automationStatus': session.automationStatus,
-    'currentStepIndex': session.currentStepIndex,
-    'stepsTotal': session.stepsTotal,
-    'responsesCaptured': session.responsesCaptured,
-    'supportActionsUsed': session.supportActionsUsed,
-    'audioCaptures': session.audioCaptures,
-    'facilitatorObservations': session.facilitatorObservations,
-    'latestReview': session.latestReview,
-    'startedAt': session.startedAt?.toIso8601String(),
-    'lastActivityAt': session.lastActivityAt?.toIso8601String(),
-    'completedAt': session.completedAt?.toIso8601String(),
-  };
+  ) =>
+      {
+        'id': session.id,
+        'sessionId': session.sessionId,
+        'studentId': session.studentId,
+        'learnerCode': session.learnerCode,
+        'lessonId': session.lessonId,
+        'lessonTitle': session.lessonTitle,
+        'moduleId': session.moduleId,
+        'moduleTitle': session.moduleTitle,
+        'status': session.status,
+        'completionState': session.completionState,
+        'automationStatus': session.automationStatus,
+        'currentStepIndex': session.currentStepIndex,
+        'stepsTotal': session.stepsTotal,
+        'responsesCaptured': session.responsesCaptured,
+        'supportActionsUsed': session.supportActionsUsed,
+        'audioCaptures': session.audioCaptures,
+        'facilitatorObservations': session.facilitatorObservations,
+        'latestReview': session.latestReview,
+        'startedAt': session.startedAt?.toIso8601String(),
+        'lastActivityAt': session.lastActivityAt?.toIso8601String(),
+        'completedAt': session.completedAt?.toIso8601String(),
+      };
 
   Map<String, dynamic> _encodeLessonSession(LessonSessionState session) => {
-    'sessionId': session.sessionId,
-    'lessonId': session.lesson.id,
-    'lessonTitle': session.lesson.title,
-    'moduleId': session.lesson.moduleId,
-    'currentLearnerId': currentLearner?.id,
-    'stepIndex': session.stepIndex,
-    'completionState': session.completionState.name,
-    'speakerMode': session.speakerMode.name,
-    'latestLearnerResponse': session.latestLearnerResponse,
-    'latestReview': session.latestReview.name,
-    'supportActionsUsed': session.supportActionsUsed,
-    'attemptsThisStep': session.attemptsThisStep,
-    'facilitatorObservations': session.facilitatorObservations,
-    'transcript': session.transcript
-        .map(
-          (turn) => {
-            'speaker': turn.speaker,
-            'text': turn.text,
-            'review': turn.review.name,
-            'timestamp': turn.timestamp.toIso8601String(),
-          },
-        )
-        .toList(),
-    'startedAt': session.startedAt.toIso8601String(),
-    'audioInputMode': session.audioInputMode,
-    'speakerOutputMode': session.speakerOutputMode,
-    'totalResponses': session.totalResponses,
-    'totalAudioCaptures': session.totalAudioCaptures,
-    'latestLearnerAudioPath': session.latestLearnerAudioPath,
-    'latestLearnerAudioDurationSeconds':
-        session.latestLearnerAudioDuration?.inSeconds,
-    'lastSupportType': session.lastSupportType,
-    'automationStatus': session.automationStatus,
-    'practiceMode': session.practiceMode.name,
-    'lastUpdatedAt': session.lastUpdatedAt.toIso8601String(),
-  };
+        'sessionId': session.sessionId,
+        'lessonId': session.lesson.id,
+        'lessonTitle': session.lesson.title,
+        'moduleId': session.lesson.moduleId,
+        'currentLearnerId': currentLearner?.id,
+        'stepIndex': session.stepIndex,
+        'completionState': session.completionState.name,
+        'speakerMode': session.speakerMode.name,
+        'latestLearnerResponse': session.latestLearnerResponse,
+        'latestReview': session.latestReview.name,
+        'supportActionsUsed': session.supportActionsUsed,
+        'attemptsThisStep': session.attemptsThisStep,
+        'facilitatorObservations': session.facilitatorObservations,
+        'transcript': session.transcript
+            .map(
+              (turn) => {
+                'speaker': turn.speaker,
+                'text': turn.text,
+                'review': turn.review.name,
+                'timestamp': turn.timestamp.toIso8601String(),
+              },
+            )
+            .toList(),
+        'startedAt': session.startedAt.toIso8601String(),
+        'audioInputMode': session.audioInputMode,
+        'speakerOutputMode': session.speakerOutputMode,
+        'totalResponses': session.totalResponses,
+        'totalAudioCaptures': session.totalAudioCaptures,
+        'latestLearnerAudioPath': session.latestLearnerAudioPath,
+        'latestLearnerAudioDurationSeconds':
+            session.latestLearnerAudioDuration?.inSeconds,
+        'lastSupportType': session.lastSupportType,
+        'automationStatus': session.automationStatus,
+        'practiceMode': session.practiceMode.name,
+        'lastUpdatedAt': session.lastUpdatedAt.toIso8601String(),
+      };
 
   SpeakerMode _decodeSpeakerMode(Object? raw) {
     return SpeakerMode.values.firstWhere(
@@ -5977,11 +5902,11 @@ class ResponseOutcome {
   });
 
   const ResponseOutcome.ignored()
-    : review = ResponseReview.pending,
-      attemptNumber = 0,
-      accepted = false,
-      usedAlias = false,
-      similarityScore = 0,
-      supportType = 'Ignored',
-      automationStatus = 'No learner response was captured.';
+      : review = ResponseReview.pending,
+        attemptNumber = 0,
+        accepted = false,
+        usedAlias = false,
+        similarityScore = 0,
+        supportType = 'Ignored',
+        automationStatus = 'No learner response was captured.';
 }
