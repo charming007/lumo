@@ -53,3 +53,28 @@ export function buildReviewBlockersHref(returnPath: string) {
 
   return params.size ? `${pathname}?${params.toString()}` : pathname;
 }
+
+export function buildAssessmentReviewHref({
+  returnPath,
+  moduleTitle,
+  subjectId,
+}: {
+  returnPath: string;
+  moduleTitle: string;
+  subjectId?: string;
+}) {
+  const [pathname, query = ''] = returnPath.startsWith('/content')
+    ? returnPath.split('?', 2)
+    : ['/content', ''];
+  const params = new URLSearchParams(query);
+
+  params.set('view', 'assessments');
+  params.set('q', moduleTitle.trim());
+
+  const normalizedSubjectId = subjectId?.trim();
+  if (normalizedSubjectId) {
+    params.set('subject', normalizedSubjectId);
+  }
+
+  return params.size ? `${pathname}?${params.toString()}` : pathname;
+}

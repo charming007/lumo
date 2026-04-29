@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildContentReturnPath, buildReviewBlockersHref, buildScopedLessonCreateHref, normalizeFilterValue } from './content-return-path.ts';
+import { buildAssessmentReviewHref, buildContentReturnPath, buildReviewBlockersHref, buildScopedLessonCreateHref, normalizeFilterValue } from './content-return-path.ts';
 
 test('normalizeFilterValue keeps the first query value when arrays arrive from Next search params', () => {
   assert.equal(normalizeFilterValue(['math', 'english']), 'math');
@@ -52,4 +52,26 @@ test('buildReviewBlockersHref preserves blocker scope when lesson studio was lau
 
 test('buildReviewBlockersHref falls back to the generic blocker board for non-content return paths', () => {
   assert.equal(buildReviewBlockersHref('/assignments'), '/content?view=blocked');
+});
+
+test('buildAssessmentReviewHref keeps blocker-board subject scope when reviewing an assessment gate', () => {
+  assert.equal(
+    buildAssessmentReviewHref({
+      returnPath: '/content?view=blocked&subject=subject-english&status=draft',
+      moduleTitle: 'Reading lane',
+      subjectId: 'subject-english',
+    }),
+    '/content?view=assessments&subject=subject-english&status=draft&q=Reading+lane',
+  );
+});
+
+test('buildAssessmentReviewHref recovers subject scope for non-content return paths', () => {
+  assert.equal(
+    buildAssessmentReviewHref({
+      returnPath: '/assignments',
+      moduleTitle: 'Numeracy Gate',
+      subjectId: 'subject-math',
+    }),
+    '/content?view=assessments&q=Numeracy+Gate&subject=subject-math',
+  );
 });
