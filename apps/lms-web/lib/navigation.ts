@@ -12,6 +12,7 @@ export const navigationItems = [
   { id: 'assessments', label: 'Assessments', href: '/assessments' },
   { id: 'progress', label: 'Progress', href: '/progress' },
   { id: 'rewards', label: 'Rewards', href: '/rewards' },
+  { id: 'reports', label: 'Reports', href: '/reports' },
   { id: 'guide', label: 'Guide', href: '/guide' },
   { id: 'settings', label: 'Settings', href: '/settings' },
 ] as const;
