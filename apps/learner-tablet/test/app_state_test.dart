@@ -3119,7 +3119,8 @@ void main() {
       state.dispose();
     });
 
-    test('restore keeps orphaned active sessions pending until learner returns', () async {
+    test('restore keeps orphaned active sessions pending until learner returns',
+        () async {
       SharedPreferences.setMockInitialValues({
         'lumo_learner_tablet_state_v1': jsonEncode({
           'schemaVersion': '2026-04-13-runtime-persist',
@@ -3319,6 +3320,98 @@ void main() {
       expect(state.activeSession!.practiceMode, PracticeMode.repeatAfterMe);
       final evaluation = state.evaluateLearnerResponse('ready');
       expect(evaluation.review, ResponseReview.needsSupport);
+    });
+
+    test('standard mode does not accept partial substring responses', () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.learners.add(beginner);
+      state.currentLearner = beginner;
+
+      const lesson = LessonCardModel(
+        id: 'partial-substring-guard',
+        moduleId: 'english',
+        title: 'Partial substring guard',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Require full learner answer.',
+        scenario:
+            'Single letters and clipped substrings must not unlock the step.',
+        steps: [
+          LessonStep(
+            id: 'partial-substring-step',
+            type: LessonStepType.practice,
+            title: 'Say the full sentence',
+            instruction: 'Say A is for ant.',
+            expectedResponse: 'A is for ant.',
+            coachPrompt: 'Say A is for ant.',
+            facilitatorTip: 'Wait for the complete answer.',
+            realWorldCheck: 'Learner says the full sentence.',
+            speakerMode: SpeakerMode.listening,
+          ),
+        ],
+      );
+
+      state.assignedLessons.add(lesson);
+      state.startLesson(lesson);
+
+      expect(
+        state.evaluateLearnerResponse('a').review,
+        ResponseReview.needsSupport,
+      );
+      expect(
+        state.evaluateLearnerResponse('ant').review,
+        ResponseReview.needsSupport,
+      );
+      expect(
+        state.evaluateLearnerResponse('A is for ant.').review,
+        ResponseReview.onTrack,
+      );
+    });
+
+    test('single-character expected responses still pass on exact match', () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.learners.add(beginner);
+      state.currentLearner = beginner;
+
+      const lesson = LessonCardModel(
+        id: 'single-character-exact-guard',
+        moduleId: 'english',
+        title: 'Single character exact guard',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Allow exact single-letter answers only when authored.',
+        scenario:
+            'Letter-recognition steps must still accept the authored exact answer.',
+        steps: [
+          LessonStep(
+            id: 'single-character-step',
+            type: LessonStepType.practice,
+            title: 'Say the letter',
+            instruction: 'Say A.',
+            expectedResponse: 'A',
+            coachPrompt: 'Say A.',
+            facilitatorTip: 'Listen for the exact letter.',
+            realWorldCheck: 'Learner says A.',
+            speakerMode: SpeakerMode.listening,
+          ),
+        ],
+      );
+
+      state.assignedLessons.add(lesson);
+      state.startLesson(lesson);
+
+      expect(
+        state.evaluateLearnerResponse('A').review,
+        ResponseReview.onTrack,
+      );
+      expect(
+        state.evaluateLearnerResponse('B').review,
+        ResponseReview.needsSupport,
+      );
     });
 
     test('tap choice respects authored choice correctness over targetResponse',

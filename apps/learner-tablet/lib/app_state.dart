@@ -2763,14 +2763,10 @@ class LumoAppState {
         .where((item) => item.isNotEmpty)
         .toList();
 
-    final exactOrContains = allTargets.any(
-      (target) =>
-          target == normalizedResponse ||
-          (practiceMode != PracticeMode.repeatAfterMe &&
-              (target.contains(normalizedResponse) ||
-                  normalizedResponse.contains(target))),
+    final exactMatch = allTargets.any(
+      (target) => target == normalizedResponse,
     );
-    if (exactOrContains) {
+    if (exactMatch) {
       return ResponseEvaluation(
         review: ResponseReview.onTrack,
         similarityScore: 1,
