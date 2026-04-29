@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { filterModulesForSubject, matchesSubjectFilter, moduleBelongsToSubject, resolveModuleSubjectId } from './module-subject-match.ts';
+import { filterModulesForSubject, matchesSubjectFilter, moduleBelongsToSubject, resolveModuleSubjectId, subjectsIncludeId } from './module-subject-match.ts';
 
 test('module subject matching keeps modules visible when subject names line up but ids drift', () => {
   const subject = {
@@ -106,6 +106,24 @@ test('resolveModuleSubjectId returns empty string when no subject context can be
     ),
     '',
   );
+});
+
+test('subjectsIncludeId treats subject ids case-insensitively and trims whitespace', () => {
+  assert.equal(
+    subjectsIncludeId(
+      [
+        { id: ' subject-english ' },
+        { id: 'subject-math' },
+      ] as any,
+      'SUBJECT-ENGLISH',
+    ),
+    true,
+  );
+});
+
+test('subjectsIncludeId returns false for empty or non-matching ids', () => {
+  assert.equal(subjectsIncludeId([{ id: 'subject-english' }] as any, '   '), false);
+  assert.equal(subjectsIncludeId([{ id: 'subject-english' }] as any, 'subject-math'), false);
 });
 
 test('matchesSubjectFilter keeps blocker lanes visible when subject ids drift but names still match', () => {

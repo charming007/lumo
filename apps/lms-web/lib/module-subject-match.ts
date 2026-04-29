@@ -68,3 +68,15 @@ export function resolveModuleSubjectId(
   const subjectNameMatch = subjects.find((subject) => normalize(subject.name) === normalizedSubjectName);
   return subjectNameMatch?.id ?? directSubjectId ?? '';
 }
+
+export function subjectsIncludeId(
+  subjects: Pick<Subject, 'id'>[],
+  subjectId: string | null | undefined,
+) {
+  const normalizedSubjectId = normalize(subjectId);
+  if (!normalizedSubjectId) {
+    return false;
+  }
+
+  return subjects.some((subject) => normalize(subject.id) === normalizedSubjectId);
+}
