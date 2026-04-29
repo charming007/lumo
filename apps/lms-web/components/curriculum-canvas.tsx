@@ -343,10 +343,9 @@ export function CurriculumCanvas({
   updateStrandAction: (formData: FormData) => void;
   returnPath?: string;
 }) {
-  const defaultSubjectId = data.subjects[0]?.id ?? 'all';
   const firstModule = data.subjects[0]?.strands[0]?.modules[0] ?? null;
   const [searchTerm, setSearchTerm] = useState('');
-  const [subjectFilter, setSubjectFilter] = useState(defaultSubjectId);
+  const [subjectFilter, setSubjectFilter] = useState('all');
   const [readinessFilter, setReadinessFilter] = useState('all');
   const [selectedModuleId, setSelectedModuleId] = useState(firstModule?.id ?? '');
   const [copiedState, setCopiedState] = useState<'idle' | 'copied'>('idle');
@@ -356,9 +355,8 @@ export function CurriculumCanvas({
   useEffect(() => {
     const syncFromUrl = () => {
       const nextState = readCanvasUrlState(firstModule?.id);
-      const nextSubjectFilter = nextState.subjectFilter === 'all' ? defaultSubjectId : nextState.subjectFilter;
       setSearchTerm(nextState.searchTerm);
-      setSubjectFilter(nextSubjectFilter);
+      setSubjectFilter(nextState.subjectFilter);
       setReadinessFilter(nextState.readinessFilter);
       setSelectedModuleId(nextState.selectedModuleId);
       setSelectedLessonId(nextState.selectedLessonId);
@@ -369,7 +367,7 @@ export function CurriculumCanvas({
     if (typeof window === 'undefined') return undefined;
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [defaultSubjectId, firstModule?.id]);
+  }, [firstModule?.id]);
 
   useEffect(() => {
     if (!selectedModuleId && firstModule?.id) {
@@ -628,6 +626,7 @@ export function CurriculumCanvas({
             style={{ borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(255,255,255,0.05)', color: '#f8fafc' }}
           />
           <select value={subjectFilter} onChange={(event) => selectSubject(event.target.value)} style={{ borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+            <option value="all">All subjects</option>
             {data.subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
           </select>
           <select value={readinessFilter} onChange={(event) => setReadinessFilter(event.target.value)} style={{ borderRadius: 14, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(255,255,255,0.05)', color: '#f8fafc' }}>
@@ -639,7 +638,7 @@ export function CurriculumCanvas({
             type="button"
             onClick={() => {
               setSearchTerm('');
-              selectSubject(defaultSubjectId);
+              selectSubject('all');
               setReadinessFilter('all');
             }}
             style={{ ...filterButtonStyle, height: '100%' }}
