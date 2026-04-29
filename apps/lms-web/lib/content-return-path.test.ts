@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from './content-return-path.ts';
+import { buildContentReturnPath, buildReviewBlockersHref, buildScopedLessonCreateHref, normalizeFilterValue } from './content-return-path.ts';
 
 test('normalizeFilterValue keeps the first query value when arrays arrive from Next search params', () => {
   assert.equal(normalizeFilterValue(['math', 'english']), 'math');
@@ -41,4 +41,15 @@ test('buildScopedLessonCreateHref omits focus when the caller does not want one'
     }),
     '/content/lessons/new?subjectId=subject-math&moduleId=module-counting-1&from=%2Fcontent',
   );
+});
+
+test('buildReviewBlockersHref preserves blocker scope when lesson studio was launched from a filtered content board', () => {
+  assert.equal(
+    buildReviewBlockersHref('/content?q=Reading+lane&subject=subject-english&status=draft'),
+    '/content?q=Reading+lane&subject=subject-english&status=draft&view=blocked',
+  );
+});
+
+test('buildReviewBlockersHref falls back to the generic blocker board for non-content return paths', () => {
+  assert.equal(buildReviewBlockersHref('/assignments'), '/content?view=blocked');
 });
