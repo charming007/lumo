@@ -11,6 +11,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     this.failInitializeError = 'not available',
     this.failListenAttempts = 0,
     this.listenStarts = true,
+    this.deferListeningStateUntilStatus = false,
     this.emitTranscriptOnListen,
   });
 
@@ -19,11 +20,13 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   String failInitializeError;
   int failListenAttempts;
   bool listenStarts;
+  bool deferListeningStateUntilStatus;
   void Function(void Function(String transcript, bool isFinal) onResult)?
   emitTranscriptOnListen;
   int listenCalls = 0;
   bool _isListening = false;
   void Function(String errorMsg)? _onError;
+  void Function(String status)? _onStatus;
 
   @override
   bool get isListening => _isListening;
@@ -35,6 +38,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     bool debugLogging = false,
   }) async {
     _onError = onError;
+    _onStatus = onStatus;
     onStatus('initialized');
     if (failInitializeAttempts > 0) {
       failInitializeAttempts -= 1;
@@ -55,6 +59,15 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     if (failListenAttempts > 0) {
       failListenAttempts -= 1;
       throw Exception('not available');
+    }
+    if (deferListeningStateUntilStatus && listenStarts) {
+      _isListening = false;
+      Future.microtask(() {
+        _isListening = true;
+        _onStatus?.call('listening');
+        emitTranscriptOnListen?.call(onResult);
+      });
+      return true;
     }
     _isListening = listenStarts;
     if (_isListening) {
@@ -124,6 +137,32 @@ void main() {
     expect(service.isAvailable, isTrue);
     expect(service.availabilityLabel, contains('ready'));
   });
+
+  test(
+    'accepts async web-style listen start before isListening flips true',
+    () async {
+      final engine = FakeSpeechRecognitionEngine(
+        listenStarts: true,
+        deferListeningStateUntilStatus: true,
+        emitTranscriptOnListen: (onResult) => onResult('na gode', true),
+      );
+      final service = SpeechTranscriptionService(engine: engine);
+      final seenResults = <String>[];
+
+      expect(
+        await service.start(
+          onResult: (transcript, _) => seenResults.add(transcript),
+        ),
+        isTrue,
+      );
+
+      await Future<void>.microtask(() {});
+
+      expect(service.isAvailable, isTrue);
+      expect(seenResults, contains('na gode'));
+      expect(service.activeModeLabel, isNot('Audio fallback review'));
+    },
+  );
 
   test(
     'runtime-style transcript errors expose cooldown guidance with remaining time',

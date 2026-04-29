@@ -62,7 +62,13 @@ class SpeechToTextEngine implements SpeechRecognitionEngine {
       pauseFor: pauseFor,
       listenFor: listenFor,
     );
-    return _speech.isListening;
+
+    // On web the underlying SpeechRecognition session starts asynchronously and
+    // the plugin can still report `isListening == false` for a short moment
+    // right after `listen()` returns. Treat a successful listen invocation as a
+    // valid start request here; runtime failures will still surface through the
+    // status/error callbacks.
+    return kIsWeb ? true : _speech.isListening;
   }
 
   @override
