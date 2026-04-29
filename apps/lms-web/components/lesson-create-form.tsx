@@ -357,7 +357,7 @@ export function LessonCreateForm({
   const assetRuntimeBlockers = useMemo(() => activitySteps.flatMap((step, index) => {
     const runtime = getStepRuntimePreviewHints(step, assets);
     return runtime.hints
-      .filter((hint) => /asset registry|managed asset|archived media|legacy URL\/path alias/i.test(hint))
+      .filter((hint) => /asset registry|managed asset|archived media/i.test(hint))
       .map((hint) => `Step ${index + 1}: ${hint}`);
   }), [activitySteps, assets]);
   const readinessCount = useMemo(() => {
