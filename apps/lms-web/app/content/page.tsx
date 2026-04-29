@@ -21,6 +21,7 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
 import { matchesSubjectFilter, resolveModuleSubjectId } from '../../lib/module-subject-match';
+import { buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -49,11 +50,6 @@ function blockerRiskMeta(missingLessons: number, hasAssessment: boolean, isDraft
   return { label: 'Gate missing', tone: '#E0E7FF', text: '#3730A3' };
 }
 
-function normalizeFilterValue(value: string | string[] | undefined) {
-  if (Array.isArray(value)) return value[0] ?? '';
-  return value ?? '';
-}
-
 function matchesQuery(values: Array<string | null | undefined>, query: string) {
   if (!query) return true;
   const haystack = values.filter(Boolean).join(' ').toLowerCase();
@@ -62,21 +58,6 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
 
 function emptyTableRows(message: string, columns: number) {
   return [[<span key={message} style={{ color: '#64748b', lineHeight: 1.6 }}>{message}</span>, ...Array.from({ length: columns - 1 }, () => '')]];
-}
-
-function buildContentReturnPath(query?: { q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }) {
-  const params = new URLSearchParams();
-  const q = normalizeFilterValue(query?.q).trim();
-  const subject = normalizeFilterValue(query?.subject).trim();
-  const status = normalizeFilterValue(query?.status).trim();
-  const view = normalizeFilterValue(query?.view).trim();
-
-  if (q) params.set('q', q);
-  if (subject) params.set('subject', subject);
-  if (status) params.set('status', status);
-  if (view) params.set('view', view);
-
-  return params.size ? `/content?${params.toString()}` : '/content';
 }
 
 export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
@@ -421,7 +402,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               </div>
             ))}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link href="/content/lessons/new?from=%2Fcontent" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+              <Link href={`/content/lessons/new?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
                 Open lesson studio →
               </Link>
               <Link href="/assignments" style={{ color: '#166534', fontWeight: 800, textDecoration: 'none' }}>
@@ -462,7 +443,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                   const canLaunchLessonCreate = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
                   const createLessonHref = canLaunchLessonCreate
-                    ? `/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent&focus=blockers`
+                    ? buildScopedLessonCreateHref({
+                        subjectId: moduleSubjectId,
+                        moduleId: module.id,
+                        returnPath,
+                      })
                     : null;
 
                   return [
@@ -608,7 +593,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                 const canLaunchLessonCreate = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
                 const createLessonHref = canLaunchLessonCreate
-                  ? `/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent%3Fview%3Dblocked&focus=blockers`
+                  ? buildScopedLessonCreateHref({
+                      subjectId: moduleSubjectId,
+                      moduleId: module.id,
+                      returnPath,
+                    })
                   : null;
 
                 return [
@@ -652,7 +641,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     )}
                     {!hasAssessment ? (
                       <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate directly from the blockers-only view." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
-                        <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath="/content?view=blocked" />
+                        <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                       </ModalLauncher>
                     ) : (
                       <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
