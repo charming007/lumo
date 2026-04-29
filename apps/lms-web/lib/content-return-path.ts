@@ -41,3 +41,15 @@ export function buildScopedLessonCreateHref({
 
   return `/content/lessons/new?${params.toString()}`;
 }
+
+export function buildReviewBlockersHref(returnPath: string) {
+  if (!returnPath.startsWith('/content')) {
+    return '/content?view=blocked';
+  }
+
+  const [pathname, query = ''] = returnPath.split('?', 2);
+  const params = new URLSearchParams(query);
+  params.set('view', 'blocked');
+
+  return params.size ? `${pathname}?${params.toString()}` : pathname;
+}

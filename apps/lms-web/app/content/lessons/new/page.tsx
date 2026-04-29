@@ -5,6 +5,7 @@ import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
 import { normalizeLessonAssetsForAuthoring } from '../../../../lib/lesson-authoring-normalize';
 import { filterModulesForSubject } from '../../../../lib/module-subject-match';
+import { buildReviewBlockersHref } from '../../../../lib/content-return-path';
 import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import type { Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
@@ -185,6 +186,7 @@ export default async function LessonStudioCreatePage({
   const moduleId = requestedModuleId || subjectScopedModules[0]?.id || modules[0]?.id || '';
 
   const selectedModule = modules.find((module) => module.id === moduleId) ?? subjectScopedModules[0] ?? modules[0] ?? null;
+  const reviewBlockersHref = buildReviewBlockersHref(from);
 
   return (
     <PageShell
@@ -202,7 +204,7 @@ export default async function LessonStudioCreatePage({
           <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
             Back to board
           </Link>
-          <Link href="/content?view=blocked" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+          <Link href={reviewBlockersHref} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Review blockers
           </Link>
         </div>
