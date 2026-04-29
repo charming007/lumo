@@ -4,6 +4,31 @@ function normalize(value?: string | null) {
   return value?.trim().toLowerCase() ?? '';
 }
 
+export function matchesSubjectFilter(
+  subjectFilter: string | null | undefined,
+  subjects: Pick<Subject, 'id' | 'name'>[],
+  options: {
+    subjectIds?: Array<string | null | undefined>;
+    subjectNames?: Array<string | null | undefined>;
+  },
+) {
+  const normalizedSubjectFilter = normalize(subjectFilter);
+  if (!normalizedSubjectFilter) {
+    return true;
+  }
+
+  const selectedSubject = subjects.find((subject) => normalize(subject.id) === normalizedSubjectFilter)
+    ?? subjects.find((subject) => normalize(subject.name) === normalizedSubjectFilter)
+    ?? null;
+  const normalizedSelectedSubjectName = normalize(selectedSubject?.name);
+
+  return Boolean(
+    options.subjectIds?.some((subjectId) => normalize(subjectId) === normalizedSubjectFilter)
+    || (normalizedSelectedSubjectName
+      && options.subjectNames?.some((subjectName) => normalize(subjectName) === normalizedSelectedSubjectName)),
+  );
+}
+
 export function moduleBelongsToSubject(module: CurriculumModule, subject: Subject | null | undefined) {
   if (!subject) return false;
 
@@ -42,4 +67,16 @@ export function resolveModuleSubjectId(
 
   const subjectNameMatch = subjects.find((subject) => normalize(subject.name) === normalizedSubjectName);
   return subjectNameMatch?.id ?? directSubjectId ?? '';
+}
+
+export function subjectsIncludeId(
+  subjects: Pick<Subject, 'id'>[],
+  subjectId: string | null | undefined,
+) {
+  const normalizedSubjectId = normalize(subjectId);
+  if (!normalizedSubjectId) {
+    return false;
+  }
+
+  return subjects.some((subject) => normalize(subject.id) === normalizedSubjectId);
 }

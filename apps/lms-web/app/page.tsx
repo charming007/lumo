@@ -10,6 +10,7 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
+import { resolveModuleSubjectId, subjectsIncludeId } from '../lib/module-subject-match';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -380,7 +381,7 @@ export default async function HomePage() {
   const canLaunchTopReleaseLessonCreate = Boolean(
     topReleaseBlocker?.missingLessons
     && topReleaseBlocker.hasAuthoringContext
-    && subjects.some((subject) => subject.id === topReleaseBlocker.subjectId),
+    && subjectsIncludeId(subjects, topReleaseBlocker.subjectId),
   );
   const topReleaseBlockerPrimaryHref = canLaunchTopReleaseLessonCreate && topReleaseBlocker
     ? `/content/lessons/new?subjectId=${encodeURIComponent(topReleaseBlocker.subjectId)}&moduleId=${encodeURIComponent(topReleaseBlocker.id)}&from=${encodeURIComponent(topReleaseBlockerBoardHref)}&focus=blockers`

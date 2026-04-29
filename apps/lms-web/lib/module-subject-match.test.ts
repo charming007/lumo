@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { filterModulesForSubject, moduleBelongsToSubject, resolveModuleSubjectId } from './module-subject-match.ts';
+import { filterModulesForSubject, matchesSubjectFilter, moduleBelongsToSubject, resolveModuleSubjectId, subjectsIncludeId } from './module-subject-match.ts';
 
 test('module subject matching keeps modules visible when subject names line up but ids drift', () => {
   const subject = {
@@ -105,5 +105,59 @@ test('resolveModuleSubjectId returns empty string when no subject context can be
       [{ id: 'subject-arabic', name: 'Arabic' }] as any,
     ),
     '',
+  );
+});
+
+test('subjectsIncludeId treats subject ids case-insensitively and trims whitespace', () => {
+  assert.equal(
+    subjectsIncludeId(
+      [
+        { id: ' subject-english ' },
+        { id: 'subject-math' },
+      ] as any,
+      'SUBJECT-ENGLISH',
+    ),
+    true,
+  );
+});
+
+test('subjectsIncludeId returns false for empty or non-matching ids', () => {
+  assert.equal(subjectsIncludeId([{ id: 'subject-english' }] as any, '   '), false);
+  assert.equal(subjectsIncludeId([{ id: 'subject-english' }] as any, 'subject-math'), false);
+});
+
+test('matchesSubjectFilter keeps blocker lanes visible when subject ids drift but names still match', () => {
+  const subjects = [{ id: 'subject-english', name: 'English' }];
+
+  assert.equal(
+    matchesSubjectFilter(' subject-english ', subjects as any, {
+      subjectIds: ['legacy-english-id'],
+      subjectNames: [' english '],
+    }),
+    true,
+  );
+});
+
+test('matchesSubjectFilter treats direct subject ids case-insensitively and trims whitespace', () => {
+  const subjects = [{ id: 'subject-math', name: 'Mathematics' }];
+
+  assert.equal(
+    matchesSubjectFilter(' SUBJECT-MATH ', subjects as any, {
+      subjectIds: [' subject-math '],
+      subjectNames: ['Numeracy'],
+    }),
+    true,
+  );
+});
+
+test('matchesSubjectFilter returns false when neither subject id nor subject name align', () => {
+  const subjects = [{ id: 'subject-arabic', name: 'Arabic' }];
+
+  assert.equal(
+    matchesSubjectFilter('subject-arabic', subjects as any, {
+      subjectIds: ['subject-english'],
+      subjectNames: ['English'],
+    }),
+    false,
   );
 });
