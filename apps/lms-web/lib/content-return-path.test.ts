@@ -65,7 +65,7 @@ test('buildReviewBlockersHref falls back to the generic blocker board for non-co
   assert.equal(buildReviewBlockersHref('/assignments'), '/content?view=blocked');
 });
 
-test('buildAssessmentReviewHref keeps exact module scope while routing back through the pilot-safe content assessments view', () => {
+test('buildAssessmentReviewHref keeps exact module + subject scope while routing back through the pilot-safe content assessments view', () => {
   assert.equal(
     buildAssessmentReviewHref({
       returnPath: '/content?view=blocked&subject=subject-english&status=draft',
