@@ -21,7 +21,7 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
 import { matchesSubjectFilter, resolveModuleSubjectId } from '../../lib/module-subject-match';
-import { buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
+import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -494,7 +494,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                           <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                         </ModalLauncher>
                       ) : (
-                        <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                        <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                           Review gate
                         </Link>
                       )}
@@ -644,7 +644,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                         <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                       </ModalLauncher>
                     ) : (
-                      <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                      <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                         Review gate
                       </Link>
                     )}
