@@ -1,4 +1,12 @@
-export const navigationItems = [
+export type NavigationItem = {
+  id: string;
+  label: string;
+  href: string;
+  availability?: 'deferred';
+  availabilityLabel?: string;
+};
+
+export const navigationItems: readonly NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/' },
   { id: 'content', label: 'Content Library', href: '/content' },
   { id: 'canvas', label: 'Curriculum Studio', href: '/canvas' },
@@ -6,7 +14,13 @@ export const navigationItems = [
   { id: 'students', label: 'Students', href: '/students' },
   { id: 'mallams', label: 'Mallams', href: '/mallams' },
   { id: 'pods', label: 'Pods', href: '/pods' },
-  { id: 'devices', label: 'Devices', href: '/devices' },
+  {
+    id: 'devices',
+    label: 'Devices',
+    href: '/devices',
+    availability: 'deferred',
+    availabilityLabel: 'Deferred for pilot',
+  },
   { id: 'attendance', label: 'Attendance', href: '/attendance' },
   { id: 'assignments', label: 'Assignments', href: '/assignments' },
   { id: 'assessments', label: 'Assessments', href: '/assessments' },

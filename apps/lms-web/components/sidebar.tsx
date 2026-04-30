@@ -131,14 +131,15 @@ export function Sidebar({
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
           <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full navigation active</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the full LMS shell to manage curriculum, learners, mallams, pods, devices, assignments, rewards, reports, and deployment trust from one place.</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Launch-critical navigation live</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the live LMS shell to manage curriculum, learners, mallams, pods, assignments, rewards, reports, and deployment trust. Deferred device controls stay labeled as pilot-blocked until that route is genuinely in scope.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
           {navigationItems.map((item) => {
             const active = isActivePath(pathname, item.href);
             const monogram = itemMonogram(item.label);
+            const isDeferred = item.availability === 'deferred';
 
             return (
               <Link
@@ -147,22 +148,47 @@ export function Sidebar({
                 prefetch={false}
                 data-nav-id={item.id}
                 data-nav-href={item.href}
-                aria-label={sidebarCollapsed ? item.label : undefined}
-                title={sidebarCollapsed ? item.label : undefined}
+                aria-label={sidebarCollapsed ? `${item.label}${isDeferred ? ` (${item.availabilityLabel ?? 'Deferred'})` : ''}` : undefined}
+                title={sidebarCollapsed ? `${item.label}${isDeferred ? ` · ${item.availabilityLabel ?? 'Deferred'}` : ''}` : undefined}
                 className={`sidebar__nav-link ${sidebarCollapsed ? 'sidebar__nav-link--collapsed' : ''}`}
                 style={{
                   textDecoration: 'none',
                   color: '#e5e7eb',
                   padding: '13px 14px',
                   borderRadius: 16,
-                  background: active ? 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)' : 'rgba(255,255,255,0.04)',
+                  background: active
+                    ? 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)'
+                    : isDeferred
+                      ? 'rgba(251, 191, 36, 0.12)'
+                      : 'rgba(255,255,255,0.04)',
                   fontWeight: 700,
-                  border: active ? 'none' : '1px solid rgba(255,255,255,0.05)',
+                  border: active
+                    ? 'none'
+                    : isDeferred
+                      ? '1px solid rgba(251, 191, 36, 0.26)'
+                      : '1px solid rgba(255,255,255,0.05)',
                   boxShadow: active ? '0 14px 28px rgba(108, 99, 255, 0.28)' : 'none',
                 }}
               >
                 <span className="sidebar__nav-icon" aria-hidden="true">{monogram}</span>
-                <span className="sidebar__nav-label">{item.label}</span>
+                <span className="sidebar__nav-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span>{item.label}</span>
+                  {isDeferred ? (
+                    <span
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 999,
+                        background: 'rgba(251, 191, 36, 0.18)',
+                        color: '#FDE68A',
+                        fontSize: 11,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {item.availabilityLabel ?? 'Deferred'}
+                    </span>
+                  ) : null}
+                </span>
               </Link>
             );
           })}
@@ -170,7 +196,7 @@ export function Sidebar({
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to move across the full admin surface without pilot-route filtering or hidden sections.</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to move across the live admin surface. If a route is still deferred for pilot, label it honestly instead of pretending the deployment scope is wider than it is.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>

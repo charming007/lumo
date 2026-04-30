@@ -873,19 +873,27 @@ export default async function HomePage() {
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Admin routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
 
-		{navigationItems.map((item) => (
-		<Pill key={item.id} label={item.label} tone="#DCFCE7" text="#166534" />
+                {navigationItems.map((item) => {
+                  const isDeferred = item.availability === 'deferred';
 
-                ))}
+                  return (
+                    <Pill
+                      key={item.id}
+                      label={isDeferred ? `${item.label} · ${item.availabilityLabel ?? 'Deferred'}` : item.label}
+                      tone={isDeferred ? '#FEF3C7' : '#DCFCE7'}
+                      text={isDeferred ? '#92400E' : '#166534'}
+                    />
+                  );
+                })}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                The LMS dashboard should expose the real admin shell reviewers and operators use in production. Hiding live routes behind a pilot-only map turns the front door into a misleading deployment surface.
+                The LMS dashboard should expose the real admin shell reviewers and operators use in production. If a route is still pilot-blocked, the route map needs to say so plainly instead of pretending that every lane is live.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why full scope matters</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why honest scope matters</div>
               <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                Deployment review gets dangerous when the dashboard implies a narrower product than the LMS actually ships. Keep the route map honest so navigation, screenshots, and operator trust all match the real admin surface.
+                Deployment review gets dangerous when the dashboard claims full live scope but a nav click still lands on a pilot blocker. Keep the route map honest so navigation, screenshots, and operator trust all match the real admin surface.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
