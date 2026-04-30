@@ -951,11 +951,37 @@ function coerceOptionalNumber(value) {
 }
 
 function resolveStudentScope({ learnerId = null, learnerCode = null } = {}) {
-  return learnerId
-    ? store.findStudentById(String(learnerId))
-    : learnerCode
-      ? findStudentByLearnerCode(String(learnerCode))
+  const normalizedLearnerId = learnerId ? String(learnerId).trim() : null;
+  const normalizedLearnerCode = learnerCode ? String(learnerCode).trim() : null;
+
+  return normalizedLearnerId
+    ? store.findStudentById(normalizedLearnerId)
+    : normalizedLearnerCode
+      ? findStudentByLearnerCode(normalizedLearnerCode)
       : null;
+}
+
+function resolveStudentForSyncPayload(payload = {}) {
+  const directIdCandidates = [payload.studentId, payload.learnerId]
+    .map((value) => (value === undefined || value === null ? null : String(value).trim()))
+    .filter(Boolean);
+  const learnerCode = payload.learnerCode ? String(payload.learnerCode).trim() : null;
+
+  for (const candidateId of directIdCandidates) {
+    const student = store.findStudentById(candidateId);
+    if (student) {
+      return student;
+    }
+  }
+
+  if (learnerCode) {
+    const student = findStudentByLearnerCode(learnerCode);
+    if (student) {
+      return student;
+    }
+  }
+
+  return null;
 }
 
 function buildProgressionOverrideResponse(record) {
@@ -1408,9 +1434,7 @@ function syncLearnerAppEvents(events = [], options = {}) {
     }
 
     if (['lesson_session_started', 'learner_response_captured', 'coach_support_used', 'facilitator_observation_added', 'learner_audio_captured', 'lesson_step_completed', 'lesson_step_advanced'].includes(type)) {
-      const student = payload.studentId
-        ? store.findStudentById(payload.studentId)
-        : findStudentByLearnerCode(payload.learnerCode);
+      const student = resolveStudentForSyncPayload(payload);
 
       if (!student) {
         const error = new Error(`Unknown learner for sync event: ${payload.learnerCode || payload.studentId || 'missing identifier'}`);
@@ -1443,9 +1467,7 @@ function syncLearnerAppEvents(events = [], options = {}) {
     }
 
     if (['lesson_completed', 'learner_marked_absent', 'lesson_skipped', 'learner_reward_redeemed'].includes(type)) {
-      const student = payload.studentId || payload.learnerId
-        ? store.findStudentById(payload.studentId || payload.learnerId)
-        : findStudentByLearnerCode(payload.learnerCode);
+      const student = resolveStudentForSyncPayload(payload);
 
       if (!student) {
         const error = new Error(`Unknown learner for sync event: ${payload.learnerCode || payload.studentId || payload.learnerId || 'missing identifier'}`);

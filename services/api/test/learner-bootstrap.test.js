@@ -11,6 +11,7 @@ process.env.PORT = '0';
 
 const repository = require('../src/repository');
 const rewards = require('../src/rewards');
+const presenters = require('../src/presenters');
 const { startServer } = require('../src/main');
 
 let server;
@@ -625,6 +626,7 @@ test('learner availability supports absent terminal status from offline tablet s
 test('learner reward redemption sync accepts stable student identifiers and updates reward totals', async () => {
   const learner = repository.listStudents().find((entry) => entry.id === 'student-1');
   assert.ok(learner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
 
   const before = rewards.buildLearnerRewards(learner.id);
   const syncResponse = await request('/api/v1/learner-app/sync', {
@@ -635,7 +637,7 @@ test('learner reward redemption sync accepts stable student identifiers and upda
           id: 'reward-redemption-student-1',
           type: 'learner_reward_redeemed',
           studentId: learner.id,
-          learnerCode: learner.learnerCode,
+          learnerCode: learnerProfile.learnerCode,
           rewardId: 'tablet-reward-1',
           optionId: 'helper-star',
           title: 'Helper Star',
@@ -660,6 +662,47 @@ test('learner reward redemption sync accepts stable student identifiers and upda
   assert.equal(redemption.studentId, learner.id);
   assert.equal(redemption.kind, 'redemption');
   assert.equal(redemption.xpDelta, -15);
+});
+
+test('lesson completion sync falls back to learnerCode when studentId is stale', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
+  assert.ok(learner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  const before = rewards.buildLearnerRewards(learner.id);
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [
+        {
+          id: 'lesson-complete-stale-student-id',
+          type: 'lesson_completed',
+          studentId: 'tablet-local-zainab',
+          learnerCode: learnerProfile.learnerCode,
+          lessonId: 'lesson-1',
+          moduleId: 'module-1',
+          stepIndex: 3,
+          stepsTotal: 3,
+          completionState: 'completed',
+          review: 'onTrack',
+          supportActionsUsed: 0,
+          observations: ['Needed no support'],
+          capturedAt: '2026-04-23T12:00:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.accepted, 1, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.results[0].type, 'lesson_completed');
+  assert.equal(syncResponse.body.results[0].rewards.learnerId, learner.id);
+
+  const after = rewards.buildLearnerRewards(learner.id);
+  assert.equal(after.totalXp, before.totalXp + 19, JSON.stringify({ before, after }));
+
+  const completion = repository.listRewardTransactions().find((entry) => entry.studentId === learner.id && entry.kind === 'lesson_completed');
+  assert.ok(completion, JSON.stringify(repository.listRewardTransactions()));
 });
 
 test('tablet-scoped learner registration also resolves pod scope from body deviceIdentifier when the header is absent', async () => {

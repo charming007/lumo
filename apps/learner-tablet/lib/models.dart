@@ -286,9 +286,14 @@ class LearnerProfile {
     final gender = (json['gender'] ?? 'unspecified').toString();
     final level = (json['level'] ?? 'beginner').toString();
     final podLabel = json['podLabel']?.toString();
-    final cohortName = json['cohortName']?.toString();
+    final cohortName =
+        json['cohortName']?.toString() ?? json['cohort']?.toString();
     final name = json['name']?.toString() ?? 'Learner';
     final age = _asInt(json['age']) ?? 0;
+    final learnerCode =
+        json['learnerCode']?.toString().trim().isNotEmpty == true
+            ? json['learnerCode']!.toString().trim()
+            : _buildLearnerCode(name: name, cohort: cohortName, age: age);
 
     final rewardsJson = json['rewards'];
 
@@ -311,7 +316,7 @@ class LearnerProfile {
       sex: _sexFromGender(gender),
       baselineLevel: _baselineFromLevel(level),
       consentCaptured: true,
-      learnerCode: _buildLearnerCode(name: name, cohort: cohortName, age: age),
+      learnerCode: learnerCode,
       caregiverRelationship: 'Guardian',
       enrollmentStatus: 'Active in backend',
       attendanceBand: _attendanceBand(json['attendanceRate']),
