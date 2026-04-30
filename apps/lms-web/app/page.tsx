@@ -413,7 +413,7 @@ export default async function HomePage() {
         ? assetRuntimeResult.status === 'rejected'
           ? assetRuntimeAuthBlocked
             ? 'The dashboard cannot read the protected asset runtime audit because the LMS is missing or using the wrong admin API key. Until that auth wiring is fixed, this route cannot honestly prove upload readiness, registry integrity, or managed lesson media health.'
-            : 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for pilot content operations.'
+            : 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for live content operations.'
           : 'The asset runtime audit is live, and it is telling you asset operations are blocked. A dashboard that still looks deployable while uploads or managed lesson references are broken is lying by omission.'
         : !modules.length && !lessons.length && !assessments.length
           ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
@@ -457,7 +457,7 @@ export default async function HomePage() {
                   'A loud auth blocker is safer than shipping a dashboard that implies lesson media is trustworthy while its protected audits are still locked.',
                 ]
               : [
-                  'This pilot depends on shared lesson media, upload integrity, and managed asset references. If those are broken, the front door should not pretend deployment is fine.',
+                  'This deployment depends on shared lesson media, upload integrity, and managed asset references. If those are broken, the front door should not pretend deployment is fine.',
                   'Operators use the dashboard as a trust signal before validating learner content paths. Broken asset operations mean lessons can still fail even if top-line counts look healthy.',
                   'A loud blocker is safer than shipping a dashboard that hides dead uploads, broken registry state, or stale backend media references.',
                 ]
@@ -494,7 +494,7 @@ export default async function HomePage() {
                 {
                   surface: 'Lesson media pipeline',
                   expected: 'Managed lesson assets resolve cleanly without broken or unresolved references',
-                  failure: 'Pilot lessons can silently lose media even though the root route still looks green',
+                  failure: 'Live lessons can silently lose media even though the root route still looks green',
                 },
                 {
                   surface: 'Cross-check routes',
@@ -516,7 +516,7 @@ export default async function HomePage() {
                 {
                   surface: 'Cross-check routes',
                   expected: '/content and /assignments agree with the root release-readiness board after recovery',
-                  failure: 'Dashboard says release is reviewable while the pilot content and delivery routes still show degraded curriculum or assignment data',
+                  failure: 'Dashboard says release is reviewable while the live content and delivery routes still show degraded curriculum or assignment data',
                 },
               ]}
         fixItems={hasCriticalDashboardGap
@@ -750,7 +750,7 @@ export default async function HomePage() {
                 </div>
                 <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
                   {canLaunchTopReleaseLessonCreate
-                    ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so pilot operators do not end up juggling two competing release boards.'
+                    ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
                     : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -774,7 +774,7 @@ export default async function HomePage() {
                     <strong style={{ fontSize: 18, color: assetReadinessTone(assetRuntime.summary.readiness).text }}>{assetRuntime.summary.headline}</strong>
                     <div style={{ color: assetReadinessTone(assetRuntime.summary.readiness).text, lineHeight: 1.6 }}>
                       {assetOpsVisibleBlocker
-                        ? `${assetRuntime.summary.operatorAction} Do not let a pilot reviewer mistake a broken asset registry for “content is ready anyway.”`
+                        ? `${assetRuntime.summary.operatorAction} Do not let a deployment reviewer mistake a broken asset registry for “content is ready anyway.”`
                         : 'Shared media registry, uploads, and reference integrity look usable from the runtime audit. Keep it that way.'}
                     </div>
                   </div>
@@ -804,7 +804,7 @@ export default async function HomePage() {
                   </Link>
                 </div>
               </div>
-            ) : sectionAlert('Asset runtime diagnostics are unavailable right now. That means the dashboard cannot honestly tell you whether the shared media registry is ready for pilot content ops.', 'warning')}
+            ) : sectionAlert('Asset runtime diagnostics are unavailable right now. That means the dashboard cannot honestly tell you whether the shared media registry is ready for live content ops.', 'warning')}
             <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 10 }}>
               <div style={{ display: 'grid', gap: 6 }}>
                 <strong style={{ color: '#3730A3' }}>Curriculum action lives in Content Library</strong>
@@ -887,13 +887,13 @@ export default async function HomePage() {
                 })}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                The LMS dashboard should expose the real admin shell reviewers and operators use in production. If a route is still pilot-blocked, the route map needs to say so plainly instead of pretending that every lane is live.
+                The LMS dashboard should expose the real admin shell reviewers and operators use in production. If a route is still deferred, the route map needs to say so plainly instead of pretending that every lane is live.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why honest scope matters</div>
               <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                Deployment review gets dangerous when the dashboard claims full live scope but a nav click still lands on a pilot blocker. Keep the route map honest so navigation, screenshots, and operator trust all match the real admin surface.
+                Deployment review gets dangerous when the dashboard claims full live scope but a nav click still lands on a deferred route. Keep the route map honest so navigation, screenshots, and operator trust all match the real admin surface.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
