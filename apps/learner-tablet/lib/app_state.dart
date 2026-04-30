@@ -359,18 +359,22 @@ class LumoAppState {
     return _lessonContentOrigins[lesson.id.trim()] ??
         (_isBundledFundamentalsLesson(lesson)
             ? ContentOrigin.bundledOfflinePack
-            : usingFallbackData && restoredFromPersistence
-                ? ContentOrigin.localCache
-                : ContentOrigin.seedDemoFallback);
+            : !usingFallbackData
+                ? ContentOrigin.liveBackend
+                : restoredFromPersistence
+                    ? ContentOrigin.localCache
+                    : ContentOrigin.seedDemoFallback);
   }
 
   ContentOrigin moduleOriginFor(LearningModule module) {
     return _moduleContentOrigins[module.id.trim()] ??
-        (restoredFromPersistence && usingFallbackData
-            ? ContentOrigin.localCache
-            : module.badge.toLowerCase().contains('bundled')
-                ? ContentOrigin.bundledOfflinePack
-                : ContentOrigin.seedDemoFallback);
+        (!usingFallbackData
+            ? ContentOrigin.liveBackend
+            : restoredFromPersistence
+                ? ContentOrigin.localCache
+                : module.badge.toLowerCase().contains('bundled')
+                    ? ContentOrigin.bundledOfflinePack
+                    : ContentOrigin.seedDemoFallback);
   }
 
   ContentSourceStatus sourceStatusForLesson(LessonCardModel lesson) {
@@ -646,6 +650,8 @@ class LumoAppState {
               .toList() ??
           const <LearnerAssignmentPack>[];
 
+      final restoringFallbackData = snapshot['usingFallbackData'] != false;
+
       final restoredScopedLearners = _normalizeLearnersToRegistrationContext(
         _learnersWithinTabletPodScope(
           restoredLearners.isEmpty && _includeSeedDemoContent
@@ -692,7 +698,9 @@ class LumoAppState {
           modules,
           restoredModules.isEmpty && _includeSeedDemoContent
               ? ContentOrigin.seedDemoFallback
-              : ContentOrigin.localCache,
+              : restoringFallbackData
+                  ? ContentOrigin.localCache
+                  : ContentOrigin.liveBackend,
         );
       }
       assignedLessons
@@ -722,7 +730,9 @@ class LumoAppState {
           assignedLessons,
           restoredLessons.isEmpty && _includeSeedDemoContent
               ? ContentOrigin.seedDemoFallback
-              : ContentOrigin.localCache,
+              : restoringFallbackData
+                  ? ContentOrigin.localCache
+                  : ContentOrigin.liveBackend,
         );
       }
       assignmentPacks

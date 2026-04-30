@@ -5833,6 +5833,63 @@ void main() {
       },
     );
 
+    test(
+      'restored live lesson and module content keep live backend origin',
+      () async {
+        final state = LumoAppState(includeSeedDemoContent: false);
+        final module = const LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Live module',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Live goal',
+          badge: '1 lesson',
+        );
+        final lesson = const LessonCardModel(
+          id: 'english-live-restore-1',
+          moduleId: 'english',
+          title: 'Live hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Live practice',
+          scenario: 'Live backend lesson.',
+          steps: [
+            LessonStep(
+              id: 'live-step-1',
+              type: LessonStepType.intro,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Keep it short.',
+              realWorldCheck: 'Learner says hello.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.modules
+          ..clear()
+          ..add(module);
+        state.assignedLessons
+          ..clear()
+          ..add(lesson);
+        state.usingFallbackData = false;
+        state.restoredFromPersistence = true;
+
+        expect(
+          state.sourceStatusForModule(module).origin,
+          ContentOrigin.liveBackend,
+        );
+        expect(
+          state.sourceStatusForLesson(lesson).origin,
+          ContentOrigin.liveBackend,
+        );
+      },
+    );
+
     test('subject-first cards keep assigned and bundled lessons visible', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       final englishModule = state.modules.firstWhere(
