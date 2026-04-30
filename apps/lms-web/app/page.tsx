@@ -346,7 +346,7 @@ export default async function HomePage() {
         return null;
       }
 
-      const subjectId = module.subjectId?.trim() || subjects.find((subject) => subject.name === module.subjectName)?.id || '';
+      const subjectId = resolveModuleSubjectId(module, subjects);
 
       return {
         id: module.id,
