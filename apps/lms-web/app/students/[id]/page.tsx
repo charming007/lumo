@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { DeleteStudentForm, UpdateStudentForm } from '../../../components/admin-forms';
 import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../../components/modal-launcher';
-import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudent } from '../../../lib/api';
+import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudent, fetchStudentRewards } from '../../../lib/api';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
 function percent(value: number | null | undefined) {
@@ -15,10 +15,17 @@ function formatRewardKind(value: string | null | undefined) {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function rewardProgressPercent(value: number | null | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 0;
+  const normalized = value > 1 ? value / 100 : value;
+  return Math.max(0, Math.min(100, Math.round(normalized * 100)));
+}
+
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [studentResult, cohortsResult, podsResult, mallamsResult, centersResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
+  const [studentResult, studentRewardsResult, cohortsResult, podsResult, mallamsResult, centersResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
     fetchStudent(id),
+    fetchStudentRewards(id),
     fetchCohorts(),
     fetchPods(),
     fetchMallams(),
@@ -37,6 +44,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
 
   const failedSources = [
     studentResult.status === 'rejected' ? 'student detail' : null,
+    studentRewardsResult.status === 'rejected' ? 'canonical rewards snapshot' : null,
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
@@ -46,6 +54,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   ].filter(Boolean) as string[];
 
   if (!student) notFound();
+
+  const rewards = studentRewardsResult.status === 'fulfilled'
+    ? { ...studentRewardsResult.value, learnerName: studentRewardsResult.value.learnerName || student.name }
+    : student.rewards;
+  const progressPercent = rewardProgressPercent(rewards?.progressToNextLevel);
 
   return (
     <PageShell
@@ -81,8 +94,8 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                 { label: 'Stage', value: student.stage || '—' },
                 { label: 'Attendance', value: percent(student.attendanceRate) },
                 { label: 'Pod', value: student.podLabel || 'Unassigned' },
-                { label: 'Earned points', value: String(student.rewards?.points ?? student.rewards?.totalXp ?? 0) },
-                { label: 'Badges', value: String(student.rewards?.badgesUnlocked ?? 0) },
+                { label: 'Earned points', value: String(rewards?.points ?? rewards?.totalXp ?? 0) },
+                { label: 'Badges', value: String(rewards?.badgesUnlocked ?? 0) },
               ]}
             />
           </Card>
@@ -101,8 +114,8 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Pill label={student.level || 'Unknown'} tone="#EEF2FF" text="#3730A3" />
               <Pill label={student.stage || 'Unknown stage'} tone="#ECFDF5" text="#166534" />
-              <Pill label={`${student.rewards?.points ?? student.rewards?.totalXp ?? 0} pts`} tone="#FEF3C7" text="#92400E" />
-              <Pill label={`${student.rewards?.badgesUnlocked ?? 0} badge${(student.rewards?.badgesUnlocked ?? 0) === 1 ? '' : 's'}`} tone="#FDF2F8" text="#9D174D" />
+              <Pill label={`${rewards?.points ?? rewards?.totalXp ?? 0} pts`} tone="#FEF3C7" text="#92400E" />
+              <Pill label={`${rewards?.badgesUnlocked ?? 0} badge${(rewards?.badgesUnlocked ?? 0) === 1 ? '' : 's'}`} tone="#FDF2F8" text="#9D174D" />
             </div>
             <div style={{ color: '#475569', lineHeight: 1.7 }}>
               Age: <strong>{student.age || '—'}</strong><br />
@@ -116,24 +129,24 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           <div style={{ display: 'grid', gap: 14 }}>
             <MetricList
               items={[
-                { label: 'Earned points', value: String(student.rewards?.points ?? student.rewards?.totalXp ?? 0) },
-                { label: 'Reward level', value: student.rewards?.levelLabel ? `Level ${student.rewards.level} · ${student.rewards.levelLabel}` : '—' },
-                { label: 'Next level in', value: `${student.rewards?.xpForNextLevel ?? 0} pts` },
-                { label: 'Badges unlocked', value: String(student.rewards?.badgesUnlocked ?? 0) },
+                { label: 'Earned points', value: String(rewards?.points ?? rewards?.totalXp ?? 0) },
+                { label: 'Reward level', value: rewards?.levelLabel ? `Level ${rewards.level} · ${rewards.levelLabel}` : '—' },
+                { label: 'Next level in', value: `${rewards?.xpForNextLevel ?? 0} pts` },
+                { label: 'Badges unlocked', value: String(rewards?.badgesUnlocked ?? 0) },
               ]}
             />
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: '#475569', fontSize: 14 }}>
                 <span>Progress to next reward level</span>
-                <strong style={{ color: '#0f172a' }}>{Math.round((student.rewards?.progressToNextLevel ?? 0) * 100)}%</strong>
+                <strong style={{ color: '#0f172a' }}>{progressPercent}%</strong>
               </div>
               <div style={{ height: 10, borderRadius: 999, background: '#E2E8F0', overflow: 'hidden' }}>
-                <div style={{ width: `${Math.round((student.rewards?.progressToNextLevel ?? 0) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #6366F1, #F59E0B)' }} />
+                <div style={{ width: `${progressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #6366F1, #F59E0B)' }} />
               </div>
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Recent reward activity</div>
-              {student.rewards?.recentTransactions?.length ? student.rewards.recentTransactions.slice(0, 5).map((transaction) => (
+              {rewards?.recentTransactions?.length ? rewards.recentTransactions.slice(0, 5).map((transaction) => (
                 <div key={transaction.id} style={{ borderRadius: 14, border: '1px solid #E2E8F0', padding: '12px 14px', display: 'grid', gap: 4 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                     <strong style={{ color: '#0f172a' }}>{transaction.label || formatRewardKind(transaction.kind)}</strong>
