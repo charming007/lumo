@@ -359,27 +359,22 @@ export function Sidebar({
           .sidebar--collapsed .sidebar__callout,
           .sidebar--collapsed .sidebar__footer,
           .sidebar--collapsed .sidebar__nav-label {
-            display: initial;
-          }
-
-          .sidebar--collapsed .sidebar__callout,
-          .sidebar--collapsed .sidebar__footer {
-            display: block;
+            display: none;
           }
 
           .sidebar--collapsed .sidebar__brand-copy {
-            display: block;
-            width: auto;
+            display: flex;
+            width: 100%;
           }
 
           .sidebar--collapsed .sidebar__nav-link {
-            justify-content: flex-start;
-            padding-left: 14px !important;
-            padding-right: 14px !important;
+            justify-content: center;
+            padding-left: 10px !important;
+            padding-right: 10px !important;
           }
 
           .sidebar--collapsed .sidebar__actions {
-            flex-direction: row;
+            flex-direction: column;
           }
 
           .sidebar--open {
