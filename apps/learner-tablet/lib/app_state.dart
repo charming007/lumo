@@ -1863,11 +1863,20 @@ class LumoAppState {
       return orderedLessons;
     }
 
-    if (usingFallbackData) {
-      for (final learner in scopedLearners) {
-        for (final lesson in lessonsForLearner(learner)) {
-          addLesson(lesson);
-        }
+    for (final learner in scopedLearners) {
+      for (final lesson in lessonsForLearner(learner)) {
+        addLesson(lesson);
+      }
+    }
+    if (orderedLessons.isNotEmpty) {
+      return orderedLessons;
+    }
+
+    for (final lesson in assignedLessons) {
+      if (!_isPublishedLearnerLesson(lesson)) continue;
+      if (scopedLearners
+          .any((learner) => learnerCanOpenLesson(learner, lesson))) {
+        addLesson(lesson);
       }
     }
 
