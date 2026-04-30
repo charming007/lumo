@@ -9,6 +9,7 @@ import { navigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
+import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { resolveModuleSubjectId, subjectsIncludeId } from '../lib/module-subject-match';
 
@@ -304,6 +305,7 @@ export default async function HomePage() {
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
     assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
@@ -402,7 +404,11 @@ export default async function HomePage() {
         ? 'Recover subject context first'
         : 'Open exact blocker';
 
-  if (hasCriticalDashboardGap || criticalReleaseFailures.length || hasCriticalAssetOpsGap) {
+  if (shouldBlockDashboardPage({
+    criticalDashboardFailureCount: criticalDashboardFailures.length,
+    criticalReleaseFailureCount: criticalReleaseFailures.length,
+    hasCriticalAssetOpsGap,
+  })) {
     const blockerDetail = hasCriticalDashboardGap
       ? !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
         ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
