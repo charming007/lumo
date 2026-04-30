@@ -11,10 +11,6 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function isLessonAuthoringPath(pathname: string) {
-  return pathname === '/content/lessons/new' || pathname.startsWith('/content/lessons/');
-}
-
 function itemMonogram(label: string) {
   return label
     .split(' ')
@@ -41,19 +37,6 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const previousPathnameRef = useRef(pathname);
-  const lessonAuthoringRoute = isLessonAuthoringPath(pathname);
-  const shellLabel = lessonAuthoringRoute ? 'Lesson Studio workspace' : 'Pilot workspace';
-  const shellHeadline = lessonAuthoringRoute ? 'Authoring routes active' : 'Pilot routes active';
-  const brandDetail = lessonAuthoringRoute
-    ? 'Focused authoring shell for building and editing lesson packs without dropping context, assets, or curriculum alignment.'
-    : 'Pilot-only LMS shell for daily deployment checks: dashboard, content, assignments, progress, and settings.';
-  const calloutDetail = lessonAuthoringRoute
-    ? 'Stay inside the real lesson authoring flow: create, duplicate, edit, and asset-hop without getting dumped back into generic control-room copy.'
-    : 'Keep operators inside the real pilot loop instead of advertising side routes that are not part of deployment sign-off.';
-  const footerTitle = lessonAuthoringRoute ? 'Lesson authoring workspace' : 'Pilot workspace';
-  const footerDetail = lessonAuthoringRoute
-    ? 'This shell stays focused on lesson creation and editing, while the rest of the admin surfaces remain reachable when you deliberately step back out to the broader LMS board.'
-    : 'This shell now matches the actual pilot launch path, so walkthroughs and screenshots stop sending operators into dead-end side routes.';
 
   useEffect(() => {
     if (previousPathnameRef.current !== pathname && mobileNavOpen) {
@@ -99,7 +82,7 @@ export function Sidebar({
           <div className="sidebar__brand-copy">
             <div style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              {brandDetail}
+              Admin control plane for curriculum, learners, mallams, pods, devices, assignments, rewards, reporting, and deployment trust.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -147,9 +130,9 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
-          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>{shellLabel}</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>{shellHeadline}</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>{calloutDetail}</div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full navigation active</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the full LMS shell to manage curriculum, learners, mallams, pods, devices, assignments, rewards, reports, and deployment trust from one place.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
@@ -186,8 +169,8 @@ export function Sidebar({
         </nav>
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>{footerTitle}</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>{footerDetail}</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to move across the full admin surface without pilot-route filtering or hidden sections.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
