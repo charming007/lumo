@@ -207,10 +207,7 @@ function deriveMallamIdFromPodId(podId) {
     || null;
 }
 
-function buildCanonicalLearnerCode(student, cohort = null) {
-  const persistedLearnerCode = student?.learnerCode ? String(student.learnerCode).trim() : '';
-  if (persistedLearnerCode) return persistedLearnerCode;
-
+function buildBaseLearnerCode(student, cohort = null) {
   const resolvedCohort = cohort || (student?.cohortId ? findCohortById(student.cohortId) : null);
   const cleanedName = String(student?.name || 'NEW').replace(/[^A-Za-z]/g, '').toUpperCase();
   const prefix = (cleanedName || 'NEW').slice(0, 3).padEnd(3, 'X');
@@ -225,6 +222,28 @@ function buildCanonicalLearnerCode(student, cohort = null) {
   return `${prefix}-${cohortCode}${ageCode}`;
 }
 
+function buildCanonicalLearnerCode(student, cohort = null) {
+  const persistedLearnerCode = student?.learnerCode ? String(student.learnerCode).trim() : '';
+  return persistedLearnerCode || buildBaseLearnerCode(student, cohort);
+}
+
+function ensureUniqueLearnerCode(student, preferredCode) {
+  const normalizedPreferredCode = preferredCode ? String(preferredCode).trim() : '';
+  const fallbackBaseCode = buildBaseLearnerCode(student);
+  const baseCode = normalizedPreferredCode || fallbackBaseCode;
+  const conflicts = data.students.filter((entry) => entry && entry.id !== student.id && String(entry.learnerCode || '').trim() === baseCode);
+
+  if (conflicts.length === 0) {
+    return baseCode;
+  }
+
+  const stableSuffix = String(student?.id || 'student-new')
+    .replace(/^student-/i, '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase() || 'X';
+  return `${baseCode}-${stableSuffix}`;
+}
+
 function normalizeStudentRecord(student) {
   if (!student || typeof student !== 'object') return student;
 
@@ -235,7 +254,7 @@ function normalizeStudentRecord(student) {
     student.podId = canonicalPodId;
   }
 
-  student.learnerCode = buildCanonicalLearnerCode(student, cohort);
+  student.learnerCode = ensureUniqueLearnerCode(student, buildCanonicalLearnerCode(student, cohort));
 
   if (Object.prototype.hasOwnProperty.call(student, 'podLabel')) {
     delete student.podLabel;
