@@ -82,7 +82,7 @@ export function Sidebar({
           <div className="sidebar__brand-copy">
             <div className="sidebar__brand-mark" aria-hidden="true" style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              Admin control plane for curriculum, learners, mallams, pods, devices, assignments, rewards, reporting, and deployment trust.
+              Pilot-first admin shell for curriculum, assignments, learner progress, device trust, and the few controls operators actually need.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -130,9 +130,9 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
-          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full admin navigation live</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the live LMS admin shell to manage curriculum, learners, mallams, pods, devices, assignments, rewards, reports, and deployment trust.</div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Pilot scope</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Keep operators on the narrow lane</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Dashboard, Content, Assignments, Progress, Devices, and Settings are the live pilot control plane. Everything marked deferred stays visible only as a clearly non-core surface.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
@@ -198,8 +198,8 @@ export function Sidebar({
         </nav>
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to move across the live admin surface for curriculum, roster, device, reporting, and deployment operations.</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Pilot workspace</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to ship curriculum safely, assign delivery, watch learner risk, and verify deployment trust without drowning operators in every back-office screen.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>

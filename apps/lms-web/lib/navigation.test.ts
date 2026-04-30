@@ -23,3 +23,26 @@ test('live navigation routes do not inherit the deferred pilot marker', () => {
     assert.equal(item?.availabilityLabel, undefined);
   }
 });
+
+test('pilot-deferred routes stay visibly marked so operators do not treat them as core control planes', () => {
+  const deferredRoutes = [
+    ['canvas', 'Internal only'],
+    ['english', 'Internal only'],
+    ['students', 'Back office'],
+    ['mallams', 'Back office'],
+    ['pods', 'Back office'],
+    ['attendance', 'Back office'],
+    ['assessments', 'Back office'],
+    ['rewards', 'Post-pilot'],
+    ['reports', 'Post-pilot'],
+    ['guide', 'Docs only'],
+  ] as const;
+
+  for (const [routeId, availabilityLabel] of deferredRoutes) {
+    const item = navigationItems.find((entry) => entry.id === routeId);
+
+    assert.ok(item, `expected ${routeId} navigation item to exist`);
+    assert.equal(item?.availability, 'deferred');
+    assert.equal(item?.availabilityLabel, availabilityLabel);
+  }
+});
