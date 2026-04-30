@@ -82,7 +82,7 @@ export function Sidebar({
           <div className="sidebar__brand-copy">
             <div className="sidebar__brand-mark" aria-hidden="true" style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              Pilot-first admin shell for curriculum, assignments, learner progress, device trust, and the few controls operators actually need.
+              Full LMS admin shell for curriculum, assignments, learner progress, devices, staffing, reporting, and day-to-day operations.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -130,17 +130,15 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
-          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Pilot scope</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Keep operators on the narrow lane</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Dashboard, Content, Assignments, Progress, Devices, and Settings are the live pilot control plane. Everything marked deferred stays visible only as a clearly non-core surface.</div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin shell</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full operations navigation is live</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use this shell to move across the full LMS surface: curriculum, delivery, learner oversight, staffing, pods, devices, rewards, reporting, and settings.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
           {navigationItems.map((item) => {
             const active = isActivePath(pathname, item.href);
             const monogram = itemMonogram(item.label);
-            const isDeferred = item.availability === 'deferred';
-
             return (
               <Link
                 key={item.id}
@@ -148,8 +146,8 @@ export function Sidebar({
                 prefetch={false}
                 data-nav-id={item.id}
                 data-nav-href={item.href}
-                aria-label={sidebarCollapsed ? `${item.label}${isDeferred ? ` (${item.availabilityLabel ?? 'Deferred'})` : ''}` : undefined}
-                title={sidebarCollapsed ? `${item.label}${isDeferred ? ` · ${item.availabilityLabel ?? 'Deferred'}` : ''}` : undefined}
+                aria-label={sidebarCollapsed ? item.label : undefined}
+                title={sidebarCollapsed ? item.label : undefined}
                 className={`sidebar__nav-link ${sidebarCollapsed ? 'sidebar__nav-link--collapsed' : ''}`}
                 style={{
                   textDecoration: 'none',
@@ -158,39 +156,19 @@ export function Sidebar({
                   borderRadius: 16,
                   background: active
                     ? 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)'
-                    : isDeferred
-                      ? 'rgba(251, 191, 36, 0.12)'
-                      : 'rgba(255,255,255,0.04)',
+                    : 'rgba(255,255,255,0.04)',
                   fontWeight: 700,
                   border: active
                     ? 'none'
-                    : isDeferred
-                      ? '1px solid rgba(251, 191, 36, 0.26)'
-                      : '1px solid rgba(255,255,255,0.05)',
+                    : '1px solid rgba(255,255,255,0.05)',
                   boxShadow: active ? '0 14px 28px rgba(108, 99, 255, 0.28)' : 'none',
                 }}
               >
                 <span className="sidebar__nav-icon" aria-hidden="true">
                   <span className="sidebar__nav-icon-text">{monogram}</span>
-                  {isDeferred ? <span className="sidebar__nav-status-dot" aria-hidden="true" /> : null}
                 </span>
                 <span className="sidebar__nav-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span>{item.label}</span>
-                  {isDeferred ? (
-                    <span
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: 999,
-                        background: 'rgba(251, 191, 36, 0.18)',
-                        color: '#FDE68A',
-                        fontSize: 11,
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {item.availabilityLabel ?? 'Deferred'}
-                    </span>
-                  ) : null}
                 </span>
               </Link>
             );
@@ -198,8 +176,8 @@ export function Sidebar({
         </nav>
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Pilot workspace</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to ship curriculum safely, assign delivery, watch learner risk, and verify deployment trust without drowning operators in every back-office screen.</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to run the LMS end to end: publish curriculum, assign delivery, monitor learner risk, manage staffing and pods, review rewards and reports, and verify deployment trust.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
@@ -264,18 +242,6 @@ export function Sidebar({
 
         .sidebar__nav-icon-text {
           line-height: 1;
-        }
-
-        .sidebar__nav-status-dot {
-          position: absolute;
-          right: -2px;
-          bottom: -2px;
-          width: 8px;
-          height: 8px;
-          border-radius: 999px;
-          background: #fbbf24;
-          border: 2px solid #111827;
-          box-sizing: border-box;
         }
 
         .sidebar--collapsed {

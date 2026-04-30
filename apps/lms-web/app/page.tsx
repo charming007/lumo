@@ -293,6 +293,7 @@ export default async function HomePage() {
     { label: 'subjects', result: subjectsResult },
   ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
   const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
+  const subjectFeedAvailable = subjectsResult.status === 'fulfilled';
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
     !workboardAvailable ? 'workboard' : null,
@@ -303,7 +304,6 @@ export default async function HomePage() {
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
     assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
@@ -378,9 +378,15 @@ export default async function HomePage() {
   const topReleaseBlockerBoardHref = topReleaseBlocker
     ? `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${encodeURIComponent(topReleaseBlocker.subjectId)}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`
     : '/content?view=blocked';
+  const topReleaseBlockerSubjectMetadataMissing = Boolean(
+    topReleaseBlocker?.missingLessons
+    && topReleaseBlocker.hasAuthoringContext
+    && !subjectFeedAvailable,
+  );
   const canLaunchTopReleaseLessonCreate = Boolean(
     topReleaseBlocker?.missingLessons
     && topReleaseBlocker.hasAuthoringContext
+    && subjectFeedAvailable
     && subjectsIncludeId(subjects, topReleaseBlocker.subjectId),
   );
   const topReleaseBlockerPrimaryHref = canLaunchTopReleaseLessonCreate && topReleaseBlocker
@@ -390,9 +396,11 @@ export default async function HomePage() {
     ? topReleaseBlocker.missingLessons === 1
       ? 'Create missing lesson'
       : `Create ${topReleaseBlocker.missingLessons} missing lessons`
-    : topReleaseBlocker?.missingLessons
-      ? 'Recover subject context first'
-      : 'Open exact blocker';
+    : topReleaseBlockerSubjectMetadataMissing
+      ? 'Subject metadata degraded'
+      : topReleaseBlocker?.missingLessons
+        ? 'Recover subject context first'
+        : 'Open exact blocker';
 
   if (hasCriticalDashboardGap || criticalReleaseFailures.length || hasCriticalAssetOpsGap) {
     const blockerDetail = hasCriticalDashboardGap
@@ -714,6 +722,7 @@ export default async function HomePage() {
               ))}
             </div>
             {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. Open Content Library after the feeds recover; the dashboard will not pretend to be the blocker board.', 'warning') : null}
+            {releaseFeedsAvailable && !subjectFeedAvailable ? sectionAlert('Subject metadata is degraded, so this dashboard can still flag blocked modules but will route you back to Content Library instead of pretending lesson-create shortcuts are trustworthy.', 'warning') : null}
             {releaseFeedsAvailable && topReleaseBlocker ? (
               <div style={{ padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -751,7 +760,9 @@ export default async function HomePage() {
                 <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
                   {canLaunchTopReleaseLessonCreate
                     ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
-                    : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
+                    : topReleaseBlockerSubjectMetadataMissing
+                      ? 'The module still has enough context to prove it is blocked, but the subject feed is degraded. The dashboard refuses to fake a trustworthy lesson-create shortcut and sends operators back to Content Library.'
+                      : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Link href={topReleaseBlockerPrimaryHref} style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
@@ -872,28 +883,23 @@ export default async function HomePage() {
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Admin routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-
-                {navigationItems.map((item) => {
-                  const isDeferred = item.availability === 'deferred';
-
-                  return (
-                    <Pill
-                      key={item.id}
-                      label={isDeferred ? `${item.label} · ${item.availabilityLabel ?? 'Deferred'}` : item.label}
-                      tone={isDeferred ? '#FEF3C7' : '#DCFCE7'}
-                      text={isDeferred ? '#92400E' : '#166534'}
-                    />
-                  );
-                })}
+                {navigationItems.map((item) => (
+                  <Pill
+                    key={item.id}
+                    label={item.label}
+                    tone="#DCFCE7"
+                    text="#166534"
+                  />
+                ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                The LMS dashboard should expose the real admin shell reviewers and operators use in production. If a route is still deferred, the route map needs to say so plainly instead of pretending that every lane is live.
+                The LMS dashboard should expose the real admin shell reviewers and operators use in production. This route map now reflects the full live LMS surface instead of an artificially narrowed shell.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why honest scope matters</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why coherent scope matters</div>
               <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                Deployment review gets dangerous when the dashboard claims full live scope but a nav click still lands on a deferred route. Keep the route map honest so navigation, screenshots, and operator trust all match the real admin surface.
+                Deployment review gets dangerous when shared shell copy says one thing and visible navigation does another. Keep the route map, sidebar, and dashboard aligned so operators can trust what the LMS actually exposes.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
