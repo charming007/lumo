@@ -80,7 +80,7 @@ export function Sidebar({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
           <div className="sidebar__brand-copy">
-            <div style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
+            <div className="sidebar__brand-mark" aria-hidden="true" style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
               Admin control plane for curriculum, learners, mallams, pods, devices, assignments, rewards, reporting, and deployment trust.
             </div>
@@ -170,7 +170,10 @@ export function Sidebar({
                   boxShadow: active ? '0 14px 28px rgba(108, 99, 255, 0.28)' : 'none',
                 }}
               >
-                <span className="sidebar__nav-icon" aria-hidden="true">{monogram}</span>
+                <span className="sidebar__nav-icon" aria-hidden="true">
+                  <span className="sidebar__nav-icon-text">{monogram}</span>
+                  {isDeferred ? <span className="sidebar__nav-status-dot" aria-hidden="true" /> : null}
+                </span>
                 <span className="sidebar__nav-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span>{item.label}</span>
                   {isDeferred ? (
@@ -244,6 +247,7 @@ export function Sidebar({
         }
 
         .sidebar__nav-icon {
+          position: relative;
           width: 24px;
           height: 24px;
           border-radius: 999px;
@@ -258,9 +262,27 @@ export function Sidebar({
           flex: 0 0 auto;
         }
 
+        .sidebar__nav-icon-text {
+          line-height: 1;
+        }
+
+        .sidebar__nav-status-dot {
+          position: absolute;
+          right: -2px;
+          bottom: -2px;
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: #fbbf24;
+          border: 2px solid #111827;
+          box-sizing: border-box;
+        }
+
         .sidebar--collapsed {
-          padding-left: 14px !important;
-          padding-right: 14px !important;
+          width: 92px;
+          padding: 14px 12px !important;
+          gap: 18px !important;
+          align-items: center;
         }
 
         .sidebar--collapsed .sidebar__brand-detail,
@@ -277,11 +299,38 @@ export function Sidebar({
           width: 100%;
         }
 
+        .sidebar--collapsed .sidebar__brand-mark {
+          width: 44px;
+          height: 44px;
+          border-radius: 16px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(167, 139, 250, 0.14);
+          border: 1px solid rgba(167, 139, 250, 0.2);
+          font-size: 14px !important;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
         .sidebar--collapsed .sidebar__nav-link {
           justify-content: center;
-          padding-left: 12px !important;
-          padding-right: 12px !important;
+          width: 100%;
           min-width: 0;
+          min-height: 56px;
+          padding: 10px !important;
+          border-radius: 18px;
+        }
+
+        .sidebar--collapsed .sidebar__nav-link:hover {
+          transform: translateY(-1px);
+        }
+
+        .sidebar--collapsed .sidebar__nav-icon {
+          width: 34px;
+          height: 34px;
+          font-size: 12px;
+          background: rgba(255, 255, 255, 0.14);
         }
 
         .sidebar--collapsed .sidebar__actions {
