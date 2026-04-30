@@ -1680,6 +1680,15 @@ void main() {
       expect(state.registrationDraft.cohort, 'Cohort A');
       expect(state.registrationDraft.mallamId, 'mallam-1');
 
+      final cohortField = tester.state<FormFieldState<String>>(
+        find.byKey(const ValueKey('registration-cohort-Cohort A-1')),
+      );
+      final mallamField = tester.state<FormFieldState<String>>(
+        find.byKey(const ValueKey('registration-mallam-mallam-1-1')),
+      );
+      expect(cohortField.value, 'Cohort A');
+      expect(mallamField.value, 'mallam-1');
+
       state.dispose();
     },
   );

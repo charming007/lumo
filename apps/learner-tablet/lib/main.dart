@@ -4447,6 +4447,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                         ),
                                       )
                                     : DropdownButtonFormField<String>(
+                                        key: ValueKey(
+                                          'registration-cohort-$cohortValue-${backendCohorts.length}',
+                                        ),
                                         isExpanded: true,
                                         initialValue:
                                             backendCohorts.any(
@@ -4516,6 +4519,9 @@ class _RegisterPageState extends State<RegisterPage> {
                               }
 
                               return DropdownButtonFormField<String>(
+                                key: ValueKey(
+                                  'registration-mallam-$selectedMallamId-${mallams.length}',
+                                ),
                                 isExpanded: true,
                                 initialValue: hasSelectedMallam
                                     ? selectedMallamId
