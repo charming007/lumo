@@ -1,5 +1,6 @@
 import { ExportShareCard } from '../../components/export-share-card';
 import { fetchCohorts, fetchMallams, fetchNgoSummary, fetchOperationsReport, fetchPods, fetchReportsOverview, fetchRewardsReport } from '../../lib/api';
+import type { NgoSummary, OperationsReport, ReportsOverview, RewardsReport } from '../../lib/types';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function normalizeFilterValue(value: string | string[] | undefined) {
@@ -7,13 +8,112 @@ function normalizeFilterValue(value: string | string[] | undefined) {
   return value ?? '';
 }
 
+const emptyOverview: ReportsOverview = {
+  totalStudents: 0,
+  totalTeachers: 0,
+  totalCenters: 0,
+  totalAssignments: 0,
+  presentToday: 0,
+  averageAttendance: 0,
+  averageMastery: 0,
+  readinessCount: 0,
+  watchCount: 0,
+  onTrackCount: 0,
+  assignmentsDueThisWeek: 0,
+  activePods: 0,
+  podsNeedingAttention: 0,
+};
+
+const emptyNgoSummary: NgoSummary = {
+  scope: { learnerCount: 0 },
+  totals: {
+    learners: 0,
+    centers: 0,
+    pods: 0,
+    mallams: 0,
+    activeAssignments: 0,
+    lessonsCompleted: 0,
+    completedSessions: 0,
+    attendanceAverage: 0,
+    averageMastery: 0,
+    totalXpAwarded: 0,
+  },
+  progression: {
+    ready: 0,
+    watch: 0,
+    onTrack: 0,
+  },
+  subjectBreakdown: [],
+  mallamSnapshots: [],
+  topLearners: [],
+};
+
+const emptyOperations: OperationsReport = {
+  scope: {},
+  summary: {
+    learnersInScope: 0,
+    runtimeCompletionRate: 0,
+    runtimeAbandonedSessions: 0,
+    progressionReady: 0,
+    progressionWatch: 0,
+    rewardPendingRequests: 0,
+    rewardFulfillmentRate: 0,
+    rewardBacklogUrgent: 0,
+    activeProgressionOverrides: 0,
+    sessionRepairs: 0,
+    integrityIssueCount: 0,
+  },
+  runtime: {},
+  progression: {},
+  rewards: {},
+  integrity: {},
+  hotlist: {
+    watchLearners: [],
+    readyLearners: [],
+    runtimeLearners: [],
+    stalledRuntimeLearners: [],
+    highSupportLearners: [],
+    rewardQueue: [],
+  },
+  recent: {
+    sessions: [],
+    events: [],
+    overrides: [],
+    rewardAdjustments: [],
+    rewardRequests: [],
+    integrityIssues: [],
+  },
+};
+
+const emptyRewards: RewardsReport = {
+  scope: { learnerCount: 0 },
+  summary: {
+    learners: 0,
+    transactionCount: 0,
+    totalXpAwarded: 0,
+    totalXpRedeemed: 0,
+    requestCount: 0,
+    correctionCount: 0,
+    revocationCount: 0,
+    fulfillmentRate: 0,
+    requestStatusCounts: {},
+  },
+  dailyXpTrend: [],
+  rewardDemand: [],
+  recentTransactions: [],
+  recentRequests: [],
+  recentAdjustments: [],
+  learnerBreakdown: [],
+  leaderboard: [],
+};
+
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
   const query = await searchParams;
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();
   const podFilter = normalizeFilterValue(query?.pod).trim();
   const mallamFilter = normalizeFilterValue(query?.mallam).trim();
 
-  const [overview, ngoSummary, operations, rewards, cohorts, pods, mallams] = await Promise.all([
+  const [overviewResult, ngoSummaryResult, operationsResult, rewardsResult, cohortsResult, podsResult, mallamsResult] = await Promise.allSettled([
     fetchReportsOverview(),
     fetchNgoSummary(),
     fetchOperationsReport(8, { cohortId: cohortFilter || undefined, podId: podFilter || undefined, mallamId: mallamFilter || undefined }),
@@ -22,6 +122,26 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
     fetchPods(),
     fetchMallams(),
   ]);
+
+  const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : emptyOverview;
+  const ngoSummary = ngoSummaryResult.status === 'fulfilled' ? ngoSummaryResult.value : emptyNgoSummary;
+  const operations = operationsResult.status === 'fulfilled' ? operationsResult.value : emptyOperations;
+  const rewards = rewardsResult.status === 'fulfilled' ? rewardsResult.value : emptyRewards;
+  const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+
+  const failedSources = [
+    overviewResult.status === 'rejected' ? 'overview' : null,
+    ngoSummaryResult.status === 'rejected' ? 'NGO summary' : null,
+    operationsResult.status === 'rejected' ? 'operations report' : null,
+    rewardsResult.status === 'rejected' ? 'rewards report' : null,
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+  ].filter(Boolean) as string[];
+
+  const hotlistRows = [...(operations.hotlist.readyLearners || []), ...(operations.hotlist.watchLearners || [])];
 
   return (
     <PageShell
@@ -41,6 +161,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
         </Card>
       }
     >
+      {failedSources.length ? (
+        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', lineHeight: 1.6, fontWeight: 700 }}>
+          Reports recovered with degraded feeds: {failedSources.join(', ')}. Operators can still filter, export, and review any live sections instead of getting punted into a 500 when one report feed flakes out.
+        </div>
+      ) : null}
+
       <section style={{ marginBottom: 20 }}>
         <Card title="Report filters" eyebrow="Operator scope">
           <form style={{ ...responsiveGrid(220), gap: 12 }}>
@@ -118,7 +244,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
             label: 'Download hotlist.csv',
             filename: 'lumo-hotlist.csv',
             mimeType: 'text/csv',
-            content: ['Learner,Cohort,Pod,Status,XP,Badges', ...[...(operations.hotlist.readyLearners || []), ...(operations.hotlist.watchLearners || [])].map((item) => [item.studentName, item.cohortName || '', item.podLabel || '', item.progressionStatus, item.totalXp || 0, item.badgesUnlocked || 0].join(','))].join('\n'),
+            content: ['Learner,Cohort,Pod,Status,XP,Badges', ...hotlistRows.map((item) => [item.studentName, item.cohortName || '', item.podLabel || '', item.progressionStatus, item.totalXp || 0, item.badgesUnlocked || 0].join(','))].join('\n'),
             tone: '#ECFDF5',
             text: '#166534',
           },
@@ -130,7 +256,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
       <Card title="Operational hotlist" eyebrow="Operations report">
         <SimpleTable
           columns={['Learner', 'Cohort', 'Pod', 'Status', 'XP', 'Badges']}
-          rows={[...(operations.hotlist.readyLearners || []), ...(operations.hotlist.watchLearners || [])].map((item) => [
+          rows={hotlistRows.map((item) => [
             item.studentName,
             item.cohortName || '—',
             item.podLabel || '—',
