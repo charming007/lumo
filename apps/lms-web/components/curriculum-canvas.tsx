@@ -1383,7 +1383,7 @@ function CanvasEmptyState({ failedSources, compact = false, searchAware = false 
             { label: 'Open content board', href: '/content', note: 'See the full curriculum library and filter by module, subject, or blockers.', background: '#ffffff', color: '#0f172a' },
             { label: 'Create a lesson', href: '/content/lessons/new?from=%2Fcanvas', note: 'Jump straight into authoring instead of waiting for the graph to fill in.', background: '#4F46E5', color: '#ffffff' },
             { label: 'Review blockers', href: '/content?view=blocked', note: 'Find modules missing ready lessons or assessment gates.', background: '#FEF3C7', color: '#92400E' },
-            { label: 'Open assessments', href: assessmentBoardHref({}), note: 'Manage progression gates and release readiness from the pilot content board.', background: '#EDE9FE', color: '#5B21B6' },
+            { label: 'Open assessments', href: assessmentBoardHref({}), note: 'Manage progression gates and release readiness from the live content board.', background: '#EDE9FE', color: '#5B21B6' },
           ].map((item) => (
             <div key={item.label} style={{ padding: 16, borderRadius: 20, background: 'rgba(15,23,42,0.72)', border: '1px solid rgba(148,163,184,0.16)', display: 'grid', gap: 12 }}>
               <div style={{ color: '#e2e8f0', fontWeight: 800 }}>{item.label}</div>

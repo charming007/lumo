@@ -28,7 +28,7 @@ function assertProtectedApiKeyConfigured(role = 'admin') {
 function buildApiHeaders(role = 'admin', includeJson = false) {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
-    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
+    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Lumo Admin',
   };
   assertProtectedApiKeyConfigured(role);
   const adminApiKey = getAdminApiKey();
@@ -1252,7 +1252,7 @@ export async function updateProgressAction(formData: FormData) {
       ? {
           status: progressionStatus,
           reason: overrideReason,
-          actorName: 'Pilot Admin',
+          actorName: 'Lumo Admin',
           actorRole: 'admin',
         }
       : null,
@@ -1275,7 +1275,7 @@ export async function awardStudentRewardAction(formData: FormData) {
     label: label || null,
     metadata: {
       source: 'lms-web-admin',
-      awardedBy: 'Pilot Admin',
+      awardedBy: 'Lumo Admin',
     },
   };
 
@@ -1304,7 +1304,7 @@ export async function correctRewardTransactionAction(formData: FormData) {
       note,
       metadata: {
         source: 'lms-web-admin',
-        adjustedBy: 'Pilot Admin',
+        adjustedBy: 'Lumo Admin',
       },
     }, 'admin');
   } catch (error) {
@@ -1333,7 +1333,7 @@ export async function revokeRewardTransactionAction(formData: FormData) {
       note,
       metadata: {
         source: 'lms-web-admin',
-        revokedBy: 'Pilot Admin',
+        revokedBy: 'Lumo Admin',
       },
     }, 'admin');
   } catch (error) {
@@ -1404,7 +1404,7 @@ export async function fulfillRewardRequestAction(formData: FormData) {
       adminNote: adminNote || null,
       metadata: {
         source: 'lms-web-admin',
-        fulfilledBy: 'Pilot Admin',
+        fulfilledBy: 'Lumo Admin',
       },
     },
   });
@@ -1439,7 +1439,7 @@ export async function expireRewardRequestAction(formData: FormData) {
       reason,
       metadata: {
         source: 'lms-web-admin',
-        expiredBy: 'Pilot Admin',
+        expiredBy: 'Lumo Admin',
       },
     },
   });

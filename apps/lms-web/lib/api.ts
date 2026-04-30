@@ -61,7 +61,7 @@ function assertProtectedApiKeyConfigured(role = 'admin') {
 function buildApiHeaders(role = 'admin') {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
-    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
+    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Lumo Admin',
   };
   assertProtectedApiKeyConfigured(role);
   const adminApiKey = getAdminApiKey();

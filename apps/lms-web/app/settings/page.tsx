@@ -13,7 +13,7 @@ import type { AssetRuntimeReport, MetaResponse, OperationsReport, RewardSnapshot
 const EMPTY_META: MetaResponse = {
   actor: {
     role: 'admin',
-    name: 'Pilot Admin',
+    name: 'Lumo Admin',
   },
   mode: 'offline',
   seedSummary: {},
