@@ -963,15 +963,18 @@ function resolveStudentScope({ learnerId = null, learnerCode = null } = {}) {
   const normalizedLearnerId = learnerId ? String(learnerId).trim() : null;
   const normalizedLearnerCode = learnerCode ? String(learnerCode).trim() : null;
 
+  if (normalizedLearnerCode) {
+    const studentByCode = findStudentByLearnerCode(normalizedLearnerCode);
+    if (studentByCode) {
+      return studentByCode;
+    }
+  }
+
   if (normalizedLearnerId) {
     const student = store.findStudentById(normalizedLearnerId);
     if (student) {
       return student;
     }
-  }
-
-  if (normalizedLearnerCode) {
-    return findStudentByLearnerCode(normalizedLearnerCode);
   }
 
   return null;
@@ -983,15 +986,15 @@ function resolveStudentForSyncPayload(payload = {}) {
     .filter(Boolean);
   const learnerCode = payload.learnerCode ? String(payload.learnerCode).trim() : null;
 
-  for (const candidateId of directIdCandidates) {
-    const student = store.findStudentById(candidateId);
-    if (student) {
-      return student;
+  if (learnerCode) {
+    const studentByCode = findStudentByLearnerCode(learnerCode);
+    if (studentByCode) {
+      return studentByCode;
     }
   }
 
-  if (learnerCode) {
-    const student = findStudentByLearnerCode(learnerCode);
+  for (const candidateId of directIdCandidates) {
+    const student = store.findStudentById(candidateId);
     if (student) {
       return student;
     }

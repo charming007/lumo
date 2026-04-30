@@ -705,6 +705,48 @@ test('lesson completion sync falls back to learnerCode when studentId is stale',
   assert.ok(completion, JSON.stringify(repository.listRewardTransactions()));
 });
 
+test('lesson completion sync prefers learnerCode over a conflicting but existing learnerId', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
+  const conflictingLearner = repository.listStudents().find((entry) => entry.id === 'student-1');
+  assert.ok(learner);
+  assert.ok(conflictingLearner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  const beforeTarget = rewards.buildLearnerRewards(learner.id);
+  const beforeConflicting = rewards.buildLearnerRewards(conflictingLearner.id);
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [
+        {
+          id: 'lesson-complete-conflicting-student-id',
+          type: 'lesson_completed',
+          studentId: conflictingLearner.id,
+          learnerCode: learnerProfile.learnerCode,
+          lessonId: 'lesson-1',
+          moduleId: 'module-1',
+          stepIndex: 3,
+          stepsTotal: 3,
+          completionState: 'completed',
+          review: 'onTrack',
+          supportActionsUsed: 0,
+          observations: ['Needed no support'],
+          capturedAt: '2026-04-23T12:15:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.accepted, 1, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.results[0].rewards.learnerId, learner.id);
+
+  const afterTarget = rewards.buildLearnerRewards(learner.id);
+  const afterConflicting = rewards.buildLearnerRewards(conflictingLearner.id);
+  assert.equal(afterTarget.totalXp, beforeTarget.totalXp + 19, JSON.stringify({ beforeTarget, afterTarget }));
+  assert.equal(afterConflicting.totalXp, beforeConflicting.totalXp, JSON.stringify({ beforeConflicting, afterConflicting }));
+});
+
 test('learner rewards endpoint falls back to learnerCode when learnerId is stale', async () => {
   const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
   assert.ok(learner);
@@ -714,6 +756,28 @@ test('learner rewards endpoint falls back to learnerCode when learnerId is stale
 
   assert.equal(response.status, 200, JSON.stringify(response.body));
   assert.equal(response.body.learnerId, learner.id);
+});
+
+test('learner rewards endpoint prefers learnerCode over a conflicting but existing learnerId', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
+  const conflictingLearner = repository.listStudents().find((entry) => entry.id === 'student-1');
+  assert.ok(learner);
+  assert.ok(conflictingLearner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  repository.createRewardTransaction({
+    studentId: learner.id,
+    kind: 'manual',
+    xpDelta: 11,
+    label: 'Conflicting id safeguard',
+    createdAt: '2026-04-23T12:30:00.000Z',
+  });
+
+  const response = await request(`/api/v1/learner-app/rewards?learnerId=${encodeURIComponent(conflictingLearner.id)}&learnerCode=${encodeURIComponent(learnerProfile.learnerCode)}`);
+
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(response.body.learnerId, learner.id);
+  assert.equal(response.body.totalXp, rewards.buildLearnerRewards(learner.id).totalXp);
 });
 
 test('learnerCode stays canonical and persisted across student updates', async () => {
