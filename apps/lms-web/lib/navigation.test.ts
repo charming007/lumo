@@ -3,17 +3,17 @@ import assert from 'node:assert/strict';
 
 import { navigationItems } from './navigation.ts';
 
-test('devices navigation item stays explicitly deferred for pilot until the route is truly live', () => {
+test('devices navigation item is restored as a live admin route', () => {
   const devicesItem = navigationItems.find((item) => item.id === 'devices');
 
   assert.ok(devicesItem, 'expected devices navigation item to exist');
   assert.equal(devicesItem?.href, '/devices');
-  assert.equal(devicesItem?.availability, 'deferred');
-  assert.equal(devicesItem?.availabilityLabel, 'Deferred for pilot');
+  assert.equal(devicesItem?.availability, undefined);
+  assert.equal(devicesItem?.availabilityLabel, undefined);
 });
 
 test('live navigation routes do not inherit the deferred pilot marker', () => {
-  const liveRouteIds = ['dashboard', 'content', 'assignments', 'progress', 'settings'];
+  const liveRouteIds = ['dashboard', 'content', 'devices', 'assignments', 'progress', 'settings'];
 
   for (const routeId of liveRouteIds) {
     const item = navigationItems.find((entry) => entry.id === routeId);
