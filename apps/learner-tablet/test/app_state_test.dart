@@ -5488,7 +5488,7 @@ void main() {
     );
 
     test(
-      'bootstrap keeps live subjects alongside bundled fundamentals instead of collapsing to the offline pack',
+      'bootstrap keeps bundled fundamentals out of learner-facing live subject pools',
       () async {
         final bundledLesson = LessonCardModel(
           id: 'lf-meet-mallam',
@@ -5542,15 +5542,6 @@ void main() {
           equals(['english', 'math', 'life-skills', 'lumo-fundamentals']),
         );
         expect(
-          state.modules.map((module) => module.title),
-          containsAll([
-            'English',
-            'Basic Mathematics',
-            'Life Skills',
-            'Lumo Fundamentals',
-          ]),
-        );
-        expect(
           state.assignedLessons.map((lesson) => lesson.id),
           containsAll([
             'english-live-1',
@@ -5558,6 +5549,14 @@ void main() {
             'life-live-1',
             'lf-meet-mallam',
           ]),
+        );
+        expect(
+          state.learnerFacingSubjects().map((subject) => subject.id).toList(),
+          equals(['basic-mathematics', 'english', 'life-skills']),
+        );
+        expect(
+          buildLearnerSubjectCards(state: state).map((card) => card.id).toList(),
+          equals(['basic-mathematics', 'english', 'life-skills']),
         );
         state.dispose();
       },

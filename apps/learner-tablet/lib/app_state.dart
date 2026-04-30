@@ -1758,10 +1758,16 @@ class LumoAppState {
 
   bool _isPublishedLearnerLesson(LessonCardModel lesson) {
     if (lesson.isAssignmentPlaceholder) return false;
-    return isLearnerVisibleLessonStatus(
+    if (!isLearnerVisibleLessonStatus(
       lesson.status,
       usingFallbackData: usingFallbackData,
-    );
+    )) {
+      return false;
+    }
+    if (usingFallbackData) {
+      return true;
+    }
+    return lessonOriginFor(lesson) == ContentOrigin.liveBackend;
   }
 
   String _normalizeSubjectKey(String value) {
