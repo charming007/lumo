@@ -1903,6 +1903,149 @@ void main() {
       state.dispose();
     });
 
+    test(
+      'bootstrap keeps pod-scoped learners when backend omits learner pod ids',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': 'learner-1',
+                        'name': 'Amina Bello',
+                        'age': 8,
+                        'cohortName': 'Pod 1 Cohort',
+                        'level': 'beginner',
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'subjectId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Foundational English',
+                        'level': 'foundation-a',
+                        'status': 'published',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'english-live',
+                        'moduleId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Live lesson',
+                        'durationMinutes': 8,
+                        'status': 'published',
+                        'mascotName': 'Mallam',
+                        'readinessFocus': 'Greeting',
+                        'scenario': 'This lesson should remain visible.',
+                        'activitySteps': [
+                          {
+                            'id': 'step-1',
+                            'type': 'intro',
+                            'title': 'Say hello',
+                            'instruction': 'Welcome the learner.',
+                            'expectedResponse': 'Hello',
+                            'coachPrompt': 'Say hello.',
+                            'facilitatorTip': 'Keep it short.',
+                            'speakerMode': 'guiding',
+                          },
+                        ],
+                      },
+                    ],
+                    'registrationContext': {
+                      'tabletRegistration': {
+                        'id': 'tablet-1',
+                        'deviceIdentifier': 'lumo-tablet-kano-01',
+                        'podId': 'pod-1',
+                        'podLabel': 'Pod 1',
+                      },
+                    },
+                    'assignments': [
+                      {
+                        'assignmentId': 'assignment-1',
+                        'lessonPack': {
+                          'lessonId': 'english-live',
+                          'moduleKey': 'english',
+                          'subjectId': 'english',
+                          'lessonTitle': 'Live lesson',
+                        },
+                        'eligibleLearners': [
+                          {'id': 'learner-1'},
+                        ],
+                      },
+                    ],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+
+              if (request.url.path == '/api/v1/learner-app/modules/english') {
+                return http.Response(
+                  jsonEncode({
+                    'subjectId': 'english',
+                    'subjectName': 'Foundational English',
+                    'title': 'Foundational English',
+                    'level': 'foundation-a',
+                    'status': 'published',
+                    'lessons': [
+                      {
+                        'id': 'english-live',
+                        'moduleId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Live lesson',
+                        'durationMinutes': 8,
+                        'status': 'published',
+                        'mascotName': 'Mallam',
+                        'readinessFocus': 'Greeting',
+                        'scenario': 'This lesson should remain visible.',
+                        'activitySteps': [
+                          {
+                            'id': 'step-1',
+                            'type': 'intro',
+                            'title': 'Say hello',
+                            'instruction': 'Welcome the learner.',
+                            'expectedResponse': 'Hello',
+                            'coachPrompt': 'Say hello.',
+                            'facilitatorTip': 'Keep it short.',
+                            'speakerMode': 'guiding',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignmentPacks': const [],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+
+        await state.bootstrap();
+
+        expect(state.learners, hasLength(1));
+        expect(state.learners.single.podId, 'pod-1');
+        expect(state.learners.single.podLabel, 'Pod 1');
+        expect(state.learnerFacingSubjects().map((item) => item.title), [
+          'Learning',
+        ]);
+        expect(
+          state.availableLearnersForLesson(state.assignedLessons.single),
+          hasLength(1),
+        );
+        state.dispose();
+      },
+    );
+
     test('persists registration draft photos across tablet restarts', () async {
       SharedPreferences.setMockInitialValues({});
       final state = LumoAppState(includeSeedDemoContent: true);
@@ -3167,7 +3310,8 @@ void main() {
       state.dispose();
     });
 
-    test('restore keeps orphaned active sessions pending until learner returns', () async {
+    test('restore keeps orphaned active sessions pending until learner returns',
+        () async {
       SharedPreferences.setMockInitialValues({
         'lumo_learner_tablet_state_v1': jsonEncode({
           'schemaVersion': '2026-04-13-runtime-persist',
@@ -3307,20 +3451,14 @@ void main() {
       );
       expect(
         state.activeSession!.speakerMode,
-        state
-            .activeSession!
-            .lesson
-            .steps[state.activeSession!.stepIndex]
+        state.activeSession!.lesson.steps[state.activeSession!.stepIndex]
             .speakerMode,
       );
       expect(state.activeSession!.transcript, isNotEmpty);
       expect(
         state.activeSession!.transcript.first.text,
         contains(
-          state
-              .activeSession!
-              .lesson
-              .steps[state.activeSession!.stepIndex]
+          state.activeSession!.lesson.steps[state.activeSession!.stepIndex]
               .coachPrompt,
         ),
       );
@@ -4158,92 +4296,85 @@ void main() {
       'lesson completion projects a completed runtime session locally',
       () async {
         late final LumoAppState state;
-        state =
-            LumoAppState(
-                includeSeedDemoContent: true,
-                apiClient: LumoApiClient(
-                  client: MockClient((request) async {
-                    if (request.url.path == '/api/v1/learner-app/sync') {
-                      return http.Response(
-                        jsonEncode({
-                          'accepted': 1,
-                          'ignored': 0,
-                          'syncedAt': '2026-04-12T10:00:00.000Z',
-                          'results': const [],
-                        }),
-                        200,
-                        headers: {'content-type': 'application/json'},
-                      );
-                    }
-                    if (request.url.path == '/api/v1/learner-app/rewards') {
-                      return http.Response(
-                        jsonEncode({
-                          'learnerId': beginner.id,
-                          'totalXp': 180,
-                          'points': 180,
-                          'level': 3,
-                          'levelLabel': 'Bright Reader',
-                          'nextLevel': 4,
-                          'nextLevelLabel': 'Story Scout',
-                          'xpIntoLevel': 20,
-                          'xpForNextLevel': 60,
-                          'progressToNextLevel': 0.25,
-                          'badgesUnlocked': 1,
-                          'badges': const [],
-                        }),
-                        200,
-                        headers: {'content-type': 'application/json'},
-                      );
-                    }
-                    if (request.url.path == '/api/v1/learner-app/sessions') {
-                      return http.Response(
-                        jsonEncode({
-                          'sessions': [
-                            {
-                              'id':
-                                  state.activeSession?.sessionId ??
-                                  'runtime-session-stale',
-                              'sessionId':
-                                  state.activeSession?.sessionId ??
-                                  'session-stale',
-                              'studentId': beginner.id,
-                              'learnerCode': beginner.learnerCode,
-                              'lessonId':
-                                  state.activeSession?.lesson.id ??
-                                  'lesson-stale',
-                              'lessonTitle':
-                                  state.activeSession?.lesson.title ??
-                                  'Older session',
-                              'moduleId':
-                                  state.activeSession?.lesson.moduleId ??
-                                  'english',
-                              'moduleTitle':
-                                  state.activeSession?.lesson.subject ??
-                                  'English',
-                              'status': 'in_progress',
-                              'completionState': 'inProgress',
-                              'automationStatus': 'Waiting for input.',
-                              'currentStepIndex': 1,
-                              'stepsTotal': 4,
-                              'responsesCaptured': 0,
-                              'supportActionsUsed': 0,
-                              'audioCaptures': 0,
-                              'facilitatorObservations': 0,
-                              'lastActivityAt': '2026-04-12T09:00:00.000Z',
-                            },
-                          ],
-                        }),
-                        200,
-                        headers: {'content-type': 'application/json'},
-                      );
-                    }
-                    throw Exception('Unexpected request: ${request.url}');
+        state = LumoAppState(
+          includeSeedDemoContent: true,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/sync') {
+                return http.Response(
+                  jsonEncode({
+                    'accepted': 1,
+                    'ignored': 0,
+                    'syncedAt': '2026-04-12T10:00:00.000Z',
+                    'results': const [],
                   }),
-                  baseUrl: 'https://example.com',
-                ),
-              )
-              ..usingFallbackData = false
-              ..currentLearner = beginner;
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              if (request.url.path == '/api/v1/learner-app/rewards') {
+                return http.Response(
+                  jsonEncode({
+                    'learnerId': beginner.id,
+                    'totalXp': 180,
+                    'points': 180,
+                    'level': 3,
+                    'levelLabel': 'Bright Reader',
+                    'nextLevel': 4,
+                    'nextLevelLabel': 'Story Scout',
+                    'xpIntoLevel': 20,
+                    'xpForNextLevel': 60,
+                    'progressToNextLevel': 0.25,
+                    'badgesUnlocked': 1,
+                    'badges': const [],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              if (request.url.path == '/api/v1/learner-app/sessions') {
+                return http.Response(
+                  jsonEncode({
+                    'sessions': [
+                      {
+                        'id': state.activeSession?.sessionId ??
+                            'runtime-session-stale',
+                        'sessionId':
+                            state.activeSession?.sessionId ?? 'session-stale',
+                        'studentId': beginner.id,
+                        'learnerCode': beginner.learnerCode,
+                        'lessonId':
+                            state.activeSession?.lesson.id ?? 'lesson-stale',
+                        'lessonTitle': state.activeSession?.lesson.title ??
+                            'Older session',
+                        'moduleId':
+                            state.activeSession?.lesson.moduleId ?? 'english',
+                        'moduleTitle':
+                            state.activeSession?.lesson.subject ?? 'English',
+                        'status': 'in_progress',
+                        'completionState': 'inProgress',
+                        'automationStatus': 'Waiting for input.',
+                        'currentStepIndex': 1,
+                        'stepsTotal': 4,
+                        'responsesCaptured': 0,
+                        'supportActionsUsed': 0,
+                        'audioCaptures': 0,
+                        'facilitatorObservations': 0,
+                        'lastActivityAt': '2026-04-12T09:00:00.000Z',
+                      },
+                    ],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        )
+          ..usingFallbackData = false
+          ..currentLearner = beginner;
 
         final lesson = state.assignedLessons.firstWhere(
           (item) => item.moduleId == 'english',

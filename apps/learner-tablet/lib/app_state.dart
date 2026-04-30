@@ -895,11 +895,14 @@ class LumoAppState {
           if (learner.learnerCode.trim().isNotEmpty)
             learner.learnerCode: learner,
       };
+      final bootstrapLearnerSource = data.learners.isEmpty &&
+              _includeSeedDemoContent &&
+              !_hasTabletPodScope(registrationContext: registrationContext)
+          ? learnerProfilesSeed
+          : data.learners;
       final bootstrapLearners = _normalizeLearnersToRegistrationContext(
         _learnersWithinTabletPodScope(
-          data.learners.isEmpty && _includeSeedDemoContent
-              ? learnerProfilesSeed
-              : data.learners,
+          bootstrapLearnerSource,
           registrationContext: registrationContext,
         ),
         registrationContext: registrationContext,
@@ -1418,13 +1421,28 @@ class LumoAppState {
     if (podId == null || podId.isEmpty) {
       return source.toList(growable: false);
     }
+
+    final sourceList = source.toList(growable: false);
     final canonicalPodLabel = _tabletPodLabelFor(
       scopedRegistrationContext,
-      source: source,
+      source: sourceList,
     );
-    return source
+    final learnersWithScopedPod = sourceList
         .where((learner) => learner.podId?.trim() == podId)
-        .map((learner) {
+        .toList(growable: false);
+
+    final hasExplicitPodScope = sourceList.any(
+      (learner) => learner.podId?.trim().isNotEmpty == true,
+    );
+    final scopedLearners = learnersWithScopedPod.isNotEmpty
+        ? learnersWithScopedPod
+        : sourceList.isEmpty
+            ? const <LearnerProfile>[]
+            : !hasExplicitPodScope
+                ? sourceList
+                : const <LearnerProfile>[];
+
+    return scopedLearners.map((learner) {
       final resolvedPodLabel = canonicalPodLabel ?? learner.podLabel;
       final villageLooksPodScoped = learner.village.trim().isEmpty ||
           learner.village.trim() == learner.podLabel?.trim();
