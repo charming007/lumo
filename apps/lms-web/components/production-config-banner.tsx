@@ -56,7 +56,7 @@ export function ProductionConfigBanner() {
           </div>
         ) : null}
         <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
-          Fix the production env, redeploy, then verify the pilot control plane routes that actually matter for launch readiness.
+          Fix the production env, redeploy, then verify the live admin routes that actually matter for deployment readiness.
         </div>
       </div>
 

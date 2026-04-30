@@ -45,7 +45,7 @@ export function PilotScopeBlocker({
           </div>
 
           <div style={{ padding: '16px 18px', borderRadius: 18, background: 'white', border: '1px solid #fed7aa', display: 'grid', gap: 10 }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Use the launch-critical surfaces instead</div>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Use the live admin surfaces instead</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {keepUsing.map((label) => (
                 <Pill key={label} label={label} tone="#FFF7ED" text="#9A3412" />

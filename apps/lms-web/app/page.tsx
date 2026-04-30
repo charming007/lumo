@@ -809,7 +809,7 @@ export default async function HomePage() {
               <div style={{ display: 'grid', gap: 6 }}>
                 <strong style={{ color: '#3730A3' }}>Curriculum action lives in Content Library</strong>
                 <span style={{ color: '#4338CA', lineHeight: 1.6 }}>
-                  The dashboard stays a thin pilot front door: scan the counts here, then use Content Library for blocker triage, lesson authoring, and release cleanup.
+                  The dashboard stays a thin admin front door: scan the counts here, then use Content Library for blocker triage, lesson authoring, and release cleanup.
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

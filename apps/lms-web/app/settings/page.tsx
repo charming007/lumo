@@ -460,7 +460,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
         <Card title="Route handoff" eyebrow="Use the right surface next">
           <div style={{ display: 'grid', gap: 12 }}>
             {[
-              { label: 'Dashboard', href: '/', detail: 'Return to the pilot front door and re-check deployment trust, readiness counts, and blocker visibility.' },
+              { label: 'Dashboard', href: '/', detail: 'Return to the admin front door and re-check deployment trust, readiness counts, and blocker visibility.' },
               { label: 'Progress', href: '/progress', detail: 'Cross-check whether progression readiness, watchlist learners, and override pressure match the trust picture here.' },
               { label: 'Content Library', href: '/content', detail: 'Use the scoped authoring board when integrity or asset issues mean the release lane still needs cleanup.' },
             ].map((item) => (

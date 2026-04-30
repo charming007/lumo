@@ -131,8 +131,8 @@ export function Sidebar({
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
           <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin workspace</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Launch-critical navigation live</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the live LMS shell to manage curriculum, learners, mallams, pods, devices, assignments, rewards, reports, and deployment trust.</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full admin navigation live</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use the live LMS admin shell to manage curriculum, learners, mallams, pods, devices, assignments, rewards, reports, and deployment trust.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
