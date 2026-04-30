@@ -705,6 +705,41 @@ test('lesson completion sync falls back to learnerCode when studentId is stale',
   assert.ok(completion, JSON.stringify(repository.listRewardTransactions()));
 });
 
+test('learner rewards endpoint falls back to learnerCode when learnerId is stale', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
+  assert.ok(learner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  const response = await request(`/api/v1/learner-app/rewards?learnerId=tablet-local-zainab&learnerCode=${encodeURIComponent(learnerProfile.learnerCode)}`);
+
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(response.body.learnerId, learner.id);
+});
+
+test('learnerCode stays canonical and persisted across student updates', async () => {
+  const created = repository.createStudent({
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-1',
+    name: 'Zainab Musa',
+    age: 8,
+    learnerCode: 'ZAI-K108',
+  });
+
+  assert.equal(created.learnerCode, 'ZAI-K108');
+  assert.equal(repository.findStudentById(created.id).learnerCode, 'ZAI-K108');
+  assert.equal(presenters.presentLearnerProfile(created).learnerCode, 'ZAI-K108');
+
+  const updated = repository.updateStudent(created.id, {
+    name: 'Zainab Musa Bello',
+    age: 9,
+    cohortId: 'cohort-2',
+  });
+
+  assert.equal(updated.learnerCode, 'ZAI-K108');
+  assert.equal(repository.findStudentById(created.id).learnerCode, 'ZAI-K108');
+  assert.equal(presenters.presentLearnerProfile(updated).learnerCode, 'ZAI-K108');
+});
+
 test('tablet-scoped learner registration also resolves pod scope from body deviceIdentifier when the header is absent', async () => {
   const created = await request('/api/v1/learner-app/learners', {
     method: 'POST',

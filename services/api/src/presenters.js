@@ -14,6 +14,11 @@ function formatReadinessLabel(level) {
 }
 
 function buildLearnerCode(student, cohort) {
+  const persistedLearnerCode = student?.learnerCode ? String(student.learnerCode).trim() : '';
+  if (persistedLearnerCode) {
+    return persistedLearnerCode;
+  }
+
   const cleanedName = (student.name || 'NEW').replace(/[^A-Za-z]/g, '').toUpperCase();
   const prefix = (cleanedName || 'NEW').slice(0, 3).padEnd(3, 'X');
   const cohortCode = (cohort?.name || 'General Cohort')

@@ -207,6 +207,24 @@ function deriveMallamIdFromPodId(podId) {
     || null;
 }
 
+function buildCanonicalLearnerCode(student, cohort = null) {
+  const persistedLearnerCode = student?.learnerCode ? String(student.learnerCode).trim() : '';
+  if (persistedLearnerCode) return persistedLearnerCode;
+
+  const resolvedCohort = cohort || (student?.cohortId ? findCohortById(student.cohortId) : null);
+  const cleanedName = String(student?.name || 'NEW').replace(/[^A-Za-z]/g, '').toUpperCase();
+  const prefix = (cleanedName || 'NEW').slice(0, 3).padEnd(3, 'X');
+  const cohortCode = String(resolvedCohort?.name || 'General Cohort')
+    .split(' ')
+    .map((part) => (part ? part[0] : ''))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+    .padEnd(2, 'G');
+  const ageCode = String(student?.age || 0).padStart(2, '0');
+  return `${prefix}-${cohortCode}${ageCode}`;
+}
+
 function normalizeStudentRecord(student) {
   if (!student || typeof student !== 'object') return student;
 
@@ -216,6 +234,8 @@ function normalizeStudentRecord(student) {
   if (student.podId !== canonicalPodId) {
     student.podId = canonicalPodId;
   }
+
+  student.learnerCode = buildCanonicalLearnerCode(student, cohort);
 
   if (Object.prototype.hasOwnProperty.call(student, 'podLabel')) {
     delete student.podLabel;
@@ -514,6 +534,7 @@ function createStudent(input) {
     supportPlan: input.supportPlan || '',
     village: input.village || '',
     deviceAccess: input.deviceAccess || 'shared-tablet',
+    learnerCode: input.learnerCode || null,
   };
 
   normalizeStudentRecord(student);
@@ -549,6 +570,7 @@ function updateStudent(id, input) {
     supportPlan: input.supportPlan ?? student.supportPlan,
     village: input.village ?? student.village,
     deviceAccess: input.deviceAccess ?? student.deviceAccess,
+    learnerCode: input.learnerCode ?? student.learnerCode,
   });
 
   normalizeStudentRecord(student);

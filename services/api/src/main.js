@@ -680,9 +680,18 @@ function normalizeLearnerAppStudentPayload(body = {}) {
 function findStudentByLearnerCode(learnerCode) {
   if (!learnerCode) return null;
 
+  const normalizedLearnerCode = String(learnerCode).trim();
+  if (!normalizedLearnerCode) return null;
+
   return store
     .listStudents()
-    .find((student) => presenters.presentLearnerProfile(student).learnerCode === learnerCode) || null;
+    .find((student) => {
+      const persistedLearnerCode = student?.learnerCode ? String(student.learnerCode).trim() : null;
+      if (persistedLearnerCode && persistedLearnerCode === normalizedLearnerCode) {
+        return true;
+      }
+      return presenters.presentLearnerProfile(student).learnerCode === normalizedLearnerCode;
+    }) || null;
 }
 
 function buildScopedLearnerAssignments({ podId = null } = {}) {
@@ -954,11 +963,18 @@ function resolveStudentScope({ learnerId = null, learnerCode = null } = {}) {
   const normalizedLearnerId = learnerId ? String(learnerId).trim() : null;
   const normalizedLearnerCode = learnerCode ? String(learnerCode).trim() : null;
 
-  return normalizedLearnerId
-    ? store.findStudentById(normalizedLearnerId)
-    : normalizedLearnerCode
-      ? findStudentByLearnerCode(normalizedLearnerCode)
-      : null;
+  if (normalizedLearnerId) {
+    const student = store.findStudentById(normalizedLearnerId);
+    if (student) {
+      return student;
+    }
+  }
+
+  if (normalizedLearnerCode) {
+    return findStudentByLearnerCode(normalizedLearnerCode);
+  }
+
+  return null;
 }
 
 function resolveStudentForSyncPayload(payload = {}) {
