@@ -39,6 +39,30 @@ void main() {
       await client.fetchBootstrap();
     });
 
+    test('allows slower bootstrap responses without timing out early',
+        () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          await Future<void>.delayed(const Duration(seconds: 4));
+          return http.Response(
+            jsonEncode({
+              'learners': const [],
+              'modules': const [],
+              'lessons': const [],
+              'assignments': const [],
+              'registrationContext': const {},
+              'meta': const {},
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+      );
+
+      await expectLater(client.fetchBootstrap(), completes);
+    });
+
     test(
         'sends device identifier on learner registration and skips manual backendTarget when tablet identity is present',
         () async {

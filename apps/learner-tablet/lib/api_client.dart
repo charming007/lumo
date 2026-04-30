@@ -41,7 +41,6 @@ class LumoApiClient {
   final String baseUrl;
   String? deviceIdentifier;
   static const Duration _requestTimeout = Duration(seconds: 12);
-  static const Duration _bootstrapTimeout = Duration(seconds: 3);
 
   static String normalizeBaseUrl(String rawBaseUrl) {
     final trimmed = rawBaseUrl.trim();
@@ -191,16 +190,14 @@ class LumoApiClient {
       includeDeviceIdentifierQuery: true,
     );
     final response = await _send(
-      () => _client
-          .get(
+      () => _client.get(
             uri,
             headers: _jsonHeadersWithDevice(
               overrideDeviceIdentifier: overrideDeviceIdentifier,
               includeContentType: false,
               includeDeviceIdentifierHeader: false,
             ),
-          )
-          .timeout(_bootstrapTimeout),
+          ),
       action: 'load learner app bootstrap',
       uri: uri,
     );
