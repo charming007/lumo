@@ -985,12 +985,15 @@ class LumoAppState {
       acknowledgedOfflineFallbackRisk = false;
       deploymentBlockerReason = liveBootstrapRuntimeBlocker;
       backendError = liveBootstrapRuntimeBlocker;
-      lastSyncedAt = DateTime.now();
-      lastSyncAttemptAt = lastSyncedAt;
-      snapshotSavedAt = lastSyncedAt;
-      snapshotSourceBaseUrl = backendBaseUrl;
-      snapshotContractVersion = data.contractVersion;
-      snapshotTrustedFromLiveBootstrap = true;
+      final bootstrapRecordedAt = DateTime.now();
+      lastSyncAttemptAt = bootstrapRecordedAt;
+      if (liveBootstrapRuntimeBlocker == null) {
+        lastSyncedAt = bootstrapRecordedAt;
+        snapshotSavedAt = bootstrapRecordedAt;
+        snapshotSourceBaseUrl = backendBaseUrl;
+        snapshotContractVersion = data.contractVersion;
+        snapshotTrustedFromLiveBootstrap = true;
+      }
       backendGeneratedAt = data.generatedAt == null
           ? null
           : DateTime.tryParse(data.generatedAt!);
