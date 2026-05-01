@@ -302,6 +302,14 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
     final backendLabel = backendHost != null && backendHost.isNotEmpty
         ? '$backendHost · $configuredBackend'
         : configuredBackend;
+    final deviceIdentifier = state.stableDeviceIdentifier?.trim();
+    final deviceIdentifierLabel =
+        deviceIdentifier != null && deviceIdentifier.isNotEmpty
+        ? deviceIdentifier
+        : 'Not provisioned in this build';
+    final blockerNeedsDeviceIdentity =
+        blockerReason.toLowerCase().contains('device identifier') ||
+        blockerReason.toLowerCase().contains('tablet registration');
 
     return Scaffold(
       body: SafeArea(
@@ -449,6 +457,53 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                 blockerReason.contains('LUMO_API_BASE_URL')
                                     ? 'This build is blocked on release config, not learner content. Fix the API host, redeploy, then retry on the tablet.'
                                     : 'This is the production host the tablet is trying to reach right now. If it looks wrong, fix the release config before blaming the learner roster.',
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.45,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: blockerNeedsDeviceIdentity
+                                ? const Color(0xFFFFF7ED)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: blockerNeedsDeviceIdentity
+                                  ? const Color(0xFFFED7AA)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Provisioned tablet identifier',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SelectableText(
+                                deviceIdentifierLabel,
+                                style: const TextStyle(
+                                  color: Color(0xFF0F172A),
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                blockerNeedsDeviceIdentity
+                                    ? 'This blocker smells like a registration mismatch. Compare this exact identifier against the LMS device record before retrying, or the tablet will keep looking dead even when the backend is healthy.'
+                                    : 'If bootstrap keeps failing because the tablet is unknown, compare this identifier against the LMS device registry before blaming the learner roster.',
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.45,

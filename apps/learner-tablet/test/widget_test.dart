@@ -687,6 +687,8 @@ void main() {
       expect(find.text('Retry production bootstrap'), findsOneWidget);
       expect(find.text('Open limited offline mode'), findsNothing);
       expect(find.text('Live backend target'), findsOneWidget);
+      expect(find.text('Provisioned tablet identifier'), findsOneWidget);
+      expect(find.text('Not provisioned in this build'), findsOneWidget);
       expect(
         find.textContaining('lumo-api-production-303a.up.railway.app'),
         findsOneWidget,
@@ -700,6 +702,46 @@ void main() {
       expect(state.learners, isEmpty);
       expect(state.modules, isEmpty);
       expect(state.assignedLessons, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'deployment blocker page surfaces the provisioned tablet identifier for registration mismatches',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        configuredDeviceIdentifier: 'tablet-pod-a-007',
+      );
+      addTearDown(state.dispose);
+      state.learners.clear();
+      state.modules.clear();
+      state.assignedLessons.clear();
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LearnerDeploymentBlockerPage(
+            state: state,
+            onRetry: () async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Provisioned tablet identifier'), findsOneWidget);
+      expect(find.text('tablet-pod-a-007'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Compare this exact identifier against the LMS device record before retrying',
+        ),
+        findsOneWidget,
+      );
     },
   );
 
