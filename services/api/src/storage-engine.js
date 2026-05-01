@@ -160,11 +160,12 @@ function createFileStorageEngine(filePath) {
   };
 }
 
-function runNodeScript(script, env = process.env) {
-  return childProcess.execFileSync(process.execPath, ['-e', script], {
+function runNodeScript(script, { env = process.env, input = '' } = {}) {
+  return childProcess.execFileSync(process.execPath, ['-'], {
     env,
+    input: String(script || '') + String(input || ''),
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['pipe', 'pipe', 'pipe'],
   }).trim();
 }
 
@@ -192,12 +193,14 @@ function createPostgresStorageEngine(filePath) {
   const escapedUrl = JSON.stringify(databaseUrl);
 
   function runPg(action, payload = {}) {
-    const encodedPayload = JSON.stringify(payload);
     const script = `
+const fs = require('fs');
 const { Client } = require('pg');
 (async () => {
+  const request = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
   const client = new Client({ connectionString: ${escapedUrl} });
-  const payload = ${encodedPayload};
+  const payload = request.payload || {};
+  const action = String(request.action || '');
   await client.connect();
   try {
     await client.query('CREATE TABLE IF NOT EXISTS lumo_storage_snapshots (id TEXT PRIMARY KEY, snapshot JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())');
@@ -207,12 +210,12 @@ const { Client } = require('pg');
     await client.query('ALTER TABLE lumo_storage_mutations ADD COLUMN IF NOT EXISTS snapshot JSONB NULL');
     const summarize = (snapshot) => Object.fromEntries(Object.entries(snapshot || {}).filter(([, value]) => Array.isArray(value)).map(([key, value]) => [key, value.length]));
     const hashSnapshot = (snapshot) => require('crypto').createHash('sha1').update(JSON.stringify(snapshot || {})).digest('hex');
-    if (${JSON.stringify(action)} === 'read') {
+    if (action === 'read') {
       const existing = await client.query('SELECT snapshot, updated_at FROM lumo_storage_snapshots WHERE id = $1', ['primary']);
       process.stdout.write(JSON.stringify(existing.rows[0] || null));
       return;
     }
-    if (${JSON.stringify(action)} === 'write') {
+    if (action === 'write') {
       const snapshot = payload.snapshot || {};
       const result = await client.query(
         'INSERT INTO lumo_storage_snapshots (id, snapshot, updated_at) VALUES ($1, $2::jsonb, NOW()) ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, updated_at = NOW() RETURNING updated_at',
@@ -227,7 +230,7 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify({ updatedAt: result.rows[0]?.updated_at || null, snapshotHash, collectionCounts: counts }));
       return;
     }
-    if (${JSON.stringify(action)} === 'checkpoint') {
+    if (action === 'checkpoint') {
       const current = await client.query('SELECT snapshot FROM lumo_storage_snapshots WHERE id = $1', ['primary']);
       if (!current.rows[0]) {
         process.stdout.write(JSON.stringify(null));
@@ -245,7 +248,7 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify(created.rows[0] || null));
       return;
     }
-    if (${JSON.stringify(action)} === 'listBackups') {
+    if (action === 'listBackups') {
       const limit = Math.max(1, Math.min(Number(payload.limit || 20), 100));
       const rows = await client.query(
         'SELECT id, label, created_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_backups ORDER BY created_at DESC LIMIT ' + limit,
@@ -253,7 +256,7 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify(rows.rows || []));
       return;
     }
-    if (${JSON.stringify(action)} === 'restore') {
+    if (action === 'restore') {
       const backupId = payload.backupId;
       const row = await client.query('SELECT snapshot FROM lumo_storage_backups WHERE id = $1', [backupId]);
       if (!row.rows[0]) {
@@ -271,7 +274,7 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify({ restored: true, backupId }));
       return;
     }
-    if (${JSON.stringify(action)} === 'deleteBackup') {
+    if (action === 'deleteBackup') {
       const deleted = await client.query('DELETE FROM lumo_storage_backups WHERE id = $1 RETURNING id', [payload.backupId]);
       if (!deleted.rows[0]) {
         throw Object.assign(new Error('Backup row not found'), { statusCode: 404 });
@@ -283,7 +286,7 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify({ deleted: true, backupId: payload.backupId }));
       return;
     }
-    if (${JSON.stringify(action)} === 'status') {
+    if (action === 'status') {
       const snap = await client.query('SELECT snapshot, updated_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_snapshots WHERE id = $1', ['primary']);
       const backups = await client.query('SELECT id, label, created_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_backups ORDER BY created_at DESC LIMIT 10');
       const journal = await client.query("SELECT COUNT(*)::int AS total, MAX(created_at) AS latest_at FROM lumo_storage_mutations");
@@ -291,18 +294,18 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify({ snapshot: snap.rows[0] || null, backups: backups.rows || [], journal: journal.rows[0] || { total: 0, latest_at: null }, latestMutation: latestMutation.rows[0] || null }));
       return;
     }
-    if (${JSON.stringify(action)} === 'listMutations') {
+    if (action === 'listMutations') {
       const limit = Math.max(1, Math.min(Number(payload.limit || 20), 100));
       const rows = await client.query('SELECT id, action, snapshot_id, snapshot_hash, snapshot IS NOT NULL AS has_snapshot, collection_counts, metadata, created_at FROM lumo_storage_mutations ORDER BY created_at DESC LIMIT ' + limit);
       process.stdout.write(JSON.stringify(rows.rows || []));
       return;
     }
-    if ('getMutation' === ${JSON.stringify(action)}) {
+    if (action === 'getMutation') {
       const row = await client.query('SELECT id, action, snapshot_id, snapshot_hash, snapshot, snapshot IS NOT NULL AS has_snapshot, collection_counts, metadata, created_at FROM lumo_storage_mutations WHERE id = $1', [payload.id]);
       process.stdout.write(JSON.stringify(row.rows[0] || null));
       return;
     }
-    if ('listOperations' === ${JSON.stringify(action)}) {
+    if (action === 'listOperations') {
       const limit = Math.max(1, Math.min(Number(payload.limit || 20), 100));
       const filters = [];
       const params = [];
@@ -319,12 +322,12 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify(rows.rows || []));
       return;
     }
-    if ('getOperation' === ${JSON.stringify(action)}) {
+    if (action === 'getOperation') {
       const row = await client.query('SELECT operation_id, kind, status, actor_name, actor_role, created_at, payload FROM lumo_storage_operations WHERE operation_id = $1', [String(payload.id)]);
       process.stdout.write(JSON.stringify(row.rows[0] || null));
       return;
     }
-    if ('recordOperation' === ${JSON.stringify(action)}) {
+    if (action === 'recordOperation') {
       const record = payload.record || {};
       const operationId = String(record.id || payload.id || 'storage-operation-' + Date.now());
       const merged = {
@@ -343,7 +346,7 @@ const { Client } = require('pg');
       process.stdout.write(JSON.stringify(merged));
       return;
     }
-    if ('restoreMutation' === ${JSON.stringify(action)}) {
+    if (action === 'restoreMutation') {
       const row = await client.query('SELECT id, snapshot FROM lumo_storage_mutations WHERE id = $1', [payload.id]);
       if (!row.rows[0]) {
         throw Object.assign(new Error('Mutation row not found'), { statusCode: 404 });
@@ -374,7 +377,7 @@ const { Client } = require('pg');
 });`;
 
     try {
-      const output = runNodeScript(script, process.env);
+      const output = runNodeScript(script, { env: process.env, input: JSON.stringify({ action, payload }) });
       return output ? JSON.parse(output) : null;
     } catch (error) {
       const stderr = String(error.stderr || '').trim();
