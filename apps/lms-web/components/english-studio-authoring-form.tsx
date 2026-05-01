@@ -507,6 +507,18 @@ export function EnglishStudioAuthoringForm({
         <div style={{ color: '#64748b', lineHeight: 1.6 }}>
           English Studio now surfaces the obvious release blockers inline so authors stop guessing whether the blueprint is actually safe to ship.
         </div>
+        {learningObjectives.length === 0 ? (
+          <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+            <div style={{ fontWeight: 800, color: '#991B1B' }}>Lesson objective is missing</div>
+            <div style={{ color: '#475569', lineHeight: 1.6 }}>
+              Image-choice and other step templates still publish against lesson-level objectives. Add the outcome here instead of digging through the wider studio form.
+            </div>
+            <FieldLabel>
+              Lesson learning objectives (one per line)
+              <textarea value={learningObjectives.join('\n')} readOnly rows={4} style={{ ...inputStyle, minHeight: 116, background: '#fff' }} />
+            </FieldLabel>
+          </div>
+        ) : null}
         <div style={{ display: 'grid', gap: 8 }}>
           {dependencyBlockers.length ? dependencyBlockers.map((blocker) => (
             <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: '1px solid #FECACA', color: '#991B1B', lineHeight: 1.6 }}>
