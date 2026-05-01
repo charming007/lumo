@@ -1,7 +1,21 @@
-import type { Lesson, LessonActivityChoice, LessonActivityMedia, LessonActivityStep, LessonAssessmentItem, LessonAsset } from './types';
+import type {
+  CurriculumModule,
+  Lesson,
+  LessonActivityChoice,
+  LessonActivityMedia,
+  LessonActivityStep,
+  LessonAssessmentItem,
+  LessonAsset,
+  Subject,
+} from './types';
 
 type LessonAuthoringNormalization = {
   lesson: Lesson | null;
+  issues: string[];
+};
+
+type AuthoringCollectionNormalization<T> = {
+  items: T[];
   issues: string[];
 };
 
@@ -80,6 +94,97 @@ function normalizeAssessmentItem(value: unknown, index: number): LessonAssessmen
     prompt: asString(item.prompt),
     evidence: asString(item.evidence),
   };
+}
+
+export function normalizeSubjectsForAuthoring(payload: unknown): AuthoringCollectionNormalization<Subject> {
+  if (!Array.isArray(payload)) {
+    return { items: [] as Subject[], issues: payload == null ? [] : ['Subject feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const items = payload.flatMap((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      issues.push(`Subject row ${index + 1} is malformed.`);
+      return [];
+    }
+
+    const subject = entry as Record<string, unknown>;
+    const id = asString(subject.id).trim();
+    const name = asString(subject.name).trim();
+    if (!id || !name) {
+      issues.push(`Subject row ${index + 1} is missing ${!id && !name ? 'id and name' : !id ? 'id' : 'name'}.`);
+      return [];
+    }
+
+    return [{
+      id,
+      name,
+      icon: asString(subject.icon) || undefined,
+      order: typeof subject.order === 'number' && Number.isFinite(subject.order) ? subject.order : undefined,
+      status: asString(subject.status) || undefined,
+    } satisfies Subject];
+  });
+
+  return { items, issues };
+}
+
+export function normalizeModulesForAuthoring(payload: unknown): AuthoringCollectionNormalization<CurriculumModule> {
+  if (!Array.isArray(payload)) {
+    return { items: [] as CurriculumModule[], issues: payload == null ? [] : ['Module feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const items = payload.flatMap((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      issues.push(`Module row ${index + 1} is malformed.`);
+      return [];
+    }
+
+    const module = entry as Record<string, unknown>;
+    const id = asString(module.id).trim();
+    const title = asString(module.title).trim();
+    const subjectName = asString(module.subjectName).trim();
+    if (!id || !title || !subjectName) {
+      const missing = [!id ? 'id' : null, !title ? 'title' : null, !subjectName ? 'subjectName' : null].filter(Boolean).join(', ');
+      issues.push(`Module row ${index + 1} is missing ${missing}.`);
+      return [];
+    }
+
+    return [{
+      id,
+      subjectId: asNullableString(module.subjectId),
+      subjectName,
+      strandId: asNullableString(module.strandId),
+      level: asString(module.level),
+      title,
+      lessonCount: asNumber(module.lessonCount, 0),
+      status: asString(module.status, 'draft'),
+      strandName: asString(module.strandName),
+    } satisfies CurriculumModule];
+  });
+
+  return { items, issues };
+}
+
+export function normalizeLessonsForAuthoring(payload: unknown): AuthoringCollectionNormalization<Lesson> {
+  if (!Array.isArray(payload)) {
+    return { items: [] as Lesson[], issues: payload == null ? [] : ['Lesson feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const items = payload.flatMap((entry, index) => {
+    const normalized = normalizeLessonForAuthoring(entry);
+    if (!normalized.lesson) {
+      issues.push(...normalized.issues.map((issue) => `Lesson row ${index + 1}: ${issue}`));
+      return [];
+    }
+    if (normalized.issues.length) {
+      issues.push(...normalized.issues.map((issue) => `Lesson row ${index + 1}: ${issue}`));
+    }
+    return [normalized.lesson];
+  });
+
+  return { items, issues };
 }
 
 export function normalizeLessonAssetsForAuthoring(payload: unknown) {

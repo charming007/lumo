@@ -3,7 +3,12 @@ import { DeploymentBlockerCard } from '../../../../components/deployment-blocker
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
-import { normalizeLessonAssetsForAuthoring } from '../../../../lib/lesson-authoring-normalize';
+import {
+  normalizeLessonAssetsForAuthoring,
+  normalizeLessonsForAuthoring,
+  normalizeModulesForAuthoring,
+  normalizeSubjectsForAuthoring,
+} from '../../../../lib/lesson-authoring-normalize';
 import { filterModulesForSubject, findSubjectByContext } from '../../../../lib/module-subject-match';
 import { buildReviewBlockersHref } from '../../../../lib/content-return-path';
 import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
@@ -41,15 +46,18 @@ export default async function LessonStudioCreatePage({
     fetchLessonAssets(),
   ]);
 
-  const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
-  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
-  const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const { items: loadedSubjects, issues: subjectPayloadIssues } = normalizeSubjectsForAuthoring(subjectsResult.status === 'fulfilled' ? subjectsResult.value : []);
+  const { items: modules, issues: modulePayloadIssues } = normalizeModulesForAuthoring(modulesResult.status === 'fulfilled' ? modulesResult.value : []);
+  const { items: lessons, issues: lessonPayloadIssues } = normalizeLessonsForAuthoring(lessonsResult.status === 'fulfilled' ? lessonsResult.value : []);
   const { assets, issues: assetPayloadIssues } = normalizeLessonAssetsForAuthoring(assetsResult.status === 'fulfilled' ? assetsResult.value : []);
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
+    subjectPayloadIssues.length ? 'subject payload' : null,
+    modulePayloadIssues.length ? 'module payload' : null,
+    lessonPayloadIssues.length ? 'lesson payload' : null,
     assetPayloadIssues.length ? 'asset payload' : null,
   ].filter(Boolean) as string[];
 
