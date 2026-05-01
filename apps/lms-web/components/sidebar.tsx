@@ -321,26 +321,51 @@ export function Sidebar({
             padding-right: clamp(18px, 3vw, 24px) !important;
           }
 
+          .sidebar--collapsed {
+            width: min(320px, calc(100vw - 24px));
+            padding: clamp(18px, 3vw, 24px) !important;
+            gap: 22px !important;
+            align-items: stretch;
+          }
+
           .sidebar--collapsed .sidebar__brand-detail,
           .sidebar--collapsed .sidebar__callout,
           .sidebar--collapsed .sidebar__footer,
           .sidebar--collapsed .sidebar__nav-label {
-            display: none;
+            display: revert;
           }
 
           .sidebar--collapsed .sidebar__brand-copy {
-            display: flex;
-            width: 100%;
+            display: block;
+            width: auto;
+          }
+
+          .sidebar--collapsed .sidebar__brand-mark {
+            width: auto;
+            height: auto;
+            border-radius: 0;
+            display: block;
+            background: none;
+            border: 0;
+            font-size: 30px !important;
+            letter-spacing: normal;
+            text-transform: none;
           }
 
           .sidebar--collapsed .sidebar__nav-link {
-            justify-content: center;
-            padding-left: 10px !important;
-            padding-right: 10px !important;
+            justify-content: flex-start;
+            padding: 13px 14px !important;
+          }
+
+          .sidebar--collapsed .sidebar__nav-icon {
+            width: 24px;
+            height: 24px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.12);
           }
 
           .sidebar--collapsed .sidebar__actions {
-            flex-direction: column;
+            flex-direction: row;
           }
 
           .sidebar--open {
