@@ -3532,6 +3532,84 @@ void main() {
   );
 
   testWidgets(
+    'image choice third option unlocks CTA when targetResponse differs from expectedResponse copy',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'image-choice-third-option-cta',
+        moduleId: 'english',
+        title: 'Third option CTA',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Correct third image should unlock continue.',
+        scenario:
+            'Expected response copy must not block the real image-choice answer.',
+        steps: [
+          LessonStep(
+            id: 'image-choice-step-1',
+            type: LessonStepType.practice,
+            title: 'Pick the cherry',
+            instruction: 'Tap the cherry picture.',
+            expectedResponse: 'Tap the cherry picture.',
+            coachPrompt: 'Tap the cherry picture.',
+            facilitatorTip: 'Cherry is the correct third option.',
+            realWorldCheck: 'Continue unlocks after tapping cherry.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the cherry picture.',
+              targetResponse: 'cherry',
+              choices: ['apple', 'banana', 'cherry'],
+              choiceEmoji: ['🍎', '🍌', '🍒'],
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+      expect(continueButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+      final cherryCard = find.ancestor(
+        of: find.text('cherry').first,
+        matching: find.byType(InkWell),
+      );
+      await tester.tap(cherryCard);
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+
+      expect(find.text('Selected'), findsOneWidget);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'choice lessons keep six options in two rows of three with CTA below',
     (tester) async {
       tester.view.physicalSize = const Size(1440, 1024);

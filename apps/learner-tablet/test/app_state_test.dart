@@ -3561,6 +3561,60 @@ void main() {
       },
     );
 
+    test(
+      'image choice falls back to raw choices and targetResponse when choiceItems are absent',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false);
+        state.learners.add(beginner);
+        state.currentLearner = beginner;
+
+        const lesson = LessonCardModel(
+          id: 'image-choice-target-fallback',
+          moduleId: 'english',
+          title: 'Image choice target fallback',
+          subject: 'English',
+          durationMinutes: 5,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus:
+              'Match taps against targetResponse, not transcript text.',
+          scenario:
+              'Selecting the correct third image should pass even when expectedResponse is facilitator copy.',
+          steps: [
+            LessonStep(
+              id: 'image-choice-step-1',
+              type: LessonStepType.practice,
+              title: 'Pick the cherry',
+              instruction: 'Tap the cherry picture.',
+              expectedResponse: 'Tap the cherry picture.',
+              coachPrompt: 'Tap the cherry picture.',
+              facilitatorTip: 'Cherry is the correct third option.',
+              realWorldCheck: 'The cherry card unlocks continue.',
+              speakerMode: SpeakerMode.listening,
+              activity: LessonActivity(
+                type: LessonActivityType.imageChoice,
+                prompt: 'Tap the cherry picture.',
+                targetResponse: 'cherry',
+                choices: ['apple', 'banana', 'cherry'],
+                choiceEmoji: ['🍎', '🍌', '🍒'],
+              ),
+            ),
+          ],
+        );
+
+        state.assignedLessons.add(lesson);
+        state.startLesson(lesson);
+
+        final wrongOutcome = state.submitLearnerResponse('banana');
+        expect(wrongOutcome.accepted, isFalse);
+        expect(wrongOutcome.review, ResponseReview.needsSupport);
+
+        final correctOutcome = state.submitLearnerResponse('cherry');
+        expect(correctOutcome.accepted, isTrue);
+        expect(correctOutcome.review, ResponseReview.onTrack);
+      },
+    );
+
     test('backend choice correctness accepts correctness aliases', () {
       final lesson = LessonCardModel.fromBackend({
         'id': 'backend-tap-choice',
@@ -5483,7 +5537,9 @@ void main() {
           equals(['basic-mathematics', 'english', 'life-skills']),
         );
         expect(
-          buildLearnerSubjectCards(state: state).map((card) => card.id).toList(),
+          buildLearnerSubjectCards(state: state)
+              .map((card) => card.id)
+              .toList(),
           equals(['basic-mathematics', 'english', 'life-skills']),
         );
         state.dispose();

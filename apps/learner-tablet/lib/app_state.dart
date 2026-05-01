@@ -2711,9 +2711,19 @@ class LumoAppState {
     final activity = step.activity;
     if (activity != null &&
         (activity.type == LessonActivityType.imageChoice ||
-            activity.type == LessonActivityType.tapChoice) &&
-        activity.choiceItems.isNotEmpty) {
-      final matchedChoice = activity.choiceItems.where((choice) {
+            activity.type == LessonActivityType.tapChoice)) {
+      final choiceItems = activity.choiceItems.isNotEmpty
+          ? activity.choiceItems
+          : List.generate(activity.choices.length, (index) {
+              final choice = activity.choices[index];
+              return LessonActivityChoice(
+                id: 'choice-$index',
+                label: choice,
+                isCorrect: _normalizeForComparison(choice) ==
+                    _normalizeForComparison(activity.targetResponse ?? ''),
+              );
+            });
+      final matchedChoice = choiceItems.where((choice) {
         final normalizedLabel = _normalizeForComparison(choice.label);
         return normalizedLabel.isNotEmpty &&
             normalizedLabel == normalizedResponse;
