@@ -262,19 +262,12 @@ export function fetchPods() {
   return getJson<Pod[]>('/api/v1/pods');
 }
 
-export async function fetchDeviceRegistrations(params?: { podId?: string; mallamId?: string }) {
+export function fetchDeviceRegistrations(params?: { podId?: string; mallamId?: string }) {
   const query = new URLSearchParams();
   if (params?.podId) query.set('podId', params.podId);
   if (params?.mallamId) query.set('mallamId', params.mallamId);
 
-  try {
-    return await getJson<DeviceRegistration[]>(`/api/v1/device-registrations${query.size ? `?${query.toString()}` : ''}`);
-  } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 404) {
-      return [] as DeviceRegistration[];
-    }
-    throw error;
-  }
+  return getJson<DeviceRegistration[]>(`/api/v1/device-registrations${query.size ? `?${query.toString()}` : ''}`);
 }
 
 export function fetchProgress() {
