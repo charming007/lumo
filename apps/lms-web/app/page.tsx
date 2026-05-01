@@ -11,7 +11,7 @@ import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, Dash
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
-import { resolveModuleSubjectId, subjectsIncludeId } from '../lib/module-subject-match';
+import { resolveModuleSubjectId } from '../lib/module-subject-match';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -386,9 +386,7 @@ export default async function HomePage() {
   );
   const canLaunchTopReleaseLessonCreate = Boolean(
     topReleaseBlocker?.missingLessons
-    && topReleaseBlocker.hasAuthoringContext
-    && subjectFeedAvailable
-    && subjectsIncludeId(subjects, topReleaseBlocker.subjectId),
+    && topReleaseBlocker.hasAuthoringContext,
   );
   const topReleaseBlockerPrimaryHref = canLaunchTopReleaseLessonCreate && topReleaseBlocker
     ? `/content/lessons/new?subjectId=${encodeURIComponent(topReleaseBlocker.subjectId)}&moduleId=${encodeURIComponent(topReleaseBlocker.id)}&from=${encodeURIComponent(topReleaseBlockerBoardHref)}&focus=blockers`
@@ -727,7 +725,7 @@ export default async function HomePage() {
               ))}
             </div>
             {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. Open Content Library after the feeds recover; the dashboard will not pretend to be the blocker board.', 'warning') : null}
-            {releaseFeedsAvailable && !subjectFeedAvailable ? sectionAlert('Subject metadata is degraded, so this dashboard can still flag blocked modules but will route you back to Content Library instead of pretending lesson-create shortcuts are trustworthy.', 'warning') : null}
+            {releaseFeedsAvailable && !subjectFeedAvailable ? sectionAlert('Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane. Use Content Library if you need the full blocker board.', 'warning') : null}
             {releaseFeedsAvailable && topReleaseBlocker ? (
               <div style={{ padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -764,10 +762,10 @@ export default async function HomePage() {
                 </div>
                 <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
                   {canLaunchTopReleaseLessonCreate
-                    ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
-                    : topReleaseBlockerSubjectMetadataMissing
-                      ? 'The module still has enough context to prove it is blocked, but the subject feed is degraded. The dashboard refuses to fake a trustworthy lesson-create shortcut and sends operators back to Content Library.'
-                      : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
+                    ? topReleaseBlockerSubjectMetadataMissing
+                      ? 'The subject feed is degraded, but this module still carries enough context for Lesson Studio to recover the correct authoring lane. Use the shortcut, then fall back to Content Library if the broader blocker board matters.'
+                      : 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
+                    : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Link href={topReleaseBlockerPrimaryHref} style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
