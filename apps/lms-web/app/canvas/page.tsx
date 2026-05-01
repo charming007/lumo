@@ -17,6 +17,7 @@ import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '..
 import type { CurriculumCanvasApiTree } from '../../lib/curriculum-canvas';
 import type { Assessment, CurriculumModule, Lesson, Strand, Subject } from '../../lib/types';
 import { Card, MetricList, PageShell } from '../../lib/ui';
+import { redirectIfPilotHiddenRoute } from '../../lib/pilot-nav';
 
 const emptySubjects: Subject[] = [];
 const emptyStrands: Strand[] = [];
@@ -25,6 +26,8 @@ const emptyLessons: Lesson[] = [];
 const emptyAssessments: Assessment[] = [];
 
 export default async function CanvasPage() {
+  redirectIfPilotHiddenRoute('/canvas');
+
   const [subjectsResult, strandsResult, modulesResult, lessonsResult, assessmentsResult, treeResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchStrands(),

@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
-import { navigationItems } from '../lib/navigation';
+import { pilotNavigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
@@ -888,7 +888,7 @@ export default async function HomePage() {
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Admin routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {navigationItems.map((item) => (
+                {pilotNavigationItems.map((item) => (
                   <Pill
                     key={item.id}
                     label={item.label}
@@ -898,7 +898,7 @@ export default async function HomePage() {
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                The LMS dashboard should expose the real admin shell reviewers and operators use in production. This route map now reflects the full live LMS surface instead of an artificially narrowed shell.
+                The LMS dashboard should expose the pilot-safe control plane operators are actually expected to use. This route map now reflects the narrowed shell instead of baiting staff into side routes that break source-of-truth discipline.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
@@ -911,7 +911,7 @@ export default async function HomePage() {
               <Link href="/" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open dashboard</Link>
               <Link href="/students" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open students</Link>
               <Link href="/mallams" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open mallams</Link>
-              <Link href="/reports" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open reports</Link>
+              <Link href="/content" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open content</Link>
               <Link href="/settings" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open settings</Link>
             </div>
           </div>

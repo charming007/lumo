@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { redirectIfPilotHiddenRoute } from '../../lib/pilot-nav';
 
 const GUIDE_FILES = [
   {
@@ -29,6 +30,8 @@ export default async function GuidePage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  redirectIfPilotHiddenRoute('/guide');
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedGuide = typeof resolvedSearchParams.doc === 'string' ? resolvedSearchParams.doc : GUIDE_FILES[0].htmlFile;
   const activeGuide = GUIDE_FILES.find((guide) => guide.htmlFile === requestedGuide) ?? GUIDE_FILES[0];

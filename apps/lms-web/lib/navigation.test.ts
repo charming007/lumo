@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { navigationItems } from './navigation.ts';
+import { navigationItems, pilotNavigationItems, pilotRestrictedRouteIds, isPilotRestrictedPath } from './navigation.ts';
 
-test('full admin navigation exposes the complete LMS route set', () => {
+test('full admin navigation still knows the complete LMS route set', () => {
   const expectedRoutes = [
     ['dashboard', '/'],
     ['content', '/content'],
@@ -30,4 +30,31 @@ test('full admin navigation exposes the complete LMS route set', () => {
     assert.equal(item?.href, href);
     assert.deepEqual(Object.keys(item ?? {}).sort(), ['href', 'id', 'label']);
   }
+});
+
+test('pilot navigation strips deferred admin surfaces from the visible shell', () => {
+  const visibleRouteIds = pilotNavigationItems.map((item) => item.id);
+
+  assert.deepEqual(visibleRouteIds, [
+    'dashboard',
+    'content',
+    'assignments',
+    'progress',
+    'devices',
+    'settings',
+    'students',
+    'mallams',
+    'pods',
+    'attendance',
+    'assessments',
+  ]);
+
+  for (const routeId of ['canvas', 'english', 'rewards', 'reports', 'guide']) {
+    assert.equal(visibleRouteIds.includes(routeId), false, `${routeId} should be hidden from the pilot shell`);
+    assert.equal(pilotRestrictedRouteIds.has(routeId), true, `${routeId} should be treated as pilot restricted`);
+  }
+
+  assert.equal(isPilotRestrictedPath('/canvas'), true);
+  assert.equal(isPilotRestrictedPath('/reports'), true);
+  assert.equal(isPilotRestrictedPath('/content'), false);
 });
