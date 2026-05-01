@@ -1,6 +1,6 @@
-import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match';
-import { filterLessonsForModule } from './module-lesson-match';
-import { resolveModuleSubjectId } from './module-subject-match';
+import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match.ts';
+import { filterLessonsForModule } from './module-lesson-match.ts';
+import { resolveModuleSubjectId } from './module-subject-match.ts';
 import type { Assessment, CurriculumModule, Lesson, Subject } from './types';
 
 type ModuleReleaseStateArgs = {

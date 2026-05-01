@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const apiSource = readFileSync(resolve('apps/lms-web/lib/api.ts'), 'utf8');
+const apiSource = readFileSync(fileURLToPath(new URL('./api.ts', import.meta.url)), 'utf8');
 
 test('device registrations do not swallow 404s into an empty fleet', () => {
   const match = apiSource.match(/export function fetchDeviceRegistrations[\s\S]*?\n}\n/);
