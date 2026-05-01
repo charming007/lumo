@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import type { BuildSignature } from '../lib/build-signature';
-import { pilotNavigationItems } from '../lib/navigation';
+import { navigationItems } from '../lib/navigation';
 
 function isActivePath(pathname: string, href: string) {
   if (href === '/') return pathname === '/';
@@ -82,7 +82,7 @@ export function Sidebar({
           <div className="sidebar__brand-copy">
             <div className="sidebar__brand-mark" aria-hidden="true" style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              Pilot control plane for curriculum, delivery, learner intervention, and deployment trust without the extra admin sprawl.
+              Full LMS admin shell for curriculum, assignments, learner progress, devices, staffing, reporting, and day-to-day operations.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -131,12 +131,12 @@ export function Sidebar({
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
           <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Admin shell</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Pilot navigation only</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Keep operators inside the pilot-safe control plane: dashboard, content, assignments, progress, and settings.</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Full operations navigation is live</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>Use this shell to move across the full LMS surface: curriculum, delivery, learner oversight, staffing, pods, devices, rewards, reporting, and settings.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
-          {pilotNavigationItems.map((item) => {
+          {navigationItems.map((item) => {
             const active = isActivePath(pathname, item.href);
             const monogram = itemMonogram(item.label);
             return (
@@ -177,7 +177,7 @@ export function Sidebar({
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Admin workspace</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to run the pilot cleanly: publish curriculum, assign delivery, monitor learner risk, and verify deployment trust.</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to run the LMS end to end: publish curriculum, assign delivery, monitor learner risk, manage staffing and pods, review rewards and reports, and verify deployment trust.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>

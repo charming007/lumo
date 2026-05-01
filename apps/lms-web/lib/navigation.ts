@@ -22,13 +22,3 @@ export const navigationItems: readonly NavigationItem[] = [
   { id: 'reports', label: 'Reports', href: '/reports' },
   { id: 'guide', label: 'Guide', href: '/guide' },
 ] as const;
-
-const pilotPrimaryRouteIds = new Set(['dashboard', 'content', 'assignments', 'progress', 'settings']);
-
-export const pilotNavigationItems = navigationItems.filter((item) => pilotPrimaryRouteIds.has(item.id));
-
-export const pilotRestrictedRouteIds = new Set(['canvas', 'english', 'rewards', 'reports', 'guide']);
-
-export function isPilotRestrictedPath(pathname: string) {
-  return navigationItems.some((item) => pilotRestrictedRouteIds.has(item.id) && item.href === pathname);
-}
