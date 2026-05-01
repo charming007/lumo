@@ -5,6 +5,7 @@ import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { redirect } from 'next/navigation';
 
 import { API_BASE } from '../lib/config';
+import { getModuleReleaseState } from '../lib/module-release';
 import { buildSubjectMutationPayload } from '../lib/subject-lifecycle';
 
 function getAdminApiKey() {
@@ -957,16 +958,73 @@ export async function quickUpdateCanvasModuleAction(formData: FormData) {
   const level = String(formData.get('level') || '').trim();
   const lessonCount = Math.max(Number(formData.get('lessonCount') || 0), 0);
 
-  await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'PATCH', {
-    title,
-    status,
-    level,
-    lessonCount,
-  });
+  try {
+    if (!['draft', 'review', 'published'].includes(status)) {
+      redirect(appendSearchParams(returnPath, {
+        message: `Module update blocked: unsupported module status “${status}”.`,
+      }));
+    }
+
+    if (status === 'review' || status === 'published') {
+      const [modules, lessons, assessments, subjects] = await Promise.all([
+        apiRead<Array<Record<string, unknown>>>('/api/v1/curriculum/modules'),
+        apiRead<Array<Record<string, unknown>>>('/api/v1/lessons'),
+        apiRead<Array<Record<string, unknown>>>('/api/v1/assessments'),
+        apiRead<Array<Record<string, unknown>>>('/api/v1/subjects'),
+      ]);
+
+      const module = modules.find((item) => item.id === moduleId) as any;
+      if (!module) {
+        redirect(appendSearchParams(returnPath, {
+          message: 'Module update blocked: the selected module no longer exists.',
+        }));
+      }
+
+      const releaseState = getModuleReleaseState({
+        module: {
+          ...module,
+          title: title || String(module.title || ''),
+          level: level || String(module.level || ''),
+          lessonCount,
+          status,
+        } as any,
+        lessons: lessons as any,
+        assessments: assessments as any,
+        subjects: subjects as any,
+      });
+
+      const blockers = status === 'published'
+        ? releaseState.publishBlockers
+        : releaseState.reviewBlockers;
+
+      if (blockers.length) {
+        redirect(appendSearchParams(returnPath, {
+          message: `Module update blocked: ${blockers.join(' ')}`,
+        }));
+      }
+    }
+
+    await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'PATCH', {
+      title,
+      status,
+      level,
+      lessonCount,
+    });
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `Module update failed: ${describeActionError(error, 'module quick edit could not be completed')}`,
+    }));
+  }
+
   revalidatePath('/canvas');
   revalidatePath('/content');
   redirect(appendSearchParams(returnPath, {
-    message: 'Module quick edit saved',
+    message: status === 'published'
+      ? 'Module published'
+      : status === 'review'
+        ? 'Module moved to review'
+        : 'Module quick edit saved',
   }));
 }
 

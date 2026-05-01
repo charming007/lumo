@@ -21,6 +21,8 @@ import { ModalLauncher } from './modal-launcher';
 import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, updateStrandAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
+import { getModuleReleaseState } from '../lib/module-release';
+import { resolveModuleSubjectId } from '../lib/module-subject-match';
 import { Card, Pill } from '../lib/ui';
 import type { Assessment, Assignment, CurriculumModule, Lesson, Strand, Subject } from '../lib/types';
 
@@ -333,6 +335,14 @@ export function ContentSubjectLanes({
                             const moduleAssignments = assignments.filter((assignment) => moduleLessons.some((lesson) => lesson.title === assignment.lessonTitle));
                             const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                             const pill = statusPill(module.status);
+                            const releaseState = getModuleReleaseState({
+                              module,
+                              lessons: subjectLessons,
+                              assessments: subjectAssessments,
+                              subjects,
+                            });
+                            const moduleSubjectId = resolveModuleSubjectId(module, subjects);
+                            const canLaunchLessonStudio = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
 
                             return (
                               <div key={module.id} style={{ padding: 18, borderRadius: 20, border: '1px solid #e5e7eb', background: 'white', display: 'grid', gap: 12 }}>
@@ -343,39 +353,64 @@ export function ContentSubjectLanes({
                                   </div>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                     <Pill label={module.status} tone={pill.tone} text={pill.text} />
-                                    <form action={quickUpdateCanvasModuleAction}>
-                                      <input type="hidden" name="moduleId" value={module.id} />
-                                      <input type="hidden" name="returnPath" value={returnPath} />
-                                      <input type="hidden" name="title" value={module.title} />
-                                      <input type="hidden" name="level" value={module.level} />
-                                      <input type="hidden" name="lessonCount" value={String(module.lessonCount)} />
-                                      <input type="hidden" name="status" value="draft" />
-                                      <button type="submit" style={{ ...actionButtonStyle, background: module.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1' }}>
-                                        Draft
-                                      </button>
-                                    </form>
-                                    <form action={quickUpdateCanvasModuleAction}>
-                                      <input type="hidden" name="moduleId" value={module.id} />
-                                      <input type="hidden" name="returnPath" value={returnPath} />
-                                      <input type="hidden" name="title" value={module.title} />
-                                      <input type="hidden" name="level" value={module.level} />
-                                      <input type="hidden" name="lessonCount" value={String(module.lessonCount)} />
-                                      <input type="hidden" name="status" value="published" />
-                                      <button type="submit" style={{ ...actionButtonStyle, background: module.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '1px solid #86EFAC' }}>
-                                        Publish
-                                      </button>
-                                    </form>
-                                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
-                                      Open lesson studio →
-                                    </Link>
-                                    <ModalLauncher buttonLabel="＋ Lesson" title={`Create lesson in ${module.title}`} description="Create a lesson shell from the module card, then hand off immediately into the full lesson studio flow." eyebrow="Create lesson" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
-                                      <div style={{ display: 'grid', gap: 12 }}>
-                                        <div style={{ color: '#64748b', lineHeight: 1.6 }}>For the real payload, use the full lesson studio. This shortcut only creates the lesson record in the correct curriculum lane.</div>
-                                        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
-                                          Open full lesson studio
+                                    {lifecycleOptions.map((option) => {
+                                      const blockers = option.value === 'published'
+                                        ? releaseState.publishBlockers
+                                        : option.value === 'review'
+                                          ? releaseState.reviewBlockers
+                                          : [];
+                                      const isDisabled = option.value === 'published'
+                                        ? !releaseState.canPublish
+                                        : option.value === 'review'
+                                          ? !releaseState.canReview
+                                          : false;
+                                      const isActive = module.status === option.value;
+
+                                      return (
+                                        <form key={`${module.id}-${option.value}`} action={quickUpdateCanvasModuleAction}>
+                                          <input type="hidden" name="moduleId" value={module.id} />
+                                          <input type="hidden" name="returnPath" value={returnPath} />
+                                          <input type="hidden" name="title" value={module.title} />
+                                          <input type="hidden" name="level" value={module.level} />
+                                          <input type="hidden" name="lessonCount" value={String(module.lessonCount)} />
+                                          <input type="hidden" name="status" value={option.value} />
+                                          <button
+                                            type="submit"
+                                            disabled={isDisabled}
+                                            title={isDisabled ? blockers.join(' ') : undefined}
+                                            style={{
+                                              ...actionButtonStyle,
+                                              background: isActive ? option.activeBackground : option.idleBackground,
+                                              color: option.color,
+                                              border: `1px solid ${option.border}`,
+                                              opacity: isDisabled ? 0.55 : 1,
+                                              cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                            }}
+                                          >
+                                            {option.label}
+                                          </button>
+                                        </form>
+                                      );
+                                    })}
+                                    {canLaunchLessonStudio ? (
+                                      <>
+                                        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+                                          Open lesson studio →
                                         </Link>
+                                        <ModalLauncher buttonLabel="＋ Lesson" title={`Create lesson in ${module.title}`} description="Create a lesson shell from the module card, then hand off immediately into the full lesson studio flow." eyebrow="Create lesson" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
+                                          <div style={{ display: 'grid', gap: 12 }}>
+                                            <div style={{ color: '#64748b', lineHeight: 1.6 }}>For the real payload, use the full lesson studio. This shortcut only creates the lesson record in the correct curriculum lane.</div>
+                                            <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
+                                              Open full lesson studio
+                                            </Link>
+                                          </div>
+                                        </ModalLauncher>
+                                      </>
+                                    ) : (
+                                      <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>
+                                        Recover subject context first
                                       </div>
-                                    </ModalLauncher>
+                                    )}
                                     <ModalLauncher buttonLabel="✏️ Edit module" title={`Edit module lifecycle · ${module.title}`} description="Update module metadata and lifecycle state from the same content lane." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                                       <UpdateModuleForm modules={[module]} returnPath={returnPath} />
                                     </ModalLauncher>
