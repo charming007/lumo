@@ -6518,6 +6518,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
         continue;
       }
       final speaker = turn.speaker.trim().toLowerCase();
+      if (speaker == 'mallam') {
+        return '';
+      }
       if (learnerNames.contains(speaker)) {
         return text;
       }

@@ -99,6 +99,20 @@ class _SeedApiClient extends LumoApiClient {
   }
 }
 
+class _UnregisteredTabletBootstrapApiClient extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap({
+    String? overrideDeviceIdentifier,
+  }) async {
+    return LumoBootstrap(
+      learners: learnerProfilesSeed,
+      modules: learningModules,
+      lessons: assignedLessonsSeed,
+      registrationContext: const RegistrationContext(),
+    );
+  }
+}
+
 class _AmbiguousPlaceholderRecoveryApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap({
@@ -742,6 +756,35 @@ void main() {
         ),
         findsOneWidget,
       );
+    },
+  );
+
+  test(
+    'unregistered live bootstrap does not get certified as a trusted offline snapshot',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = LumoAppState(
+        apiClient: _UnregisteredTabletBootstrapApiClient(),
+        includeSeedDemoContent: false,
+        configuredDeviceIdentifier: 'tablet-pod-a-007',
+      );
+
+      await state.bootstrap();
+      await state.flushPersistence();
+
+      expect(
+        state.deploymentBlockerReason,
+        contains('did not return a tablet registration'),
+      );
+      expect(state.usingFallbackData, isTrue);
+      expect(state.snapshotTrustedFromLiveBootstrap, isFalse);
+      expect(state.hasUsableOfflineSnapshot, isFalse);
+      expect(
+        state.offlineSnapshotTrustProblem,
+        contains('never confirmed by a successful live bootstrap'),
+      );
+
+      state.dispose();
     },
   );
 
@@ -3369,6 +3412,120 @@ void main() {
       await pumpForUi(tester, const Duration(milliseconds: 400));
 
       expect(find.text('Selected'), findsOneWidget);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'image choice step transition clears the previous selection and re-enables CTA on the next step',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'image-choice-step-transition',
+        moduleId: 'english',
+        title: 'Image choice transition',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Clear stale selection between image-choice steps.',
+        scenario:
+            'A correct selection on step 1 must not stay selected on step 2.',
+        steps: [
+          LessonStep(
+            id: 'image-choice-step-1',
+            type: LessonStepType.practice,
+            title: 'Pick the ant',
+            instruction: 'Tap the ant.',
+            expectedResponse: 'ant',
+            coachPrompt: 'Tap the ant.',
+            facilitatorTip: 'Only the ant should unlock continue.',
+            realWorldCheck: 'First step only advances after the right tap.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the ant.',
+              targetResponse: 'ant',
+              choices: ['ant', 'ball', 'cup'],
+              choiceEmoji: ['🐜', '⚽', '🥤'],
+            ),
+          ),
+          LessonStep(
+            id: 'image-choice-step-2',
+            type: LessonStepType.practice,
+            title: 'Pick the sun',
+            instruction: 'Tap the sun.',
+            expectedResponse: 'sun',
+            coachPrompt: 'Tap the sun.',
+            facilitatorTip: 'The old step selection must be gone now.',
+            realWorldCheck:
+                'Second step starts clean and unlocks only after the new correct tap.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the sun.',
+              targetResponse: 'sun',
+              choices: ['sun', 'moon', 'star'],
+              choiceEmoji: ['☀️', '🌙', '⭐'],
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      var primaryButton = find.widgetWithText(FilledButton, 'Continue');
+      final antCard = find.ancestor(
+        of: find.text('ant').first,
+        matching: find.byType(InkWell),
+      );
+
+      await tester.tap(antCard);
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+      expect(tester.widget<FilledButton>(primaryButton).onPressed, isNotNull);
+
+      await tester.tap(primaryButton);
+      await pumpForUi(tester, const Duration(milliseconds: 500));
+
+      expect(state.activeSession?.stepIndex, 1);
+      expect(state.activeSession?.currentStep.id, 'image-choice-step-2');
+      expect(find.text('sun'), findsWidgets);
+      expect(find.text('Choose one object to continue'), findsOneWidget);
+      expect(find.text('Selected'), findsNothing);
+      primaryButton = find.widgetWithText(FilledButton, 'Finish lesson');
+      expect(tester.widget<FilledButton>(primaryButton).onPressed, isNull);
+
+      final sunCard = find.ancestor(
+        of: find.text('sun').first,
+        matching: find.byType(InkWell),
+      );
+      await tester.tap(sunCard);
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+
+      expect(find.text('Selected'), findsOneWidget);
+      expect(tester.widget<FilledButton>(primaryButton).onPressed, isNotNull);
 
       state.dispose();
     },
