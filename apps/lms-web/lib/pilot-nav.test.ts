@@ -10,8 +10,8 @@ test('pilot hidden route map no longer redirects live reports and rewards pages'
   assert.doesNotMatch(pilotNavSource, /'\/rewards':\s*'\/progress'/, 'rewards should stay live in the admin shell');
 });
 
-test('pilot hidden route map still protects the intentionally deferred surfaces', () => {
-  assert.match(pilotNavSource, /'\/canvas':\s*'\/content'/);
-  assert.match(pilotNavSource, /'\/english':\s*'\/content'/);
-  assert.match(pilotNavSource, /'\/guide':\s*'\/settings'/);
+test('pilot hidden route map is fully retired for deferred surfaces too', () => {
+  assert.doesNotMatch(pilotNavSource, /'\/canvas':\s*'\/content'/);
+  assert.doesNotMatch(pilotNavSource, /'\/english':\s*'\/content'/);
+  assert.doesNotMatch(pilotNavSource, /'\/guide':\s*'\/settings'/);
 });
