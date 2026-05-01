@@ -141,6 +141,21 @@ test('findSubjectByContext recovers the real subject when ids drift but names st
   );
 });
 
+test('findSubjectByContext skips malformed subject names instead of crashing while recovering by module name', () => {
+  const subjects = [
+    { id: 'subject-bad', name: null },
+    { id: 'subject-readiness', name: 'Lumo Readiness' },
+  ];
+
+  assert.deepEqual(
+    findSubjectByContext(subjects as any, {
+      subjectId: 'legacy-readiness-id',
+      subjectName: ' lumo readiness ',
+    }),
+    subjects[1],
+  );
+});
+
 test('matchesSubjectFilter keeps blocker lanes visible when subject ids drift but names still match', () => {
   const subjects = [{ id: 'subject-english', name: 'English' }];
 

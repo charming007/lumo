@@ -4,7 +4,7 @@ import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
 import { normalizeLessonAssetsForAuthoring } from '../../../../lib/lesson-authoring-normalize';
-import { filterModulesForSubject } from '../../../../lib/module-subject-match';
+import { filterModulesForSubject, findSubjectByContext } from '../../../../lib/module-subject-match';
 import { buildReviewBlockersHref } from '../../../../lib/content-return-path';
 import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import type { Subject } from '../../../../lib/types';
@@ -130,12 +130,18 @@ export default async function LessonStudioCreatePage({
   const createdLessonTitle = normalizeRouteParam(query?.createdLessonTitle);
 
   const requestedModule = requestedModuleId ? modules.find((module) => module.id === requestedModuleId) ?? null : null;
-  const requestedSubject = requestedSubjectId ? subjects.find((subject) => subject.id === requestedSubjectId) ?? null : null;
+  const requestedSubject = requestedSubjectId
+    ? findSubjectByContext(subjects, {
+      subjectId: requestedSubjectId,
+      subjectName: requestedModule?.subjectName ?? null,
+    })
+    : null;
   const requestedModuleSubjectId = requestedModule?.subjectId?.trim() ?? '';
   const requestedModuleRecoveredSubject = requestedModule
-    ? subjects.find((subject) => subject.id === requestedModuleSubjectId)
-      ?? subjects.find((subject) => subject.name.trim().toLowerCase() === (requestedModule.subjectName?.trim().toLowerCase() ?? ''))
-      ?? null
+    ? findSubjectByContext(subjects, {
+      subjectId: requestedModuleSubjectId,
+      subjectName: requestedModule.subjectName ?? null,
+    })
     : null;
   const requestedModuleHasRecoverableSubject = Boolean(requestedModuleRecoveredSubject);
 
