@@ -305,7 +305,6 @@ export default async function HomePage() {
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
     assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);

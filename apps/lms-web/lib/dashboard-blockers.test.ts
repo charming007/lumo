@@ -19,12 +19,12 @@ test('blocks the dashboard when release-readiness feeds fail', () => {
   }), true);
 });
 
-test('blocks the dashboard when the subject feed fails because curriculum lanes lose their source of truth', () => {
+test('does not block the dashboard for subject metadata degradation alone when critical release feeds are still healthy', () => {
   assert.equal(shouldBlockDashboardPage({
     criticalDashboardFailureCount: 0,
-    criticalReleaseFailureCount: 1,
+    criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: false,
-  }), true);
+  }), false);
 });
 
 test('blocks the dashboard when asset operations are broken even if other feeds are healthy', () => {
