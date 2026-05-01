@@ -3,8 +3,6 @@ import { redirect } from 'next/navigation';
 const PILOT_HIDDEN_ROUTE_TARGETS: Record<string, string> = {
   '/canvas': '/content',
   '/english': '/content',
-  '/reports': '/',
-  '/rewards': '/progress',
   '/guide': '/settings',
 };
 
