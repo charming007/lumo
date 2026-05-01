@@ -598,6 +598,18 @@ export function LessonCreateForm({
         <div style={{ color: '#64748b', lineHeight: 1.6 }}>
           Save drafts whenever you want. But if you mark this lesson approved or published, the form now calls out the blockers instead of letting junk slip through quietly.
         </div>
+        {learningObjectives.length === 0 ? (
+          <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+            <div style={{ fontWeight: 800, color: '#991B1B' }}>Lesson objective is missing</div>
+            <div style={{ color: '#475569', lineHeight: 1.6 }}>
+              Even when authors are focused on image-choice step cards, approval/publish still expects a lesson-level objective. Add it here without leaving the blocker panel.
+            </div>
+            <FieldLabel>
+              Lesson learning objectives (one per line)
+              <textarea value={learningObjectivesText} onChange={(event) => setLearningObjectivesText(event.target.value)} rows={4} style={{ ...inputStyle, minHeight: 116, background: '#fff' }} />
+            </FieldLabel>
+          </div>
+        ) : null}
         <div style={{ display: 'grid', gap: 8 }}>
           {dependencyBlockers.length ? dependencyBlockers.map((blocker) => (
             <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: '1px solid #FECACA', color: '#991B1B', lineHeight: 1.6 }}>

@@ -627,6 +627,18 @@ export function LessonEditorForm({
         <div style={{ color: '#64748b', lineHeight: 1.6 }}>
           The editor now flags the exact blockers inline before someone saves an approved or published lesson that still has obvious holes.
         </div>
+        {learningObjectives.length === 0 ? (
+          <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+            <div style={{ fontWeight: 800, color: '#991B1B' }}>Lesson objective is missing</div>
+            <div style={{ color: '#475569', lineHeight: 1.6 }}>
+              Step type does not matter here — even image-choice lessons still need a lesson-level objective. Add it right here instead of hunting through the form.
+            </div>
+            <FieldLabel>
+              Lesson learning objectives (one per line)
+              <textarea value={learningObjectivesText} onChange={(event) => setLearningObjectivesText(event.target.value)} rows={4} style={{ ...inputStyle, minHeight: 116, background: '#fff' }} />
+            </FieldLabel>
+          </div>
+        ) : null}
         <div style={{ display: 'grid', gap: 8 }}>
           {readinessBlockers.length ? readinessBlockers.map((blocker) => (
             <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, color: '#475569', lineHeight: 1.6 }}>
