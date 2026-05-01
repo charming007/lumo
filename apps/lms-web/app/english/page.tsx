@@ -6,15 +6,12 @@ import { AppShell } from '../../components/shell';
 import { fetchAssessments, fetchCurriculumModules, fetchLessonAssets, fetchSubjects } from '../../lib/api';
 import { getBuildSignature } from '../../lib/build-signature';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
-import { redirectIfPilotHiddenRoute } from '../../lib/pilot-nav';
 
 export default async function EnglishStudioPage({
   searchParams,
 }: {
   searchParams?: Promise<{ message?: string }>;
 }) {
-  redirectIfPilotHiddenRoute('/english');
-
   const buildSignature = getBuildSignature();
   const query = await searchParams;
 

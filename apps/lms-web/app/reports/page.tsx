@@ -2,7 +2,6 @@ import { ExportShareCard } from '../../components/export-share-card';
 import { fetchCohorts, fetchMallams, fetchNgoSummary, fetchOperationsReport, fetchPods, fetchReportsOverview, fetchRewardsReport } from '../../lib/api';
 import type { NgoSummary, OperationsReport, ReportsOverview, RewardsReport } from '../../lib/types';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
-import { redirectIfPilotHiddenRoute } from '../../lib/pilot-nav';
 
 function normalizeFilterValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) return value[0] ?? '';
@@ -109,8 +108,6 @@ const emptyRewards: RewardsReport = {
 };
 
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
-  redirectIfPilotHiddenRoute('/reports');
-
   const query = await searchParams;
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();
   const podFilter = normalizeFilterValue(query?.pod).trim();

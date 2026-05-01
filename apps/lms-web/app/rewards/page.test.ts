@@ -10,3 +10,7 @@ test('rewards page degrades instead of hard-failing on a single feed outage', ()
   assert.match(rewardsPageSource, /const failedSources = \[/, 'rewards page should surface failed feed labels');
   assert.match(rewardsPageSource, /Rewards admin is degraded because/, 'rewards page should show an operator-facing degraded-state banner');
 });
+
+test('rewards page no longer carries the retired pilot redirect shim', () => {
+  assert.doesNotMatch(rewardsPageSource, /redirectIfPilotHiddenRoute\('\/rewards'\)/, 'rewards should render in the full admin shell instead of redirecting to progress');
+});

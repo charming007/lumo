@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { navigationItems } from './navigation.ts';
+import { redirectIfPilotHiddenRoute } from './pilot-nav.ts';
 
 test('full admin navigation still knows the complete LMS route set', () => {
   const expectedRoutes = [
@@ -54,4 +55,11 @@ test('full admin navigation stays visible in the live shell', () => {
       'guide',
     ],
   );
+});
+
+test('retired pilot redirects do not hide full-admin routes anymore', () => {
+  for (const pathname of ['/canvas', '/english', '/reports', '/rewards', '/guide']) {
+    assert.doesNotThrow(() => redirectIfPilotHiddenRoute(pathname));
+    assert.deepEqual(redirectIfPilotHiddenRoute(pathname), {});
+  }
 });

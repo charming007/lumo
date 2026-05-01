@@ -1,15 +1,5 @@
-import { redirect } from 'next/navigation';
+const RETIRED_PILOT_ROUTE_REDIRECTS = Object.freeze({});
 
-const PILOT_HIDDEN_ROUTE_TARGETS: Record<string, string> = {
-  '/canvas': '/content',
-  '/english': '/content',
-  '/guide': '/settings',
-};
-
-export function redirectIfPilotHiddenRoute(pathname: string) {
-  const target = PILOT_HIDDEN_ROUTE_TARGETS[pathname];
-
-  if (target) {
-    redirect(target);
-  }
+export function redirectIfPilotHiddenRoute(_pathname: string) {
+  return RETIRED_PILOT_ROUTE_REDIRECTS;
 }

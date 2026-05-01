@@ -4,7 +4,6 @@ import { fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard, fetc
 import type { RewardSnapshot, RewardRequestQueue, Student } from '../../lib/types';
 import type { RewardCatalog } from '../../lib/rewards';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../lib/ui';
-import { redirectIfPilotHiddenRoute } from '../../lib/pilot-nav';
 
 const emptyCatalog: RewardCatalog = {
   xpRules: {},
@@ -33,8 +32,6 @@ const emptyRequestQueue: RewardRequestQueue = {
 };
 
 export default async function RewardsPage() {
-  redirectIfPilotHiddenRoute('/rewards');
-
   const [catalogResult, leaderboardResult, requestsResult, studentsResult] = await Promise.allSettled([
     fetchRewardsCatalog(),
     fetchRewardsLeaderboard(8),
