@@ -26,7 +26,7 @@ function withFreshStorageEngine(run) {
   }
 }
 
-test('postgres storage writes stream request payload over stdin instead of argv', () => {
+test('postgres storage writes request payload over stdin while keeping the runner script out of stdin', () => {
   const originalExecFileSync = childProcess.execFileSync;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumo-storage-engine-'));
   const filePath = path.join(tempDir, 'store.json');
@@ -56,11 +56,12 @@ test('postgres storage writes stream request payload over stdin instead of argv'
 
   assert.ok(captured, 'expected postgres persistence to spawn node');
   assert.equal(captured.command, process.execPath);
-  assert.deepEqual(captured.args, ['-']);
+  assert.equal(captured.args[0], '-e');
+  assert.match(String(captured.args[1] || ''), /const request = JSON\.parse\(fs\.readFileSync\(0, 'utf8'\) \|\| '\{\}'\);/);
   assert.equal(captured.options.stdio[0], 'pipe');
 
   const stdinPayload = String(captured.options.input || '');
-  assert.match(stdinPayload, /const request = JSON\.parse\(fs\.readFileSync\(0, 'utf8'\) \|\| '\{\}'\);/);
+  assert.doesNotMatch(stdinPayload, /const request = JSON\.parse\(fs\.readFileSync\(0, 'utf8'\) \|\| '\{\}'\);/);
   assert.match(stdinPayload, /"action":"write"/);
   assert.match(stdinPayload, /"lessonAssets":\[/);
   assert.doesNotMatch(captured.args.join(' '), /lessonAssets|Large asset|cdn\.example\.com/);

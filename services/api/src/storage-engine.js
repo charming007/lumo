@@ -161,9 +161,9 @@ function createFileStorageEngine(filePath) {
 }
 
 function runNodeScript(script, { env = process.env, input = '' } = {}) {
-  return childProcess.execFileSync(process.execPath, ['-'], {
+  return childProcess.execFileSync(process.execPath, ['-e', String(script || '')], {
     env,
-    input: String(script || '') + String(input || ''),
+    input: String(input || ''),
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
   }).trim();
