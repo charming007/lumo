@@ -23,7 +23,9 @@ export const navigationItems: readonly NavigationItem[] = [
   { id: 'guide', label: 'Guide', href: '/guide' },
 ] as const;
 
-export const pilotNavigationItems = navigationItems.filter((item) => !['canvas', 'english', 'rewards', 'reports', 'guide'].includes(item.id));
+const pilotPrimaryRouteIds = new Set(['dashboard', 'content', 'assignments', 'progress', 'settings']);
+
+export const pilotNavigationItems = navigationItems.filter((item) => pilotPrimaryRouteIds.has(item.id));
 
 export const pilotRestrictedRouteIds = new Set(['canvas', 'english', 'rewards', 'reports', 'guide']);
 

@@ -909,9 +909,9 @@ export default async function HomePage() {
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open dashboard</Link>
-              <Link href="/students" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open students</Link>
-              <Link href="/mallams" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open mallams</Link>
               <Link href="/content" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open content</Link>
+              <Link href="/assignments" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open assignments</Link>
+              <Link href="/progress" style={{ ...quickActionStyle, background: '#DBEAFE', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>Open progress</Link>
               <Link href="/settings" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open settings</Link>
             </div>
           </div>

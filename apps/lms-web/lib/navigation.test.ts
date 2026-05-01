@@ -40,13 +40,7 @@ test('pilot navigation strips deferred admin surfaces from the visible shell', (
     'content',
     'assignments',
     'progress',
-    'devices',
     'settings',
-    'students',
-    'mallams',
-    'pods',
-    'attendance',
-    'assessments',
   ]);
 
   for (const routeId of ['canvas', 'english', 'rewards', 'reports', 'guide']) {
