@@ -61,7 +61,7 @@ test('buildAssessmentReviewHref keeps blocker-board subject scope when reviewing
       moduleTitle: 'Reading lane',
       subjectId: 'subject-english',
     }),
-    '/content?view=assessments&subject=subject-english&status=draft&q=Reading+lane',
+    '/assessments?subject=subject-english&status=draft&q=Reading+lane',
   );
 });
 
@@ -72,6 +72,6 @@ test('buildAssessmentReviewHref recovers subject scope for non-content return pa
       moduleTitle: 'Numeracy Gate',
       subjectId: 'subject-math',
     }),
-    '/content?view=assessments&q=Numeracy+Gate&subject=subject-math',
+    '/assessments?q=Numeracy+Gate&subject=subject-math',
   );
 });
