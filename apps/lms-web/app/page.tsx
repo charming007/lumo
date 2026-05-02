@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
+import { getBuildSignature } from '../lib/build-signature';
 import { navigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
@@ -191,7 +192,13 @@ function assetReadinessTone(readiness: AssetRuntimeReport['summary']['readiness'
   return { background: '#ECFDF5', border: '1px solid #BBF7D0', text: '#166534' };
 }
 
+function describeApiTarget() {
+  return API_BASE_DIAGNOSTIC.configuredApiBase ?? 'Not configured';
+}
+
 export default async function HomePage() {
+  const buildSignature = getBuildSignature();
+  const apiTarget = describeApiTarget();
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -229,7 +236,13 @@ export default async function HomePage() {
             failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
           },
         ]}
+        fixItems={[
+          { label: 'Frontend build', value: buildSignature.summary },
+          { label: 'Current API target', value: apiTarget },
+          { label: 'Deployment action', value: 'Set NEXT_PUBLIC_API_BASE_URL to the real HTTPS API origin, redeploy the LMS, then re-check the root dashboard.' },
+        ]}
         docs={[
+          { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
           { label: 'Content blocker', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
           { label: 'Assignments blocker', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
           { label: 'Settings blocker', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
@@ -513,12 +526,16 @@ export default async function HomePage() {
               ]}
         fixItems={backendTargetDiagnosis
           ? [
+              { label: 'Frontend build', value: buildSignature.summary },
+              { label: 'Current API target', value: apiTarget },
               { label: 'Likely cause', value: 'NEXT_PUBLIC_API_BASE_URL points at a stale or wrong backend build' },
               { label: 'Failing feeds', value: backendTargetDiagnosis.failingFeeds.join(', ') },
               { label: 'Operator action', value: 'Verify the API host serves current /api/v1/* and admin runtime routes, then redeploy the LMS if the env target changes' },
             ]
           : hasCriticalDashboardGap
             ? [
+                { label: 'Frontend build', value: buildSignature.summary },
+                { label: 'Current API target', value: apiTarget },
                 { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
                 { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
                 { label: 'Cross-check', value: 'Verify /progress, /assignments, and the dashboard facilitator-coverage cards after the upstream fix lands' },
@@ -526,16 +543,22 @@ export default async function HomePage() {
             : hasCriticalAssetOpsGap
             ? assetRuntimeAuthBlocked
               ? [
+                  { label: 'Frontend build', value: buildSignature.summary },
+                  { label: 'Current API target', value: apiTarget },
                   { label: 'Failing area', value: 'protected asset runtime audit authentication' },
                   { label: 'Operator action', value: 'Set the correct LUMO_ADMIN_API_KEY in the LMS deployment so protected audit endpoints can answer' },
                   { label: 'Cross-check', value: 'Verify /settings and /content/assets stop 401ing before trusting the dashboard again' },
                 ]
               : [
+                  { label: 'Frontend build', value: buildSignature.summary },
+                  { label: 'Current API target', value: apiTarget },
                   { label: 'Failing area', value: assetOpsCriticalFailure ?? 'asset operations' },
                   { label: 'Operator action', value: 'Restore upload readiness, registry integrity, and managed asset references before trusting the dashboard' },
                   { label: 'Cross-check', value: 'Verify /content/assets and /settings after the asset pipeline fix lands' },
                 ]
             : [
+                { label: 'Frontend build', value: buildSignature.summary },
+                { label: 'Current API target', value: apiTarget },
                 { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
                 { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
                 { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
@@ -634,6 +657,22 @@ export default async function HomePage() {
             </div>
             <div style={{ color: '#64748b', lineHeight: 1.6 }}>
               If this timestamp is already old by the time someone screenshots the page, the dashboard should be treated as a stale briefing, not a deployment sign-off.
+            </div>
+          </div>
+
+          <div style={{ padding: '14px 16px', borderRadius: 18, background: '#0F172A', border: '1px solid #1E293B', display: 'grid', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <strong style={{ color: 'white' }}>Deployment trace</strong>
+              <Pill label={buildSignature.commitShort} tone="#EEF2FF" text="#3730A3" />
+            </div>
+            <div style={{ color: '#CBD5E1', lineHeight: 1.6 }}>
+              Frontend build: {buildSignature.summary}
+            </div>
+            <div style={{ color: '#E2E8F0', lineHeight: 1.6 }}>
+              API target: <code style={{ color: 'white', fontWeight: 800 }}>{apiTarget}</code>
+            </div>
+            <div style={{ color: '#94A3B8', lineHeight: 1.6 }}>
+              When reviewers think they are staring at a stale deploy, these two facts should be visible without opening DevTools or guessing which environment won the roulette wheel.
             </div>
           </div>
         </div>
