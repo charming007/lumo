@@ -3719,12 +3719,13 @@ class SubjectModulesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scopedLearner = forceUnscopedLessons ? null : state.currentLearner;
-    final lessons = state
+    final subjectLessons = state
         .lessonsForLearnerAndSubject(scopedLearner, subjectKey)
-        .where((lesson) {
-      if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
-        return false;
-      }
+        .where(
+          (lesson) => _isLearnerVisibleLesson(state: state, lesson: lesson),
+        )
+        .toList();
+    final lessons = subjectLessons.where((lesson) {
       if (scopedLearner != null) {
         return learnerLessonAvailability(
           state: state,
@@ -3822,12 +3823,44 @@ class SubjectModulesPage extends StatelessWidget {
 
                             Widget buildJourneyPath() {
                               if (lessons.isEmpty) {
-                                final emptyStateMessage = registrationBlocked !=
-                                        null
-                                    ? '$registrationBlocked Refresh live sync before reopening $subjectTitle so the learner-safe lesson path can load.'
-                                    : usingFallbackData
-                                        ? 'This tablet is still leaning on fallback content and $subjectTitle does not have a learner-safe lesson path yet. Refresh live sync before handing it over.'
-                                        : '$subjectTitle is visible, but its learner-safe lesson path has not landed on this tablet yet. Refresh live sync or reopen the student list before launch.';
+                                final completedLessons = subjectLessons.where((lesson) {
+                                  if (scopedLearner != null) {
+                                    return learnerLessonAvailability(
+                                          state: state,
+                                          learner: scopedLearner,
+                                          lesson: lesson,
+                                        ).kind ==
+                                        LearnerLessonAvailabilityKind.completedToday;
+                                  }
+                                  return state.learners.any((learner) {
+                                    if (!state.learnerMatchesTabletPod(learner)) {
+                                      return false;
+                                    }
+                                    return learnerLessonAvailability(
+                                          state: state,
+                                          learner: learner,
+                                          lesson: lesson,
+                                        ).kind ==
+                                        LearnerLessonAvailabilityKind.completedToday;
+                                  });
+                                }).length;
+                                final completedEverythingToday =
+                                    subjectLessons.isNotEmpty &&
+                                        completedLessons == subjectLessons.length;
+                                final emptyStateTitle = completedEverythingToday
+                                    ? 'All available lessons in $subjectTitle are complete for today.'
+                                    : 'No learner-safe lessons are ready in $subjectTitle yet.';
+                                final emptyStateMessage = completedEverythingToday
+                                    ? scopedLearner != null
+                                        ? '${scopedLearner.name.split(' ').first} already finished every currently available lesson in $subjectTitle today. Open the student list for another learner or refresh live sync when the next lesson is published.'
+                                        : 'The currently assigned learners already finished every available $subjectTitle lesson on this tablet today. Open the student list for another learner or refresh live sync when the next lesson is published.'
+                                    : subjectLessons.isNotEmpty
+                                        ? 'This tablet already has $subjectTitle lessons, but none can be launched right now. The assigned learners may have completed them today or need a different learner handoff before launch.'
+                                        : registrationBlocked != null
+                                            ? '$registrationBlocked Refresh live sync before reopening $subjectTitle so the learner-safe lesson path can load.'
+                                            : usingFallbackData
+                                                ? 'This tablet is still leaning on fallback content and $subjectTitle does not have a learner-safe lesson path yet. Refresh live sync before handing it over.'
+                                                : '$subjectTitle is visible, but its learner-safe lesson path has not landed on this tablet yet. Refresh live sync or reopen the student list before launch.';
 
                                 return SoftPanel(
                                   child: Column(
@@ -3835,7 +3868,7 @@ class SubjectModulesPage extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'No learner-safe lessons are ready in $subjectTitle yet.',
+                                        emptyStateTitle,
                                         style: const TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.w900,

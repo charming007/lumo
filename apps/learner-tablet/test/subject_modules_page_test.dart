@@ -266,6 +266,165 @@ void main() {
   });
 
   testWidgets(
+      'subject page explains when the selected learner already completed the subject for today', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const learner = LearnerProfile(
+      id: 'learner-a',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Pod A',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Hauwa',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const module = LearningModule(
+      id: 'english',
+      title: 'English',
+      description: 'Live English path',
+      voicePrompt: 'Open English.',
+      readinessGoal: 'Greeting flow',
+      badge: '2 lessons',
+    );
+    const lessonA = LessonCardModel(
+      id: 'english-a',
+      moduleId: 'english',
+      title: 'Greeting warm-up',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Lesson A',
+      steps: [
+        LessonStep(
+          id: 'step-a',
+          type: LessonStepType.practice,
+          title: 'Say hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Keep it warm.',
+          realWorldCheck: 'Learner greets',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+    const lessonB = LessonCardModel(
+      id: 'english-b',
+      moduleId: 'english',
+      title: 'Name practice',
+      subject: 'English',
+      durationMinutes: 9,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Lesson B',
+      steps: [
+        LessonStep(
+          id: 'step-b',
+          type: LessonStepType.practice,
+          title: 'Say your name',
+          instruction: 'Say your name.',
+          expectedResponse: 'Amina',
+          coachPrompt: 'Say your name.',
+          facilitatorTip: 'Model the response.',
+          realWorldCheck: 'Learner says their name',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    addTearDown(state.dispose);
+    state.usingFallbackData = false;
+    state.modules.add(module);
+    state.learners.add(learner);
+    state.assignedLessons.addAll([lessonA, lessonB]);
+    state.selectLearner(learner);
+    state.selectModule(module);
+    final now = DateTime.now();
+    state.recentRuntimeSessionsByLearnerId[learner.id] = [
+      BackendLessonSession(
+        id: 'runtime-a',
+        sessionId: 'session-a',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: lessonA.id,
+        lessonTitle: lessonA.title,
+        moduleId: lessonA.moduleId,
+        status: 'completed',
+        completionState: 'completed',
+        automationStatus: 'Completed.',
+        currentStepIndex: lessonA.steps.length,
+        stepsTotal: lessonA.steps.length,
+        responsesCaptured: lessonA.steps.length,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+        completedAt: now,
+      ),
+      BackendLessonSession(
+        id: 'runtime-b',
+        sessionId: 'session-b',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: lessonB.id,
+        lessonTitle: lessonB.title,
+        moduleId: lessonB.moduleId,
+        status: 'completed',
+        completionState: 'completed',
+        automationStatus: 'Completed.',
+        currentStepIndex: lessonB.steps.length,
+        stepsTotal: lessonB.steps.length,
+        responsesCaptured: lessonB.steps.length,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+        completedAt: now,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SubjectModulesPage(
+          state: state,
+          onChanged: () {},
+          module: module,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(
+      find.text('All available lessons in English are complete for today.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Amina already finished every currently available lesson in English today.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('No learner-safe lessons are ready in English yet.'),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
       'subject page marks the guided next lesson for the selected learner', (
     tester,
   ) async {
