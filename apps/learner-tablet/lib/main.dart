@@ -3882,7 +3882,12 @@ class SubjectModulesPage extends StatelessWidget {
       if (scopedLearner != null) {
         return true;
       }
-      return state.availableLearnersForLesson(lesson).isNotEmpty;
+      return _summarizeLessonAvailability(
+            state: state,
+            lesson: lesson,
+            learner: null,
+          ) !=
+          _SubjectLessonAvailabilitySummary.unavailable;
     }).toList();
     final nextAssignedLesson = _resolveHighlightedLesson(lessons);
     final qaUnlockVisible = state.canUseQaLessonUnlock;

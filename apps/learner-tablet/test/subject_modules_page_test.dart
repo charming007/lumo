@@ -364,6 +364,182 @@ void main() {
   );
 
   testWidgets(
+    'subject page keeps completed lessons visible after every assigned learner finishes available work',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+          ),
+        );
+      addTearDown(state.dispose);
+
+      const learnerA = LearnerProfile(
+        id: 'learner-a',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Alpha',
+        cohortId: 'cohort-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+        streakDays: 1,
+        guardianName: 'Zainab',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Pod 1',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-AL07',
+      );
+      const learnerB = LearnerProfile(
+        id: 'learner-b',
+        name: 'Bello Musa',
+        age: 8,
+        cohort: 'Alpha',
+        cohortId: 'cohort-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+        streakDays: 2,
+        guardianName: 'Aisha',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Pod 1',
+        guardianPhone: '0800000001',
+        sex: 'Boy',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'BEL-AL08',
+      );
+      const module = LearningModule(
+        id: 'english-reading-module',
+        title: 'Reading Foundations',
+        description: 'Reading path',
+        voicePrompt: 'Open reading.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+        status: 'published',
+      );
+      const lesson = LessonCardModel(
+        id: 'english-reading-lesson',
+        moduleId: 'english-reading-module',
+        title: 'Read the greeting',
+        subject: 'English',
+        durationMinutes: 12,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Completed lessons must stay visible on subject page.',
+        steps: [
+          LessonStep(
+            id: 'step-1',
+            type: LessonStepType.prompt,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Say hello.',
+            coachPrompt: 'Coach the learner to say hello.',
+            facilitatorTip: 'Keep the greeting calm and short.',
+            realWorldCheck: 'Learner greets clearly before continuing.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      state.learners
+        ..clear()
+        ..addAll([learnerA, learnerB]);
+      state.modules
+        ..clear()
+        ..add(module);
+      state.assignedLessons
+        ..clear()
+        ..add(lesson);
+      final now = DateTime.now();
+      state.recentRuntimeSessionsByLearnerId[learnerA.id] = [
+        BackendLessonSession(
+          id: 'session-a',
+          sessionId: 'session-a',
+          studentId: learnerA.id,
+          learnerCode: learnerA.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          moduleTitle: module.title,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed on this tablet.',
+          currentStepIndex: lesson.steps.length,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: lesson.steps.length,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          completedAt: now,
+          lastActivityAt: now,
+          startedAt: now,
+        ),
+      ];
+      state.recentRuntimeSessionsByLearnerId[learnerB.id] = [
+        BackendLessonSession(
+          id: 'session-b',
+          sessionId: 'session-b',
+          studentId: learnerB.id,
+          learnerCode: learnerB.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          moduleTitle: module.title,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed on this tablet.',
+          currentStepIndex: lesson.steps.length,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: lesson.steps.length,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          completedAt: now,
+          lastActivityAt: now,
+          startedAt: now,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SubjectModulesPage(
+            state: state,
+            onChanged: () {},
+            module: module,
+            forceUnscopedLessons: true,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text(lesson.title), findsOneWidget);
+      expect(find.text('Lesson journey'), findsOneWidget);
+      expect(
+        find.text('All available lessons in English are complete for today.'),
+        findsNothing,
+      );
+      expect(
+        find.text('No learner-safe lessons are ready in English yet.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
     'subject page marks the guided next lesson for the selected learner',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
