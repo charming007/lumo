@@ -3610,6 +3610,95 @@ void main() {
   );
 
   testWidgets(
+    'image choice ignores stale transcript review state and keeps choice CTA routing',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'image-choice-stale-transcript-state',
+        moduleId: 'english',
+        title: 'Image choice transcript isolation',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus:
+            'Choice steps should never fall into transcript review.',
+        scenario:
+            'A stale saved-audio review state must not hijack image-choice CTA routing.',
+        steps: [
+          LessonStep(
+            id: 'image-choice-stale-transcript-step',
+            type: LessonStepType.practice,
+            title: 'Pick the moon',
+            instruction: 'Tap the moon.',
+            expectedResponse: 'moon',
+            coachPrompt: 'Tap the moon.',
+            facilitatorTip:
+                'Choice selection should unlock the normal continue CTA.',
+            realWorldCheck:
+                'The button stays on the choice flow instead of transcript confirmation.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the moon.',
+              targetResponse: 'moon',
+              choices: ['sun', 'moon', 'star'],
+              choiceEmoji: ['☀️', '🌙', '⭐'],
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+      state.activeSession = state.activeSession!.copyWith(
+        latestLearnerAudioPath: 'saved-audio.m4a',
+        automationStatus:
+            'Recovered session says audio review is pending, but this is now a choice step.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Confirm transcript'), findsNothing);
+
+      final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+      expect(continueButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+      final moonCard = find.ancestor(
+        of: find.text('moon').first,
+        matching: find.byType(InkWell),
+      );
+      await tester.tap(moonCard);
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+
+      expect(find.text('Selected'), findsOneWidget);
+      expect(find.text('Confirm transcript'), findsNothing);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'choice lessons keep six options in two rows of three with CTA below',
     (tester) async {
       tester.view.physicalSize = const Size(1440, 1024);
