@@ -804,6 +804,129 @@ void main() {
   });
 
   testWidgets(
+    'home screen keeps a completed-for-today subject visible instead of falling back to the empty state',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+          ),
+        );
+      const learner = LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Alpha',
+        cohortId: 'cohort-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+        streakDays: 1,
+        guardianName: 'Zainab',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Pod 1',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-AL07',
+      );
+      const module = LearningModule(
+        id: 'english-reading-module',
+        title: 'Reading Foundations',
+        description: 'Reading path',
+        voicePrompt: 'Open reading.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+        status: 'published',
+      );
+      const lesson = LessonCardModel(
+        id: 'english-reading-lesson',
+        moduleId: 'english-reading-module',
+        title: 'Read the greeting',
+        subject: 'English',
+        durationMinutes: 12,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Live lesson should stay visible after completion.',
+        steps: [
+          LessonStep(
+            id: 'step-1',
+            type: LessonStepType.prompt,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Say hello.',
+            coachPrompt: 'Coach the learner to say hello.',
+            facilitatorTip: 'Keep the greeting calm and short.',
+            realWorldCheck: 'Learner greets clearly before continuing.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      state.learners
+        ..clear()
+        ..add(learner);
+      state.modules
+        ..clear()
+        ..add(module);
+      state.assignedLessons
+        ..clear()
+        ..add(lesson);
+      state.recentRuntimeSessionsByLearnerId[learner.id] = [
+        BackendLessonSession(
+          id: 'session-1',
+          sessionId: 'session-1',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          moduleTitle: module.title,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed on this tablet.',
+          currentStepIndex: lesson.steps.length,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: lesson.steps.length,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          completedAt: DateTime.now(),
+          lastActivityAt: DateTime.now(),
+          startedAt: DateTime.now(),
+        ),
+      ];
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(GridView), findsOneWidget);
+      expect(find.text('English'), findsOneWidget);
+      expect(find.textContaining('Completed for today'), findsOneWidget);
+      expect(
+        find.text('No live subjects are ready on this tablet yet.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
     'home screen still shows live subjects when bootstrap has published lessons but no explicit assignment packs',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 800);

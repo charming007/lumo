@@ -733,7 +733,8 @@ class LearnerSubjectCardModel {
   final String readinessGoal;
   final String badge;
   final LearningModule module;
-  final int availableLessonCount;
+  final int lessonCount;
+  final String statusLabel;
 
   const LearnerSubjectCardModel({
     required this.id,
@@ -743,8 +744,116 @@ class LearnerSubjectCardModel {
     required this.readinessGoal,
     required this.badge,
     required this.module,
-    required this.availableLessonCount,
+    required this.lessonCount,
+    required this.statusLabel,
   });
+}
+
+enum _SubjectLessonAvailabilitySummary {
+  ready,
+  completedToday,
+  completed,
+  locked,
+  unavailable,
+}
+
+_SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
+  required LumoAppState state,
+  required LessonCardModel lesson,
+  LearnerProfile? learner,
+}) {
+  if (learner != null) {
+    final availability = learnerLessonAvailability(
+      state: state,
+      learner: learner,
+      lesson: lesson,
+    );
+    if (availability.canLaunch) {
+      return _SubjectLessonAvailabilitySummary.ready;
+    }
+    if (availability.kind == LearnerLessonAvailabilityKind.completed) {
+      return state.lessonCompletedTodayForLearner(learner, lesson)
+          ? _SubjectLessonAvailabilitySummary.completedToday
+          : _SubjectLessonAvailabilitySummary.completed;
+    }
+    if (availability.kind == LearnerLessonAvailabilityKind.locked) {
+      return _SubjectLessonAvailabilitySummary.locked;
+    }
+    return _SubjectLessonAvailabilitySummary.unavailable;
+  }
+
+  if (state.learners.isEmpty) {
+    return _SubjectLessonAvailabilitySummary.ready;
+  }
+
+  var sawCompleted = false;
+  var sawCompletedToday = false;
+  var sawLocked = false;
+  for (final candidate in state.learners) {
+    if (!state.learnerMatchesTabletPod(candidate)) continue;
+    final availability = learnerLessonAvailability(
+      state: state,
+      learner: candidate,
+      lesson: lesson,
+    );
+    if (availability.canLaunch) {
+      return _SubjectLessonAvailabilitySummary.ready;
+    }
+    if (availability.kind == LearnerLessonAvailabilityKind.completed) {
+      sawCompleted = true;
+      if (state.lessonCompletedTodayForLearner(candidate, lesson)) {
+        sawCompletedToday = true;
+      }
+      continue;
+    }
+    if (availability.kind == LearnerLessonAvailabilityKind.locked) {
+      sawLocked = true;
+    }
+  }
+
+  if (sawCompletedToday) {
+    return _SubjectLessonAvailabilitySummary.completedToday;
+  }
+  if (sawCompleted) {
+    return _SubjectLessonAvailabilitySummary.completed;
+  }
+  if (sawLocked) {
+    return _SubjectLessonAvailabilitySummary.locked;
+  }
+  return _SubjectLessonAvailabilitySummary.unavailable;
+}
+
+String _subjectCardStatusLabel({
+  required int lessonCount,
+  required int readyLessonCount,
+  required int completedTodayLessonCount,
+  required int completedLessonCount,
+  required int lockedLessonCount,
+}) {
+  if (readyLessonCount > 0) {
+    return readyLessonCount == lessonCount
+        ? 'Ready now'
+        : '$readyLessonCount ready now';
+  }
+  if (lessonCount > 0 && completedTodayLessonCount == lessonCount) {
+    return 'Completed for today';
+  }
+  if (lessonCount > 0 && completedLessonCount == lessonCount) {
+    return 'Completed';
+  }
+  if (lockedLessonCount > 0 &&
+      lockedLessonCount + completedLessonCount == lessonCount) {
+    return completedLessonCount > 0
+        ? 'Progress saved • next locked'
+        : 'Locked by progression';
+  }
+  if (completedTodayLessonCount > 0) {
+    return 'Progress saved today';
+  }
+  if (completedLessonCount > 0) {
+    return 'Progress saved';
+  }
+  return 'Visible on tablet';
 }
 
 String _normalizeSubjectKey(String value) {
@@ -775,17 +884,35 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
 
   return subjects
       .map((subject) {
-        final availableLessonCount = state
+        final visibleLessons = state
             .lessonsForLearnerAndSubject(learner, subject.id)
-            .where((lesson) {
-          if (!_isLearnerVisibleLesson(state: state, lesson: lesson)) {
-            return false;
+            .where(
+              (lesson) => _isLearnerVisibleLesson(state: state, lesson: lesson),
+            )
+            .toList(growable: false);
+        var readyLessonCount = 0;
+        var completedTodayLessonCount = 0;
+        var completedLessonCount = 0;
+        var lockedLessonCount = 0;
+
+        for (final lesson in visibleLessons) {
+          final summary = _summarizeLessonAvailability(
+            state: state,
+            lesson: lesson,
+            learner: learner,
+          );
+          if (summary == _SubjectLessonAvailabilitySummary.ready) {
+            readyLessonCount += 1;
+          } else if (summary ==
+              _SubjectLessonAvailabilitySummary.completedToday) {
+            completedTodayLessonCount += 1;
+            completedLessonCount += 1;
+          } else if (summary == _SubjectLessonAvailabilitySummary.completed) {
+            completedLessonCount += 1;
+          } else if (summary == _SubjectLessonAvailabilitySummary.locked) {
+            lockedLessonCount += 1;
           }
-          if (learner != null || state.learners.isEmpty) {
-            return true;
-          }
-          return state.availableLearnersForLesson(lesson).isNotEmpty;
-        }).length;
+        }
 
         return LearnerSubjectCardModel(
           id: subject.id,
@@ -799,10 +926,17 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
                 subjectId: subject.id,
               ) ??
               subject,
-          availableLessonCount: availableLessonCount,
+          lessonCount: visibleLessons.length,
+          statusLabel: _subjectCardStatusLabel(
+            lessonCount: visibleLessons.length,
+            readyLessonCount: readyLessonCount,
+            completedTodayLessonCount: completedTodayLessonCount,
+            completedLessonCount: completedLessonCount,
+            lockedLessonCount: lockedLessonCount,
+          ),
         );
       })
-      .where((subject) => subject.availableLessonCount > 0)
+      .where((subject) => subject.lessonCount > 0)
       .toList(growable: false);
 }
 
@@ -1572,8 +1706,8 @@ class HomePage extends StatelessWidget {
                                           badge: subject.badge,
                                           status: subject.module.status,
                                         ),
-                                        lessonCount:
-                                            subject.availableLessonCount,
+                                        lessonCount: subject.lessonCount,
+                                        statusLabel: subject.statusLabel,
                                         compact: false,
                                         onTap: () {
                                           state.selectModule(subject.module);
@@ -3839,7 +3973,8 @@ class SubjectModulesPage extends StatelessWidget {
 
                             Widget buildJourneyPath() {
                               if (lessons.isEmpty) {
-                                final completedLessons = subjectLessons.where((lesson) {
+                                final completedLessons =
+                                    subjectLessons.where((lesson) {
                                   if (scopedLearner != null) {
                                     return state.lessonCompletedTodayForLearner(
                                       scopedLearner,
@@ -3847,7 +3982,8 @@ class SubjectModulesPage extends StatelessWidget {
                                     );
                                   }
                                   return state.learners.any((learner) {
-                                    if (!state.learnerMatchesTabletPod(learner)) {
+                                    if (!state
+                                        .learnerMatchesTabletPod(learner)) {
                                       return false;
                                     }
                                     return state.lessonCompletedTodayForLearner(
@@ -3856,9 +3992,9 @@ class SubjectModulesPage extends StatelessWidget {
                                     );
                                   });
                                 }).length;
-                                final completedEverythingToday =
-                                    subjectLessons.isNotEmpty &&
-                                        completedLessons == subjectLessons.length;
+                                final completedEverythingToday = subjectLessons
+                                        .isNotEmpty &&
+                                    completedLessons == subjectLessons.length;
                                 final emptyStateTitle = completedEverythingToday
                                     ? 'All available lessons in $subjectTitle are complete for today.'
                                     : 'No learner-safe lessons are ready in $subjectTitle yet.';
@@ -12433,12 +12569,14 @@ class _CurrentLearnerBanner extends StatelessWidget {
 class _SubjectCard extends StatelessWidget {
   final LearningModule module;
   final int lessonCount;
+  final String statusLabel;
   final bool compact;
   final VoidCallback onTap;
 
   const _SubjectCard({
     required this.module,
     required this.lessonCount,
+    required this.statusLabel,
     required this.compact,
     required this.onTap,
   });
@@ -12492,12 +12630,17 @@ class _SubjectCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: dense ? 10 : 12,
-                          fontWeight: FontWeight.w700,
+                      Flexible(
+                        child: Text(
+                          '$lessonCount lesson${lessonCount == 1 ? '' : 's'} • $statusLabel',
+                          textAlign: TextAlign.end,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: dense ? 10 : 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ],
