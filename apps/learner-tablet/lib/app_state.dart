@@ -2003,10 +2003,35 @@ class LumoAppState {
     return orderedLessons;
   }
 
+  List<LessonCardModel> _learnerVisibilityLessons(LearnerProfile learner) {
+    final visibleLessons = <LessonCardModel>[];
+    final seenLessonIds = <String>{};
+
+    void addLesson(LessonCardModel lesson) {
+      final lessonId = lesson.id.trim();
+      if (lessonId.isEmpty || seenLessonIds.contains(lessonId)) return;
+      visibleLessons.add(lesson);
+      seenLessonIds.add(lessonId);
+    }
+
+    for (final lesson in lessonsForLearner(learner)) {
+      addLesson(lesson);
+    }
+
+    for (final lesson in assignedLessons) {
+      if (!_isPublishedLearnerLesson(lesson)) continue;
+      if (!learnerMatchesTabletPod(learner)) continue;
+      if (!lessonCompletedForLearner(learner, lesson)) continue;
+      addLesson(lesson);
+    }
+
+    return visibleLessons;
+  }
+
   List<LearningModule> learnerFacingSubjects({LearnerProfile? learner}) {
     final lessonPool = learner == null
         ? _registeredContextLessonPool()
-        : lessonsForLearner(learner);
+        : _learnerVisibilityLessons(learner);
     final groupedLessons = <String, List<LessonCardModel>>{};
     final subjectTitles = <String, String>{};
 
@@ -2039,7 +2064,7 @@ class LumoAppState {
     final normalizedSubjectId = _normalizeSubjectKey(subjectId);
     final lessonPool = learner == null
         ? _registeredContextLessonPool()
-        : lessonsForLearner(learner);
+        : _learnerVisibilityLessons(learner);
     return lessonPool.where((lesson) {
       if (!_isPublishedLearnerLesson(lesson)) return false;
       return _normalizeSubjectKey(_subjectTitleForLesson(lesson)) ==
@@ -2288,7 +2313,11 @@ class LumoAppState {
           orElse: () => null,
         );
 
-    return lessonsForLearner(learner).where((lesson) {
+    final lessonPool = learner == null
+        ? lessonsForLearner(learner)
+        : _learnerVisibilityLessons(learner);
+
+    return lessonPool.where((lesson) {
       final lessonSubject = lesson.subject.trim().toLowerCase();
       final lessonModuleId = lesson.moduleId.trim().toLowerCase();
       if (matchedModule != null) {

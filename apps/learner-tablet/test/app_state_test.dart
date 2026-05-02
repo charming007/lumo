@@ -2536,6 +2536,126 @@ void main() {
     );
 
     test(
+      'keeps completed learner lessons visible even when live assignments narrow to the next launchable lesson',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = false;
+        const learner = LearnerProfile(
+          id: 'learner-a',
+          name: 'Amina',
+          age: 7,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+        );
+        const lessonOne = LessonCardModel(
+          id: 'english-1',
+          moduleId: 'english',
+          title: 'Hear and say hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Start here.',
+          steps: [
+            LessonStep(
+              id: 'english-1-step',
+              type: LessonStepType.intro,
+              title: 'Hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model hello.',
+              realWorldCheck: 'Learner greets.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+        const lessonTwo = LessonCardModel(
+          id: 'english-2',
+          moduleId: 'english',
+          title: 'Ask how are you',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Second greeting step',
+          scenario: 'Continue here.',
+          steps: [
+            LessonStep(
+              id: 'english-2-step',
+              type: LessonStepType.intro,
+              title: 'How are you',
+              instruction: 'Ask how are you.',
+              expectedResponse: 'How are you?',
+              coachPrompt: 'Ask how are you.',
+              facilitatorTip: 'Guide the learner.',
+              realWorldCheck: 'Learner asks clearly.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.learners.add(learner);
+        state.assignedLessons.addAll([lessonOne, lessonTwo]);
+        state.assignmentPacks.add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-1',
+            lessonId: lessonOne.id,
+            moduleId: lessonOne.moduleId,
+            curriculumModuleId: lessonOne.moduleId,
+            lessonTitle: lessonOne.title,
+            eligibleLearnerIds: [learner.id],
+          ),
+        );
+        state.recentRuntimeSessionsByLearnerId[learner.id] = [
+          BackendLessonSession(
+            id: 'session-2',
+            sessionId: 'session-2',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: lessonTwo.id,
+            lessonTitle: lessonTwo.title,
+            moduleId: lessonTwo.moduleId,
+            moduleTitle: 'English',
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Completed.',
+            currentStepIndex: lessonTwo.steps.length,
+            stepsTotal: lessonTwo.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+            completedAt: DateTime.now(),
+          ),
+        ];
+
+        final visibleLessons = state.lessonsForLearnerAndSubject(
+          learner,
+          'english',
+        );
+
+        expect(visibleLessons.map((lesson) => lesson.id), [
+          lessonOne.id,
+          lessonTwo.id,
+        ]);
+        state.dispose();
+      },
+    );
+
+    test(
       'keeps all learner-facing lessons visible for a module despite lesson id variants',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);

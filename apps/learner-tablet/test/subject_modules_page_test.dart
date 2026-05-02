@@ -670,6 +670,148 @@ void main() {
   });
 
   testWidgets(
+    'subject page keeps completed later lessons visible after live assignments narrow',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const learner = LearnerProfile(
+        id: 'learner-a',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Pod A',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      );
+      const module = LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'Greeting path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '2 lessons',
+      );
+      const lessonOne = LessonCardModel(
+        id: 'english-1',
+        moduleId: 'english',
+        title: 'Hear and say hello',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Start here.',
+        steps: [
+          LessonStep(
+            id: 'english-1-step',
+            type: LessonStepType.intro,
+            title: 'Hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Model hello.',
+            realWorldCheck: 'Learner greets.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      const lessonTwo = LessonCardModel(
+        id: 'english-2',
+        moduleId: 'english',
+        title: 'Ask how are you',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Second greeting step',
+        scenario: 'Continue here.',
+        steps: [
+          LessonStep(
+            id: 'english-2-step',
+            type: LessonStepType.intro,
+            title: 'How are you',
+            instruction: 'Ask how are you.',
+            expectedResponse: 'How are you?',
+            coachPrompt: 'Ask how are you.',
+            facilitatorTip: 'Guide the learner.',
+            realWorldCheck: 'Learner asks clearly.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      addTearDown(state.dispose);
+      state.learners.add(learner);
+      state.modules.add(module);
+      state.assignedLessons.addAll([lessonOne, lessonTwo]);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-1',
+          lessonId: lessonOne.id,
+          moduleId: lessonOne.moduleId,
+          curriculumModuleId: lessonOne.moduleId,
+          lessonTitle: lessonOne.title,
+          eligibleLearnerIds: [learner.id],
+        ),
+      );
+      state.recentRuntimeSessionsByLearnerId[learner.id] = [
+        BackendLessonSession(
+          id: 'session-2',
+          sessionId: 'session-2',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          lessonId: lessonTwo.id,
+          lessonTitle: lessonTwo.title,
+          moduleId: lessonTwo.moduleId,
+          moduleTitle: module.title,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed.',
+          currentStepIndex: lessonTwo.steps.length,
+          stepsTotal: lessonTwo.steps.length,
+          responsesCaptured: 1,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          completedAt: DateTime.now(),
+        ),
+      ];
+      state.selectLearner(learner);
+      state.selectModule(module);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SubjectModulesPage(
+            state: state,
+            onChanged: () {},
+            module: module,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text(lessonOne.title), findsOneWidget);
+      expect(find.text(lessonTwo.title), findsOneWidget);
+      expect(find.text('Completed'), findsOneWidget);
+      expect(find.text('Start next lesson'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'subject page keeps learner lessons visible when backend recommends an alias module id',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
