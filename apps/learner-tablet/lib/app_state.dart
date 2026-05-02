@@ -1964,6 +1964,11 @@ class LumoAppState {
         addLesson(lesson);
       }
       addLesson(resumableLessonForLearner(learner));
+      for (final lesson in assignedLessons) {
+        if (!_isPublishedLearnerLesson(lesson)) continue;
+        if (!lessonCompletedForLearner(learner, lesson)) continue;
+        addLesson(lesson);
+      }
     }
     if (orderedLessons.isNotEmpty) {
       return orderedLessons;
