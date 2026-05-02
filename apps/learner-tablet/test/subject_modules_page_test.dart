@@ -983,6 +983,177 @@ void main() {
   );
 
   testWidgets(
+    'subject page keeps completed tap-to-act lessons visible when runtime history reports an alias lesson id',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const learner = LearnerProfile(
+        id: 'learner-a',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Pod A',
+        cohortId: 'cohort-a',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      );
+      const module = LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'Greeting path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '2 lessons',
+      );
+      const lessonOne = LessonCardModel(
+        id: 'english-1',
+        moduleId: 'english',
+        title: 'Hear and say hello',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Still assigned after re-entry.',
+        steps: [
+          LessonStep(
+            id: 'english-1-step',
+            type: LessonStepType.intro,
+            title: 'Hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Model hello.',
+            realWorldCheck: 'Learner greets.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      const lessonTwo = LessonCardModel(
+        id: 'english-2',
+        moduleId: 'english',
+        title: 'Tap the greeting card',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Tap to Act follow-up',
+        scenario: 'Should remain visible after alias runtime re-entry.',
+        steps: [
+          LessonStep(
+            id: 'english-2-step',
+            type: LessonStepType.practice,
+            title: 'Pick the greeting',
+            instruction: 'Tap the hello card.',
+            expectedResponse: 'hello',
+            coachPrompt: 'Tap the hello card.',
+            facilitatorTip: 'Guide the learner to the right card.',
+            realWorldCheck: 'Learner picks the greeting card.',
+            speakerMode: SpeakerMode.guiding,
+            activity: LessonActivity(
+              type: LessonActivityType.tapChoice,
+              prompt: 'Tap hello.',
+              targetResponse: 'hello',
+              choices: ['hello', 'book'],
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-a',
+            podLabel: 'Pod A',
+          ),
+        );
+      addTearDown(state.dispose);
+
+      state.learners
+        ..clear()
+        ..add(learner);
+      state.modules
+        ..clear()
+        ..add(module);
+      state.assignedLessons
+        ..clear()
+        ..addAll([lessonOne, lessonTwo]);
+      state.assignmentPacks
+        ..clear()
+        ..add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-1',
+            lessonId: lessonOne.id,
+            moduleId: lessonOne.moduleId,
+            curriculumModuleId: lessonOne.moduleId,
+            lessonTitle: lessonOne.title,
+            eligibleLearnerIds: [learner.id],
+          ),
+        );
+      state.recentRuntimeSessionsByLearnerId[learner.id] = [
+        BackendLessonSession(
+          id: 'session-2',
+          sessionId: 'session-2',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          lessonId: 'tap-to-act-runtime-alias',
+          lessonTitle: lessonTwo.title,
+          moduleId: 'tap-to-act-package',
+          moduleTitle: 'English Tap to Act',
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed on this tablet.',
+          currentStepIndex: lessonTwo.steps.length,
+          stepsTotal: lessonTwo.steps.length,
+          responsesCaptured: lessonTwo.steps.length,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          completedAt: DateTime.now(),
+          lastActivityAt: DateTime.now(),
+          startedAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SubjectModulesPage(
+            state: state,
+            onChanged: () {},
+            module: module,
+            forceUnscopedLessons: true,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Lesson journey'), findsOneWidget);
+      expect(find.text(lessonOne.title), findsOneWidget);
+      expect(find.text(lessonTwo.title), findsOneWidget);
+      expect(find.text('Start next lesson'), findsOneWidget);
+      expect(
+        find.text('No learner-safe lessons are ready in English yet.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
     'subject page keeps learner lessons visible when backend recommends an alias module id',
     (tester) async {
       SharedPreferences.setMockInitialValues({});

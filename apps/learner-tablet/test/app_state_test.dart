@@ -2656,6 +2656,128 @@ void main() {
     );
 
     test(
+      'maps completed tap-to-act runtime sessions back onto the authored lesson when backend uses an alias lesson id',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = false;
+        const learner = LearnerProfile(
+          id: 'learner-a',
+          name: 'Amina',
+          age: 7,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+        );
+        const lessonOne = LessonCardModel(
+          id: 'english-1',
+          moduleId: 'english',
+          title: 'Hear and say hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Start here.',
+          steps: [
+            LessonStep(
+              id: 'english-1-step',
+              type: LessonStepType.intro,
+              title: 'Hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model hello.',
+              realWorldCheck: 'Learner greets.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+        const lessonTwo = LessonCardModel(
+          id: 'english-2',
+          moduleId: 'english',
+          title: 'Tap the greeting card',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Tap to Act follow-up',
+          scenario: 'Continue here.',
+          steps: [
+            LessonStep(
+              id: 'english-2-step',
+              type: LessonStepType.practice,
+              title: 'Pick the greeting',
+              instruction: 'Tap the hello card.',
+              expectedResponse: 'hello',
+              coachPrompt: 'Tap the hello card.',
+              facilitatorTip: 'Guide the learner.',
+              realWorldCheck: 'Learner taps hello.',
+              speakerMode: SpeakerMode.guiding,
+              activity: LessonActivity(
+                type: LessonActivityType.tapChoice,
+                prompt: 'Tap hello.',
+                targetResponse: 'hello',
+                choices: ['hello', 'book'],
+              ),
+            ),
+          ],
+        );
+
+        state.learners.add(learner);
+        state.assignedLessons.addAll([lessonOne, lessonTwo]);
+        state.assignmentPacks.add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-1',
+            lessonId: lessonOne.id,
+            moduleId: lessonOne.moduleId,
+            curriculumModuleId: lessonOne.moduleId,
+            lessonTitle: lessonOne.title,
+            eligibleLearnerIds: [learner.id],
+          ),
+        );
+        state.recentRuntimeSessionsByLearnerId[learner.id] = [
+          BackendLessonSession(
+            id: 'session-2',
+            sessionId: 'session-2',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: 'tap-to-act-runtime-alias',
+            lessonTitle: lessonTwo.title,
+            moduleId: 'tap-to-act-package',
+            moduleTitle: 'English Tap to Act',
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Completed.',
+            currentStepIndex: lessonTwo.steps.length,
+            stepsTotal: lessonTwo.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+            completedAt: DateTime.now(),
+          ),
+        ];
+
+        expect(state.lessonCompletedForLearner(learner, lessonTwo), isTrue);
+        expect(
+          state.lessonsForLearnerAndSubject(learner, 'english').map((lesson) => lesson.id),
+          [lessonOne.id, lessonTwo.id],
+        );
+        state.dispose();
+      },
+    );
+
+    test(
       'keeps all learner-facing lessons visible for a module despite lesson id variants',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);

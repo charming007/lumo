@@ -1707,13 +1707,33 @@ class LumoAppState {
     return session.lessonId == lesson.id ? session : null;
   }
 
+  bool _sessionMatchesLesson(
+    BackendLessonSession session,
+    LessonCardModel lesson,
+  ) {
+    if (session.lessonId == lesson.id) return true;
+
+    final resolvedLesson = lessonForBackendSession(session);
+    if (resolvedLesson?.id == lesson.id) return true;
+
+    final normalizedSessionTitle =
+        (session.lessonTitle ?? '').trim().toLowerCase();
+    final normalizedLessonTitle = lesson.title.trim().toLowerCase();
+    if (normalizedSessionTitle.isNotEmpty &&
+        normalizedSessionTitle == normalizedLessonTitle) {
+      return true;
+    }
+
+    return false;
+  }
+
   BackendLessonSession? completedSessionForLearnerAndLesson(
     LearnerProfile learner,
     LessonCardModel lesson,
   ) {
     final sessions = recentRuntimeSessionsForLearner(learner);
     for (final session in sessions) {
-      if (session.lessonId != lesson.id) continue;
+      if (!_sessionMatchesLesson(session, lesson)) continue;
       final normalizedStatus = session.status.trim().toLowerCase();
       final normalizedCompletion = session.completionState.trim().toLowerCase();
       final completed = normalizedStatus == 'completed' ||
@@ -1730,7 +1750,7 @@ class LumoAppState {
   ) {
     final sessions = recentRuntimeSessionsForLearner(learner);
     for (final session in sessions) {
-      if (session.lessonId != lesson.id) continue;
+      if (!_sessionMatchesLesson(session, lesson)) continue;
       final normalizedStatus = session.status.trim().toLowerCase();
       final normalizedCompletion = session.completionState.trim().toLowerCase();
       final isTerminal = normalizedStatus == 'completed' ||
