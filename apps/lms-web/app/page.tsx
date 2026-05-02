@@ -11,6 +11,7 @@ import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, Dash
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
 import { diagnoseBackendTargetMismatch } from '../lib/backend-target-diagnosis';
 import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
+import { resolveTopReleaseBlockerCta } from '../lib/dashboard-top-blocker';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -356,22 +357,18 @@ export default async function HomePage() {
     && topReleaseBlocker.hasAuthoringContext
     && !subjectFeedAvailable,
   );
-  const canLaunchTopReleaseLessonCreate = Boolean(
-    topReleaseBlocker?.missingLessons
-    && topReleaseBlocker.hasAuthoringContext,
-  );
+  const topReleaseBlockerCta = topReleaseBlocker
+    ? resolveTopReleaseBlockerCta({
+        missingLessons: topReleaseBlocker.missingLessons,
+        hasAuthoringContext: topReleaseBlocker.hasAuthoringContext,
+        subjectMetadataDegraded: topReleaseBlockerSubjectMetadataMissing,
+      })
+    : null;
+  const canLaunchTopReleaseLessonCreate = Boolean(topReleaseBlockerCta?.canLaunchLessonStudio && topReleaseBlocker);
   const topReleaseBlockerPrimaryHref = canLaunchTopReleaseLessonCreate && topReleaseBlocker
     ? `/content/lessons/new?subjectId=${encodeURIComponent(topReleaseBlocker.subjectId)}&moduleId=${encodeURIComponent(topReleaseBlocker.id)}&from=${encodeURIComponent(topReleaseBlockerBoardHref)}&focus=blockers`
     : topReleaseBlockerBoardHref;
-  const topReleaseBlockerPrimaryLabel = canLaunchTopReleaseLessonCreate && topReleaseBlocker
-    ? topReleaseBlocker.missingLessons === 1
-      ? 'Create missing lesson'
-      : `Create ${topReleaseBlocker.missingLessons} missing lessons`
-    : topReleaseBlockerSubjectMetadataMissing
-      ? 'Subject metadata degraded'
-      : topReleaseBlocker?.missingLessons
-        ? 'Recover subject context first'
-        : 'Open exact blocker';
+  const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
 
   if (shouldBlockDashboardPage({
     criticalDashboardFailureCount: criticalDashboardFailures.length,
@@ -758,10 +755,10 @@ export default async function HomePage() {
                 </div>
                 <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
                   {canLaunchTopReleaseLessonCreate
-                    ? topReleaseBlockerSubjectMetadataMissing
-                      ? 'The subject feed is degraded, but this module still carries enough context for Lesson Studio to recover the correct authoring lane. Use the shortcut, then fall back to Content Library if the broader blocker board matters.'
-                      : 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
-                    : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
+                    ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
+                    : topReleaseBlockerSubjectMetadataMissing
+                      ? 'The subject feed is degraded, so the dashboard refuses to guess its way into Lesson Studio from partial metadata. Re-open the scoped blocker board first, then launch authoring from the real content surface.'
+                      : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Link href={topReleaseBlockerPrimaryHref} style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
