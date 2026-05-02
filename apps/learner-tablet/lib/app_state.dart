@@ -122,6 +122,7 @@ class LumoAppState {
   VoiceReplayStop? voiceReplayStop;
   Timer? _syncRetryTimer;
   Timer? _persistenceDebounce;
+  int _syncEventNonce = 0;
   final Set<VoidCallback> _listeners = <VoidCallback>{};
 
   LearnerProfile? currentLearner;
@@ -192,6 +193,12 @@ class LumoAppState {
     final trimmed = raw?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
     return trimmed;
+  }
+
+  String _nextSyncEventId() {
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
+    final nonce = _syncEventNonce++;
+    return 'sync-$timestamp-$nonce';
   }
 
   void attachVoiceReplay(VoiceReplay replay, {VoiceReplayStop? onStop}) {
@@ -1842,7 +1849,7 @@ class LumoAppState {
     _replaceLearner(updatedLearner);
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: 'learner_marked_absent',
         payload: {
           'studentId': updatedLearner.id,
@@ -2642,7 +2649,7 @@ class LumoAppState {
     currentLearner = learner;
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: 'learner_registered_local_fallback',
         payload: {
           ...registrationDraft.backendPayloadPreview,
@@ -3709,7 +3716,7 @@ class LumoAppState {
 
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: 'learner_reward_redeemed',
         payload: {
           'learnerId': learner.id,
@@ -3889,7 +3896,7 @@ class LumoAppState {
 
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: 'lesson_completed',
         payload: completedSession.syncPayloadPreview(
           learnerCode: updatedLearner.learnerCode,
@@ -5195,7 +5202,7 @@ class LumoAppState {
 
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: type,
         payload: {
           'sessionId': session.sessionId,

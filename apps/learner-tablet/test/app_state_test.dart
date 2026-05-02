@@ -4026,6 +4026,126 @@ void main() {
     );
 
     test(
+      'uses globally unique sync event ids across completed lesson sync batches',
+      () async {
+        final postedLessonCompletionSyncIds = <String>[];
+        final state = LumoAppState(
+          includeSeedDemoContent: true,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/sync') {
+                final body =
+                    jsonDecode(request.body) as Map<String, dynamic>;
+                final events = (body['events'] as List?) ?? const [];
+                postedLessonCompletionSyncIds.addAll(
+                  events.whereType<Map>().where((event) {
+                    return event['type'] == 'lesson_completed';
+                  }).map((event) => event['id']?.toString() ?? '').where(
+                    (id) => id.isNotEmpty,
+                  ),
+                );
+                return http.Response(
+                  jsonEncode({
+                    'accepted': events.length,
+                    'ignored': 0,
+                    'results': events
+                        .whereType<Map>()
+                        .map(
+                          (event) => {
+                            'type': event['type'],
+                            'status': 'accepted',
+                            'progress': {
+                              'studentId': beginner.id,
+                              'progressionStatus': 'on-track',
+                              'recommendedNextModuleId':
+                                  event['moduleId']?.toString() ?? 'english',
+                              'lessonsCompleted': 1,
+                            },
+                            'rewards': {
+                              'learnerId': beginner.id,
+                              'totalXp': 44,
+                              'points': 44,
+                              'level': 2,
+                              'levelLabel': 'Explorer',
+                              'nextLevel': 3,
+                              'nextLevelLabel': 'Bright Reader',
+                              'xpIntoLevel': 4,
+                              'xpForNextLevel': 36,
+                              'progressToNextLevel': 0.1,
+                              'badgesUnlocked': 1,
+                              'badges': const [],
+                            },
+                          },
+                        )
+                        .toList(),
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              if (request.url.path == '/api/v1/learner-app/rewards') {
+                return http.Response(
+                  jsonEncode({
+                    'learnerId': beginner.id,
+                    'totalXp': 44,
+                    'points': 44,
+                    'level': 2,
+                    'levelLabel': 'Explorer',
+                    'nextLevel': 3,
+                    'nextLevelLabel': 'Bright Reader',
+                    'xpIntoLevel': 4,
+                    'xpForNextLevel': 36,
+                    'progressToNextLevel': 0.1,
+                    'badgesUnlocked': 1,
+                    'badges': const [],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              if (request.url.path == '/api/v1/learner-app/sessions') {
+                return http.Response(
+                  jsonEncode({'sessions': const []}),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        )..usingFallbackData = false;
+        state.learners
+          ..clear()
+          ..add(beginner);
+        state.currentLearner = beginner;
+
+        final englishLesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'english',
+        );
+        final mathLesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'math',
+        );
+
+        state.startLesson(englishLesson);
+        state.submitLearnerResponse('Ready for English');
+        await state.completeLesson(englishLesson);
+
+        state.startLesson(mathLesson);
+        state.submitLearnerResponse('Ready for Math');
+        await state.completeLesson(mathLesson);
+
+        expect(postedLessonCompletionSyncIds, hasLength(2));
+        expect(
+          postedLessonCompletionSyncIds[0],
+          isNot(equals(postedLessonCompletionSyncIds[1])),
+        );
+        expect(state.pendingSyncEvents, isEmpty);
+        state.dispose();
+      },
+    );
+
+    test(
       'levels up reward snapshot when lesson XP crosses a threshold',
       () async {
         final state = LumoAppState(includeSeedDemoContent: true);
@@ -4957,7 +5077,8 @@ void main() {
                 );
               }
               if (request.url.path == '/api/v1/learner-app/sync') {
-                syncedPayload = jsonDecode(request.body) as Map<String, dynamic>;
+                syncedPayload =
+                    jsonDecode(request.body) as Map<String, dynamic>;
                 return http.Response(
                   jsonEncode({
                     'accepted': 1,
