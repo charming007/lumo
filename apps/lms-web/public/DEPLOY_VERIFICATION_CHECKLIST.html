@@ -1,0 +1,106 @@
+<section style="padding:32px clamp(18px,4vw,40px);font-family:Inter,Arial,sans-serif;color:#0f172a;background:#f8fafc;">
+  <div style="max-width:1040px;margin:0 auto;display:grid;gap:24px;">
+    <div style="padding:28px clamp(20px,4vw,34px);border-radius:28px;background:linear-gradient(135deg,#0f172a,#1d4ed8 58%,#38bdf8);color:white;box-shadow:0 20px 50px rgba(15,23,42,.18);">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <span style="display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);font-size:.92rem;font-weight:700;">Deployment trust</span>
+        <span style="display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);font-size:.92rem;font-weight:700;">Wrong backend detector</span>
+        <span style="display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);font-size:.92rem;font-weight:700;">Stale deploy detector</span>
+      </div>
+      <h1 style="margin:0;font-size:clamp(2rem,4vw,3.1rem);line-height:1.05;">Lumo deploy verification checklist</h1>
+      <p style="margin:12px 0 0;max-width:860px;color:rgba(255,255,255,.88);font-size:1.02rem;line-height:1.7;">Use this when the LMS points at <code style="background:rgba(15,23,42,.22);padding:2px 8px;border-radius:999px;">https://lumo-api-production-303a.up.railway.app</code> and you need to prove whether the problem is the LMS target, a stale backend deploy, or path mangling on the way in.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:22px;padding:18px;box-shadow:0 12px 30px rgba(15,23,42,.05);">
+        <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:#64748b;">LMS should call</div>
+        <div style="margin-top:8px;font-weight:800;color:#0f172a;">absolute <code>/api/v1/*</code> URLs</div>
+        <p style="margin:10px 0 0;color:#475569;line-height:1.6;">The LMS expects a plain API origin in <code>NEXT_PUBLIC_API_BASE_URL</code>. It should not rely on hidden rewrites.</p>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:22px;padding:18px;box-shadow:0 12px 30px rgba(15,23,42,.05);">
+        <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:#64748b;">Most likely failure</div>
+        <div style="margin-top:8px;font-weight:800;color:#0f172a;">stale or wrong Railway backend</div>
+        <p style="margin:10px 0 0;color:#475569;line-height:1.6;">If <code>/health</code> and <code>/api/v1/meta</code> work but newer routes 404, you are probably hitting an older service, not a bad LMS fetch pattern.</p>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:22px;padding:18px;box-shadow:0 12px 30px rgba(15,23,42,.05);">
+        <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:#64748b;">Do not trust</div>
+        <div style="margin-top:8px;font-weight:800;color:#0f172a;">quiet empty states</div>
+        <p style="margin:10px 0 0;color:#475569;line-height:1.6;">A dashboard that looks merely blank during an outage is worse than a loud blocker. Treat polite nonsense as a bug.</p>
+      </div>
+    </div>
+
+    <article style="background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:24px;box-shadow:0 12px 30px rgba(15,23,42,.05);display:grid;gap:22px;">
+      <section style="display:grid;gap:12px;">
+        <h2 style="margin:0;font-size:1.5rem;">What this repo actually expects</h2>
+        <ul style="margin:0;padding-left:20px;color:#334155;line-height:1.75;display:grid;gap:8px;">
+          <li><strong>LMS:</strong> <code>NEXT_PUBLIC_API_BASE_URL</code> must be the public API origin only, for example <code>https://lumo-api-production-303a.up.railway.app</code>.</li>
+          <li><strong>LMS calls:</strong> absolute routes like <code>${'{'}NEXT_PUBLIC_API_BASE_URL{'}'}/api/v1/meta</code>, <code>/api/v1/assets</code>, and <code>/api/v1/admin/config/audit</code>.</li>
+          <li><strong>No hidden proxy:</strong> this repo does not define a Vercel or Next rewrite that quietly fixes bad API paths for you.</li>
+          <li><strong>API runtime:</strong> health surfaces live at <code>/health</code> and <code>/readyz</code>, while product/admin routes live under <code>/api/v1/*</code>.</li>
+          <li><strong>Generated asset URLs:</strong> come from <code>LUMO_PUBLIC_API_URL</code> or <code>API_BASE_URL</code>, so bad API env can poison links even when the LMS target is correct.</li>
+        </ul>
+      </section>
+
+      <section style="display:grid;gap:12px;">
+        <h2 style="margin:0;font-size:1.5rem;">Fast diagnosis matrix</h2>
+        <div style="display:grid;gap:14px;">
+          <div style="padding:18px;border-radius:20px;background:#eff6ff;border:1px solid #bfdbfe;display:grid;gap:8px;">
+            <strong style="color:#1d4ed8;">Case A — LMS points at the wrong backend</strong>
+            <div style="color:#1e3a8a;line-height:1.7;">Signals: <code>/health</code> works and maybe <code>/api/v1/meta</code> works, but newer routes like <code>/readyz</code>, <code>/api/v1/assets</code>, and protected runtime audits 404.</div>
+            <div style="color:#1e3a8a;line-height:1.7;">Interpretation: the host is reachable, but it is not the current backend build this LMS expects.</div>
+          </div>
+          <div style="padding:18px;border-radius:20px;background:#fff7ed;border:1px solid #fed7aa;display:grid;gap:8px;">
+            <strong style="color:#9a3412;">Case B — backend deployment is stale</strong>
+            <div style="color:#7c2d12;line-height:1.7;">Signals: old routes work, but newer repo-backed endpoints all 404 together.</div>
+            <div style="color:#7c2d12;line-height:1.7;">Interpretation: Railway is serving an older API release. This is the leading diagnosis when the LMS fetch pattern is already correct.</div>
+          </div>
+          <div style="padding:18px;border-radius:20px;background:#f5f3ff;border:1px solid #ddd6fe;display:grid;gap:8px;">
+            <strong style="color:#6d28d9;">Case C — <code>/api/v1</code> is being stripped</strong>
+            <div style="color:#5b21b6;line-height:1.7;">Signals: <code>/api/v1/assets</code> fails but <code>/assets</code> unexpectedly works, or platform logs show upstream requests arriving without the prefix.</div>
+            <div style="color:#5b21b6;line-height:1.7;">Interpretation: a rewrite, proxy rule, or CDN edge layer is mangling the path before Express sees it.</div>
+          </div>
+        </div>
+      </section>
+
+      <section style="display:grid;gap:12px;">
+        <h2 style="margin:0;font-size:1.5rem;">Copy-paste verification commands</h2>
+        <div style="padding:18px;border-radius:20px;background:#0f172a;color:#e2e8f0;overflow:auto;">
+<pre style="margin:0;white-space:pre-wrap;font:500 .94rem/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;">export API=https://lumo-api-production-303a.up.railway.app
+
+curl -i "$API/health"
+curl -i "$API/readyz"
+curl -i "$API/api/v1/meta" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'
+curl -i "$API/api/v1/assets" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'
+curl -i "$API/api/v1/admin/config/audit" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'
+curl -i "$API/api/v1/admin/assets/runtime" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'
+
+# Prefix stripping check
+curl -i "$API/api/v1/assets" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'
+curl -i "$API/assets" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'
+
+curl -i "$API/api/v1/admin/config/audit" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'
+curl -i "$API/admin/config/audit" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'</pre>
+        </div>
+        <div style="padding:18px;border-radius:20px;background:#f8fafc;border:1px solid #e2e8f0;color:#334155;line-height:1.7;">
+          Healthy current-build expectation: <code>/health</code> returns <strong>200</strong>; <code>/readyz</code> exists and returns <strong>200</strong> or <strong>503</strong> JSON; and the runtime/admin routes above all exist instead of 404ing.
+        </div>
+      </section>
+
+      <section style="display:grid;gap:12px;">
+        <h2 style="margin:0;font-size:1.5rem;">Current target verdict</h2>
+        <div style="padding:18px;border-radius:20px;background:#fef2f2;border:1px solid #fecaca;display:grid;gap:8px;">
+          <strong style="color:#991b1b;">Observed live responses point to a stale or wrong backend, not a bad LMS fetch pattern.</strong>
+          <ul style="margin:0;padding-left:20px;color:#7f1d1d;line-height:1.75;display:grid;gap:6px;">
+            <li><code>/health</code> → <strong>200</strong></li>
+            <li><code>/api/v1/meta</code> → <strong>200</strong></li>
+            <li><code>/readyz</code> → <strong>404 Cannot GET /readyz</strong></li>
+            <li><code>/api/v1/assets</code> → <strong>404 Cannot GET /api/v1/assets</strong></li>
+            <li><code>/api/v1/admin/assets/runtime</code> → <strong>404 Cannot GET /api/v1/admin/assets/runtime</strong></li>
+            <li><code>/api/v1/admin/config/audit</code> → <strong>404 Cannot GET /api/v1/admin/config/audit</strong></li>
+            <li><code>/assets</code> → <strong>404 Cannot GET /assets</strong></li>
+          </ul>
+          <div style="color:#7f1d1d;line-height:1.7;">One-line operator conclusion: if the LMS uses <code>NEXT_PUBLIC_API_BASE_URL=https://lumo-api-production-303a.up.railway.app</code>, then the leading problem is a stale or wrong API behind that host. The LMS already calls the right <code>/api/v1/*</code> paths.</div>
+        </div>
+      </section>
+    </article>
+  </div>
+</section>

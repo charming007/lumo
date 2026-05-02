@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
+const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
 test('dashboard does not hard-block on subject metadata degradation alone', () => {
   assert.doesNotMatch(
@@ -20,5 +21,18 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
     dashboardPageSource,
     /Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane\./,
     'dashboard should surface subject metadata degradation as a warning instead of a hard blocker',
+  );
+});
+
+test('dashboard deploy checklist CTA points at a shipped public document', () => {
+  assert.match(
+    dashboardPageSource,
+    /href: '\/DEPLOY_VERIFICATION_CHECKLIST\.html'/,
+    'dashboard should keep exposing the deploy verification checklist CTA',
+  );
+  assert.equal(
+    existsSync(deployChecklistPublicPath),
+    true,
+    'dashboard deploy checklist CTA should not point at a missing public HTML file',
   );
 });
