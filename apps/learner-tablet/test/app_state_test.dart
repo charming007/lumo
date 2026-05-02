@@ -4424,6 +4424,238 @@ void main() {
     );
 
     test(
+      'restart rebinds local reward state when bootstrap rewrites the learner id',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'lumo_learner_tablet_state_v1': jsonEncode({
+            'schemaVersion': '2026-04-13-runtime-persist',
+            'savedAt': '2026-04-20T09:00:00.000Z',
+            'currentLearnerId': 'learner-local-zainab',
+            'currentLearnerCode': 'ZAI-AC12',
+            'learners': [
+              {
+                'id': 'learner-local-zainab',
+                'name': 'Zainab',
+                'age': 12,
+                'cohort': 'Afternoon Cohort',
+                'guardianName': 'Zainab',
+                'preferredLanguage': 'Hausa + English',
+                'readinessLabel': 'Voice-first beginner',
+                'village': 'Pod 1',
+                'guardianPhone': '0800000000',
+                'sex': 'Girl',
+                'baselineLevel': 'No prior exposure',
+                'consentCaptured': true,
+                'learnerCode': 'ZAI-AC12',
+                'caregiverRelationship': 'Mother',
+                'enrollmentStatus': 'Active',
+                'attendanceBand': 'Stable attendance',
+                'supportPlan': 'Prompt and praise.',
+                'lastLessonSummary': 'Ready',
+                'lastAttendance': 'Checked in today',
+                'podId': 'pod-1',
+                'podLabel': 'Pod 1',
+                'rewards': {
+                  'learnerId': 'learner-local-zainab',
+                  'totalXp': 38,
+                  'points': 38,
+                  'level': 1,
+                  'levelLabel': 'Starter',
+                  'nextLevel': 2,
+                  'nextLevelLabel': 'Rising Voice',
+                  'xpIntoLevel': 38,
+                  'xpForNextLevel': 42,
+                  'progressToNextLevel': 0.47,
+                  'badgesUnlocked': 1,
+                  'badges': const [
+                    {
+                      'id': 'voice-starter',
+                      'title': 'Voice Starter',
+                      'description': 'First lesson completed with Mallam.',
+                      'icon': 'record_voice_over',
+                      'category': 'lesson',
+                      'earned': true,
+                      'progress': 1,
+                      'target': 1,
+                    },
+                  ],
+                },
+              },
+            ],
+            'modules': const [],
+            'assignedLessons': const [],
+            'assignmentPacks': const [],
+            'pendingSyncEvents': const [],
+            'recentRuntimeSessionsByLearnerId': {
+              'learner-local-zainab': [
+                {
+                  'id': 'session-zainab-1',
+                  'sessionId': 'session-zainab-1',
+                  'studentId': 'learner-local-zainab',
+                  'learnerCode': 'ZAI-AC12',
+                  'lessonId': 'english-1',
+                  'lessonTitle': 'Hello',
+                  'moduleId': 'english',
+                  'moduleTitle': 'English',
+                  'status': 'completed',
+                  'completionState': 'completed',
+                  'automationStatus': 'Saved locally.',
+                  'currentStepIndex': 1,
+                  'stepsTotal': 1,
+                  'responsesCaptured': 1,
+                  'supportActionsUsed': 0,
+                  'audioCaptures': 0,
+                  'facilitatorObservations': 0,
+                  'latestReview': 'onTrack',
+                  'startedAt': '2026-04-20T08:00:00.000Z',
+                  'lastActivityAt': '2026-04-20T08:05:00.000Z',
+                  'completedAt': '2026-04-20T08:05:00.000Z'
+                }
+              ]
+            },
+            'rewardRedemptionHistoryByLearnerId': {
+              'learner-local-zainab': [
+                {
+                  'id': 'reward-1',
+                  'learnerId': 'learner-local-zainab',
+                  'optionId': 'story-time',
+                  'title': 'Story time',
+                  'icon': 'menu_book',
+                  'category': 'celebration',
+                  'cost': 10,
+                  'celebrationCue': 'Cheer',
+                  'note': 'Kept after restart',
+                  'redeemedAt': '2026-04-20T08:06:00.000Z',
+                  'pointsRemaining': 28,
+                  'status': 'redeemed'
+                }
+              ]
+            },
+            'usingFallbackData': false,
+            'acknowledgedOfflineFallbackRisk': false,
+          }),
+        });
+
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'generatedAt': '2026-04-20T10:00:00.000Z',
+                    'contractVersion': '2026-04-13-runtime-persist',
+                    'learners': [
+                      {
+                        'id': 'learner-live-zainab',
+                        'name': 'Zainab',
+                        'age': 12,
+                        'gender': 'female',
+                        'level': 'beginner',
+                        'cohortName': 'Afternoon Cohort',
+                        'podId': 'pod-1',
+                        'podLabel': 'Pod 1',
+                        'attendanceRate': 0.9,
+                        'guardianName': 'Zainab',
+                        'learnerCode': 'ZAI-AC12',
+                        'rewards': {
+                          'learnerId': 'learner-live-zainab',
+                          'totalXp': 0,
+                          'points': 0,
+                          'level': 1,
+                          'levelLabel': 'Starter',
+                          'nextLevel': 2,
+                          'nextLevelLabel': 'Rising Voice',
+                          'xpIntoLevel': 0,
+                          'xpForNextLevel': 80,
+                          'progressToNextLevel': 0,
+                          'badgesUnlocked': 0,
+                          'badges': const [],
+                        },
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'id': 'english',
+                        'title': 'English',
+                        'description': 'English module',
+                        'voicePrompt': 'Open English.',
+                        'readinessGoal': 'Greeting flow',
+                        'badge': '1 lesson',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'english-lesson-1',
+                        'moduleId': 'english',
+                        'title': 'Hello there',
+                        'subject': 'English',
+                        'durationMinutes': 8,
+                        'status': 'published',
+                        'mascotName': 'Mallam',
+                        'readinessFocus': 'Greeting flow',
+                        'scenario': 'Say hello.',
+                        'steps': [
+                          {
+                            'id': 'step-1',
+                            'type': 'practice',
+                            'title': 'Say hello',
+                            'instruction': 'Say hello.',
+                            'expectedResponse': 'Hello',
+                            'coachPrompt': 'Say hello.',
+                            'facilitatorTip': 'Keep it short.',
+                            'realWorldCheck': 'Learner greets',
+                            'speakerMode': 'guiding',
+                          },
+                        ],
+                      },
+                    ],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              if (request.url.path ==
+                  '/api/v1/learner-app/module-bundles/english') {
+                return http.Response(
+                  jsonEncode({
+                    'module': {
+                      'id': 'english',
+                      'title': 'English',
+                      'description': 'English module',
+                      'voicePrompt': 'Open English.',
+                      'readinessGoal': 'Greeting flow',
+                      'badge': '1 lesson',
+                    },
+                    'lessons': const [],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+        addTearDown(state.dispose);
+
+        await state.restorePersistedState();
+        await state.bootstrap();
+
+        final zainab = state.learners.single;
+        expect(zainab.id, 'learner-live-zainab');
+        expect(zainab.rewards?.totalXp, 38);
+        expect(zainab.rewards?.points, 38);
+        expect(state.currentLearner?.id, 'learner-live-zainab');
+        expect(state.rewardRedemptionHistoryForLearner(zainab), hasLength(1));
+        expect(state.rewardRedemptionHistoryForLearner(zainab).first.note,
+            'Kept after restart');
+        expect(state.recentRuntimeSessionsForLearner(zainab), hasLength(1));
+      },
+    );
+
+    test(
       'lesson completion projects a completed runtime session locally',
       () async {
         late final LumoAppState state;

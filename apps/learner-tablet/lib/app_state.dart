@@ -853,8 +853,14 @@ class LumoAppState {
           (activeSessionRaw is Map
               ? _readNullableString(activeSessionRaw['currentLearnerId'])
               : null);
-      currentLearner =
-          learners.where((item) => item.id == learnerId).firstOrNull;
+      final learnerCode = _readNullableString(snapshot['currentLearnerCode']) ??
+          (activeSessionRaw is Map
+              ? _readNullableString(activeSessionRaw['currentLearnerCode'])
+              : null);
+      currentLearner = _resolvePersistedLearnerMatch(
+        persistedLearnerId: learnerId,
+        persistedLearnerCode: learnerCode,
+      );
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
       activeSession = _decodeActiveSession(activeSessionRaw);
@@ -910,13 +916,19 @@ class LumoAppState {
     try {
       final data = await _apiClient.fetchBootstrap();
       registrationContext = data.registrationContext;
+      final persistedLearners = List<LearnerProfile>.from(learners);
       final existingLearnersById = {
-        for (final learner in learners) learner.id: learner,
+        for (final learner in persistedLearners) learner.id: learner,
       };
       final existingLearnersByCode = {
-        for (final learner in learners)
+        for (final learner in persistedLearners)
           if (learner.learnerCode.trim().isNotEmpty)
             learner.learnerCode: learner,
+      };
+      final existingLearnersByFingerprint = {
+        for (final learner in persistedLearners)
+          if (_learnerIdentityFingerprint(learner) case final fingerprint?)
+            fingerprint: learner,
       };
       final bootstrapLearnerSource = data.learners.isEmpty &&
               _includeSeedDemoContent &&
@@ -941,7 +953,9 @@ class LumoAppState {
               .map(
                 (learner) => _mergeLearnerProfile(
                   existingLearner: existingLearnersById[learner.id] ??
-                      existingLearnersByCode[learner.learnerCode],
+                      existingLearnersByCode[learner.learnerCode] ??
+                      existingLearnersByFingerprint[
+                          _learnerIdentityFingerprint(learner)],
                   incomingLearner: learner,
                 ),
               )
@@ -1017,14 +1031,15 @@ class LumoAppState {
       await _hydrateModuleBundles(mergedModules);
       await _mergeBundledOfflineContent();
 
+      _rekeyLearnerScopedCaches(persistedLearners, learners);
       if (learners.isNotEmpty) {
-        final existingLearnerId = currentLearner?.id;
-        currentLearner = existingLearnerId == null
-            ? null
-            : learners.cast<LearnerProfile?>().firstWhere(
-                  (item) => item?.id == existingLearnerId,
-                  orElse: () => null,
-                );
+        currentLearner = _resolvePersistedLearnerMatch(
+          persistedLearnerId: currentLearner?.id,
+          persistedLearnerCode: currentLearner?.learnerCode,
+          persistedLearnerFingerprint: currentLearner == null
+              ? null
+              : _learnerIdentityFingerprint(currentLearner!),
+        );
         if (currentLearner != null) {
           unawaited(refreshLearnerRuntimeSessions(currentLearner!));
         }
@@ -4961,6 +4976,108 @@ class LumoAppState {
     return learner?.id;
   }
 
+  String? _learnerIdentityFingerprint(LearnerProfile? learner) {
+    if (learner == null) return null;
+    String normalize(String? value) => (value ?? '')
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+    final name = normalize(learner.name);
+    if (name.isEmpty) return null;
+    final guardian = normalize(learner.guardianName);
+    final podId = normalize(learner.podId);
+    final cohortId = normalize(learner.cohortId);
+    return [name, learner.age, guardian, podId, cohortId].join('|');
+  }
+
+  LearnerProfile? _resolvePersistedLearnerMatch({
+    String? persistedLearnerId,
+    String? persistedLearnerCode,
+    String? persistedLearnerFingerprint,
+  }) {
+    final normalizedId = persistedLearnerId?.trim();
+    if (normalizedId != null && normalizedId.isNotEmpty) {
+      final byId =
+          learners.where((item) => item.id == normalizedId).firstOrNull;
+      if (byId != null) return byId;
+    }
+
+    final normalizedCode = persistedLearnerCode?.trim();
+    if (normalizedCode != null && normalizedCode.isNotEmpty) {
+      final byCode = learners
+          .where((item) => item.learnerCode.trim() == normalizedCode)
+          .firstOrNull;
+      if (byCode != null) return byCode;
+    }
+
+    final fingerprint = persistedLearnerFingerprint?.trim();
+    if (fingerprint != null && fingerprint.isNotEmpty) {
+      final byFingerprint = learners
+          .where((item) => _learnerIdentityFingerprint(item) == fingerprint)
+          .firstOrNull;
+      if (byFingerprint != null) return byFingerprint;
+    }
+
+    return null;
+  }
+
+  void _rekeyLearnerScopedCaches(
+    List<LearnerProfile> previousLearners,
+    List<LearnerProfile> nextLearners,
+  ) {
+    if (previousLearners.isEmpty || nextLearners.isEmpty) return;
+
+    final nextByCode = {
+      for (final learner in nextLearners)
+        if (learner.learnerCode.trim().isNotEmpty)
+          learner.learnerCode.trim(): learner,
+    };
+    final nextByFingerprint = {
+      for (final learner in nextLearners)
+        if (_learnerIdentityFingerprint(learner) case final fingerprint?)
+          fingerprint: learner,
+    };
+
+    LearnerProfile? resolveNext(LearnerProfile previous) {
+      final direct =
+          nextLearners.where((item) => item.id == previous.id).firstOrNull;
+      if (direct != null) return direct;
+      final code = previous.learnerCode.trim();
+      if (code.isNotEmpty) {
+        final byCode = nextByCode[code];
+        if (byCode != null) return byCode;
+      }
+      final fingerprint = _learnerIdentityFingerprint(previous);
+      if (fingerprint != null && fingerprint.isNotEmpty) {
+        return nextByFingerprint[fingerprint];
+      }
+      return null;
+    }
+
+    void rekeyMap<T>(Map<String, List<T>> source) {
+      final rebound = <String, List<T>>{};
+      for (final entry in source.entries) {
+        final previous =
+            previousLearners.where((item) => item.id == entry.key).firstOrNull;
+        final resolvedKey = previous == null
+            ? entry.key
+            : (resolveNext(previous)?.id ?? entry.key);
+        rebound.update(
+          resolvedKey,
+          (existing) => [...existing, ...entry.value],
+          ifAbsent: () => List<T>.from(entry.value),
+        );
+      }
+      source
+        ..clear()
+        ..addAll(rebound);
+    }
+
+    rekeyMap(recentRuntimeSessionsByLearnerId);
+    rekeyMap(rewardRedemptionHistoryByLearnerId);
+  }
+
   String? _readRecommendedModuleIdFromProgress(Object? progressJson) {
     if (progressJson is! Map) return null;
     final raw = progressJson['recommendedNextModuleId']?.toString();
@@ -5049,6 +5166,8 @@ class LumoAppState {
           'sessionId': session.sessionId,
           if (learner != null && learner.id.trim().isNotEmpty)
             'studentId': learner.id,
+          'currentLearnerId': learner?.id,
+          'currentLearnerCode': learnerCode,
           'learnerCode': learnerCode,
           'lessonId': session.lesson.id,
           'moduleId': session.lesson.moduleId,
@@ -5093,6 +5212,7 @@ class LumoAppState {
         ),
       ),
       'currentLearnerId': currentLearner?.id,
+      'currentLearnerCode': currentLearner?.learnerCode,
       'selectedModuleId': selectedModule?.id,
       'activeSession':
           activeSession == null ? null : _encodeLessonSession(activeSession!),
@@ -5770,6 +5890,7 @@ class LumoAppState {
         'lessonTitle': session.lesson.title,
         'moduleId': session.lesson.moduleId,
         'currentLearnerId': currentLearner?.id,
+        'currentLearnerCode': currentLearner?.learnerCode,
         'stepIndex': session.stepIndex,
         'completionState': session.completionState.name,
         'speakerMode': session.speakerMode.name,
