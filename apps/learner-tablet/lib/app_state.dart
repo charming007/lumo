@@ -1072,6 +1072,7 @@ class LumoAppState {
     } finally {
       isBootstrapping = false;
       persistStateSoon();
+      _attemptSyncSoon();
     }
   }
 

@@ -4656,6 +4656,246 @@ void main() {
     );
 
     test(
+      'bootstrap flushes persisted pending reward sync after restart so canonical rewards catch up',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'lumo_learner_tablet_state_v1': jsonEncode({
+            'schemaVersion': '2026-04-13-runtime-persist',
+            'savedAt': '2026-04-20T09:00:00.000Z',
+            'currentLearnerId': 'learner-local-zainab',
+            'currentLearnerCode': 'ZAI-AC12',
+            'learners': [
+              {
+                'id': 'learner-local-zainab',
+                'name': 'Zainab',
+                'age': 12,
+                'cohort': 'Afternoon Cohort',
+                'guardianName': 'Zainab',
+                'preferredLanguage': 'Hausa + English',
+                'readinessLabel': 'Voice-first beginner',
+                'village': 'Pod 1',
+                'guardianPhone': '0800000000',
+                'sex': 'Girl',
+                'baselineLevel': 'No prior exposure',
+                'consentCaptured': true,
+                'learnerCode': 'ZAI-AC12',
+                'caregiverRelationship': 'Mother',
+                'enrollmentStatus': 'Active',
+                'attendanceBand': 'Stable attendance',
+                'supportPlan': 'Prompt and praise.',
+                'lastLessonSummary': 'Ready',
+                'lastAttendance': 'Checked in today',
+                'podId': 'pod-1',
+                'podLabel': 'Pod 1',
+                'rewards': {
+                  'learnerId': 'learner-local-zainab',
+                  'totalXp': 38,
+                  'points': 38,
+                  'level': 1,
+                  'levelLabel': 'Starter',
+                  'nextLevel': 2,
+                  'nextLevelLabel': 'Rising Voice',
+                  'xpIntoLevel': 38,
+                  'xpForNextLevel': 42,
+                  'progressToNextLevel': 0.47,
+                  'badgesUnlocked': 1,
+                  'badges': const [],
+                },
+              },
+            ],
+            'modules': const [],
+            'assignedLessons': const [],
+            'assignmentPacks': const [],
+            'pendingSyncEvents': [
+              {
+                'id': 'sync-1',
+                'type': 'lesson_completed',
+                'payload': {
+                  'studentId': 'learner-local-zainab',
+                  'learnerCode': 'ZAI-AC12',
+                  'lessonId': 'english-1',
+                  'moduleId': 'english',
+                  'stepIndex': 3,
+                  'stepsTotal': 3,
+                  'completionState': 'completed',
+                  'review': 'onTrack',
+                  'supportActionsUsed': 0,
+                  'observations': ['Needed no support'],
+                  'capturedAt': '2026-04-20T09:00:00.000Z',
+                },
+              },
+            ],
+            'usingFallbackData': false,
+          }),
+        });
+
+        Map<String, dynamic>? syncedPayload;
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': 'learner-live-zainab',
+                        'name': 'Zainab',
+                        'age': 12,
+                        'cohort': 'Afternoon Cohort',
+                        'guardianName': 'Zainab',
+                        'preferredLanguage': 'Hausa + English',
+                        'readinessLabel': 'Voice-first beginner',
+                        'village': 'Pod 1',
+                        'guardianPhone': '0800000000',
+                        'sex': 'Girl',
+                        'baselineLevel': 'No prior exposure',
+                        'consentCaptured': true,
+                        'learnerCode': 'ZAI-AC12',
+                        'caregiverRelationship': 'Mother',
+                        'enrollmentStatus': 'Active',
+                        'attendanceBand': 'Stable attendance',
+                        'supportPlan': 'Prompt and praise.',
+                        'lastLessonSummary': 'Ready',
+                        'lastAttendance': 'Checked in today',
+                        'podId': 'pod-1',
+                        'podLabel': 'Pod 1',
+                        'rewards': {
+                          'learnerId': 'learner-live-zainab',
+                          'totalXp': 0,
+                          'points': 0,
+                          'level': 1,
+                          'levelLabel': 'Starter',
+                          'nextLevel': 2,
+                          'nextLevelLabel': 'Rising Voice',
+                          'xpIntoLevel': 0,
+                          'xpForNextLevel': 80,
+                          'progressToNextLevel': 0,
+                          'badgesUnlocked': 0,
+                          'badges': const [],
+                        },
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'id': 'english',
+                        'title': 'English',
+                        'subject': 'English',
+                        'order': 1,
+                        'status': 'published',
+                        'lessons': const [],
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'english-1',
+                        'moduleId': 'english',
+                        'title': 'Hello',
+                        'subject': 'English',
+                        'durationMinutes': 8,
+                        'status': 'published',
+                        'mascotName': 'Mallam',
+                        'readinessFocus': 'Greeting flow',
+                        'scenario': 'Say hello.',
+                        'steps': [
+                          {
+                            'id': 'step-1',
+                            'type': 'practice',
+                            'title': 'Say hello',
+                            'instruction': 'Say hello.',
+                            'expectedResponse': 'Hello',
+                            'coachPrompt': 'Say hello.',
+                            'facilitatorTip': 'Keep it short.',
+                            'realWorldCheck': 'Learner greets',
+                            'speakerMode': 'guiding',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignments': const [],
+                    'assignmentPacks': const [],
+                    'assessments': const [],
+                    'lessonAvailability': const [],
+                    'learnerStatuses': const [],
+                    'registrationContext': null,
+                    'sync': const {
+                      'acceptedEventCount': 0,
+                      'supports': ['rewards-on-sync'],
+                    },
+                    'rewards': const {
+                      'catalog': {'xpRules': {}, 'levels': [], 'badges': []},
+                      'leaderboard': [],
+                    },
+                    'meta': const {
+                      'generatedAt': '2026-04-20T09:05:00.000Z',
+                      'contractVersion': 'learner-app-v2.5',
+                      'supports': ['learner-rewards'],
+                    },
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              if (request.url.path == '/api/v1/learner-app/sync') {
+                syncedPayload = jsonDecode(request.body) as Map<String, dynamic>;
+                return http.Response(
+                  jsonEncode({
+                    'accepted': 1,
+                    'ignored': 0,
+                    'syncedAt': '2026-04-20T09:05:10.000Z',
+                    'results': [
+                      {
+                        'type': 'lesson_completed',
+                        'status': 'accepted',
+                        'rewards': {
+                          'learnerId': 'learner-live-zainab',
+                          'totalXp': 57,
+                          'points': 57,
+                          'level': 1,
+                          'levelLabel': 'Starter',
+                          'nextLevel': 2,
+                          'nextLevelLabel': 'Rising Voice',
+                          'xpIntoLevel': 57,
+                          'xpForNextLevel': 23,
+                          'progressToNextLevel': 0.71,
+                          'badgesUnlocked': 1,
+                          'badges': const [],
+                        },
+                        'rewardDelta': const {
+                          'xpDelta': 19,
+                          'awardedBadgeIds': ['first-lesson'],
+                        },
+                      },
+                    ],
+                  }),
+                  202,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+        addTearDown(state.dispose);
+
+        await state.restorePersistedState();
+        await state.bootstrap();
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+
+        expect(syncedPayload, isNotNull);
+        expect((syncedPayload!['events'] as List).length, 1);
+        expect(
+          (syncedPayload!['events'] as List).first['learnerCode'],
+          'ZAI-AC12',
+        );
+        expect(state.pendingSyncEvents, isEmpty);
+        expect(state.currentLearner?.id, 'learner-live-zainab');
+        expect(state.currentLearner?.rewards?.totalXp, 57);
+      },
+    );
+
+    test(
       'lesson completion projects a completed runtime session locally',
       () async {
         late final LumoAppState state;
