@@ -8,11 +8,9 @@ import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { navigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
-import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
 import { diagnoseBackendTargetMismatch } from '../lib/backend-target-diagnosis';
-import { filterLessonsForModule } from '../lib/module-lesson-match';
-import { resolveModuleSubjectId } from '../lib/module-subject-match';
+import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -338,45 +336,12 @@ export default async function HomePage() {
     .slice()
     .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
     .slice(0, 5);
-  const moduleHasAssessmentGate = (module: CurriculumModule) => assessments.some(
-    (assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment),
-  );
-  const releaseBlockers = modules
-    .map((module) => {
-      const moduleLessons = filterLessonsForModule(lessons, module);
-      const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-      const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-      const hasAssessmentGate = moduleHasAssessmentGate(module);
-      const isDraftModule = module.status === 'draft';
-      const blockerCount = missingLessons + (hasAssessmentGate ? 0 : 1) + (isDraftModule ? 1 : 0);
-
-      if (!blockerCount) {
-        return null;
-      }
-
-      const subjectId = resolveModuleSubjectId(module, subjects);
-
-      return {
-        id: module.id,
-        title: module.title,
-        subjectId,
-        subjectName: module.subjectName ?? '—',
-        missingLessons,
-        hasAssessmentGate,
-        isDraftModule,
-        hasAuthoringContext: Boolean(subjectId),
-        blockerCount,
-        priorityWeight: !hasAssessmentGate && !isDraftModule
-          ? 4
-          : !isDraftModule
-            ? 3
-            : !hasAssessmentGate
-              ? 2
-              : 1,
-      };
-    })
-    .filter((module): module is NonNullable<typeof module> => Boolean(module))
-    .sort((left, right) => right.priorityWeight - left.priorityWeight || right.blockerCount - left.blockerCount || right.missingLessons - left.missingLessons || left.title.localeCompare(right.title));
+  const releaseBlockers = getDashboardReleaseBlockers({
+    modules,
+    lessons,
+    assessments,
+    subjects,
+  });
   const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled';
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
   const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
