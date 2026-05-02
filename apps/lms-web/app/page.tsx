@@ -10,6 +10,7 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
+import { diagnoseBackendTargetMismatch } from '../lib/backend-target-diagnosis';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { resolveModuleSubjectId } from '../lib/module-subject-match';
 
@@ -281,7 +282,7 @@ export default async function HomePage() {
       : null;
   const dashboardRenderedAt = new Date();
 
-  const failedSources = [
+  const failedFeedEntries = [
     { label: 'dashboard summary', result: summaryResult },
     { label: 'insights', result: insightsResult },
     { label: 'workboard', result: workboardResult },
@@ -292,8 +293,14 @@ export default async function HomePage() {
     { label: 'assessments', result: assessmentsResult },
     { label: 'asset runtime', result: assetRuntimeResult },
     { label: 'subjects', result: subjectsResult },
-  ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
+  ].filter(
+    (entry): entry is { label: string; result: PromiseRejectedResult } => entry.result.status === 'rejected',
+  );
+  const failedSources = failedFeedEntries.map((entry) => entry.label);
   const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
+  const backendTargetDiagnosis = diagnoseBackendTargetMismatch(
+    failedFeedEntries.map((entry) => ({ label: entry.label, error: entry.result.reason })),
+  );
   const subjectFeedAvailable = subjectsResult.status === 'fulfilled';
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
@@ -406,21 +413,23 @@ export default async function HomePage() {
     criticalReleaseFailureCount: criticalReleaseFailures.length,
     hasCriticalAssetOpsGap,
   })) {
-    const blockerDetail = hasCriticalDashboardGap
-      ? !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
-        ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
-        : !summaryAvailable && !workboardAvailable
-          ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
-          : !summaryAvailable
-            ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
-            : !workboardAvailable
-              ? 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.'
-              : !mallamsAvailable && !assignmentsAvailable
-                ? 'Mallam coverage and assignment pressure both failed to load from the live API. That strips out the facilitator and delivery checks operators use before trusting this dashboard.'
-                : !mallamsAvailable
-                  ? 'The mallam coverage feed failed to load from the live API. Without the live roster, this dashboard cannot honestly represent facilitator coverage.'
-                  : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.'
-      : hasCriticalAssetOpsGap
+    const blockerDetail = backendTargetDiagnosis
+      ? `Multiple LMS feeds are returning route-level 404 responses from ${API_BASE_DIAGNOSTIC.configuredApiBase ?? 'the configured API host'}. That pattern usually means this deployment is pointed at a stale or wrong backend build, not that the dashboard suddenly forgot how to fetch. Failing route checks: ${backendTargetDiagnosis.requestUrls.join(', ')}.`
+      : hasCriticalDashboardGap
+        ? !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
+          ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+          : !summaryAvailable && !workboardAvailable
+            ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+            : !summaryAvailable
+              ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
+              : !workboardAvailable
+                ? 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.'
+                : !mallamsAvailable && !assignmentsAvailable
+                  ? 'Mallam coverage and assignment pressure both failed to load from the live API. That strips out the facilitator and delivery checks operators use before trusting this dashboard.'
+                  : !mallamsAvailable
+                    ? 'The mallam coverage feed failed to load from the live API. Without the live roster, this dashboard cannot honestly represent facilitator coverage.'
+                    : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.'
+        : hasCriticalAssetOpsGap
         ? assetRuntimeResult.status === 'rejected'
           ? assetRuntimeAuthBlocked
             ? 'The dashboard cannot read the protected asset runtime audit because the LMS is missing or using the wrong admin API key. Until that auth wiring is fixed, this route cannot honestly prove upload readiness, registry integrity, or managed lesson media health.'
@@ -435,18 +444,22 @@ export default async function HomePage() {
     return (
       <DeploymentBlockerCard
         title="Dashboard"
-        subtitle={hasCriticalDashboardGap
-          ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
-          : hasCriticalAssetOpsGap
-            ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
-            : 'The admin landing page also blocks when release-readiness feeds are blind.'}
-        blockerHeadline={hasCriticalDashboardGap
-          ? 'Deployment blocker: dashboard live feeds are degraded.'
-          : hasCriticalAssetOpsGap
-            ? assetRuntimeAuthBlocked
-              ? 'Deployment blocker: LMS admin API key cannot unlock asset audit feeds.'
-              : 'Deployment blocker: asset operations are not trustworthy.'
-            : 'Deployment blocker: release-readiness feeds are degraded.'}
+        subtitle={backendTargetDiagnosis
+          ? 'The admin landing page is blocked because the configured API host looks like the wrong or stale backend build.'
+          : hasCriticalDashboardGap
+            ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
+            : hasCriticalAssetOpsGap
+              ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
+              : 'The admin landing page also blocks when release-readiness feeds are blind.'}
+        blockerHeadline={backendTargetDiagnosis
+          ? 'Deployment blocker: LMS is pointed at a stale or wrong backend host.'
+          : hasCriticalDashboardGap
+            ? 'Deployment blocker: dashboard live feeds are degraded.'
+            : hasCriticalAssetOpsGap
+              ? assetRuntimeAuthBlocked
+                ? 'Deployment blocker: LMS admin API key cannot unlock asset audit feeds.'
+                : 'Deployment blocker: asset operations are not trustworthy.'
+              : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length
@@ -454,13 +467,19 @@ export default async function HomePage() {
               : 'The dashboard refused to guess.'}
           </>
         )}
-        whyBlocked={hasCriticalDashboardGap
+        whyBlocked={backendTargetDiagnosis
           ? [
-              'The root route is the deployment reviewer’s first trust check. If summary, progression, mallam coverage, or assignment pressure is missing, the page should not cosplay as a healthy command center.',
-              'Operators use this screen to decide who needs intervention now, whether facilitators are actually covered, and whether delivery load is under control. Missing any of those turns this into vibes-based operations.',
-              'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
+              'The failure pattern matches route-level 404s across multiple LMS feeds. That usually means the host behind NEXT_PUBLIC_API_BASE_URL is stale or simply the wrong service, not that one dashboard card had a bad day.',
+              'If the front door only says “feeds degraded,” deployment reviewers waste time poking the UI while the real problem sits behind the API hostname.',
+              'Calling out a likely wrong backend directly is safer than making operators reverse-engineer 404 patterns from scattered empty states.',
             ]
-          : hasCriticalAssetOpsGap
+          : hasCriticalDashboardGap
+            ? [
+                'The root route is the deployment reviewer’s first trust check. If summary, progression, mallam coverage, or assignment pressure is missing, the page should not cosplay as a healthy command center.',
+                'Operators use this screen to decide who needs intervention now, whether facilitators are actually covered, and whether delivery load is under control. Missing any of those turns this into vibes-based operations.',
+                'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
+              ]
+            : hasCriticalAssetOpsGap
             ? assetRuntimeAuthBlocked
               ? [
                   'The dashboard now depends on protected audit feeds to prove whether asset operations are genuinely healthy. If the LMS cannot authenticate to those endpoints, the front door should block instead of hand-waving.',
@@ -530,13 +549,19 @@ export default async function HomePage() {
                   failure: 'Dashboard says release is reviewable while the live content and delivery routes still show degraded curriculum or assignment data',
                 },
               ]}
-        fixItems={hasCriticalDashboardGap
+        fixItems={backendTargetDiagnosis
           ? [
-              { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
-              { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
-              { label: 'Cross-check', value: 'Verify /progress, /assignments, and the dashboard facilitator-coverage cards after the upstream fix lands' },
+              { label: 'Likely cause', value: 'NEXT_PUBLIC_API_BASE_URL points at a stale or wrong backend build' },
+              { label: 'Failing feeds', value: backendTargetDiagnosis.failingFeeds.join(', ') },
+              { label: 'Operator action', value: 'Verify the API host serves current /api/v1/* and admin runtime routes, then redeploy the LMS if the env target changes' },
             ]
-          : hasCriticalAssetOpsGap
+          : hasCriticalDashboardGap
+            ? [
+                { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
+                { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
+                { label: 'Cross-check', value: 'Verify /progress, /assignments, and the dashboard facilitator-coverage cards after the upstream fix lands' },
+              ]
+            : hasCriticalAssetOpsGap
             ? assetRuntimeAuthBlocked
               ? [
                   { label: 'Failing area', value: 'protected asset runtime audit authentication' },
@@ -553,13 +578,19 @@ export default async function HomePage() {
                 { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
                 { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
               ]}
-        docs={hasCriticalDashboardGap
+        docs={backendTargetDiagnosis
           ? [
-              { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-              { label: 'Open content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-              { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+              { label: 'Deploy verification guide', href: '/LUMO_MVP_QA_UAT_GUIDE.html', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+              { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+              { label: 'Open content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
             ]
-          : hasCriticalAssetOpsGap
+          : hasCriticalDashboardGap
+            ? [
+                { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+                { label: 'Open content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+                { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+              ]
+            : hasCriticalAssetOpsGap
             ? [
                 { label: 'Open asset library', href: '/content/assets', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
                 { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
