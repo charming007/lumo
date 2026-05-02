@@ -485,12 +485,12 @@ void main() {
     expect(find.text('Hear Mallam again'), findsOneWidget);
     expect(find.text('Follow Mallam one lesson at a time'), findsNothing);
     expect(find.textContaining('You opened ${module.title}.'), findsNothing);
-    expect(find.text('Available lessons'), findsOneWidget);
+    expect(find.text('Lesson journey'), findsOneWidget);
     expect(
-      find.textContaining('choose which available learner'),
+      find.textContaining('Finished lessons stay visible'),
       findsOneWidget,
     );
-    expect(find.text('Lesson journey'), findsNothing);
+    expect(find.text('Available lessons'), findsNothing);
     expect(find.text('Lesson path'), findsNothing);
     expect(find.text('Next step'), findsNothing);
 
@@ -1885,9 +1885,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Available lessons'), findsOneWidget);
+    expect(find.text('Lesson journey'), findsOneWidget);
     expect(
-      find.textContaining('choose which available learner'),
+      find.textContaining('Finished lessons stay visible'),
       findsOneWidget,
     );
 
@@ -1895,7 +1895,7 @@ void main() {
       find.text('Hear Mallam again'),
     );
     final lessonChooserTopLeft = tester.getTopLeft(
-      find.text('Available lessons'),
+      find.text('Lesson journey'),
     );
     expect(
       mallamGuideTopLeft.dy,
@@ -2257,7 +2257,7 @@ void main() {
       );
       await pumpForUi(tester);
 
-      expect(find.text('Completed today'), findsWidgets);
+      expect(find.text('Completed'), findsWidgets);
       expect(find.text('Absent: ${completedLearner.name}'), findsNothing);
 
       await tester.tap(find.text(availableLearner.name).first);
@@ -4108,9 +4108,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Available lessons'), findsOneWidget);
+    expect(find.text('Lesson journey'), findsOneWidget);
     expect(
-      find.textContaining('choose which available learner'),
+      find.textContaining('Finished lessons stay visible'),
       findsOneWidget,
     );
 

@@ -3841,23 +3841,19 @@ class SubjectModulesPage extends StatelessWidget {
                               if (lessons.isEmpty) {
                                 final completedLessons = subjectLessons.where((lesson) {
                                   if (scopedLearner != null) {
-                                    return learnerLessonAvailability(
-                                          state: state,
-                                          learner: scopedLearner,
-                                          lesson: lesson,
-                                        ).kind ==
-                                        LearnerLessonAvailabilityKind.completedToday;
+                                    return state.lessonCompletedTodayForLearner(
+                                      scopedLearner,
+                                      lesson,
+                                    );
                                   }
                                   return state.learners.any((learner) {
                                     if (!state.learnerMatchesTabletPod(learner)) {
                                       return false;
                                     }
-                                    return learnerLessonAvailability(
-                                          state: state,
-                                          learner: learner,
-                                          lesson: lesson,
-                                        ).kind ==
-                                        LearnerLessonAvailabilityKind.completedToday;
+                                    return state.lessonCompletedTodayForLearner(
+                                      learner,
+                                      lesson,
+                                    );
                                   });
                                 }).length;
                                 final completedEverythingToday =
