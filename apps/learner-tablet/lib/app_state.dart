@@ -20,6 +20,9 @@ const bool kEnableSeedDemoContent = bool.fromEnvironment(
   'LUMO_ENABLE_SEED_DEMO_CONTENT',
 );
 const bool kReleaseBuild = bool.fromEnvironment('dart.vm.product');
+const bool kEnableQaLessonUnlockToggle = !kReleaseBuild &&
+    (bool.fromEnvironment('LUMO_ENABLE_QA_LESSON_UNLOCK_TOGGLE') ||
+        bool.fromEnvironment('FLUTTER_TEST'));
 const String kConfiguredDeviceIdentifier = String.fromEnvironment(
   'LUMO_DEVICE_IDENTIFIER',
 );
@@ -147,6 +150,14 @@ class LumoAppState {
       rewardRedemptionHistoryByLearnerId = {};
   final Map<String, ContentOrigin> _moduleContentOrigins = {};
   final Map<String, ContentOrigin> _lessonContentOrigins = {};
+
+  bool qaLessonUnlockEnabled = false;
+  bool forceQaLessonUnlockAvailabilityForTesting = false;
+
+  bool get canUseQaLessonUnlock =>
+      kEnableQaLessonUnlockToggle || forceQaLessonUnlockAvailabilityForTesting;
+  bool get isQaLessonUnlockActive =>
+      canUseQaLessonUnlock && qaLessonUnlockEnabled;
 
   bool isBootstrapping = false;
   bool isRegisteringLearner = false;
@@ -799,6 +810,8 @@ class LumoAppState {
       registrationDraft = _decodeRegistrationDraft(
         snapshot['registrationDraft'],
       );
+      qaLessonUnlockEnabled =
+          canUseQaLessonUnlock && snapshot['qaLessonUnlockEnabled'] == true;
       registrationContext = restoredRegistrationContext;
       learners.retainWhere(learnerMatchesTabletPod);
       usingFallbackData = snapshot['usingFallbackData'] != false;
@@ -1601,7 +1614,10 @@ class LumoAppState {
   }
 
   bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
-    if (lessonCompletedTodayForLearner(learner, lesson)) {
+    if (isQaLessonUnlockActive) {
+      return _canQaUnlockLessonForLearner(learner, lesson);
+    }
+    if (lessonCompletedForLearner(learner, lesson)) {
       return false;
     }
     if (lesson.isAssignmentPlaceholder) {
@@ -1612,6 +1628,7 @@ class LumoAppState {
 
     final resumable = resumableLessonForLearner(learner);
     if (resumable?.id == lesson.id) return true;
+    if (lessonLockedForLearner(learner, lesson)) return false;
 
     final backendAssigned = backendAssignedLessonsForLearner(
       learner,
@@ -1719,6 +1736,73 @@ class LumoAppState {
     return activityAt.year == now.year &&
         activityAt.month == now.month &&
         activityAt.day == now.day;
+  }
+
+  bool lessonCompletedForLearner(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) =>
+      completedSessionForLearnerAndLesson(learner, lesson) != null;
+
+  List<LessonCardModel> lessonProgressionPathForLearnerAndModule(
+    LearnerProfile learner,
+    String moduleId,
+  ) {
+    return lessonsForLearnerAndModule(learner, moduleId)
+        .where((lesson) => !lesson.isAssignmentPlaceholder)
+        .toList(growable: false);
+  }
+
+  LessonCardModel? nextProgressionLessonForLearnerInModule(
+    LearnerProfile learner,
+    String moduleId, {
+    String? excludingLessonId,
+  }) {
+    for (final lesson in lessonProgressionPathForLearnerAndModule(
+      learner,
+      moduleId,
+    )) {
+      if (lesson.id == excludingLessonId) continue;
+      if (lessonCompletedForLearner(learner, lesson)) continue;
+      return lesson;
+    }
+    return null;
+  }
+
+  bool lessonLockedForLearner(LearnerProfile learner, LessonCardModel lesson) {
+    if (isQaLessonUnlockActive) return false;
+    if (lesson.isAssignmentPlaceholder) return false;
+    if (!_isPublishedLearnerLesson(lesson)) return false;
+
+    final resumable = resumableLessonForLearner(learner);
+    if (resumable?.id == lesson.id) return false;
+    if (lessonCompletedForLearner(learner, lesson)) return false;
+
+    final nextLesson = nextProgressionLessonForLearnerInModule(
+      learner,
+      lesson.moduleId,
+    );
+    if (nextLesson == null) return false;
+    return nextLesson.id != lesson.id;
+  }
+
+  bool _canQaUnlockLessonForLearner(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) {
+    if (lesson.isAssignmentPlaceholder) {
+      return learnerMatchesTabletPod(learner);
+    }
+    return _isPublishedLearnerLesson(lesson) &&
+        learnerMatchesTabletPod(learner);
+  }
+
+  void setQaLessonUnlockEnabled(bool enabled) {
+    if (!canUseQaLessonUnlock) return;
+    if (qaLessonUnlockEnabled == enabled) return;
+    qaLessonUnlockEnabled = enabled;
+    persistStateSoon();
+    _notifyListeners();
   }
 
   Future<void> markLearnerAbsentForLesson(
@@ -1893,8 +1977,9 @@ class LumoAppState {
 
     for (final lesson in assignedLessons) {
       if (!_isPublishedLearnerLesson(lesson)) continue;
-      if (scopedLearners
-          .any((learner) => learnerCanOpenLesson(learner, lesson))) {
+      if (scopedLearners.any(
+        (learner) => learnerCanOpenLesson(learner, lesson),
+      )) {
         addLesson(lesson);
       }
     }
@@ -4993,6 +5078,7 @@ class LumoAppState {
       ),
       'tabletDeviceIdentifier': tabletDeviceIdentifier,
       'registrationDraft': _encodeRegistrationDraft(registrationDraft),
+      'qaLessonUnlockEnabled': qaLessonUnlockEnabled,
       'registrationContext': _encodeRegistrationContext(registrationContext),
       'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),
       'recentRuntimeSessionsByLearnerId': recentRuntimeSessionsByLearnerId.map(

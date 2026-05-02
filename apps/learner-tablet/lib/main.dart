@@ -836,7 +836,8 @@ enum LearnerLessonAvailabilityKind {
   resumeReady,
   assigned,
   available,
-  completedToday,
+  locked,
+  completed,
   absent,
   skipped,
   podMismatch,
@@ -880,6 +881,16 @@ LearnerLessonAvailability learnerLessonAvailability({
     );
   }
 
+  if (state.lessonCompletedForLearner(learner, lesson)) {
+    return LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.completed,
+      label: 'Completed',
+      detail: state.lessonCompletedTodayForLearner(learner, lesson)
+          ? 'Finished today on this tablet.'
+          : 'Already finished on this tablet.',
+    );
+  }
+
   final terminalSession = state.terminalRuntimeSessionForLearnerAndLesson(
     learner,
     lesson,
@@ -901,14 +912,6 @@ LearnerLessonAvailability learnerLessonAvailability({
             'This learner already skipped this lesson today on this tablet.',
       );
     }
-    if (state.lessonCompletedTodayForLearner(learner, lesson)) {
-      return const LearnerLessonAvailability(
-        kind: LearnerLessonAvailabilityKind.completedToday,
-        label: 'Completed today',
-        detail:
-            'This learner already finished this lesson today on this tablet.',
-      );
-    }
     return const LearnerLessonAvailability(
       kind: LearnerLessonAvailabilityKind.unavailable,
       label: 'Unavailable',
@@ -923,6 +926,20 @@ LearnerLessonAvailability learnerLessonAvailability({
       kind: LearnerLessonAvailabilityKind.podMismatch,
       label: 'Different pod',
       detail: '$learnerPodLabel learner, tablet is set for $tabletPodLabel.',
+    );
+  }
+
+  if (state.lessonLockedForLearner(learner, lesson)) {
+    final nextLesson = state.nextProgressionLessonForLearnerInModule(
+      learner,
+      lesson.moduleId,
+    );
+    return LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.locked,
+      label: 'Locked',
+      detail: nextLesson == null
+          ? 'Finish the earlier lesson in this path first.'
+          : 'Finish ${nextLesson.title} first to unlock this lesson.',
     );
   }
 
@@ -964,7 +981,9 @@ Color _learnerAvailabilityColor(LearnerLessonAvailabilityKind kind) {
       return LumoTheme.accentGreen;
     case LearnerLessonAvailabilityKind.available:
       return LumoTheme.accentOrange;
-    case LearnerLessonAvailabilityKind.completedToday:
+    case LearnerLessonAvailabilityKind.locked:
+      return const Color(0xFF7C3AED);
+    case LearnerLessonAvailabilityKind.completed:
       return const Color(0xFF0F766E);
     case LearnerLessonAvailabilityKind.absent:
       return const Color(0xFFB45309);
@@ -3727,15 +3746,12 @@ class SubjectModulesPage extends StatelessWidget {
         .toList();
     final lessons = subjectLessons.where((lesson) {
       if (scopedLearner != null) {
-        return learnerLessonAvailability(
-          state: state,
-          learner: scopedLearner,
-          lesson: lesson,
-        ).canLaunch;
+        return true;
       }
       return state.availableLearnersForLesson(lesson).isNotEmpty;
     }).toList();
     final nextAssignedLesson = _resolveHighlightedLesson(lessons);
+    final qaUnlockVisible = state.canUseQaLessonUnlock;
     final registrationBlocked = state.registrationBlockerReason;
     final usingFallbackData = state.usingFallbackData;
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
@@ -3928,7 +3944,7 @@ class SubjectModulesPage extends StatelessWidget {
 
                               const showJourneyHeader = true;
                               const journeyHint =
-                                  'Start with the first lesson card, then choose which available learner is taking it before the lesson begins.';
+                                  'Finished lessons stay visible but cannot be reopened. Follow the first open lesson to keep the path moving.';
 
                               return Container(
                                 width: double.infinity,
@@ -3942,7 +3958,7 @@ class SubjectModulesPage extends StatelessWidget {
                                   children: [
                                     if (showJourneyHeader) ...[
                                       const Text(
-                                        'Available lessons',
+                                        'Lesson journey',
                                         style: TextStyle(
                                           fontSize: 30,
                                           fontWeight: FontWeight.w900,
@@ -3961,23 +3977,54 @@ class SubjectModulesPage extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 16),
                                     ],
+                                    if (qaUnlockVisible) ...[
+                                      SwitchListTile.adaptive(
+                                        contentPadding: EdgeInsets.zero,
+                                        value: state.isQaLessonUnlockActive,
+                                        onChanged: (value) {
+                                          state.setQaLessonUnlockEnabled(value);
+                                          onChanged();
+                                        },
+                                        title:
+                                            const Text('QA unlock all lessons'),
+                                        subtitle: const Text(
+                                          'Testing only. Hidden in production builds.',
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
                                     Wrap(
                                       spacing: compact ? 18 : 22,
                                       runSpacing: compact ? 22 : 26,
                                       children: [
                                         for (var i = 0; i < lessons.length; i++)
-                                          _LessonJourneyStepCard(
-                                            lesson: lessons[i],
-                                            index: i,
-                                            highlightedLessonId:
-                                                highlightedLesson?.id,
-                                            nextLessonId:
-                                                nextAssignedLesson?.id,
-                                            onTap: lessons[i]
-                                                    .isAssignmentPlaceholder
-                                                ? null
-                                                : () => openLesson(lessons[i]),
-                                          ),
+                                          (() {
+                                            final lesson = lessons[i];
+                                            final availability =
+                                                scopedLearner == null
+                                                    ? null
+                                                    : learnerLessonAvailability(
+                                                        state: state,
+                                                        learner: scopedLearner,
+                                                        lesson: lesson,
+                                                      );
+                                            final canOpen = !lesson
+                                                    .isAssignmentPlaceholder &&
+                                                (availability == null ||
+                                                    availability.canLaunch);
+                                            return _LessonJourneyStepCard(
+                                              lesson: lesson,
+                                              index: i,
+                                              highlightedLessonId:
+                                                  highlightedLesson?.id,
+                                              nextLessonId:
+                                                  nextAssignedLesson?.id,
+                                              availability: availability,
+                                              onTap: canOpen
+                                                  ? () => openLesson(lesson)
+                                                  : null,
+                                            );
+                                          })(),
                                       ],
                                     ),
                                   ],
@@ -4062,6 +4109,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
   final int index;
   final String? highlightedLessonId;
   final String? nextLessonId;
+  final LearnerLessonAvailability? availability;
   final VoidCallback? onTap;
 
   const _LessonJourneyStepCard({
@@ -4069,6 +4117,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
     required this.index,
     required this.highlightedLessonId,
     required this.nextLessonId,
+    this.availability,
     this.onTap,
   });
 
@@ -4086,13 +4135,21 @@ class _LessonJourneyStepCard extends StatelessWidget {
     final isHighlighted = highlightedLessonId == lesson.id;
     final isNext = nextLessonId == lesson.id;
     final syncPending = lesson.isAssignmentPlaceholder;
+    final status = availability;
+    final isLocked = status?.kind == LearnerLessonAvailabilityKind.locked;
+    final isCompleted = status?.kind == LearnerLessonAvailabilityKind.completed;
     final palette = _paletteFor(
       index,
       syncPending: syncPending,
       emphasized: isHighlighted || isNext,
     );
-    final labelColor =
-        syncPending ? const Color(0xFF92400E) : const Color(0xFF0F172A);
+    final labelColor = syncPending
+        ? const Color(0xFF92400E)
+        : isLocked
+            ? const Color(0xFF5B21B6)
+            : isCompleted
+                ? const Color(0xFF0F766E)
+                : const Color(0xFF0F172A);
 
     return SizedBox(
       width: 170,
@@ -4106,58 +4163,61 @@ class _LessonJourneyStepCard extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 108,
-                  height: 108,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: palette,
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      width: 4,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: palette.first.withValues(alpha: 0.28),
-                        blurRadius: 18,
-                        offset: const Offset(0, 12),
+                Opacity(
+                  opacity: isLocked || isCompleted ? 0.72 : 1,
+                  child: Container(
+                    width: 108,
+                    height: 108,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: palette,
                       ),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: Icon(
-                          _icons[index % _icons.length],
-                          size: 38,
-                          color: Colors.white,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        width: 4,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: palette.first.withValues(alpha: 0.28),
+                          blurRadius: 18,
+                          offset: const Offset(0, 12),
                         ),
-                      ),
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.22),
-                            shape: BoxShape.circle,
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: Icon(
+                            _icons[index % _icons.length],
+                            size: 38,
+                            color: Colors.white,
                           ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
+                        ),
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.22),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -4177,11 +4237,15 @@ class _LessonJourneyStepCard extends StatelessWidget {
                 Text(
                   syncPending
                       ? 'Waiting for sync'
-                      : isNext
-                          ? 'Start next lesson'
-                          : isHighlighted
-                              ? 'Ready now'
-                              : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
+                      : isCompleted
+                          ? 'Completed'
+                          : isLocked
+                              ? 'Locked'
+                              : isNext
+                                  ? 'Start next lesson'
+                                  : isHighlighted
+                                      ? 'Ready now'
+                                      : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -4191,9 +4255,13 @@ class _LessonJourneyStepCard extends StatelessWidget {
                     height: 1.35,
                     color: syncPending
                         ? const Color(0xFFB45309)
-                        : isNext || isHighlighted
-                            ? palette.first
-                            : const Color(0xFF64748B),
+                        : isCompleted
+                            ? const Color(0xFF0F766E)
+                            : isLocked
+                                ? const Color(0xFF7C3AED)
+                                : isNext || isHighlighted
+                                    ? palette.first
+                                    : const Color(0xFF64748B),
                   ),
                 ),
               ],

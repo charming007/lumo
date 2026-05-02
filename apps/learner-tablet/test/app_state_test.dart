@@ -2793,6 +2793,153 @@ void main() {
       },
     );
 
+    test('locks later lessons until earlier lessons are completed', () async {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      const module = LearningModule(
+        id: 'progression-module',
+        title: 'Progression Module',
+        description: 'Test module',
+        voicePrompt: 'Open progression module.',
+        readinessGoal: 'Progress forward.',
+        badge: '2 lessons',
+      );
+      const moduleLessons = [
+        LessonCardModel(
+          id: 'progression-lesson-1',
+          moduleId: 'progression-module',
+          title: 'Lesson One',
+          subject: 'Progression',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'First step',
+          scenario: 'Start here.',
+          steps: [
+            LessonStep(
+              id: 'progression-step-1',
+              type: LessonStepType.intro,
+              title: 'Intro',
+              instruction: 'Start.',
+              expectedResponse: 'Start',
+              coachPrompt: 'Start.',
+              facilitatorTip: 'Guide the learner.',
+              realWorldCheck: 'Learner starts.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+        LessonCardModel(
+          id: 'progression-lesson-2',
+          moduleId: 'progression-module',
+          title: 'Lesson Two',
+          subject: 'Progression',
+          durationMinutes: 9,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Second step',
+          scenario: 'Continue here.',
+          steps: [
+            LessonStep(
+              id: 'progression-step-2',
+              type: LessonStepType.intro,
+              title: 'Continue',
+              instruction: 'Continue.',
+              expectedResponse: 'Continue',
+              coachPrompt: 'Continue.',
+              facilitatorTip: 'Guide the learner.',
+              realWorldCheck: 'Learner continues.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      ];
+
+      state.modules.add(module);
+      state.assignedLessons.addAll(moduleLessons);
+
+      expect(state.learnerCanOpenLesson(learner, moduleLessons.first), isTrue);
+      expect(state.lessonLockedForLearner(learner, moduleLessons[1]), isTrue);
+      expect(state.learnerCanOpenLesson(learner, moduleLessons[1]), isFalse);
+
+      state.selectLearner(learner);
+      state.selectModule(module);
+      state.startLesson(moduleLessons.first);
+      await state.completeLesson(moduleLessons.first);
+
+      expect(
+        state.lessonCompletedForLearner(learner, moduleLessons.first),
+        isTrue,
+      );
+      expect(state.learnerCanOpenLesson(learner, moduleLessons.first), isFalse);
+      expect(state.lessonLockedForLearner(learner, moduleLessons[1]), isFalse);
+      expect(state.learnerCanOpenLesson(learner, moduleLessons[1]), isTrue);
+      state.dispose();
+    });
+
+    test('qa lesson unlock override opens locked lessons when enabled', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      const moduleLessons = [
+        LessonCardModel(
+          id: 'qa-lesson-1',
+          moduleId: 'qa-module',
+          title: 'QA Lesson One',
+          subject: 'QA',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'First step',
+          scenario: 'Start here.',
+          steps: [
+            LessonStep(
+              id: 'qa-step-1',
+              type: LessonStepType.intro,
+              title: 'Intro',
+              instruction: 'Start.',
+              expectedResponse: 'Start',
+              coachPrompt: 'Start.',
+              facilitatorTip: 'Guide the learner.',
+              realWorldCheck: 'Learner starts.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+        LessonCardModel(
+          id: 'qa-lesson-2',
+          moduleId: 'qa-module',
+          title: 'QA Lesson Two',
+          subject: 'QA',
+          durationMinutes: 9,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Second step',
+          scenario: 'Continue here.',
+          steps: [
+            LessonStep(
+              id: 'qa-step-2',
+              type: LessonStepType.intro,
+              title: 'Continue',
+              instruction: 'Continue.',
+              expectedResponse: 'Continue',
+              coachPrompt: 'Continue.',
+              facilitatorTip: 'Guide the learner.',
+              realWorldCheck: 'Learner continues.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      ];
+
+      state.assignedLessons.addAll(moduleLessons);
+      state.forceQaLessonUnlockAvailabilityForTesting = true;
+      state.qaLessonUnlockEnabled = true;
+
+      expect(state.lessonLockedForLearner(learner, moduleLessons[1]), isFalse);
+      expect(state.learnerCanOpenLesson(learner, moduleLessons[1]), isTrue);
+      state.dispose();
+    });
+
     test(
       'falls back to backend recommended module after lesson completion',
       () {
@@ -3238,66 +3385,68 @@ void main() {
       state.dispose();
     });
 
-    test('restore keeps orphaned active sessions pending until learner returns',
-        () async {
-      SharedPreferences.setMockInitialValues({
-        'lumo_learner_tablet_state_v1': jsonEncode({
-          'schemaVersion': '2026-04-13-runtime-persist',
-          'learners': const [],
-          'modules': const [],
-          'assignedLessons': [
-            {
-              'id': 'lesson-recover',
-              'moduleId': 'english',
-              'title': 'Recovered English lesson',
-              'subject': 'English',
-              'durationMinutes': 12,
-              'status': 'Ready now',
-              'mascotName': 'Mallam',
-              'readinessFocus': 'Resume guidance',
-              'scenario': 'Restore safely after a lesson update',
-              'steps': [
-                {
-                  'id': 'step-1',
-                  'title': 'Warm-up',
-                  'instruction': 'Say hello.',
-                  'expectedResponse': 'Hello',
-                  'coachPrompt': 'Let us begin.',
-                  'facilitatorTip': 'Encourage a confident start.',
-                  'realWorldCheck': 'The learner greets Mallam.',
-                  'speakerMode': 'guiding',
-                },
-              ],
-            },
-          ],
-          'currentLearnerId': 'missing-learner',
-          'activeSession': {
-            'sessionId': 'session-missing-learner',
-            'lessonId': 'lesson-recover',
-            'lessonTitle': 'Recovered English lesson',
-            'moduleId': 'english',
+    test(
+      'restore keeps orphaned active sessions pending until learner returns',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'lumo_learner_tablet_state_v1': jsonEncode({
+            'schemaVersion': '2026-04-13-runtime-persist',
+            'learners': const [],
+            'modules': const [],
+            'assignedLessons': [
+              {
+                'id': 'lesson-recover',
+                'moduleId': 'english',
+                'title': 'Recovered English lesson',
+                'subject': 'English',
+                'durationMinutes': 12,
+                'status': 'Ready now',
+                'mascotName': 'Mallam',
+                'readinessFocus': 'Resume guidance',
+                'scenario': 'Restore safely after a lesson update',
+                'steps': [
+                  {
+                    'id': 'step-1',
+                    'title': 'Warm-up',
+                    'instruction': 'Say hello.',
+                    'expectedResponse': 'Hello',
+                    'coachPrompt': 'Let us begin.',
+                    'facilitatorTip': 'Encourage a confident start.',
+                    'realWorldCheck': 'The learner greets Mallam.',
+                    'speakerMode': 'guiding',
+                  },
+                ],
+              },
+            ],
             'currentLearnerId': 'missing-learner',
-            'stepIndex': 0,
-            'completionState': 'inProgress',
-            'speakerMode': 'guiding',
-            'latestReview': 'pending',
-            'transcript': const [],
-          },
-        }),
-      });
+            'activeSession': {
+              'sessionId': 'session-missing-learner',
+              'lessonId': 'lesson-recover',
+              'lessonTitle': 'Recovered English lesson',
+              'moduleId': 'english',
+              'currentLearnerId': 'missing-learner',
+              'stepIndex': 0,
+              'completionState': 'inProgress',
+              'speakerMode': 'guiding',
+              'latestReview': 'pending',
+              'transcript': const [],
+            },
+          }),
+        });
 
-      final state = LumoAppState(includeSeedDemoContent: false);
-      await state.restorePersistedState();
+        final state = LumoAppState(includeSeedDemoContent: false);
+        await state.restorePersistedState();
 
-      expect(state.currentLearner, isNull);
-      expect(state.activeSession, isNull);
-      expect(state.hasPendingRecoveredSession, isTrue);
-      expect(
-        state.pendingRecoveredSessionLabel,
-        contains('Recovered English lesson'),
-      );
-      state.dispose();
-    });
+        expect(state.currentLearner, isNull);
+        expect(state.activeSession, isNull);
+        expect(state.hasPendingRecoveredSession, isTrue);
+        expect(
+          state.pendingRecoveredSessionLabel,
+          contains('Recovered English lesson'),
+        );
+        state.dispose();
+      },
+    );
 
     test('restored active sessions clamp stale step indexes safely', () async {
       SharedPreferences.setMockInitialValues({
@@ -5537,9 +5686,9 @@ void main() {
           equals(['basic-mathematics', 'english', 'life-skills']),
         );
         expect(
-          buildLearnerSubjectCards(state: state)
-              .map((card) => card.id)
-              .toList(),
+          buildLearnerSubjectCards(
+            state: state,
+          ).map((card) => card.id).toList(),
           equals(['basic-mathematics', 'english', 'life-skills']),
         );
         state.dispose();
