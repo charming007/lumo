@@ -9,8 +9,8 @@ import {
   normalizeModulesForAuthoring,
   normalizeSubjectsForAuthoring,
 } from '../../../../lib/lesson-authoring-normalize';
-import { filterModulesForSubject, findSubjectByContext } from '../../../../lib/module-subject-match';
 import { buildReviewBlockersHref } from '../../../../lib/content-return-path';
+import { resolveLessonStudioLaunchContext } from '../../../../lib/lesson-studio-launch-context';
 import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import type { Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
@@ -143,21 +143,20 @@ export default async function LessonStudioCreatePage({
   const createdLessonId = normalizeRouteParam(query?.createdLessonId);
   const createdLessonTitle = normalizeRouteParam(query?.createdLessonTitle);
 
-  const requestedModule = requestedModuleId ? modules.find((module) => module.id === requestedModuleId) ?? null : null;
-  const requestedSubject = requestedSubjectId
-    ? findSubjectByContext(subjects, {
-      subjectId: requestedSubjectId,
-      subjectName: requestedModule?.subjectName ?? null,
-    })
-    : null;
+  const {
+    requestedModule,
+    selectedSubject,
+    selectedModule,
+    resolvedSubjectId,
+    resolvedModuleId,
+    requestedModuleRecoveredSubject,
+    requestedModuleHasRecoverableSubject,
+    subjectRecoveredFromModule,
+  } = resolveLessonStudioLaunchContext(subjects, modules, {
+    requestedSubjectId,
+    requestedModuleId,
+  });
   const requestedModuleSubjectId = requestedModule?.subjectId?.trim() ?? '';
-  const requestedModuleRecoveredSubject = requestedModule
-    ? findSubjectByContext(subjects, {
-      subjectId: requestedModuleSubjectId,
-      subjectName: requestedModule.subjectName ?? null,
-    })
-    : null;
-  const requestedModuleHasRecoverableSubject = Boolean(requestedModuleRecoveredSubject);
 
   if (requestedModule && !requestedModuleHasRecoverableSubject) {
     return (
@@ -200,12 +199,8 @@ export default async function LessonStudioCreatePage({
     );
   }
 
-  const subjectId = requestedSubjectId || requestedModuleRecoveredSubject?.id || subjects[0]?.id || '';
-  const selectedSubject = requestedSubject ?? requestedModuleRecoveredSubject ?? subjects.find((subject) => subject.id === requestedModule?.subjectId) ?? subjects[0] ?? null;
-  const subjectScopedModules = filterModulesForSubject(modules, selectedSubject);
-  const moduleId = requestedModuleId || subjectScopedModules[0]?.id || modules[0]?.id || '';
-
-  const selectedModule = modules.find((module) => module.id === moduleId) ?? subjectScopedModules[0] ?? modules[0] ?? null;
+  const subjectId = resolvedSubjectId;
+  const moduleId = resolvedModuleId;
   const reviewBlockersHref = buildReviewBlockersHref(from);
 
   return (
@@ -232,7 +227,7 @@ export default async function LessonStudioCreatePage({
     >
       <FeedbackBanner message={query?.message} />
 
-      {failedSources.length || (requestedSubjectId && selectedSubject && requestedSubjectId !== selectedSubject.id) ? (
+      {failedSources.length || subjectRecoveredFromModule ? (
         <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           {failedSources.length
             ? `Lesson Studio recovered with degraded feeds: ${failedSources.join(', ')}. Draft creation stays live because a usable curriculum context is still available.`
