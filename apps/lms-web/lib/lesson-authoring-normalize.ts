@@ -86,13 +86,57 @@ function normalizeDragTarget(value: unknown, index: number): LessonActivityDragT
   };
 }
 
+function normalizeLegacyDragItem(value: unknown, index: number): LessonActivityDragItem | null {
+  if (!value || typeof value !== 'object') return null;
+  const item = value as Record<string, unknown>;
+  const media = normalizeMedia(item.media);
+  return {
+    id: asString(item.id, `item-${index + 1}`),
+    label: asString(item.label, `Item ${index + 1}`),
+    targetId: asString(item.targetId),
+    media,
+  };
+}
+
+function normalizeLegacyDragTarget(value: unknown, index: number): LessonActivityDragTarget | null {
+  if (!value || typeof value !== 'object') return null;
+  const target = value as Record<string, unknown>;
+  const nestedMedia = normalizeMedia(target.media);
+  const directMedia = nestedMedia ?? (('kind' in target || 'value' in target) ? normalizeMedia(target) : null);
+  return {
+    id: asString(target.id, `target-${index + 1}`),
+    prompt: asString(target.prompt, asString(target.label, `Target ${index + 1}`)),
+    media: directMedia,
+  };
+}
+
 function normalizeStep(value: unknown, index: number): LessonActivityStep | null {
   if (!value || typeof value !== 'object') return null;
   const step = value as Record<string, unknown>;
+  const type = asString(step.type, 'speak_answer');
+  const normalizedChoices = Array.isArray(step.choices)
+    ? step.choices.map((choice, choiceIndex) => normalizeChoice(choice, choiceIndex)).filter(Boolean) as LessonActivityChoice[]
+    : [];
+  const normalizedMedia = Array.isArray(step.media)
+    ? step.media.map((media) => normalizeMedia(media)).filter(Boolean) as LessonActivityMedia[]
+    : [];
+  const normalizedDragItems = Array.isArray(step.dragItems)
+    ? step.dragItems.map((item, itemIndex) => normalizeDragItem(item, itemIndex)).filter(Boolean) as LessonActivityDragItem[]
+    : [];
+  const normalizedDragTargets = Array.isArray(step.dragTargets)
+    ? step.dragTargets.map((target, targetIndex) => normalizeDragTarget(target, targetIndex)).filter(Boolean) as LessonActivityDragTarget[]
+    : [];
+  const fallbackDragItems = type === 'drag_to_match' && normalizedDragItems.length === 0 && Array.isArray(step.choices)
+    ? step.choices.map((item, itemIndex) => normalizeLegacyDragItem(item, itemIndex)).filter(Boolean) as LessonActivityDragItem[]
+    : [];
+  const fallbackDragTargets = type === 'drag_to_match' && normalizedDragTargets.length === 0 && Array.isArray(step.media)
+    ? step.media.map((target, targetIndex) => normalizeLegacyDragTarget(target, targetIndex)).filter(Boolean) as LessonActivityDragTarget[]
+    : [];
+
   return {
     id: asString(step.id, `activity-${index + 1}`),
     order: asNumber(step.order, index + 1),
-    type: asString(step.type, 'speak_answer'),
+    type,
     title: asString(step.title, asString(step.prompt, `Activity ${index + 1}`)),
     prompt: asString(step.prompt, asString(step.title, `Activity ${index + 1}`)),
     durationMinutes: asNumber(step.durationMinutes, 2),
@@ -101,18 +145,10 @@ function normalizeStep(value: unknown, index: number): LessonActivityStep | null
     expectedAnswers: asStringArray(step.expectedAnswers),
     tags: asStringArray(step.tags),
     facilitatorNotes: asStringArray(step.facilitatorNotes),
-    choices: Array.isArray(step.choices)
-      ? step.choices.map((choice, choiceIndex) => normalizeChoice(choice, choiceIndex)).filter(Boolean) as LessonActivityChoice[]
-      : [],
-    media: Array.isArray(step.media)
-      ? step.media.map((media) => normalizeMedia(media)).filter(Boolean) as LessonActivityMedia[]
-      : [],
-    dragItems: Array.isArray(step.dragItems)
-      ? step.dragItems.map((item, itemIndex) => normalizeDragItem(item, itemIndex)).filter(Boolean) as LessonActivityDragItem[]
-      : [],
-    dragTargets: Array.isArray(step.dragTargets)
-      ? step.dragTargets.map((target, targetIndex) => normalizeDragTarget(target, targetIndex)).filter(Boolean) as LessonActivityDragTarget[]
-      : [],
+    choices: normalizedChoices,
+    media: normalizedMedia,
+    dragItems: normalizedDragItems.length > 0 ? normalizedDragItems : fallbackDragItems,
+    dragTargets: normalizedDragTargets.length > 0 ? normalizedDragTargets : fallbackDragTargets,
   };
 }
 
