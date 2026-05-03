@@ -291,7 +291,8 @@ const { Client } = require('pg');
       const backups = await client.query('SELECT id, label, created_at, pg_column_size(snapshot) AS size_bytes FROM lumo_storage_backups ORDER BY created_at DESC LIMIT 10');
       const journal = await client.query("SELECT COUNT(*)::int AS total, MAX(created_at) AS latest_at FROM lumo_storage_mutations");
       const latestMutation = await client.query('SELECT id, action, snapshot_hash, snapshot IS NOT NULL AS has_snapshot, created_at FROM lumo_storage_mutations ORDER BY created_at DESC LIMIT 1');
-      process.stdout.write(JSON.stringify({ snapshot: snap.rows[0] || null, backups: backups.rows || [], journal: journal.rows[0] || { total: 0, latest_at: null }, latestMutation: latestMutation.rows[0] || null }));
+      const latestRestorableMutation = await client.query('SELECT id, action, snapshot_hash, created_at FROM lumo_storage_mutations WHERE snapshot IS NOT NULL ORDER BY created_at DESC LIMIT 1');
+      process.stdout.write(JSON.stringify({ snapshot: snap.rows[0] || null, backups: backups.rows || [], journal: journal.rows[0] || { total: 0, latest_at: null }, latestMutation: latestMutation.rows[0] || null, latestRestorableMutation: latestRestorableMutation.rows[0] || null }));
       return;
     }
     if (action === 'listMutations') {
@@ -631,6 +632,7 @@ const { Client } = require('pg');
         : null;
       const snapshotHash = snapshot ? hashSnapshot(snapshot) : null;
       const latestMutationHash = status.latestMutation?.snapshot_hash || null;
+      const latestRestorableMutationHash = status.latestRestorableMutation?.snapshot_hash || null;
       return {
         kind: 'postgres',
         file: resolvedFile,
@@ -648,10 +650,13 @@ const { Client } = require('pg');
           latestMutationAction: status.latestMutation?.action || null,
           latestMutationHash,
           latestMutationRestorable: Boolean(status.latestMutation?.has_snapshot),
+          latestRestorableMutationId: status.latestRestorableMutation?.id || null,
+          latestRestorableMutationAction: status.latestRestorableMutation?.action || null,
+          latestRestorableMutationHash,
         },
         primaryIntegrity: {
           snapshotHash,
-          journalAligned: snapshotHash ? snapshotHash === latestMutationHash : latestMutationHash === null,
+          journalAligned: snapshotHash ? snapshotHash === latestRestorableMutationHash : latestRestorableMutationHash === null,
           recoverableFromWarmCache: Boolean(describeWarmCache(snapshot).exists),
         },
         note: 'Primary durability is Postgres; local JSON file is maintained as a warm snapshot cache and every snapshot mutation is journaled in Postgres.',

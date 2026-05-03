@@ -740,3 +740,53 @@ test('storage freshness and drift reporting surface stale postgres durability si
     data.storage = originalStorage;
   }
 });
+
+test('journal drift stays clean when the latest bookkeeping mutation has no snapshot', () => {
+  const data = require('../src/data');
+  const originalStorage = data.storage;
+
+  data.storage = {
+    kind: 'postgres',
+    getStatus() {
+      return {
+        kind: 'postgres',
+        file: '/tmp/lumo-cache.json',
+        updatedAt: '2026-04-10T00:00:00.000Z',
+        cache: {
+          exists: true,
+          inSync: true,
+          updatedAt: '2026-04-10T00:00:00.000Z',
+          snapshotHash: 'db-hash',
+          cacheHash: 'db-hash',
+        },
+        journal: {
+          total: 8,
+          latestAt: '2026-04-10T01:00:00.000Z',
+          latestMutationId: 8,
+          latestMutationAction: 'delete-backup',
+          latestMutationHash: null,
+          latestMutationRestorable: false,
+          latestRestorableMutationId: 7,
+          latestRestorableMutationAction: 'write',
+          latestRestorableMutationHash: 'db-hash',
+        },
+        primaryIntegrity: {
+          snapshotHash: 'db-hash',
+          journalAligned: true,
+          recoverableFromWarmCache: true,
+        },
+        db: { mode: 'postgres', persistent: true, hasDatabaseUrl: true, driver: 'pg-jsonb-snapshot+journal' },
+      };
+    },
+  };
+
+  try {
+    const drift = store.buildStorageDriftReport();
+    const integrity = store.getStorageIntegrityReport();
+
+    assert.equal(drift.summary.reasons.some((entry) => entry.type === 'journal-drift'), false);
+    assert.equal(integrity.issues.some((issue) => issue.type === 'storage-primary-journal-drift'), false);
+  } finally {
+    data.storage = originalStorage;
+  }
+});
