@@ -8232,6 +8232,23 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     responseController.text = placed == 0 ? '' : _encodeDragPlacements();
   }
 
+  Widget _buildDragTargetPreview(LessonActivityDragTarget target) {
+    if (target.mediaItems.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _buildChoicePreview(
+        LessonActivityChoice(
+          id: target.id,
+          label: target.prompt,
+          mediaItems: target.mediaItems,
+        ),
+        '🎯',
+        imageHeight: 120,
+        borderRadius: 20,
+      ),
+    );
+  }
+
   Widget _buildDragItemCard(
     LessonActivityDragItem item, {
     bool placed = false,
@@ -8417,6 +8434,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _buildDragTargetPreview(target),
                           Text(target.prompt,
                               style: const TextStyle(
                                   fontWeight: FontWeight.w800, fontSize: 17)),

@@ -4562,6 +4562,77 @@ void main() {
   );
 
   testWidgets(
+      'drag to match shows authored target media so learners can see the target zones',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const lesson = LessonCardModel(
+      id: 'drag-match-visual-targets',
+      moduleId: 'english',
+      title: 'Match picture cards to target zones',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Match every card to its visual zone.',
+      scenario: 'Learner matches picture cards to visual target zones.',
+      steps: [
+        LessonStep(
+          id: 'drag-visual-step',
+          type: LessonStepType.practice,
+          title: 'Match the fruit cards',
+          instruction: 'Drag each fruit card into the matching target zone.',
+          expectedResponse: 'matched',
+          coachPrompt: 'Drag every fruit card to the right place.',
+          facilitatorTip:
+              'Watch whether the learner can sort both cards independently.',
+          realWorldCheck:
+              'Both cards land in the correct zones before continue unlocks.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.dragToMatch,
+            prompt: 'Match each fruit card to the right target.',
+            targetResponse: 'matched',
+            dragItems: [
+              LessonActivityDragItem(
+                  id: 'banana-card', label: 'Banana', targetId: 'banana-zone'),
+            ],
+            dragTargets: [
+              LessonActivityDragTarget(
+                id: 'banana-zone',
+                prompt: 'Banana target zone',
+                mediaItems: [
+                  LessonActivityMedia(kind: 'word-card', values: ['BANANA']),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId));
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(MaterialApp(
+        home:
+            LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
+    await pumpForUi(tester);
+
+    expect(find.text('BANANA'), findsOneWidget);
+    expect(find.text('Banana target zone'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets(
       'drag to match gates CTA until every card lands in the correct zone',
       (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
