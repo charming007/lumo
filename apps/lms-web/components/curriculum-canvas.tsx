@@ -3,6 +3,7 @@
 import type React from 'react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { findSubjectByContext, subjectMatchesContext } from '../lib/module-subject-match';
 import { Pill } from '../lib/ui';
 import { ModalLauncher } from './modal-launcher';
 import type { Assessment } from '../lib/types';
@@ -393,7 +394,10 @@ export function CurriculumCanvas({
   const filteredSubjects = useMemo(() => {
     const query = normalize(searchTerm);
     return data.subjects
-      .filter((subject) => subjectFilter === 'all' || subject.id === subjectFilter)
+      .filter((subject) => subjectFilter === 'all' || subjectMatchesContext(subject, {
+        subjectIds: [subjectFilter],
+        subjectNames: [subjectFilter],
+      }))
       .map((subject) => {
         const strands = subject.strands
           .map((strand) => {
@@ -558,7 +562,7 @@ export function CurriculumCanvas({
     subjectFilter !== 'all'
       ? {
           id: 'subject',
-          label: `Subject: ${data.subjects.find((subject) => subject.id === subjectFilter)?.name ?? subjectFilter}`,
+          label: `Subject: ${findSubjectByContext(data.subjects, { subjectId: subjectFilter, subjectName: subjectFilter })?.name ?? subjectFilter}`,
           clear: () => setSubjectFilter('all'),
         }
       : null,
@@ -737,8 +741,14 @@ export function CurriculumCanvas({
                 <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Choose subject first</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   {data.subjects.map((subject) => {
-                    const active = subject.id === subjectFilter;
-                    const visibleSubject = filteredSubjects.find((entry) => entry.id === subject.id);
+                    const active = subjectMatchesContext(subject, {
+                      subjectIds: [subjectFilter],
+                      subjectNames: [subjectFilter],
+                    });
+                    const visibleSubject = filteredSubjects.find((entry) => subjectMatchesContext(entry, {
+                      subjectIds: [subject.id],
+                      subjectNames: [subject.name],
+                    }));
                     const subjectModuleCount = visibleSubject?.totals.modules ?? subject.strands.reduce((sum, strand) => sum + strand.modules.length, 0);
                     const subjectLessonCount = visibleSubject?.totals.lessons ?? subject.strands.reduce((sum, strand) => sum + strand.modules.reduce((moduleSum, module) => moduleSum + module.lessons.length, 0), 0);
                     return (
