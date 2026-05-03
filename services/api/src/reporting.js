@@ -1223,7 +1223,7 @@ function buildAssetRuntimeReport({ limit = 20 } = {}) {
     ? 'Asset runtime is release-safe.'
     : readiness === 'blocked'
       ? 'Asset runtime has blocking issues.'
-      : 'Asset runtime is usable but not clean.';
+      : 'Asset runtime is usable with follow-up items.';
   const operatorAction = dedupedNextActions[0] || 'No immediate operator action required.';
 
   return {
