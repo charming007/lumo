@@ -2770,7 +2770,147 @@ void main() {
 
         expect(state.lessonCompletedForLearner(learner, lessonTwo), isTrue);
         expect(
-          state.lessonsForLearnerAndSubject(learner, 'english').map((lesson) => lesson.id),
+          state
+              .lessonsForLearnerAndSubject(learner, 'english')
+              .map((lesson) => lesson.id),
+          [lessonOne.id, lessonTwo.id],
+        );
+        state.dispose();
+      },
+    );
+
+    test(
+      'groups tap-to-act subject aliases under the canonical learner-facing subject',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = false;
+        const learner = LearnerProfile(
+          id: 'learner-a',
+          name: 'Amina',
+          age: 7,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+        );
+        const module = LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Greeting path',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Greeting flow',
+          badge: '2 lessons',
+        );
+        const lessonOne = LessonCardModel(
+          id: 'english-1',
+          moduleId: 'english',
+          title: 'Hear and say hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Start here.',
+          steps: [
+            LessonStep(
+              id: 'english-1-step',
+              type: LessonStepType.intro,
+              title: 'Hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model hello.',
+              realWorldCheck: 'Learner greets.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+        const lessonTwo = LessonCardModel(
+          id: 'english-2',
+          moduleId: 'tap-to-act-package',
+          title: 'Tap the greeting card',
+          subject: 'English Tap to Act',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Tap to Act follow-up',
+          scenario: 'Continue here.',
+          steps: [
+            LessonStep(
+              id: 'english-2-step',
+              type: LessonStepType.practice,
+              title: 'Pick the greeting',
+              instruction: 'Tap the hello card.',
+              expectedResponse: 'hello',
+              coachPrompt: 'Tap the hello card.',
+              facilitatorTip: 'Guide the learner.',
+              realWorldCheck: 'Learner taps hello.',
+              speakerMode: SpeakerMode.guiding,
+              activity: LessonActivity(
+                type: LessonActivityType.tapChoice,
+                prompt: 'Tap hello.',
+                targetResponse: 'hello',
+                choices: ['hello', 'book'],
+              ),
+            ),
+          ],
+        );
+
+        state.learners.add(learner);
+        state.modules.add(module);
+        state.assignedLessons.addAll([lessonOne, lessonTwo]);
+        state.assignmentPacks.add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-1',
+            lessonId: lessonOne.id,
+            moduleId: lessonOne.moduleId,
+            curriculumModuleId: lessonOne.moduleId,
+            lessonTitle: lessonOne.title,
+            eligibleLearnerIds: [learner.id],
+          ),
+        );
+        state.recentRuntimeSessionsByLearnerId[learner.id] = [
+          BackendLessonSession(
+            id: 'session-2',
+            sessionId: 'session-2',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: 'tap-to-act-runtime-alias',
+            lessonTitle: lessonTwo.title,
+            moduleId: 'tap-to-act-package',
+            moduleTitle: 'English Tap to Act',
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Completed.',
+            currentStepIndex: lessonTwo.steps.length,
+            stepsTotal: lessonTwo.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+            completedAt: DateTime.now(),
+          ),
+        ];
+
+        expect(
+          state
+              .learnerFacingSubjects(learner: learner)
+              .map((subject) => subject.id),
+          ['english'],
+        );
+        expect(
+          state
+              .lessonsForLearnerAndSubject(learner, 'english')
+              .map((lesson) => lesson.id),
           [lessonOne.id, lessonTwo.id],
         );
         state.dispose();
@@ -4156,15 +4296,18 @@ void main() {
           apiClient: LumoApiClient(
             client: MockClient((request) async {
               if (request.url.path == '/api/v1/learner-app/sync') {
-                final body =
-                    jsonDecode(request.body) as Map<String, dynamic>;
+                final body = jsonDecode(request.body) as Map<String, dynamic>;
                 final events = (body['events'] as List?) ?? const [];
                 postedLessonCompletionSyncIds.addAll(
-                  events.whereType<Map>().where((event) {
-                    return event['type'] == 'lesson_completed';
-                  }).map((event) => event['id']?.toString() ?? '').where(
-                    (id) => id.isNotEmpty,
-                  ),
+                  events
+                      .whereType<Map>()
+                      .where((event) {
+                        return event['type'] == 'lesson_completed';
+                      })
+                      .map((event) => event['id']?.toString() ?? '')
+                      .where(
+                        (id) => id.isNotEmpty,
+                      ),
                 );
                 return http.Response(
                   jsonEncode({

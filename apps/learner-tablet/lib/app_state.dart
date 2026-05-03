@@ -1916,7 +1916,46 @@ class LumoAppState {
     return normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
   }
 
+  bool _normalizedSubjectKeysOverlap(String left, String right) {
+    if (left.isEmpty || right.isEmpty) return false;
+    if (left == right) return true;
+    return left.startsWith('$right-') ||
+        left.endsWith('-$right') ||
+        left.contains('-$right-') ||
+        right.startsWith('$left-') ||
+        right.endsWith('-$left') ||
+        right.contains('-$left-');
+  }
+
+  LearningModule? _tapToActCanonicalSubjectModuleForLesson(
+    LessonCardModel lesson,
+  ) {
+    final normalizedSubject = _normalizeSubjectKey(lesson.subject);
+    if (!normalizedSubject.contains('tap-to-act')) return null;
+
+    final matches = modules.where((module) {
+      final normalizedTitle = _normalizeSubjectKey(module.title);
+      final normalizedId = _normalizeSubjectKey(module.id);
+      return _normalizedSubjectKeysOverlap(
+              normalizedSubject, normalizedTitle) ||
+          _normalizedSubjectKeysOverlap(normalizedSubject, normalizedId);
+    }).toList(growable: false);
+
+    if (matches.isEmpty) return null;
+    matches
+        .sort((left, right) => left.title.length.compareTo(right.title.length));
+    return matches.first;
+  }
+
   String _subjectTitleForLesson(LessonCardModel lesson) {
+    final canonicalTapToActModule = _tapToActCanonicalSubjectModuleForLesson(
+      lesson,
+    );
+    final canonicalTitle = canonicalTapToActModule?.title.trim();
+    if (canonicalTitle != null && canonicalTitle.isNotEmpty) {
+      return canonicalTitle;
+    }
+
     final directSubject = lesson.subject.trim();
     if (directSubject.isNotEmpty) return directSubject;
 
@@ -2099,8 +2138,10 @@ class LumoAppState {
         : _learnerVisibilityLessons(learner);
     return lessonPool.where((lesson) {
       if (!_isPublishedLearnerLesson(lesson)) return false;
-      return _normalizeSubjectKey(_subjectTitleForLesson(lesson)) ==
-          normalizedSubjectId;
+      final lessonSubjectId =
+          _normalizeSubjectKey(_subjectTitleForLesson(lesson));
+      return lessonSubjectId == normalizedSubjectId ||
+          _normalizedSubjectKeysOverlap(lessonSubjectId, normalizedSubjectId);
     }).toList(growable: false);
   }
 

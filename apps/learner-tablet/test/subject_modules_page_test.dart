@@ -1043,9 +1043,9 @@ void main() {
       );
       const lessonTwo = LessonCardModel(
         id: 'english-2',
-        moduleId: 'english',
+        moduleId: 'tap-to-act-package',
         title: 'Tap the greeting card',
-        subject: 'English',
+        subject: 'English Tap to Act',
         durationMinutes: 8,
         status: 'published',
         mascotName: 'Mallam',
