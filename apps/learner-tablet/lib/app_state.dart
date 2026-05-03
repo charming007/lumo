@@ -1751,17 +1751,7 @@ class LumoAppState {
     final sessions = recentRuntimeSessionsForLearner(learner);
     for (final session in sessions) {
       if (!_sessionMatchesLesson(session, lesson)) continue;
-      final normalizedStatus = session.status.trim().toLowerCase();
-      final normalizedCompletion = session.completionState.trim().toLowerCase();
-      final isTerminal = normalizedStatus == 'completed' ||
-          normalizedStatus == 'absent' ||
-          normalizedStatus == 'skipped' ||
-          normalizedCompletion == 'completed' ||
-          normalizedCompletion == 'complete' ||
-          normalizedCompletion == 'absent' ||
-          normalizedCompletion == 'skipped' ||
-          normalizedCompletion == 'skip';
-      if (isTerminal) return session;
+      if (_isTerminalRuntimeSession(session)) return session;
     }
     return null;
   }
@@ -4595,9 +4585,78 @@ class LumoAppState {
   ) {
     final sessions = recentRuntimeSessionsForLearner(learner);
     for (final session in sessions) {
-      if (session.status == 'in_progress') return session;
+      final normalizedStatus = session.status.trim().toLowerCase();
+      if (normalizedStatus != 'in_progress') continue;
+      if (_terminalSessionSupersedesResumableCandidate(session, sessions)) {
+        continue;
+      }
+      return session;
     }
     return null;
+  }
+
+  bool _terminalSessionSupersedesResumableCandidate(
+    BackendLessonSession candidate,
+    List<BackendLessonSession> sessions,
+  ) {
+    final candidateTime =
+        candidate.lastActivityAt ?? candidate.completedAt ?? candidate.startedAt;
+    for (final session in sessions) {
+      if (identical(session, candidate)) continue;
+      if (!_sessionMatchesSession(candidate, session)) continue;
+      if (!_isTerminalRuntimeSession(session)) continue;
+      final terminalTime =
+          session.completedAt ?? session.lastActivityAt ?? session.startedAt;
+      if (candidateTime == null || terminalTime == null) {
+        return true;
+      }
+      if (!terminalTime.isBefore(candidateTime)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _sessionMatchesSession(
+    BackendLessonSession left,
+    BackendLessonSession right,
+  ) {
+    final leftLessonId = left.lessonId?.trim() ?? '';
+    final rightLessonId = right.lessonId?.trim() ?? '';
+    if (leftLessonId.isNotEmpty && leftLessonId == rightLessonId) {
+      return true;
+    }
+
+    final leftTitle = (left.lessonTitle ?? '').trim().toLowerCase();
+    final rightTitle = (right.lessonTitle ?? '').trim().toLowerCase();
+    if (leftTitle.isNotEmpty && leftTitle == rightTitle) {
+      return true;
+    }
+
+    final leftModuleId = left.moduleId?.trim() ?? '';
+    final rightModuleId = right.moduleId?.trim() ?? '';
+    if (leftModuleId.isNotEmpty && leftModuleId == rightModuleId) {
+      final resolvedLeft = lessonForBackendSession(left);
+      final resolvedRight = lessonForBackendSession(right);
+      if (resolvedLeft != null && resolvedRight != null) {
+        return resolvedLeft.id == resolvedRight.id;
+      }
+    }
+
+    return false;
+  }
+
+  bool _isTerminalRuntimeSession(BackendLessonSession session) {
+    final normalizedStatus = session.status.trim().toLowerCase();
+    final normalizedCompletion = session.completionState.trim().toLowerCase();
+    return normalizedStatus == 'completed' ||
+        normalizedStatus == 'absent' ||
+        normalizedStatus == 'skipped' ||
+        normalizedCompletion == 'completed' ||
+        normalizedCompletion == 'complete' ||
+        normalizedCompletion == 'absent' ||
+        normalizedCompletion == 'skipped' ||
+        normalizedCompletion == 'skip';
   }
 
   LessonCardModel? lessonForBackendSession(BackendLessonSession? session) {

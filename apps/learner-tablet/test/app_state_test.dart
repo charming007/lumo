@@ -3000,6 +3000,121 @@ void main() {
     });
 
     test(
+      'ignores stale in-progress runtime session when a newer completion exists for the same lesson',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'math',
+        );
+        final now = DateTime.now();
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-completed',
+            sessionId: 'session-completed',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Lesson completed on this tablet.',
+            currentStepIndex: lesson.steps.length,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: lesson.steps.length,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+            startedAt: now.subtract(const Duration(minutes: 9)),
+            lastActivityAt: now.subtract(const Duration(minutes: 1)),
+            completedAt: now.subtract(const Duration(minutes: 1)),
+          ),
+          BackendLessonSession(
+            id: 'runtime-stale-progress',
+            sessionId: 'session-stale-progress',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Mallam is waiting for the next response.',
+            currentStepIndex: 2,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+            startedAt: now.subtract(const Duration(minutes: 12)),
+            lastActivityAt: now.subtract(const Duration(minutes: 6)),
+          ),
+        ];
+
+        expect(state.resumableRuntimeSessionForLearner(beginner), isNull);
+        expect(state.lessonCompletedForLearner(beginner, lesson), isTrue);
+      },
+    );
+
+    test(
+      'keeps resume-ready when the in-progress runtime session is newer than an older completion',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'math',
+        );
+        final now = DateTime.now();
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-progress',
+            sessionId: 'session-progress',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Mallam is waiting for the next response.',
+            currentStepIndex: 3,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 2,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+            startedAt: now.subtract(const Duration(minutes: 3)),
+            lastActivityAt: now.subtract(const Duration(minutes: 1)),
+          ),
+          BackendLessonSession(
+            id: 'runtime-older-completed',
+            sessionId: 'session-older-completed',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Older completion record.',
+            currentStepIndex: lesson.steps.length,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: lesson.steps.length,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+            startedAt: now.subtract(const Duration(minutes: 15)),
+            lastActivityAt: now.subtract(const Duration(minutes: 10)),
+            completedAt: now.subtract(const Duration(minutes: 10)),
+          ),
+        ];
+
+        expect(state.resumableRuntimeSessionForLearner(beginner)?.sessionId, 'session-progress');
+      },
+    );
+
+    test(
       'does not map backend resume to the wrong lesson when only module matches',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);
