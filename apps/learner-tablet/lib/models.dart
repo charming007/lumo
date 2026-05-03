@@ -1592,7 +1592,6 @@ LessonStepType _lessonStepTypeForActivity(LessonActivityType type) {
     case LessonActivityType.wordBuild:
     case LessonActivityType.tapChoice:
     case LessonActivityType.dragToMatch:
-    case LessonActivityType.dragToMatch:
     case LessonActivityType.listenAnswer:
       return LessonStepType.practice;
     case LessonActivityType.speakAnswer:
@@ -1609,7 +1608,6 @@ SpeakerMode _speakerModeForActivity(LessonActivityType type) {
     case LessonActivityType.imageChoice:
     case LessonActivityType.wordBuild:
     case LessonActivityType.tapChoice:
-    case LessonActivityType.dragToMatch:
     case LessonActivityType.dragToMatch:
     case LessonActivityType.listenAnswer:
     case LessonActivityType.speakAnswer:

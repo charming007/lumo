@@ -8208,8 +8208,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   bool _dragMatchesComplete(LessonActivity activity) {
-    if (activity.dragItems.isEmpty || activity.dragTargets.isEmpty)
+    if (activity.dragItems.isEmpty || activity.dragTargets.isEmpty) {
       return false;
+    }
     for (final item in activity.dragItems) {
       if (_dragPlacements[item.id] != item.targetId) return false;
     }
