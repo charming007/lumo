@@ -1,4 +1,4 @@
-import type { LessonActivityChoice, LessonActivityMedia, LessonActivityStep, LessonAsset } from './types';
+import type { LessonActivityChoice, LessonActivityDragItem, LessonActivityDragTarget, LessonActivityMedia, LessonActivityStep, LessonAsset } from './types';
 
 export const knownLessonAssetKinds = [
   'image',
@@ -222,7 +222,7 @@ export function getLessonAssetRuntimeReadiness(kind: string | null | undefined, 
   }
 }
 
-export function buildLessonAssetPreviewItems(step: Pick<LessonActivityStep, 'media' | 'choices'>, assets?: LessonAsset[]) {
+export function buildLessonAssetPreviewItems(step: Pick<LessonActivityStep, 'media' | 'choices' | 'dragItems' | 'dragTargets'>, assets?: LessonAsset[]) {
   const shared = (Array.isArray(step.media) ? step.media : []).map((media, index) => ({
     scope: 'shared' as const,
     key: `shared-${index}`,
@@ -243,7 +243,29 @@ export function buildLessonAssetPreviewItems(step: Pick<LessonActivityStep, 'med
       choiceLabel: choice.label || null,
     }));
 
-  return [...shared, ...choices].map((item) => ({
+  const dragItems = (Array.isArray(step.dragItems) ? step.dragItems : [])
+    .filter((item) => item.media)
+    .map((item, index) => ({
+      scope: 'drag-item' as const,
+      key: `drag-item-${item.id || index}`,
+      label: item.label || `Drag card ${index + 1}`,
+      kind: normalizeLessonAssetKind(item.media?.kind),
+      values: getLessonAssetValues(item.media?.value),
+      choiceLabel: item.label || null,
+    }));
+
+  const dragTargets = (Array.isArray(step.dragTargets) ? step.dragTargets : [])
+    .filter((target) => target.media)
+    .map((target, index) => ({
+      scope: 'drag-target' as const,
+      key: `drag-target-${target.id || index}`,
+      label: target.prompt || `Target zone ${index + 1}`,
+      kind: normalizeLessonAssetKind(target.media?.kind),
+      values: getLessonAssetValues(target.media?.value),
+      choiceLabel: target.prompt || null,
+    }));
+
+  return [...shared, ...choices, ...dragItems, ...dragTargets].map((item) => ({
     ...item,
     tone: getLessonAssetPreviewTone(item.kind),
     readiness: getLessonAssetRuntimeReadiness(item.kind, item.values, assets),
@@ -288,10 +310,12 @@ export function parseActivityMedia(mediaLines: string): LessonActivityMedia[] {
     });
 }
 
-export function summarizeLessonAssets(step: Pick<LessonActivityStep, 'choices' | 'media'>) {
+export function summarizeLessonAssets(step: Pick<LessonActivityStep, 'choices' | 'media' | 'dragItems' | 'dragTargets'>) {
   const assets = [
     ...(Array.isArray(step.media) ? step.media : []),
     ...(Array.isArray(step.choices) ? step.choices.map((choice) => choice.media).filter(Boolean) as LessonActivityMedia[] : []),
+    ...(Array.isArray(step.dragItems) ? step.dragItems.map((item) => item.media).filter(Boolean) as LessonActivityMedia[] : []),
+    ...(Array.isArray(step.dragTargets) ? step.dragTargets.map((target) => target.media).filter(Boolean) as LessonActivityMedia[] : []),
   ];
 
   const counts = new Map<string, number>();
@@ -321,7 +345,7 @@ export function summarizeLessonAssets(step: Pick<LessonActivityStep, 'choices' |
   };
 }
 
-export function getStepRuntimePreviewHints(step: Pick<LessonActivityStep, 'type' | 'choices' | 'media' | 'prompt' | 'detail' | 'expectedAnswers' | 'evidence'>, assets?: LessonAsset[]) {
+export function getStepRuntimePreviewHints(step: Pick<LessonActivityStep, 'type' | 'choices' | 'media' | 'dragItems' | 'dragTargets' | 'prompt' | 'detail' | 'expectedAnswers' | 'evidence'>, assets?: LessonAsset[]) {
   const assetSummary = summarizeLessonAssets(step);
   const previewItems = buildLessonAssetPreviewItems(step, assets);
   const hints: string[] = [];

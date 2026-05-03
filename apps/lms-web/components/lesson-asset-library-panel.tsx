@@ -56,7 +56,7 @@ const assetTemplates: AssetTemplate[] = [
     category: 'Choice options',
     value: 'image',
     note: 'Drop an image asset straight into the choice list.',
-    appliesTo: ['image_choice', 'tap_choice', 'drag_to_match'],
+    appliesTo: ['image_choice', 'tap_choice'],
     target: 'choice-media',
     choiceLabel: 'Choice label',
     choiceCorrect: false,
@@ -131,6 +131,107 @@ function appendChoiceMediaLine(
       id: nextId,
       label: asset.label,
       correctness: asset.isCorrect ? 'correct' : 'wrong',
+      mediaKind: asset.kind,
+      mediaValue: asset.value,
+    },
+  ]);
+}
+
+
+type DragItemLine = {
+  id: string;
+  label: string;
+  targetId: string;
+  mediaKind: string;
+  mediaValue: string;
+};
+
+type DragTargetLine = {
+  id: string;
+  prompt: string;
+  mediaKind: string;
+  mediaValue: string;
+};
+
+function parseDragItemLines(lines: string): DragItemLine[] {
+  return lines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [id, label, targetId, mediaKind, mediaValue] = line.split('|').map((part) => part.trim());
+      return {
+        id: id || `item-${index + 1}`,
+        label: label || '',
+        targetId: targetId || '',
+        mediaKind: mediaKind || '',
+        mediaValue: mediaValue || '',
+      };
+    });
+}
+
+function parseDragTargetLines(lines: string): DragTargetLine[] {
+  return lines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [id, prompt, mediaKind, mediaValue] = line.split('|').map((part) => part.trim());
+      return {
+        id: id || `target-${index + 1}`,
+        prompt: prompt || '',
+        mediaKind: mediaKind || '',
+        mediaValue: mediaValue || '',
+      };
+    });
+}
+
+function toDragItemLines(items: DragItemLine[]) {
+  return items.map((item) => [item.id, item.label, item.targetId, item.mediaKind, item.mediaValue].join('|')).join('\n');
+}
+
+function toDragTargetLines(items: DragTargetLine[]) {
+  return items.map((item) => [item.id, item.prompt, item.mediaKind, item.mediaValue].join('|')).join('\n');
+}
+
+function slugifyAssetSeed(value: string, fallback: string) {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug || fallback;
+}
+
+function appendDragItemLine(
+  lines: string,
+  asset: { kind: string; value: string; label: string },
+) {
+  const parsed = parseDragItemLines(lines);
+  const duplicate = parsed.some((item) => item.label.toLowerCase() === asset.label.toLowerCase() && item.mediaValue === asset.value);
+  if (duplicate) return lines;
+  const seed = slugifyAssetSeed(asset.label, `item-${parsed.length + 1}`);
+  return toDragItemLines([
+    ...parsed,
+    {
+      id: `item-${seed}`,
+      label: asset.label,
+      targetId: '',
+      mediaKind: asset.kind,
+      mediaValue: asset.value,
+    },
+  ]);
+}
+
+function appendDragTargetLine(
+  lines: string,
+  asset: { kind: string; value: string; prompt: string },
+) {
+  const parsed = parseDragTargetLines(lines);
+  const duplicate = parsed.some((item) => item.prompt.toLowerCase() === asset.prompt.toLowerCase() && item.mediaValue === asset.value);
+  if (duplicate) return lines;
+  const seed = slugifyAssetSeed(asset.prompt, `target-${parsed.length + 1}`);
+  return toDragTargetLines([
+    ...parsed,
+    {
+      id: `target-${seed}` ,
+      prompt: asset.prompt,
       mediaKind: asset.kind,
       mediaValue: asset.value,
     },
@@ -247,9 +348,13 @@ export function LessonAssetLibraryPanel({
   const registrySummary = useMemo(() => {
     const allMedia = activitySteps.flatMap((step) => step.media ?? []);
     const allChoices = activitySteps.flatMap((step) => step.choices ?? []);
+    const allDragItems = activitySteps.flatMap((step) => step.dragItems ?? []);
+    const allDragTargets = activitySteps.flatMap((step) => step.dragTargets ?? []);
     const linkedValues = [
-      ...allMedia.map((item) => String(item.value ?? '')).filter(Boolean),
-      ...allChoices.map((item) => String(item.media?.value ?? '')).filter(Boolean),
+      ...allMedia.map((item) => Array.isArray(item.value) ? item.value.join(',') : String(item.value ?? '')).filter(Boolean),
+      ...allChoices.map((item) => Array.isArray(item.media?.value) ? item.media?.value.join(',') : String(item.media?.value ?? '')).filter(Boolean),
+      ...allDragItems.map((item) => Array.isArray(item.media?.value) ? item.media?.value.join(',') : String(item.media?.value ?? '')).filter(Boolean),
+      ...allDragTargets.map((item) => Array.isArray(item.media?.value) ? item.media?.value.join(',') : String(item.media?.value ?? '')).filter(Boolean),
     ];
     return {
       linkedAssetCount: linkedValues.length,
@@ -336,22 +441,43 @@ export function LessonAssetLibraryPanel({
                         <AssetRuntimeLink asset={asset} label="Open preview" />
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => onMediaLinesChange(appendMediaLine(mediaLines, { kind: asset.kind, value: preferredValue }))}
-                          style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, border: '1px solid #99F6E4', background: '#CCFBF1', color: '#115E59', cursor: 'pointer' }}
-                        >
-                          Add as shared media
-                        </button>
-                        {(stepType === 'image_choice' || stepType === 'tap_choice') && stepSupportsAssetKind(stepType, asset.kind) ? (
-                          <button
-                            type="button"
-                            onClick={() => onChoiceLinesChange(appendChoiceMediaLine(choiceLines, { kind: asset.kind, value: preferredValue, label: buildChoiceLabel(asset), isCorrect: false }))}
-                            style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, border: '1px solid #C7D2FE', background: '#EEF2FF', color: '#3730A3', cursor: 'pointer' }}
-                          >
-                            Add as choice option
-                          </button>
-                        ) : null}
+                        {stepType === 'drag_to_match' ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onChoiceLinesChange(appendDragItemLine(choiceLines, { kind: asset.kind, value: preferredValue, label: buildChoiceLabel(asset) }))}
+                              style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, border: '1px solid #99F6E4', background: '#CCFBF1', color: '#115E59', cursor: 'pointer' }}
+                            >
+                              Add as drag card
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onMediaLinesChange(appendDragTargetLine(mediaLines, { kind: asset.kind, value: preferredValue, prompt: buildChoiceLabel(asset) }))}
+                              style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, border: '1px solid #C7D2FE', background: '#EEF2FF', color: '#3730A3', cursor: 'pointer' }}
+                            >
+                              Add as target zone
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onMediaLinesChange(appendMediaLine(mediaLines, { kind: asset.kind, value: preferredValue }))}
+                              style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, border: '1px solid #99F6E4', background: '#CCFBF1', color: '#115E59', cursor: 'pointer' }}
+                            >
+                              Add as shared media
+                            </button>
+                            {(stepType === 'image_choice' || stepType === 'tap_choice') && stepSupportsAssetKind(stepType, asset.kind) ? (
+                              <button
+                                type="button"
+                                onClick={() => onChoiceLinesChange(appendChoiceMediaLine(choiceLines, { kind: asset.kind, value: preferredValue, label: buildChoiceLabel(asset), isCorrect: false }))}
+                                style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, border: '1px solid #C7D2FE', background: '#EEF2FF', color: '#3730A3', cursor: 'pointer' }}
+                              >
+                                Add as choice option
+                              </button>
+                            ) : null}
+                          </>
+                        )}
                       </div>
                     </div>
                   );
