@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
-import { pilotNavMode, visibleNavigationItems } from '../lib/pilot-nav';
+import { navigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
@@ -922,7 +922,7 @@ export default async function HomePage() {
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Admin routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {visibleNavigationItems.map((item) => (
+                {navigationItems.map((item) => (
                   <Pill
                     key={item.id}
                     label={item.label}
@@ -932,17 +932,13 @@ export default async function HomePage() {
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                {pilotNavMode === 'full-admin'
-                  ? 'The LMS dashboard should expose the full admin shell operators actually use. This route map reflects the full live LMS surface.'
-                  : 'The LMS dashboard should expose only the pilot-safe routes operators actually need. This route map now matches the trimmed shell instead of teasing deferred surfaces as if they were deployment-ready.'}
+                The LMS dashboard should expose the full admin shell operators actually use. This route map now reflects the live LMS surface instead of pretending reduced pilot scope is still the product reality.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why coherent scope matters</div>
               <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                {pilotNavMode === 'full-admin'
-                  ? 'Deployment review gets dangerous when shared shell copy says one thing and visible navigation does another. Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed.'
-                  : 'Deployment review gets dangerous when the dashboard advertises deferred pilot surfaces as if they are live. Keep the route map, sidebar, and blockers aligned so operators trust the shell they actually have.'}
+                Deployment review gets dangerous when shared shell copy says one thing and visible navigation does another. Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

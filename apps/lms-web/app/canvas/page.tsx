@@ -1,4 +1,3 @@
-import { RouteAvailabilityBlocker } from '../../components/pilot-scope-blocker';
 import { CurriculumCanvas } from '../../components/curriculum-canvas';
 import {
   bulkUpdateCanvasModuleLessonsAction,
@@ -17,7 +16,6 @@ import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fe
 import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
 import type { CurriculumCanvasApiTree } from '../../lib/curriculum-canvas';
 import type { Assessment, CurriculumModule, Lesson, Strand, Subject } from '../../lib/types';
-import { getPilotBlockedRoute } from '../../lib/pilot-nav';
 import { Card, MetricList, PageShell } from '../../lib/ui';
 
 const emptySubjects: Subject[] = [];
@@ -27,11 +25,6 @@ const emptyLessons: Lesson[] = [];
 const emptyAssessments: Assessment[] = [];
 
 export default async function CanvasPage() {
-  const blockedRoute = getPilotBlockedRoute('/canvas');
-  if (blockedRoute) {
-    return <RouteAvailabilityBlocker title={blockedRoute.label} rationale={blockedRoute.rationale} keepUsing={blockedRoute.keepUsing} />;
-  }
-
   const [subjectsResult, strandsResult, modulesResult, lessonsResult, assessmentsResult, treeResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchStrands(),

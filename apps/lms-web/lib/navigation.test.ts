@@ -2,23 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { navigationItems } from './navigation.ts';
-import { getPilotBlockedRoute, pilotNavMode, redirectIfPilotHiddenRoute, visibleNavigationItems } from './pilot-nav.ts';
+import { redirectIfPilotHiddenRoute } from './pilot-nav.ts';
 
-test('navigation catalog still knows the complete LMS route inventory', () => {
+test('full admin navigation still knows the complete LMS route set', () => {
   const expectedRoutes = [
     ['dashboard', '/'],
     ['content', '/content'],
     ['assignments', '/assignments'],
     ['progress', '/progress'],
-    ['settings', '/settings'],
     ['devices', '/devices'],
+    ['settings', '/settings'],
+    ['canvas', '/canvas'],
+    ['english', '/english'],
     ['students', '/students'],
     ['mallams', '/mallams'],
     ['pods', '/pods'],
     ['attendance', '/attendance'],
     ['assessments', '/assessments'],
-    ['canvas', '/canvas'],
-    ['english', '/english'],
     ['rewards', '/rewards'],
     ['reports', '/reports'],
     ['guide', '/guide'],
@@ -33,26 +33,33 @@ test('navigation catalog still knows the complete LMS route inventory', () => {
   }
 });
 
-test('default pilot shell trims deferred routes from visible navigation', () => {
-  assert.equal(pilotNavMode, 'pilot-trimmed');
+test('full admin navigation stays visible in the live shell', () => {
   assert.deepEqual(
-    visibleNavigationItems.map((item) => item.id),
-    ['dashboard', 'content', 'assignments', 'progress', 'settings', 'devices', 'students', 'mallams', 'pods', 'attendance', 'assessments'],
+    navigationItems.map((item) => item.id),
+    [
+      'dashboard',
+      'content',
+      'assignments',
+      'progress',
+      'devices',
+      'settings',
+      'canvas',
+      'english',
+      'students',
+      'mallams',
+      'pods',
+      'attendance',
+      'assessments',
+      'rewards',
+      'reports',
+      'guide',
+    ],
   );
 });
 
-test('deferred pilot routes resolve to availability blockers instead of pretending they are live', () => {
-  for (const pathname of ['/canvas', '/english', '/rewards', '/reports', '/guide']) {
-    const blocked = getPilotBlockedRoute(pathname);
-    assert.ok(blocked, `expected ${pathname} to be blocked in pilot mode`);
-    assert.equal(blocked?.href, pathname);
-    assert.deepEqual(redirectIfPilotHiddenRoute(pathname), blocked);
-  }
-});
-
-test('core pilot routes remain available', () => {
-  for (const pathname of ['/', '/content', '/assignments', '/progress', '/settings', '/attendance', '/mallams']) {
-    assert.equal(getPilotBlockedRoute(pathname), null);
+test('retired pilot redirects do not hide full-admin routes anymore', () => {
+  for (const pathname of ['/canvas', '/english', '/reports', '/rewards', '/guide']) {
+    assert.doesNotThrow(() => redirectIfPilotHiddenRoute(pathname));
     assert.deepEqual(redirectIfPilotHiddenRoute(pathname), {});
   }
 });

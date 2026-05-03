@@ -5,14 +5,18 @@ import { fileURLToPath } from 'node:url';
 
 const rewardsPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
 
-test('rewards page stays behind the pilot availability blocker by default', () => {
-  assert.match(rewardsPageSource, /getPilotBlockedRoute\('\/rewards'\)/, 'rewards should check pilot scope before rendering the heavy admin surface');
-  assert.match(rewardsPageSource, /RouteAvailabilityBlocker/, 'rewards should render the shared route blocker when the page is deferred');
+test('rewards page degrades instead of hard-failing on a single feed outage', () => {
+  assert.match(rewardsPageSource, /Promise\.allSettled\(\[/, 'rewards page should use Promise.allSettled for feed recovery');
+  assert.match(rewardsPageSource, /const failedSources = \[/, 'rewards page should surface failed feed labels');
+  assert.match(rewardsPageSource, /Rewards admin is degraded because/, 'rewards page should show an operator-facing degraded-state banner');
 });
 
-test('rewards page still keeps the live admin implementation behind the blocker', () => {
-  assert.match(rewardsPageSource, /Promise\.allSettled\(\[/, 'rewards page should keep its live feed recovery logic for full-admin mode');
-  assert.match(rewardsPageSource, /Top learners, with actual detail/, 'rewards page should preserve learner rewards UX when full-admin mode is intentionally enabled');
-  assert.match(rewardsPageSource, /Admin reward correction tools/, 'rewards page should keep manual admin tools available behind the blocker');
-  assert.match(rewardsPageSource, /fetchRewardsReport\(20\)/, 'rewards page should still hydrate richer rewards analytics in full-admin mode');
+test('rewards page no longer carries the retired pilot redirect shim', () => {
+  assert.doesNotMatch(rewardsPageSource, /redirectIfPilotHiddenRoute\('\/rewards'\)/, 'rewards should render in the full admin shell instead of redirecting to progress');
+});
+
+test('rewards page leads with learner dashboard UX and keeps admin tools secondary', () => {
+  assert.match(rewardsPageSource, /Top learners, with actual detail/, 'rewards page should foreground learner rewards exploration');
+  assert.match(rewardsPageSource, /Admin reward correction tools/, 'rewards page should keep manual admin tools in a secondary section');
+  assert.match(rewardsPageSource, /fetchRewardsReport\(20\)/, 'rewards page should hydrate richer rewards analytics for charts and breakdowns');
 });

@@ -1,8 +1,6 @@
-import { RouteAvailabilityBlocker } from '../../components/pilot-scope-blocker';
 import { ExportShareCard } from '../../components/export-share-card';
 import { fetchCohorts, fetchMallams, fetchNgoSummary, fetchOperationsReport, fetchPods, fetchReportsOverview, fetchRewardsReport } from '../../lib/api';
 import type { NgoSummary, OperationsReport, ReportsOverview, RewardsReport } from '../../lib/types';
-import { getPilotBlockedRoute } from '../../lib/pilot-nav';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function normalizeFilterValue(value: string | string[] | undefined) {
@@ -110,11 +108,6 @@ const emptyRewards: RewardsReport = {
 };
 
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[] }> }) {
-  const blockedRoute = getPilotBlockedRoute('/reports');
-  if (blockedRoute) {
-    return <RouteAvailabilityBlocker title={blockedRoute.label} rationale={blockedRoute.rationale} keepUsing={blockedRoute.keepUsing} />;
-  }
-
   const query = await searchParams;
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();
   const podFilter = normalizeFilterValue(query?.pod).trim();

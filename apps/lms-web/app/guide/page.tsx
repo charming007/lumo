@@ -1,7 +1,5 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { RouteAvailabilityBlocker } from '../../components/pilot-scope-blocker';
-import { getPilotBlockedRoute } from '../../lib/pilot-nav';
 
 const GUIDE_FILES = [
   {
@@ -31,11 +29,6 @@ export default async function GuidePage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const blockedRoute = getPilotBlockedRoute('/guide');
-  if (blockedRoute) {
-    return <RouteAvailabilityBlocker title={blockedRoute.label} rationale={blockedRoute.rationale} keepUsing={blockedRoute.keepUsing} />;
-  }
-
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedGuide = typeof resolvedSearchParams.doc === 'string' ? resolvedSearchParams.doc : GUIDE_FILES[0].htmlFile;
   const activeGuide = GUIDE_FILES.find((guide) => guide.htmlFile === requestedGuide) ?? GUIDE_FILES[0];
