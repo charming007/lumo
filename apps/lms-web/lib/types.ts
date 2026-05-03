@@ -287,6 +287,19 @@ export type LessonActivityChoice = {
   media?: LessonActivityMedia | null;
 };
 
+export type LessonActivityDragItem = {
+  id: string;
+  label: string;
+  targetId: string;
+  media?: LessonActivityMedia | null;
+};
+
+export type LessonActivityDragTarget = {
+  id: string;
+  prompt: string;
+  media?: LessonActivityMedia | null;
+};
+
 export type LessonActivityStep = {
   id: string;
   type: string;
@@ -299,6 +312,8 @@ export type LessonActivityStep = {
   expectedAnswers?: string[];
   media?: LessonActivityMedia[];
   choices?: LessonActivityChoice[];
+  dragItems?: LessonActivityDragItem[];
+  dragTargets?: LessonActivityDragTarget[];
   tags?: string[];
   facilitatorNotes?: string[];
 };

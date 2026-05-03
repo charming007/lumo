@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
-import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityDragItems, parseActivityDragTargets, parseActivityMedia } from './lesson-authoring-shared';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
@@ -87,6 +87,7 @@ const typeOptions = [
   { value: 'oral_quiz', label: 'Oral quiz' },
   { value: 'listen_answer', label: 'Listen answer' },
   { value: 'tap_choice', label: 'Tap choice' },
+  { value: 'drag_to_match', label: 'Drag to match' },
   { value: 'letter_intro', label: 'Letter intro' },
 ];
 
@@ -314,8 +315,10 @@ export function EnglishStudioAuthoringForm({
     expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
     tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
     facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
-    choices: parseActivityChoices(draft.choiceLines),
-    media: parseActivityMedia(draft.mediaLines),
+    choices: draft.type === 'drag_to_match' ? [] : parseActivityChoices(draft.choiceLines),
+    media: draft.type === 'drag_to_match' ? [] : parseActivityMedia(draft.mediaLines),
+    dragItems: draft.type === 'drag_to_match' ? parseActivityDragItems(draft.choiceLines) : undefined,
+    dragTargets: draft.type === 'drag_to_match' ? parseActivityDragTargets(draft.mediaLines) : undefined,
   })), [activityDrafts]);
 
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, item) => sum + (item.durationMinutes || 0), 0), [activitySteps]);

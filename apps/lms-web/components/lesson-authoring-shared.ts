@@ -1,4 +1,4 @@
-import type { LessonActivityStep } from '../lib/types';
+import type { LessonActivityDragItem, LessonActivityDragTarget, LessonActivityStep } from '../lib/types';
 import type { ActivityDraftLike } from './lesson-step-authoring';
 
 const knownAssetKinds = ['image', 'audio', 'illustration', 'prompt-card', 'story-card', 'trace-card', 'letter-card', 'tile', 'word-card', 'hint', 'transcript'] as const;
@@ -58,6 +58,47 @@ export function parseActivityChoices(choiceLines: string) {
     });
 }
 
+
+export function parseActivityDragItems(choiceLines: string): LessonActivityDragItem[] {
+  return choiceLines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [idRaw, labelRaw, targetIdRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+      const id = idRaw || `item-${index + 1}`;
+      const label = labelRaw || id;
+      const targetId = targetIdRaw || '';
+      const mediaKind = mediaKindRaw ? normalizeAssetKind(mediaKindRaw) : '';
+      const mediaValue = mediaValueRaw || '';
+      return {
+        id,
+        label,
+        targetId,
+        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: parseDelimitedValue(mediaValue) } } : {}),
+      } satisfies LessonActivityDragItem;
+    });
+}
+
+export function parseActivityDragTargets(mediaLines: string): LessonActivityDragTarget[] {
+  return mediaLines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [idRaw, promptRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+      const id = idRaw || `target-${index + 1}`;
+      const prompt = promptRaw || id;
+      const mediaKind = mediaKindRaw ? normalizeAssetKind(mediaKindRaw) : '';
+      const mediaValue = mediaValueRaw || '';
+      return {
+        id,
+        prompt,
+        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: parseDelimitedValue(mediaValue) } } : {}),
+      } satisfies LessonActivityDragTarget;
+    });
+}
+
 export function parseActivityMedia(mediaLines: string) {
   return mediaLines
     .split('\n')
@@ -107,6 +148,10 @@ function getAssetIntentStatus(type: string, choiceCount: number, mediaCount: num
     case 'tap_choice':
       if (choiceCount < 2) return { tone: 'warn', label: 'Tap targets thin', detail: 'Add multiple tap targets so this is an interaction, not a single dead-end button.' } as const;
       return { tone: 'good', label: 'Tap targets mapped', detail: 'Tap options are present and the preview can signal a real selection task.' } as const;
+    case 'drag_to_match':
+      if (choiceCount < 2) return { tone: 'warn', label: 'Drag cards thin', detail: 'Add multiple draggable cards so learners actually have something to sort.' } as const;
+      if (mediaCount < 2) return { tone: 'warn', label: 'Drop zones thin', detail: 'Add at least two target zones so the matching activity has real destinations.' } as const;
+      return { tone: 'good', label: 'Drag match mapped', detail: 'The step includes draggable cards and target zones the learner can match.' } as const;
     case 'letter_intro':
       if (mediaCount === 0) return { tone: 'warn', label: 'Letter support thin', detail: 'Add a trace card, image, or audio cue so the intro is more than plain text.' } as const;
       return { tone: 'good', label: 'Letter support mapped', detail: 'Preview can hint at the anchor card or cue attached to this letter step.' } as const;

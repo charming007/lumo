@@ -34,12 +34,14 @@ export const lessonStepTypeLabelMap: Record<string, string> = {
   oral_quiz: 'Oral quiz',
   listen_answer: 'Listen answer',
   tap_choice: 'Tap choice',
+  drag_to_match: 'Drag to match',
   letter_intro: 'Letter intro',
 };
 
 export const lessonStepTypeAccentMap: Record<string, { tint: string; border: string; text: string }> = {
   image_choice: { tint: '#EEF2FF', border: '#C7D2FE', text: '#3730A3' },
   tap_choice: { tint: '#ECFDF5', border: '#BBF7D0', text: '#166534' },
+  drag_to_match: { tint: '#ECFEFF', border: '#A5F3FC', text: '#0F766E' },
   listen_repeat: { tint: '#FFF7ED', border: '#FED7AA', text: '#9A3412' },
   speak_answer: { tint: '#FDF2F8', border: '#FBCFE8', text: '#9D174D' },
   word_build: { tint: '#FEFCE8', border: '#FDE68A', text: '#854D0E' },
@@ -162,6 +164,24 @@ export const lessonTypeFieldGuide: Record<string, {
     mediaLabel: 'Listening media (kind|value per line)',
     mediaHint: 'Optional audio or image cues tied to the listening task.',
   },
+  drag_to_match: {
+    summary: 'Build a real drag-and-match interaction: draggable cards, visible target zones, and explicit card-to-zone mappings.',
+    promptLabel: 'Learner drag instruction',
+    promptHint: 'Write the exact instruction the learner follows before dragging cards into target zones.',
+    detailLabel: 'Matching rule / setup',
+    detailHint: 'Explain what the learner notices and how the drag zones differ.',
+    expectedAnswersLabel: 'Expected match outputs',
+    expectedAnswersHint: 'List the matched answers or follow-up language learners say after sorting.',
+    evidenceLabel: 'Evidence to capture',
+    evidenceHint: 'What proves the learner completed the matching accurately?',
+    facilitatorLabel: 'Facilitator coaching notes',
+    facilitatorHint: 'Prompting, retry rules, or how the adult supports without solving it for the learner.',
+    tagsHint: 'Example: drag-match, sorting, vocabulary, categorization',
+    choicesLabel: 'Draggable cards (id|label|targetId|mediaKind|mediaValue per line)',
+    choicesHint: 'Each row is one draggable card. Use targetId to map the card to its correct drop zone.',
+    mediaLabel: 'Target zones (id|prompt|mediaKind|mediaValue per line)',
+    mediaHint: 'Each row is one drop zone prompt, such as banana-zone|Drag Banana card here|image|https://... .',
+  },
   tap_choice: {
     summary: 'Structure this as a tap-the-right-target template: short instruction, fast-scanning options, one correct target, and clean distractors.',
     promptLabel: 'Learner tap instruction',
@@ -226,6 +246,16 @@ export function getLessonStepTypeGuidance(type: string): LessonStepTypeGuidance 
           label: 'Learner sees: instruction + tap targets',
           structure: '1 short instruction → 2-4 tappable targets → learner taps 1 correct target',
           operatorTip: 'Use this when speed and recognition matter; if the learner needs long reading time, it is probably the wrong type.',
+        },
+      };
+    case 'drag_to_match':
+      return {
+        summary: 'Drag-and-match sorting task. Make the card set, target zone prompts, and mappings explicit so the runtime can deliver a real interaction.',
+        checklist: ['Add at least 2 draggable cards', 'Add at least 2 target zones', 'Map every card to a valid target zone id'],
+        learnerTemplate: {
+          label: 'Learner sees: draggable cards + target zones',
+          structure: '1 instruction → draggable cards stay touch-ready → learner drops each card into its matching target zone',
+          operatorTip: 'If a mallam cannot tell where each card belongs from authoring alone, the step is still too vague.',
         },
       };
     case 'listen_repeat':
@@ -308,6 +338,19 @@ export function getLessonStepTypeWarnings(activity: ActivityDraftLike) {
       if (choiceCount < 2) warnings.push('Tap choice needs multiple tap targets.');
       if (!activity.choiceLines.toLowerCase().includes('correct')) warnings.push('Tap choice should mark at least one correct option.');
       break;
+    case 'drag_to_match': {
+      if (choiceCount < 2) warnings.push('Drag to match needs at least 2 draggable cards.');
+      if (mediaCount < 2) warnings.push('Drag to match needs at least 2 target zones.');
+      const targetIds = new Set(activity.mediaLines.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => line.split('|').map((part) => part.trim())[0]).filter(Boolean));
+      activity.choiceLines.split('\n').map((line) => line.trim()).filter(Boolean).forEach((line) => {
+        const parts = line.split('|').map((part) => part.trim());
+        const label = parts[1] || parts[0] || 'This card';
+        const targetId = parts[2] || '';
+        if (!targetId) warnings.push(`${label} is missing a targetId mapping.`);
+        else if (!targetIds.has(targetId)) warnings.push(`${label} points to missing target zone "${targetId}".`);
+      });
+      break;
+    }
     case 'listen_repeat':
       if (mediaCount === 0) warnings.push('Listen repeat is stronger with an audio/media cue instead of text alone.');
       if (!activity.mediaLines.toLowerCase().includes('audio|')) warnings.push('Listen repeat should carry an explicit audio cue or script asset so the listening intent survives preview and delivery.');

@@ -12,7 +12,7 @@ import {
   normalizeLessonAssetKind,
 } from '../lib/lesson-runtime-preview';
 
-type BuilderType = 'image_choice' | 'tap_choice' | 'word_build' | 'listen_repeat' | 'speak_answer' | 'letter_intro' | 'listen_answer';
+type BuilderType = 'image_choice' | 'tap_choice' | 'drag_to_match' | 'word_build' | 'listen_repeat' | 'speak_answer' | 'letter_intro' | 'listen_answer';
 
 type ChoiceRow = {
   id: string;
@@ -167,6 +167,16 @@ function getChoiceLabels(type: BuilderType) {
         mediaPlaceholder: 'Optional image/audio reference tied to this tap target',
         emptyState: 'No tap targets yet. Add at least two targets so the learner has a real decision instead of a dead-end button.',
       };
+    case 'drag_to_match':
+      return {
+        title: 'Drag card builder',
+        hint: 'Use the raw line format id|label|targetId|mediaKind|mediaValue for draggable cards. The structured rows help attach labels/assets, but targetId mapping still matters.',
+        labelName: 'Draggable card label',
+        mediaTypeLabel: 'Card asset type',
+        mediaValueLabel: 'Card file, URL, or key',
+        mediaPlaceholder: 'Optional card art or audio cue',
+        emptyState: 'No draggable cards yet. Add the cards learners drag into the target zones.',
+      };
     case 'word_build':
       return {
         title: 'Build piece builder',
@@ -246,6 +256,25 @@ function getMediaLabels(type: BuilderType) {
         placeholder: 'Shared image, audio, or prompt-card reference',
         emptyState: 'No shared prompt asset yet. Add one only if learners need a common cue before tapping.',
       };
+    case 'drag_to_match':
+      return {
+        title: 'Drag card builder',
+        hint: 'Use the raw line format id|label|targetId|mediaKind|mediaValue for draggable cards. The structured rows help attach labels/assets, but targetId mapping still matters.',
+        labelName: 'Draggable card label',
+        mediaTypeLabel: 'Card asset type',
+        mediaValueLabel: 'Card file, URL, or key',
+        mediaPlaceholder: 'Optional card art or audio cue',
+        emptyState: 'No draggable cards yet. Add the cards learners drag into the target zones.',
+      };
+    case 'drag_to_match':
+      return {
+        title: 'Target zone builder',
+        hint: 'Use the raw line format id|prompt|mediaKind|mediaValue for target zones. Example: banana-zone|Drag Banana card here|image|https://... .',
+        typeLabel: 'Target zone media type',
+        valueLabel: 'Target zone prompt / media reference',
+        placeholder: 'banana-zone|Drag Banana card here|image|https://...',
+        emptyState: 'No target zones yet. Add the drop zones learners drag into.',
+      };
     case 'word_build':
       return {
         title: 'Build support builder',
@@ -301,7 +330,7 @@ function getAssetExamples(kind: string) {
 
 function stepSupportsAssetKind(stepType: string, kind: string) {
   const normalizedKind = kind.toLowerCase();
-  if (stepType === 'image_choice' || stepType === 'tap_choice') {
+  if (stepType === 'image_choice' || stepType === 'tap_choice' || stepType === 'drag_to_match') {
     return ['image', 'illustration', 'story-card', 'prompt-card', 'word-card', 'letter-card'].includes(normalizedKind);
   }
   if (stepType === 'listen_repeat' || stepType === 'listen_answer') {
@@ -662,7 +691,7 @@ function SharedAssetCard({
 
 export function LessonActivityStructuredBuilders(props: Props) {
   const builderType = props.type as BuilderType;
-  const supportsChoices = builderType === 'image_choice' || builderType === 'tap_choice' || builderType === 'word_build';
+  const supportsChoices = builderType === 'image_choice' || builderType === 'tap_choice' || builderType === 'drag_to_match' || builderType === 'word_build';
   const supportsMedia = supportsChoices || builderType === 'listen_repeat' || builderType === 'listen_answer' || builderType === 'speak_answer' || builderType === 'letter_intro';
 
   if (!supportsChoices && !supportsMedia) return null;

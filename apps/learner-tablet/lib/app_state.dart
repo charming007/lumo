@@ -2932,6 +2932,16 @@ class LumoAppState {
       }
     }
 
+    if (activity != null && activity.type == LessonActivityType.dragToMatch) {
+      final expected = _normalizeForComparison(activity.targetResponse ?? 'matched');
+      final matched = expected.isNotEmpty && normalizedResponse == expected;
+      return ResponseEvaluation(
+        review: matched ? ResponseReview.onTrack : ResponseReview.needsSupport,
+        similarityScore: matched ? 1 : 0,
+        usedAlias: false,
+      );
+    }
+
     final expected = personalizeExpectedResponse(step.expectedResponse);
     final normalizedExpected = _normalizeForComparison(expected);
     final aliases = step.acceptableResponses

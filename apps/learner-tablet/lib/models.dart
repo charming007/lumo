@@ -9,6 +9,7 @@ enum LessonActivityType {
   speakAnswer,
   wordBuild,
   tapChoice,
+  dragToMatch,
   listenAnswer,
   oralQuiz,
 }
@@ -97,6 +98,35 @@ class LessonActivityChoice {
   }
 }
 
+class LessonActivityDragTarget {
+  final String id;
+  final String prompt;
+  final List<LessonActivityMedia> mediaItems;
+
+  const LessonActivityDragTarget({required this.id, required this.prompt, this.mediaItems = const []});
+
+  factory LessonActivityDragTarget.fromBackend(Map<String, dynamic> json) {
+    final media = json['media'];
+    final mediaItems = media is List ? media.whereType<Map>().map((item) => LessonActivityMedia.fromBackend(Map<String, dynamic>.from(item))).toList() : media is Map ? [LessonActivityMedia.fromBackend(Map<String, dynamic>.from(media))] : const <LessonActivityMedia>[];
+    return LessonActivityDragTarget(id: json['id']?.toString() ?? 'target', prompt: json['prompt']?.toString() ?? 'Drag here', mediaItems: mediaItems);
+  }
+}
+
+class LessonActivityDragItem {
+  final String id;
+  final String label;
+  final String targetId;
+  final List<LessonActivityMedia> mediaItems;
+
+  const LessonActivityDragItem({required this.id, required this.label, required this.targetId, this.mediaItems = const []});
+
+  factory LessonActivityDragItem.fromBackend(Map<String, dynamic> json) {
+    final media = json['media'];
+    final mediaItems = media is List ? media.whereType<Map>().map((item) => LessonActivityMedia.fromBackend(Map<String, dynamic>.from(item))).toList() : media is Map ? [LessonActivityMedia.fromBackend(Map<String, dynamic>.from(media))] : const <LessonActivityMedia>[];
+    return LessonActivityDragItem(id: json['id']?.toString() ?? 'item', label: json['label']?.toString() ?? 'Card', targetId: json['targetId']?.toString() ?? '', mediaItems: mediaItems);
+  }
+}
+
 class LessonActivity {
   final LessonActivityType type;
   final String prompt;
@@ -110,6 +140,8 @@ class LessonActivity {
   final String? retryFeedback;
   final List<LessonActivityMedia> mediaItems;
   final List<LessonActivityChoice> choiceItems;
+  final List<LessonActivityDragItem> dragItems;
+  final List<LessonActivityDragTarget> dragTargets;
 
   const LessonActivity({
     required this.type,
@@ -124,6 +156,8 @@ class LessonActivity {
     this.retryFeedback,
     this.mediaItems = const [],
     this.choiceItems = const [],
+    this.dragItems = const [],
+    this.dragTargets = const [],
   });
 
   String? get mediaKind => mediaItems.isEmpty ? null : mediaItems.first.kind;
@@ -1460,6 +1494,8 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
               ))
           .toList() ??
       const <LessonActivityChoice>[];
+  final dragItems = (json['dragItems'] as List?)?.whereType<Map>().map((item) => LessonActivityDragItem.fromBackend(Map<String, dynamic>.from(item))).toList() ?? const <LessonActivityDragItem>[];
+  final dragTargets = (json['dragTargets'] as List?)?.whereType<Map>().map((item) => LessonActivityDragTarget.fromBackend(Map<String, dynamic>.from(item))).toList() ?? const <LessonActivityDragTarget>[];
   final mediaItems = (json['media'] as List?)
           ?.whereType<Map>()
           .map((item) => LessonActivityMedia.fromBackend(
@@ -1517,6 +1553,8 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
       retryFeedback: retryFeedback,
       mediaItems: mediaItems,
       choiceItems: choices,
+      dragItems: dragItems,
+      dragTargets: dragTargets,
     ),
   );
 }
@@ -1533,6 +1571,8 @@ LessonActivityType _lessonActivityTypeFromBackend(String value) {
       return LessonActivityType.wordBuild;
     case 'tap_choice':
       return LessonActivityType.tapChoice;
+    case 'drag_to_match':
+      return LessonActivityType.dragToMatch;
     case 'listen_answer':
       return LessonActivityType.listenAnswer;
     case 'oral_quiz':
@@ -1551,6 +1591,8 @@ LessonStepType _lessonStepTypeForActivity(LessonActivityType type) {
     case LessonActivityType.imageChoice:
     case LessonActivityType.wordBuild:
     case LessonActivityType.tapChoice:
+    case LessonActivityType.dragToMatch:
+    case LessonActivityType.dragToMatch:
     case LessonActivityType.listenAnswer:
       return LessonStepType.practice;
     case LessonActivityType.speakAnswer:
@@ -1567,6 +1609,8 @@ SpeakerMode _speakerModeForActivity(LessonActivityType type) {
     case LessonActivityType.imageChoice:
     case LessonActivityType.wordBuild:
     case LessonActivityType.tapChoice:
+    case LessonActivityType.dragToMatch:
+    case LessonActivityType.dragToMatch:
     case LessonActivityType.listenAnswer:
     case LessonActivityType.speakAnswer:
     case LessonActivityType.oralQuiz:
