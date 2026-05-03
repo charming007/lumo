@@ -6,7 +6,7 @@ import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
-import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityDragItems, parseActivityDragTargets, parseActivityMedia } from './lesson-authoring-shared';
+import { buildActivityDraftsFromLesson, countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityDragItems, parseActivityDragTargets, parseActivityMedia } from './lesson-authoring-shared';
 import { filterModulesForSubject } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
@@ -16,7 +16,7 @@ import {
   lessonStepTypeAccentMap,
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
-import type { CurriculumModule, Lesson, LessonActivityStep, LessonAsset, Subject } from '../lib/types';
+import type { CurriculumModule, Lesson, LessonAsset, Subject } from '../lib/types';
 
 const cardStyle = {
   background: 'white',
@@ -218,41 +218,8 @@ const lessonTemplates: LessonTemplate[] = [
 
 
 function buildDraftsFromLesson(lesson?: Lesson | null) {
-  if (!lesson) return [makeActivityDraft(0)];
-
-  const source = asArray<LessonActivityStep>(lesson.activitySteps ?? lesson.activities);
-  if (!source.length) return [makeActivityDraft(0)];
-
-  return source.map((step, index) => makeActivityDraft(index, {
-    id: step.id || `activity-${index + 1}`,
-    title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
-    prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
-    type: step.type ?? 'speak_answer',
-    durationMinutes: String(step.durationMinutes ?? 2),
-    detail: step.detail ?? '',
-    evidence: step.evidence ?? '',
-    expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
-    tags: asArray<string>(step.tags).join(', '),
-    facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
-    choiceLines: step.type === 'drag_to_match'
-      ? asArray<any>(step.dragItems).map((item: any, itemIndex: number) => {
-          const mediaKind = item?.media?.kind ? `|${item.media.kind}` : '';
-          const mediaValue = item?.media?.value !== undefined ? `|${Array.isArray(item.media.value) ? item.media.value.join(', ') : String(item.media.value)}` : '';
-          return `${item.id || `item-${itemIndex + 1}`}|${item.label || ''}|${item.targetId || ''}${mediaKind}${mediaValue}`;
-        }).join('\n')
-      : asArray<any>(step.choices).map((choice: any, choiceIndex: number) => {
-          const mediaKind = choice?.media?.kind ? `|${choice.media.kind}` : '';
-          const mediaValue = choice?.media?.value !== undefined ? `|${Array.isArray(choice.media.value) ? choice.media.value.join(', ') : String(choice.media.value)}` : '';
-          return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
-        }).join('\n'),
-    mediaLines: step.type === 'drag_to_match'
-      ? asArray<any>(step.dragTargets).map((target: any, targetIndex: number) => {
-          const mediaKind = target?.media?.kind ? `|${target.media.kind}` : '';
-          const mediaValue = target?.media?.value !== undefined ? `|${Array.isArray(target.media.value) ? target.media.value.join(', ') : String(target.media.value)}` : '';
-          return `${target.id || `target-${targetIndex + 1}`}|${target.prompt || ''}${mediaKind}${mediaValue}`;
-        }).join('\n')
-      : asArray<any>(step.media).map((item: any) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
-  }));
+  const drafts = buildActivityDraftsFromLesson(lesson);
+  return drafts.length ? drafts.map((draft, index) => makeActivityDraft(index, draft)) : [makeActivityDraft(0)];
 }
 
 export function LessonCreateForm({

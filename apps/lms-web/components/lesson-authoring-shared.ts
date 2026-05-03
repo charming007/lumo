@@ -1,4 +1,4 @@
-import type { LessonActivityDragItem, LessonActivityDragTarget, LessonActivityStep } from '../lib/types';
+import type { Lesson, LessonActivityChoice, LessonActivityDragItem, LessonActivityDragTarget, LessonActivityStep, LessonActivityMedia } from '../lib/types';
 import type { ActivityDraftLike } from './lesson-step-authoring';
 
 const knownAssetKinds = ['image', 'audio', 'illustration', 'prompt-card', 'story-card', 'trace-card', 'letter-card', 'tile', 'word-card', 'hint', 'transcript'] as const;
@@ -31,6 +31,24 @@ function isKnownAssetKind(kind: string | null | undefined) {
 
 function parseDelimitedValue(value: string) {
   return value.includes(',') ? value.split(',').map((item) => item.trim()).filter(Boolean) : value;
+}
+
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function serializeMediaValue(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => String(item ?? '')).join(', ')
+    : String(value ?? '');
+}
+
+function serializeInlineMedia(media: unknown) {
+  if (!media || typeof media !== 'object') return { kind: '', value: '' };
+  const typed = media as { kind?: unknown; value?: unknown };
+  const kind = typeof typed.kind === 'string' ? typed.kind : String(typed.kind ?? '');
+  const value = 'value' in typed ? serializeMediaValue(typed.value) : '';
+  return { kind, value };
 }
 
 export function countNonEmptyLines(value: string) {
@@ -115,6 +133,57 @@ export function parseActivityMedia(mediaLines: string) {
     });
 }
 
+export function serializeChoiceLinesFromStep(step: LessonActivityStep) {
+  if (step.type === 'drag_to_match') {
+    return asArray<{ id?: string; label?: string; targetId?: string; media?: LessonActivityMedia | null }>(step.dragItems).map((item, itemIndex) => {
+      const media = serializeInlineMedia(item?.media);
+      const mediaKind = media.kind ? `|${media.kind}` : '';
+      const mediaValue = media.value ? `|${media.value}` : '';
+      return `${item.id || `item-${itemIndex + 1}`}|${item.label || ''}|${item.targetId || ''}${mediaKind}${mediaValue}`;
+    }).join('\n');
+  }
+
+  return asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: LessonActivityMedia | null }>(step.choices).map((choice, choiceIndex) => {
+    const media = serializeInlineMedia(choice?.media);
+    const mediaKind = media.kind ? `|${media.kind}` : '';
+    const mediaValue = media.value ? `|${media.value}` : '';
+    return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
+  }).join('\n');
+}
+
+export function serializeMediaLinesFromStep(step: LessonActivityStep) {
+  if (step.type === 'drag_to_match') {
+    return asArray<{ id?: string; prompt?: string; media?: LessonActivityMedia | null }>(step.dragTargets).map((target, targetIndex) => {
+      const media = serializeInlineMedia(target?.media);
+      const mediaKind = media.kind ? `|${media.kind}` : '';
+      const mediaValue = media.value ? `|${media.value}` : '';
+      return `${target.id || `target-${targetIndex + 1}`}|${target.prompt || ''}${mediaKind}${mediaValue}`;
+    }).join('\n');
+  }
+
+  return asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${serializeMediaValue(item.value)}`).join('\n');
+}
+
+export function buildActivityDraftsFromLesson(lesson?: Lesson | null) {
+  const source = asArray<LessonActivityStep>(lesson?.activitySteps ?? lesson?.activities);
+  if (!source.length) return [];
+
+  return source.map((step, index) => ({
+    id: step.id || `activity-${index + 1}`,
+    title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
+    prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
+    type: step.type ?? 'speak_answer',
+    durationMinutes: String(step.durationMinutes ?? 2),
+    detail: step.detail ?? '',
+    evidence: step.evidence ?? '',
+    expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
+    tags: asArray<string>(step.tags).join(', '),
+    facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
+    choiceLines: serializeChoiceLinesFromStep(step),
+    mediaLines: serializeMediaLinesFromStep(step),
+  }));
+}
+
 function countInlineMatches(value: string, needle: string) {
   const normalizedNeedle = needle.toLowerCase();
   return value
@@ -186,19 +255,29 @@ export function getDraftAssetIntentSummary(activity: ActivityDraftLike) {
 }
 
 export function getPreviewAssetSummary(step: LessonActivityStep) {
-  const choiceCount = step.choices?.length ?? 0;
-  const mediaCount = step.media?.length ?? 0;
-  const imageCount = countStructuredMedia(step.media, 'image') + countStructuredMedia(step.choices, 'image');
-  const audioCount = countStructuredMedia(step.media, 'audio') + countStructuredMedia(step.choices, 'audio');
+  const choiceCount = step.type === 'drag_to_match' ? (step.dragItems?.length ?? 0) : (step.choices?.length ?? 0);
+  const mediaCount = step.type === 'drag_to_match' ? (step.dragTargets?.length ?? 0) : (step.media?.length ?? 0);
+  const imageCount = countStructuredMedia(step.media, 'image')
+    + countStructuredMedia(step.choices, 'image')
+    + countStructuredMedia(step.dragItems, 'image')
+    + countStructuredMedia(step.dragTargets, 'image');
+  const audioCount = countStructuredMedia(step.media, 'audio')
+    + countStructuredMedia(step.choices, 'audio')
+    + countStructuredMedia(step.dragItems, 'audio')
+    + countStructuredMedia(step.dragTargets, 'audio');
   const assetKinds = [
     ...(step.media ?? []).map((item) => item.kind),
     ...(step.choices ?? []).map((item) => item.media?.kind),
+    ...(step.dragItems ?? []).map((item) => item.media?.kind),
+    ...(step.dragTargets ?? []).map((item) => item.media?.kind),
   ].filter(Boolean).map((kind) => normalizeAssetKind(kind));
   const unknownKinds = Array.from(new Set(assetKinds.filter((kind) => !isKnownAssetKind(kind))));
   const labels = Array.from(new Set(assetKinds.map((kind) => getAssetKindLabel(kind))));
   const missingValues = [
     ...(step.media ?? []).filter((item) => Array.isArray(item.value) ? item.value.length === 0 : !String(item.value ?? '').trim()),
     ...(step.choices ?? []).filter((item) => item.media && (Array.isArray(item.media.value) ? item.media.value.length === 0 : !String(item.media.value ?? '').trim())),
+    ...(step.dragItems ?? []).filter((item) => item.media && (Array.isArray(item.media.value) ? item.media.value.length === 0 : !String(item.media.value ?? '').trim())),
+    ...(step.dragTargets ?? []).filter((item) => item.media && (Array.isArray(item.media.value) ? item.media.value.length === 0 : !String(item.media.value ?? '').trim())),
   ].length;
   const totalAssetEntries = assetKinds.length;
   const base = getAssetIntentStatus(step.type, choiceCount, mediaCount, imageCount, audioCount);
