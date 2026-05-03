@@ -56,7 +56,7 @@ const assetTemplates: AssetTemplate[] = [
     category: 'Choice options',
     value: 'image',
     note: 'Drop an image asset straight into the choice list.',
-    appliesTo: ['image_choice', 'tap_choice'],
+    appliesTo: ['image_choice', 'tap_choice', 'drag_to_match'],
     target: 'choice-media',
     choiceLabel: 'Choice label',
     choiceCorrect: false,
@@ -139,7 +139,7 @@ function appendChoiceMediaLine(
 
 function stepSupportsAssetKind(stepType: string, kind: string) {
   const normalizedKind = kind.toLowerCase();
-  if (stepType === 'image_choice' || stepType === 'tap_choice') {
+  if (stepType === 'image_choice' || stepType === 'tap_choice' || stepType === 'drag_to_match') {
     return ['image', 'illustration', 'story-card', 'prompt-card', 'word-card', 'letter-card'].includes(normalizedKind);
   }
   if (stepType === 'listen_repeat' || stepType === 'listen_answer') {

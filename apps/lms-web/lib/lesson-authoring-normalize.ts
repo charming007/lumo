@@ -2,6 +2,8 @@ import type {
   CurriculumModule,
   Lesson,
   LessonActivityChoice,
+  LessonActivityDragItem,
+  LessonActivityDragTarget,
   LessonActivityMedia,
   LessonActivityStep,
   LessonAssessmentItem,
@@ -62,6 +64,28 @@ function normalizeChoice(value: unknown, index: number): LessonActivityChoice | 
   };
 }
 
+
+function normalizeDragItem(value: unknown, index: number): LessonActivityDragItem | null {
+  if (!value || typeof value !== 'object') return null;
+  const item = value as Record<string, unknown>;
+  return {
+    id: asString(item.id, `item-${index + 1}`),
+    label: asString(item.label, `Item ${index + 1}`),
+    targetId: asString(item.targetId),
+    media: normalizeMedia(item.media),
+  };
+}
+
+function normalizeDragTarget(value: unknown, index: number): LessonActivityDragTarget | null {
+  if (!value || typeof value !== 'object') return null;
+  const target = value as Record<string, unknown>;
+  return {
+    id: asString(target.id, `target-${index + 1}`),
+    prompt: asString(target.prompt, `Target ${index + 1}`),
+    media: normalizeMedia(target.media),
+  };
+}
+
 function normalizeStep(value: unknown, index: number): LessonActivityStep | null {
   if (!value || typeof value !== 'object') return null;
   const step = value as Record<string, unknown>;
@@ -82,6 +106,12 @@ function normalizeStep(value: unknown, index: number): LessonActivityStep | null
       : [],
     media: Array.isArray(step.media)
       ? step.media.map((media) => normalizeMedia(media)).filter(Boolean) as LessonActivityMedia[]
+      : [],
+    dragItems: Array.isArray(step.dragItems)
+      ? step.dragItems.map((item, itemIndex) => normalizeDragItem(item, itemIndex)).filter(Boolean) as LessonActivityDragItem[]
+      : [],
+    dragTargets: Array.isArray(step.dragTargets)
+      ? step.dragTargets.map((target, targetIndex) => normalizeDragTarget(target, targetIndex)).filter(Boolean) as LessonActivityDragTarget[]
       : [],
   };
 }

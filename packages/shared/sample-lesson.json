@@ -77,11 +77,37 @@
     },
     {
       "id": "act-3",
-      "type": "speak_answer",
+      "type": "drag_to_match",
       "order": 3,
-      "prompt": "Say the sound for A.",
-      "expectedAnswers": ["/a/", "a"],
-      "successFeedback": "Strong voice. That is the A sound."
+      "prompt": "Drag each word to the matching picture zone.",
+      "dragItems": [
+        {
+          "id": "item-apple",
+          "label": "Apple",
+          "targetId": "target-apple",
+          "media": { "kind": "word-card", "value": "apple" }
+        },
+        {
+          "id": "item-ball",
+          "label": "Ball",
+          "targetId": "target-ball",
+          "media": { "kind": "word-card", "value": "ball" }
+        }
+      ],
+      "dragTargets": [
+        {
+          "id": "target-apple",
+          "prompt": "Picture: Apple",
+          "media": { "kind": "image", "value": "apple" }
+        },
+        {
+          "id": "target-ball",
+          "prompt": "Picture: Ball",
+          "media": { "kind": "image", "value": "ball" }
+        }
+      ],
+      "expectedAnswers": ["Apple → Apple", "Ball → Ball"],
+      "successFeedback": "Nice sorting. Each word matched the right picture."
     }
   ],
   "activities": [
@@ -99,9 +125,9 @@
     },
     {
       "id": "act-3",
-      "type": "speak_answer",
+      "type": "drag_to_match",
       "order": 3,
-      "prompt": "Say the sound for A."
+      "prompt": "Drag each word to the matching picture zone."
     }
   ]
 }

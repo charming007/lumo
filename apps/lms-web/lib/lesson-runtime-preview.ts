@@ -351,6 +351,9 @@ export function getStepRuntimePreviewHints(step: Pick<LessonActivityStep, 'type'
     case 'letter_intro':
       if (!assetSummary.hasVisual) hints.push('Letter intro lands better with a trace/letter card asset.');
       break;
+    case 'drag_to_match':
+      if (!assetSummary.hasVisual) hints.push('Drag to match works better when cards or zones carry visible cues.');
+      break;
     default:
       break;
   }

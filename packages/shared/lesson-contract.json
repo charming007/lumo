@@ -49,6 +49,7 @@
             "speak_answer",
             "word_build",
             "tap_choice",
+            "drag_to_match",
             "listen_answer",
             "oral_quiz"
           ]
@@ -68,6 +69,47 @@
               "id": { "type": "string" },
               "label": { "type": "string" },
               "isCorrect": { "type": "boolean" },
+              "media": {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string" },
+                  "value": {}
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "dragItems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "targetId"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "targetId": { "type": "string" },
+              "media": {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string" },
+                  "value": {}
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "dragTargets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "prompt"],
+            "properties": {
+              "id": { "type": "string" },
+              "prompt": { "type": "string" },
               "media": {
                 "type": "object",
                 "properties": {

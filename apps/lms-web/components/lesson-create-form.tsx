@@ -6,7 +6,7 @@ import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
-import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityDragItems, parseActivityDragTargets, parseActivityMedia } from './lesson-authoring-shared';
 import { filterModulesForSubject } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
@@ -234,12 +234,24 @@ function buildDraftsFromLesson(lesson?: Lesson | null) {
     expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
     tags: asArray<string>(step.tags).join(', '),
     facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
-    choiceLines: asArray<any>(step.choices).map((choice: any, choiceIndex: number) => {
-      const mediaKind = choice?.media?.kind ? `|${choice.media.kind}` : '';
-      const mediaValue = choice?.media?.value !== undefined ? `|${Array.isArray(choice.media.value) ? choice.media.value.join(', ') : String(choice.media.value)}` : '';
-      return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
-    }).join('\n'),
-    mediaLines: asArray<any>(step.media).map((item: any) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
+    choiceLines: step.type === 'drag_to_match'
+      ? asArray<any>(step.dragItems).map((item: any, itemIndex: number) => {
+          const mediaKind = item?.media?.kind ? `|${item.media.kind}` : '';
+          const mediaValue = item?.media?.value !== undefined ? `|${Array.isArray(item.media.value) ? item.media.value.join(', ') : String(item.media.value)}` : '';
+          return `${item.id || `item-${itemIndex + 1}`}|${item.label || ''}|${item.targetId || ''}${mediaKind}${mediaValue}`;
+        }).join('\n')
+      : asArray<any>(step.choices).map((choice: any, choiceIndex: number) => {
+          const mediaKind = choice?.media?.kind ? `|${choice.media.kind}` : '';
+          const mediaValue = choice?.media?.value !== undefined ? `|${Array.isArray(choice.media.value) ? choice.media.value.join(', ') : String(choice.media.value)}` : '';
+          return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
+        }).join('\n'),
+    mediaLines: step.type === 'drag_to_match'
+      ? asArray<any>(step.dragTargets).map((target: any, targetIndex: number) => {
+          const mediaKind = target?.media?.kind ? `|${target.media.kind}` : '';
+          const mediaValue = target?.media?.value !== undefined ? `|${Array.isArray(target.media.value) ? target.media.value.join(', ') : String(target.media.value)}` : '';
+          return `${target.id || `target-${targetIndex + 1}`}|${target.prompt || ''}${mediaKind}${mediaValue}`;
+        }).join('\n')
+      : asArray<any>(step.media).map((item: any) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
   }));
 }
 
@@ -348,8 +360,10 @@ export function LessonCreateForm({
     expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
     tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
     facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
-    choices: parseActivityChoices(draft.choiceLines),
-    media: parseActivityMedia(draft.mediaLines),
+    choices: draft.type === 'drag_to_match' ? [] : parseActivityChoices(draft.choiceLines),
+    media: draft.type === 'drag_to_match' ? [] : parseActivityMedia(draft.mediaLines),
+    dragItems: draft.type === 'drag_to_match' ? parseActivityDragItems(draft.choiceLines) : undefined,
+    dragTargets: draft.type === 'drag_to_match' ? parseActivityDragTargets(draft.mediaLines) : undefined,
   })), [activityDrafts]);
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
@@ -756,6 +770,7 @@ export function LessonCreateForm({
                         <option value="oral_quiz">Oral quiz</option>
                         <option value="listen_answer">Listen answer</option>
                         <option value="tap_choice">Tap choice</option>
+                        <option value="drag_to_match">Drag to match</option>
                         <option value="letter_intro">Letter intro</option>
                       </select>
                     </FieldLabel>

@@ -6,7 +6,7 @@ import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
-import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityDragItems, parseActivityDragTargets, parseActivityMedia } from './lesson-authoring-shared';
 import { findModuleForLesson } from '../lib/module-lesson-match';
 import { filterModulesForSubject } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
@@ -239,14 +239,30 @@ export function LessonEditorForm({
           expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
           tags: asArray<string>(step.tags).join(', '),
           facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
-          choiceLines: asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: { kind?: unknown; value?: unknown } | null }>(step.choices).map((choice, choiceIndex) => {
-            const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
-            const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
-              ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
-              : '';
-            return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
-          }).join('\n'),
-          mediaLines: asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
+          choiceLines: step.type === 'drag_to_match'
+            ? asArray<{ id?: string; label?: string; targetId?: string; media?: { kind?: unknown; value?: unknown } | null }>(step.dragItems).map((item, itemIndex) => {
+                const mediaKind = item?.media && typeof item.media === 'object' && 'kind' in item.media ? `|${String((item.media as { kind?: unknown }).kind ?? '')}` : '';
+                const mediaValue = item?.media && typeof item.media === 'object' && 'value' in item.media
+                  ? `|${Array.isArray((item.media as { value?: unknown }).value) ? ((item.media as { value: string[] }).value).join(', ') : String((item.media as { value?: unknown }).value ?? '')}`
+                  : '';
+                return `${item.id || `item-${itemIndex + 1}`}|${item.label || ''}|${item.targetId || ''}${mediaKind}${mediaValue}`;
+              }).join('\n')
+            : asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: { kind?: unknown; value?: unknown } | null }>(step.choices).map((choice, choiceIndex) => {
+                const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
+                const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
+                  ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
+                  : '';
+                return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
+              }).join('\n'),
+          mediaLines: step.type === 'drag_to_match'
+            ? asArray<{ id?: string; prompt?: string; media?: { kind?: unknown; value?: unknown } | null }>(step.dragTargets).map((target, targetIndex) => {
+                const mediaKind = target?.media && typeof target.media === 'object' && 'kind' in target.media ? `|${String((target.media as { kind?: unknown }).kind ?? '')}` : '';
+                const mediaValue = target?.media && typeof target.media === 'object' && 'value' in target.media
+                  ? `|${Array.isArray((target.media as { value?: unknown }).value) ? ((target.media as { value: string[] }).value).join(', ') : String((target.media as { value?: unknown }).value ?? '')}`
+                  : '';
+                return `${target.id || `target-${targetIndex + 1}`}|${target.prompt || ''}${mediaKind}${mediaValue}`;
+              }).join('\n')
+            : asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
         }))
       : [makeActivityDraft(0)],
   );
@@ -278,14 +294,30 @@ export function LessonEditorForm({
           expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
           tags: asArray<string>(step.tags).join(', '),
           facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
-          choiceLines: asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: { kind?: unknown; value?: unknown } | null }>(step.choices).map((choice, choiceIndex) => {
-            const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
-            const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
-              ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
-              : '';
-            return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
-          }).join('\n'),
-          mediaLines: asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
+          choiceLines: step.type === 'drag_to_match'
+            ? asArray<{ id?: string; label?: string; targetId?: string; media?: { kind?: unknown; value?: unknown } | null }>(step.dragItems).map((item, itemIndex) => {
+                const mediaKind = item?.media && typeof item.media === 'object' && 'kind' in item.media ? `|${String((item.media as { kind?: unknown }).kind ?? '')}` : '';
+                const mediaValue = item?.media && typeof item.media === 'object' && 'value' in item.media
+                  ? `|${Array.isArray((item.media as { value?: unknown }).value) ? ((item.media as { value: string[] }).value).join(', ') : String((item.media as { value?: unknown }).value ?? '')}`
+                  : '';
+                return `${item.id || `item-${itemIndex + 1}`}|${item.label || ''}|${item.targetId || ''}${mediaKind}${mediaValue}`;
+              }).join('\n')
+            : asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: { kind?: unknown; value?: unknown } | null }>(step.choices).map((choice, choiceIndex) => {
+                const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
+                const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
+                  ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
+                  : '';
+                return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
+              }).join('\n'),
+          mediaLines: step.type === 'drag_to_match'
+            ? asArray<{ id?: string; prompt?: string; media?: { kind?: unknown; value?: unknown } | null }>(step.dragTargets).map((target, targetIndex) => {
+                const mediaKind = target?.media && typeof target.media === 'object' && 'kind' in target.media ? `|${String((target.media as { kind?: unknown }).kind ?? '')}` : '';
+                const mediaValue = target?.media && typeof target.media === 'object' && 'value' in target.media
+                  ? `|${Array.isArray((target.media as { value?: unknown }).value) ? ((target.media as { value: string[] }).value).join(', ') : String((target.media as { value?: unknown }).value ?? '')}`
+                  : '';
+                return `${target.id || `target-${targetIndex + 1}`}|${target.prompt || ''}${mediaKind}${mediaValue}`;
+              }).join('\n')
+            : asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
         }))
       : [makeActivityDraft(0)],
   }), [lesson, modules, subjects]);
@@ -356,8 +388,10 @@ export function LessonEditorForm({
       expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
       tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
       facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
-      choices: parseActivityChoices(draft.choiceLines),
-      media: parseActivityMedia(draft.mediaLines),
+      choices: draft.type === 'drag_to_match' ? [] : parseActivityChoices(draft.choiceLines),
+      media: draft.type === 'drag_to_match' ? [] : parseActivityMedia(draft.mediaLines),
+      dragItems: draft.type === 'drag_to_match' ? parseActivityDragItems(draft.choiceLines) : undefined,
+      dragTargets: draft.type === 'drag_to_match' ? parseActivityDragTargets(draft.mediaLines) : undefined,
     })),
     [activityDrafts],
   );
@@ -818,6 +852,7 @@ export function LessonEditorForm({
                         <option value="oral_quiz">Oral quiz</option>
                         <option value="listen_answer">Listen answer</option>
                         <option value="tap_choice">Tap choice</option>
+                        <option value="drag_to_match">Drag to match</option>
                         <option value="letter_intro">Letter intro</option>
                       </select>
                     </FieldLabel>
