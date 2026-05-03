@@ -61,6 +61,7 @@ export default async function LessonStudioCreatePage({
     assetPayloadIssues.length ? 'asset payload' : null,
   ].filter(Boolean) as string[];
 
+  const derivedSubjectKeys = new Set<string>();
   const derivedSubjects = modules.reduce<Subject[]>((acc, module) => {
     const subjectId = module.subjectId?.trim();
     const subjectName = module.subjectName?.trim();
@@ -71,10 +72,15 @@ export default async function LessonStudioCreatePage({
       name: subjectName ?? 'Recovered subject',
     } satisfies Subject;
 
-    if (acc.some((subject) => subject.id === derived.id || subject.name === derived.name)) {
+    const normalizedId = derived.id.trim().toLowerCase();
+    const normalizedName = derived.name.trim().toLowerCase();
+    const duplicateKeys = [normalizedId, normalizedName].filter(Boolean);
+
+    if (duplicateKeys.some((key) => derivedSubjectKeys.has(key))) {
       return acc;
     }
 
+    duplicateKeys.forEach((key) => derivedSubjectKeys.add(key));
     acc.push(derived);
     return acc;
   }, []);
