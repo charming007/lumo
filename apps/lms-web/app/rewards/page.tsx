@@ -1,8 +1,10 @@
+import { RouteAvailabilityBlocker } from '../../components/pilot-scope-blocker';
 import { RewardRequestQueuePanel } from '../../components/reward-request-queue-panel';
 import { RewardsAdminForm } from '../../components/rewards-admin-form';
 import { fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard, fetchRewardsReport, fetchStudents } from '../../lib/api';
 import type { RewardSnapshot, RewardTransaction, RewardRequestQueue, RewardsReport, Student } from '../../lib/types';
 import type { RewardCatalog } from '../../lib/rewards';
+import { getPilotBlockedRoute } from '../../lib/pilot-nav';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../lib/ui';
 
 const emptyCatalog: RewardCatalog = {
@@ -173,6 +175,11 @@ function LearnerActivityFeed({ transactions }: { transactions: RewardTransaction
 }
 
 export default async function RewardsPage({ searchParams }: { searchParams?: Promise<{ learner?: string }> }) {
+  const blockedRoute = getPilotBlockedRoute('/rewards');
+  if (blockedRoute) {
+    return <RouteAvailabilityBlocker title={blockedRoute.label} rationale={blockedRoute.rationale} keepUsing={blockedRoute.keepUsing} />;
+  }
+
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const [catalogResult, leaderboardResult, requestsResult, studentsResult, reportResult] = await Promise.allSettled([
     fetchRewardsCatalog(),

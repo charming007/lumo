@@ -1,11 +1,13 @@
 import { createLessonAction } from '../actions';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
+import { RouteAvailabilityBlocker } from '../../components/pilot-scope-blocker';
 import { EnglishStudioAuthoringForm } from '../../components/english-studio-authoring-form';
 import { AppShell } from '../../components/shell';
 import { fetchAssessments, fetchCurriculumModules, fetchLessonAssets, fetchSubjects } from '../../lib/api';
 import { getBuildSignature } from '../../lib/build-signature';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
+import { getPilotBlockedRoute } from '../../lib/pilot-nav';
 
 export default async function EnglishStudioPage({
   searchParams,
@@ -14,6 +16,11 @@ export default async function EnglishStudioPage({
 }) {
   const buildSignature = getBuildSignature();
   const query = await searchParams;
+  const blockedRoute = getPilotBlockedRoute('/english');
+
+  if (blockedRoute) {
+    return <RouteAvailabilityBlocker title={blockedRoute.label} rationale={blockedRoute.rationale} keepUsing={blockedRoute.keepUsing} />;
+  }
 
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (

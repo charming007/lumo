@@ -5,13 +5,17 @@ import { fileURLToPath } from 'node:url';
 
 const pilotNavSource = readFileSync(fileURLToPath(new URL('./pilot-nav.ts', import.meta.url)), 'utf8');
 
-test('pilot hidden route map no longer redirects live reports and rewards pages', () => {
-  assert.doesNotMatch(pilotNavSource, /'\/reports':\s*'\//, 'reports should stay live in the admin shell');
-  assert.doesNotMatch(pilotNavSource, /'\/rewards':\s*'\/progress'/, 'rewards should stay live in the admin shell');
+test('pilot nav defaults to a trimmed deployment-safe shell', () => {
+  assert.match(pilotNavSource, /pilotNavMode = FULL_ADMIN_SHELL_ENABLED \? 'full-admin' : 'pilot-trimmed'/);
 });
 
-test('pilot hidden route map is fully retired for deferred surfaces too', () => {
-  assert.doesNotMatch(pilotNavSource, /'\/canvas':\s*'\/content'/);
-  assert.doesNotMatch(pilotNavSource, /'\/english':\s*'\/content'/);
-  assert.doesNotMatch(pilotNavSource, /'\/guide':\s*'\/settings'/);
+test('pilot nav explicitly blocks deferred pilot routes', () => {
+  for (const pathname of ['/canvas', '/english', '/rewards', '/reports', '/guide']) {
+    assert.match(pilotNavSource, new RegExp(`'${pathname.replace('/', '\\/')}'|\"${pathname.replace('/', '\\/')}\"`));
+  }
+});
+
+test('pilot nav keeps a full-admin escape hatch for intentional overrides', () => {
+  assert.match(pilotNavSource, /NEXT_PUBLIC_LUMO_FULL_ADMIN_SHELL/);
+  assert.match(pilotNavSource, /LUMO_FULL_ADMIN_SHELL/);
 });
