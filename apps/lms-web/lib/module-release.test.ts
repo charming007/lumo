@@ -74,3 +74,28 @@ test('getModuleReleaseState blocks review and publish when subject context canno
   assert.deepEqual(state.reviewBlockers, ['Recover the module subject context before sending this lane to review.']);
   assert.equal(state.publishBlockers[0], 'Recover the module subject context before moving this lane forward.');
 });
+
+test('getModuleReleaseState keeps subject context recoverable when ids only differ by case or whitespace', () => {
+  const state = getModuleReleaseState({
+    module: {
+      id: 'module-4',
+      title: 'Recovered lane',
+      subjectId: ' subject-readiness ',
+      subjectName: 'Lumo Readiness',
+      lessonCount: 1,
+      status: 'review',
+    } as any,
+    lessons: [
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-4', subjectId: 'subject-readiness', status: 'approved' },
+    ] as any,
+    assessments: [
+      { id: 'assessment-1', moduleId: 'module-4', moduleTitle: 'Recovered lane', trigger: 'module-complete', status: 'active' },
+    ] as any,
+    subjects: [{ id: 'SUBJECT-READINESS', name: 'Lumo Readiness' }],
+  });
+
+  assert.equal(state.recoveredSubjectId, 'SUBJECT-READINESS');
+  assert.equal(state.hasRecoverableSubjectContext, true);
+  assert.equal(state.canReview, true);
+  assert.equal(state.canPublish, true);
+});

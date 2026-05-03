@@ -1,6 +1,6 @@
 import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match.ts';
 import { filterLessonsForModule } from './module-lesson-match.ts';
-import { resolveModuleSubjectId } from './module-subject-match.ts';
+import { resolveModuleSubjectId, subjectsIncludeId } from './module-subject-match.ts';
 import type { Assessment, CurriculumModule, Lesson, Subject } from './types';
 
 type ModuleReleaseStateArgs = {
@@ -23,7 +23,7 @@ export function getModuleReleaseState({
   const recoveredSubjectId = resolveModuleSubjectId(module, subjects);
   const hasRecoverableSubjectContext = Boolean(
     recoveredSubjectId
-    && (subjects.length === 0 || subjects.some((subject) => subject.id === recoveredSubjectId))
+    && (subjects.length === 0 || subjectsIncludeId(subjects, recoveredSubjectId))
   );
 
   const publishBlockers = [

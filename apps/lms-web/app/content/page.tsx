@@ -20,7 +20,7 @@ import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
-import { matchesSubjectFilter, resolveModuleSubjectId } from '../../lib/module-subject-match';
+import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
 import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { createLessonAction } from '../actions';
 
@@ -441,7 +441,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
 
                   const moduleSubjectId = resolveModuleSubjectId(module, subjects);
-                  const canLaunchLessonCreate = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
+                  const canLaunchLessonCreate = Boolean(moduleSubjectId && subjectsIncludeId(subjects, moduleSubjectId));
                   const createLessonHref = canLaunchLessonCreate
                     ? buildScopedLessonCreateHref({
                         subjectId: moduleSubjectId,
@@ -591,7 +591,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const isDraftModule = module.status === 'draft';
                 const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
                 const moduleSubjectId = resolveModuleSubjectId(module, subjects);
-                const canLaunchLessonCreate = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
+                const canLaunchLessonCreate = Boolean(moduleSubjectId && subjectsIncludeId(subjects, moduleSubjectId));
                 const createLessonHref = canLaunchLessonCreate
                   ? buildScopedLessonCreateHref({
                       subjectId: moduleSubjectId,

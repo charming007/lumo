@@ -524,7 +524,7 @@ export function ContentSubjectLanes({
                               subjects,
                             });
                             const moduleSubjectId = resolveModuleSubjectId(module, subjects);
-                            const canLaunchLessonStudio = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
+                            const canLaunchLessonStudio = Boolean(moduleSubjectId && subjectsIncludeId(subjects, moduleSubjectId));
 
                             return (
                               <div key={module.id} style={{ padding: 18, borderRadius: 20, border: '1px solid #e5e7eb', background: 'white', display: 'grid', gap: 12 }}>
