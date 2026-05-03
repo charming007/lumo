@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   CreateAssessmentForm,
   DeleteAssessmentForm,
@@ -18,7 +18,7 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
-import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, updateStrandAction } from '../app/actions';
+import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, reorderModuleLessonsAction, updateStrandAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { getModuleReleaseState } from '../lib/module-release';
@@ -55,6 +55,179 @@ const lifecycleOptions = [
   { value: 'review', label: 'Review', activeBackground: '#FDE68A', idleBackground: '#FFFBEB', color: '#92400E', border: '#FCD34D' },
   { value: 'published', label: 'Publish', activeBackground: '#BBF7D0', idleBackground: '#ECFDF5', color: '#166534', border: '#86EFAC' },
 ] as const;
+
+function LessonReorderLane({
+  module,
+  lessons,
+  assignments,
+  returnPath,
+}: {
+  module: CurriculumModule;
+  lessons: Lesson[];
+  assignments: Assignment[];
+  returnPath: string;
+}) {
+  const [orderedLessons, setOrderedLessons] = useState(lessons);
+  const [draggedLessonId, setDraggedLessonId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setOrderedLessons(lessons);
+  }, [lessons]);
+
+  function moveLesson(targetLessonId: string) {
+    if (!draggedLessonId || draggedLessonId === targetLessonId) return;
+
+    const sourceIndex = orderedLessons.findIndex((lesson) => lesson.id === draggedLessonId);
+    const targetIndex = orderedLessons.findIndex((lesson) => lesson.id === targetLessonId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    const next = [...orderedLessons];
+    const [movedLesson] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, movedLesson);
+    setOrderedLessons(next);
+    setDraggedLessonId(null);
+    setFeedback('Saving lesson order…');
+
+    startTransition(async () => {
+      const result = await reorderModuleLessonsAction({
+        moduleId: module.id,
+        orderedLessonIds: next.map((lesson) => lesson.id),
+      });
+
+      if (!result.ok) {
+        setOrderedLessons(lessons);
+      }
+
+      setFeedback(result.message);
+    });
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {orderedLessons.length > 1 ? (
+        <div style={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+          Drag lessons to change their module order. Lesson studio keeps the same saved sequence.
+        </div>
+      ) : null}
+      {feedback ? (
+        <div style={{ color: feedback.toLowerCase().includes('updated') ? '#166534' : '#475569', fontSize: 12, fontWeight: 700 }}>
+          {feedback}
+        </div>
+      ) : null}
+      {orderedLessons.length > 0 ? orderedLessons.map((lesson, lessonIndex) => {
+        const lessonPill = statusPill(lesson.status);
+        const usageCount = assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length;
+        const isDragging = draggedLessonId === lesson.id;
+
+        return (
+          <div
+            key={lesson.id}
+            draggable={orderedLessons.length > 1 && !isPending}
+            onDragStart={() => setDraggedLessonId(lesson.id)}
+            onDragEnd={() => setDraggedLessonId(null)}
+            onDragOver={(event) => {
+              if (!draggedLessonId || draggedLessonId === lesson.id) return;
+              event.preventDefault();
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              moveLesson(lesson.id);
+            }}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: 12,
+              borderRadius: 16,
+              background: isDragging ? '#eef2ff' : '#f8fafc',
+              border: `1px solid ${isDragging ? '#c7d2fe' : '#eef2f7'}`,
+              opacity: isPending && isDragging ? 0.7 : 1,
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ cursor: orderedLessons.length > 1 && !isPending ? 'grab' : 'default', color: '#64748b', fontSize: 16 }}>⋮⋮</span>
+                <div style={{ fontWeight: 700 }}>{lessonIndex + 1}. {lesson.title}</div>
+              </div>
+              <div style={{ color: '#64748b' }}>{lesson.mode} • {lesson.durationMinutes} min • {lesson.activityTypes?.length ?? lesson.activityCount ?? 0} typed step{(lesson.activityTypes?.length ?? lesson.activityCount ?? 0) === 1 ? '' : 's'}</div>
+              {lesson.activityTypes && lesson.activityTypes.length > 0 ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                  {lesson.activityTypes.slice(0, 4).map((type) => {
+                    const accentMap: Record<string, { tint: string; border: string; text: string }> = {
+                      image_choice: { tint: '#EEF2FF', border: '#C7D2FE', text: '#3730A3' },
+                      tap_choice: { tint: '#ECFDF5', border: '#BBF7D0', text: '#166534' },
+                      listen_repeat: { tint: '#FFF7ED', border: '#FED7AA', text: '#9A3412' },
+                      speak_answer: { tint: '#FDF2F8', border: '#FBCFE8', text: '#9D174D' },
+                      word_build: { tint: '#FEFCE8', border: '#FDE68A', text: '#854D0E' },
+                      letter_intro: { tint: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
+                      oral_quiz: { tint: '#F8FAFC', border: '#CBD5E1', text: '#334155' },
+                      listen_answer: { tint: '#EFF6FF', border: '#BFDBFE', text: '#1D4ED8' },
+                    };
+                    const labelMap: Record<string, string> = {
+                      listen_repeat: 'Listen & repeat',
+                      speak_answer: 'Speak answer',
+                      word_build: 'Word build',
+                      image_choice: 'Image choice',
+                      oral_quiz: 'Oral quiz',
+                      listen_answer: 'Listen answer',
+                      tap_choice: 'Tap choice',
+                      letter_intro: 'Letter intro',
+                    };
+                    const accent = accentMap[type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
+                    return (
+                      <span key={type} style={{ padding: '4px 8px', borderRadius: 999, background: accent.tint, border: `1px solid ${accent.border}`, color: accent.text, fontSize: 11, fontWeight: 800 }}>
+                        {labelMap[type] ?? type}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ color: '#B45309', fontSize: 12, fontWeight: 700, marginTop: 8 }}>Type mix still hidden until authored steps are added.</div>
+              )}
+              <div style={{ color: '#9A3412', fontSize: 12, fontWeight: 700, marginTop: 6 }}>
+                {usageCount} live assignment{usageCount === 1 ? '' : 's'} using this learner-facing lesson
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+                <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open typed lesson studio →</Link>
+                <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&duplicate=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(returnPath)}`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
+                <Link href={`/assignments?q=${encodeURIComponent(lesson.title)}`} style={{ color: '#C2410C', fontWeight: 700, textDecoration: 'none' }}>View delivery usage →</Link>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
+              <form action={quickUpdateLessonStatusAction}>
+                <input type="hidden" name="lessonId" value={lesson.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <input type="hidden" name="status" value="draft" />
+                <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1' }}>
+                  Draft
+                </button>
+              </form>
+              <form action={quickUpdateLessonStatusAction}>
+                <input type="hidden" name="lessonId" value={lesson.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <input type="hidden" name="status" value="published" />
+                <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '1px solid #86EFAC' }}>
+                  Publish
+                </button>
+              </form>
+              <ModalLauncher buttonLabel="✏️" title={`Edit lesson lifecycle · ${lesson.title}`} description="Update the lesson lifecycle, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
+              </ModalLauncher>
+              <ModalLauncher buttonLabel="🗑" title={`Delete lesson · ${lesson.title}`} description="Delete this lesson if it should no longer be in the module lane." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
+                <DeleteLessonForm lessons={[lesson]} returnPath={returnPath} />
+              </ModalLauncher>
+            </div>
+          </div>
+        );
+      }) : (
+        <div style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#64748b' }}>No lessons linked yet.</div>
+      )}
+    </div>
+  );
+}
 
 function LifecycleRail({
   entityLabel,
@@ -421,88 +594,12 @@ export function ContentSubjectLanes({
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
-                                  <div style={{ display: 'grid', gap: 10 }}>
-                                    {moduleLessons.length > 0 ? moduleLessons.map((lesson) => {
-                                      const lessonPill = statusPill(lesson.status);
-                                      return (
-                                        <div key={lesson.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 16, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                                          <div>
-                                            <div style={{ fontWeight: 700 }}>{lesson.title}</div>
-                                            <div style={{ color: '#64748b' }}>{lesson.mode} • {lesson.durationMinutes} min • {lesson.activityTypes?.length ?? lesson.activityCount ?? 0} typed step{(lesson.activityTypes?.length ?? lesson.activityCount ?? 0) === 1 ? '' : 's'}</div>
-                                            {lesson.activityTypes && lesson.activityTypes.length > 0 ? (
-                                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                                                {lesson.activityTypes.slice(0, 4).map((type) => {
-                                                  const accentMap: Record<string, { tint: string; border: string; text: string }> = {
-                                                    image_choice: { tint: '#EEF2FF', border: '#C7D2FE', text: '#3730A3' },
-                                                    tap_choice: { tint: '#ECFDF5', border: '#BBF7D0', text: '#166534' },
-                                                    listen_repeat: { tint: '#FFF7ED', border: '#FED7AA', text: '#9A3412' },
-                                                    speak_answer: { tint: '#FDF2F8', border: '#FBCFE8', text: '#9D174D' },
-                                                    word_build: { tint: '#FEFCE8', border: '#FDE68A', text: '#854D0E' },
-                                                    letter_intro: { tint: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
-                                                    oral_quiz: { tint: '#F8FAFC', border: '#CBD5E1', text: '#334155' },
-                                                    listen_answer: { tint: '#EFF6FF', border: '#BFDBFE', text: '#1D4ED8' },
-                                                  };
-                                                  const labelMap: Record<string, string> = {
-                                                    listen_repeat: 'Listen & repeat',
-                                                    speak_answer: 'Speak answer',
-                                                    word_build: 'Word build',
-                                                    image_choice: 'Image choice',
-                                                    oral_quiz: 'Oral quiz',
-                                                    listen_answer: 'Listen answer',
-                                                    tap_choice: 'Tap choice',
-                                                    letter_intro: 'Letter intro',
-                                                  };
-                                                  const accent = accentMap[type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
-                                                  return (
-                                                    <span key={type} style={{ padding: '4px 8px', borderRadius: 999, background: accent.tint, border: `1px solid ${accent.border}`, color: accent.text, fontSize: 11, fontWeight: 800 }}>
-                                                      {labelMap[type] ?? type}
-                                                    </span>
-                                                  );
-                                                })}
-                                              </div>
-                                            ) : (
-                                              <div style={{ color: '#B45309', fontSize: 12, fontWeight: 700, marginTop: 8 }}>Type mix still hidden until authored steps are added.</div>
-                                            )}
-                                            <div style={{ color: '#9A3412', fontSize: 12, fontWeight: 700, marginTop: 6 }}>
-                                              {assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length} live assignment{assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length === 1 ? '' : 's'} using this learner-facing lesson
-                                            </div>
-                                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-                                              <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open typed lesson studio →</Link>
-                                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&duplicate=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(returnPath)}`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
-                                              <Link href={`/assignments?q=${encodeURIComponent(lesson.title)}`} style={{ color: '#C2410C', fontWeight: 700, textDecoration: 'none' }}>View delivery usage →</Link>
-                                            </div>
-                                          </div>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                            <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
-                                            <form action={quickUpdateLessonStatusAction}>
-                                              <input type="hidden" name="lessonId" value={lesson.id} />
-                                              <input type="hidden" name="returnPath" value={returnPath} />
-                                              <input type="hidden" name="status" value="draft" />
-                                              <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1' }}>
-                                                Draft
-                                              </button>
-                                            </form>
-                                            <form action={quickUpdateLessonStatusAction}>
-                                              <input type="hidden" name="lessonId" value={lesson.id} />
-                                              <input type="hidden" name="returnPath" value={returnPath} />
-                                              <input type="hidden" name="status" value="published" />
-                                              <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '1px solid #86EFAC' }}>
-                                                Publish
-                                              </button>
-                                            </form>
-                                            <ModalLauncher buttonLabel="✏️" title={`Edit lesson lifecycle · ${lesson.title}`} description="Update the lesson lifecycle, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                                              <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
-                                            </ModalLauncher>
-                                            <ModalLauncher buttonLabel="🗑" title={`Delete lesson · ${lesson.title}`} description="Delete this lesson if it should no longer be in the module lane." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                                              <DeleteLessonForm lessons={[lesson]} returnPath={returnPath} />
-                                            </ModalLauncher>
-                                          </div>
-                                        </div>
-                                      );
-                                    }) : (
-                                      <div style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#64748b' }}>No lessons linked yet.</div>
-                                    )}
-                                  </div>
+                                  <LessonReorderLane
+                                    module={module}
+                                    lessons={moduleLessons}
+                                    assignments={assignments}
+                                    returnPath={returnPath}
+                                  />
 
                                   <div style={{ display: 'grid', gap: 10 }}>
                                     <div style={{ padding: 14, borderRadius: 18, background: '#eff6ff', border: '1px solid #bfdbfe' }}>

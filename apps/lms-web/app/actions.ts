@@ -1114,6 +1114,44 @@ export async function quickUpdateCanvasLessonAction(formData: FormData) {
   }));
 }
 
+export async function reorderModuleLessonsAction(input: {
+  moduleId: string;
+  orderedLessonIds: string[];
+}) {
+  const moduleId = String(input?.moduleId || '').trim();
+  const orderedLessonIds = Array.isArray(input?.orderedLessonIds)
+    ? input.orderedLessonIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+
+  if (!moduleId) {
+    return { ok: false, message: 'Missing module id' } as const;
+  }
+
+  if (orderedLessonIds.length < 2) {
+    return { ok: true, message: 'Nothing to reorder' } as const;
+  }
+
+  try {
+    await apiWrite('/api/v1/curriculum/canvas/reorder', 'POST', {
+      parentType: 'module',
+      parentId: moduleId,
+      nodeType: 'lesson',
+      orderedIds: orderedLessonIds,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: describeActionError(error, 'Lesson order could not be updated'),
+    } as const;
+  }
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  orderedLessonIds.forEach((lessonId) => revalidatePath(`/content/lessons/${lessonId}`));
+
+  return { ok: true, message: 'Lesson order updated' } as const;
+}
+
 export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) {
   const lessonId = String(formData.get('lessonId') || '');
   const assessmentId = String(formData.get('assessmentId') || '').trim();
