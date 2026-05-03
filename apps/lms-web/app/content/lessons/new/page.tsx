@@ -202,6 +202,14 @@ export default async function LessonStudioCreatePage({
   const subjectId = resolvedSubjectId;
   const moduleId = resolvedModuleId;
   const reviewBlockersHref = buildReviewBlockersHref(from);
+  const lessonCreateFormKey = [
+    subjectId,
+    moduleId,
+    duplicateLessonId ?? '',
+    from,
+    selectedSubject?.id ?? '',
+    selectedModule?.id ?? '',
+  ].join('::');
 
   return (
     <PageShell
@@ -258,6 +266,7 @@ export default async function LessonStudioCreatePage({
 
       <section style={{ display: 'grid', gap: 18 }}>
         <LessonCreateForm
+          key={lessonCreateFormKey}
           subjects={subjects}
           modules={modules}
           lessons={lessons}
