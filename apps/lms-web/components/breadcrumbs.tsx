@@ -31,8 +31,9 @@ function prettify(segment: string) {
 
 export function Breadcrumbs({ items, currentLabel }: { items?: BreadcrumbItem[]; currentLabel?: string }) {
   const pathname = usePathname();
+  const safePathname = pathname || '';
 
-  const derivedItems = pathname
+  const derivedItems = safePathname
     .split('/')
     .filter(Boolean)
     .map((segment, index, segments) => ({

@@ -36,15 +36,16 @@ export function Sidebar({
   onToggleSidebarCollapse,
 }: SidebarProps) {
   const pathname = usePathname();
-  const previousPathnameRef = useRef(pathname);
+  const safePathname = pathname || '';
+  const previousPathnameRef = useRef(safePathname);
 
   useEffect(() => {
-    if (previousPathnameRef.current !== pathname && mobileNavOpen) {
+    if (previousPathnameRef.current !== safePathname && mobileNavOpen) {
       onCloseMobileNav?.();
     }
 
-    previousPathnameRef.current = pathname;
-  }, [pathname, mobileNavOpen, onCloseMobileNav]);
+    previousPathnameRef.current = safePathname;
+  }, [safePathname, mobileNavOpen, onCloseMobileNav]);
 
   return (
     <>
@@ -137,7 +138,7 @@ export function Sidebar({
 
         <nav style={{ display: 'grid', gap: 10 }}>
           {navigationItems.map((item) => {
-            const active = isActivePath(pathname, item.href);
+            const active = isActivePath(safePathname, item.href);
             const monogram = itemMonogram(item.label);
             return (
               <Link
