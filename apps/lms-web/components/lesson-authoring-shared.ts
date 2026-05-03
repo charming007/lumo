@@ -1,6 +1,49 @@
 import type { Lesson, LessonActivityChoice, LessonActivityDragItem, LessonActivityDragTarget, LessonActivityStep, LessonActivityMedia } from '../lib/types';
 import type { ActivityDraftLike } from './lesson-step-authoring';
 
+export type LessonActivityDraft = {
+  id: string;
+  title: string;
+  prompt: string;
+  type: string;
+  durationMinutes: string;
+  detail: string;
+  evidence: string;
+  expectedAnswers: string;
+  tags: string;
+  facilitatorNotes: string;
+  choiceLines: string;
+  mediaLines: string;
+};
+
+export type ChoiceLineDraft = {
+  id: string;
+  label: string;
+  correctness: string;
+  mediaKind: string;
+  mediaValue: string;
+};
+
+export type DragItemLineDraft = {
+  id: string;
+  label: string;
+  targetId: string;
+  mediaKind: string;
+  mediaValue: string;
+};
+
+export type MediaLineDraft = {
+  kind: string;
+  value: string;
+};
+
+export type DragTargetLineDraft = {
+  id: string;
+  prompt: string;
+  mediaKind: string;
+  mediaValue: string;
+};
+
 const knownAssetKinds = ['image', 'audio', 'illustration', 'prompt-card', 'story-card', 'trace-card', 'letter-card', 'tile', 'word-card', 'hint', 'transcript'] as const;
 
 function normalizeAssetKind(value: string | null | undefined) {
@@ -43,6 +86,10 @@ function serializeMediaValue(value: unknown) {
     : String(value ?? '');
 }
 
+function parseAuthoringLines(value: string) {
+  return value.split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
 function serializeInlineMedia(media: unknown) {
   if (!media || typeof media !== 'object') return { kind: '', value: '' };
   const typed = media as { kind?: unknown; value?: unknown };
@@ -55,82 +102,85 @@ export function countNonEmptyLines(value: string) {
   return value.split('\n').map((line) => line.trim()).filter(Boolean).length;
 }
 
-export function parseActivityChoices(choiceLines: string) {
-  return choiceLines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [idRaw, labelRaw, correctnessRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
-      const id = idRaw || `choice-${index + 1}`;
-      const label = labelRaw || id;
-      const isCorrect = ['correct', 'true', 'yes', '1'].includes((correctnessRaw || '').toLowerCase());
-      const mediaKind = mediaKindRaw ? normalizeAssetKind(mediaKindRaw) : '';
-      const mediaValue = mediaValueRaw || '';
-      return {
-        id,
-        label,
-        isCorrect,
-        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: parseDelimitedValue(mediaValue) } } : {}),
-      };
-    });
+export function parseChoiceLineDrafts(choiceLines: string): ChoiceLineDraft[] {
+  return parseAuthoringLines(choiceLines).map((line, index) => {
+    const [idRaw, labelRaw, correctnessRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+    return {
+      id: idRaw || `choice-${index + 1}`,
+      label: labelRaw || '',
+      correctness: correctnessRaw || 'wrong',
+      mediaKind: mediaKindRaw ? normalizeAssetKind(mediaKindRaw) : '',
+      mediaValue: mediaValueRaw || '',
+    };
+  });
 }
 
+export function parseActivityChoices(choiceLines: string) {
+  return parseChoiceLineDrafts(choiceLines).map((choice) => ({
+    id: choice.id,
+    label: choice.label || choice.id,
+    isCorrect: ['correct', 'true', 'yes', '1'].includes(choice.correctness.toLowerCase()),
+    ...(choice.mediaKind && choice.mediaValue ? { media: { kind: choice.mediaKind, value: parseDelimitedValue(choice.mediaValue) } } : {}),
+  }));
+}
+
+export function parseDragItemLineDrafts(choiceLines: string): DragItemLineDraft[] {
+  return parseAuthoringLines(choiceLines).map((line, index) => {
+    const [idRaw, labelRaw, targetIdRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+    return {
+      id: idRaw || `item-${index + 1}`,
+      label: labelRaw || '',
+      targetId: targetIdRaw || '',
+      mediaKind: mediaKindRaw ? normalizeAssetKind(mediaKindRaw) : '',
+      mediaValue: mediaValueRaw || '',
+    };
+  });
+}
 
 export function parseActivityDragItems(choiceLines: string): LessonActivityDragItem[] {
-  return choiceLines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [idRaw, labelRaw, targetIdRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
-      const id = idRaw || `item-${index + 1}`;
-      const label = labelRaw || id;
-      const targetId = targetIdRaw || '';
-      const mediaKind = mediaKindRaw ? normalizeAssetKind(mediaKindRaw) : '';
-      const mediaValue = mediaValueRaw || '';
-      return {
-        id,
-        label,
-        targetId,
-        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: parseDelimitedValue(mediaValue) } } : {}),
-      } satisfies LessonActivityDragItem;
-    });
+  return parseDragItemLineDrafts(choiceLines).map((item) => ({
+    id: item.id,
+    label: item.label || item.id,
+    targetId: item.targetId,
+    ...(item.mediaKind && item.mediaValue ? { media: { kind: item.mediaKind, value: parseDelimitedValue(item.mediaValue) } } : {}),
+  } satisfies LessonActivityDragItem));
+}
+
+export function parseDragTargetLineDrafts(mediaLines: string): DragTargetLineDraft[] {
+  return parseAuthoringLines(mediaLines).map((line, index) => {
+    const [idRaw, promptRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+    return {
+      id: idRaw || `target-${index + 1}`,
+      prompt: promptRaw || '',
+      mediaKind: mediaKindRaw ? normalizeAssetKind(mediaKindRaw) : '',
+      mediaValue: mediaValueRaw || '',
+    };
+  });
 }
 
 export function parseActivityDragTargets(mediaLines: string): LessonActivityDragTarget[] {
-  return mediaLines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [idRaw, promptRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
-      const id = idRaw || `target-${index + 1}`;
-      const prompt = promptRaw || id;
-      const mediaKind = mediaKindRaw ? normalizeAssetKind(mediaKindRaw) : '';
-      const mediaValue = mediaValueRaw || '';
-      return {
-        id,
-        prompt,
-        ...(mediaKind && mediaValue ? { media: { kind: mediaKind, value: parseDelimitedValue(mediaValue) } } : {}),
-      } satisfies LessonActivityDragTarget;
-    });
+  return parseDragTargetLineDrafts(mediaLines).map((target) => ({
+    id: target.id,
+    prompt: target.prompt || target.id,
+    ...(target.mediaKind && target.mediaValue ? { media: { kind: target.mediaKind, value: parseDelimitedValue(target.mediaValue) } } : {}),
+  } satisfies LessonActivityDragTarget));
+}
+
+export function parseMediaLineDrafts(mediaLines: string): MediaLineDraft[] {
+  return parseAuthoringLines(mediaLines).map((line) => {
+    const [kindRaw, valueRaw] = line.split('|').map((part) => part.trim());
+    return {
+      kind: normalizeAssetKind(kindRaw || 'image'),
+      value: valueRaw || '',
+    };
+  });
 }
 
 export function parseActivityMedia(mediaLines: string) {
-  return mediaLines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [kindRaw, valueRaw] = line.split('|').map((part) => part.trim());
-      const kind = normalizeAssetKind(kindRaw || 'image');
-      const value = valueRaw || '';
-      return {
-        kind,
-        value: parseDelimitedValue(value),
-      };
-    });
+  return parseMediaLineDrafts(mediaLines).map((item) => ({
+    kind: item.kind,
+    value: parseDelimitedValue(item.value),
+  }));
 }
 
 export function serializeChoiceLinesFromStep(step: LessonActivityStep) {
@@ -164,11 +214,8 @@ export function serializeMediaLinesFromStep(step: LessonActivityStep) {
   return asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${serializeMediaValue(item.value)}`).join('\n');
 }
 
-export function buildActivityDraftsFromLesson(lesson?: Lesson | null) {
-  const source = asArray<LessonActivityStep>(lesson?.activitySteps ?? lesson?.activities);
-  if (!source.length) return [];
-
-  return source.map((step, index) => ({
+export function buildActivityDraftFromStep(step: LessonActivityStep, index: number): LessonActivityDraft {
+  return {
     id: step.id || `activity-${index + 1}`,
     title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
     prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
@@ -181,7 +228,38 @@ export function buildActivityDraftsFromLesson(lesson?: Lesson | null) {
     facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
     choiceLines: serializeChoiceLinesFromStep(step),
     mediaLines: serializeMediaLinesFromStep(step),
-  }));
+  };
+}
+
+export function buildActivityDraftsFromLesson(lesson?: Lesson | null) {
+  const source = asArray<LessonActivityStep>(lesson?.activitySteps ?? lesson?.activities);
+  if (!source.length) return [];
+
+  return source.map((step, index) => buildActivityDraftFromStep(step, index));
+}
+
+export function buildActivityStepFromDraft(draft: LessonActivityDraft, index: number): LessonActivityStep {
+  return {
+    id: draft.id || `activity-${index + 1}`,
+    order: index + 1,
+    type: draft.type,
+    title: draft.title,
+    prompt: draft.prompt || draft.title,
+    durationMinutes: Number(draft.durationMinutes) || 0,
+    detail: draft.detail,
+    evidence: draft.evidence,
+    expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
+    tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
+    facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
+    choices: draft.type === 'drag_to_match' ? [] : parseActivityChoices(draft.choiceLines),
+    media: draft.type === 'drag_to_match' ? [] : parseActivityMedia(draft.mediaLines),
+    dragItems: draft.type === 'drag_to_match' ? parseActivityDragItems(draft.choiceLines) : undefined,
+    dragTargets: draft.type === 'drag_to_match' ? parseActivityDragTargets(draft.mediaLines) : undefined,
+  };
+}
+
+export function buildActivityStepsFromDrafts(drafts: LessonActivityDraft[]) {
+  return drafts.map((draft, index) => buildActivityStepFromDraft(draft, index));
 }
 
 function countInlineMatches(value: string, needle: string) {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildActivityDraftsFromLesson, getPreviewAssetSummary } from './lesson-authoring-shared.ts';
+import { buildActivityDraftsFromLesson, buildActivityStepsFromDrafts, getPreviewAssetSummary } from './lesson-authoring-shared.ts';
 
 test('buildActivityDraftsFromLesson keeps drag-to-match duplicate hydration stable for legacy-safe lesson payloads', () => {
   const drafts = buildActivityDraftsFromLesson({
@@ -38,6 +38,32 @@ test('buildActivityDraftsFromLesson keeps drag-to-match duplicate hydration stab
     drafts[0]?.mediaLines,
     'target-school|School|prompt-card|asset:school-zone\ntarget-clinic|Clinic',
   );
+});
+
+test('buildActivityStepsFromDrafts keeps drag-to-match create/edit serialization on one shared path', () => {
+  const [step] = buildActivityStepsFromDrafts([
+    {
+      id: 'activity-1',
+      title: 'Match the helpers',
+      prompt: 'Drag each helper to the right role.',
+      type: 'drag_to_match',
+      durationMinutes: '3',
+      detail: '',
+      evidence: '',
+      expectedAnswers: 'teacher, nurse',
+      tags: 'matching, drag',
+      facilitatorNotes: 'Coach the first match only.',
+      choiceLines: 'item-teacher|Teacher|target-school|image|asset:teacher-card\nitem-nurse|Nurse|target-clinic|image|asset:nurse-card',
+      mediaLines: 'target-school|School|prompt-card|asset:school-zone\ntarget-clinic|Clinic|prompt-card|asset:clinic-zone',
+    },
+  ]);
+
+  assert.equal(step?.choices?.length ?? 0, 0);
+  assert.equal(step?.media?.length ?? 0, 0);
+  assert.deepEqual(step?.dragItems?.map((item) => item.targetId), ['target-school', 'target-clinic']);
+  assert.deepEqual(step?.dragTargets?.map((target) => target.prompt), ['School', 'Clinic']);
+  assert.equal(step?.dragItems?.[0]?.media?.kind, 'image');
+  assert.equal(step?.dragTargets?.[0]?.media?.kind, 'prompt-card');
 });
 
 test('getPreviewAssetSummary counts drag-to-match assets instead of treating the step like text-only filler', () => {

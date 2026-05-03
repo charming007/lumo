@@ -6,7 +6,7 @@ import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
-import { buildActivityDraftsFromLesson, countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityDragItems, parseActivityDragTargets, parseActivityMedia } from './lesson-authoring-shared';
+import { buildActivityDraftsFromLesson, buildActivityStepsFromDrafts, countNonEmptyLines, getDraftAssetIntentSummary, type LessonActivityDraft } from './lesson-authoring-shared';
 import { filterModulesForSubject } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
@@ -121,20 +121,7 @@ function nextActivityDraftId(current: ActivityDraft[]) {
   return `activity-${highestIndex + 1}`;
 }
 
-type ActivityDraft = {
-  id: string;
-  title: string;
-  prompt: string;
-  type: string;
-  durationMinutes: string;
-  detail: string;
-  evidence: string;
-  expectedAnswers: string;
-  tags: string;
-  facilitatorNotes: string;
-  choiceLines: string;
-  mediaLines: string;
-};
+type ActivityDraft = LessonActivityDraft;
 
 type LessonTemplate = {
   id: string;
@@ -315,23 +302,7 @@ export function LessonCreateForm({
       return { id: `assessment-item-${index + 1}`, prompt, evidence };
     }),
   }), [duplicateLesson?.lessonAssessment, assessmentTitle, assessmentKind, assessmentItemsText]);
-  const activitySteps = useMemo(() => activityDrafts.map((draft, index) => ({
-    id: draft.id || `activity-${index + 1}`,
-    order: index + 1,
-    type: draft.type,
-    title: draft.title,
-    prompt: draft.prompt || draft.title,
-    durationMinutes: Number(draft.durationMinutes) || 0,
-    detail: draft.detail,
-    evidence: draft.evidence,
-    expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
-    tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
-    facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
-    choices: draft.type === 'drag_to_match' ? [] : parseActivityChoices(draft.choiceLines),
-    media: draft.type === 'drag_to_match' ? [] : parseActivityMedia(draft.mediaLines),
-    dragItems: draft.type === 'drag_to_match' ? parseActivityDragItems(draft.choiceLines) : undefined,
-    dragTargets: draft.type === 'drag_to_match' ? parseActivityDragTargets(draft.mediaLines) : undefined,
-  })), [activityDrafts]);
+  const activitySteps = useMemo(() => buildActivityStepsFromDrafts(activityDrafts), [activityDrafts]);
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
   const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getLessonStepTypeWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);

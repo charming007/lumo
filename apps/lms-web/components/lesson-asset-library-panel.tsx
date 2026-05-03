@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ModalLauncher } from './modal-launcher';
 import { AssetPreview, AssetRuntimeLink } from './asset-preview';
+import { parseChoiceLineDrafts, parseDragItemLineDrafts, parseDragTargetLineDrafts, parseMediaLineDrafts } from './lesson-authoring-shared';
 import type { LessonActivityStep, LessonAsset } from '../lib/types';
 
 type AssetTemplate = {
@@ -74,31 +75,11 @@ const assetTemplates: AssetTemplate[] = [
 ];
 
 function parseMediaLines(lines: string) {
-  return lines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [kind, value] = line.split('|').map((part) => part.trim());
-      return { kind: kind || 'image', value: value || '' };
-    });
+  return parseMediaLineDrafts(lines);
 }
 
 function parseChoiceLines(lines: string) {
-  return lines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [id, label, correctness, mediaKind, mediaValue] = line.split('|').map((part) => part.trim());
-      return {
-        id: id || `choice-${index + 1}`,
-        label: label || '',
-        correctness: correctness || 'wrong',
-        mediaKind: mediaKind || '',
-        mediaValue: mediaValue || '',
-      };
-    });
+  return parseChoiceLineDrafts(lines);
 }
 
 function toMediaLines(items: Array<{ kind: string; value: string }>) {
@@ -154,36 +135,11 @@ type DragTargetLine = {
 };
 
 function parseDragItemLines(lines: string): DragItemLine[] {
-  return lines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [id, label, targetId, mediaKind, mediaValue] = line.split('|').map((part) => part.trim());
-      return {
-        id: id || `item-${index + 1}`,
-        label: label || '',
-        targetId: targetId || '',
-        mediaKind: mediaKind || '',
-        mediaValue: mediaValue || '',
-      };
-    });
+  return parseDragItemLineDrafts(lines);
 }
 
 function parseDragTargetLines(lines: string): DragTargetLine[] {
-  return lines
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [id, prompt, mediaKind, mediaValue] = line.split('|').map((part) => part.trim());
-      return {
-        id: id || `target-${index + 1}`,
-        prompt: prompt || '',
-        mediaKind: mediaKind || '',
-        mediaValue: mediaValue || '',
-      };
-    });
+  return parseDragTargetLineDrafts(lines);
 }
 
 function toDragItemLines(items: DragItemLine[]) {

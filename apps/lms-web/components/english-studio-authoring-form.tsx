@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
-import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityDragItems, parseActivityDragTargets, parseActivityMedia } from './lesson-authoring-shared';
+import { buildActivityStepsFromDrafts, countNonEmptyLines, getDraftAssetIntentSummary, type LessonActivityDraft } from './lesson-authoring-shared';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
@@ -118,20 +118,7 @@ const templatePresets = [
   },
 ] as const;
 
-type ActivityDraft = {
-  id: string;
-  title: string;
-  type: string;
-  durationMinutes: string;
-  prompt: string;
-  detail: string;
-  evidence: string;
-  expectedAnswers: string;
-  tags: string;
-  facilitatorNotes: string;
-  choiceLines: string;
-  mediaLines: string;
-};
+type ActivityDraft = LessonActivityDraft;
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14, minWidth: 0 }}>{children}</label>;
@@ -303,23 +290,7 @@ export function EnglishStudioAuthoringForm({
     }).filter((item) => item.prompt),
   }), [activeAssessment?.id, assessmentTitle, assessmentKind, assessmentItemsText]);
 
-  const activitySteps = useMemo(() => activityDrafts.map((draft, index) => ({
-    id: draft.id || `english-${index + 1}`,
-    order: index + 1,
-    type: draft.type,
-    prompt: draft.prompt || draft.title,
-    title: draft.title,
-    durationMinutes: Number(draft.durationMinutes) || 0,
-    detail: draft.detail,
-    evidence: draft.evidence,
-    expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
-    tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
-    facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
-    choices: draft.type === 'drag_to_match' ? [] : parseActivityChoices(draft.choiceLines),
-    media: draft.type === 'drag_to_match' ? [] : parseActivityMedia(draft.mediaLines),
-    dragItems: draft.type === 'drag_to_match' ? parseActivityDragItems(draft.choiceLines) : undefined,
-    dragTargets: draft.type === 'drag_to_match' ? parseActivityDragTargets(draft.mediaLines) : undefined,
-  })), [activityDrafts]);
+  const activitySteps = useMemo(() => buildActivityStepsFromDrafts(activityDrafts), [activityDrafts]);
 
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, item) => sum + (item.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
