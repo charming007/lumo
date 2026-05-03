@@ -11462,7 +11462,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                         handoffLearner,
                                       );
                                       widget.state.selectModule(
-                                        recommendedModule,
+                                        handoffModule,
                                       );
                                       if (!context.mounted) return;
                                       if (nextLesson != null &&
@@ -11474,7 +11474,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                               state: widget.state,
                                               onChanged: () {},
                                               lesson: nextLesson,
-                                              module: recommendedModule,
+                                              module: handoffModule,
                                             ),
                                           ),
                                         );
@@ -11485,7 +11485,10 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                           builder: (_) => SubjectModulesPage(
                                             state: widget.state,
                                             onChanged: () {},
-                                            module: recommendedModule,
+                                            module: handoffModule,
+                                            subjectTitle: handoffSubjectTitle,
+                                            subjectKey: handoffSubjectKey,
+                                            forceUnscopedLessons: true,
                                           ),
                                         ),
                                       );
