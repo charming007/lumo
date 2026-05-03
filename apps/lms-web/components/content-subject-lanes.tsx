@@ -22,7 +22,7 @@ import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpda
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { getModuleReleaseState } from '../lib/module-release';
-import { resolveModuleSubjectId } from '../lib/module-subject-match';
+import { resolveModuleSubjectId, subjectMatchesContext, subjectsIncludeId } from '../lib/module-subject-match';
 import { Card, Pill } from '../lib/ui';
 import type { Assessment, Assignment, CurriculumModule, Lesson, Strand, Subject } from '../lib/types';
 
@@ -303,10 +303,19 @@ export function ContentSubjectLanes({
   const subjectSummaries = useMemo(() => subjects
     .map((subject) => {
       const palette = subjectPalette[subject.id] || subjectPalette.english;
-      const subjectStrands = strands.filter((strand) => strand.subjectId === subject.id);
-      const subjectModules = modules.filter((module) => module.subjectId === subject.id || module.subjectName === subject.name);
-      const subjectLessons = lessons.filter((lesson) => lesson.subjectId === subject.id || lesson.subjectName === subject.name);
-      const subjectAssessments = assessments.filter((assessment) => assessment.subjectId === subject.id || assessment.subjectName === subject.name);
+      const subjectStrands = strands.filter((strand) => subjectsIncludeId([subject], strand.subjectId));
+      const subjectModules = modules.filter((module) => subjectMatchesContext(subject, {
+        subjectIds: [module.subjectId],
+        subjectNames: [module.subjectName],
+      }));
+      const subjectLessons = lessons.filter((lesson) => subjectMatchesContext(subject, {
+        subjectIds: [lesson.subjectId],
+        subjectNames: [lesson.subjectName],
+      }));
+      const subjectAssessments = assessments.filter((assessment) => subjectMatchesContext(subject, {
+        subjectIds: [assessment.subjectId],
+        subjectNames: [assessment.subjectName],
+      }));
       const subjectAssignments = assignments.filter((assignment) => subjectLessons.some((lesson) => lesson.title === assignment.lessonTitle));
       const publishedModules = subjectModules.filter((module) => module.status === 'published').length;
       const readyLessons = subjectLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;

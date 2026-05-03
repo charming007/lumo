@@ -103,3 +103,23 @@ export function subjectsIncludeId(
 
   return subjects.some((subject) => normalize(subject.id) === normalizedSubjectId);
 }
+
+export function subjectMatchesContext(
+  subject: Pick<Subject, 'id' | 'name'> | null | undefined,
+  options: {
+    subjectIds?: Array<string | null | undefined>;
+    subjectNames?: Array<string | null | undefined>;
+  },
+) {
+  if (!subject) {
+    return false;
+  }
+
+  const normalizedSubjectId = normalize(subject.id);
+  const normalizedSubjectName = normalize(subject.name);
+
+  return Boolean(
+    (normalizedSubjectId && options.subjectIds?.some((subjectId) => normalize(subjectId) === normalizedSubjectId))
+    || (normalizedSubjectName && options.subjectNames?.some((subjectName) => normalize(subjectName) === normalizedSubjectName)),
+  );
+}

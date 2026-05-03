@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { filterModulesForSubject, findSubjectByContext, matchesSubjectFilter, moduleBelongsToSubject, resolveModuleSubjectId, subjectsIncludeId } from './module-subject-match.ts';
+import { filterModulesForSubject, findSubjectByContext, matchesSubjectFilter, moduleBelongsToSubject, resolveModuleSubjectId, subjectMatchesContext, subjectsIncludeId } from './module-subject-match.ts';
 
 test('module subject matching keeps modules visible when subject names line up but ids drift', () => {
   const subject = {
@@ -185,6 +185,30 @@ test('matchesSubjectFilter returns false when neither subject id nor subject nam
 
   assert.equal(
     matchesSubjectFilter('subject-arabic', subjects as any, {
+      subjectIds: ['subject-english'],
+      subjectNames: ['English'],
+    }),
+    false,
+  );
+});
+
+test('subjectMatchesContext treats ids and names case-insensitively for subject lanes', () => {
+  const subject = { id: ' subject-english ', name: 'English' };
+
+  assert.equal(
+    subjectMatchesContext(subject as any, {
+      subjectIds: ['SUBJECT-ENGLISH'],
+      subjectNames: [' english '],
+    }),
+    true,
+  );
+});
+
+test('subjectMatchesContext returns false when neither id nor name match the lane', () => {
+  const subject = { id: 'subject-math', name: 'Mathematics' };
+
+  assert.equal(
+    subjectMatchesContext(subject as any, {
       subjectIds: ['subject-english'],
       subjectNames: ['English'],
     }),
