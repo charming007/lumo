@@ -8199,8 +8199,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
   }
 
-
-  LessonActivityDragTarget? _targetForItem(LessonActivity activity, LessonActivityDragItem item) {
+  LessonActivityDragTarget? _targetForItem(
+      LessonActivity activity, LessonActivityDragItem item) {
     for (final target in activity.dragTargets) {
       if (target.id == item.targetId) return target;
     }
@@ -8208,7 +8208,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   bool _dragMatchesComplete(LessonActivity activity) {
-    if (activity.dragItems.isEmpty || activity.dragTargets.isEmpty) return false;
+    if (activity.dragItems.isEmpty || activity.dragTargets.isEmpty)
+      return false;
     for (final item in activity.dragItems) {
       if (_dragPlacements[item.id] != item.targetId) return false;
     }
@@ -8218,12 +8219,15 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   String _encodeDragPlacements() {
     final entries = _dragPlacements.entries.toList()
       ..sort((left, right) => left.key.compareTo(right.key));
-    final payload = entries.map((entry) => '${entry.key}:${entry.value}').join('|');
+    final payload =
+        entries.map((entry) => '${entry.key}:${entry.value}').join('|');
     return '__dragmatch__:$payload';
   }
 
   void _refreshDragResponse(LessonActivity activity) {
-    final placed = activity.dragItems.where((item) => _dragPlacements.containsKey(item.id)).length;
+    final placed = activity.dragItems
+        .where((item) => _dragPlacements.containsKey(item.id))
+        .length;
     responseController.text = placed == 0 ? '' : _encodeDragPlacements();
   }
 
@@ -8244,22 +8248,39 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           border: Border.all(
             color: selected
                 ? const Color(0xFF0F766E)
-                : (feedback ? const Color(0xFF14B8A6) : const Color(0xFFD7E3FF)),
+                : (feedback
+                    ? const Color(0xFF14B8A6)
+                    : const Color(0xFFD7E3FF)),
             width: selected || feedback ? 2.5 : 1.5,
           ),
-          boxShadow: const [BoxShadow(color: Color(0x0D0F172A), blurRadius: 12, offset: Offset(0, 8))],
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x0D0F172A), blurRadius: 12, offset: Offset(0, 8))
+          ],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          _buildChoicePreview(LessonActivityChoice(id: item.id, label: item.label, mediaItems: item.mediaItems), emoji, imageHeight: 112, borderRadius: 20),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          _buildChoicePreview(
+              LessonActivityChoice(
+                  id: item.id, label: item.label, mediaItems: item.mediaItems),
+              emoji,
+              imageHeight: 112,
+              borderRadius: 20),
           const SizedBox(height: 12),
-          Text(item.label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+          Text(item.label,
+              textAlign: TextAlign.center,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
           const SizedBox(height: 6),
           Text(
             placed
                 ? 'Placed in a target zone'
-                : (selected ? 'Tap a target zone to place this card' : 'Press and drag to match'),
+                : (selected
+                    ? 'Tap a target zone to place this card'
+                    : 'Press and drag to match'),
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+            style: const TextStyle(
+                color: Color(0xFF64748B), fontWeight: FontWeight.w600),
           ),
         ]),
       ),
@@ -8274,54 +8295,86 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: const Color(0xFFF8FAFF), borderRadius: BorderRadius.circular(28), border: Border.all(color: const Color(0xFFD7E3FF))),
+      decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFF),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFD7E3FF))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(prompt, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A), height: 1.35)),
-        if (activity.supportText != null) ...[const SizedBox(height: 8), Text(activity.supportText!, style: const TextStyle(color: Color(0xFF475569), height: 1.4))],
+        Text(prompt,
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+                height: 1.35)),
+        if (activity.supportText != null) ...[
+          const SizedBox(height: 8),
+          Text(activity.supportText!,
+              style: const TextStyle(color: Color(0xFF475569), height: 1.4))
+        ],
         const SizedBox(height: 16),
         Text(
           'Drag each card into the right zone. If dragging feels fiddly, tap a card first, then tap a zone.',
           style: const TextStyle(color: Color(0xFF475569), height: 1.35),
         ),
         const SizedBox(height: 14),
-        Wrap(spacing: 14, runSpacing: 14, children: activity.dragItems.map((item) {
-          final placed = _dragPlacements.containsKey(item.id);
-          final selected = _selectedDragItemId == item.id;
-          return GestureDetector(
-            onTap: placed
-                ? null
-                : () {
-                    setState(() {
-                      _selectedDragItemId = selected ? null : item.id;
-                      microphoneStatus = _selectedDragItemId == null
-                          ? 'Card selection cleared.'
-                          : 'Card selected. Tap the matching target zone.';
-                    });
-                  },
-            child: LongPressDraggable<String>(
-              data: item.id,
-              feedback: SizedBox(width: 180, child: Material(color: Colors.transparent, child: _buildDragItemCard(item, feedback: true))),
-              childWhenDragging: SizedBox(width: 180, child: _buildDragItemCard(item, placed: true)),
-              child: SizedBox(width: 180, child: _buildDragItemCard(item, placed: placed, selected: selected)),
-            ),
-          );
-        }).toList()),
+        Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            children: activity.dragItems.map((item) {
+              final placed = _dragPlacements.containsKey(item.id);
+              final selected = _selectedDragItemId == item.id;
+              return GestureDetector(
+                key: ValueKey('drag-item-${item.id}'),
+                onTap: placed
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedDragItemId = selected ? null : item.id;
+                          microphoneStatus = _selectedDragItemId == null
+                              ? 'Card selection cleared.'
+                              : 'Card selected. Tap the matching target zone.';
+                        });
+                      },
+                child: LongPressDraggable<String>(
+                  data: item.id,
+                  feedback: SizedBox(
+                      width: 180,
+                      child: Material(
+                          color: Colors.transparent,
+                          child: _buildDragItemCard(item, feedback: true))),
+                  childWhenDragging: SizedBox(
+                      width: 180,
+                      child: _buildDragItemCard(item, placed: true)),
+                  child: SizedBox(
+                      width: 180,
+                      child: _buildDragItemCard(item,
+                          placed: placed, selected: selected)),
+                ),
+              );
+            }).toList()),
         const SizedBox(height: 20),
-        Column(children: activity.dragTargets.map((target) {
-          final matchedItem = activity.dragItems.where((item) => _dragPlacements[item.id] == target.id).cast<LessonActivityDragItem?>().firstWhere((item) => item != null, orElse: () => null);
+        Column(
+            children: activity.dragTargets.map((target) {
+          final matchedItem = activity.dragItems
+              .where((item) => _dragPlacements[item.id] == target.id)
+              .cast<LessonActivityDragItem?>()
+              .firstWhere((item) => item != null, orElse: () => null);
           return Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: DragTarget<String>(
               onAcceptWithDetails: (details) {
                 final itemId = details.data;
                 setState(() {
-                  _dragPlacements.removeWhere((key, value) => value == target.id || key == itemId);
+                  _dragPlacements.removeWhere(
+                      (key, value) => value == target.id || key == itemId);
                   _dragPlacements[itemId] = target.id;
                   _selectedDragItemId = null;
                   _refreshDragResponse(activity);
                   transcriptReviewPending = false;
                   _latestTranscriptNeedsManualReview = false;
-                  microphoneStatus = _dragMatchesComplete(activity) ? 'All cards matched. Continue when ready.' : 'Card placed. Keep matching the rest.';
+                  microphoneStatus = _dragMatchesComplete(activity)
+                      ? 'All cards matched. Continue when ready.'
+                      : 'Card placed. Keep matching the rest.';
                 });
               },
               builder: (context, candidateData, rejectedData) {
@@ -8333,7 +8386,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                       : () {
                           setState(() {
                             final itemId = _selectedDragItemId!;
-                            _dragPlacements.removeWhere((key, value) => value == target.id || key == itemId);
+                            _dragPlacements.removeWhere((key, value) =>
+                                value == target.id || key == itemId);
                             _dragPlacements[itemId] = target.id;
                             _selectedDragItemId = null;
                             _refreshDragResponse(activity);
@@ -8347,18 +8401,50 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(color: matchedItem != null ? const Color(0xFFECFDF5) : Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: isHot ? const Color(0xFF14B8A6) : matchedItem != null ? const Color(0xFF34D399) : const Color(0xFFD7E3FF), width: isHot ? 3 : 1.5)),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(target.prompt, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-                      if (matchedItem != null) ...[const SizedBox(height: 10), Text('Matched card: ${matchedItem.label}', style: const TextStyle(color: Color(0xFF047857), fontWeight: FontWeight.w800))] else ...[const SizedBox(height: 8), Text(_selectedDragItemId == null ? 'Drop the matching card here' : 'Tap to place the selected card here', style: const TextStyle(color: Color(0xFF64748B)))]
-                    ]),
+                    decoration: BoxDecoration(
+                        color: matchedItem != null
+                            ? const Color(0xFFECFDF5)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                            color: isHot
+                                ? const Color(0xFF14B8A6)
+                                : matchedItem != null
+                                    ? const Color(0xFF34D399)
+                                    : const Color(0xFFD7E3FF),
+                            width: isHot ? 3 : 1.5)),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(target.prompt,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w800, fontSize: 17)),
+                          if (matchedItem != null) ...[
+                            const SizedBox(height: 10),
+                            Text('Matched card: ${matchedItem.label}',
+                                style: const TextStyle(
+                                    color: Color(0xFF047857),
+                                    fontWeight: FontWeight.w800))
+                          ] else ...[
+                            const SizedBox(height: 8),
+                            Text(
+                                _selectedDragItemId == null
+                                    ? 'Drop the matching card here'
+                                    : 'Tap to place the selected card here',
+                                style:
+                                    const TextStyle(color: Color(0xFF64748B)))
+                          ]
+                        ]),
                   ),
                 );
               },
             ),
           );
         }).toList()),
-        if (completed) const Text('Nice. Every card is in the correct zone.', style: TextStyle(color: Color(0xFF047857), fontWeight: FontWeight.w800)),
+        if (completed)
+          const Text('Nice. Every card is in the correct zone.',
+              style: TextStyle(
+                  color: Color(0xFF047857), fontWeight: FontWeight.w800)),
       ]),
     );
   }
@@ -9799,8 +9885,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     final dragReady = currentActivity?.type == LessonActivityType.dragToMatch &&
         currentActivity != null &&
         _dragMatchesComplete(currentActivity);
-    final canAdvanceChoiceStep =
-        isChoiceStep && !transcriptReviewPending && (_hasVerifiedLearnerResponse || dragReady);
+    final canAdvanceChoiceStep = isChoiceStep &&
+        !transcriptReviewPending &&
+        (_hasVerifiedLearnerResponse || dragReady);
 
     Widget buildChoiceSelectionPanel() {
       final activity = step.activity;
@@ -10298,7 +10385,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                       const SizedBox(height: 16),
                                     ],
                                     if (step.activity != null) ...[
-                                      currentActivity?.type == LessonActivityType.dragToMatch
+                                      currentActivity?.type ==
+                                              LessonActivityType.dragToMatch
                                           ? _buildDragToMatchPanel(step)
                                           : (isChoiceStep
                                               ? buildChoiceSelectionPanel()

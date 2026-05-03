@@ -3110,7 +3110,8 @@ void main() {
           ),
         ];
 
-        expect(state.resumableRuntimeSessionForLearner(beginner)?.sessionId, 'session-progress');
+        expect(state.resumableRuntimeSessionForLearner(beginner)?.sessionId,
+            'session-progress');
       },
     );
 
@@ -4290,6 +4291,126 @@ void main() {
       expect(activity.choiceItems.first.isCorrect, isFalse);
       expect(activity.choiceItems.last.isCorrect, isTrue);
       expect(activity.targetResponse, 'Kado');
+    });
+
+    test('drag to match accepts only the fully correct authored mapping', () {
+      final state = LumoAppState(includeSeedDemoContent: false);
+      state.learners.add(beginner);
+      state.currentLearner = beginner;
+
+      const lesson = LessonCardModel(
+        id: 'drag-match-correctness',
+        moduleId: 'english',
+        title: 'Drag match correctness',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Only the right full mapping should pass.',
+        scenario:
+            'The runtime should not accept partial or wrong card placements.',
+        steps: [
+          LessonStep(
+            id: 'drag-step-1',
+            type: LessonStepType.practice,
+            title: 'Match each card',
+            instruction: 'Drag each fruit into the right basket.',
+            expectedResponse: 'Match every card.',
+            coachPrompt: 'Match each fruit card.',
+            facilitatorTip:
+                'Only the fully correct mapping should unlock continue.',
+            realWorldCheck: 'All cards land in the right target zones.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.dragToMatch,
+              prompt: 'Match each fruit card.',
+              dragItems: [
+                LessonActivityDragItem(
+                    id: 'apple', label: 'Apple', targetId: 'red-basket'),
+                LessonActivityDragItem(
+                    id: 'banana', label: 'Banana', targetId: 'yellow-basket'),
+              ],
+              dragTargets: [
+                LessonActivityDragTarget(
+                    id: 'red-basket', prompt: 'Red basket'),
+                LessonActivityDragTarget(
+                    id: 'yellow-basket', prompt: 'Yellow basket'),
+              ],
+            ),
+          ),
+        ],
+      );
+
+      state.assignedLessons.add(lesson);
+      state.startLesson(lesson);
+
+      final partial = state.submitLearnerResponse(
+        '__dragmatch__:apple:red-basket',
+      );
+      expect(partial.accepted, isFalse);
+      expect(partial.review, ResponseReview.needsSupport);
+
+      final wrong = state.submitLearnerResponse(
+        '__dragmatch__:apple:yellow-basket|banana:red-basket',
+      );
+      expect(wrong.accepted, isFalse);
+      expect(wrong.review, ResponseReview.needsSupport);
+
+      final correct = state.submitLearnerResponse(
+        '__dragmatch__:apple:red-basket|banana:yellow-basket',
+      );
+      expect(correct.accepted, isTrue);
+      expect(correct.review, ResponseReview.onTrack);
+    });
+
+    test('backend drag to match parsing keeps drag items and targets intact',
+        () {
+      final lesson = LessonCardModel.fromBackend({
+        'id': 'backend-drag-match',
+        'moduleId': 'english',
+        'title': 'Backend drag match',
+        'subject': 'English',
+        'durationMinutes': 5,
+        'status': 'published',
+        'mascotName': 'Mallam',
+        'readinessFocus': 'Backend drag parsing',
+        'scenario':
+            'Drag items and targets should survive the backend payload.',
+        'activitySteps': [
+          {
+            'id': 'backend-drag-step-1',
+            'type': 'drag_to_match',
+            'prompt': 'Match each card.',
+            'dragItems': [
+              {
+                'id': 'goat',
+                'label': 'Goat',
+                'targetId': 'animal-zone',
+                'media': {'kind': 'image', 'value': 'goat.png'},
+              },
+            ],
+            'dragTargets': [
+              {
+                'id': 'animal-zone',
+                'prompt': 'Animals',
+                'media': {'kind': 'prompt-card', 'value': 'Put animals here'},
+              },
+            ],
+          },
+        ],
+      });
+
+      final activity = lesson.steps.first.activity!;
+      expect(activity.type, LessonActivityType.dragToMatch);
+      expect(activity.dragItems, hasLength(1));
+      expect(activity.dragTargets, hasLength(1));
+      expect(activity.dragItems.first.targetId, 'animal-zone');
+      expect(activity.dragItems.first.mediaItems.first.firstValue, 'goat.png');
+      expect(activity.dragTargets.first.prompt, 'Animals');
+      expect(
+        activity.dragTargets.first.mediaItems.first.firstValue,
+        'Put animals here',
+      );
     });
 
     test(

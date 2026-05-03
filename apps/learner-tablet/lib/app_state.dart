@@ -2933,12 +2933,39 @@ class LumoAppState {
     }
 
     if (activity != null && activity.type == LessonActivityType.dragToMatch) {
-      final expected = _normalizeForComparison(activity.targetResponse ?? 'matched');
-      final matched = expected.isNotEmpty && normalizedResponse == expected;
-      return ResponseEvaluation(
-        review: matched ? ResponseReview.onTrack : ResponseReview.needsSupport,
-        similarityScore: matched ? 1 : 0,
-        usedAlias: false,
+      final placements = _parseDragMatchResponse(response.trim());
+      if (placements != null && placements.isNotEmpty) {
+        final normalizedPlacements = <String, String>{
+          for (final entry in placements.entries)
+            _normalizeForComparison(entry.key):
+                _normalizeForComparison(entry.value),
+        };
+        final authoredItems = activity.dragItems
+            .where((item) => item.targetId.trim().isNotEmpty)
+            .toList();
+        if (authoredItems.isNotEmpty) {
+          final allMatched = authoredItems.every((item) =>
+              normalizedPlacements[_normalizeForComparison(item.id)] ==
+              _normalizeForComparison(item.targetId));
+          final hasExtraPlacements = normalizedPlacements.keys.any(
+            (itemId) => !authoredItems.any(
+              (item) => _normalizeForComparison(item.id) == itemId,
+            ),
+          );
+          return ResponseEvaluation(
+            review: allMatched &&
+                    !hasExtraPlacements &&
+                    normalizedPlacements.length == authoredItems.length
+                ? ResponseReview.onTrack
+                : ResponseReview.needsSupport,
+            similarityScore: allMatched ? 1 : 0,
+            usedAlias: false,
+          );
+        }
+      }
+      return const ResponseEvaluation(
+        review: ResponseReview.needsSupport,
+        similarityScore: 0,
       );
     }
 
@@ -4609,8 +4636,9 @@ class LumoAppState {
     BackendLessonSession candidate,
     List<BackendLessonSession> sessions,
   ) {
-    final candidateTime =
-        candidate.lastActivityAt ?? candidate.completedAt ?? candidate.startedAt;
+    final candidateTime = candidate.lastActivityAt ??
+        candidate.completedAt ??
+        candidate.startedAt;
     for (final session in sessions) {
       if (identical(session, candidate)) continue;
       if (!_sessionMatchesSession(candidate, session)) continue;
@@ -6363,4 +6391,27 @@ class ResponseOutcome {
         similarityScore = 0,
         supportType = 'Ignored',
         automationStatus = 'No learner response was captured.';
+}
+
+Map<String, String>? _parseDragMatchResponse(String response) {
+  const prefix = '__dragmatch__:';
+  final trimmed = response.trim();
+  if (!trimmed.startsWith(prefix)) return null;
+  final payload = trimmed.substring(prefix.length).trim();
+  if (payload.isEmpty) return <String, String>{};
+
+  final placements = <String, String>{};
+  for (final pair in payload.split('|')) {
+    final trimmedPair = pair.trim();
+    if (trimmedPair.isEmpty) continue;
+    final separatorIndex = trimmedPair.indexOf(':');
+    if (separatorIndex <= 0 || separatorIndex >= trimmedPair.length - 1) {
+      continue;
+    }
+    final itemId = trimmedPair.substring(0, separatorIndex).trim();
+    final targetId = trimmedPair.substring(separatorIndex + 1).trim();
+    if (itemId.isEmpty || targetId.isEmpty) continue;
+    placements[itemId] = targetId;
+  }
+  return placements;
 }

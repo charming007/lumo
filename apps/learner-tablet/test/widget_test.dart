@@ -4561,79 +4561,90 @@ void main() {
     },
   );
 
-  testWidgets('drag to match gates CTA until every card lands in the correct zone', (tester) async {
-  tester.view.physicalSize = const Size(1280, 900);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.reset);
+  testWidgets(
+      'drag to match gates CTA until every card lands in the correct zone',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
 
-  const lesson = LessonCardModel(
-    id: 'drag-match-1',
-    moduleId: 'english',
-    title: 'Drag to match',
-    subject: 'English',
-    durationMinutes: 5,
-    status: 'Assigned',
-    mascotName: 'Mallam',
-    readinessFocus: 'Match every card to its zone.',
-    scenario: 'Learner drags fruit cards into their matching prompts.',
-    steps: [
-      LessonStep(
-        id: 'drag-step-1',
-        type: LessonStepType.practice,
-        title: 'Match the fruit cards',
-        instruction: 'Drag each fruit card into the matching target zone.',
-        expectedResponse: 'matched',
-        coachPrompt: 'Drag every fruit card to the right place.',
-        facilitatorTip: 'Watch whether the learner can sort both cards independently.',
-        realWorldCheck: 'Both cards land in the correct zones before continue unlocks.',
-        speakerMode: SpeakerMode.listening,
-        activity: LessonActivity(
-          type: LessonActivityType.dragToMatch,
-          prompt: 'Match each fruit card to the right target.',
-          targetResponse: 'matched',
-          dragItems: [
-            LessonActivityDragItem(id: 'banana-card', label: 'Banana', targetId: 'banana-zone'),
-            LessonActivityDragItem(id: 'apple-card', label: 'Apple', targetId: 'apple-zone'),
-          ],
-          dragTargets: [
-            LessonActivityDragTarget(id: 'banana-zone', prompt: 'Drag Banana card here'),
-            LessonActivityDragTarget(id: 'apple-zone', prompt: 'Drag Apple card here'),
-          ],
+    const lesson = LessonCardModel(
+      id: 'drag-match-1',
+      moduleId: 'english',
+      title: 'Drag to match',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Match every card to its zone.',
+      scenario: 'Learner drags fruit cards into their matching prompts.',
+      steps: [
+        LessonStep(
+          id: 'drag-step-1',
+          type: LessonStepType.practice,
+          title: 'Match the fruit cards',
+          instruction: 'Drag each fruit card into the matching target zone.',
+          expectedResponse: 'matched',
+          coachPrompt: 'Drag every fruit card to the right place.',
+          facilitatorTip:
+              'Watch whether the learner can sort both cards independently.',
+          realWorldCheck:
+              'Both cards land in the correct zones before continue unlocks.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.dragToMatch,
+            prompt: 'Match each fruit card to the right target.',
+            targetResponse: 'matched',
+            dragItems: [
+              LessonActivityDragItem(
+                  id: 'banana-card', label: 'Banana', targetId: 'banana-zone'),
+              LessonActivityDragItem(
+                  id: 'apple-card', label: 'Apple', targetId: 'apple-zone'),
+            ],
+            dragTargets: [
+              LessonActivityDragTarget(
+                  id: 'banana-zone', prompt: 'Drag Banana card here'),
+              LessonActivityDragTarget(
+                  id: 'apple-zone', prompt: 'Drag Apple card here'),
+            ],
+          ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
 
-  final state = LumoAppState(includeSeedDemoContent: true);
-  state.assignedLessons.add(lesson);
-  final learner = state.learners.first;
-  state.selectLearner(learner);
-  state.selectModule(state.modules.firstWhere((module) => module.id == lesson.moduleId));
-  state.startLesson(lesson);
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId));
+    state.startLesson(lesson);
 
-  await tester.pumpWidget(MaterialApp(home: LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
-  await pumpForUi(tester);
-
-  final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
-  expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
-
-  Future<void> dragCardToPrompt(String cardLabel, String promptText) async {
-    final card = find.text(cardLabel).first;
-    final target = find.text(promptText).first;
-    final gesture = await tester.startGesture(tester.getCenter(card));
-    await tester.pump(const Duration(milliseconds: 650));
-    await gesture.moveTo(tester.getCenter(target));
-    await tester.pump();
-    await gesture.up();
+    await tester.pumpWidget(MaterialApp(
+        home:
+            LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
     await pumpForUi(tester);
-  }
 
-  await dragCardToPrompt('Banana', 'Drag Banana card here');
-  expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+    final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
 
-  await dragCardToPrompt('Apple', 'Drag Apple card here');
-  expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+    Future<void> dragCardToPrompt(String cardLabel, String promptText) async {
+      final card = find.text(cardLabel).first;
+      final target = find.text(promptText).first;
+      final gesture = await tester.startGesture(tester.getCenter(card));
+      await tester.pump(const Duration(milliseconds: 650));
+      await gesture.moveTo(tester.getCenter(target));
+      await tester.pump();
+      await gesture.up();
+      await pumpForUi(tester);
+    }
 
-  state.dispose();
+    await dragCardToPrompt('Banana', 'Drag Banana card here');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    await dragCardToPrompt('Apple', 'Drag Apple card here');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+
+    state.dispose();
   });
 }
