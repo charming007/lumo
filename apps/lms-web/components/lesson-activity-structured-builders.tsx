@@ -22,9 +22,24 @@ type ChoiceRow = {
   mediaValue: string;
 };
 
+type DragItemRow = {
+  id: string;
+  label: string;
+  targetId: string;
+  mediaKind: string;
+  mediaValue: string;
+};
+
 type MediaRow = {
   kind: string;
   value: string;
+};
+
+type DragTargetRow = {
+  id: string;
+  prompt: string;
+  mediaKind: string;
+  mediaValue: string;
 };
 
 type StyleObject = React.CSSProperties;
@@ -124,6 +139,42 @@ function serializeChoiceLines(rows: ChoiceRow[]) {
     .join('\n');
 }
 
+function parseDragItemLines(choiceLines: string): DragItemRow[] {
+  return choiceLines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [idRaw, labelRaw, targetIdRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+      return {
+        id: idRaw || `item-${index + 1}`,
+        label: labelRaw || '',
+        targetId: targetIdRaw || '',
+        mediaKind: mediaKindRaw ? normalizeLessonAssetKind(mediaKindRaw) : '',
+        mediaValue: mediaValueRaw || '',
+      };
+    });
+}
+
+function serializeDragItemLines(rows: DragItemRow[]) {
+  return rows
+    .map((row, index) => {
+      const id = row.id.trim() || `item-${index + 1}`;
+      const label = row.label.trim();
+      const targetId = row.targetId.trim();
+      const mediaKind = row.mediaKind.trim();
+      const mediaValue = row.mediaValue.trim();
+      const parts = [id, label, targetId];
+      if (mediaKind || mediaValue) {
+        parts.push(mediaKind);
+        parts.push(mediaValue);
+      }
+      return parts.join('|');
+    })
+    .filter((line) => line.replace(/\|/g, '').trim().length > 0)
+    .join('\n');
+}
+
 function parseMediaLines(mediaLines: string): MediaRow[] {
   return mediaLines
     .split('\n')
@@ -141,6 +192,40 @@ function parseMediaLines(mediaLines: string): MediaRow[] {
 function serializeMediaLines(rows: MediaRow[]) {
   return rows
     .map((row) => `${row.kind.trim() || 'image'}|${row.value.trim()}`)
+    .filter((line) => line.replace(/\|/g, '').trim().length > 0)
+    .join('\n');
+}
+
+function parseDragTargetLines(mediaLines: string): DragTargetRow[] {
+  return mediaLines
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const [idRaw, promptRaw, mediaKindRaw, mediaValueRaw] = line.split('|').map((part) => part.trim());
+      return {
+        id: idRaw || `target-${index + 1}`,
+        prompt: promptRaw || '',
+        mediaKind: mediaKindRaw ? normalizeLessonAssetKind(mediaKindRaw) : '',
+        mediaValue: mediaValueRaw || '',
+      };
+    });
+}
+
+function serializeDragTargetLines(rows: DragTargetRow[]) {
+  return rows
+    .map((row, index) => {
+      const id = row.id.trim() || `target-${index + 1}`;
+      const prompt = row.prompt.trim();
+      const mediaKind = row.mediaKind.trim();
+      const mediaValue = row.mediaValue.trim();
+      const parts = [id, prompt];
+      if (mediaKind || mediaValue) {
+        parts.push(mediaKind);
+        parts.push(mediaValue);
+      }
+      return parts.join('|');
+    })
     .filter((line) => line.replace(/\|/g, '').trim().length > 0)
     .join('\n');
 }
@@ -200,6 +285,18 @@ function getChoiceLabels(type: BuilderType) {
   }
 }
 
+function getDragItemLabels() {
+  return {
+    title: 'Drag card builder',
+    hint: 'Build the draggable cards here. Each card needs a stable id, a learner-facing label, and the target zone id it should land in.',
+    targetIdLabel: 'Matching target zone id',
+    mediaTypeLabel: 'Card asset type',
+    mediaValueLabel: 'Card file, URL, or key',
+    mediaPlaceholder: 'Optional card art or audio cue',
+    emptyState: 'No draggable cards yet. Add the cards learners drag into the target zones.',
+  };
+}
+
 function getMediaLabels(type: BuilderType) {
   switch (type) {
     case 'listen_repeat':
@@ -256,25 +353,6 @@ function getMediaLabels(type: BuilderType) {
         placeholder: 'Shared image, audio, or prompt-card reference',
         emptyState: 'No shared prompt asset yet. Add one only if learners need a common cue before tapping.',
       };
-    case 'drag_to_match':
-      return {
-        title: 'Drag card builder',
-        hint: 'Use the raw line format id|label|targetId|mediaKind|mediaValue for draggable cards. The structured rows help attach labels/assets, but targetId mapping still matters.',
-        labelName: 'Draggable card label',
-        mediaTypeLabel: 'Card asset type',
-        mediaValueLabel: 'Card file, URL, or key',
-        mediaPlaceholder: 'Optional card art or audio cue',
-        emptyState: 'No draggable cards yet. Add the cards learners drag into the target zones.',
-      };
-    case 'drag_to_match':
-      return {
-        title: 'Target zone builder',
-        hint: 'Use the raw line format id|prompt|mediaKind|mediaValue for target zones. Example: banana-zone|Drag Banana card here|image|https://... .',
-        typeLabel: 'Target zone media type',
-        valueLabel: 'Target zone prompt / media reference',
-        placeholder: 'banana-zone|Drag Banana card here|image|https://...',
-        emptyState: 'No target zones yet. Add the drop zones learners drag into.',
-      };
     case 'word_build':
       return {
         title: 'Build support builder',
@@ -294,6 +372,18 @@ function getMediaLabels(type: BuilderType) {
         emptyState: 'No assets attached yet.',
       };
   }
+}
+
+function getDragTargetLabels() {
+  return {
+    title: 'Target zone builder',
+    hint: 'Build the actual drop zones here. One row = one visible target zone with its own id, prompt, and optional support media.',
+    promptLabel: 'Target zone prompt',
+    mediaTypeLabel: 'Target zone asset type',
+    mediaValueLabel: 'Target zone file, URL, or key',
+    mediaPlaceholder: 'Optional zone art or support cue',
+    emptyState: 'No target zones yet. Add the drop zones learners drag into.',
+  };
 }
 
 function getAssetIcon(kind: string) {
@@ -635,6 +725,80 @@ function ChoiceAttachmentCard({
   );
 }
 
+function DragItemCard({
+  row,
+  index,
+  dragItemLabels,
+  onChange,
+  onRemove,
+  onUseExample,
+  assetPicker,
+}: {
+  row: DragItemRow;
+  index: number;
+  dragItemLabels: ReturnType<typeof getDragItemLabels>;
+  onChange: (patch: Partial<DragItemRow>) => void;
+  onRemove: () => void;
+  onUseExample: (value: string) => void;
+  assetPicker?: React.ReactNode;
+}) {
+  const attached = Boolean(row.mediaKind || row.mediaValue.trim());
+
+  return (
+    <div style={{ padding: 14, borderRadius: 16, border: `1px solid ${attached ? '#BBF7D0' : '#CBD5E1'}`, background: attached ? '#ECFDF5' : '#F8FAFC', display: 'grid', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <strong style={{ color: '#0F172A' }}>Card {index + 1}</strong>
+          <span style={{ ...helperPillStyle, background: attached ? '#EEF2FF' : '#FFFFFF', color: attached ? '#3730A3' : '#64748B' }}>
+            {attached ? 'Attachment card ready' : 'No attachment yet'}
+          </span>
+        </div>
+        <button type="button" onClick={onRemove} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', fontWeight: 700, color: '#B91C1C', background: '#FEF2F2', border: '1px solid #FECACA' }}>Remove</button>
+      </div>
+
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
+        <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+          <span>Card ID</span>
+          <input value={row.id} onChange={(event) => onChange({ id: event.target.value })} style={miniInputStyle} placeholder={`item-${index + 1}`} />
+        </label>
+        <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+          <span>Draggable card label</span>
+          <input value={row.label} onChange={(event) => onChange({ label: event.target.value })} style={miniInputStyle} placeholder="What the learner drags" />
+        </label>
+        <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+          <span>{dragItemLabels.targetIdLabel}</span>
+          <input value={row.targetId} onChange={(event) => onChange({ targetId: event.target.value })} style={miniInputStyle} placeholder="target-1" />
+        </label>
+      </div>
+
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(220px, 0.95fr) minmax(320px, 1.35fr)' }}>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+            <span>{dragItemLabels.mediaTypeLabel}</span>
+            <select value={row.mediaKind} onChange={(event) => onChange({ mediaKind: event.target.value })} style={miniInputStyle}>
+              <option value="">No attached asset</option>
+              {knownLessonAssetKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+            <span>{dragItemLabels.mediaValueLabel}</span>
+            <input value={row.mediaValue} onChange={(event) => onChange({ mediaValue: event.target.value })} style={miniInputStyle} placeholder={dragItemLabels.mediaPlaceholder} />
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {assetPicker}
+            {row.mediaKind ? getAssetExamples(row.mediaKind).map((example) => (
+              <button key={example} type="button" onClick={() => onUseExample(example)} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 700, color: '#4338CA', background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+                Use {example}
+              </button>
+            )) : null}
+          </div>
+        </div>
+        <AssetValuePreview kind={row.mediaKind || 'image'} value={row.mediaValue} />
+      </div>
+    </div>
+  );
+}
+
 function SharedAssetCard({
   row,
   index,
@@ -689,26 +853,109 @@ function SharedAssetCard({
   );
 }
 
+function DragTargetCard({
+  row,
+  index,
+  targetLabels,
+  onChange,
+  onRemove,
+  onUseExample,
+  assetPicker,
+}: {
+  row: DragTargetRow;
+  index: number;
+  targetLabels: ReturnType<typeof getDragTargetLabels>;
+  onChange: (patch: Partial<DragTargetRow>) => void;
+  onRemove: () => void;
+  onUseExample: (value: string) => void;
+  assetPicker?: React.ReactNode;
+}) {
+  const attached = Boolean(row.mediaKind || row.mediaValue.trim());
+
+  return (
+    <div style={{ padding: 14, borderRadius: 16, border: `1px solid ${attached ? '#BBF7D0' : '#CBD5E1'}`, background: attached ? '#ECFDF5' : '#FFFFFF', display: 'grid', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <strong style={{ color: '#0F172A' }}>Target zone {index + 1}</strong>
+          <span style={helperPillStyle}>{attached && row.mediaKind ? getLessonAssetKindLabel(row.mediaKind) : 'Prompt-led zone'}</span>
+        </div>
+        <button type="button" onClick={onRemove} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', fontWeight: 700, color: '#B91C1C', background: '#FEF2F2', border: '1px solid #FECACA' }}>Remove</button>
+      </div>
+
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
+        <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+          <span>Target zone ID</span>
+          <input value={row.id} onChange={(event) => onChange({ id: event.target.value })} style={miniInputStyle} placeholder={`target-${index + 1}`} />
+        </label>
+        <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+          <span>{targetLabels.promptLabel}</span>
+          <input value={row.prompt} onChange={(event) => onChange({ prompt: event.target.value })} style={miniInputStyle} placeholder="Sort matching cards here" />
+        </label>
+      </div>
+
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(220px, 0.95fr) minmax(320px, 1.35fr)' }}>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+            <span>{targetLabels.mediaTypeLabel}</span>
+            <select value={row.mediaKind} onChange={(event) => onChange({ mediaKind: event.target.value })} style={miniInputStyle}>
+              <option value="">No attached asset</option>
+              {knownLessonAssetKinds.map((kind) => <option key={kind} value={kind}>{getLessonAssetKindLabel(kind)}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>
+            <span>{targetLabels.mediaValueLabel}</span>
+            <input value={row.mediaValue} onChange={(event) => onChange({ mediaValue: event.target.value })} style={miniInputStyle} placeholder={targetLabels.mediaPlaceholder} />
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {assetPicker}
+            {row.mediaKind ? getAssetExamples(row.mediaKind).map((example) => (
+              <button key={example} type="button" onClick={() => onUseExample(example)} style={{ ...miniInputStyle, width: 'auto', cursor: 'pointer', padding: '8px 10px', fontSize: 12, fontWeight: 700, color: '#4338CA', background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+                Use {example}
+              </button>
+            )) : null}
+          </div>
+        </div>
+        <AssetValuePreview kind={row.mediaKind || 'image'} value={row.mediaValue} />
+      </div>
+    </div>
+  );
+}
+
 export function LessonActivityStructuredBuilders(props: Props) {
   const builderType = props.type as BuilderType;
   const supportsChoices = builderType === 'image_choice' || builderType === 'tap_choice' || builderType === 'drag_to_match' || builderType === 'word_build';
   const supportsMedia = supportsChoices || builderType === 'listen_repeat' || builderType === 'listen_answer' || builderType === 'speak_answer' || builderType === 'letter_intro';
+  const usesDragRows = builderType === 'drag_to_match';
 
   if (!supportsChoices && !supportsMedia) return null;
 
-  const choiceRows = parseChoiceLines(props.choiceLines);
-  const mediaRows = parseMediaLines(props.mediaLines);
+  const choiceRows = usesDragRows ? [] : parseChoiceLines(props.choiceLines);
+  const dragItemRows = usesDragRows ? parseDragItemLines(props.choiceLines) : [];
+  const mediaRows = usesDragRows ? [] : parseMediaLines(props.mediaLines);
+  const dragTargetRows = usesDragRows ? parseDragTargetLines(props.mediaLines) : [];
   const choiceLabels = getChoiceLabels(builderType);
+  const dragItemLabels = getDragItemLabels();
   const mediaLabels = getMediaLabels(builderType);
-  const attachedChoiceCount = choiceRows.filter((row) => row.mediaKind && row.mediaValue.trim()).length;
-  const readyMediaCount = mediaRows.filter((row) => row.value.trim()).length;
+  const dragTargetLabels = getDragTargetLabels();
+  const attachedChoiceCount = usesDragRows
+    ? dragItemRows.filter((row) => row.mediaKind && row.mediaValue.trim()).length
+    : choiceRows.filter((row) => row.mediaKind && row.mediaValue.trim()).length;
+  const readyMediaCount = usesDragRows
+    ? dragTargetRows.filter((row) => row.prompt.trim() || row.mediaValue.trim()).length
+    : mediaRows.filter((row) => row.value.trim()).length;
   const pickerAssets = props.assets ?? [];
 
   const updateChoiceRows = (updater: (rows: ChoiceRow[]) => ChoiceRow[]) => {
     props.onChoiceLinesChange(serializeChoiceLines(updater(choiceRows)));
   };
+  const updateDragItemRows = (updater: (rows: DragItemRow[]) => DragItemRow[]) => {
+    props.onChoiceLinesChange(serializeDragItemLines(updater(dragItemRows)));
+  };
   const updateMediaRows = (updater: (rows: MediaRow[]) => MediaRow[]) => {
     props.onMediaLinesChange(serializeMediaLines(updater(mediaRows)));
+  };
+  const updateDragTargetRows = (updater: (rows: DragTargetRow[]) => DragTargetRow[]) => {
+    props.onMediaLinesChange(serializeDragTargetLines(updater(dragTargetRows)));
   };
 
   return (
@@ -718,18 +965,50 @@ export function LessonActivityStructuredBuilders(props: Props) {
           {props.sectionLabel}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ fontWeight: 700, color: '#1E293B' }}>{choiceLabels.title}</div>
-              <span style={helperPillStyle}>{choiceRows.length} option{choiceRows.length === 1 ? '' : 's'}</span>
+              <div style={{ fontWeight: 700, color: '#1E293B' }}>{usesDragRows ? dragItemLabels.title : choiceLabels.title}</div>
+              <span style={helperPillStyle}>{usesDragRows ? dragItemRows.length : choiceRows.length} option{(usesDragRows ? dragItemRows.length : choiceRows.length) === 1 ? '' : 's'}</span>
               <span style={{ ...helperPillStyle, background: attachedChoiceCount ? '#DCFCE7' : '#F8FAFC', color: attachedChoiceCount ? '#166534' : '#475569' }}>
-                {attachedChoiceCount}/{choiceRows.length || 0} with attachments
+                {attachedChoiceCount}/{usesDragRows ? dragItemRows.length || 0 : choiceRows.length || 0} with attachments
               </span>
             </div>
           </div>
-          <div style={compactNoteStyle}>{choiceLabels.hint}</div>
+          <div style={compactNoteStyle}>{usesDragRows ? dragItemLabels.hint : choiceLabels.hint}</div>
           <div style={{ padding: 12, borderRadius: 14, background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#475569', fontSize: 13, lineHeight: 1.6 }}>
             Asset picking now lives inside each option row. Authors can browse the uploaded asset/image library right where they attach the field, then preview, replace, or clear without jumping to a detached panel.
           </div>
-          {choiceRows.length ? (
+          {usesDragRows ? (
+            dragItemRows.length ? (
+              <div style={stackStyle}>
+                {dragItemRows.map((row, index) => (
+                  <DragItemCard
+                    key={`${row.id}-${index}`}
+                    row={row}
+                    index={index}
+                    dragItemLabels={dragItemLabels}
+                    onChange={(patch) => updateDragItemRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item))}
+                    onRemove={() => updateDragItemRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
+                    onUseExample={(value) => updateDragItemRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaValue: value } : item))}
+                    assetPicker={pickerAssets.length ? (
+                      <InlineAssetPicker
+                        assets={pickerAssets}
+                        stepType={builderType}
+                        subjectId={props.subjectId}
+                        moduleId={props.moduleId}
+                        lessonId={props.lessonId}
+                        selectedKind={row.mediaKind}
+                        selectedValue={row.mediaValue}
+                        title={`Drag card ${index + 1} asset picker`}
+                        onPick={(asset) => updateDragItemRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaKind: normalizeLessonAssetKind(asset.kind), mediaValue: getPreferredAssetValue(asset), label: item.label || asset.title } : item))}
+                        onClear={() => updateDragItemRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaValue: '' } : item))}
+                      />
+                    ) : null}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={emptyStateStyle}>{dragItemLabels.emptyState}</div>
+            )
+          ) : choiceRows.length ? (
             <div style={stackStyle}>
               {choiceRows.map((row, index) => (
                 <ChoiceAttachmentCard
@@ -761,9 +1040,9 @@ export function LessonActivityStructuredBuilders(props: Props) {
             <div style={emptyStateStyle}>{choiceLabels.emptyState}</div>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => updateChoiceRows((rows) => [...rows, { id: `choice-${rows.length + 1}`, label: '', isCorrect: false, mediaKind: builderType === 'image_choice' ? 'image' : '', mediaValue: '' }])} style={props.ghostButtonStyle}>+ Add option</button>
+            <button type="button" onClick={() => usesDragRows ? updateDragItemRows((rows) => [...rows, { id: `item-${rows.length + 1}`, label: '', targetId: '', mediaKind: '', mediaValue: '' }]) : updateChoiceRows((rows) => [...rows, { id: `choice-${rows.length + 1}`, label: '', isCorrect: false, mediaKind: builderType === 'image_choice' ? 'image' : '', mediaValue: '' }])} style={props.ghostButtonStyle}>{usesDragRows ? '+ Add card' : '+ Add option'}</button>
           </div>
-          {props.fieldHint('Use attachments when the learner needs to see, hear, or tap something concrete. Leave them blank only when the step is intentionally text-led.')}
+          {props.fieldHint(usesDragRows ? 'Each drag card needs a stable target zone id so runtime can map every drop correctly.' : 'Use attachments when the learner needs to see, hear, or tap something concrete. Leave them blank only when the step is intentionally text-led.')}
         </div>
       ) : null}
 
@@ -772,15 +1051,47 @@ export function LessonActivityStructuredBuilders(props: Props) {
           {props.sectionLabel}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ fontWeight: 700, color: '#1E293B' }}>{mediaLabels.title}</div>
-              <span style={helperPillStyle}>{mediaRows.length} asset{mediaRows.length === 1 ? '' : 's'}</span>
+              <div style={{ fontWeight: 700, color: '#1E293B' }}>{usesDragRows ? dragTargetLabels.title : mediaLabels.title}</div>
+              <span style={helperPillStyle}>{usesDragRows ? dragTargetRows.length : mediaRows.length} asset{(usesDragRows ? dragTargetRows.length : mediaRows.length) === 1 ? '' : 's'}</span>
               <span style={{ ...helperPillStyle, background: readyMediaCount ? '#DCFCE7' : '#F8FAFC', color: readyMediaCount ? '#166534' : '#475569' }}>
-                {readyMediaCount}/{mediaRows.length || 0} runtime-ready
+                {readyMediaCount}/{usesDragRows ? dragTargetRows.length || 0 : mediaRows.length || 0} runtime-ready
               </span>
             </div>
           </div>
-          <div style={compactNoteStyle}>{mediaLabels.hint}</div>
-          {mediaRows.length ? (
+          <div style={compactNoteStyle}>{usesDragRows ? dragTargetLabels.hint : mediaLabels.hint}</div>
+          {usesDragRows ? (
+            dragTargetRows.length ? (
+              <div style={stackStyle}>
+                {dragTargetRows.map((row, index) => (
+                  <DragTargetCard
+                    key={`${row.id}-${index}`}
+                    row={row}
+                    index={index}
+                    targetLabels={dragTargetLabels}
+                    onChange={(patch) => updateDragTargetRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item))}
+                    onRemove={() => updateDragTargetRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}
+                    onUseExample={(value) => updateDragTargetRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaValue: value } : item))}
+                    assetPicker={pickerAssets.length ? (
+                      <InlineAssetPicker
+                        assets={pickerAssets}
+                        stepType={builderType}
+                        subjectId={props.subjectId}
+                        moduleId={props.moduleId}
+                        lessonId={props.lessonId}
+                        selectedKind={row.mediaKind}
+                        selectedValue={row.mediaValue}
+                        title={`Target zone ${index + 1} asset picker`}
+                        onPick={(asset) => updateDragTargetRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaKind: normalizeLessonAssetKind(asset.kind), mediaValue: getPreferredAssetValue(asset) } : item))}
+                        onClear={() => updateDragTargetRows((rows) => rows.map((item, itemIndex) => itemIndex === index ? { ...item, mediaValue: '' } : item))}
+                      />
+                    ) : null}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={emptyStateStyle}>{dragTargetLabels.emptyState}</div>
+            )
+          ) : mediaRows.length ? (
             <div style={stackStyle}>
               {mediaRows.map((row, index) => (
                 <SharedAssetCard
@@ -812,9 +1123,9 @@ export function LessonActivityStructuredBuilders(props: Props) {
             <div style={emptyStateStyle}>{mediaLabels.emptyState}</div>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => updateMediaRows((rows) => [...rows, { kind: builderType === 'listen_repeat' ? 'audio' : builderType === 'letter_intro' ? 'letter-card' : builderType === 'word_build' ? 'word-card' : 'image', value: '' }])} style={props.ghostButtonStyle}>+ Add asset</button>
+            <button type="button" onClick={() => usesDragRows ? updateDragTargetRows((rows) => [...rows, { id: `target-${rows.length + 1}`, prompt: '', mediaKind: 'image', mediaValue: '' }]) : updateMediaRows((rows) => [...rows, { kind: builderType === 'listen_repeat' ? 'audio' : builderType === 'letter_intro' ? 'letter-card' : builderType === 'word_build' ? 'word-card' : 'image', value: '' }])} style={props.ghostButtonStyle}>{usesDragRows ? '+ Add target zone' : '+ Add asset'}</button>
           </div>
-          {props.fieldHint('Shared assets are the top-of-step cue: scene art, audio model, transcript, prompt card, or build anchor. Keep them explicit so the preview is honest.')}
+          {props.fieldHint(usesDragRows ? 'Target zones need stable ids plus visible prompts so every draggable card has a real destination.' : 'Shared assets are the top-of-step cue: scene art, audio model, transcript, prompt card, or build anchor. Keep them explicit so the preview is honest.')}
         </div>
       ) : null}
     </div>
