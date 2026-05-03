@@ -14,14 +14,14 @@ test('launches lesson studio only when subject metadata is still trustworthy', (
   });
 });
 
-test('keeps the dashboard on blocker review when subject metadata is degraded', () => {
+test('still launches lesson studio when the module already carries recoverable subject context', () => {
   assert.deepEqual(resolveTopReleaseBlockerCta({
     missingLessons: 2,
     hasAuthoringContext: true,
     subjectMetadataDegraded: true,
   }), {
-    canLaunchLessonStudio: false,
-    label: 'Review blocker context first',
+    canLaunchLessonStudio: true,
+    label: 'Create 2 missing lessons',
   });
 });
 

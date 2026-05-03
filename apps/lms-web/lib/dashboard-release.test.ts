@@ -49,3 +49,23 @@ test('dashboard release blockers inherit shared publish blockers instead of reim
   assert.equal(blockers[0]?.hasAssessmentGate, false);
   assert.equal(blockers[0]?.blockerCount, 2);
 });
+
+test('dashboard release blockers keep recoverable subject context when subject metadata feed is unavailable', () => {
+  const blockers = getDashboardReleaseBlockers({
+    modules: [{
+      id: 'module-3',
+      title: 'Recovered subject lane',
+      subjectId: 'subject-recovered',
+      subjectName: 'Recovered Subject',
+      lessonCount: 1,
+      status: 'review',
+    } as any],
+    lessons: [] as any,
+    assessments: [] as any,
+    subjects: [] as any,
+  });
+
+  assert.equal(blockers.length, 1);
+  assert.equal(blockers[0]?.subjectId, 'subject-recovered');
+  assert.equal(blockers[0]?.hasAuthoringContext, true);
+});

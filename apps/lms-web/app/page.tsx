@@ -367,7 +367,7 @@ export default async function HomePage() {
     : '/content?view=blocked';
   const topReleaseBlockerSubjectMetadataMissing = Boolean(
     topReleaseBlocker?.missingLessons
-    && topReleaseBlocker.hasAuthoringContext
+    && !topReleaseBlocker.hasAuthoringContext
     && !subjectFeedAvailable,
   );
   const topReleaseBlockerCta = topReleaseBlocker

@@ -4,8 +4,7 @@ export function resolveTopReleaseBlockerCta(params: {
   subjectMetadataDegraded: boolean;
 }) {
   const canLaunchLessonStudio = params.missingLessons > 0
-    && params.hasAuthoringContext
-    && !params.subjectMetadataDegraded;
+    && params.hasAuthoringContext;
 
   if (canLaunchLessonStudio) {
     return {

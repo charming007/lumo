@@ -21,7 +21,10 @@ export function getModuleReleaseState({
   const missingReadyLessons = Math.max(module.lessonCount - readyLessonCount, 0);
   const hasAssessmentGate = assessments.some((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment));
   const recoveredSubjectId = resolveModuleSubjectId(module, subjects);
-  const hasRecoverableSubjectContext = Boolean(recoveredSubjectId && subjects.some((subject) => subject.id === recoveredSubjectId));
+  const hasRecoverableSubjectContext = Boolean(
+    recoveredSubjectId
+    && (subjects.length === 0 || subjects.some((subject) => subject.id === recoveredSubjectId))
+  );
 
   const publishBlockers = [
     hasRecoverableSubjectContext ? null : 'Recover the module subject context before moving this lane forward.',
