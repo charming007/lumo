@@ -30,6 +30,10 @@ test('dashboard deploy checklist CTA points at a shipped public document', () =>
     /href: '\/DEPLOY_VERIFICATION_CHECKLIST\.html'/,
     'dashboard should keep exposing the deploy verification checklist CTA',
   );
+  assert.ok(
+    (dashboardPageSource.match(/href: '\/DEPLOY_VERIFICATION_CHECKLIST\.html'/g) ?? []).length >= 2,
+    'dashboard should keep the deploy verification checklist visible even when the route is hard-blocked',
+  );
   assert.equal(
     existsSync(deployChecklistPublicPath),
     true,
