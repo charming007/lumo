@@ -3,7 +3,13 @@ import { DeploymentBlockerCard } from '../../../../components/deployment-blocker
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
-import { normalizeLessonAssetsForAuthoring, normalizeLessonForAuthoring } from '../../../../lib/lesson-authoring-normalize';
+import {
+  normalizeAssessmentsForAuthoring,
+  normalizeLessonAssetsForAuthoring,
+  normalizeLessonForAuthoring,
+  normalizeModulesForAuthoring,
+  normalizeSubjectsForAuthoring,
+} from '../../../../lib/lesson-authoring-normalize';
 import { sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import { findSubjectByContext } from '../../../../lib/module-subject-match';
 import type { CurriculumModule, Subject } from '../../../../lib/types';
@@ -98,9 +104,9 @@ export default async function LessonStudioEditPage({
   const { lesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(rawLesson);
   const lessonFeedRecoveredFromInventory = lessonResult.status === 'rejected' && Boolean(fallbackInventoryLesson);
 
-  const loadedModules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
-  const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
-  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const { items: loadedModules, issues: modulePayloadIssues } = normalizeModulesForAuthoring(modulesResult.status === 'fulfilled' ? modulesResult.value : []);
+  const { items: loadedSubjects, issues: subjectPayloadIssues } = normalizeSubjectsForAuthoring(subjectsResult.status === 'fulfilled' ? subjectsResult.value : []);
+  const { items: assessments, issues: assessmentPayloadIssues } = normalizeAssessmentsForAuthoring(assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : []);
   const { assets, issues: assetPayloadIssues } = normalizeLessonAssetsForAuthoring(assetsResult.status === 'fulfilled' ? assetsResult.value : []);
   const failedSources = [
     lessonResult.status === 'rejected' && !fallbackInventoryLesson ? 'lesson' : null,
@@ -108,8 +114,11 @@ export default async function LessonStudioEditPage({
     lessonPayloadIssues.length ? 'lesson payload' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
+    modulePayloadIssues.length ? 'module payload' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
+    subjectPayloadIssues.length ? 'subject payload' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    assessmentPayloadIssues.length ? 'assessment payload' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
     assetPayloadIssues.length ? 'asset payload' : null,
   ].filter(Boolean) as string[];

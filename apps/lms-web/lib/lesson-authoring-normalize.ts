@@ -1,4 +1,5 @@
 import type {
+  Assessment,
   CurriculumModule,
   Lesson,
   LessonActivityChoice,
@@ -299,6 +300,50 @@ export function normalizeLessonAssetsForAuthoring(payload: unknown) {
   });
 
   return { assets, issues };
+}
+
+export function normalizeAssessmentsForAuthoring(payload: unknown): AuthoringCollectionNormalization<Assessment> {
+  if (!Array.isArray(payload)) {
+    return { items: [] as Assessment[], issues: payload == null ? [] : ['Assessment feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const items = payload.flatMap((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      issues.push(`Assessment row ${index + 1} is malformed.`);
+      return [];
+    }
+
+    const assessment = entry as Record<string, unknown>;
+    const id = asString(assessment.id).trim();
+    const title = asString(assessment.title).trim();
+    const moduleTitle = asString(assessment.moduleTitle).trim();
+    const subjectName = asString(assessment.subjectName).trim();
+    if (!id || !title || !moduleTitle || !subjectName) {
+      const missing = [!id ? 'id' : null, !title ? 'title' : null, !moduleTitle ? 'moduleTitle' : null, !subjectName ? 'subjectName' : null]
+        .filter(Boolean)
+        .join(', ');
+      issues.push(`Assessment row ${index + 1} is missing ${missing}.`);
+      return [];
+    }
+
+    return [{
+      id,
+      subjectId: asNullableString(assessment.subjectId),
+      moduleId: asNullableString(assessment.moduleId),
+      title,
+      kind: asString(assessment.kind, 'observational'),
+      trigger: asString(assessment.trigger),
+      triggerLabel: asString(assessment.triggerLabel),
+      progressionGate: asString(assessment.progressionGate),
+      passingScore: asNumber(assessment.passingScore, 0),
+      subjectName,
+      moduleTitle,
+      status: asString(assessment.status, 'draft'),
+    } satisfies Assessment];
+  });
+
+  return { items, issues };
 }
 
 export function normalizeLessonForAuthoring(payload: unknown): LessonAuthoringNormalization {

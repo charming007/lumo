@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  normalizeAssessmentsForAuthoring,
   normalizeLessonForAuthoring,
   normalizeLessonsForAuthoring,
   normalizeModulesForAuthoring,
@@ -41,6 +42,23 @@ test('normalizeLessonsForAuthoring sanitizes authoring lessons instead of trusti
   assert.equal(normalized.items.length, 1);
   assert.equal(normalized.items[0]?.id, 'lesson-1');
   assert.deepEqual(normalized.issues, ['Lesson row 2: Lesson id is missing.']);
+});
+
+test('normalizeAssessmentsForAuthoring converts malformed assessment feeds into safe rows and issues', () => {
+  const normalized = normalizeAssessmentsForAuthoring([
+    null,
+    { id: 'assessment-1', title: 'Match the helpers', moduleTitle: 'Community helpers', subjectName: 'English', status: 'published', passingScore: 4 },
+    { id: 'assessment-2', title: 'Broken row' },
+  ]);
+
+  assert.equal(normalized.items.length, 1);
+  assert.equal(normalized.items[0]?.id, 'assessment-1');
+  assert.equal(normalized.items[0]?.moduleTitle, 'Community helpers');
+  assert.equal(normalized.items[0]?.subjectName, 'English');
+  assert.deepEqual(normalized.issues, [
+    'Assessment row 1 is malformed.',
+    'Assessment row 3 is missing moduleTitle, subjectName.',
+  ]);
 });
 
 test('normalizeLessonForAuthoring migrates legacy drag-to-match choices/media into drag items/targets on edit hydration', () => {
