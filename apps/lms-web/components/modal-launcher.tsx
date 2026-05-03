@@ -35,8 +35,9 @@ export function ModalLauncher({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const routeSignature = useMemo(() => {
-    const query = searchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
+    const safePathname = pathname || '';
+    const query = searchParams?.toString() ?? '';
+    return query ? `${safePathname}?${query}` : safePathname;
   }, [pathname, searchParams]);
   const [open, setOpen] = useState(false);
   const previousRouteSignature = useRef(routeSignature);
