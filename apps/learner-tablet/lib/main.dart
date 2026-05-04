@@ -8388,8 +8388,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                         const SizedBox(height: 8),
                         TextButton(
                           onPressed: selectCard,
-                          child: Text(
-                              selected ? 'Clear selection' : 'Tap to select'),
+                          child: Text(selected ? 'Clear selection' : 'Tap to select'),
                         ),
                       ],
                     ],
