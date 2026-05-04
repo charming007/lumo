@@ -78,7 +78,22 @@ test('global error route stays dynamic and offers the dashboard recovery actions
   );
   assert.match(
     globalErrorSource,
+    /Treat this as a deployment blocker until proven otherwise\./,
+    'global error route should call out repeated runtime crashes as a deployment blocker',
+  );
+  assert.match(
+    globalErrorSource,
     /href="\/settings"/,
     'global error route should keep the settings escape hatch visible',
+  );
+  assert.match(
+    globalErrorSource,
+    /href="\/DEPLOY_VERIFICATION_CHECKLIST\.html"/,
+    'global error route should link directly to the shipped deploy checklist',
+  );
+  assert.match(
+    globalErrorSource,
+    /href="\/content\?view=blocked"/,
+    'global error route should expose the content blocker board as a recovery path',
   );
 });
