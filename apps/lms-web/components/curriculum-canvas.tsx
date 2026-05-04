@@ -454,7 +454,10 @@ export function CurriculumCanvas({
 
   const selectSubject = (nextSubjectId: string) => {
     setSubjectFilter(nextSubjectId);
-    const nextSubject = data.subjects.find((subject) => subject.id === nextSubjectId) ?? null;
+    const nextSubject = data.subjects.find((subject) => subjectMatchesContext(subject, {
+      subjectIds: [nextSubjectId],
+      subjectNames: [nextSubjectId],
+    })) ?? null;
     const nextModule = nextSubject?.strands[0]?.modules[0] ?? null;
     if (nextModule) {
       setSelectedModuleId(nextModule.id);
