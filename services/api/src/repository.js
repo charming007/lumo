@@ -15,8 +15,11 @@ function cloneActivitySteps(input = []) {
     ...step,
     media: Array.isArray(step.media) ? step.media.map((item) => ({ ...item })) : [],
     choices: Array.isArray(step.choices) ? step.choices.map((item) => ({ ...item })) : [],
+    dragItems: Array.isArray(step.dragItems) ? step.dragItems.map((item) => ({ ...item, media: item?.media && typeof item.media === 'object' ? { ...item.media } : item?.media ?? null })) : [],
+    dragTargets: Array.isArray(step.dragTargets) ? step.dragTargets.map((item) => ({ ...item, media: item?.media && typeof item.media === 'object' ? { ...item.media } : item?.media ?? null })) : [],
     expectedAnswers: Array.isArray(step.expectedAnswers) ? [...step.expectedAnswers] : [],
     tags: Array.isArray(step.tags) ? [...step.tags] : [],
+    facilitatorNotes: Array.isArray(step.facilitatorNotes) ? [...step.facilitatorNotes] : [],
   }));
 }
 

@@ -40,8 +40,11 @@ function buildLessonActivitySteps(entry) {
     order: step.order !== undefined ? Number(step.order) : index + 1,
     media: Array.isArray(step.media) ? step.media : [],
     choices: Array.isArray(step.choices) ? step.choices : [],
+    dragItems: Array.isArray(step.dragItems) ? step.dragItems : [],
+    dragTargets: Array.isArray(step.dragTargets) ? step.dragTargets : [],
     expectedAnswers: Array.isArray(step.expectedAnswers) ? step.expectedAnswers : [],
     tags: Array.isArray(step.tags) ? step.tags : [],
+    facilitatorNotes: Array.isArray(step.facilitatorNotes) ? step.facilitatorNotes : [],
   }));
 }
 
