@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
@@ -358,6 +358,23 @@ export function LessonCreateForm({
   }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
   const isDirty = currentSnapshot !== baselineSnapshot;
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
+
+  useEffect(() => {
+    if (subjectId && subjects.some((subject) => subject.id === subjectId)) return;
+    const fallbackSubjectId = String(initialSubject?.id ?? subjects[0]?.id ?? '');
+    if (fallbackSubjectId !== subjectId) {
+      setSubjectId(fallbackSubjectId);
+    }
+  }, [initialSubject, subjectId, subjects]);
+
+  useEffect(() => {
+    const nextModuleId = filteredModules.some((module) => module.id === moduleId)
+      ? moduleId
+      : String(filteredModules[0]?.id ?? modules[0]?.id ?? '');
+    if (nextModuleId !== moduleId) {
+      setModuleId(nextModuleId);
+    }
+  }, [filteredModules, moduleId, modules]);
 
   const updateActivity = (index: number, patch: Partial<ActivityDraft>) => {
     setActivityDrafts((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
