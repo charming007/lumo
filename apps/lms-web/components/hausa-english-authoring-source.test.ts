@@ -11,16 +11,22 @@ test('lesson create form exposes phase-1 Hausa support defaults and English targ
   assert.match(createFormSource, /Default Hausa support cue for steps/);
   assert.match(createFormSource, /English target text/);
   assert.match(createFormSource, /Hausa support override/);
+  assert.match(createFormSource, /supportLanguage:\s*supportLanguage\.trim\(\)\s*\|\|\s*'ha'/);
+  assert.match(createFormSource, /supportLanguageLabel:\s*supportLanguageLabel\.trim\(\)\s*\|\|\s*'Hausa'/);
 });
 
 test('lesson editor form exposes phase-1 Hausa support defaults and English target step fields', () => {
   assert.match(editorFormSource, /Default Hausa support cue for steps/);
   assert.match(editorFormSource, /English target text/);
   assert.match(editorFormSource, /Hausa support override/);
+  assert.match(editorFormSource, /supportLanguage:\s*supportLanguage\.trim\(\)\s*\|\|\s*'ha'/);
+  assert.match(editorFormSource, /supportLanguageLabel:\s*supportLanguageLabel\.trim\(\)\s*\|\|\s*'Hausa'/);
 });
 
 test('english studio keeps the same Hausa support and English target authoring model', () => {
   assert.match(englishStudioSource, /Default Hausa support cue for steps/);
   assert.match(englishStudioSource, /English target text/);
   assert.match(englishStudioSource, /Hausa support override/);
+  assert.match(englishStudioSource, /supportLanguage:\s*supportLanguage\.trim\(\)\s*\|\|\s*'ha'/);
+  assert.match(englishStudioSource, /supportLanguageLabel:\s*supportLanguageLabel\.trim\(\)\s*\|\|\s*'Hausa'/);
 });

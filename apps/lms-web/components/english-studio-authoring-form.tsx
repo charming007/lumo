@@ -283,13 +283,13 @@ export function EnglishStudioAuthoringForm({
   const learningObjectives = useMemo(() => [objective, `Use ${vocabulary.join(', ')} in supported speaking turns.`], [objective, vocabulary]);
   const localization = useMemo(() => ({
     locale: 'en-NG',
-    supportLanguage: 'ha',
-    supportLanguageLabel: 'Hausa',
+    supportLanguage: supportLanguage.trim() || 'ha',
+    supportLanguageLabel: supportLanguageLabel.trim() || 'Hausa',
     targetLanguage: 'en',
     targetLanguageLabel: 'English',
     defaultStepSupportText: defaultStepSupportText.trim() || undefined,
     notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
-  }), [defaultStepSupportText, localizationNotesText]);
+  }), [supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText]);
   const assessmentTitle = activeAssessment?.title ?? `${title} quick check`;
   const lessonAssessment = useMemo(() => ({
     assessmentId: activeAssessment?.id ?? null,

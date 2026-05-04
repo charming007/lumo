@@ -303,7 +303,15 @@ export function LessonCreateForm({
   ].filter(Boolean) as string[]), [subjects.length, modules.length, filteredModules.length]);
 
   const learningObjectives = useMemo(() => learningObjectivesText.split('\n').map((item) => item.trim()).filter(Boolean), [learningObjectivesText]);
-  const localization = useMemo(() => ({ locale: 'en-NG', supportLanguage: 'ha', supportLanguageLabel: 'Hausa', targetLanguage: 'en', targetLanguageLabel: 'English', defaultStepSupportText: defaultStepSupportText.trim() || undefined, notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean) }), [defaultStepSupportText, localizationNotesText]);
+  const localization = useMemo(() => ({
+    locale: 'en-NG',
+    supportLanguage: supportLanguage.trim() || 'ha',
+    supportLanguageLabel: supportLanguageLabel.trim() || 'Hausa',
+    targetLanguage: 'en',
+    targetLanguageLabel: 'English',
+    defaultStepSupportText: defaultStepSupportText.trim() || undefined,
+    notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
+  }), [supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText]);
   const lessonAssessment = useMemo(() => ({
     ...(duplicateLesson?.lessonAssessment && typeof duplicateLesson.lessonAssessment === 'object' ? duplicateLesson.lessonAssessment : {}),
     title: assessmentTitle,

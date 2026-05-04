@@ -343,10 +343,10 @@ export type Lesson = {
   learningObjectives?: string[];
   localization?: {
     locale?: string;
-    supportLanguage?: 'ha';
-    supportLanguageLabel?: 'Hausa';
-    targetLanguage?: 'en';
-    targetLanguageLabel?: 'English';
+    supportLanguage?: string;
+    supportLanguageLabel?: string;
+    targetLanguage?: string;
+    targetLanguageLabel?: string;
     defaultStepSupportText?: string;
     notes?: string[];
     [key: string]: unknown;

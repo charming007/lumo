@@ -290,14 +290,14 @@ export function LessonEditorForm({
   const localization = useMemo(
     () => ({
       locale: String(lesson.localization?.locale ?? 'en-NG'),
-      supportLanguage: 'ha',
-      supportLanguageLabel: 'Hausa',
+      supportLanguage: supportLanguage.trim() || 'ha',
+      supportLanguageLabel: supportLanguageLabel.trim() || 'Hausa',
       targetLanguage: 'en',
       targetLanguageLabel: 'English',
       defaultStepSupportText: defaultStepSupportText.trim() || undefined,
       notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
     }),
-    [lesson.localization?.locale, defaultStepSupportText, localizationNotesText],
+    [lesson.localization?.locale, supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText],
   );
 
   const lessonAssessment = useMemo(
