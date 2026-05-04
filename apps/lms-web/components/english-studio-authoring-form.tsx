@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { moduleBelongsToSubject } from '../lib/module-subject-match';
 import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { buildActivityStepsFromDrafts, countNonEmptyLines, getDraftAssetIntentSummary, type LessonActivityDraft } from './lesson-authoring-shared';
@@ -192,7 +193,7 @@ export function EnglishStudioAuthoringForm({
   action: (formData: FormData) => void;
 }) {
   const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
-  const englishModules = modules.filter((module) => module.subjectId === englishSubject?.id || module.subjectName?.toLowerCase().includes('english'));
+  const englishModules = modules.filter((module) => moduleBelongsToSubject(module, englishSubject) || module.subjectName?.toLowerCase().includes('english'));
   const starterPreset = templatePresets[0];
   const [moduleId, setModuleId] = useState(englishModules[0]?.id ?? '');
   const [title, setTitle] = useState<string>(starterPreset.title);
