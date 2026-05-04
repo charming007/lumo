@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { filterModulesForSubject, findSubjectByContext, matchesSubjectFilter, moduleBelongsToSubject, resolveModuleSubjectId, subjectMatchesContext, subjectsIncludeId } from './module-subject-match.ts';
+import { assetMatchesModuleContext, filterModulesForSubject, findSubjectByContext, matchesSubjectFilter, moduleBelongsToSubject, resolveModuleSubjectId, subjectMatchesContext, subjectsIncludeId } from './module-subject-match.ts';
 
 test('module subject matching keeps modules visible when subject names line up but ids drift', () => {
   const subject = {
@@ -212,6 +212,46 @@ test('subjectMatchesContext returns false when neither id nor name match the lan
       subjectIds: ['subject-english'],
       subjectNames: ['English'],
     }),
+    false,
+  );
+});
+
+test('assetMatchesModuleContext recovers module scope from title plus subject context when ids drift', () => {
+  assert.equal(
+    assetMatchesModuleContext(
+      {
+        moduleId: 'legacy-module-id',
+        moduleTitle: 'Reading Foundations',
+        subjectId: 'legacy-subject-id',
+        subjectName: 'English',
+      } as any,
+      {
+        id: 'module-live',
+        title: 'Reading Foundations',
+        subjectId: 'subject-live',
+        subjectName: 'English',
+      } as any,
+    ),
+    true,
+  );
+});
+
+test('assetMatchesModuleContext rejects same-title assets from another subject when context is available', () => {
+  assert.equal(
+    assetMatchesModuleContext(
+      {
+        moduleId: null,
+        moduleTitle: 'Reading Foundations',
+        subjectId: 'subject-math',
+        subjectName: 'Mathematics',
+      } as any,
+      {
+        id: 'module-live',
+        title: 'Reading Foundations',
+        subjectId: 'subject-english',
+        subjectName: 'English',
+      } as any,
+    ),
     false,
   );
 });

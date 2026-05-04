@@ -756,7 +756,9 @@ export function EnglishStudioAuthoringForm({
                       fieldLabel={(children) => <FieldLabel>{children}</FieldLabel>}
                       assets={assets}
                       subjectId={englishSubject?.id ?? undefined}
+                      subjectName={englishSubject?.name}
                       moduleId={moduleId}
+                      moduleTitle={activeModule?.title}
                     />
                   </div>
                 );

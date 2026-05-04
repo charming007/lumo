@@ -822,6 +822,7 @@ export function LessonCreateForm({
                     subjectId={subjectId}
                     subjectName={activeSubject?.name}
                     moduleId={moduleId}
+                    moduleTitle={activeModule?.title}
                     onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
                     onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
                   />
@@ -843,6 +844,7 @@ export function LessonCreateForm({
                         subjectId={subjectId}
                         subjectName={activeSubject?.name}
                         moduleId={moduleId}
+                        moduleTitle={activeModule?.title}
                       />
                       {supportsChoices ? <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.choicesHint}</span> : null}
                       {supportsMedia ? <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.mediaHint}</span> : null}

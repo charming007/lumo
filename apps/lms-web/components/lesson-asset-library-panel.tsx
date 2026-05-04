@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react';
 import { ModalLauncher } from './modal-launcher';
 import { AssetPreview, AssetRuntimeLink } from './asset-preview';
 import { parseChoiceLineDrafts, parseDragItemLineDrafts, parseDragTargetLineDrafts, parseMediaLineDrafts } from './lesson-authoring-shared';
-import type { LessonActivityStep, LessonAsset } from '../lib/types';
+import type { CurriculumModule, LessonActivityStep, LessonAsset } from '../lib/types';
+import { assetMatchesModuleContext } from '../lib/module-subject-match';
 
 type AssetTemplate = {
   id: string;
@@ -222,9 +223,9 @@ function normalizeScopeValue(value?: string | null) {
   return String(value ?? '').trim().toLowerCase();
 }
 
-function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string, subjectName?: string) {
+function getScopeRank(asset: LessonAsset, lessonId?: string, module?: { id?: string | null; title?: string | null; subjectId?: string | null; subjectName?: string | null } | null, subjectId?: string, subjectName?: string) {
   if (lessonId && asset.lessonId === lessonId) return 0;
-  if (moduleId && asset.moduleId === moduleId) return 1;
+  if (assetMatchesModuleContext(asset, module)) return 1;
 
   const normalizedSubjectId = normalizeScopeValue(subjectId);
   const normalizedAssetSubjectId = normalizeScopeValue(asset.subjectId);
@@ -259,6 +260,7 @@ export function LessonAssetLibraryPanel({
   subjectId,
   subjectName,
   moduleId,
+  moduleTitle,
   lessonId,
   onMediaLinesChange,
   onChoiceLinesChange,
@@ -271,6 +273,7 @@ export function LessonAssetLibraryPanel({
   subjectId?: string;
   subjectName?: string;
   moduleId?: string;
+  moduleTitle?: string;
   lessonId?: string;
   onMediaLinesChange: (value: string) => void;
   onChoiceLinesChange: (value: string) => void;
@@ -279,12 +282,21 @@ export function LessonAssetLibraryPanel({
   const [scopeFilter, setScopeFilter] = useState<'all' | 'scoped' | 'shared'>('all');
   const [kindFilter, setKindFilter] = useState('all');
   const normalizedQuery = query.trim().toLowerCase();
+  const activeModule = useMemo(() => {
+    if (!moduleId && !moduleTitle) return null;
+    return {
+      id: moduleId ?? '',
+      title: moduleTitle ?? '',
+      subjectId,
+      subjectName,
+    };
+  }, [moduleId, moduleTitle, subjectId, subjectName]);
 
   const visibleAssets = useMemo(() => assets
     .filter((asset) => Boolean(getPreferredAssetValue(asset)))
     .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
     .filter((asset) => {
-      const scopeRank = getScopeRank(asset, lessonId, moduleId, subjectId, subjectName);
+      const scopeRank = getScopeRank(asset, lessonId, activeModule, subjectId, subjectName);
       if (scopeFilter === 'scoped') return scopeRank <= 2;
       if (scopeFilter === 'shared') return scopeRank === 3;
       return true;
@@ -304,10 +316,10 @@ export function LessonAssetLibraryPanel({
       ].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery);
     })
     .sort((left, right) => {
-      const scopeDiff = getScopeRank(left, lessonId, moduleId, subjectId, subjectName) - getScopeRank(right, lessonId, moduleId, subjectId, subjectName);
+      const scopeDiff = getScopeRank(left, lessonId, activeModule, subjectId, subjectName) - getScopeRank(right, lessonId, activeModule, subjectId, subjectName);
       if (scopeDiff !== 0) return scopeDiff;
       return left.title.localeCompare(right.title);
-    }), [assets, kindFilter, lessonId, moduleId, normalizedQuery, scopeFilter, stepType, subjectId, subjectName]);
+    }), [activeModule, assets, kindFilter, lessonId, normalizedQuery, scopeFilter, stepType, subjectId, subjectName]);
 
   const supportedKinds = useMemo(() => Array.from(new Set(assets
     .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
@@ -330,7 +342,7 @@ export function LessonAssetLibraryPanel({
       linkedAssetCount: linkedValues.length,
       uniqueLinkedAssetCount: new Set(linkedValues).size,
       availableAssetCount: assets.length,
-      scopedAssetCount: assets.filter((asset) => getScopeRank(asset, lessonId, moduleId, subjectId, subjectName) <= 2).length,
+      scopedAssetCount: assets.filter((asset) => getScopeRank(asset, lessonId, activeModule, subjectId, subjectName) <= 2).length,
     };
   }, [activitySteps, assets, lessonId, moduleId, subjectId, subjectName]);
 
@@ -386,7 +398,7 @@ export function LessonAssetLibraryPanel({
               <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
                 {visibleAssets.length ? visibleAssets.map((asset) => {
                   const preferredValue = getPreferredAssetValue(asset);
-                  const scopeRank = getScopeRank(asset, lessonId, moduleId, subjectId, subjectName);
+                  const scopeRank = getScopeRank(asset, lessonId, activeModule, subjectId, subjectName);
                   const scopeLabel = scopeLabelForAsset(asset, scopeRank);
 
                   return (

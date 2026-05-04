@@ -44,12 +44,17 @@ test('drag-to-match asset panel writes drag rows instead of corrupting generic c
   );
 });
 
-test('lesson asset pickers keep subject-scoped assets visible when subject ids drift but names still match', () => {
+test('lesson asset pickers keep scoped assets visible when module or subject ids drift but names still match', () => {
   for (const [label, fileSource] of [['panel', source], ['builder', builderSource]] as const) {
     assert.match(
       fileSource,
-      /function getScopeRank\(asset: LessonAsset, lessonId\?: string, moduleId\?: string, subjectId\?: string, subjectName\?: string\)/,
-      `${label} should accept subjectName alongside subjectId for scope ranking`,
+      /function getScopeRank\(asset: LessonAsset, lessonId\?: string, module\?: \{ id\?: string \| null; title\?: string \| null; subjectId\?: string \| null; subjectName\?: string \| null \} \| null, subjectId\?: string, subjectName\?: string\)/,
+      `${label} should accept recovered module context alongside subject context for scope ranking`,
+    );
+    assert.match(
+      fileSource,
+      /assetMatchesModuleContext\(asset, module\)/,
+      `${label} should recover module scope through the shared asset/module matcher instead of exact module-id checks`,
     );
     assert.match(
       fileSource,

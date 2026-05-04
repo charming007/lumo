@@ -3,7 +3,8 @@
 import React, { useMemo, useState } from 'react';
 import { ModalLauncher } from './modal-launcher';
 import { AssetPreview, AssetRuntimeLink } from './asset-preview';
-import type { LessonAsset } from '../lib/types';
+import type { CurriculumModule, LessonAsset } from '../lib/types';
+import { assetMatchesModuleContext } from '../lib/module-subject-match';
 import {
   getLessonAssetKindLabel,
   getLessonAssetPreviewTone,
@@ -52,6 +53,7 @@ type Props = {
   subjectId?: string;
   subjectName?: string;
   moduleId?: string;
+  moduleTitle?: string;
   lessonId?: string;
   onChoiceLinesChange: (value: string) => void;
   onMediaLinesChange: (value: string) => void;
@@ -447,9 +449,9 @@ function normalizeScopeValue(value?: string | null) {
   return String(value ?? '').trim().toLowerCase();
 }
 
-function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string, subjectName?: string) {
+function getScopeRank(asset: LessonAsset, lessonId?: string, module?: { id?: string | null; title?: string | null; subjectId?: string | null; subjectName?: string | null } | null, subjectId?: string, subjectName?: string) {
   if (lessonId && asset.lessonId === lessonId) return 0;
-  if (moduleId && asset.moduleId === moduleId) return 1;
+  if (assetMatchesModuleContext(asset, module)) return 1;
 
   const normalizedSubjectId = normalizeScopeValue(subjectId);
   const normalizedAssetSubjectId = normalizeScopeValue(asset.subjectId);
@@ -523,6 +525,7 @@ function InlineAssetPicker({
   subjectId,
   subjectName,
   moduleId,
+  moduleTitle,
   lessonId,
   selectedKind,
   selectedValue,
@@ -535,6 +538,7 @@ function InlineAssetPicker({
   subjectId?: string;
   subjectName?: string;
   moduleId?: string;
+  moduleTitle?: string;
   lessonId?: string;
   selectedKind: string;
   selectedValue: string;
@@ -547,10 +551,19 @@ function InlineAssetPicker({
   const [scopeFilter, setScopeFilter] = useState<'all' | 'scoped' | 'shared'>('all');
   const [kindFilter, setKindFilter] = useState('all');
   const currentAsset = useMemo(() => findAssetByValue(assets, selectedValue), [assets, selectedValue]);
+  const activeModule = useMemo(() => {
+    if (!moduleId && !moduleTitle) return null;
+    return {
+      id: moduleId ?? '',
+      title: moduleTitle ?? '',
+      subjectId,
+      subjectName,
+    };
+  }, [moduleId, moduleTitle, subjectId, subjectName]);
   const visibleAssets = useMemo(() => assets
     .filter((asset) => Boolean(getPreferredAssetValue(asset)))
     .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
-    .filter((asset) => scopeFilter === 'all' ? true : scopeFilter === 'shared' ? getScopeRank(asset, lessonId, moduleId, subjectId, subjectName) === 3 : getScopeRank(asset, lessonId, moduleId, subjectId, subjectName) <= 2)
+    .filter((asset) => scopeFilter === 'all' ? true : scopeFilter === 'shared' ? getScopeRank(asset, lessonId, activeModule, subjectId, subjectName) === 3 : getScopeRank(asset, lessonId, activeModule, subjectId, subjectName) <= 2)
     .filter((asset) => kindFilter === 'all' ? true : normalizeLessonAssetKind(asset.kind) === kindFilter)
     .filter((asset) => {
       const haystack = [asset.title, asset.description, asset.kind, asset.subjectName, asset.moduleTitle, asset.lessonTitle, asset.fileName, asset.storagePath, ...(asset.tags ?? [])]
@@ -559,7 +572,7 @@ function InlineAssetPicker({
         .toLowerCase();
       return !query.trim() || haystack.includes(query.trim().toLowerCase());
     })
-    .sort((left, right) => left.title.localeCompare(right.title)), [assets, kindFilter, lessonId, moduleId, query, scopeFilter, stepType, subjectId, subjectName]);
+    .sort((left, right) => left.title.localeCompare(right.title)), [activeModule, assets, kindFilter, lessonId, query, scopeFilter, stepType, subjectId, subjectName]);
   const supportedKinds = useMemo(() => Array.from(new Set(assets.filter((asset) => stepSupportsAssetKind(stepType, asset.kind)).map((asset) => normalizeLessonAssetKind(asset.kind)))).sort((a, b) => a.localeCompare(b)), [assets, stepType]);
 
   return (
@@ -589,7 +602,7 @@ function InlineAssetPicker({
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <strong style={{ color: '#0F172A' }}>{currentAsset.title}</strong>
                 <span style={helperPillStyle}>{getLessonAssetKindLabel(currentAsset.kind)}</span>
-                <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(currentAsset, getScopeRank(currentAsset, lessonId, moduleId, subjectId, subjectName))}</span>
+                <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(currentAsset, getScopeRank(currentAsset, lessonId, activeModule, subjectId, subjectName))}</span>
               </div>
               {currentAsset.description ? <div style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>{currentAsset.description}</div> : null}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: '#64748B' }}>
@@ -630,7 +643,7 @@ function InlineAssetPicker({
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <strong style={{ color: '#0F172A' }}>{asset.title}</strong>
                       <span style={helperPillStyle}>{getLessonAssetKindLabel(asset.kind)}</span>
-                      <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(asset, getScopeRank(asset, lessonId, moduleId, subjectId, subjectName))}</span>
+                      <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(asset, getScopeRank(asset, lessonId, activeModule, subjectId, subjectName))}</span>
                     </div>
                     {asset.description ? <div style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>{asset.description}</div> : null}
                     <div style={{ fontSize: 12, color: '#64748B', wordBreak: 'break-word' }}>{preferredValue}</div>
@@ -941,6 +954,15 @@ export function LessonActivityStructuredBuilders(props: Props) {
   const supportsChoices = builderType === 'image_choice' || builderType === 'tap_choice' || builderType === 'drag_to_match' || builderType === 'word_build';
   const supportsMedia = supportsChoices || builderType === 'listen_repeat' || builderType === 'listen_answer' || builderType === 'speak_answer' || builderType === 'letter_intro';
   const usesDragRows = builderType === 'drag_to_match';
+  const activeModule = useMemo(() => {
+    if (!props.moduleId && !props.moduleTitle) return null;
+    return {
+      id: props.moduleId ?? '',
+      title: props.moduleTitle ?? '',
+      subjectId: props.subjectId,
+      subjectName: props.subjectName,
+    };
+  }, [props.moduleId, props.moduleTitle, props.subjectId, props.subjectName]);
 
   if (!supportsChoices && !supportsMedia) return null;
 
@@ -1010,6 +1032,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
                         subjectId={props.subjectId}
                         subjectName={props.subjectName}
                         moduleId={props.moduleId}
+                        moduleTitle={props.moduleTitle}
                         lessonId={props.lessonId}
                         selectedKind={row.mediaKind}
                         selectedValue={row.mediaValue}
@@ -1041,6 +1064,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
                       stepType={builderType}
                       subjectId={props.subjectId}
                       moduleId={props.moduleId}
+                      moduleTitle={props.moduleTitle}
                       lessonId={props.lessonId}
                       selectedKind={row.mediaKind}
                       selectedValue={row.mediaValue}
@@ -1094,6 +1118,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
                         subjectId={props.subjectId}
                         subjectName={props.subjectName}
                         moduleId={props.moduleId}
+                        moduleTitle={props.moduleTitle}
                         lessonId={props.lessonId}
                         selectedKind={row.mediaKind}
                         selectedValue={row.mediaValue}
@@ -1125,6 +1150,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
                       stepType={builderType}
                       subjectId={props.subjectId}
                       moduleId={props.moduleId}
+                      moduleTitle={props.moduleTitle}
                       lessonId={props.lessonId}
                       selectedKind={row.kind}
                       selectedValue={row.value}

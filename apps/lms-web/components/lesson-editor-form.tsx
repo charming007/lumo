@@ -851,6 +851,7 @@ export function LessonEditorForm({
                     subjectId={subjectId}
                     subjectName={activeSubject?.name}
                     moduleId={moduleId}
+                    moduleTitle={activeModule?.title}
                     lessonId={lesson.id}
                     onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
                     onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
@@ -864,6 +865,7 @@ export function LessonEditorForm({
                     subjectId={subjectId}
                     subjectName={activeSubject?.name}
                     moduleId={moduleId}
+                    moduleTitle={activeModule?.title}
                     lessonId={lesson.id}
                     onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
                     onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}

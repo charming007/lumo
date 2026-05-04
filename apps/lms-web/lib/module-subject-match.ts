@@ -1,4 +1,4 @@
-import type { CurriculumModule, Subject } from './types';
+import type { CurriculumModule, LessonAsset, Subject } from './types';
 
 function normalize(value?: string | null) {
   return value?.trim().toLowerCase() ?? '';
@@ -68,6 +68,46 @@ export function moduleBelongsToSubject(module: CurriculumModule, subject: Subjec
 
 export function filterModulesForSubject(modules: CurriculumModule[], subject: Subject | null | undefined) {
   return modules.filter((module) => moduleBelongsToSubject(module, subject));
+}
+
+export function assetMatchesModuleContext(
+  asset: Pick<LessonAsset, 'moduleId' | 'moduleTitle' | 'subjectId' | 'subjectName'>,
+  module: {
+    id?: string | null;
+    title?: string | null;
+    subjectId?: string | null;
+    subjectName?: string | null;
+  } | null | undefined,
+) {
+  if (!module) {
+    return false;
+  }
+
+  const normalizedAssetModuleId = normalize(asset.moduleId);
+  const normalizedModuleId = normalize(module.id);
+  if (normalizedAssetModuleId && normalizedModuleId && normalizedAssetModuleId === normalizedModuleId) {
+    return true;
+  }
+
+  const normalizedAssetModuleTitle = normalize(asset.moduleTitle);
+  const normalizedModuleTitle = normalize(module.title);
+  if (!normalizedAssetModuleTitle || !normalizedModuleTitle || normalizedAssetModuleTitle !== normalizedModuleTitle) {
+    return false;
+  }
+
+  const normalizedAssetSubjectId = normalize(asset.subjectId);
+  const normalizedModuleSubjectId = normalize(module.subjectId);
+  if (normalizedAssetSubjectId && normalizedModuleSubjectId && normalizedAssetSubjectId === normalizedModuleSubjectId) {
+    return true;
+  }
+
+  const normalizedAssetSubjectName = normalize(asset.subjectName);
+  const normalizedModuleSubjectName = normalize(module.subjectName);
+  if (normalizedAssetSubjectName && normalizedModuleSubjectName) {
+    return normalizedAssetSubjectName === normalizedModuleSubjectName;
+  }
+
+  return !(normalizedAssetSubjectId && normalizedModuleSubjectId);
 }
 
 export function resolveModuleSubjectId(
