@@ -72,7 +72,7 @@ class LumoApiClient {
     bool hasExplicitConfig = true,
   }) {
     final normalized = normalizeBaseUrl(rawBaseUrl);
-    if (!hasExplicitConfig && normalized != kDefaultProductionApiBaseUrl) {
+    if (!hasExplicitConfig) {
       return 'LUMO_API_BASE_URL is missing. Set it explicitly for release tablets before shipping.';
     }
 

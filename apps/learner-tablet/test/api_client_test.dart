@@ -171,15 +171,13 @@ void main() {
   });
 
   group('LumoApiClient.productionBaseUrlIssue', () {
-    test(
-        'allows the bundled production default when explicit release config is absent',
-        () {
+    test('rejects release builds when explicit API config is absent', () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://lumo-api-production-303a.up.railway.app',
           hasExplicitConfig: false,
         ),
-        isNull,
+        contains('LUMO_API_BASE_URL is missing'),
       );
     });
 
