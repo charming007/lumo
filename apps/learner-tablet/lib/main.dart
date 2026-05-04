@@ -7931,7 +7931,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (_promptedCurrentStep && !force) return;
     _promptedCurrentStep = true;
     final prompt = widget.state.personalizePrompt(
-      session.currentStep.coachPrompt,
+      session.currentStep.learnerCoachPrompt,
     );
     final readyMessage = LearnerDialogue.promptReady(resumed: _resumedSession);
     await _speakAndMaybeAutoRecord(
@@ -10498,7 +10498,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             widget.onChanged();
             setState(() {});
           },
-          prompt: widget.state.personalizePrompt(step.coachPrompt),
+          prompt: widget.state.personalizePrompt(step.learnerCoachPrompt),
           speakerMode: session.speakerMode,
           statusLabel: _speakerModeLabel(session.speakerMode),
           secondaryStatus: stepLabel,
@@ -10731,7 +10731,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                             ),
                                             const SizedBox(height: 12),
                                             Text(
-                                              step.instruction,
+                                              step.learnerInstruction,
                                               style: const TextStyle(
                                                 fontSize: 16,
                                                 height: 1.45,

@@ -918,7 +918,6 @@ class LearningModule {
 class LessonStep {
   final String id;
   final LessonStepType type;
-  final String title;
   final String instruction;
   final String expectedResponse;
   final List<String> acceptableResponses;
@@ -927,6 +926,13 @@ class LessonStep {
   final String realWorldCheck;
   final SpeakerMode speakerMode;
   final LessonActivity? activity;
+  final String title;
+  final String supportLanguage;
+  final String targetLanguage;
+  final String? supportInstruction;
+  final String? supportCoachPrompt;
+  final String? supportFacilitatorTip;
+  final String? supportRealWorldCheck;
 
   const LessonStep({
     required this.id,
@@ -940,7 +946,31 @@ class LessonStep {
     required this.realWorldCheck,
     required this.speakerMode,
     this.activity,
+    this.supportLanguage = 'Hausa',
+    this.targetLanguage = 'English',
+    this.supportInstruction,
+    this.supportCoachPrompt,
+    this.supportFacilitatorTip,
+    this.supportRealWorldCheck,
   });
+
+  String get learnerInstruction => supportInstruction?.trim().isNotEmpty == true
+      ? supportInstruction!
+      : instruction;
+
+  String get learnerCoachPrompt => supportCoachPrompt?.trim().isNotEmpty == true
+      ? supportCoachPrompt!
+      : coachPrompt;
+
+  String get learnerFacilitatorTip =>
+      supportFacilitatorTip?.trim().isNotEmpty == true
+          ? supportFacilitatorTip!
+          : facilitatorTip;
+
+  String get learnerRealWorldCheck =>
+      supportRealWorldCheck?.trim().isNotEmpty == true
+          ? supportRealWorldCheck!
+          : realWorldCheck;
 }
 
 class LessonCardModel {
@@ -954,6 +984,8 @@ class LessonCardModel {
   final String readinessFocus;
   final String scenario;
   final List<LessonStep> steps;
+  final String supportLanguage;
+  final String targetLanguage;
 
   const LessonCardModel({
     required this.id,
@@ -966,6 +998,8 @@ class LessonCardModel {
     required this.readinessFocus,
     required this.scenario,
     required this.steps,
+    this.supportLanguage = 'Hausa',
+    this.targetLanguage = 'English',
   });
 
   bool get isAssignmentPlaceholder => id.startsWith('assignment-placeholder:');
@@ -974,7 +1008,19 @@ class LessonCardModel {
     final moduleId = json['moduleId']?.toString() ?? 'english';
     final title = json['title']?.toString() ?? 'Guided lesson';
     final subject = json['subject']?.toString() ?? 'Learning';
-    final activitySteps = _readBackendActivitySteps(json);
+    final supportLanguage =
+        json['supportLanguage']?.toString().trim().isNotEmpty == true
+            ? json['supportLanguage'].toString().trim()
+            : 'Hausa';
+    final targetLanguage =
+        json['targetLanguage']?.toString().trim().isNotEmpty == true
+            ? json['targetLanguage'].toString().trim()
+            : 'English';
+    final activitySteps = _readBackendActivitySteps(
+      json,
+      defaultSupportLanguage: supportLanguage,
+      defaultTargetLanguage: targetLanguage,
+    );
 
     return LessonCardModel(
       id: json['id']?.toString() ?? 'lesson-unknown',
@@ -989,6 +1035,8 @@ class LessonCardModel {
       scenario:
           json['scenario']?.toString() ?? 'Guided $subject session for $title.',
       steps: activitySteps,
+      supportLanguage: supportLanguage,
+      targetLanguage: targetLanguage,
     );
   }
 }
@@ -1495,7 +1543,11 @@ String _moduleGoal(String level, String subjectId) {
       : 'Ready for simple spoken responses';
 }
 
-List<LessonStep> _readBackendActivitySteps(Map<String, dynamic> json) {
+List<LessonStep> _readBackendActivitySteps(
+  Map<String, dynamic> json, {
+  required String defaultSupportLanguage,
+  required String defaultTargetLanguage,
+}) {
   final rawSteps = (json['activitySteps'] as List?) ??
       (json['activities'] as List?) ??
       (json['steps'] as List?);
@@ -1512,7 +1564,15 @@ List<LessonStep> _readBackendActivitySteps(Map<String, dynamic> json) {
     return leftOrder.compareTo(rightOrder);
   });
 
-  return items.map(_lessonStepFromBackend).toList();
+  return items
+      .map(
+        (item) => _lessonStepFromBackend(
+          item,
+          defaultSupportLanguage: defaultSupportLanguage,
+          defaultTargetLanguage: defaultTargetLanguage,
+        ),
+      )
+      .toList();
 }
 
 String _normalizedBackendDragId(Object? value, String fallback) {
@@ -1567,7 +1627,11 @@ List<LessonActivityDragItem> _dragItemsFromBackend(
   }).toList();
 }
 
-LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
+LessonStep _lessonStepFromBackend(
+  Map<String, dynamic> json, {
+  required String defaultSupportLanguage,
+  required String defaultTargetLanguage,
+}) {
   final typeValue = json['type']?.toString() ?? 'listen_repeat';
   final activityType = _lessonActivityTypeFromBackend(typeValue);
   final expectedAnswers = (json['expectedAnswers'] as List?)
@@ -1595,6 +1659,14 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
           .toList() ??
       const <LessonActivityMedia>[];
   final prompt = json['prompt']?.toString() ?? 'Follow Mallam and answer.';
+  final supportLanguage =
+      json['supportLanguage']?.toString().trim().isNotEmpty == true
+          ? json['supportLanguage'].toString().trim()
+          : defaultSupportLanguage;
+  final targetLanguage =
+      json['targetLanguage']?.toString().trim().isNotEmpty == true
+          ? json['targetLanguage'].toString().trim()
+          : defaultTargetLanguage;
   final expectedResponse = expectedAnswers.isEmpty
       ? choices
           .firstWhere(
@@ -1631,6 +1703,13 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
     realWorldCheck: successFeedback ??
         'Check whether the learner completed the backend activity clearly.',
     speakerMode: _speakerModeForActivity(activityType),
+    supportLanguage: supportLanguage,
+    targetLanguage: targetLanguage,
+    supportInstruction: json['supportInstruction']?.toString(),
+    supportCoachPrompt: json['supportPrompt']?.toString() ??
+        json['supportCoachPrompt']?.toString(),
+    supportFacilitatorTip: json['supportHint']?.toString(),
+    supportRealWorldCheck: json['supportFeedback']?.toString(),
     activity: LessonActivity(
       type: activityType,
       prompt: prompt,

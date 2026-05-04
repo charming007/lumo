@@ -2839,7 +2839,7 @@ class LumoAppState {
       transcript: [
         SessionTurn(
           speaker: 'Mallam',
-          text: personalizePrompt(openingStep.coachPrompt),
+          text: personalizePrompt(openingStep.learnerCoachPrompt),
           timestamp: now,
         ),
       ],
@@ -3116,13 +3116,15 @@ class LumoAppState {
   }) {
     final learnerName = currentLearner?.name ?? 'my friend';
     final expected = personalizeExpectedResponse(step.expectedResponse);
-    final prompt = personalizePrompt(step.coachPrompt);
+    final prompt = personalizePrompt(step.learnerCoachPrompt);
 
     return LearnerDialogue.supportPrompt(
       supportType: supportType,
       learnerName: learnerName,
       prompt: prompt,
       expected: expected,
+      supportLanguage: step.supportLanguage,
+      targetLanguage: step.targetLanguage,
     );
   }
 
@@ -3275,7 +3277,7 @@ class LumoAppState {
         text = LearnerDialogue.supportPrompt(
           supportType: 'slow',
           learnerName: learnerName,
-          prompt: personalizePrompt(step.coachPrompt),
+          prompt: personalizePrompt(step.learnerCoachPrompt),
           expected: personalizeExpectedResponse(step.expectedResponse),
         );
         nextMode = SpeakerMode.guiding;
@@ -3285,7 +3287,7 @@ class LumoAppState {
         text = LearnerDialogue.supportPrompt(
           supportType: 'wait',
           learnerName: learnerName,
-          prompt: personalizePrompt(step.coachPrompt),
+          prompt: personalizePrompt(step.learnerCoachPrompt),
           expected: personalizeExpectedResponse(step.expectedResponse),
         );
         nextMode = SpeakerMode.waiting;
@@ -3295,14 +3297,16 @@ class LumoAppState {
         text = LearnerDialogue.supportPrompt(
           supportType: 'translate',
           learnerName: learnerName,
-          prompt: personalizePrompt(step.coachPrompt),
+          prompt: personalizePrompt(step.learnerCoachPrompt),
           expected: personalizeExpectedResponse(step.expectedResponse),
+          supportLanguage: step.supportLanguage,
+          targetLanguage: step.targetLanguage,
         );
         nextMode = SpeakerMode.guiding;
         label = 'Translation support';
         break;
       default:
-        text = personalizePrompt(step.coachPrompt);
+        text = personalizePrompt(step.learnerCoachPrompt);
         nextMode = SpeakerMode.guiding;
         label = 'Prompt replay';
         break;
@@ -3532,7 +3536,7 @@ class LumoAppState {
   Future<void> repeatCurrentStep({bool slow = false}) async {
     final session = activeSession;
     if (session == null) return;
-    final prompt = personalizePrompt(session.currentStep.coachPrompt);
+    final prompt = personalizePrompt(session.currentStep.learnerCoachPrompt);
     final spoken = slow ? 'Slow repeat: $prompt' : prompt;
     activeSession = session.copyWith(
       speakerMode: SpeakerMode.guiding,
@@ -3943,7 +3947,7 @@ class LumoAppState {
         ...session.transcript,
         SessionTurn(
           speaker: 'Mallam',
-          text: personalizePrompt(nextStep.coachPrompt),
+          text: personalizePrompt(nextStep.learnerCoachPrompt),
           timestamp: DateTime.now(),
         ),
       ],
@@ -3996,7 +4000,7 @@ class LumoAppState {
       return;
     }
 
-    final prompt = personalizePrompt(session.currentStep.coachPrompt);
+    final prompt = personalizePrompt(session.currentStep.learnerCoachPrompt);
     activeSession = session.copyWith(
       transcript: [
         ...session.transcript,
@@ -5086,7 +5090,7 @@ class LumoAppState {
     final learner = currentLearner;
     final firstName =
         learner == null ? 'my friend' : _learnerFirstName(learner);
-    final stepPrompt = personalizePrompt(step.coachPrompt);
+    final stepPrompt = personalizePrompt(step.learnerCoachPrompt);
     if (isResuming) {
       final base = resumeFrom?.automationStatus.trim().isNotEmpty == true
           ? resumeFrom!.automationStatus
@@ -5696,7 +5700,7 @@ class LumoAppState {
         <SessionTurn>[];
     final openingPrompt = lesson.steps.isEmpty
         ? null
-        : personalizePrompt(lesson.steps[boundedStepIndex].coachPrompt);
+        : personalizePrompt(lesson.steps[boundedStepIndex].learnerCoachPrompt);
     if (transcript.isEmpty &&
         openingPrompt != null &&
         openingPrompt.isNotEmpty) {

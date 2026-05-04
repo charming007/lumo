@@ -132,11 +132,19 @@ const assignedLessonsSeed = [
         realWorldCheck:
             'The learner can notice and repeat one focus letter before moving into choices.',
         speakerMode: SpeakerMode.guiding,
+        supportInstruction:
+            'Mallam zai gabatar da harafin A, ya fadi sautinsa, sannan ya hada shi da kalmar ant.',
+        supportCoachPrompt:
+            'Saurara da kyau. Wannan harafin A ne. Ki fada A tare da ni. A na nufin ant.',
+        supportFacilitatorTip:
+            'Danna katin harafin sau daya, sannan ki bari mai koyo ya maimaita kafin ki kara kalmar.',
+        supportRealWorldCheck:
+            'Mai koyo zai iya ganowa kuma ya maimaita harafi guda kafin mu wuce zuwa zabe.',
         activity: LessonActivity(
           type: LessonActivityType.letterIntro,
-          prompt: 'Listen first, then say the letter.',
+          prompt: 'Saurara da farko, sannan ki fadi harafin.',
           focusText: 'A',
-          supportText: 'A is for ant',
+          supportText: 'A na nufin ant',
           targetResponse: 'A',
         ),
       ),
@@ -154,11 +162,18 @@ const assignedLessonsSeed = [
         realWorldCheck:
             'This checks whether the learner can connect the heard word to a visual choice.',
         speakerMode: SpeakerMode.listening,
+        supportInstruction:
+            'Mai koyo zai kalli hotuna masu sauki sannan ya taba wanda ya dace da kalmar da ya ji.',
+        supportCoachPrompt: 'Nemi ant. Ki taba hoton ant.',
+        supportFacilitatorTip:
+            'Ki fadi kalmar sau daya sannan ki jira. Kada ki nuna sai idan mai koyo ya makale.',
+        supportRealWorldCheck:
+            'Wannan yana duba ko mai koyo zai iya hada kalmar da ya ji da hoton da ya gani.',
         activity: LessonActivity(
           type: LessonActivityType.imageChoice,
-          prompt: 'Tap the picture that matches.',
+          prompt: 'Ki taba hoton da ya dace.',
           focusText: 'ant',
-          supportText: 'Listen: ant',
+          supportText: 'Saurara: ant',
           choices: ['ant', 'ball', 'sun'],
           choiceEmoji: ['🐜', '⚽', '☀️'],
           targetResponse: 'ant',
@@ -178,11 +193,18 @@ const assignedLessonsSeed = [
         realWorldCheck:
             'This is the first tiny bridge from recognition into spoken production.',
         speakerMode: SpeakerMode.affirming,
+        supportInstruction:
+            'Mai koyo zai fadi gajeriyar jimla da sabuwar kalmar da murya mai kyau.',
+        supportCoachPrompt: 'Yanzu naki ne. Ki fada tare da ni: A is for ant.',
+        supportFacilitatorTip:
+            'Ki karbi kusan madaidaiciyar amsa idan mai koyo ya fadi kalmomin cikin tsari.',
+        supportRealWorldCheck:
+            'Wannan shine karamin gada daga ganewa zuwa furuci.',
         activity: LessonActivity(
           type: LessonActivityType.speakAnswer,
-          prompt: 'Say it after Mallam, nice and clear.',
+          prompt: 'Ki fada bayan Mallam a sarari.',
           focusText: 'A is for ant.',
-          supportText: 'Use your clear English voice.',
+          supportText: 'Yi amfani da muryarki ta Turanci.',
           targetResponse: 'A is for ant.',
         ),
       ),
@@ -208,8 +230,7 @@ const assignedLessonsSeed = [
             'Mallam counts the first five oranges and invites the learner to join.',
         expectedResponse: '1, 2, 3, 4, 5',
         acceptableResponses: ['1 2 3 4 5', 'one two three four five'],
-        coachPrompt:
-            'Let’s count together: one, two, three, four, five.',
+        coachPrompt: 'Let’s count together: one, two, three, four, five.',
         facilitatorTip:
             'Tap five fingers on the table if the learner needs visual rhythm.',
         realWorldCheck:
@@ -271,8 +292,7 @@ const assignedLessonsSeed = [
           'Before eating and after using the toilet',
           'Before eating and after toilet',
         ],
-        coachPrompt:
-            'We wash before eating and after toilet. Say it with me.',
+        coachPrompt: 'We wash before eating and after toilet. Say it with me.',
         facilitatorTip:
             'Gesture toward food or the washing area to connect the words to a real routine.',
         realWorldCheck:
