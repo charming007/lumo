@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
+const globalErrorSource = readFileSync(fileURLToPath(new URL('./global-error.tsx', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
 test('dashboard does not hard-block on subject metadata degradation alone', () => {
@@ -38,5 +39,46 @@ test('dashboard deploy checklist CTA points at a shipped public document', () =>
     existsSync(deployChecklistPublicPath),
     true,
     'dashboard deploy checklist CTA should not point at a missing public HTML file',
+  );
+});
+
+test('wrong-backend blocker exposes route evidence and copy-paste verification commands', () => {
+  assert.match(
+    dashboardPageSource,
+    /evidenceTitle=\{backendTargetDiagnosis \? 'Wrong-backend evidence' : undefined\}/,
+    'dashboard blocker should label wrong-backend evidence explicitly',
+  );
+  assert.match(
+    dashboardPageSource,
+    /commandTitle=\{backendTargetDiagnosis \? 'Copy-paste backend verification' : undefined\}/,
+    'dashboard blocker should expose a copy-paste verification command card when wrong-backend diagnosis trips',
+  );
+  assert.match(
+    dashboardPageSource,
+    /admin\/config\/audit/,
+    'dashboard blocker should include the admin config audit probe in its verification command block',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Failing routes: \$\{backendTargetDiagnosis\.requestUrls\.join\(', '\)\}/,
+    'dashboard blocker should surface the exact failing routes when wrong-backend evidence is available',
+  );
+});
+
+test('global error route stays dynamic and offers the dashboard recovery actions', () => {
+  assert.match(
+    globalErrorSource,
+    /export const dynamic = 'force-dynamic';/,
+    'global error route should stay dynamic so production crashes render the latest recovery UI',
+  );
+  assert.match(
+    globalErrorSource,
+    /Retry dashboard/,
+    'global error route should keep the retry action visible',
+  );
+  assert.match(
+    globalErrorSource,
+    /href="\/settings"/,
+    'global error route should keep the settings escape hatch visible',
   );
 });

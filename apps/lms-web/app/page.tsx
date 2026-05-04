@@ -316,6 +316,25 @@ export default async function HomePage() {
   const backendTargetEvidence = backendTargetDiagnosis
     ? summarizeBackendTargetEvidence(backendTargetDiagnosis.requestUrls)
     : null;
+  const backendTargetCommandBlock = backendTargetDiagnosis
+    ? [`export API=${apiTarget || API_BASE_DIAGNOSTIC.configuredApiBase || 'https://your-lumo-api.up.railway.app'}`,
+        '',
+        'curl -i "$API/health"',
+        'curl -i "$API/readyz"',
+        "curl -i \"$API/api/v1/meta\" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'",
+        "curl -i \"$API/api/v1/assets\" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'",
+        "curl -i \"$API/api/v1/admin/config/audit\" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'",
+        "curl -i \"$API/api/v1/admin/assets/runtime\" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'",
+      ].join('\n')
+    : undefined;
+  const backendTargetEvidenceLines = backendTargetDiagnosis
+    ? [
+        `Failing feeds: ${backendTargetDiagnosis.failingFeeds.join(', ')}`,
+        `Failing routes: ${backendTargetDiagnosis.requestUrls.join(', ')}`,
+        `Route summary: ${backendTargetEvidence?.routeSummary ?? 'Unknown routes'}`,
+        `Host summary: ${backendTargetEvidence?.hostSummary ?? apiTarget}`,
+      ]
+    : [];
   const subjectFeedAvailable = subjectsResult.status === 'fulfilled';
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
@@ -601,6 +620,10 @@ export default async function HomePage() {
                 { label: 'Open assignments', href: '/assignments', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
                 { label: 'Cross-check progress', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
               ]}
+        evidenceTitle={backendTargetDiagnosis ? 'Wrong-backend evidence' : undefined}
+        evidenceLines={backendTargetDiagnosis ? backendTargetEvidenceLines : undefined}
+        commandTitle={backendTargetDiagnosis ? 'Copy-paste backend verification' : undefined}
+        commandBlock={backendTargetDiagnosis ? backendTargetCommandBlock : undefined}
       />
     );
   }

@@ -22,6 +22,10 @@ type Props = {
   verificationItems: VerificationItem[];
   fixItems?: FixItem[];
   docs?: Array<{ label: string; href: string; background: string; color: string; border?: string }>;
+  evidenceTitle?: string;
+  evidenceLines?: string[];
+  commandTitle?: string;
+  commandBlock?: string;
 };
 
 const actionStyle: CSSProperties = {
@@ -47,6 +51,10 @@ export function DeploymentBlockerCard({
     { label: 'Deployment action', value: 'Set env in Vercel and redeploy' },
   ],
   docs = [],
+  evidenceTitle,
+  evidenceLines = [],
+  commandTitle,
+  commandBlock,
 }: Props) {
   return (
     <PageShell
@@ -91,6 +99,26 @@ export function DeploymentBlockerCard({
             </div>
           </Card>
         </section>
+
+        {(evidenceLines.length || commandBlock) ? (
+          <section style={{ ...responsiveGrid(320) }}>
+            {evidenceLines.length ? (
+              <Card title={evidenceTitle ?? 'Evidence'} eyebrow="What the blocker can already prove">
+                <div style={{ display: 'grid', gap: 12, color: '#475569', lineHeight: 1.7 }}>
+                  {evidenceLines.map((line) => (
+                    <div key={line}>{line}</div>
+                  ))}
+                </div>
+              </Card>
+            ) : null}
+
+            {commandBlock ? (
+              <Card title={commandTitle ?? 'Copy-paste checks'} eyebrow="Verify the suspected failure fast">
+                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowX: 'auto', font: '500 .94rem/1.7 ui-monospace,SFMono-Regular,Menlo,monospace', color: '#0f172a' }}>{commandBlock}</pre>
+              </Card>
+            ) : null}
+          </section>
+        ) : null}
 
         <Card title="Verification after redeploy" eyebrow="Do these checks">
           <SimpleTable
