@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { filterModulesForSubject, findSubjectByContext } from '../lib/module-subject-match';
 import type { CurriculumModule, Subject } from '../lib/types';
@@ -48,11 +48,31 @@ export function DynamicLessonCreateForm({
   action: (formData: FormData) => void;
   returnPath?: string;
 }) {
-  const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? 'english');
+  const initialSubject = subjects[0] ?? null;
+  const [subjectId, setSubjectId] = useState(initialSubject?.id ?? 'english');
   const [moduleId, setModuleId] = useState(modules[0]?.id ?? '');
 
-  const activeSubject = useMemo(() => findSubjectByContext(subjects, { subjectId }) ?? subjects[0] ?? null, [subjectId, subjects]);
+  const activeSubject = useMemo(() => findSubjectByContext(subjects, {
+    subjectId,
+    subjectName: initialSubject?.name,
+  }) ?? initialSubject, [initialSubject, subjectId, subjects]);
   const filteredModules = useMemo(() => filterModulesForSubject(modules, activeSubject), [activeSubject, modules]);
+
+  useEffect(() => {
+    const reconciledSubjectId = activeSubject?.id ?? initialSubject?.id ?? '';
+    if (reconciledSubjectId && reconciledSubjectId !== subjectId) {
+      setSubjectId(reconciledSubjectId);
+    }
+  }, [activeSubject, initialSubject, subjectId]);
+
+  useEffect(() => {
+    const nextModuleId = filteredModules.some((module) => module.id === moduleId)
+      ? moduleId
+      : String(filteredModules[0]?.id ?? '');
+    if (nextModuleId !== moduleId) {
+      setModuleId(nextModuleId);
+    }
+  }, [filteredModules, moduleId]);
 
   const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0];
   const dependencyBlockers = [
