@@ -4,6 +4,7 @@ import { FeedbackBanner } from '../../components/feedback-banner';
 import { ProgressCaptureForm, ProgressUpdateForm } from '../../components/progress-form';
 import { fetchCohorts, fetchCurriculumModules, fetchMallams, fetchPods, fetchProgress, fetchStudents, fetchSubjects } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
+import { matchesSubjectFilter } from '../../lib/module-subject-match';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyProgressRows(message: string): ReactNode[][] {
@@ -114,7 +115,10 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
     const cohortMatches = !cohortFilter || student?.cohortId === cohortFilter;
     const podMatches = !podFilter || student?.podId === podFilter;
     const mallamMatches = !mallamFilter || student?.mallamId === mallamFilter;
-    const subjectMatches = !subjectFilter || item.subjectId === subjectFilter;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [item.subjectId],
+      subjectNames: [item.subjectName],
+    });
     const statusMatches = !statusFilter || item.progressionStatus === statusFilter;
     const queryMatches = matchesQuery([
       item.studentName,

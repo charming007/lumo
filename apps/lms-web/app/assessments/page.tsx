@@ -3,6 +3,7 @@ import { CreateAssessmentForm, DeleteAssessmentForm, UpdateAssessmentForm } from
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchAssessments, fetchCurriculumModules, fetchSubjects } from '../../lib/api';
+import { matchesSubjectFilter } from '../../lib/module-subject-match';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function statusPill(status: string) {
@@ -51,7 +52,10 @@ export default async function AssessmentsPage({
   ]);
 
   const filteredAssessments = assessments.filter((assessment) => {
-    const subjectMatches = !subjectFilter || assessment.subjectId === subjectFilter;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [assessment.subjectId],
+      subjectNames: [assessment.subjectName],
+    });
     const statusMatches = !statusFilter || assessment.status === statusFilter;
     const queryMatches = matchesQuery(
       [assessment.title, assessment.moduleTitle, assessment.subjectName, assessment.triggerLabel, assessment.kind, assessment.status],
