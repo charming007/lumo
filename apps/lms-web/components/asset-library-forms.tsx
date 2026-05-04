@@ -5,6 +5,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { archiveLessonAssetAction, deleteLessonAssetAction, registerLessonAssetAction, updateLessonAssetAction, uploadLessonAssetAction } from '../app/actions';
 import { API_BASE } from '../lib/config';
 import { filterModulesForSubject, findSubjectByContext, moduleBelongsToSubject, subjectMatchesContext } from '../lib/module-subject-match';
+import { lessonMatchesModule } from '../lib/module-lesson-match';
 import type { CurriculumModule, Lesson, LessonAsset, Subject } from '../lib/types';
 import { DeleteConfirmSubmit } from './delete-confirm-submit';
 import { AssetPreview, AssetRuntimeLink } from './asset-preview';
@@ -28,8 +29,12 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{label}{children}</label>;
 }
 
-function scopeMatchesLesson(lesson: Lesson, subjectId: string, moduleId: string, subjects: Subject[] = []) {
-  if (moduleId) return lesson.moduleId === moduleId;
+function scopeMatchesLesson(lesson: Lesson, subjectId: string, moduleId: string, subjects: Subject[] = [], modules: CurriculumModule[] = []) {
+  if (moduleId) {
+    const activeModule = modules.find((module) => module.id === moduleId) ?? null;
+    if (!activeModule) return lesson.moduleId === moduleId;
+    return lessonMatchesModule(lesson, activeModule);
+  }
   if (subjectId) {
     const activeSubject = findSubjectByContext(subjects, { subjectId });
     return subjectMatchesContext(activeSubject, {
@@ -76,7 +81,7 @@ function ScopeFields({
     return filterModulesForSubject(modules, activeSubject);
   }, [activeSubject, modules]);
 
-  const visibleLessons = useMemo(() => lessons.filter((item) => scopeMatchesLesson(item, subjectId, moduleId, subjects)), [lessons, moduleId, subjectId, subjects]);
+  const visibleLessons = useMemo(() => lessons.filter((item) => scopeMatchesLesson(item, subjectId, moduleId, subjects, modules)), [lessons, moduleId, modules, subjectId, subjects]);
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
@@ -99,7 +104,7 @@ function ScopeFields({
               });
               setLessonId((currentLessonId) => {
                 if (!currentLessonId) return '';
-                const lessonStillValid = lessons.some((item) => item.id === currentLessonId && scopeMatchesLesson(item, nextSubjectId, moduleId, subjects));
+                const lessonStillValid = lessons.some((item) => item.id === currentLessonId && scopeMatchesLesson(item, nextSubjectId, moduleId, subjects, modules));
                 return lessonStillValid ? currentLessonId : '';
               });
             }}
@@ -118,7 +123,7 @@ function ScopeFields({
               setModuleId(nextModuleId);
               setLessonId((currentLessonId) => {
                 if (!currentLessonId) return '';
-                const lessonStillValid = lessons.some((item) => item.id === currentLessonId && scopeMatchesLesson(item, subjectId, nextModuleId, subjects));
+                const lessonStillValid = lessons.some((item) => item.id === currentLessonId && scopeMatchesLesson(item, subjectId, nextModuleId, subjects, modules));
                 return lessonStillValid ? currentLessonId : '';
               });
             }}
@@ -242,7 +247,7 @@ export function AssetLibraryFilters({ subjects, modules, lessons, filters, total
     return filterModulesForSubject(modules, activeSubject);
   }, [activeSubject, modules]);
 
-  const visibleLessons = useMemo(() => lessons.filter((item) => scopeMatchesLesson(item, subjectId, moduleId, subjects)), [lessons, moduleId, subjectId, subjects]);
+  const visibleLessons = useMemo(() => lessons.filter((item) => scopeMatchesLesson(item, subjectId, moduleId, subjects, modules)), [lessons, moduleId, modules, subjectId, subjects]);
 
   return <div style={{ display: 'grid', gap: 14 }}>
     <form method="GET" style={{ ...cardStyle, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', alignItems: 'end' }}>
