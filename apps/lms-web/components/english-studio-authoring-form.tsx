@@ -135,6 +135,8 @@ function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}
     prompt: '',
     detail: '',
     evidence: '',
+    targetText: '',
+    supportText: '',
     expectedAnswers: '',
     tags: 'english',
     facilitatorNotes: '',
@@ -203,6 +205,7 @@ export function EnglishStudioAuthoringForm({
   const [status, setStatus] = useState<string>('draft');
   const [supportLanguage, setSupportLanguage] = useState('ha');
   const [supportLanguageLabel, setSupportLanguageLabel] = useState('Hausa');
+  const [defaultStepSupportText, setDefaultStepSupportText] = useState('');
   const [localizationNotesText, setLocalizationNotesText] = useState('Anchor examples in familiar community contexts.\nKeep prompts short and repeatable.');
   const [assessmentKind, setAssessmentKind] = useState('observational');
   const [assessmentItemsText, setAssessmentItemsText] = useState('Can the learner say one complete sentence about the topic?|spoken-response\nCan the learner use at least one target word correctly?|teacher-check');
@@ -248,6 +251,7 @@ export function EnglishStudioAuthoringForm({
     status: 'draft',
     supportLanguage: 'ha',
     supportLanguageLabel: 'Hausa',
+    defaultStepSupportText: '',
     localizationNotesText: 'Anchor examples in familiar community contexts.\nKeep prompts short and repeatable.',
     assessmentKind: 'observational',
     assessmentItemsText: 'Can the learner say one complete sentence about the topic?|spoken-response\nCan the learner use at least one target word correctly?|teacher-check',
@@ -279,10 +283,13 @@ export function EnglishStudioAuthoringForm({
   const learningObjectives = useMemo(() => [objective, `Use ${vocabulary.join(', ')} in supported speaking turns.`], [objective, vocabulary]);
   const localization = useMemo(() => ({
     locale: 'en-NG',
-    supportLanguage,
-    supportLanguageLabel,
+    supportLanguage: 'ha',
+    supportLanguageLabel: 'Hausa',
+    targetLanguage: 'en',
+    targetLanguageLabel: 'English',
+    defaultStepSupportText: defaultStepSupportText.trim() || undefined,
     notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
-  }), [supportLanguage, supportLanguageLabel, localizationNotesText]);
+  }), [defaultStepSupportText, localizationNotesText]);
   const assessmentTitle = activeAssessment?.title ?? `${title} quick check`;
   const lessonAssessment = useMemo(() => ({
     assessmentId: activeAssessment?.id ?? null,
@@ -325,11 +332,12 @@ export function EnglishStudioAuthoringForm({
     status,
     supportLanguage,
     supportLanguageLabel,
+    defaultStepSupportText,
     localizationNotesText,
     assessmentKind,
     assessmentItemsText,
     activityDrafts,
-  }), [moduleId, title, durationMinutes, mode, status, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentKind, assessmentItemsText, activityDrafts]);
+  }), [moduleId, title, durationMinutes, mode, status, supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText, assessmentKind, assessmentItemsText, activityDrafts]);
   const isDirty = currentSnapshot !== initialSnapshot;
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
@@ -545,7 +553,15 @@ export function EnglishStudioAuthoringForm({
                 Support language label
                 <input value={supportLanguageLabel} onChange={(event) => setSupportLanguageLabel(event.target.value)} style={inputStyle} />
               </FieldLabel>
+              <FieldLabel>
+                Target language
+                <input value="English" readOnly style={{ ...inputStyle, background: '#f8fafc', color: '#475569' }} />
+              </FieldLabel>
             </div>
+            <FieldLabel>
+              Default Hausa support cue for steps
+              <textarea value={defaultStepSupportText} onChange={(event) => setDefaultStepSupportText(event.target.value)} rows={3} style={inputStyle} />
+            </FieldLabel>
             <FieldLabel>
               Localization notes
               <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={inputStyle} />
@@ -729,6 +745,17 @@ export function EnglishStudioAuthoringForm({
                       <FieldLabel>
                         Expected answers
                         <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
+                      </FieldLabel>
+                    </div>
+
+                    <div style={autoFitCompactFields}>
+                      <FieldLabel>
+                        English target text
+                        <input value={activity.targetText} onChange={(event) => updateActivity(index, { targetText: event.target.value })} style={inputStyle} />
+                      </FieldLabel>
+                      <FieldLabel>
+                        Hausa support override
+                        <textarea value={activity.supportText} onChange={(event) => updateActivity(index, { supportText: event.target.value })} rows={2} style={inputStyle} />
                       </FieldLabel>
                     </div>
 

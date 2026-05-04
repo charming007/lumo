@@ -9,6 +9,8 @@ export type LessonActivityDraft = {
   durationMinutes: string;
   detail: string;
   evidence: string;
+  targetText: string;
+  supportText: string;
   expectedAnswers: string;
   tags: string;
   facilitatorNotes: string;
@@ -223,6 +225,8 @@ export function buildActivityDraftFromStep(step: LessonActivityStep, index: numb
     durationMinutes: String(step.durationMinutes ?? 2),
     detail: step.detail ?? '',
     evidence: step.evidence ?? '',
+    targetText: step.targetText ?? '',
+    supportText: step.supportText ?? '',
     expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
     tags: asArray<string>(step.tags).join(', '),
     facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
@@ -248,6 +252,8 @@ export function buildActivityStepFromDraft(draft: LessonActivityDraft, index: nu
     durationMinutes: Number(draft.durationMinutes) || 0,
     detail: draft.detail,
     evidence: draft.evidence,
+    targetText: String(draft.targetText ?? '').trim() || undefined,
+    supportText: String(draft.supportText ?? '').trim() || undefined,
     expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
     tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
     facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),

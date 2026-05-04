@@ -102,6 +102,8 @@ function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}
     durationMinutes: '2',
     detail: '',
     evidence: '',
+    targetText: '',
+    supportText: '',
     expectedAnswers: '',
     tags: '',
     facilitatorNotes: '',
@@ -267,6 +269,7 @@ export function LessonCreateForm({
   const [learningObjectivesText, setLearningObjectivesText] = useState(asArray<string>(duplicateLesson?.learningObjectives).join('\n'));
   const [supportLanguage, setSupportLanguage] = useState(String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguage ?? 'ha'));
   const [supportLanguageLabel, setSupportLanguageLabel] = useState(String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguageLabel ?? 'Hausa'));
+  const [defaultStepSupportText, setDefaultStepSupportText] = useState(String((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportText ?? ''));
   const [localizationNotesText, setLocalizationNotesText] = useState(asArray<string>((duplicateLesson?.localization as Record<string, unknown> | null)?.notes).join('\n'));
   const [assessmentTitle, setAssessmentTitle] = useState(String(duplicateLesson?.lessonAssessment?.title ?? ''));
   const [assessmentKind, setAssessmentKind] = useState(String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'));
@@ -284,6 +287,7 @@ export function LessonCreateForm({
     learningObjectivesText: asArray<string>(duplicateLesson?.learningObjectives).join('\n'),
     supportLanguage: String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguage ?? 'ha'),
     supportLanguageLabel: String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguageLabel ?? 'Hausa'),
+    defaultStepSupportText: String((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportText ?? ''),
     localizationNotesText: asArray<string>((duplicateLesson?.localization as Record<string, unknown> | null)?.notes).join('\n'),
     assessmentTitle: String(duplicateLesson?.lessonAssessment?.title ?? ''),
     assessmentKind: String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'),
@@ -299,7 +303,7 @@ export function LessonCreateForm({
   ].filter(Boolean) as string[]), [subjects.length, modules.length, filteredModules.length]);
 
   const learningObjectives = useMemo(() => learningObjectivesText.split('\n').map((item) => item.trim()).filter(Boolean), [learningObjectivesText]);
-  const localization = useMemo(() => ({ locale: 'en-NG', supportLanguage, supportLanguageLabel, notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean) }), [supportLanguage, supportLanguageLabel, localizationNotesText]);
+  const localization = useMemo(() => ({ locale: 'en-NG', supportLanguage: 'ha', supportLanguageLabel: 'Hausa', targetLanguage: 'en', targetLanguageLabel: 'English', defaultStepSupportText: defaultStepSupportText.trim() || undefined, notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean) }), [defaultStepSupportText, localizationNotesText]);
   const lessonAssessment = useMemo(() => ({
     ...(duplicateLesson?.lessonAssessment && typeof duplicateLesson.lessonAssessment === 'object' ? duplicateLesson.lessonAssessment : {}),
     title: assessmentTitle,
@@ -353,12 +357,13 @@ export function LessonCreateForm({
     learningObjectivesText,
     supportLanguage,
     supportLanguageLabel,
+    defaultStepSupportText,
     localizationNotesText,
     assessmentTitle,
     assessmentKind,
     assessmentItemsText,
     activityDrafts,
-  }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
+  }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
   const isDirty = currentSnapshot !== baselineSnapshot;
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
@@ -415,6 +420,7 @@ export function LessonCreateForm({
     setAssessmentItemsText(template.assessmentItemsText);
     setSupportLanguage(template.supportLanguage);
     setSupportLanguageLabel(template.supportLanguageLabel);
+    setDefaultStepSupportText('');
     setLocalizationNotesText(template.localizationNotesText);
     setActivityDrafts(template.activities.map((activity, index) => makeActivityDraft(index, activity)));
     setDurationMinutes(String(template.activities.reduce((sum, item) => sum + (Number(item.durationMinutes) || 0), 0) || 8));
@@ -618,7 +624,15 @@ export function LessonCreateForm({
                   Support language label
                   <input value={supportLanguageLabel} onChange={(event) => setSupportLanguageLabel(event.target.value)} style={inputStyle} />
                 </FieldLabel>
+                <FieldLabel>
+                  Target language
+                  <input value="English" readOnly style={{ ...inputStyle, background: '#f8fafc', color: '#475569' }} />
+                </FieldLabel>
               </div>
+              <FieldLabel>
+                Default Hausa support cue for steps
+                <textarea value={defaultStepSupportText} onChange={(event) => setDefaultStepSupportText(event.target.value)} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+              </FieldLabel>
               <FieldLabel>
                 Localization notes (one per line)
                 <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={{ ...inputStyle, minHeight: 144 }} />
@@ -799,6 +813,18 @@ export function LessonCreateForm({
                       {typeGuide.expectedAnswersLabel}
                       <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
                       <span style={{ color: '#64748B', fontSize: 12 }}>{typeGuide.expectedAnswersHint}</span>
+                    </FieldLabel>
+                  </div>
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      English target text
+                      <input value={activity.targetText} onChange={(event) => updateActivity(index, { targetText: event.target.value })} style={inputStyle} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>The exact English word, phrase, sentence, or answer this step is trying to teach.</span>
+                    </FieldLabel>
+                    <FieldLabel>
+                      Hausa support override
+                      <textarea value={activity.supportText} onChange={(event) => updateActivity(index, { supportText: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>Optional step-specific Hausa coaching. Leave blank to rely on the lesson default support cue.</span>
                     </FieldLabel>
                   </div>
                   <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>

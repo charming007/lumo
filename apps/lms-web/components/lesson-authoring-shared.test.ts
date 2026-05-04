@@ -87,3 +87,31 @@ test('getPreviewAssetSummary counts drag-to-match assets instead of treating the
   assert.equal(summary.readinessLabel, 'Media-backed');
   assert.deepEqual(summary.assetKinds, ['Image', 'Prompt card']);
 });
+
+
+test('buildActivityDraftsFromLesson keeps English target text and Hausa support text on the shared authoring path', () => {
+  const [draft] = buildActivityDraftsFromLesson({
+    id: 'lesson-bilingual',
+    title: 'Helpers in English',
+    durationMinutes: 8,
+    mode: 'guided',
+    status: 'draft',
+    activitySteps: [
+      {
+        id: 'step-1',
+        type: 'speak_answer',
+        title: 'Say the sentence',
+        prompt: 'Say: This is a teacher.',
+        targetText: 'This is a teacher.',
+        supportText: 'Ka fara da bayanin Hausa kafin ka sa ɗalibi ya faɗi jimlar Turanci.',
+      },
+    ],
+  });
+
+  assert.equal(draft?.targetText, 'This is a teacher.');
+  assert.equal(draft?.supportText, 'Ka fara da bayanin Hausa kafin ka sa ɗalibi ya faɗi jimlar Turanci.');
+
+  const [step] = buildActivityStepsFromDrafts([draft!]);
+  assert.equal(step?.targetText, 'This is a teacher.');
+  assert.equal(step?.supportText, 'Ka fara da bayanin Hausa kafin ka sa ɗalibi ya faɗi jimlar Turanci.');
+});

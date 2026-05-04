@@ -11,16 +11,15 @@
     "Learner can match the /a/ sound to a familiar image"
   ],
   "localization": {
-    "defaultLanguage": "en",
-    "supportedLanguages": ["en", "ha"],
-    "translations": {
-      "en": {
-        "title": "Letter A and First Sound Match"
-      },
-      "ha": {
-        "title": "Harafin A da Daidaita Sautin Farko"
-      }
-    }
+    "locale": "en-NG",
+    "supportLanguage": "ha",
+    "supportLanguageLabel": "Hausa",
+    "targetLanguage": "en",
+    "targetLanguageLabel": "English",
+    "defaultStepSupportText": "Explain the task briefly in Hausa, then model the English target once before the learner answers.",
+    "notes": [
+      "Keep Hausa support short so English still carries the learning target."
+    ]
   },
   "lessonAssessment": {
     "id": "lesson-english-phonics-001-check",
@@ -31,8 +30,14 @@
       {
         "id": "check-1",
         "prompt": "Point to the picture that starts with A.",
-        "promptTranslations": { "ha": "Nuna hoton da yake farawa da A." },
-        "choices": ["apple", "ball", "sun"],
+        "promptTranslations": {
+          "ha": "Nuna hoton da yake farawa da A."
+        },
+        "choices": [
+          "apple",
+          "ball",
+          "sun"
+        ],
         "correctChoice": "apple"
       }
     ]
@@ -45,9 +50,14 @@
       "prompt": "This is the letter A. It says /a/.",
       "hint": "Open your mouth wide and say /a/.",
       "media": [
-        { "kind": "letter-card", "value": "A" }
+        {
+          "kind": "letter-card",
+          "value": "A"
+        }
       ],
-      "successFeedback": "Good. A says /a/."
+      "successFeedback": "Good. A says /a/.",
+      "targetText": "A",
+      "supportText": "Ka nuna harafin A sannan ka sa ɗalibi ya maimaita sautin Turanci a hankali."
     },
     {
       "id": "act-2",
@@ -59,21 +69,32 @@
           "id": "apple",
           "label": "Apple",
           "isCorrect": true,
-          "media": { "kind": "image", "value": "apple" }
+          "media": {
+            "kind": "image",
+            "value": "apple"
+          }
         },
         {
           "id": "ball",
           "label": "Ball",
-          "media": { "kind": "image", "value": "ball" }
+          "media": {
+            "kind": "image",
+            "value": "ball"
+          }
         },
         {
           "id": "sun",
           "label": "Sun",
-          "media": { "kind": "image", "value": "sun" }
+          "media": {
+            "kind": "image",
+            "value": "sun"
+          }
         }
       ],
       "successFeedback": "Yes. Apple starts with /a/.",
-      "retryFeedback": "Listen again. Which word starts with /a/?"
+      "retryFeedback": "Listen again. Which word starts with /a/?",
+      "targetText": "Apple starts with /a/.",
+      "supportText": "Ka tuna wa ɗalibi cewa yana neman hoton da yake fara sauti da /a/."
     },
     {
       "id": "act-3",
@@ -85,29 +106,46 @@
           "id": "item-apple",
           "label": "Apple",
           "targetId": "target-apple",
-          "media": { "kind": "word-card", "value": "apple" }
+          "media": {
+            "kind": "word-card",
+            "value": "apple"
+          }
         },
         {
           "id": "item-ball",
           "label": "Ball",
           "targetId": "target-ball",
-          "media": { "kind": "word-card", "value": "ball" }
+          "media": {
+            "kind": "word-card",
+            "value": "ball"
+          }
         }
       ],
       "dragTargets": [
         {
           "id": "target-apple",
           "prompt": "Picture: Apple",
-          "media": { "kind": "image", "value": "apple" }
+          "media": {
+            "kind": "image",
+            "value": "apple"
+          }
         },
         {
           "id": "target-ball",
           "prompt": "Picture: Ball",
-          "media": { "kind": "image", "value": "ball" }
+          "media": {
+            "kind": "image",
+            "value": "ball"
+          }
         }
       ],
-      "expectedAnswers": ["Apple → Apple", "Ball → Ball"],
-      "successFeedback": "Nice sorting. Each word matched the right picture."
+      "expectedAnswers": [
+        "Apple → Apple",
+        "Ball → Ball"
+      ],
+      "successFeedback": "Nice sorting. Each word matched the right picture.",
+      "targetText": "Apple, Ball",
+      "supportText": "Ka bayyana a Hausa yadda za a ja kowace kalma zuwa hoton da ya dace idan ɗalibi ya makale."
     }
   ],
   "activities": [

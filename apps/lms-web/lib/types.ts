@@ -309,6 +309,8 @@ export type LessonActivityStep = {
   durationMinutes?: number;
   detail?: string;
   evidence?: string;
+  targetText?: string;
+  supportText?: string;
   expectedAnswers?: string[];
   media?: LessonActivityMedia[];
   choices?: LessonActivityChoice[];
@@ -339,7 +341,16 @@ export type Lesson = {
   targetAgeRange?: string | null;
   voicePersona?: string | null;
   learningObjectives?: string[];
-  localization?: Record<string, unknown> | null;
+  localization?: {
+    locale?: string;
+    supportLanguage?: 'ha';
+    supportLanguageLabel?: 'Hausa';
+    targetLanguage?: 'en';
+    targetLanguageLabel?: 'English';
+    defaultStepSupportText?: string;
+    notes?: string[];
+    [key: string]: unknown;
+  } | null;
   lessonAssessment?: {
     title?: string;
     kind?: string;

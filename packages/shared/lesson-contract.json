@@ -17,6 +17,18 @@
     },
     "localization": {
       "type": ["object", "null"],
+      "properties": {
+        "locale": { "type": ["string", "null"] },
+        "supportLanguage": { "type": ["string", "null"], "enum": ["ha", null] },
+        "supportLanguageLabel": { "type": ["string", "null"] },
+        "targetLanguage": { "type": ["string", "null"], "enum": ["en", null] },
+        "targetLanguageLabel": { "type": ["string", "null"] },
+        "defaultStepSupportText": { "type": ["string", "null"] },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
       "additionalProperties": true
     },
     "lessonAssessment": {
@@ -56,6 +68,8 @@
         },
         "prompt": { "type": "string" },
         "hint": { "type": "string" },
+        "targetText": { "type": "string" },
+        "supportText": { "type": "string" },
         "expectedAnswers": {
           "type": "array",
           "items": { "type": "string" }

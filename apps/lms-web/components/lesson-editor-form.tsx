@@ -137,6 +137,8 @@ function makeActivityDraftBase(index: number, overrides: Partial<{
     durationMinutes: '2',
     detail: '',
     evidence: '',
+    targetText: '',
+    supportText: '',
     expectedAnswers: '',
     tags: '',
     facilitatorNotes: '',
@@ -222,6 +224,7 @@ export function LessonEditorForm({
   const [learningObjectivesText, setLearningObjectivesText] = useState(asArray<string>(lesson.learningObjectives).join('\n'));
   const [supportLanguage, setSupportLanguage] = useState(String(lesson.localization?.supportLanguage ?? 'ha'));
   const [supportLanguageLabel, setSupportLanguageLabel] = useState(String(lesson.localization?.supportLanguageLabel ?? 'Hausa'));
+  const [defaultStepSupportText, setDefaultStepSupportText] = useState(String(lesson.localization?.defaultStepSupportText ?? ''));
   const [localizationNotesText, setLocalizationNotesText] = useState(asArray<string>(lesson.localization?.notes).join('\n'));
   const [assessmentTitle, setAssessmentTitle] = useState(String(lesson.lessonAssessment?.title ?? ''));
   const [assessmentKind, setAssessmentKind] = useState(String(lesson.lessonAssessment?.kind ?? 'observational'));
@@ -248,6 +251,7 @@ export function LessonEditorForm({
     learningObjectivesText: asArray<string>(lesson.learningObjectives).join('\n'),
     supportLanguage: String(lesson.localization?.supportLanguage ?? 'ha'),
     supportLanguageLabel: String(lesson.localization?.supportLanguageLabel ?? 'Hausa'),
+    defaultStepSupportText: String(lesson.localization?.defaultStepSupportText ?? ''),
     localizationNotesText: asArray<string>(lesson.localization?.notes).join('\n'),
     assessmentTitle: String(lesson.lessonAssessment?.title ?? ''),
     assessmentKind: String(lesson.lessonAssessment?.kind ?? 'observational'),
@@ -286,11 +290,14 @@ export function LessonEditorForm({
   const localization = useMemo(
     () => ({
       locale: String(lesson.localization?.locale ?? 'en-NG'),
-      supportLanguage,
-      supportLanguageLabel,
+      supportLanguage: 'ha',
+      supportLanguageLabel: 'Hausa',
+      targetLanguage: 'en',
+      targetLanguageLabel: 'English',
+      defaultStepSupportText: defaultStepSupportText.trim() || undefined,
       notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
     }),
-    [lesson.localization?.locale, supportLanguage, supportLanguageLabel, localizationNotesText],
+    [lesson.localization?.locale, defaultStepSupportText, localizationNotesText],
   );
 
   const lessonAssessment = useMemo(
@@ -357,12 +364,13 @@ export function LessonEditorForm({
     learningObjectivesText,
     supportLanguage,
     supportLanguageLabel,
+    defaultStepSupportText,
     localizationNotesText,
     assessmentTitle,
     assessmentKind,
     assessmentItemsText,
     activityDrafts,
-  }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
+  }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
   const isDirty = currentSnapshot !== initialSnapshot;
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
@@ -637,7 +645,15 @@ export function LessonEditorForm({
                   Support language label
                   <input value={supportLanguageLabel} onChange={(event) => setSupportLanguageLabel(event.target.value)} style={inputStyle} />
                 </FieldLabel>
+                <FieldLabel>
+                  Target language
+                  <input value="English" readOnly style={{ ...inputStyle, background: '#f8fafc', color: '#475569' }} />
+                </FieldLabel>
               </div>
+              <FieldLabel>
+                Default Hausa support cue for steps
+                <textarea value={defaultStepSupportText} onChange={(event) => setDefaultStepSupportText(event.target.value)} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+              </FieldLabel>
               <FieldLabel>
                 Localization notes (one per line)
                 <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={{ ...inputStyle, minHeight: 144 }} />
@@ -822,6 +838,19 @@ export function LessonEditorForm({
                       {typeGuide.expectedAnswersLabel}
                       <input value={activity.expectedAnswers} onChange={(event) => updateActivity(index, { expectedAnswers: event.target.value })} style={inputStyle} />
                       <FieldHint>{typeGuide.expectedAnswersHint}</FieldHint>
+                    </FieldLabel>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      English target text
+                      <input value={activity.targetText} onChange={(event) => updateActivity(index, { targetText: event.target.value })} style={inputStyle} />
+                      <FieldHint>The exact English word, phrase, sentence, or answer this step is trying to teach.</FieldHint>
+                    </FieldLabel>
+                    <FieldLabel>
+                      Hausa support override
+                      <textarea value={activity.supportText} onChange={(event) => updateActivity(index, { supportText: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+                      <FieldHint>Optional step-specific Hausa coaching. Leave blank to rely on the lesson default support cue.</FieldHint>
                     </FieldLabel>
                   </div>
 
