@@ -103,12 +103,27 @@ class LessonActivityDragTarget {
   final String prompt;
   final List<LessonActivityMedia> mediaItems;
 
-  const LessonActivityDragTarget({required this.id, required this.prompt, this.mediaItems = const []});
+  const LessonActivityDragTarget(
+      {required this.id, required this.prompt, this.mediaItems = const []});
 
   factory LessonActivityDragTarget.fromBackend(Map<String, dynamic> json) {
     final media = json['media'];
-    final mediaItems = media is List ? media.whereType<Map>().map((item) => LessonActivityMedia.fromBackend(Map<String, dynamic>.from(item))).toList() : media is Map ? [LessonActivityMedia.fromBackend(Map<String, dynamic>.from(media))] : const <LessonActivityMedia>[];
-    return LessonActivityDragTarget(id: json['id']?.toString() ?? 'target', prompt: json['prompt']?.toString() ?? 'Drag here', mediaItems: mediaItems);
+    final mediaItems = media is List
+        ? media
+            .whereType<Map>()
+            .map((item) => LessonActivityMedia.fromBackend(
+                Map<String, dynamic>.from(item)))
+            .toList()
+        : media is Map
+            ? [
+                LessonActivityMedia.fromBackend(
+                    Map<String, dynamic>.from(media))
+              ]
+            : const <LessonActivityMedia>[];
+    return LessonActivityDragTarget(
+        id: json['id']?.toString() ?? 'target',
+        prompt: json['prompt']?.toString() ?? 'Drag here',
+        mediaItems: mediaItems);
   }
 }
 
@@ -118,12 +133,31 @@ class LessonActivityDragItem {
   final String targetId;
   final List<LessonActivityMedia> mediaItems;
 
-  const LessonActivityDragItem({required this.id, required this.label, required this.targetId, this.mediaItems = const []});
+  const LessonActivityDragItem(
+      {required this.id,
+      required this.label,
+      required this.targetId,
+      this.mediaItems = const []});
 
   factory LessonActivityDragItem.fromBackend(Map<String, dynamic> json) {
     final media = json['media'];
-    final mediaItems = media is List ? media.whereType<Map>().map((item) => LessonActivityMedia.fromBackend(Map<String, dynamic>.from(item))).toList() : media is Map ? [LessonActivityMedia.fromBackend(Map<String, dynamic>.from(media))] : const <LessonActivityMedia>[];
-    return LessonActivityDragItem(id: json['id']?.toString() ?? 'item', label: json['label']?.toString() ?? 'Card', targetId: json['targetId']?.toString() ?? '', mediaItems: mediaItems);
+    final mediaItems = media is List
+        ? media
+            .whereType<Map>()
+            .map((item) => LessonActivityMedia.fromBackend(
+                Map<String, dynamic>.from(item)))
+            .toList()
+        : media is Map
+            ? [
+                LessonActivityMedia.fromBackend(
+                    Map<String, dynamic>.from(media))
+              ]
+            : const <LessonActivityMedia>[];
+    return LessonActivityDragItem(
+        id: json['id']?.toString() ?? 'item',
+        label: json['label']?.toString() ?? 'Card',
+        targetId: json['targetId']?.toString() ?? '',
+        mediaItems: mediaItems);
   }
 }
 
@@ -1045,7 +1079,8 @@ class LessonSessionState {
   Map<String, dynamic> syncPayloadPreview({
     required String learnerCode,
     String? studentId,
-  }) => {
+  }) =>
+      {
         'sessionId': sessionId,
         if (studentId != null && studentId.trim().isNotEmpty)
           'studentId': studentId,
@@ -1293,7 +1328,8 @@ class RegistrationContext {
 
   String get summary {
     if (tabletRegistration != null) {
-      final pod = tabletRegistration!.podLabel ?? tabletRegistration!.podId ?? 'Pod';
+      final pod =
+          tabletRegistration!.podLabel ?? tabletRegistration!.podId ?? 'Pod';
       final mallam = tabletRegistration!.mallamName;
       if (mallam != null && mallam.isNotEmpty) return '$pod • $mallam';
       return pod;
@@ -1479,6 +1515,58 @@ List<LessonStep> _readBackendActivitySteps(Map<String, dynamic> json) {
   return items.map(_lessonStepFromBackend).toList();
 }
 
+String _normalizedBackendDragId(Object? value, String fallback) {
+  final text = value?.toString().trim() ?? '';
+  return text.isEmpty ? fallback : text;
+}
+
+List<LessonActivityDragTarget> _dragTargetsFromBackend(List? rawTargets) {
+  if (rawTargets == null) return const <LessonActivityDragTarget>[];
+  return rawTargets.whereType<Map>().toList().asMap().entries.map((entry) {
+    final index = entry.key;
+    final item = Map<String, dynamic>.from(entry.value);
+    final target = LessonActivityDragTarget.fromBackend(item);
+    final normalizedId = _normalizedBackendDragId(
+      item['id'],
+      'target-${index + 1}',
+    );
+    return LessonActivityDragTarget(
+      id: normalizedId,
+      prompt: target.prompt,
+      mediaItems: target.mediaItems,
+    );
+  }).toList();
+}
+
+List<LessonActivityDragItem> _dragItemsFromBackend(
+  List? rawItems,
+  List<LessonActivityDragTarget> dragTargets,
+) {
+  if (rawItems == null) return const <LessonActivityDragItem>[];
+  final rawTargetIds = dragTargets.asMap().map(
+        (index, target) => MapEntry(index, target.id),
+      );
+  return rawItems.whereType<Map>().toList().asMap().entries.map((entry) {
+    final index = entry.key;
+    final item = Map<String, dynamic>.from(entry.value);
+    final dragItem = LessonActivityDragItem.fromBackend(item);
+    final normalizedId = _normalizedBackendDragId(
+      item['id'],
+      'item-${index + 1}',
+    );
+    final explicitTargetId = item['targetId']?.toString().trim() ?? '';
+    final normalizedTargetId = explicitTargetId.isNotEmpty
+        ? explicitTargetId
+        : (rawTargetIds[index] ?? '');
+    return LessonActivityDragItem(
+      id: normalizedId,
+      label: dragItem.label,
+      targetId: normalizedTargetId,
+      mediaItems: dragItem.mediaItems,
+    );
+  }).toList();
+}
+
 LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
   final typeValue = json['type']?.toString() ?? 'listen_repeat';
   final activityType = _lessonActivityTypeFromBackend(typeValue);
@@ -1494,8 +1582,11 @@ LessonStep _lessonStepFromBackend(Map<String, dynamic> json) {
               ))
           .toList() ??
       const <LessonActivityChoice>[];
-  final dragItems = (json['dragItems'] as List?)?.whereType<Map>().map((item) => LessonActivityDragItem.fromBackend(Map<String, dynamic>.from(item))).toList() ?? const <LessonActivityDragItem>[];
-  final dragTargets = (json['dragTargets'] as List?)?.whereType<Map>().map((item) => LessonActivityDragTarget.fromBackend(Map<String, dynamic>.from(item))).toList() ?? const <LessonActivityDragTarget>[];
+  final dragTargets = _dragTargetsFromBackend(json['dragTargets'] as List?);
+  final dragItems = _dragItemsFromBackend(
+    json['dragItems'] as List?,
+    dragTargets,
+  );
   final mediaItems = (json['media'] as List?)
           ?.whereType<Map>()
           .map((item) => LessonActivityMedia.fromBackend(

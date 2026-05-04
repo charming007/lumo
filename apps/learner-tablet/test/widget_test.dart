@@ -4633,6 +4633,84 @@ void main() {
   });
 
   testWidgets(
+      'drag to match keeps wrong backend-id-fallback placements blocked',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final lesson = LessonCardModel.fromBackend({
+      'id': 'drag-match-backend-fallbacks',
+      'moduleId': 'english',
+      'title': 'Drag to match backend fallbacks',
+      'subject': 'English',
+      'durationMinutes': 5,
+      'status': 'Assigned',
+      'mascotName': 'Mallam',
+      'readinessFocus': 'Wrong placements should stay blocked.',
+      'scenario':
+          'Backend payload omits drag ids, so runtime must synthesize stable ones.',
+      'activitySteps': [
+        {
+          'id': 'drag-step-1',
+          'type': 'drag_to_match',
+          'prompt': 'Match each fruit card to the right basket.',
+          'dragItems': [
+            {'label': 'Apple'},
+            {'label': 'Banana'},
+          ],
+          'dragTargets': [
+            {'prompt': 'Red basket'},
+            {'prompt': 'Yellow basket'},
+          ],
+        },
+      ],
+    });
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId));
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(MaterialApp(
+        home:
+            LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
+    await pumpForUi(tester);
+
+    final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    Future<void> dragCardToPrompt(String cardLabel, String promptText) async {
+      final card = find.text(cardLabel).first;
+      final target = find.text(promptText).first;
+      final gesture = await tester.startGesture(tester.getCenter(card));
+      await tester.pump(const Duration(milliseconds: 650));
+      await gesture.moveTo(tester.getCenter(target));
+      await tester.pump();
+      await gesture.up();
+      await pumpForUi(tester);
+    }
+
+    await dragCardToPrompt('Apple', 'Yellow basket');
+    await dragCardToPrompt('Banana', 'Red basket');
+
+    expect(find.textContaining('Incorrect match:'), findsNWidgets(2));
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    await dragCardToPrompt('Apple', 'Red basket');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    await dragCardToPrompt('Banana', 'Yellow basket');
+    expect(find.textContaining('Incorrect match:'), findsNothing);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+
+    state.dispose();
+  });
+
+  testWidgets(
       'drag to match gates CTA until every card lands in the correct zone',
       (tester) async {
     tester.view.physicalSize = const Size(1280, 900);

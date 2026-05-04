@@ -4413,6 +4413,46 @@ void main() {
       );
     });
 
+    test('backend drag to match parsing synthesizes stable ids when omitted',
+        () {
+      final lesson = LessonCardModel.fromBackend({
+        'id': 'backend-drag-match-fallbacks',
+        'moduleId': 'english',
+        'title': 'Backend drag match fallbacks',
+        'subject': 'English',
+        'durationMinutes': 5,
+        'status': 'published',
+        'mascotName': 'Mallam',
+        'readinessFocus': 'Backend drag fallback parsing',
+        'scenario': 'Missing ids should not collapse distinct drag zones.',
+        'activitySteps': [
+          {
+            'id': 'backend-drag-step-2',
+            'type': 'drag_to_match',
+            'prompt': 'Match each card.',
+            'dragItems': [
+              {'label': 'Apple'},
+              {'label': 'Banana'},
+            ],
+            'dragTargets': [
+              {'prompt': 'Red basket'},
+              {'prompt': 'Yellow basket'},
+            ],
+          },
+        ],
+      });
+
+      final activity = lesson.steps.first.activity!;
+      expect(activity.dragItems, hasLength(2));
+      expect(activity.dragTargets, hasLength(2));
+      expect(activity.dragItems.first.id, 'item-1');
+      expect(activity.dragItems.last.id, 'item-2');
+      expect(activity.dragTargets.first.id, 'target-1');
+      expect(activity.dragTargets.last.id, 'target-2');
+      expect(activity.dragItems.first.targetId, 'target-1');
+      expect(activity.dragItems.last.targetId, 'target-2');
+    });
+
     test(
       'creates local rewards for seed learners after lesson completion',
       () async {

@@ -8207,6 +8207,17 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     return null;
   }
 
+  bool _dragPlacementIsCorrect(
+    LessonActivity activity,
+    LessonActivityDragTarget target,
+  ) {
+    final matchedItem = activity.dragItems
+        .where((item) => _dragPlacements[item.id] == target.id)
+        .cast<LessonActivityDragItem?>()
+        .firstWhere((item) => item != null, orElse: () => null);
+    return matchedItem != null && matchedItem.targetId == target.id;
+  }
+
   bool _dragMatchesComplete(LessonActivity activity) {
     if (activity.dragItems.isEmpty || activity.dragTargets.isEmpty) {
       return false;
@@ -8341,20 +8352,57 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             children: activity.dragItems.map((item) {
               final placed = _dragPlacements.containsKey(item.id);
               final selected = _selectedDragItemId == item.id;
+              void selectCard() {
+                setState(() {
+                  _selectedDragItemId = selected ? null : item.id;
+                  microphoneStatus = _selectedDragItemId == null
+                      ? 'Card selection cleared.'
+                      : 'Card selected. Tap the matching target zone.';
+                });
+              }
+
+              if (kIsWeb) {
+                return SizedBox(
+                  key: ValueKey('drag-item-${item.id}'),
+                  width: 180,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Draggable<String>(
+                        data: item.id,
+                        feedback: SizedBox(
+                            width: 180,
+                            child: Material(
+                                color: Colors.transparent,
+                                child:
+                                    _buildDragItemCard(item, feedback: true))),
+                        childWhenDragging: SizedBox(
+                            width: 180,
+                            child: _buildDragItemCard(item, placed: true)),
+                        child: SizedBox(
+                            width: 180,
+                            child: _buildDragItemCard(item,
+                                placed: placed, selected: selected)),
+                      ),
+                      if (!placed) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: selectCard,
+                          child: Text(
+                              selected ? 'Clear selection' : 'Tap to select'),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }
+
               return GestureDetector(
                 key: ValueKey('drag-item-${item.id}'),
-                onTap: placed
-                    ? null
-                    : () {
-                        setState(() {
-                          _selectedDragItemId = selected ? null : item.id;
-                          microphoneStatus = _selectedDragItemId == null
-                              ? 'Card selection cleared.'
-                              : 'Card selected. Tap the matching target zone.';
-                        });
-                      },
+                onTap: placed ? null : selectCard,
                 child: LongPressDraggable<String>(
                   data: item.id,
+                  delay: const Duration(milliseconds: 500),
                   feedback: SizedBox(
                       width: 180,
                       child: Material(
@@ -8397,6 +8445,10 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               },
               builder: (context, candidateData, rejectedData) {
                 final isHot = candidateData.isNotEmpty;
+                final isCorrectPlacement = matchedItem != null &&
+                    _dragPlacementIsCorrect(activity, target);
+                final isIncorrectPlacement =
+                    matchedItem != null && !isCorrectPlacement;
                 return GestureDetector(
                   key: ValueKey('drag-target-${target.id}'),
                   onTap: _selectedDragItemId == null
@@ -8420,16 +8472,20 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                        color: matchedItem != null
-                            ? const Color(0xFFECFDF5)
-                            : Colors.white,
+                        color: isIncorrectPlacement
+                            ? const Color(0xFFFEF2F2)
+                            : matchedItem != null
+                                ? const Color(0xFFECFDF5)
+                                : Colors.white,
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
                             color: isHot
                                 ? const Color(0xFF14B8A6)
-                                : matchedItem != null
-                                    ? const Color(0xFF34D399)
-                                    : const Color(0xFFD7E3FF),
+                                : isIncorrectPlacement
+                                    ? const Color(0xFFEF4444)
+                                    : matchedItem != null
+                                        ? const Color(0xFF34D399)
+                                        : const Color(0xFFD7E3FF),
                             width: isHot ? 3 : 1.5)),
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -8440,10 +8496,26 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                   fontWeight: FontWeight.w800, fontSize: 17)),
                           if (matchedItem != null) ...[
                             const SizedBox(height: 10),
-                            Text('Matched card: ${matchedItem.label}',
-                                style: const TextStyle(
-                                    color: Color(0xFF047857),
-                                    fontWeight: FontWeight.w800))
+                            Text(
+                                isIncorrectPlacement
+                                    ? 'Incorrect match: ${matchedItem.label}'
+                                    : 'Matched card: ${matchedItem.label}',
+                                style: TextStyle(
+                                    color: isIncorrectPlacement
+                                        ? const Color(0xFFB91C1C)
+                                        : const Color(0xFF047857),
+                                    fontWeight: FontWeight.w800)),
+                            if (isIncorrectPlacement)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 6),
+                                child: Text(
+                                  'Move this card to the correct target before continuing.',
+                                  style: TextStyle(
+                                    color: Color(0xFFB91C1C),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )
                           ] else ...[
                             const SizedBox(height: 8),
                             Text(
