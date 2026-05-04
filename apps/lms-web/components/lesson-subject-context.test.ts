@@ -29,5 +29,6 @@ test('lesson authoring forms keep same-route subject recovery normalized after c
     assert.match(source, /const nextModuleId = filteredModules\.some\(\(module\) => module\.id === moduleId\)\s+\? moduleId\s+:/s);
     assert.match(source, /setModuleId\(nextModuleId\);/);
     assert.match(source, /const nextSubject = findSubjectByContext\(subjects, \{ subjectId: next \}\) \?\? null;/);
+    assert.match(source, /subjectName=\{activeSubject\?\.name\}/, 'authoring forms should pass the recovered subject name into asset pickers for drift-safe scope ranking');
   }
 });

@@ -849,6 +849,7 @@ export function LessonEditorForm({
                     activitySteps={activitySteps}
                     assets={assets}
                     subjectId={subjectId}
+                    subjectName={activeSubject?.name}
                     moduleId={moduleId}
                     lessonId={lesson.id}
                     onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
@@ -861,6 +862,7 @@ export function LessonEditorForm({
                     mediaLines={activity.mediaLines}
                     assets={assets}
                     subjectId={subjectId}
+                    subjectName={activeSubject?.name}
                     moduleId={moduleId}
                     lessonId={lesson.id}
                     onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}

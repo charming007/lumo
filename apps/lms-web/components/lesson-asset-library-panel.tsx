@@ -218,10 +218,22 @@ function getPreferredAssetValue(asset: LessonAsset) {
   return asset.fileUrl ?? asset.storagePath ?? asset.fileName ?? asset.id;
 }
 
-function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string) {
+function normalizeScopeValue(value?: string | null) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string, subjectName?: string) {
   if (lessonId && asset.lessonId === lessonId) return 0;
   if (moduleId && asset.moduleId === moduleId) return 1;
-  if (subjectId && asset.subjectId === subjectId) return 2;
+
+  const normalizedSubjectId = normalizeScopeValue(subjectId);
+  const normalizedAssetSubjectId = normalizeScopeValue(asset.subjectId);
+  if (normalizedSubjectId && normalizedAssetSubjectId && normalizedAssetSubjectId === normalizedSubjectId) return 2;
+
+  const normalizedSubjectName = normalizeScopeValue(subjectName);
+  const normalizedAssetSubjectName = normalizeScopeValue(asset.subjectName);
+  if (normalizedSubjectName && normalizedAssetSubjectName && normalizedAssetSubjectName === normalizedSubjectName) return 2;
+
   if (!asset.subjectId && !asset.moduleId && !asset.lessonId) return 3;
   return 4;
 }
@@ -245,6 +257,7 @@ export function LessonAssetLibraryPanel({
   activitySteps,
   assets,
   subjectId,
+  subjectName,
   moduleId,
   lessonId,
   onMediaLinesChange,
@@ -256,6 +269,7 @@ export function LessonAssetLibraryPanel({
   activitySteps: LessonActivityStep[];
   assets: LessonAsset[];
   subjectId?: string;
+  subjectName?: string;
   moduleId?: string;
   lessonId?: string;
   onMediaLinesChange: (value: string) => void;
@@ -270,7 +284,7 @@ export function LessonAssetLibraryPanel({
     .filter((asset) => Boolean(getPreferredAssetValue(asset)))
     .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
     .filter((asset) => {
-      const scopeRank = getScopeRank(asset, lessonId, moduleId, subjectId);
+      const scopeRank = getScopeRank(asset, lessonId, moduleId, subjectId, subjectName);
       if (scopeFilter === 'scoped') return scopeRank <= 2;
       if (scopeFilter === 'shared') return scopeRank === 3;
       return true;
@@ -290,10 +304,10 @@ export function LessonAssetLibraryPanel({
       ].filter(Boolean).join(' ').toLowerCase().includes(normalizedQuery);
     })
     .sort((left, right) => {
-      const scopeDiff = getScopeRank(left, lessonId, moduleId, subjectId) - getScopeRank(right, lessonId, moduleId, subjectId);
+      const scopeDiff = getScopeRank(left, lessonId, moduleId, subjectId, subjectName) - getScopeRank(right, lessonId, moduleId, subjectId, subjectName);
       if (scopeDiff !== 0) return scopeDiff;
       return left.title.localeCompare(right.title);
-    }), [assets, kindFilter, lessonId, moduleId, normalizedQuery, scopeFilter, stepType, subjectId]);
+    }), [assets, kindFilter, lessonId, moduleId, normalizedQuery, scopeFilter, stepType, subjectId, subjectName]);
 
   const supportedKinds = useMemo(() => Array.from(new Set(assets
     .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
@@ -316,9 +330,9 @@ export function LessonAssetLibraryPanel({
       linkedAssetCount: linkedValues.length,
       uniqueLinkedAssetCount: new Set(linkedValues).size,
       availableAssetCount: assets.length,
-      scopedAssetCount: assets.filter((asset) => getScopeRank(asset, lessonId, moduleId, subjectId) <= 2).length,
+      scopedAssetCount: assets.filter((asset) => getScopeRank(asset, lessonId, moduleId, subjectId, subjectName) <= 2).length,
     };
-  }, [activitySteps, assets, lessonId, moduleId, subjectId]);
+  }, [activitySteps, assets, lessonId, moduleId, subjectId, subjectName]);
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -372,7 +386,7 @@ export function LessonAssetLibraryPanel({
               <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
                 {visibleAssets.length ? visibleAssets.map((asset) => {
                   const preferredValue = getPreferredAssetValue(asset);
-                  const scopeRank = getScopeRank(asset, lessonId, moduleId, subjectId);
+                  const scopeRank = getScopeRank(asset, lessonId, moduleId, subjectId, subjectName);
                   const scopeLabel = scopeLabelForAsset(asset, scopeRank);
 
                   return (

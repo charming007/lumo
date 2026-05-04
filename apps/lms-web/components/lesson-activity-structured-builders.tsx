@@ -50,6 +50,7 @@ type Props = {
   mediaLines: string;
   assets?: LessonAsset[];
   subjectId?: string;
+  subjectName?: string;
   moduleId?: string;
   lessonId?: string;
   onChoiceLinesChange: (value: string) => void;
@@ -442,10 +443,22 @@ function getPreferredAssetValue(asset: LessonAsset) {
   return asset.fileUrl ?? asset.storagePath ?? asset.fileName ?? asset.id;
 }
 
-function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string) {
+function normalizeScopeValue(value?: string | null) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function getScopeRank(asset: LessonAsset, lessonId?: string, moduleId?: string, subjectId?: string, subjectName?: string) {
   if (lessonId && asset.lessonId === lessonId) return 0;
   if (moduleId && asset.moduleId === moduleId) return 1;
-  if (subjectId && asset.subjectId === subjectId) return 2;
+
+  const normalizedSubjectId = normalizeScopeValue(subjectId);
+  const normalizedAssetSubjectId = normalizeScopeValue(asset.subjectId);
+  if (normalizedSubjectId && normalizedAssetSubjectId && normalizedAssetSubjectId === normalizedSubjectId) return 2;
+
+  const normalizedSubjectName = normalizeScopeValue(subjectName);
+  const normalizedAssetSubjectName = normalizeScopeValue(asset.subjectName);
+  if (normalizedSubjectName && normalizedAssetSubjectName && normalizedAssetSubjectName === normalizedSubjectName) return 2;
+
   if (!asset.subjectId && !asset.moduleId && !asset.lessonId) return 3;
   return 4;
 }
@@ -508,6 +521,7 @@ function InlineAssetPicker({
   assets,
   stepType,
   subjectId,
+  subjectName,
   moduleId,
   lessonId,
   selectedKind,
@@ -519,6 +533,7 @@ function InlineAssetPicker({
   assets: LessonAsset[];
   stepType: string;
   subjectId?: string;
+  subjectName?: string;
   moduleId?: string;
   lessonId?: string;
   selectedKind: string;
@@ -535,7 +550,7 @@ function InlineAssetPicker({
   const visibleAssets = useMemo(() => assets
     .filter((asset) => Boolean(getPreferredAssetValue(asset)))
     .filter((asset) => stepSupportsAssetKind(stepType, asset.kind))
-    .filter((asset) => scopeFilter === 'all' ? true : scopeFilter === 'shared' ? getScopeRank(asset, lessonId, moduleId, subjectId) === 3 : getScopeRank(asset, lessonId, moduleId, subjectId) <= 2)
+    .filter((asset) => scopeFilter === 'all' ? true : scopeFilter === 'shared' ? getScopeRank(asset, lessonId, moduleId, subjectId, subjectName) === 3 : getScopeRank(asset, lessonId, moduleId, subjectId, subjectName) <= 2)
     .filter((asset) => kindFilter === 'all' ? true : normalizeLessonAssetKind(asset.kind) === kindFilter)
     .filter((asset) => {
       const haystack = [asset.title, asset.description, asset.kind, asset.subjectName, asset.moduleTitle, asset.lessonTitle, asset.fileName, asset.storagePath, ...(asset.tags ?? [])]
@@ -544,7 +559,7 @@ function InlineAssetPicker({
         .toLowerCase();
       return !query.trim() || haystack.includes(query.trim().toLowerCase());
     })
-    .sort((left, right) => left.title.localeCompare(right.title)), [assets, kindFilter, query, scopeFilter, stepType]);
+    .sort((left, right) => left.title.localeCompare(right.title)), [assets, kindFilter, lessonId, moduleId, query, scopeFilter, stepType, subjectId, subjectName]);
   const supportedKinds = useMemo(() => Array.from(new Set(assets.filter((asset) => stepSupportsAssetKind(stepType, asset.kind)).map((asset) => normalizeLessonAssetKind(asset.kind)))).sort((a, b) => a.localeCompare(b)), [assets, stepType]);
 
   return (
@@ -574,7 +589,7 @@ function InlineAssetPicker({
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <strong style={{ color: '#0F172A' }}>{currentAsset.title}</strong>
                 <span style={helperPillStyle}>{getLessonAssetKindLabel(currentAsset.kind)}</span>
-                <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(currentAsset, getScopeRank(currentAsset, lessonId, moduleId, subjectId))}</span>
+                <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(currentAsset, getScopeRank(currentAsset, lessonId, moduleId, subjectId, subjectName))}</span>
               </div>
               {currentAsset.description ? <div style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>{currentAsset.description}</div> : null}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: '#64748B' }}>
@@ -615,7 +630,7 @@ function InlineAssetPicker({
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <strong style={{ color: '#0F172A' }}>{asset.title}</strong>
                       <span style={helperPillStyle}>{getLessonAssetKindLabel(asset.kind)}</span>
-                      <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(asset, getScopeRank(asset, lessonId, moduleId, subjectId))}</span>
+                      <span style={{ ...helperPillStyle, background: '#E2E8F0', color: '#334155' }}>{scopeLabelForAsset(asset, getScopeRank(asset, lessonId, moduleId, subjectId, subjectName))}</span>
                     </div>
                     {asset.description ? <div style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>{asset.description}</div> : null}
                     <div style={{ fontSize: 12, color: '#64748B', wordBreak: 'break-word' }}>{preferredValue}</div>
@@ -993,6 +1008,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
                         assets={pickerAssets}
                         stepType={builderType}
                         subjectId={props.subjectId}
+                        subjectName={props.subjectName}
                         moduleId={props.moduleId}
                         lessonId={props.lessonId}
                         selectedKind={row.mediaKind}
@@ -1076,6 +1092,7 @@ export function LessonActivityStructuredBuilders(props: Props) {
                         assets={pickerAssets}
                         stepType={builderType}
                         subjectId={props.subjectId}
+                        subjectName={props.subjectName}
                         moduleId={props.moduleId}
                         lessonId={props.lessonId}
                         selectedKind={row.mediaKind}
