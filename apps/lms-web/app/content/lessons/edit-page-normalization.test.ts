@@ -5,7 +5,17 @@ import { fileURLToPath } from 'node:url';
 
 const editPageSource = readFileSync(fileURLToPath(new URL('./[id]/page.tsx', import.meta.url)), 'utf8');
 
-test('lesson edit page normalizes fulfilled module, subject, and assessment payloads before using array methods', () => {
+test('lesson edit page normalizes fulfilled lesson, module, subject, and assessment payloads before using array methods', () => {
+  assert.match(
+    editPageSource,
+    /normalizeLessonsForAuthoring\(lessonsResult\.status === 'fulfilled' \? lessonsResult\.value : \[\]\)/,
+    'edit page should sanitize fulfilled lesson inventory payloads before trying to .find the fallback lesson',
+  );
+  assert.match(
+    editPageSource,
+    /const fallbackInventoryLesson = inventoryLessons\.find\(\(entry\) => entry\.id === id\) \?\? null;/,
+    'edit page should search the normalized inventory lessons instead of calling .find on raw feed payloads',
+  );
   assert.match(
     editPageSource,
     /normalizeModulesForAuthoring\(modulesResult\.status === 'fulfilled' \? modulesResult\.value : \[\]\)/,
@@ -20,5 +30,18 @@ test('lesson edit page normalizes fulfilled module, subject, and assessment payl
     editPageSource,
     /normalizeAssessmentsForAuthoring\(assessmentsResult\.status === 'fulfilled' \? assessmentsResult\.value : \[\]\)/,
     'edit page should sanitize fulfilled assessment payloads before filtering linked module assessments',
+  );
+});
+
+test('lesson edit page remounts the editor form when lesson or launch context changes on the same route', () => {
+  assert.match(
+    editPageSource,
+    /const lessonEditorFormKey = \[/,
+    'edit page should derive a stable remount key for same-route lesson/context changes',
+  );
+  assert.match(
+    editPageSource,
+    /<LessonEditorForm\s+key=\{lessonEditorFormKey\}/,
+    'edit page should key the editor form so stale authoring state does not leak across same-route lesson transitions',
   );
 });

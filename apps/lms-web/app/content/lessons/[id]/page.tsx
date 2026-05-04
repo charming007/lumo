@@ -7,6 +7,7 @@ import {
   normalizeAssessmentsForAuthoring,
   normalizeLessonAssetsForAuthoring,
   normalizeLessonForAuthoring,
+  normalizeLessonsForAuthoring,
   normalizeModulesForAuthoring,
   normalizeSubjectsForAuthoring,
 } from '../../../../lib/lesson-authoring-normalize';
@@ -97,9 +98,8 @@ export default async function LessonStudioEditPage({
     fetchLessonAssets(),
   ]);
 
-  const fallbackInventoryLesson = lessonsResult.status === 'fulfilled'
-    ? lessonsResult.value.find((entry) => entry.id === id) ?? null
-    : null;
+  const { items: inventoryLessons, issues: lessonInventoryPayloadIssues } = normalizeLessonsForAuthoring(lessonsResult.status === 'fulfilled' ? lessonsResult.value : []);
+  const fallbackInventoryLesson = inventoryLessons.find((entry) => entry.id === id) ?? null;
   const rawLesson = lessonResult.status === 'fulfilled' ? lessonResult.value : fallbackInventoryLesson;
   const { lesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(rawLesson);
   const lessonFeedRecoveredFromInventory = lessonResult.status === 'rejected' && Boolean(fallbackInventoryLesson);
@@ -113,6 +113,7 @@ export default async function LessonStudioEditPage({
     lessonFeedRecoveredFromInventory ? 'lesson (direct feed degraded, inventory fallback used)' : null,
     lessonPayloadIssues.length ? 'lesson payload' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
+    lessonInventoryPayloadIssues.length ? 'lesson inventory payload' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
     modulePayloadIssues.length ? 'module payload' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
@@ -203,6 +204,12 @@ export default async function LessonStudioEditPage({
   const linkedAssessment = linkedAssessmentTitle
     ? moduleAssessments.find((assessment) => assessment.title === linkedAssessmentTitle) ?? null
     : null;
+  const lessonEditorFormKey = [
+    lesson.id,
+    lesson.subjectId ?? selectedSubject?.id ?? '',
+    lesson.moduleId ?? selectedModule?.id ?? '',
+    from,
+  ].join('::');
 
   return (
     <PageShell
@@ -250,6 +257,7 @@ export default async function LessonStudioEditPage({
 
       <section style={{ display: 'grid', gap: 18 }}>
         <LessonEditorForm
+          key={lessonEditorFormKey}
           lesson={lesson}
           subjects={subjects}
           modules={modules}
