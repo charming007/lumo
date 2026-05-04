@@ -204,10 +204,12 @@ export default async function LessonStudioEditPage({
   const linkedAssessment = linkedAssessmentTitle
     ? moduleAssessments.find((assessment) => assessment.title === linkedAssessmentTitle) ?? null
     : null;
+  const resolvedSubjectId = selectedSubject?.id ?? lesson.subjectId ?? '';
+  const resolvedModuleId = selectedModule?.id ?? lesson.moduleId ?? '';
   const lessonEditorFormKey = [
     lesson.id,
-    lesson.subjectId ?? selectedSubject?.id ?? '',
-    lesson.moduleId ?? selectedModule?.id ?? '',
+    resolvedSubjectId,
+    resolvedModuleId,
     from,
   ].join('::');
 
@@ -221,13 +223,13 @@ export default async function LessonStudioEditPage({
       ]}
       aside={(
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href={`/content/assets?subjectId=${encodeURIComponent(lesson.subjectId ?? selectedSubject?.id ?? '')}&moduleId=${encodeURIComponent(lesson.moduleId ?? selectedModule?.id ?? '')}&lessonId=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(`/content/lessons/${lesson.id}?from=${encodeURIComponent(from)}`)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
+          <Link href={`/content/assets?subjectId=${encodeURIComponent(resolvedSubjectId)}&moduleId=${encodeURIComponent(resolvedModuleId)}&lessonId=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(`/content/lessons/${lesson.id}?from=${encodeURIComponent(from)}`)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
             Browse assets
           </Link>
           <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
             Back to board
           </Link>
-          <Link href={`/content/lessons/new?duplicate=${encodeURIComponent(lesson.id)}&subjectId=${encodeURIComponent(lesson.subjectId ?? selectedSubject?.id ?? '')}&moduleId=${encodeURIComponent(lesson.moduleId ?? selectedModule?.id ?? '')}&from=${encodeURIComponent(from)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+          <Link href={`/content/lessons/new?duplicate=${encodeURIComponent(lesson.id)}&subjectId=${encodeURIComponent(resolvedSubjectId)}&moduleId=${encodeURIComponent(resolvedModuleId)}&from=${encodeURIComponent(from)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Duplicate lesson
           </Link>
         </div>
