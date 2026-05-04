@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createAssignmentAction } from '../app/actions';
-import type { Assessment, Cohort, Lesson, Mallam } from '../lib/types';
+import { assessmentMatchesModule } from '../lib/module-assessment-match';
+import type { Assessment, Cohort, CurriculumModule, Lesson, Mallam } from '../lib/types';
 import { ActionButton } from './action-button';
 
 const inputStyle = {
@@ -51,9 +52,24 @@ export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }:
   }, [eligibleLessons, lessonId]);
 
   const selectedLesson = eligibleLessons.find((lesson) => lesson.id === lessonId) ?? null;
+  const selectedModule = useMemo<CurriculumModule | null>(
+    () => (selectedLesson
+      ? {
+          id: selectedLesson.moduleId ?? '',
+          title: selectedLesson.moduleTitle ?? 'Recovered lesson module',
+          subjectId: selectedLesson.subjectId ?? '',
+          subjectName: selectedLesson.subjectName ?? '',
+          level: 'Recovered lane',
+          lessonCount: 1,
+          status: 'recovered-fallback',
+          strandName: 'Recovered strand',
+        }
+      : null),
+    [selectedLesson],
+  );
   const matchingAssessments = useMemo(
-    () => activeAssessments.filter((assessment) => assessment.moduleId && assessment.moduleId === selectedLesson?.moduleId),
-    [activeAssessments, selectedLesson?.moduleId],
+    () => (selectedModule ? activeAssessments.filter((assessment) => assessmentMatchesModule(selectedModule, assessment)) : []),
+    [activeAssessments, selectedModule],
   );
   const blockedLessons = lessons.filter((lesson) => !eligibleLessons.some((eligible) => eligible.id === lesson.id));
   const [assessmentId, setAssessmentId] = useState(matchingAssessments[0]?.id ?? '');
