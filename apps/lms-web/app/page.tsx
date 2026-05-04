@@ -10,7 +10,7 @@ import { navigationItems } from '../lib/navigation';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
-import { diagnoseBackendTargetMismatch } from '../lib/backend-target-diagnosis';
+import { diagnoseBackendTargetMismatch, summarizeBackendTargetEvidence } from '../lib/backend-target-diagnosis';
 import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
 import { resolveTopReleaseBlockerCta } from '../lib/dashboard-top-blocker';
 
@@ -313,6 +313,9 @@ export default async function HomePage() {
   const backendTargetDiagnosis = diagnoseBackendTargetMismatch(
     failedFeedEntries.map((entry) => ({ label: entry.label, error: entry.result.reason })),
   );
+  const backendTargetEvidence = backendTargetDiagnosis
+    ? summarizeBackendTargetEvidence(backendTargetDiagnosis.requestUrls)
+    : null;
   const subjectFeedAvailable = subjectsResult.status === 'fulfilled';
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
@@ -536,6 +539,8 @@ export default async function HomePage() {
               { label: 'Current API target', value: apiTarget },
               { label: 'Likely cause', value: 'NEXT_PUBLIC_API_BASE_URL points at a stale or wrong backend build' },
               { label: 'Failing feeds', value: backendTargetDiagnosis.failingFeeds.join(', ') },
+              { label: 'Route evidence', value: backendTargetEvidence?.routeSummary ?? 'Unknown routes' },
+              { label: 'Failing host', value: backendTargetEvidence?.hostSummary ?? apiTarget },
               { label: 'Operator action', value: 'Verify the API host serves current /api/v1/* and admin runtime routes, then redeploy the LMS if the env target changes' },
             ]
           : hasCriticalDashboardGap

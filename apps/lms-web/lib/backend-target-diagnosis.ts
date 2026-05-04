@@ -11,6 +11,26 @@ export type BackendTargetDiagnosis = {
   requestUrls: string[];
 };
 
+export function summarizeBackendTargetEvidence(requestUrls: string[]) {
+  const parsedUrls = requestUrls
+    .map((value) => {
+      try {
+        return new URL(value);
+      } catch {
+        return null;
+      }
+    })
+    .filter((value): value is URL => value instanceof URL);
+
+  const hosts = [...new Set(parsedUrls.map((value) => value.origin))];
+  const paths = [...new Set(parsedUrls.map((value) => value.pathname))];
+
+  return {
+    hostSummary: hosts.length ? hosts.join(', ') : 'Unknown host',
+    routeSummary: paths.length ? paths.join(', ') : 'Unknown routes',
+  };
+}
+
 type RouteMismatchLikeError = Pick<ApiRequestError, 'status' | 'diagnostic'>;
 
 function isRouteMismatchLikeError(error: unknown): error is RouteMismatchLikeError {
