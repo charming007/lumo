@@ -7,7 +7,7 @@ import { LessonActivityStructuredBuilders } from './lesson-activity-structured-b
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { buildActivityDraftsFromLesson, buildActivityStepsFromDrafts, countNonEmptyLines, getDraftAssetIntentSummary, type LessonActivityDraft } from './lesson-authoring-shared';
-import { filterModulesForSubject } from '../lib/module-subject-match';
+import { filterModulesForSubject, findSubjectByContext } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
   getLessonStepTypeGuidance,
@@ -231,12 +231,16 @@ export function LessonCreateForm({
   returnPath?: string;
 }) {
   const duplicateLesson = lessons.find((item) => item.id === duplicateLessonId) ?? null;
-  const duplicateSubjectId = duplicateLesson?.subjectId
-    ?? (duplicateLesson?.subjectName
-      ? subjects.find((item) => item.name === duplicateLesson.subjectName)?.id
-      : undefined);
-  const initialSubject = (initialSubjectId ? subjects.find((subject) => subject.id === initialSubjectId) : null)
-    ?? (duplicateSubjectId ? subjects.find((subject) => subject.id === duplicateSubjectId) : null)
+  const duplicateSubject = duplicateLesson
+    ? findSubjectByContext(subjects, {
+      subjectId: duplicateLesson.subjectId,
+      subjectName: duplicateLesson.subjectName,
+    })
+    : null;
+  const initialSubject = findSubjectByContext(subjects, {
+    subjectId: initialSubjectId,
+  })
+    ?? duplicateSubject
     ?? subjects[0]
     ?? null;
   const [subjectId, setSubjectId] = useState(String(initialSubject?.id ?? ''));

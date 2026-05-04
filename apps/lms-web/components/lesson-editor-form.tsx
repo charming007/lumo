@@ -8,7 +8,7 @@ import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
 import { buildActivityDraftsFromLesson, buildActivityStepsFromDrafts, countNonEmptyLines, getDraftAssetIntentSummary, type LessonActivityDraft } from './lesson-authoring-shared';
 import { findModuleForLesson } from '../lib/module-lesson-match';
-import { filterModulesForSubject } from '../lib/module-subject-match';
+import { filterModulesForSubject, findSubjectByContext } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
   getLessonStepTypeGuidance,
@@ -207,7 +207,11 @@ export function LessonEditorForm({
   action: (formData: FormData) => void;
   returnPath?: string;
 }) {
-  const [subjectId, setSubjectId] = useState(lesson.subjectId ?? (lesson.subjectName ? subjects.find((item) => item.name === lesson.subjectName)?.id ?? subjects[0]?.id ?? '' : subjects[0]?.id ?? ''));
+  const initialSubject = findSubjectByContext(subjects, {
+    subjectId: lesson.subjectId,
+    subjectName: lesson.subjectName,
+  }) ?? subjects[0] ?? null;
+  const [subjectId, setSubjectId] = useState(initialSubject?.id ?? '');
   const [moduleId, setModuleId] = useState(lesson.moduleId ?? findModuleForLesson(modules, lesson)?.id ?? modules[0]?.id ?? '');
   const [title, setTitle] = useState(lesson.title);
   const [durationMinutes, setDurationMinutes] = useState(String(lesson.durationMinutes));
@@ -233,7 +237,7 @@ export function LessonEditorForm({
     })(),
   );
   const initialSnapshot = useMemo(() => JSON.stringify({
-    subjectId: lesson.subjectId ?? (lesson.subjectName ? subjects.find((item) => item.name === lesson.subjectName)?.id ?? subjects[0]?.id ?? '' : subjects[0]?.id ?? ''),
+    subjectId: initialSubject?.id ?? '',
     moduleId: lesson.moduleId ?? findModuleForLesson(modules, lesson)?.id ?? modules[0]?.id ?? '',
     title: lesson.title,
     durationMinutes: String(lesson.durationMinutes),
@@ -252,9 +256,9 @@ export function LessonEditorForm({
       const drafts = buildActivityDraftsFromLesson(lesson);
       return drafts.length ? drafts : [makeActivityDraft(0)];
     })(),
-  }), [lesson, modules, subjects]);
+  }), [initialSubject, lesson, modules]);
 
-  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? subjects[0] ?? null, [subjectId, subjects]);
+  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? initialSubject ?? null, [initialSubject, subjectId, subjects]);
   const filteredModules = useMemo(() => {
     const scoped = filterModulesForSubject(modules, activeSubject);
     return scoped.length ? scoped : modules;
