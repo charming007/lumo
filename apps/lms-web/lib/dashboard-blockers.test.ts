@@ -8,6 +8,7 @@ test('blocks the dashboard when a critical dashboard feed fails', () => {
     criticalDashboardFailureCount: 1,
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: false,
+    hasEmptyReleaseBoard: false,
   }), true);
 });
 
@@ -16,6 +17,7 @@ test('blocks the dashboard when release-readiness feeds fail', () => {
     criticalDashboardFailureCount: 0,
     criticalReleaseFailureCount: 1,
     hasCriticalAssetOpsGap: false,
+    hasEmptyReleaseBoard: false,
   }), true);
 });
 
@@ -24,6 +26,7 @@ test('does not block the dashboard for subject metadata degradation alone when c
     criticalDashboardFailureCount: 0,
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: false,
+    hasEmptyReleaseBoard: false,
   }), false);
 });
 
@@ -32,6 +35,16 @@ test('blocks the dashboard when asset operations are broken even if other feeds 
     criticalDashboardFailureCount: 0,
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: true,
+    hasEmptyReleaseBoard: false,
+  }), true);
+});
+
+test('blocks the dashboard when release-readiness feeds resolve cleanly but return an empty curriculum board', () => {
+  assert.equal(shouldBlockDashboardPage({
+    criticalDashboardFailureCount: 0,
+    criticalReleaseFailureCount: 0,
+    hasCriticalAssetOpsGap: false,
+    hasEmptyReleaseBoard: true,
   }), true);
 });
 
@@ -40,5 +53,6 @@ test('does not block the dashboard when all critical feeds are healthy', () => {
     criticalDashboardFailureCount: 0,
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: false,
+    hasEmptyReleaseBoard: false,
   }), false);
 });

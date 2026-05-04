@@ -357,6 +357,7 @@ export default async function HomePage() {
     subjects,
   });
   const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled';
+  const hasEmptyReleaseBoard = releaseFeedsAvailable && modules.length === 0 && lessons.length === 0 && assessments.length === 0;
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
   const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
   const liveMissingGateBlockers = missingGateBlockers.filter((module) => !module.isDraftModule);
@@ -387,6 +388,7 @@ export default async function HomePage() {
     criticalDashboardFailureCount: criticalDashboardFailures.length,
     criticalReleaseFailureCount: criticalReleaseFailures.length,
     hasCriticalAssetOpsGap,
+    hasEmptyReleaseBoard,
   })) {
     const blockerDetail = backendTargetDiagnosis
       ? `Multiple LMS feeds are returning route-level 404 responses from ${API_BASE_DIAGNOSTIC.configuredApiBase ?? 'the configured API host'}. That pattern usually means this deployment is pointed at a stale or wrong backend build, not that the dashboard suddenly forgot how to fetch. Failing route checks: ${backendTargetDiagnosis.requestUrls.join(', ')}.`
@@ -425,7 +427,9 @@ export default async function HomePage() {
             ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
             : hasCriticalAssetOpsGap
               ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
-              : 'The admin landing page also blocks when release-readiness feeds are blind.'}
+              : hasEmptyReleaseBoard
+                ? 'The admin landing page also blocks when release-readiness feeds answer with an empty curriculum board.'
+                : 'The admin landing page also blocks when release-readiness feeds are blind.'}
         blockerHeadline={backendTargetDiagnosis
           ? 'Deployment blocker: LMS is pointed at a stale or wrong backend host.'
           : hasCriticalDashboardGap
@@ -434,7 +438,9 @@ export default async function HomePage() {
               ? assetRuntimeAuthBlocked
                 ? 'Deployment blocker: LMS admin API key cannot unlock asset audit feeds.'
                 : 'Deployment blocker: asset operations are not trustworthy.'
-              : 'Deployment blocker: release-readiness feeds are degraded.'}
+              : hasEmptyReleaseBoard
+                ? 'Deployment blocker: release board came back empty.'
+                : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length
@@ -559,8 +565,8 @@ export default async function HomePage() {
             : [
                 { label: 'Frontend build', value: buildSignature.summary },
                 { label: 'Current API target', value: apiTarget },
-                { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
-                { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
+                { label: hasEmptyReleaseBoard ? 'Observed state' : 'Failing feeds', value: hasEmptyReleaseBoard ? 'modules, lessons, and assessments all resolved empty' : criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
+                { label: 'Operator action', value: hasEmptyReleaseBoard ? 'Verify the API is serving real curriculum, lesson, and assessment data before trusting the dashboard release board' : 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
                 { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
               ]}
         docs={backendTargetDiagnosis
