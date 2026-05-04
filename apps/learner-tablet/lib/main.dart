@@ -2624,6 +2624,7 @@ class AllStudentsPage extends StatelessWidget {
                         learner.id,
                       );
                       return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () {
                           state.selectLearner(learner);
                           onChanged();
@@ -5998,6 +5999,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                               return Opacity(
                                 opacity: isLockedOut ? 0.58 : 1,
                                 child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
                                   onTap: isLockedOut
                                       ? null
                                       : () {
@@ -8665,6 +8667,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
 
               return GestureDetector(
                 key: ValueKey('drag-item-${item.id}'),
+                behavior: HitTestBehavior.opaque,
                 onTap: placed ? null : selectCard,
                 child: LongPressDraggable<String>(
                   data: item.id,
@@ -8708,6 +8711,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                     matchedItem != null && !isCorrectPlacement;
                 return GestureDetector(
                   key: ValueKey('drag-target-${target.id}'),
+                  behavior: HitTestBehavior.opaque,
                   onTap: _selectedDragItemId == null
                       ? null
                       : () {
@@ -12798,6 +12802,7 @@ class _HomeQuickAction extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        canRequestFocus: true,
         borderRadius: BorderRadius.circular(24),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),

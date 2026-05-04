@@ -23,6 +23,9 @@ const bool kReleaseBuild = bool.fromEnvironment('dart.vm.product');
 const bool kEnableQaLessonUnlockToggle = !kReleaseBuild &&
     (bool.fromEnvironment('LUMO_ENABLE_QA_LESSON_UNLOCK_TOGGLE') ||
         bool.fromEnvironment('FLUTTER_TEST'));
+const bool kEnableQaCompletionResetToggle = !kReleaseBuild &&
+    (bool.fromEnvironment('LUMO_ENABLE_QA_COMPLETION_RESET_TOGGLE') ||
+        bool.fromEnvironment('FLUTTER_TEST'));
 const String kConfiguredDeviceIdentifier = String.fromEnvironment(
   'LUMO_DEVICE_IDENTIFIER',
 );
@@ -154,9 +157,13 @@ class LumoAppState {
 
   bool qaLessonUnlockEnabled = false;
   bool forceQaLessonUnlockAvailabilityForTesting = false;
+  bool forceQaCompletionResetAvailabilityForTesting = false;
 
   bool get canUseQaLessonUnlock =>
       kEnableQaLessonUnlockToggle || forceQaLessonUnlockAvailabilityForTesting;
+  bool get canUseQaCompletionReset =>
+      kEnableQaCompletionResetToggle ||
+      forceQaCompletionResetAvailabilityForTesting;
   bool get isQaLessonUnlockActive =>
       canUseQaLessonUnlock && qaLessonUnlockEnabled;
 
@@ -1836,6 +1843,53 @@ class LumoAppState {
     qaLessonUnlockEnabled = enabled;
     persistStateSoon();
     _notifyListeners();
+  }
+
+  int clearCompletedTodayForLearner(LearnerProfile learner) {
+    if (!canUseQaCompletionReset) return 0;
+
+    final existingSessions = recentRuntimeSessionsByLearnerId[learner.id];
+    if (existingSessions == null || existingSessions.isEmpty) return 0;
+
+    final now = DateTime.now();
+    var removedCount = 0;
+    final retainedSessions = <BackendLessonSession>[];
+    for (final session in existingSessions) {
+      final normalizedStatus = session.status.trim().toLowerCase();
+      final normalizedCompletion = session.completionState.trim().toLowerCase();
+      final isCompleted = normalizedStatus == 'completed' ||
+          normalizedCompletion == 'completed' ||
+          normalizedCompletion == 'complete';
+      final activityAt =
+          session.completedAt ?? session.lastActivityAt ?? session.startedAt;
+      final completedToday = activityAt != null &&
+          activityAt.year == now.year &&
+          activityAt.month == now.month &&
+          activityAt.day == now.day;
+      if (isCompleted && completedToday) {
+        removedCount += 1;
+        continue;
+      }
+      retainedSessions.add(session);
+    }
+
+    if (removedCount == 0) return 0;
+
+    if (retainedSessions.isEmpty) {
+      recentRuntimeSessionsByLearnerId.remove(learner.id);
+    } else {
+      recentRuntimeSessionsByLearnerId[learner.id] = retainedSessions;
+    }
+
+    if (currentLearner?.id == learner.id &&
+        activeSession?.completionState == LessonCompletionState.complete) {
+      activeSession = null;
+      pendingRecoveredSessionSnapshot = null;
+    }
+
+    persistStateSoon();
+    _notifyListeners();
+    return removedCount;
   }
 
   Future<void> markLearnerAbsentForLesson(

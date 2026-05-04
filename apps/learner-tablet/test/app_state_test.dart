@@ -3439,6 +3439,123 @@ void main() {
     });
 
     test(
+      'clears same-day completed runtime sessions for QA retesting only',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final learner = state.learners.first;
+        final lesson = state.assignedLessons.first;
+        state.forceQaCompletionResetAvailabilityForTesting = true;
+        final now = DateTime.now();
+        final yesterday = now.subtract(const Duration(days: 1));
+
+        state.recentRuntimeSessionsByLearnerId[learner.id] = [
+          BackendLessonSession(
+            id: 'completed-today',
+            sessionId: 'completed-today',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            moduleTitle: lesson.subject,
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Lesson completed on this tablet.',
+            currentStepIndex: lesson.steps.length,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 2,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+            startedAt: now.subtract(const Duration(minutes: 8)),
+            lastActivityAt: now.subtract(const Duration(minutes: 1)),
+            completedAt: now,
+          ),
+          BackendLessonSession(
+            id: 'completed-yesterday',
+            sessionId: 'completed-yesterday',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            moduleTitle: lesson.subject,
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Earlier completion on this tablet.',
+            currentStepIndex: lesson.steps.length,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 2,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+            startedAt: yesterday.subtract(const Duration(minutes: 8)),
+            lastActivityAt: yesterday.subtract(const Duration(minutes: 1)),
+            completedAt: yesterday,
+          ),
+        ];
+
+        expect(state.lessonCompletedTodayForLearner(learner, lesson), isTrue);
+
+        final clearedCount = state.clearCompletedTodayForLearner(learner);
+
+        expect(clearedCount, 1);
+        expect(state.lessonCompletedTodayForLearner(learner, lesson), isFalse);
+        expect(state.lessonCompletedForLearner(learner, lesson), isTrue);
+        expect(
+          state.recentRuntimeSessionsByLearnerId[learner.id],
+          hasLength(1),
+        );
+        expect(
+          state.recentRuntimeSessionsByLearnerId[learner.id]!.single.sessionId,
+          'completed-yesterday',
+        );
+        state.dispose();
+      },
+    );
+
+    test('does not clear same-day completions when QA reset is unavailable',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.first;
+      final now = DateTime.now();
+
+      state.recentRuntimeSessionsByLearnerId[learner.id] = [
+        BackendLessonSession(
+          id: 'completed-today',
+          sessionId: 'completed-today',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          moduleTitle: lesson.subject,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Lesson completed on this tablet.',
+          currentStepIndex: lesson.steps.length,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: 2,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          startedAt: now.subtract(const Duration(minutes: 8)),
+          lastActivityAt: now.subtract(const Duration(minutes: 1)),
+          completedAt: now,
+        ),
+      ];
+
+      expect(state.clearCompletedTodayForLearner(learner), 0);
+      expect(state.lessonCompletedTodayForLearner(learner, lesson), isTrue);
+      expect(
+        state.recentRuntimeSessionsByLearnerId[learner.id],
+        hasLength(1),
+      );
+      state.dispose();
+    });
+
+    test(
       'falls back to backend recommended module after lesson completion',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);
