@@ -22,6 +22,7 @@ import 'learner_audio_playback_service.dart';
 import 'lesson_capture_strategy.dart';
 import 'models.dart';
 import 'speech_transcription_service.dart';
+import 'ui_feedback_audio_service.dart';
 import 'theme.dart';
 import 'web_speech_runtime_probe.dart';
 import 'voice_replay_service.dart';
@@ -4693,6 +4694,28 @@ class _RegisterPageState extends State<RegisterPage> {
 
                       final formBody = Column(
                         children: [
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Learner identity',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Start with who this learner is before routing them into the right pod and first-lesson plan.',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           TextField(
                             controller: nameController,
                             onChanged: (_) => setState(syncDraft),
@@ -4704,12 +4727,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final compact = constraints.maxWidth < 720;
-                              final backendCohorts =
-                                  widget.state.registrationContext.cohorts;
-                              final cohortValue =
-                                  cohortController.text.trim().isEmpty
-                                      ? null
-                                      : cohortController.text.trim();
                               final fields = [
                                 TextField(
                                   controller: ageController,
@@ -4719,44 +4736,30 @@ class _RegisterPageState extends State<RegisterPage> {
                                     labelText: 'Age',
                                   ),
                                 ),
-                                backendCohorts.isEmpty
-                                    ? TextField(
-                                        controller: cohortController,
-                                        onChanged: (_) => setState(syncDraft),
-                                        decoration: const InputDecoration(
-                                          labelText: 'Cohort',
-                                        ),
-                                      )
-                                    : DropdownButtonFormField<String>(
-                                        key: ValueKey(
-                                          'registration-cohort-$cohortValue-${backendCohorts.length}',
-                                        ),
-                                        isExpanded: true,
-                                        initialValue: backendCohorts.any(
-                                          (cohort) =>
-                                              cohort.name == cohortValue,
-                                        )
-                                            ? cohortValue
-                                            : null,
-                                        items: backendCohorts
-                                            .map(
-                                              (cohort) => DropdownMenuItem(
-                                                value: cohort.name,
-                                                child: Text(cohort.name),
-                                              ),
-                                            )
-                                            .toList(),
-                                        onChanged: (value) {
-                                          if (value == null) return;
-                                          setState(() {
-                                            cohortController.text = value;
-                                            syncDraft();
-                                          });
-                                        },
-                                        decoration: const InputDecoration(
-                                          labelText: 'Backend cohort',
-                                        ),
-                                      ),
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: sex,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'Boy',
+                                      child: Text('Boy'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Girl',
+                                      child: Text('Girl'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      sex = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Sex',
+                                  ),
+                                ),
                               ];
 
                               if (compact) {
@@ -4785,55 +4788,34 @@ class _RegisterPageState extends State<RegisterPage> {
                               );
                             },
                           ),
-                          const SizedBox(height: 12),
-                          Builder(
-                            builder: (context) {
-                              final mallams =
-                                  widget.state.registrationContext.mallams;
-                              final hasSelectedMallam = mallams.any(
-                                (mallam) => mallam.id == selectedMallamId,
-                              );
-
-                              if (mallams.isEmpty) {
-                                return const SizedBox.shrink();
-                              }
-
-                              return DropdownButtonFormField<String>(
-                                key: ValueKey(
-                                  'registration-mallam-$selectedMallamId-${mallams.length}',
-                                ),
-                                isExpanded: true,
-                                initialValue:
-                                    hasSelectedMallam ? selectedMallamId : null,
-                                items: mallams
-                                    .map(
-                                      (mallam) => DropdownMenuItem(
-                                        value: mallam.id,
-                                        child: Text(mallam.name),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() {
-                                    selectedMallamId = value;
-                                    syncDraft();
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  labelText: 'Assign mallam',
-                                  helperText:
-                                      'Choose the mallam responsible for this learner.',
-                                ),
-                              );
-                            },
+                          const SizedBox(height: 20),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Guardian',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Capture the adult relationship first so follow-up and consent stay attached to a real person.',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                height: 1.4,
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 12),
                           TextField(
                             controller: guardianController,
                             onChanged: (_) => setState(syncDraft),
                             decoration: const InputDecoration(
-                              labelText: 'Caregiver / facilitator name',
+                              labelText: 'Caregiver / guardian name',
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -4913,6 +4895,28 @@ class _RegisterPageState extends State<RegisterPage> {
                               );
                             },
                           ),
+                          const SizedBox(height: 20),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Geography and LMS routing',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Keep the tablet flow anchored to the live LMS structure: village, cohort, pod, then the responsible mallam.',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 12),
                           TextField(
                             controller: villageController,
@@ -4925,60 +4929,64 @@ class _RegisterPageState extends State<RegisterPage> {
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final compact = constraints.maxWidth < 720;
+                              final backendCohorts =
+                                  widget.state.registrationContext.cohorts;
+                              final cohortValue =
+                                  cohortController.text.trim().isEmpty
+                                      ? null
+                                      : cohortController.text.trim();
                               final fields = [
-                                DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  initialValue: sex,
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'Boy',
-                                      child: Text('Boy'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Girl',
-                                      child: Text('Girl'),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value == null) return;
-                                    setState(() {
-                                      sex = value;
-                                      syncDraft();
-                                    });
-                                  },
-                                  decoration: const InputDecoration(
-                                    labelText: 'Sex',
-                                  ),
-                                ),
-                                DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  initialValue: baselineLevel,
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'No prior exposure',
-                                      child: Text('No prior exposure'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Can repeat with support',
-                                      child: Text('Can repeat with support'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Answers with short sentences',
-                                      child: Text(
-                                        'Answers with short sentences',
+                                backendCohorts.isEmpty
+                                    ? TextField(
+                                        controller: cohortController,
+                                        onChanged: (_) => setState(syncDraft),
+                                        decoration: const InputDecoration(
+                                          labelText: 'Cohort',
+                                        ),
+                                      )
+                                    : DropdownButtonFormField<String>(
+                                        key: ValueKey(
+                                          'registration-cohort-$cohortValue-${backendCohorts.length}',
+                                        ),
+                                        isExpanded: true,
+                                        initialValue: backendCohorts.any(
+                                          (cohort) =>
+                                              cohort.name == cohortValue,
+                                        )
+                                            ? cohortValue
+                                            : null,
+                                        items: backendCohorts
+                                            .map(
+                                              (cohort) => DropdownMenuItem(
+                                                value: cohort.name,
+                                                child: Text(cohort.name),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (value == null) return;
+                                          setState(() {
+                                            cohortController.text = value;
+                                            syncDraft();
+                                          });
+                                        },
+                                        decoration: const InputDecoration(
+                                          labelText: 'Backend cohort',
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value == null) return;
-                                    setState(() {
-                                      baselineLevel = value;
-                                      syncDraft();
-                                    });
+                                Builder(
+                                  builder: (context) {
+                                    final target = registrationTarget;
+                                    final label = target?.cohort.podId ??
+                                        widget.state.tabletPodLabel ??
+                                        'Assigned from tablet scope';
+                                    return InputDecorator(
+                                      decoration: const InputDecoration(
+                                        labelText: 'Pod alignment',
+                                      ),
+                                      child: Text(label),
+                                    );
                                   },
-                                  decoration: const InputDecoration(
-                                    labelText: 'Baseline',
-                                  ),
                                 ),
                               ];
 
@@ -5009,33 +5017,182 @@ class _RegisterPageState extends State<RegisterPage> {
                             },
                           ),
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            initialValue: preferredLanguage,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'Hausa',
-                                child: Text('Hausa'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Hausa + English',
-                                child: Text('Hausa + English'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'English',
-                                child: Text('English'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() {
-                                preferredLanguage = value;
-                                syncDraft();
-                              });
+                          Builder(
+                            builder: (context) {
+                              final mallams =
+                                  widget.state.registrationContext.mallams;
+                              final hasSelectedMallam = mallams.any(
+                                (mallam) => mallam.id == selectedMallamId,
+                              );
+
+                              if (mallams.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return DropdownButtonFormField<String>(
+                                key: ValueKey(
+                                  'registration-mallam-$selectedMallamId-${mallams.length}',
+                                ),
+                                isExpanded: true,
+                                initialValue:
+                                    hasSelectedMallam ? selectedMallamId : null,
+                                items: mallams
+                                    .map(
+                                      (mallam) => DropdownMenuItem(
+                                        value: mallam.id,
+                                        child: Text(mallam.name),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() {
+                                    selectedMallamId = value;
+                                    syncDraft();
+                                  });
+                                },
+                                decoration: const InputDecoration(
+                                  labelText: 'Assign mallam',
+                                  helperText:
+                                      'Choose the mallam responsible for this learner.',
+                                ),
+                              );
                             },
-                            decoration: const InputDecoration(
-                              labelText: 'Preferred language',
+                          ),
+                          const SizedBox(height: 12),
+                          SoftPanel(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.state.registrationTargetSummary,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Tablet routing stays visible here so facilitators can confirm the learner lands in the correct cohort, pod, and mallam before saving.',
+                                  style: TextStyle(
+                                    color: Color(0xFF475569),
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Readiness and support plan',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              "Match the first-lesson setup to the learner's current readiness so LMS sync stays clean and actionable.",
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final compact = constraints.maxWidth < 720;
+                              final fields = [
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: baselineLevel,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'No prior exposure',
+                                      child: Text('No prior exposure'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Can repeat with support',
+                                      child: Text('Can repeat with support'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Answers with short sentences',
+                                      child: Text(
+                                        'Answers with short sentences',
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      baselineLevel = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Baseline',
+                                  ),
+                                ),
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: preferredLanguage,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'Hausa',
+                                      child: Text('Hausa'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Hausa + English',
+                                      child: Text('Hausa + English'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'English',
+                                      child: Text('English'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      preferredLanguage = value;
+                                      syncDraft();
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Preferred language',
+                                  ),
+                                ),
+                              ];
+
+                              if (compact) {
+                                return Column(
+                                  children: [
+                                    for (var i = 0; i < fields.length; i++) ...[
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: fields[i],
+                                      ),
+                                      if (i < fields.length - 1)
+                                        const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  for (var i = 0; i < fields.length; i++) ...[
+                                    Expanded(child: fields[i]),
+                                    if (i < fields.length - 1)
+                                      const SizedBox(width: 12),
+                                  ],
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
@@ -5077,7 +5234,29 @@ class _RegisterPageState extends State<RegisterPage> {
                                   'Use short prompts, pause for think time, and praise every clear answer.',
                             ),
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 20),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Consent capture',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Confirm consent before saving so the profile and voice-support flow stay valid for sync.',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
                             value: consentCaptured,
@@ -6676,6 +6855,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   late final AudioCaptureService audioCaptureService;
   late final LearnerAudioPlaybackService learnerAudioPlaybackService;
   late final SpeechTranscriptionService speechTranscriptionService;
+  late final UiFeedbackAudioService uiFeedbackAudioService;
   late final BrowserRuntimeObserver browserRuntimeObserver;
   StreamSubscription<BrowserRuntimeSignal>? _browserRuntimeSubscription;
   Timer? recordingTicker;
@@ -6800,6 +6980,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     audioCaptureService = AudioCaptureService();
     learnerAudioPlaybackService = LearnerAudioPlaybackService();
     speechTranscriptionService = SpeechTranscriptionService();
+    uiFeedbackAudioService = UiFeedbackAudioService();
     browserRuntimeObserver = createBrowserRuntimeObserver();
 
     if (widget.state.activeSession != null) {
@@ -6866,6 +7047,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       _micPermissionState == AudioPermissionState.granted;
 
   Future<void> _confirmTranscriptAndAdvance() async {
+    _playUiFeedback(UiFeedbackSound.tap);
     final draft = responseController.text.trim();
     if (draft.isEmpty) return;
 
@@ -6896,6 +7078,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   Future<void> _acceptSavedAudioAndContinue({
     bool resumeHandsFree = true,
   }) async {
+    _playUiFeedback(UiFeedbackSound.tap);
     final session = widget.state.activeSession;
     if (session == null) return;
     final hasSavedAudio = session.latestLearnerAudioPath != null &&
@@ -6934,6 +7117,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     _browserRuntimeSubscription?.cancel();
     speechTranscriptionService.cancel();
     learnerAudioPlaybackService.dispose();
+    uiFeedbackAudioService.dispose();
     audioCaptureService.dispose();
     browserRuntimeObserver.dispose();
     responseController.dispose();
@@ -7690,6 +7874,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       .strategyActionItems(preferAudioOnly: _avoidConcurrentSpeechCapture);
 
   Future<void> _toggleSavedAudioPlayback() async {
+    _playUiFeedback(UiFeedbackSound.tap);
     final audioPath =
         widget.state.activeSession?.latestLearnerAudioPath?.trim();
     if (audioPath == null || audioPath.isEmpty) return;
@@ -7717,6 +7902,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   Future<void> _stopSavedAudioPlayback() async {
+    _playUiFeedback(UiFeedbackSound.tap);
     await learnerAudioPlaybackService.stop();
     if (!mounted) return;
     setState(() {
@@ -7727,6 +7913,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   Future<void> _replayMallamPrompt() async {
+    _playUiFeedback(UiFeedbackSound.tap);
     await _speakCurrentStepIfNeeded(force: true);
     if (!mounted) return;
     setState(() {
@@ -7825,7 +8012,79 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
   }
 
+  void _playUiFeedback(
+    UiFeedbackSound sound, {
+    Duration minGap = const Duration(milliseconds: 90),
+  }) {
+    unawaited(uiFeedbackAudioService.play(sound, minGap: minGap));
+  }
+
+  void _handleInteractiveHover(PointerHoverEvent _) {
+    _playUiFeedback(
+      UiFeedbackSound.hover,
+      minGap: const Duration(milliseconds: 350),
+    );
+  }
+
+  Widget _withInteractiveFeedback({
+    required Widget child,
+    bool enableHover = true,
+  }) {
+    if (!enableHover) return child;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onHover: _handleInteractiveHover,
+      child: child,
+    );
+  }
+
+  void _playChoiceSelectionFeedback(String value) {
+    if (!_currentStepIsChoiceStep) return;
+    final evaluation = widget.state.evaluateLearnerResponse(value);
+    _playUiFeedback(
+      evaluation.review == ResponseReview.onTrack
+          ? UiFeedbackSound.correct
+          : UiFeedbackSound.incorrect,
+      minGap: const Duration(milliseconds: 160),
+    );
+  }
+
+  void _placeDragItemOnTarget(
+    LessonActivity activity,
+    String itemId,
+    LessonActivityDragTarget target,
+  ) {
+    final itemForTarget = activity.dragItems.firstWhere(
+      (candidate) => candidate.id == itemId,
+    );
+    final placementIsCorrect = itemForTarget.targetId == target.id;
+    _playUiFeedback(
+      placementIsCorrect ? UiFeedbackSound.correct : UiFeedbackSound.incorrect,
+      minGap: const Duration(milliseconds: 140),
+    );
+    _playUiFeedback(
+      UiFeedbackSound.dragDrop,
+      minGap: const Duration(milliseconds: 80),
+    );
+    setState(() {
+      _dragPlacements.removeWhere(
+        (key, value) => value == target.id || key == itemId,
+      );
+      _dragPlacements[itemId] = target.id;
+      _selectedDragItemId = null;
+      _refreshDragResponse(activity);
+      transcriptReviewPending = false;
+      _latestTranscriptNeedsManualReview = false;
+      microphoneStatus = _dragMatchesComplete(activity)
+          ? 'All cards matched. Continue when ready.'
+          : placementIsCorrect
+              ? 'Card placed. Keep matching the rest.'
+              : 'That card is in the wrong zone. Move it before continuing.';
+    });
+  }
+
   Future<void> _runCoachSupport(String supportType) async {
+    _playUiFeedback(UiFeedbackSound.tap);
     final session = widget.state.activeSession;
     if (session == null) return;
 
@@ -7909,11 +8168,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     String value, {
     bool submit = false,
   }) async {
+    _playUiFeedback(UiFeedbackSound.tap);
     responseController.text = value;
     if (_currentStepIsChoiceStep) {
       transcriptReviewPending = false;
       _latestTranscriptNeedsManualReview = false;
       _transcriptAutoAdvanceSafetyReason = null;
+      _playChoiceSelectionFeedback(value);
     }
     setState(() {});
     if (submit) {
@@ -7925,6 +8186,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     String text, {
     SpeakerMode mode = SpeakerMode.guiding,
   }) async {
+    _playUiFeedback(UiFeedbackSound.tap);
     await _speakAndMaybeAutoRecord(
       text,
       mode: mode,
@@ -7978,6 +8240,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   Future<void> _playChoiceMedia(LessonActivityChoice choice) async {
+    _playUiFeedback(UiFeedbackSound.tap);
     final audioMedia = _firstMediaOfKind(choice.mediaItems, const ['audio']);
     final audioValue = audioMedia?.firstValue?.trim();
 
@@ -8353,6 +8616,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               final placed = _dragPlacements.containsKey(item.id);
               final selected = _selectedDragItemId == item.id;
               void selectCard() {
+                _playUiFeedback(UiFeedbackSound.tap);
                 setState(() {
                   _selectedDragItemId = selected ? null : item.id;
                   microphoneStatus = _selectedDragItemId == null
@@ -8370,6 +8634,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                     children: [
                       Draggable<String>(
                         data: item.id,
+                        onDragStarted: () =>
+                            _playUiFeedback(UiFeedbackSound.dragPickup),
                         feedback: SizedBox(
                             width: 180,
                             child: Material(
@@ -8388,7 +8654,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                         const SizedBox(height: 8),
                         TextButton(
                           onPressed: selectCard,
-                          child: Text(selected ? 'Clear selection' : 'Tap to select'),
+                          child: Text(
+                              selected ? 'Clear selection' : 'Tap to select'),
                         ),
                       ],
                     ],
@@ -8401,6 +8668,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 onTap: placed ? null : selectCard,
                 child: LongPressDraggable<String>(
                   data: item.id,
+                  onDragStarted: () =>
+                      _playUiFeedback(UiFeedbackSound.dragPickup),
                   delay: const Duration(milliseconds: 500),
                   feedback: SizedBox(
                       width: 180,
@@ -8429,18 +8698,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
             child: DragTarget<String>(
               onAcceptWithDetails: (details) {
                 final itemId = details.data;
-                setState(() {
-                  _dragPlacements.removeWhere(
-                      (key, value) => value == target.id || key == itemId);
-                  _dragPlacements[itemId] = target.id;
-                  _selectedDragItemId = null;
-                  _refreshDragResponse(activity);
-                  transcriptReviewPending = false;
-                  _latestTranscriptNeedsManualReview = false;
-                  microphoneStatus = _dragMatchesComplete(activity)
-                      ? 'All cards matched. Continue when ready.'
-                      : 'Card placed. Keep matching the rest.';
-                });
+                _placeDragItemOnTarget(activity, itemId, target);
               },
               builder: (context, candidateData, rejectedData) {
                 final isHot = candidateData.isNotEmpty;
@@ -8453,19 +8711,8 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   onTap: _selectedDragItemId == null
                       ? null
                       : () {
-                          setState(() {
-                            final itemId = _selectedDragItemId!;
-                            _dragPlacements.removeWhere((key, value) =>
-                                value == target.id || key == itemId);
-                            _dragPlacements[itemId] = target.id;
-                            _selectedDragItemId = null;
-                            _refreshDragResponse(activity);
-                            transcriptReviewPending = false;
-                            _latestTranscriptNeedsManualReview = false;
-                            microphoneStatus = _dragMatchesComplete(activity)
-                                ? 'All cards matched. Continue when ready.'
-                                : 'Card placed. Keep matching the rest.';
-                          });
+                          final itemId = _selectedDragItemId!;
+                          _placeDragItemOnTarget(activity, itemId, target);
                         },
                   child: Container(
                     width: double.infinity,
@@ -8858,134 +9105,141 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                                     'audio',
                                   ]) !=
                                   null;
-                          return InkWell(
-                            key: ValueKey('choice-card-${choiceItem.id}'),
-                            onTap: () =>
-                                _setResponseAndMaybeSubmit(choiceItem.label),
-                            borderRadius: BorderRadius.circular(28),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              width: cardWidth,
-                              constraints: const BoxConstraints(minHeight: 260),
-                              padding: const EdgeInsets.all(18),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFFEFF6FF)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(28),
-                                border: Border.all(
+                          return _withInteractiveFeedback(
+                            child: InkWell(
+                              key: ValueKey('choice-card-${choiceItem.id}'),
+                              onTap: () =>
+                                  _setResponseAndMaybeSubmit(choiceItem.label),
+                              borderRadius: BorderRadius.circular(28),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width: cardWidth,
+                                constraints:
+                                    const BoxConstraints(minHeight: 260),
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF2563EB)
-                                      : const Color(0xFFD7E3FF),
-                                  width: isSelected ? 3 : 1.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
+                                      ? const Color(0xFFEFF6FF)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(
                                     color: isSelected
-                                        ? const Color(0x1A2563EB)
-                                        : const Color(0x0D0F172A),
-                                    blurRadius: isSelected ? 24 : 12,
-                                    offset: const Offset(0, 10),
+                                        ? const Color(0xFF2563EB)
+                                        : const Color(0xFFD7E3FF),
+                                    width: isSelected ? 3 : 1.5,
                                   ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Expanded(
-                                    child: Stack(
-                                      children: [
-                                        Positioned.fill(
-                                          child: _buildChoicePreview(
-                                            choiceItem,
-                                            emoji,
-                                            imageHeight: previewHeight,
-                                            borderRadius: 22,
-                                          ),
-                                        ),
-                                        if (isSelected)
-                                          Positioned(
-                                            top: 12,
-                                            right: 12,
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: 8,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF2563EB),
-                                                borderRadius:
-                                                    BorderRadius.circular(999),
-                                              ),
-                                              child: const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.check_rounded,
-                                                    color: Colors.white,
-                                                    size: 16,
-                                                  ),
-                                                  SizedBox(width: 6),
-                                                  Text(
-                                                    'Selected',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    choiceItem.label,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 20,
-                                      color: Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    isSelected
-                                        ? 'Good pick. This card is ready for the next step.'
-                                        : 'Tap to choose this object.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
+                                  boxShadow: [
+                                    BoxShadow(
                                       color: isSelected
-                                          ? const Color(0xFF1D4ED8)
-                                          : const Color(0xFF64748B),
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                  if (hasAudio) ...[
-                                    const SizedBox(height: 14),
-                                    FilledButton.tonalIcon(
-                                      onPressed: () =>
-                                          _playChoiceMedia(choiceItem),
-                                      style: FilledButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 14,
-                                        ),
-                                      ),
-                                      icon: const Icon(
-                                        Icons.play_arrow_rounded,
-                                      ),
-                                      label: const Text('Hear choice'),
+                                          ? const Color(0x1A2563EB)
+                                          : const Color(0x0D0F172A),
+                                      blurRadius: isSelected ? 24 : 12,
+                                      offset: const Offset(0, 10),
                                     ),
                                   ],
-                                ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(
+                                      child: Stack(
+                                        children: [
+                                          Positioned.fill(
+                                            child: _buildChoicePreview(
+                                              choiceItem,
+                                              emoji,
+                                              imageHeight: previewHeight,
+                                              borderRadius: 22,
+                                            ),
+                                          ),
+                                          if (isSelected)
+                                            Positioned(
+                                              top: 12,
+                                              right: 12,
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 8,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFF2563EB),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          999),
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.check_rounded,
+                                                      color: Colors.white,
+                                                      size: 16,
+                                                    ),
+                                                    SizedBox(width: 6),
+                                                    Text(
+                                                      'Selected',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      choiceItem.label,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 20,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      isSelected
+                                          ? 'Good pick. This card is ready for the next step.'
+                                          : 'Tap to choose this object.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? const Color(0xFF1D4ED8)
+                                            : const Color(0xFF64748B),
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                    if (hasAudio) ...[
+                                      const SizedBox(height: 14),
+                                      FilledButton.tonalIcon(
+                                        onPressed: () =>
+                                            _playChoiceMedia(choiceItem),
+                                        style: FilledButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 14,
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                          Icons.play_arrow_rounded,
+                                        ),
+                                        label: const Text('Hear choice'),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -9120,6 +9374,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     if (trimmed.isEmpty) return;
 
     final outcome = widget.state.submitLearnerResponse(trimmed);
+    final shouldPlayEvaluationFeedback = !_currentStepIsChoiceStep;
+    if (shouldPlayEvaluationFeedback) {
+      _playUiFeedback(
+        outcome.accepted ? UiFeedbackSound.correct : UiFeedbackSound.incorrect,
+        minGap: const Duration(milliseconds: 160),
+      );
+    }
     responseController.text = trimmed;
     transcriptReviewPending = false;
     _latestTranscriptNeedsManualReview = false;
@@ -9149,6 +9410,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }
 
   Future<void> startRecording() async {
+    _playUiFeedback(UiFeedbackSound.tap);
     try {
       if (isSpeaking) {
         setState(() {
@@ -10044,101 +10306,104 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                 final hasAudio =
                     _firstMediaOfKind(choiceItem.mediaItems, const ['audio']) !=
                         null;
-                return InkWell(
-                  onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
-                  borderRadius: BorderRadius.circular(28),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color:
-                          isSelected ? const Color(0xFFEFF6FF) : Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF2563EB)
-                            : const Color(0xFFD7E3FF),
-                        width: isSelected ? 3 : 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
+                return _withInteractiveFeedback(
+                  child: InkWell(
+                    onTap: () => _setResponseAndMaybeSubmit(choiceItem.label),
+                    borderRadius: BorderRadius.circular(28),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected ? const Color(0xFFEFF6FF) : Colors.white,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(
                           color: isSelected
-                              ? const Color(0x1A2563EB)
-                              : const Color(0x0D0F172A),
-                          blurRadius: isSelected ? 24 : 12,
-                          offset: const Offset(0, 10),
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFFD7E3FF),
+                          width: isSelected ? 3 : 1.5,
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: _buildChoicePreview(
-                                  choiceItem,
-                                  emoji,
-                                  imageHeight: previewHeight,
-                                  borderRadius: 22,
-                                ),
-                              ),
-                              if (isSelected)
-                                Positioned(
-                                  top: 12,
-                                  right: 12,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF2563EB),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.check_rounded,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          'Selected',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          choiceItem.label,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        if (hasAudio) ...[
-                          const SizedBox(height: 12),
-                          FilledButton.tonalIcon(
-                            onPressed: () => _playChoiceMedia(choiceItem),
-                            icon: const Icon(Icons.play_arrow_rounded),
-                            label: const Text('Hear choice'),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isSelected
+                                ? const Color(0x1A2563EB)
+                                : const Color(0x0D0F172A),
+                            blurRadius: isSelected ? 24 : 12,
+                            offset: const Offset(0, 10),
                           ),
                         ],
-                      ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: _buildChoicePreview(
+                                    choiceItem,
+                                    emoji,
+                                    imageHeight: previewHeight,
+                                    borderRadius: 22,
+                                  ),
+                                ),
+                                if (isSelected)
+                                  Positioned(
+                                    top: 12,
+                                    right: 12,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2563EB),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.check_rounded,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                          SizedBox(width: 6),
+                                          Text(
+                                            'Selected',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            choiceItem.label,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          if (hasAudio) ...[
+                            const SizedBox(height: 12),
+                            FilledButton.tonalIcon(
+                              onPressed: () => _playChoiceMedia(choiceItem),
+                              icon: const Icon(Icons.play_arrow_rounded),
+                              label: const Text('Hear choice'),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -13994,6 +14259,10 @@ class _RegistrationReadinessStrip extends StatelessWidget {
     final items = [
       ('Identity', draft.name.trim().isNotEmpty),
       ('Age band', int.tryParse(draft.age.trim()) != null),
+      (
+        'Geography',
+        draft.cohort.trim().isNotEmpty && draft.village.trim().isNotEmpty
+      ),
       ('Guardian', draft.guardianName.trim().isNotEmpty),
       ('Support plan', draft.supportPlan.trim().length >= 12),
       ('Consent', draft.consentCaptured),
