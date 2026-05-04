@@ -15,6 +15,7 @@ import {
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
+import { assessmentMatchesModule } from '../lib/module-assessment-match';
 import type { Assessment, CurriculumModule, Subject } from '../lib/types';
 import { buildEnglishActivities, buildEnglishObjective, buildReadinessChecks, inferVocabulary } from '../lib/english-curriculum';
 
@@ -214,7 +215,9 @@ export function EnglishStudioAuthoringForm({
     hasEnglishModules ? null : 'English Studio cannot create a lesson until at least one English module is available.',
     moduleId && activeModule ? null : 'Pick a valid English module before creating a lesson.',
   ].filter(Boolean) as string[];
-  const activeAssessment = assessments.find((assessment) => assessment.moduleId === activeModule?.id || assessment.moduleTitle === activeModule?.title) ?? null;
+  const activeAssessment = activeModule
+    ? assessments.find((assessment) => assessmentMatchesModule(activeModule, assessment)) ?? null
+    : null;
   const objective = buildEnglishObjective(title);
   const vocabulary = inferVocabulary(title);
   const generatedActivities = useMemo(() => buildEnglishActivities({
