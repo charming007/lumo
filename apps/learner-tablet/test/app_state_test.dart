@@ -3116,6 +3116,81 @@ void main() {
     );
 
     test(
+      'same-day completion beats resume-ready availability until QA reset clears it',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'math',
+        );
+        final now = DateTime.now();
+
+        state.forceQaCompletionResetAvailabilityForTesting = true;
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-progress',
+            sessionId: 'session-progress',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Mallam is waiting for the next response.',
+            currentStepIndex: 3,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 2,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+            startedAt: now.subtract(const Duration(minutes: 3)),
+            lastActivityAt: now.subtract(const Duration(minutes: 1)),
+          ),
+          BackendLessonSession(
+            id: 'runtime-completed-today',
+            sessionId: 'session-completed-today',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Lesson completed on this tablet.',
+            currentStepIndex: lesson.steps.length,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: lesson.steps.length,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+            startedAt: now.subtract(const Duration(minutes: 9)),
+            lastActivityAt: now,
+            completedAt: now,
+          ),
+        ];
+
+        final blockedAvailability = learnerLessonAvailability(
+          state: state,
+          learner: beginner,
+          lesson: lesson,
+        );
+        expect(blockedAvailability.kind, LearnerLessonAvailabilityKind.completed);
+        expect(blockedAvailability.label, 'Completed');
+        expect(blockedAvailability.canLaunch, isFalse);
+
+        expect(state.clearCompletedTodayForLearner(beginner), 1);
+
+        final resetAvailability = learnerLessonAvailability(
+          state: state,
+          learner: beginner,
+          lesson: lesson,
+        );
+        expect(resetAvailability.kind, LearnerLessonAvailabilityKind.resumeReady);
+        expect(resetAvailability.canLaunch, isTrue);
+      },
+    );
+
+    test(
       'does not map backend resume to the wrong lesson when only module matches',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);

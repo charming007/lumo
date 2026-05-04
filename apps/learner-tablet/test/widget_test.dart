@@ -2599,6 +2599,91 @@ void main() {
     },
   );
 
+  testWidgets(
+    'lesson launch setup exposes QA reset for learners completed today',
+    (
+      tester,
+    ) async {
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..forceQaCompletionResetAvailabilityForTesting = true;
+      final module = state.modules.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+        orElse: () => state.assignedLessons.first,
+      );
+      final learner = state.learners.first;
+
+      state.recentRuntimeSessionsByLearnerId[learner.id] = [
+        BackendLessonSession(
+          id: 'completed-today-ui',
+          sessionId: 'completed-today-ui',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          moduleTitle: module.title,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed on this tablet.',
+          currentStepIndex: lesson.steps.length,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: lesson.steps.length,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          startedAt: DateTime.now().subtract(const Duration(minutes: 8)),
+          lastActivityAt: DateTime.now().subtract(const Duration(minutes: 1)),
+          completedAt: DateTime.now(),
+        ),
+      ];
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('QA only: reset completed-today gate'), findsOneWidget);
+      expect(
+        find.textContaining('Testing affordance only.'),
+        findsOneWidget,
+      );
+      expect(find.text('Reset ${learner.name}'), findsOneWidget);
+      expect(find.text('Resume ready'), findsNothing);
+      expect(find.text('Select learner to continue'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Reset ${learner.name}'));
+      await tester.tap(find.text('Reset ${learner.name}'));
+      await pumpForUi(tester);
+
+      expect(state.lessonCompletedTodayForLearner(learner, lesson), isFalse);
+      expect(find.text('Reset ${learner.name}'), findsNothing);
+      expect(
+        find.textContaining(
+          'QA reset cleared ${learner.name} for ${lesson.title}.',
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        learnerLessonAvailability(
+          state: state,
+          learner: learner,
+          lesson: lesson,
+        ).canLaunch,
+        isTrue,
+      );
+    },
+  );
+
   testWidgets('lesson launch setup stays usable on narrow tablet widths', (
     tester,
   ) async {

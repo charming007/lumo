@@ -1009,6 +1009,15 @@ LearnerLessonAvailability learnerLessonAvailability({
   required LearnerProfile learner,
   required LessonCardModel lesson,
 }) {
+  final completedToday = state.lessonCompletedTodayForLearner(learner, lesson);
+  if (completedToday) {
+    return const LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.completed,
+      label: 'Completed',
+      detail: 'Finished today on this tablet.',
+    );
+  }
+
   final resumableSession = state.resumableSessionForLearnerAndLesson(
     learner,
     lesson,
@@ -1023,12 +1032,10 @@ LearnerLessonAvailability learnerLessonAvailability({
   }
 
   if (state.lessonCompletedForLearner(learner, lesson)) {
-    return LearnerLessonAvailability(
+    return const LearnerLessonAvailability(
       kind: LearnerLessonAvailabilityKind.completed,
       label: 'Completed',
-      detail: state.lessonCompletedTodayForLearner(learner, lesson)
-          ? 'Finished today on this tablet.'
-          : 'Already finished on this tablet.',
+      detail: 'Already finished on this tablet.',
     );
   }
 
@@ -5935,6 +5942,18 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                 builder: (context, viewportConstraints) {
                   final useCompactLayout = viewportConstraints.maxWidth < 760 ||
                       viewportConstraints.maxHeight < 900;
+                  final qaCompletionResetVisible =
+                      state.canUseQaCompletionReset;
+                  final qaCompletedTodayLearners =
+                      state.learners.where((learner) {
+                    final matchesRoster =
+                        state.learnerMatchesTabletPod(learner) ||
+                            (_resumeLocksLearner &&
+                                resumeLearner != null &&
+                                learner.id == resumeLearner.id);
+                    return matchesRoster &&
+                        state.lessonCompletedTodayForLearner(learner, lesson);
+                  }).toList(growable: false);
 
                   Widget buildLearnerGrid({required bool shrinkWrap}) {
                     final learnerChoices = state.learners.where((learner) {
@@ -5964,10 +5983,10 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           );
 
                           final mainAxisExtent = constraints.maxWidth < 760
-                              ? 310.0
+                              ? 336.0
                               : constraints.maxWidth < 1180
-                                  ? 326.0
-                                  : 340.0;
+                                  ? 352.0
+                                  : 366.0;
 
                           return GridView.builder(
                             padding: const EdgeInsets.only(bottom: 12),
@@ -5992,10 +6011,20 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                               );
                               final isSelected =
                                   selectedLearner?.id == learner.id;
+                              final canResetCompletedToday =
+                                  qaCompletionResetVisible &&
+                                      availability.kind ==
+                                          LearnerLessonAvailabilityKind
+                                              .completed &&
+                                      state.lessonCompletedTodayForLearner(
+                                        learner,
+                                        lesson,
+                                      );
                               final isLockedOut = (_resumeLocksLearner &&
                                       resumeLearner != null &&
                                       learner.id != resumeLearner.id) ||
-                                  !availability.canLaunch;
+                                  (!availability.canLaunch &&
+                                      !canResetCompletedToday);
                               return Opacity(
                                 opacity: isLockedOut ? 0.58 : 1,
                                 child: GestureDetector(
@@ -6076,7 +6105,10 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   availability.detail,
-                                                  maxLines: 2,
+                                                  maxLines:
+                                                      canResetCompletedToday
+                                                          ? 3
+                                                          : 2,
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: const TextStyle(
@@ -6086,6 +6118,65 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                                     fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
+                                                if (canResetCompletedToday) ...[
+                                                  const SizedBox(height: 8),
+                                                  Align(
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: TextButton.icon(
+                                                      key: ValueKey(
+                                                        'qa-reset-${learner.id}-${lesson.id}',
+                                                      ),
+                                                      onPressed: () {
+                                                        final clearedCount = state
+                                                            .clearCompletedTodayForLearner(
+                                                          learner,
+                                                        );
+                                                        if (clearedCount <= 0) {
+                                                          return;
+                                                        }
+                                                        widget.onChanged();
+                                                        if (!mounted) return;
+                                                        setState(() {
+                                                          selectedLearner ??=
+                                                              learner;
+                                                        });
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              'QA reset cleared today\'s completion for ${learner.name}.',
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                      icon: const Icon(
+                                                        Icons
+                                                            .restart_alt_rounded,
+                                                        size: 18,
+                                                      ),
+                                                      label: const Text(
+                                                        'QA reset today',
+                                                      ),
+                                                      style:
+                                                          TextButton.styleFrom(
+                                                        padding:
+                                                            EdgeInsets.zero,
+                                                        minimumSize: const Size(
+                                                          0,
+                                                          36,
+                                                        ),
+                                                        tapTargetSize:
+                                                            MaterialTapTargetSize
+                                                                .shrinkWrap,
+                                                        visualDensity:
+                                                            VisualDensity
+                                                                .compact,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ],
                                             ),
                                           ),
@@ -6379,6 +6470,17 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 ),
                             ],
                           ),
+                          if (qaCompletionResetVisible) ...[
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Testing only: learners marked Completed today can be reopened from their card with QA reset today.',
+                              style: TextStyle(
+                                color: Color(0xFF7C2D12),
+                                fontWeight: FontWeight.w700,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -6442,6 +6544,83 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           ),
                         ),
                       ),
+                    const SizedBox(height: 16),
+                    if (state.canUseQaCompletionReset &&
+                        qaCompletedTodayLearners.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0xFFFED7AA)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'QA only: reset completed-today gate',
+                              style: TextStyle(
+                                color: Color(0xFF9A3412),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Testing affordance only. This removes same-day completed session records for one learner on this tablet so the lesson becomes selectable again. Hidden in production builds.',
+                              style: TextStyle(
+                                color: Color(0xFF7C2D12),
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final learner in qaCompletedTodayLearners)
+                                  if (state.lessonCompletedTodayForLearner(
+                                    learner,
+                                    lesson,
+                                  ))
+                                    OutlinedButton.icon(
+                                      onPressed: () {
+                                        final clearedCount =
+                                            state.clearCompletedTodayForLearner(
+                                          learner,
+                                        );
+                                        widget.onChanged();
+                                        if (!mounted) return;
+                                        if (selectedLearner?.id == learner.id) {
+                                          setState(() {
+                                            selectedLearner = null;
+                                          });
+                                        } else {
+                                          setState(() {});
+                                        }
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              clearedCount > 0
+                                                  ? 'QA reset cleared ${learner.name} for ${lesson.title}.'
+                                                  : 'No same-day completion was found for ${learner.name}.',
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon:
+                                          const Icon(Icons.restart_alt_rounded),
+                                      label: Text('Reset ${learner.name}'),
+                                    ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (state.canUseQaCompletionReset &&
+                        qaCompletedTodayLearners.isNotEmpty)
+                      const SizedBox(height: 16),
                     const SizedBox(height: 16),
                     if (selectedLearner != null) ...[
                       Container(
