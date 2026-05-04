@@ -258,7 +258,10 @@ export function LessonEditorForm({
     })(),
   }), [initialSubject, lesson, modules]);
 
-  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? initialSubject ?? null, [initialSubject, subjectId, subjects]);
+  const activeSubject = useMemo(
+    () => findSubjectByContext(subjects, { subjectId }) ?? initialSubject ?? null,
+    [initialSubject, subjectId, subjects],
+  );
   const filteredModules = useMemo(() => {
     const scoped = filterModulesForSubject(modules, activeSubject);
     return scoped.length ? scoped : modules;
@@ -364,7 +367,7 @@ export function LessonEditorForm({
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
   useEffect(() => {
-    if (subjectId && subjects.some((subject) => subject.id === subjectId)) return;
+    if (findSubjectByContext(subjects, { subjectId })) return;
     const fallbackSubjectId = String(initialSubject?.id ?? subjects[0]?.id ?? '');
     if (fallbackSubjectId !== subjectId) {
       setSubjectId(fallbackSubjectId);
@@ -487,7 +490,7 @@ export function LessonEditorForm({
           <select value={subjectId} onChange={(event) => {
             const next = event.target.value;
             setSubjectId(next);
-            const nextSubject = subjects.find((subject) => subject.id === next) ?? null;
+            const nextSubject = findSubjectByContext(subjects, { subjectId: next }) ?? null;
             const nextModules = filterModulesForSubject(modules, nextSubject);
             setModuleId(nextModules[0]?.id ?? modules[0]?.id ?? '');
           }} style={inputStyle}>

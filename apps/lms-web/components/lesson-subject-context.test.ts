@@ -19,14 +19,15 @@ test('lesson editor form resolves initial and active subject from normalized les
   assert.match(editorFormSource, /subjectId: lesson\.subjectId,/);
   assert.match(editorFormSource, /subjectName: lesson\.subjectName,/);
   assert.match(editorFormSource, /const \[subjectId, setSubjectId\] = useState\(initialSubject\?\.id \?\? ''\);/);
-  assert.match(editorFormSource, /subjects\.find\(\(subject\) => subject\.id === subjectId\) \?\? initialSubject \?\? null/);
+  assert.match(editorFormSource, /findSubjectByContext\(subjects, \{ subjectId \}\) \?\? initialSubject \?\? null/);
 });
 
-test('lesson authoring forms reconcile stale same-route subject and module state after context changes', () => {
+test('lesson authoring forms keep same-route subject recovery normalized after context changes', () => {
   for (const source of [createFormSource, editorFormSource]) {
-    assert.match(source, /useEffect\(\(\) => \{\s+if \(subjectId && subjects\.some\(\(subject\) => subject\.id === subjectId\)\) return;/s);
+    assert.match(source, /useEffect\(\(\) => \{\s+if \(findSubjectByContext\(subjects, \{ subjectId \}\)\) return;/s);
     assert.match(source, /const fallbackSubjectId = String\(initialSubject\?\.id \?\? subjects\[0\]\?\.id \?\? ''\);/);
     assert.match(source, /const nextModuleId = filteredModules\.some\(\(module\) => module\.id === moduleId\)\s+\? moduleId\s+:/s);
     assert.match(source, /setModuleId\(nextModuleId\);/);
+    assert.match(source, /const nextSubject = findSubjectByContext\(subjects, \{ subjectId: next \}\) \?\? null;/);
   }
 });

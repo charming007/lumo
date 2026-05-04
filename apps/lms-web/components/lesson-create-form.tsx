@@ -244,7 +244,10 @@ export function LessonCreateForm({
     ?? subjects[0]
     ?? null;
   const [subjectId, setSubjectId] = useState(String(initialSubject?.id ?? ''));
-  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? initialSubject ?? null, [initialSubject, subjectId, subjects]);
+  const activeSubject = useMemo(
+    () => findSubjectByContext(subjects, { subjectId }) ?? initialSubject ?? null,
+    [initialSubject, subjectId, subjects],
+  );
   const filteredModules = useMemo(() => filterModulesForSubject(modules, activeSubject), [activeSubject, modules]);
   const initialModule = initialModuleId ? modules.find((item) => item.id === initialModuleId) : null;
   const duplicateModule = duplicateLesson?.moduleId
@@ -360,7 +363,7 @@ export function LessonCreateForm({
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
   useEffect(() => {
-    if (subjectId && subjects.some((subject) => subject.id === subjectId)) return;
+    if (findSubjectByContext(subjects, { subjectId })) return;
     const fallbackSubjectId = String(initialSubject?.id ?? subjects[0]?.id ?? '');
     if (fallbackSubjectId !== subjectId) {
       setSubjectId(fallbackSubjectId);
@@ -458,7 +461,7 @@ export function LessonCreateForm({
           <select value={subjectId} onChange={(event) => {
             const next = event.target.value;
             setSubjectId(next);
-            const nextSubject = subjects.find((subject) => subject.id === next) ?? null;
+            const nextSubject = findSubjectByContext(subjects, { subjectId: next }) ?? null;
             const nextModules = filterModulesForSubject(modules, nextSubject);
             setModuleId(nextModules[0]?.id ?? modules[0]?.id ?? '');
           }} style={inputStyle}>
