@@ -52,10 +52,14 @@ export function DynamicLessonCreateForm({
   const [subjectId, setSubjectId] = useState(initialSubject?.id ?? 'english');
   const [moduleId, setModuleId] = useState(modules[0]?.id ?? '');
 
-  const activeSubject = useMemo(() => findSubjectByContext(subjects, {
-    subjectId,
-    subjectName: initialSubject?.name,
-  }) ?? initialSubject, [initialSubject, subjectId, subjects]);
+  const activeSubject = useMemo(() => {
+    const recoveredSubjectById = findSubjectByContext(subjects, { subjectId });
+    const recoveredSubjectByContext = findSubjectByContext(subjects, {
+      subjectId,
+      subjectName: initialSubject?.name,
+    });
+    return recoveredSubjectById ?? recoveredSubjectByContext ?? initialSubject;
+  }, [initialSubject, subjectId, subjects]);
   const filteredModules = useMemo(() => filterModulesForSubject(modules, activeSubject), [activeSubject, modules]);
 
   useEffect(() => {

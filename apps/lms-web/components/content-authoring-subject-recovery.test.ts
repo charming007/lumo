@@ -7,8 +7,9 @@ const contentOpsSource = readFileSync(fileURLToPath(new URL('./content-ops-form.
 const englishStudioSource = readFileSync(fileURLToPath(new URL('./english-studio-authoring-form.tsx', import.meta.url)), 'utf8');
 
 test('content quick-create recovers active subject from normalized context instead of exact id-only matching', () => {
-  assert.match(contentOpsSource, /findSubjectByContext\(subjects, \{ subjectId \}\)/);
+  assert.match(contentOpsSource, /findSubjectByContext\(subjects, \{[\s\S]*subjectId,[\s\S]*subjectName: initialSubject\?\.name,[\s\S]*\}\)/);
   assert.match(contentOpsSource, /const nextSubject = findSubjectByContext\(subjects, \{ subjectId: next \}\) \?\? null;/);
+  assert.match(contentOpsSource, /const reconciledSubjectId = activeSubject\?\.id \?\? initialSubject\?\.id \?\? '';/);
   assert.doesNotMatch(contentOpsSource, /subjects\.find\(\(subject\) => subject\.id === subjectId\)/);
   assert.doesNotMatch(contentOpsSource, /subjects\.find\(\(subject\) => subject\.id === next\)/);
 });
