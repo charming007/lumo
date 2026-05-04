@@ -43,6 +43,7 @@ class LumoTopBar extends StatelessWidget {
 
         if (compact) {
           final logo = GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: onLogoTap,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
@@ -87,6 +88,7 @@ class LumoTopBar extends StatelessWidget {
         return Row(
           children: [
             GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: onLogoTap,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(18),
