@@ -25,6 +25,19 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
   );
 });
 
+test('dashboard route map names every pilot-blocked specialist surface', () => {
+  assert.match(
+    dashboardPageSource,
+    /PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/,
+    'dashboard route map should derive blocked specialist pills from the shared pilot route list',
+  );
+  assert.match(
+    dashboardPageSource,
+    /label=\{`\$\{label\} blocked`\}/,
+    'dashboard route map should mark every blocked specialist surface explicitly',
+  );
+});
+
 test('dashboard deploy checklist CTA points at a shipped public document', () => {
   assert.match(
     dashboardPageSource,
