@@ -59,10 +59,12 @@ export function buildReviewBlockersHref(returnPath: string) {
 export function buildAssessmentReviewHref({
   returnPath,
   moduleTitle,
+  moduleId,
   subjectId,
 }: {
   returnPath: string;
   moduleTitle: string;
+  moduleId?: string;
   subjectId?: string;
 }) {
   const query = returnPath.startsWith('/content') && returnPath.includes('?')
@@ -72,6 +74,11 @@ export function buildAssessmentReviewHref({
 
   params.set('view', 'assessments');
   params.set('q', moduleTitle.trim());
+
+  const normalizedModuleId = moduleId?.trim();
+  if (normalizedModuleId) {
+    params.set('moduleId', normalizedModuleId);
+  }
 
   const normalizedSubjectId = subjectId?.trim();
   if (normalizedSubjectId) {

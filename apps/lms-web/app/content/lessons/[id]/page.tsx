@@ -300,10 +300,15 @@ export default async function LessonStudioEditPage({
               </div>
             )}
             <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-              <Link href={buildAssessmentReviewHref({ returnPath: from, moduleTitle: selectedModule?.title ?? lesson.title, subjectId: resolvedSubjectId })} style={{ color: '#5B21B6', fontWeight: 800, textDecoration: 'none' }}>
+              <Link href={buildAssessmentReviewHref({
+                returnPath: from,
+                moduleTitle: selectedModule?.title ?? lesson.title,
+                moduleId: resolvedModuleId,
+                subjectId: resolvedSubjectId,
+              })} style={{ color: '#5B21B6', fontWeight: 800, textDecoration: 'none' }}>
                 Open assessment lane →
               </Link>
-              <Link href={`/content?view=blocked&subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? lesson.title)}`} style={{ color: '#92400E', fontWeight: 800, textDecoration: 'none' }}>
+              <Link href={`/content?view=blocked&moduleId=${encodeURIComponent(resolvedModuleId)}&subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? lesson.title)}`} style={{ color: '#92400E', fontWeight: 800, textDecoration: 'none' }}>
                 Review blocker context →
               </Link>
             </div>

@@ -110,8 +110,13 @@ test('lesson edit page quick links reuse recovered curriculum ids instead of sta
   );
   assert.match(
     editPageSource,
-    /buildAssessmentReviewHref\(\{ returnPath: from, moduleTitle: selectedModule\?\.title \?\? lesson\.title, subjectId: resolvedSubjectId \}\)/,
-    'assessment review handoff should stay inside the pilot-safe content board and use the recovered subject context',
+    /buildAssessmentReviewHref\(\{[\s\S]*returnPath: from,[\s\S]*moduleTitle: selectedModule\?\.title \?\? lesson\.title,[\s\S]*moduleId: resolvedModuleId,[\s\S]*subjectId: resolvedSubjectId,[\s\S]*\}\)/,
+    'assessment review handoff should stay inside the pilot-safe content board and use the recovered subject + module context',
+  );
+  assert.match(
+    editPageSource,
+    /content\?view=blocked&moduleId=\$\{encodeURIComponent\(resolvedModuleId\)\}&subject=\$\{encodeURIComponent\(selectedSubject\?\.id \?\? ''\)\}&q=\$\{encodeURIComponent\(selectedModule\?\.title \?\? lesson\.title\)\}/,
+    'blocker-review handoff should pin the recovered module id so duplicate module titles do not reopen the wrong blocker lane',
   );
   assert.doesNotMatch(
     editPageSource,
