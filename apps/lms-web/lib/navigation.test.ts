@@ -2,26 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { navigationItems } from './navigation.ts';
-import { redirectIfPilotHiddenRoute } from './pilot-nav.ts';
 
-test('full admin navigation still knows the complete LMS route set', () => {
+test('pilot navigation keeps only the trusted deployment routes in the live shell', () => {
   const expectedRoutes = [
     ['dashboard', '/'],
     ['content', '/content'],
     ['assignments', '/assignments'],
     ['progress', '/progress'],
-    ['devices', '/devices'],
     ['settings', '/settings'],
-    ['canvas', '/canvas'],
-    ['english', '/english'],
-    ['students', '/students'],
-    ['mallams', '/mallams'],
-    ['pods', '/pods'],
-    ['attendance', '/attendance'],
-    ['assessments', '/assessments'],
-    ['rewards', '/rewards'],
-    ['reports', '/reports'],
-    ['guide', '/guide'],
   ] as const;
 
   for (const [routeId, href] of expectedRoutes) {
@@ -33,33 +21,17 @@ test('full admin navigation still knows the complete LMS route set', () => {
   }
 });
 
-test('full admin navigation stays visible in the live shell', () => {
+test('pilot navigation hides specialist routes from the primary shell', () => {
   assert.deepEqual(
     navigationItems.map((item) => item.id),
-    [
-      'dashboard',
-      'content',
-      'assignments',
-      'progress',
-      'devices',
-      'settings',
-      'canvas',
-      'english',
-      'students',
-      'mallams',
-      'pods',
-      'attendance',
-      'assessments',
-      'rewards',
-      'reports',
-      'guide',
-    ],
+    ['dashboard', 'content', 'assignments', 'progress', 'settings'],
   );
-});
 
-test('retired pilot redirects do not hide full-admin routes anymore', () => {
-  for (const pathname of ['/canvas', '/english', '/reports', '/rewards', '/guide']) {
-    assert.doesNotThrow(() => redirectIfPilotHiddenRoute(pathname));
-    assert.deepEqual(redirectIfPilotHiddenRoute(pathname), {});
+  for (const hiddenRoute of ['devices', 'canvas', 'english', 'students', 'mallams', 'pods', 'attendance', 'assessments', 'rewards', 'reports', 'guide']) {
+    assert.equal(
+      navigationItems.some((item) => item.id === hiddenRoute),
+      false,
+      `${hiddenRoute} should stay out of the pilot sidebar`,
+    );
   }
 });

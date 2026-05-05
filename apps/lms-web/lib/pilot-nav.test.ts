@@ -1,17 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
-const pilotNavSource = readFileSync(fileURLToPath(new URL('./pilot-nav.ts', import.meta.url)), 'utf8');
+import { PILOT_BLOCKED_ROUTE_IDS, isPilotBlockedRoute } from './pilot-nav.ts';
 
-test('pilot hidden route map no longer redirects live reports and rewards pages', () => {
-  assert.doesNotMatch(pilotNavSource, /'\/reports':\s*'\//, 'reports should stay live in the admin shell');
-  assert.doesNotMatch(pilotNavSource, /'\/rewards':\s*'\/progress'/, 'rewards should stay live in the admin shell');
+test('pilot blocked route list captures the specialist surfaces kept out of the shell', () => {
+  assert.deepEqual(PILOT_BLOCKED_ROUTE_IDS, [
+    'devices',
+    'canvas',
+    'english',
+    'students',
+    'mallams',
+    'pods',
+    'attendance',
+    'assessments',
+    'rewards',
+    'reports',
+    'guide',
+  ]);
 });
 
-test('pilot hidden route map is fully retired for deferred surfaces too', () => {
-  assert.doesNotMatch(pilotNavSource, /'\/canvas':\s*'\/content'/);
-  assert.doesNotMatch(pilotNavSource, /'\/english':\s*'\/content'/);
-  assert.doesNotMatch(pilotNavSource, /'\/guide':\s*'\/settings'/);
+test('pilot blocked route helper flags specialist surfaces and leaves core routes alone', () => {
+  for (const routeId of PILOT_BLOCKED_ROUTE_IDS) {
+    assert.equal(isPilotBlockedRoute(routeId), true, `${routeId} should stay blocked in pilot nav`);
+  }
+
+  for (const routeId of ['dashboard', 'content', 'assignments', 'progress', 'settings']) {
+    assert.equal(isPilotBlockedRoute(routeId), false, `${routeId} should stay live in pilot nav`);
+  }
 });

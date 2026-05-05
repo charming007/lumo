@@ -1,5 +1,17 @@
-const RETIRED_PILOT_ROUTE_REDIRECTS = Object.freeze({});
+export const PILOT_BLOCKED_ROUTE_IDS = Object.freeze([
+  'devices',
+  'canvas',
+  'english',
+  'students',
+  'mallams',
+  'pods',
+  'attendance',
+  'assessments',
+  'rewards',
+  'reports',
+  'guide',
+]);
 
-export function redirectIfPilotHiddenRoute(_pathname: string) {
-  return RETIRED_PILOT_ROUTE_REDIRECTS;
+export function isPilotBlockedRoute(routeId: string) {
+  return PILOT_BLOCKED_ROUTE_IDS.includes(routeId);
 }
