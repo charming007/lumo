@@ -13,6 +13,7 @@ import {
 } from '../../../../lib/lesson-authoring-normalize';
 import { sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import { findSubjectByContext } from '../../../../lib/module-subject-match';
+import { assessmentMatchesModule } from '../../../../lib/module-assessment-match';
 import type { CurriculumModule, Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
@@ -199,7 +200,9 @@ export default async function LessonStudioEditPage({
     subjectId: lesson.subjectId ?? selectedModule?.subjectId,
     subjectName: lesson.subjectName ?? selectedModule?.subjectName,
   }) ?? fallbackSubject ?? subjects[0] ?? null;
-  const moduleAssessments = assessments.filter((assessment) => assessment.moduleId === selectedModule?.id);
+  const moduleAssessments = selectedModule
+    ? assessments.filter((assessment) => assessmentMatchesModule(selectedModule, assessment))
+    : [];
   const linkedAssessmentTitle = typeof lesson.lessonAssessment?.title === 'string' ? lesson.lessonAssessment.title : null;
   const linkedAssessment = linkedAssessmentTitle
     ? moduleAssessments.find((assessment) => assessment.title === linkedAssessmentTitle) ?? null

@@ -66,6 +66,19 @@ test('lesson edit page remounts the editor form when lesson or launch context ch
   );
 });
 
+test('lesson edit page keeps linked assessment gates visible when module ids drift', () => {
+  assert.match(
+    editPageSource,
+    /assessmentMatchesModule\(selectedModule, assessment\)/,
+    'edit page should use the normalized assessment matcher so drifted module ids do not hide the linked gate',
+  );
+  assert.doesNotMatch(
+    editPageSource,
+    /assessment\.moduleId === selectedModule\?\.id/,
+    'edit page should not fall back to brittle exact module-id gate matching',
+  );
+});
+
 test('lesson edit page quick links reuse recovered curriculum ids instead of stale lesson query params', () => {
   assert.match(
     editPageSource,
