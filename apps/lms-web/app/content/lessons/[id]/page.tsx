@@ -14,6 +14,7 @@ import {
 import { sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import { findSubjectByContext } from '../../../../lib/module-subject-match';
 import { assessmentMatchesModule } from '../../../../lib/module-assessment-match';
+import { findModuleForLesson } from '../../../../lib/module-lesson-match';
 import type { CurriculumModule, Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
@@ -58,7 +59,12 @@ function buildFallbackModule(
 ) {
   const moduleId = lesson.moduleId?.trim();
   const moduleTitle = lesson.moduleTitle?.trim();
-  const matched = modules.find((module) => module.id === moduleId || (moduleTitle && module.title === moduleTitle));
+  const matched = findModuleForLesson(modules, {
+    ...lesson,
+    durationMinutes: 0,
+    mode: 'recovered-fallback',
+    status: 'recovered-fallback',
+  });
 
   if (matched) return matched;
 
@@ -126,7 +132,7 @@ export default async function LessonStudioEditPage({
   ].filter(Boolean) as string[];
 
   const matchedModuleFromLesson = lesson
-    ? loadedModules.find((module) => module.id === lesson.moduleId || (lesson.moduleTitle && module.title === lesson.moduleTitle)) ?? null
+    ? findModuleForLesson(loadedModules, lesson)
     : null;
   const fallbackSubject = lesson ? buildFallbackSubject(loadedSubjects, lesson, matchedModuleFromLesson) : null;
   const fallbackModule = lesson ? buildFallbackModule(loadedModules, lesson, fallbackSubject) : null;
@@ -195,7 +201,7 @@ export default async function LessonStudioEditPage({
     );
   }
 
-  const selectedModule = modules.find((module) => module.id === lesson.moduleId || (lesson.moduleTitle && module.title === lesson.moduleTitle)) ?? fallbackModule ?? modules[0] ?? null;
+  const selectedModule = findModuleForLesson(modules, lesson) ?? fallbackModule ?? modules[0] ?? null;
   const selectedSubject = findSubjectByContext(subjects, {
     subjectId: lesson.subjectId ?? selectedModule?.subjectId,
     subjectName: lesson.subjectName ?? selectedModule?.subjectName,

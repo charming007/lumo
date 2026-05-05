@@ -79,6 +79,24 @@ test('lesson edit page keeps linked assessment gates visible when module ids dri
   );
 });
 
+test('lesson edit page resolves modules with lesson-aware matching instead of raw title collisions', () => {
+  assert.match(
+    editPageSource,
+    /findModuleForLesson\(loadedModules, lesson\)/,
+    'edit page should use the lesson-aware module matcher when recovering module context from live curriculum feeds',
+  );
+  assert.match(
+    editPageSource,
+    /const selectedModule = findModuleForLesson\(modules, lesson\) \?\? fallbackModule \?\? modules\[0\] \?\? null;/,
+    'selected lesson module should be recovered with subject-aware lesson/module matching before any generic fallback applies',
+  );
+  assert.doesNotMatch(
+    editPageSource,
+    /module\.title === lesson\.moduleTitle/,
+    'edit page should not recover lesson modules by raw title-only matching, because duplicate module titles across subjects can land authors in the wrong lane',
+  );
+});
+
 test('lesson edit page quick links reuse recovered curriculum ids instead of stale lesson query params', () => {
   assert.match(
     editPageSource,
