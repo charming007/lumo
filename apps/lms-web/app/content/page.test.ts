@@ -53,4 +53,9 @@ test('content blocker actions keep multi-lesson gaps on the bulk blocker flow in
     /const createLessonHref = blockerCta\.canLaunchLessonStudio && moduleSubjectId/,
     'content blocker actions should only launch lesson studio when the shared blocker resolver says the gap is a single recoverable lesson',
   );
+  assert.doesNotMatch(
+    contentPageSource,
+    /Add lesson pack/,
+    'content blocker actions should not advertise a single-lesson pack CTA that bypasses the bulk blocker flow for multi-lesson gaps',
+  );
 });

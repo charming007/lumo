@@ -458,8 +458,16 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
 
                   const moduleSubjectId = resolveModuleSubjectId(module, subjects);
-                  const canLaunchLessonCreate = Boolean(moduleSubjectId && subjectsIncludeId(subjects, moduleSubjectId));
-                  const createLessonHref = canLaunchLessonCreate
+                  const hasAuthoringContext = Boolean(
+                    moduleSubjectId
+                    && (subjects.length === 0 || subjectsIncludeId(subjects, moduleSubjectId))
+                  );
+                  const blockerCta = resolveTopReleaseBlockerCta({
+                    missingLessons,
+                    hasAuthoringContext,
+                    subjectMetadataDegraded: Boolean(missingLessons > 0 && !hasAuthoringContext && !subjectFeedAvailable),
+                  });
+                  const createLessonHref = blockerCta.canLaunchLessonStudio && moduleSubjectId
                     ? buildScopedLessonCreateHref({
                         subjectId: moduleSubjectId,
                         moduleId: module.id,
@@ -499,11 +507,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
                       {createLessonHref ? (
                         <Link href={createLessonHref} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
-                          Add lesson pack
+                          {blockerCta.label}
                         </Link>
                       ) : (
                         <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA', textAlign: 'center', lineHeight: 1.5 }}>
-                          Recover subject context first
+                          {blockerCta.label}
                         </div>
                       )}
                       {!hasAssessment ? (
