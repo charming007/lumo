@@ -1,12 +1,10 @@
-import { isPilotBlockedRoute } from './pilot-nav.ts';
-
 export type NavigationItem = {
   id: string;
   label: string;
   href: string;
 };
 
-const shellNavigationItems = [
+export const navigationItems: readonly NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/' },
   { id: 'content', label: 'Content Library', href: '/content' },
   { id: 'assignments', label: 'Assignments', href: '/assignments' },
@@ -23,6 +21,4 @@ const shellNavigationItems = [
   { id: 'rewards', label: 'Rewards', href: '/rewards' },
   { id: 'reports', label: 'Reports', href: '/reports' },
   { id: 'guide', label: 'Guide', href: '/guide' },
-] as const satisfies readonly NavigationItem[];
-
-export const navigationItems: readonly NavigationItem[] = shellNavigationItems.filter((item) => !isPilotBlockedRoute(item.id));
+] as const;
