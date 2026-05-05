@@ -12,8 +12,13 @@ import 'bundled_content.dart';
 import 'dialogue.dart';
 import 'models.dart';
 import 'seed_data.dart';
+import 'support_language.dart';
 
-typedef VoiceReplay = Future<void> Function(String text, SpeakerMode mode);
+typedef VoiceReplay = Future<void> Function(
+  String text,
+  SpeakerMode mode, {
+  String? supportLanguage,
+});
 typedef VoiceReplayStop = Future<void> Function();
 
 const bool kEnableSeedDemoContent = bool.fromEnvironment(
@@ -137,6 +142,8 @@ class LumoAppState {
   String? tabletDeviceIdentifier;
   Map<String, dynamic>? pendingRecoveredSessionSnapshot;
 
+  MallamSupportLanguage mallamSupportLanguage = MallamSupportLanguage.hausa;
+
   final List<SyncEvent> pendingSyncEvents = [];
   late final List<LearnerProfile> learners = List.of(
     _includeSeedDemoContent ? learnerProfilesSeed : const <LearnerProfile>[],
@@ -195,6 +202,14 @@ class LumoAppState {
 
   String get backendBaseUrl => _apiClient.baseUrl;
   String? get stableDeviceIdentifier => tabletDeviceIdentifier;
+  bool get usesHausaMallamSupport =>
+      mallamSupportLanguage == MallamSupportLanguage.hausa;
+
+  void setMallamSupportLanguage(MallamSupportLanguage language) {
+    if (mallamSupportLanguage == language) return;
+    mallamSupportLanguage = language;
+    persistStateSoon();
+  }
 
   static String? _normalizeDeviceIdentifier(String? raw) {
     final trimmed = raw?.trim();
@@ -234,10 +249,11 @@ class LumoAppState {
   Future<void> replayVisiblePrompt(
     String prompt, {
     SpeakerMode mode = SpeakerMode.guiding,
+    String? supportLanguage,
   }) async {
     final trimmed = prompt.trim();
     if (trimmed.isEmpty) return;
-    await voiceReplay?.call(trimmed, mode);
+    await voiceReplay?.call(trimmed, mode, supportLanguage: supportLanguage);
   }
 
   SyncEvent? get latestSyncEvent =>
@@ -858,6 +874,10 @@ class LumoAppState {
       lastSyncError = _readNullableString(snapshot['lastSyncError']);
       learnerRuntimeError = _readNullableString(
         snapshot['learnerRuntimeError'],
+      );
+      mallamSupportLanguage = MallamSupportLanguage.values.firstWhere(
+        (value) => value.code == snapshot['mallamSupportLanguage']?.toString(),
+        orElse: () => MallamSupportLanguage.hausa,
       );
       snapshotSavedAt =
           _parseDate(snapshot['snapshotSavedAt']) ?? snapshotSavedAt;
@@ -5494,6 +5514,7 @@ class LumoAppState {
       'lastSyncWarnings': lastSyncWarnings,
       'lastSyncError': lastSyncError,
       'learnerRuntimeError': learnerRuntimeError,
+      'mallamSupportLanguage': mallamSupportLanguage.code,
     };
   }
 

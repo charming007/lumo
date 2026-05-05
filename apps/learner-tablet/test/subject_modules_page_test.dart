@@ -527,7 +527,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.text(lesson.title), findsOneWidget);
-      expect(find.text('Lesson journey'), findsOneWidget);
+      expect(find.text('Tafiyar darasi'), findsOneWidget);
       expect(
         find.text('All available lessons in English are complete for today.'),
         findsNothing,
@@ -965,7 +965,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Lesson journey'), findsOneWidget);
+      expect(find.text('Tafiyar darasi'), findsOneWidget);
       expect(find.text(lessonOne.title), findsOneWidget);
       expect(find.text(lessonTwo.title), findsOneWidget);
       expect(find.text('Start next lesson'), findsOneWidget);
@@ -1142,7 +1142,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Lesson journey'), findsOneWidget);
+      expect(find.text('Tafiyar darasi'), findsOneWidget);
       expect(find.text(lessonOne.title), findsOneWidget);
       expect(find.text(lessonTwo.title), findsOneWidget);
       expect(find.text('Start next lesson'), findsOneWidget);

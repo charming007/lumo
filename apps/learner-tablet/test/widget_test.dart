@@ -192,7 +192,7 @@ void main() {
   testWidgets('shows learner app shell after splash', (tester) async {
     await pumpAppAtSize(tester, const Size(1400, 1000));
 
-    expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(find.text('A sake jin Mallam'), findsOneWidget);
     expect(find.text('Register'), findsOneWidget);
     expect(find.text('Student list'), findsOneWidget);
     expect(find.text('Subjects'), findsNothing);
@@ -371,7 +371,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(find.text('A sake jin Mallam'), findsOneWidget);
     expect(nextLesson, isNotNull);
     expect(learnerName, isNotNull);
     expect(
@@ -482,12 +482,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(find.text('A sake jin Mallam'), findsOneWidget);
     expect(find.text('Follow Mallam one lesson at a time'), findsNothing);
     expect(find.textContaining('You opened ${module.title}.'), findsNothing);
-    expect(find.text('Lesson journey'), findsOneWidget);
+    expect(find.text('Tafiyar darasi'), findsOneWidget);
     expect(
-      find.textContaining('Finished lessons stay visible'),
+      find.textContaining('Darussan da aka gama suna nan a gani'),
       findsOneWidget,
     );
     expect(find.text('Available lessons'), findsNothing);
@@ -522,7 +522,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Back'), findsOneWidget);
-    expect(find.text('Hear Mallam again'), findsWidgets);
+    expect(find.text('A sake jin Mallam'), findsWidgets);
     expect(find.text('Continue'), findsOneWidget);
     expect(find.byType(FilledButton), findsAtLeastNWidgets(2));
 
@@ -561,7 +561,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Back'), findsNothing);
       expect(find.text('Student list'), findsOneWidget);
-      expect(find.text('Hear Mallam again'), findsOneWidget);
+      expect(find.text('A sake jin Mallam'), findsOneWidget);
       expect(state.hasUsableOfflineSnapshot, isFalse);
 
       state.dispose();
@@ -833,7 +833,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(800, 1280));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(find.text('A sake jin Mallam'), findsOneWidget);
     expect(find.text('Student list'), findsOneWidget);
     expect(find.byType(GridView), findsOneWidget);
     expect(find.byType(DetailCard), findsNothing);
@@ -1323,7 +1323,7 @@ void main() {
       await pumpAppAtSize(tester, const Size(1280, 800));
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Hear Mallam again'), findsOneWidget);
+      expect(find.text('A sake jin Mallam'), findsOneWidget);
       expect(find.byType(DetailCard), findsNothing);
       expect(find.text('English'), findsOneWidget);
       expect(find.text('Math'), findsOneWidget);
@@ -1437,7 +1437,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(1280, 800));
 
     final replayButtonBottom =
-        tester.getBottomLeft(find.text('Hear Mallam again')).dy;
+        tester.getBottomLeft(find.text('A sake jin Mallam')).dy;
     final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
 
     expect(
@@ -2212,17 +2212,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Lesson journey'), findsOneWidget);
+    expect(find.text('Tafiyar darasi'), findsOneWidget);
     expect(
-      find.textContaining('Finished lessons stay visible'),
+      find.textContaining('Darussan da aka gama suna nan a gani'),
       findsOneWidget,
     );
 
     final mallamGuideTopLeft = tester.getTopLeft(
-      find.text('Hear Mallam again'),
+      find.text('A sake jin Mallam'),
     );
     final lessonChooserTopLeft = tester.getTopLeft(
-      find.text('Lesson journey'),
+      find.text('Tafiyar darasi'),
     );
     expect(
       mallamGuideTopLeft.dy,
@@ -2254,11 +2254,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       String? replayedPrompt;
-      state.voiceReplay = (text, mode) async {
+      state.voiceReplay = (text, mode, {supportLanguage}) async {
         replayedPrompt = text;
       };
 
-      await tester.tap(find.text('Hear Mallam again'));
+      await tester.tap(find.text('A sake jin Mallam'));
       await pumpForUi(tester);
 
       final firstName = learner.name.split(' ').first;
@@ -2887,7 +2887,7 @@ void main() {
     expect(find.byType(SingleChildScrollView), findsWidgets);
 
     final mallamGuideTopLeft = tester.getTopLeft(
-      find.text('Hear Mallam again').first,
+      find.text('A sake jin Mallam').first,
     );
     final answerPanelTopLeft = tester.getTopLeft(
       find.textContaining('Start listening, capture the learner voice'),
@@ -3131,7 +3131,7 @@ void main() {
                 .isNotEmpty,
         isTrue,
       );
-      expect(find.text('Hear Mallam again'), findsWidgets);
+      expect(find.text('A sake jin Mallam'), findsWidgets);
       expect(
         find.text('Save note + resume hands-free').evaluate().isNotEmpty ||
             find.text('Confirm transcript').evaluate().isNotEmpty,
@@ -3237,7 +3237,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Confirm transcript'), findsOneWidget);
-      expect(find.text('Hear Mallam again'), findsWidgets);
+      expect(find.text('A sake jin Mallam'), findsWidgets);
 
       state.dispose();
     },
@@ -4354,7 +4354,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Hear Mallam again'), findsWidgets);
+    expect(find.text('A sake jin Mallam'), findsWidgets);
     expect(find.text('Learner transcript'), findsOneWidget);
     expect(find.text('Start listening'), findsOneWidget);
     expect(
@@ -4417,7 +4417,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(find.byType(LessonSessionPage), findsOneWidget);
-    expect(find.text('Hear Mallam again'), findsWidgets);
+    expect(find.text('A sake jin Mallam'), findsWidgets);
     expect(find.text('The lesson is paused safely'), findsOneWidget);
     expect(find.text('Ready to resume'), findsOneWidget);
 
@@ -4520,9 +4520,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Lesson journey'), findsOneWidget);
+    expect(find.text('Tafiyar darasi'), findsOneWidget);
     expect(
-      find.textContaining('Finished lessons stay visible'),
+      find.textContaining('Darussan da aka gama suna nan a gani'),
       findsOneWidget,
     );
 

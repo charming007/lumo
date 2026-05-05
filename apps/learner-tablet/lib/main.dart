@@ -18,6 +18,7 @@ import 'browser_runtime_observer.dart';
 import 'design_shell.dart';
 import 'dialogue.dart';
 import 'instructions.dart';
+import 'support_language.dart';
 import 'learner_audio_playback_service.dart';
 import 'lesson_capture_strategy.dart';
 import 'models.dart';
@@ -2262,6 +2263,12 @@ String _buildLearnerHumanMoment(LearnerProfile learner) {
   return '${learner.name.split(' ').first} is ready for a calm, voice-first check-in.';
 }
 
+SupportLanguageProfile _homeSupportLanguageProfile(LumoAppState state) {
+  return SupportLanguageProfile(
+    supportLanguage: state.usesHausaMallamSupport ? 'Hausa' : 'English',
+  );
+}
+
 String _buildHomeMallamReplayPrompt(LumoAppState state) {
   final learner = state.suggestedLearnerForHome;
   final nextLesson = state.nextAssignedLessonForLearner(learner);
@@ -2269,24 +2276,24 @@ String _buildHomeMallamReplayPrompt(LumoAppState state) {
       learner == null ? null : state.recommendedModuleForLearner(learner);
   final greeting = _timeAwareMallamGreeting();
   final registrationBlocked = state.registrationBlockerReason != null;
+  final supportCopy = MallamSupportCopy.forLanguage(state.mallamSupportLanguage);
 
   if (learner == null) {
-    return registrationBlocked
-        ? '$greeting You are on the home page. Registration is blocked until the live backend recovers, so open Student List to review synced learners or choose a subject to continue teaching.'
-        : '$greeting You are on the home page. Tap Register to add a learner, Student List to see all learners, or choose a subject to see its lessons.';
+    final body = registrationBlocked
+        ? supportCopy.homeReplayPromptNoLearnerBlocked
+        : supportCopy.homeReplayPromptNoLearner;
+    return '$greeting $body';
   }
 
   final learnerName = learner.name.split(' ').first;
   final learnerMoment = _buildLearnerHumanMoment(learner);
-  if (nextLesson != null) {
-    return '$greeting $learnerName is ready for ${nextLesson.title}. $learnerMoment Tap Student List to open learner cards, or open ${module?.title ?? nextLesson.subject} to continue the lesson path.';
-  }
-
-  if (module != null) {
-    return '$greeting $learnerName is ready to keep learning. $learnerMoment Tap Student List to open learner cards, or choose ${module.title} to keep the next lesson moving.';
-  }
-
-  return '$greeting $learnerName is on the home page. $learnerMoment Tap Register to add another learner, Student List to see all learners, or choose a subject to see its lessons.';
+  return '$greeting ${supportCopy.homeReplayPromptForLearner(
+    learnerName: learnerName,
+    learnerMoment: learnerMoment,
+    moduleTitle: module?.title,
+    nextLessonTitle: nextLesson?.title,
+    nextLessonSubject: nextLesson?.subject,
+  )}';
 }
 
 class _HomeMallamStage extends StatelessWidget {
@@ -2331,6 +2338,7 @@ class _HomeMallamStage extends StatelessWidget {
                 : nextLesson != null
                     ? '$learnerName can jump straight into ${nextLesson.title}. Open ${module?.title ?? nextLesson.subject} to keep the flow calm and continuous.'
                     : 'Open ${module?.title ?? 'a subject'} to keep $learnerName learning without hunting around the tablet.';
+        final supportLanguage = _homeSupportLanguageProfile(state);
         final portraitSize = math.min(
           shortHeight
               ? 176.0
@@ -2361,10 +2369,11 @@ class _HomeMallamStage extends StatelessWidget {
                 onPressed: () {
                   state.replayVisiblePrompt(
                     _buildHomeMallamReplayPrompt(state),
+                    supportLanguage: supportLanguage.supportLanguage,
                   );
                 },
                 icon: const Icon(Icons.volume_up_rounded),
-                label: const Text('Hear Mallam again'),
+                label: Text(supportLanguage.replayButtonLabel),
                 style: FilledButton.styleFrom(
                   foregroundColor: LumoTheme.primary,
                   backgroundColor: LumoTheme.primary.withValues(alpha: 0.1),
@@ -2380,6 +2389,13 @@ class _HomeMallamStage extends StatelessWidget {
                   ),
                 ),
               ),
+              if (!shortHeight) ...[
+                const SizedBox(height: 12),
+                MallamSupportLanguageToggle(
+                  selectedLanguage: state.mallamSupportLanguage,
+                  onChanged: state.setMallamSupportLanguage,
+                ),
+              ],
               SizedBox(height: shortHeight ? 0 : (compact ? 2 : 4)),
             ],
           ),
@@ -3915,6 +3931,10 @@ class SubjectModulesPage extends StatelessWidget {
                 orElse: () => lessons.isNotEmpty ? lessons.first : null,
               ),
         );
+    final subjectSupportLanguage = SupportLanguageProfile(
+      supportLanguage: state.usesHausaMallamSupport ? 'Hausa' : 'English',
+      targetLanguage: highlightedLesson?.targetLanguage ?? 'English',
+    );
 
     void openLesson(LessonCardModel lesson) {
       if (lesson.isAssignmentPlaceholder) return;
@@ -3964,22 +3984,29 @@ class SubjectModulesPage extends StatelessWidget {
                         eyebrow: 'Mallam',
                         frameless: true,
                         child: MallamPanel(
-                          instruction: modulesInstruction,
+                          instruction: MallamSupportCopy.forLanguage(state.mallamSupportLanguage).modulesInstruction(),
                           onVoiceTap: () {
                             state.replayVisiblePrompt(
-                              'You opened $subjectTitle. Start with the next lesson bubble, then follow the lesson path one step at a time.',
+                              subjectSupportLanguage.usesHausaShell
+                                  ? 'Kin bude $subjectTitle. Ki fara da kumfar darasi na gaba, sannan ki bi hanyar darasi mataki daya bayan daya.'
+                                  : 'You opened $subjectTitle. Start with the next lesson bubble, then follow the lesson path one step at a time.',
+                              supportLanguage:
+                                  subjectSupportLanguage.supportLanguage,
                             );
                           },
-                          prompt:
-                              'You opened $subjectTitle. Choose a lesson in this subject, then start with the learner who is taking it.',
+                          prompt: subjectSupportLanguage.usesHausaShell
+                              ? 'Kin bude $subjectTitle. Ki zabi darasi a wannan fanni, sannan ki fara da mai koyon da zai dauke shi.'
+                              : 'You opened $subjectTitle. Choose a lesson in this subject, then start with the learner who is taking it.',
                           speakerMode: SpeakerMode.guiding,
-                          statusLabel: 'Mallam leads the lesson',
-                          secondaryStatus: 'Lesson path guide',
-                          voiceButtonLabel: 'Hear Mallam again',
+                          statusLabel: subjectSupportLanguage.guidingStatus,
+                          secondaryStatus: subjectSupportLanguage.lessonPathStatus,
+                          voiceButtonLabel:
+                              subjectSupportLanguage.replayButtonLabel,
                           centerPortraitLayout: true,
                           minimalStageLayout: true,
                           framelessStage: true,
                           framelessPortrait: true,
+                          supportLanguageProfile: subjectSupportLanguage,
                         ),
                       ),
                     ),
@@ -4095,8 +4122,8 @@ class SubjectModulesPage extends StatelessWidget {
                               }
 
                               const showJourneyHeader = true;
-                              const journeyHint =
-                                  'Finished lessons stay visible but cannot be reopened. Follow the first open lesson to keep the path moving.';
+                              final journeyHint =
+                                  MallamSupportCopy.forLanguage(state.mallamSupportLanguage).lessonJourneyHint();
 
                               return Container(
                                 width: double.infinity,
@@ -4109,8 +4136,8 @@ class SubjectModulesPage extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     if (showJourneyHeader) ...[
-                                      const Text(
-                                        'Lesson journey',
+                                      Text(
+                                        MallamSupportCopy.forLanguage(state.mallamSupportLanguage).lessonJourneyTitle(),
                                         style: TextStyle(
                                           fontSize: 30,
                                           fontWeight: FontWeight.w900,
@@ -4682,7 +4709,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     speakerMode: SpeakerMode.guiding,
                     statusLabel: 'Mallam is guiding registration',
                     secondaryStatus: 'Registration guide',
-                    voiceButtonLabel: 'Hear Mallam again',
+                    voiceButtonLabel: MallamSupportCopy.forLanguage(widget.state.mallamSupportLanguage).replayButton,
+          shellLanguage: widget.state.mallamSupportLanguage,
+          onLanguageChanged: widget.state.setMallamSupportLanguage,
                     voiceHint:
                         'Keep Mallam visible and dominant on this screen so the facilitator can finish intake without losing the voice guide.',
                     centerPortraitLayout: true,
@@ -8117,6 +8146,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       prompt,
       mode: SpeakerMode.guiding,
       autoReadyMessage: readyMessage,
+      supportLanguage: session.currentStep.supportLanguage,
     );
     _resumedSession = false;
   }
@@ -8147,7 +8177,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       isSpeaking = true;
       microphoneStatus = 'Mallam is encouraging the learner.';
     });
-    await widget.state.replayVisiblePrompt(text, mode: SpeakerMode.affirming);
+    await widget.state.replayVisiblePrompt(
+      text,
+      mode: SpeakerMode.affirming,
+      supportLanguage: widget.state.activeSession?.currentStep.supportLanguage,
+    );
     if (!mounted) return;
     setState(() {
       isSpeaking = false;
@@ -8159,6 +8193,7 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     String text, {
     SpeakerMode mode = SpeakerMode.guiding,
     String? autoReadyMessage,
+    String? supportLanguage,
   }) async {
     await _prepareForMallamSpeech();
     if (!mounted) return;
@@ -8166,7 +8201,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
       isSpeaking = true;
       microphoneStatus = 'Mallam is speaking.';
     });
-    await widget.state.replayVisiblePrompt(text, mode: mode);
+    await widget.state.replayVisiblePrompt(
+      text,
+      mode: mode,
+      supportLanguage: supportLanguage,
+    );
     if (!mounted) return;
     setState(() {
       isSpeaking = false;
@@ -10666,11 +10705,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
 
     Widget buildLessonGuidePane() {
+      final lessonSupportLanguage = SupportLanguageProfile(
+        supportLanguage:
+            widget.state.usesHausaMallamSupport ? 'Hausa' : 'English',
+        targetLanguage: step.targetLanguage,
+      );
       final lessonStage = _MallamStageShell(
         eyebrow: 'Mallam',
         frameless: true,
         child: MallamPanel(
-          instruction: lessonInstruction,
+          instruction: MallamSupportCopy.forLanguage(widget.state.mallamSupportLanguage).lessonInstruction(),
           onVoiceTap: () async {
             _promptedCurrentStep = false;
             await _speakCurrentStepIfNeeded(force: true);
@@ -10681,13 +10725,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           speakerMode: session.speakerMode,
           statusLabel: _speakerModeLabel(session.speakerMode),
           secondaryStatus: stepLabel,
-          voiceButtonLabel: 'Hear Mallam again',
+          voiceButtonLabel: lessonSupportLanguage.replayButtonLabel,
           speakerOutputMode: session.speakerOutputMode,
           voiceHint: null,
           centerPortraitLayout: true,
           minimalStageLayout: true,
           framelessStage: true,
           framelessPortrait: true,
+          supportLanguageProfile: lessonSupportLanguage,
         ),
       );
 
