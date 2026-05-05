@@ -32,6 +32,7 @@ export function getDashboardReleaseBlockers(params: {
       const hasAssessmentGate = releaseState.hasAssessmentGate;
       const isDraftModule = module.status === 'draft';
       const blockerCount = releaseState.publishBlockers.length;
+      const recoveredSubject = params.subjects.find((subject) => subject.id === releaseState.recoveredSubjectId) ?? null;
 
       if (!blockerCount) {
         return null;
@@ -41,7 +42,7 @@ export function getDashboardReleaseBlockers(params: {
         id: module.id,
         title: module.title,
         subjectId: releaseState.recoveredSubjectId,
-        subjectName: module.subjectName ?? '—',
+        subjectName: recoveredSubject?.name ?? module.subjectName ?? '—',
         missingLessons,
         hasAssessmentGate,
         isDraftModule,
