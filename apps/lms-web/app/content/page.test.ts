@@ -36,3 +36,21 @@ test('content board honors the focused module id filter and calls out drift', ()
     'content board should treat a missing focused module as stale or mismatched deployment evidence',
   );
 });
+
+test('content blocker actions keep multi-lesson gaps on the bulk blocker flow instead of single-lesson studio', () => {
+  assert.match(
+    contentPageSource,
+    /import \{ resolveTopReleaseBlockerCta \} from '\.\.\/\.\.\/lib\/dashboard-top-blocker';/,
+    'content blocker actions should reuse the shared blocker CTA policy so dashboard and content board do not drift',
+  );
+  assert.match(
+    contentPageSource,
+    /const blockerCta = resolveTopReleaseBlockerCta\(\{[\s\S]*missingLessons,[\s\S]*hasAuthoringContext,[\s\S]*subjectMetadataDegraded:/,
+    'content blocker actions should derive their lesson-create CTA from the shared blocker resolver',
+  );
+  assert.match(
+    contentPageSource,
+    /const createLessonHref = blockerCta\.canLaunchLessonStudio && moduleSubjectId/,
+    'content blocker actions should only launch lesson studio when the shared blocker resolver says the gap is a single recoverable lesson',
+  );
+});
