@@ -387,7 +387,7 @@ export default async function HomePage() {
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
   const topReleaseBlockerBoardHref = topReleaseBlocker
-    ? `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${encodeURIComponent(topReleaseBlocker.subjectId)}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`
+    ? `/content?view=blocked&moduleId=${encodeURIComponent(topReleaseBlocker.id)}${topReleaseBlocker.subjectId ? `&subject=${encodeURIComponent(topReleaseBlocker.subjectId)}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`
     : '/content?view=blocked';
   const topReleaseBlockerSubjectMetadataMissing = Boolean(
     topReleaseBlocker?.missingLessons

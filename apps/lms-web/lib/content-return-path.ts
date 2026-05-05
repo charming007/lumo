@@ -3,17 +3,19 @@ export function normalizeFilterValue(value: string | string[] | undefined) {
   return value ?? '';
 }
 
-export function buildContentReturnPath(query?: { q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }) {
+export function buildContentReturnPath(query?: { q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[]; moduleId?: string | string[] }) {
   const params = new URLSearchParams();
   const q = normalizeFilterValue(query?.q).trim();
   const subject = normalizeFilterValue(query?.subject).trim();
   const status = normalizeFilterValue(query?.status).trim();
   const view = normalizeFilterValue(query?.view).trim();
+  const moduleId = normalizeFilterValue(query?.moduleId).trim();
 
   if (q) params.set('q', q);
   if (subject) params.set('subject', subject);
   if (status) params.set('status', status);
   if (view) params.set('view', view);
+  if (moduleId) params.set('moduleId', moduleId);
 
   return params.size ? `/content?${params.toString()}` : '/content';
 }

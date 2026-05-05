@@ -60,7 +60,7 @@ function emptyTableRows(message: string, columns: number) {
   return [[<span key={message} style={{ color: '#64748b', lineHeight: 1.6 }}>{message}</span>, ...Array.from({ length: columns - 1 }, () => '')]];
 }
 
-export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
+export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[]; moduleId?: string | string[] }> }) {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -186,19 +186,26 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const subjectFilter = normalizeFilterValue(query?.subject).trim();
   const statusFilter = normalizeFilterValue(query?.status).trim();
   const viewFilter = normalizeFilterValue(query?.view).trim();
+  const moduleIdFilter = normalizeFilterValue(query?.moduleId).trim();
+  const normalizedModuleIdFilter = moduleIdFilter.toLowerCase();
   const returnPath = buildContentReturnPath(query);
   const normalizedSubjectFilter = subjectFilter.toLowerCase();
   const subjectFilterName = subjects.find((subject) => subject.id.trim().toLowerCase() === normalizedSubjectFilter)
     ?.name ?? subjects.find((subject) => subject.name.trim().toLowerCase() === normalizedSubjectFilter)?.name;
+  const moduleIdMatches = (value?: string | null) => !normalizedModuleIdFilter || value?.trim().toLowerCase() === normalizedModuleIdFilter;
+  const focusedModule = normalizedModuleIdFilter
+    ? modules.find((module) => module.id.trim().toLowerCase() === normalizedModuleIdFilter) ?? null
+    : null;
   const filteredModules = modules.filter((module) => {
     const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
       subjectIds: [module.subjectId],
       subjectNames: [module.subjectName],
     });
+    const moduleMatches = moduleIdMatches(module.id);
     const statusMatches = !statusFilter || module.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'modules' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
-    return subjectMatches && statusMatches && viewMatches && queryMatches;
+    return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
   });
 
   const filteredLessons = lessons.filter((lesson) => {
@@ -207,10 +214,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       subjectIds: [lesson.subjectId, moduleForLesson?.subjectId],
       subjectNames: [lesson.subjectName, moduleForLesson?.subjectName],
     });
+    const moduleMatches = moduleIdMatches(lesson.moduleId) || moduleIdMatches(moduleForLesson?.id);
     const statusMatches = !statusFilter || lesson.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'lessons';
     const queryMatches = matchesQuery([lesson.title, lesson.subjectName, lesson.moduleTitle, lesson.mode, lesson.status, lesson.targetAgeRange], searchText);
-    return subjectMatches && statusMatches && viewMatches && queryMatches;
+    return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
   });
 
   const filteredAssessments = assessments.filter((assessment) => {
@@ -218,10 +226,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       subjectIds: [assessment.subjectId],
       subjectNames: [assessment.subjectName],
     });
+    const moduleMatches = moduleIdMatches(assessment.moduleId);
     const statusMatches = !statusFilter || assessment.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'assessments' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([assessment.title, assessment.moduleTitle, assessment.subjectName, assessment.triggerLabel, assessment.kind, assessment.status], searchText);
-    return subjectMatches && statusMatches && viewMatches && queryMatches;
+    return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
   });
 
   const moduleHasAssessmentGate = (module: (typeof modules)[number]) => assessments.some(
@@ -239,16 +248,17 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       subjectIds: [module.subjectId],
       subjectNames: [module.subjectName],
     });
+    const moduleMatches = moduleIdMatches(module.id);
     const viewMatches = !viewFilter || viewFilter === 'blocked';
     const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
-    return subjectMatches && viewMatches && queryMatches;
+    return subjectMatches && moduleMatches && viewMatches && queryMatches;
   });
 
   const showingBlockedView = viewFilter === 'blocked';
   const activeResultCount = showingBlockedView
     ? filteredBlockedModules.length
     : filteredModules.length + filteredLessons.length + filteredAssessments.length;
-  const filtersActive = Boolean(searchText || subjectFilter || statusFilter || viewFilter);
+  const filtersActive = Boolean(searchText || subjectFilter || statusFilter || viewFilter || moduleIdFilter);
 
   return (
     <PageShell
@@ -290,6 +300,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
       <section style={{ marginBottom: 20, padding: 18, borderRadius: 24, background: 'white', border: '1px solid #e5e7eb', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
         <form style={{ display: 'grid', gap: 14 }}>
+          {moduleIdFilter ? <input type="hidden" name="moduleId" value={moduleIdFilter} /> : null}
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Library filters</div>
@@ -343,6 +354,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             {subjectFilterName ? <Pill label={`Subject: ${subjectFilterName}`} tone="#ECFDF5" text="#166534" /> : null}
             {statusFilter ? <Pill label={`Status: ${statusFilter}`} tone="#FEF3C7" text="#92400E" /> : null}
             {viewFilter ? <Pill label={`View: ${viewFilter}`} tone="#F3E8FF" text="#7E22CE" /> : null}
+            {focusedModule ? <Pill label={`Focused module: ${focusedModule.title}`} tone="#FEE2E2" text="#991B1B" /> : null}
+            {moduleIdFilter && !focusedModule ? <Pill label={`Focused module id: ${moduleIdFilter}`} tone="#FFF7ED" text="#9A3412" /> : null}
             {searchText ? <Pill label={`Query: ${searchText}`} tone="#F8FAFC" text="#334155" /> : null}
           </div>
         </form>
@@ -350,9 +363,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
       {filtersActive ? (
         <div style={{ marginBottom: 20, padding: '14px 16px', borderRadius: 16, background: activeResultCount > 0 ? '#eef2ff' : '#fff7ed', border: `1px solid ${activeResultCount > 0 ? '#c7d2fe' : '#fed7aa'}`, color: activeResultCount > 0 ? '#3730a3' : '#9a3412', fontWeight: 700 }}>
-          {activeResultCount > 0
-            ? `Showing ${activeResultCount} matching records across the filtered board.`
-            : 'No records match those filters yet. Loosen the query or clear the filters instead of assuming the library is empty.'}
+          {moduleIdFilter && !focusedModule
+            ? `The dashboard passed moduleId ${moduleIdFilter}, but this board cannot find that module in the live curriculum feed. Treat that as stale or mismatched deployment evidence, not as a clean blocker board.`
+            : activeResultCount > 0
+              ? `Showing ${activeResultCount} matching records across the filtered board.`
+              : 'No records match those filters yet. Loosen the query or clear the filters instead of assuming the library is empty.'}
         </div>
       ) : null}
 
