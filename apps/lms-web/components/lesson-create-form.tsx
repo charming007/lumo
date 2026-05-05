@@ -104,6 +104,11 @@ function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}
     evidence: '',
     targetText: '',
     supportText: '',
+    targetAudioAssetRef: '',
+    supportAudioMode: 'none',
+    supportAudioAssetRef: '',
+    supportAudioPhraseId: '',
+    supportAudioPhraseText: '',
     expectedAnswers: '',
     tags: '',
     facilitatorNotes: '',
@@ -270,6 +275,14 @@ export function LessonCreateForm({
   const [supportLanguage, setSupportLanguage] = useState(String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguage ?? 'ha'));
   const [supportLanguageLabel, setSupportLanguageLabel] = useState(String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguageLabel ?? 'Hausa'));
   const [defaultStepSupportText, setDefaultStepSupportText] = useState(String((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportText ?? ''));
+  const [defaultStepSupportAudioMode, setDefaultStepSupportAudioMode] = useState<'none' | 'asset' | 'phrase-bank'>(() => {
+    const source = String(((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportAudio as Record<string, unknown> | null)?.source ?? '').trim();
+    return source === 'asset' || source === 'phrase-bank' ? source : 'none';
+  });
+  const [defaultStepSupportAudioAssetRef, setDefaultStepSupportAudioAssetRef] = useState(String(((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportAudio as Record<string, unknown> | null)?.value ?? ''));
+  const [defaultStepSupportAudioPhraseId, setDefaultStepSupportAudioPhraseId] = useState(String(((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportAudio as Record<string, unknown> | null)?.phraseId ?? ''));
+  const [defaultStepSupportAudioPhraseText, setDefaultStepSupportAudioPhraseText] = useState(String(((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportAudio as Record<string, unknown> | null)?.phraseText ?? ''));
+  const [lessonTargetAudioAssetRef, setLessonTargetAudioAssetRef] = useState(String(((duplicateLesson?.localization as Record<string, unknown> | null)?.lessonTargetAudio as Record<string, unknown> | null)?.value ?? ''));
   const [localizationNotesText, setLocalizationNotesText] = useState(asArray<string>((duplicateLesson?.localization as Record<string, unknown> | null)?.notes).join('\n'));
   const [assessmentTitle, setAssessmentTitle] = useState(String(duplicateLesson?.lessonAssessment?.title ?? ''));
   const [assessmentKind, setAssessmentKind] = useState(String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'));
@@ -288,6 +301,14 @@ export function LessonCreateForm({
     supportLanguage: String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguage ?? 'ha'),
     supportLanguageLabel: String((duplicateLesson?.localization as Record<string, unknown> | null)?.supportLanguageLabel ?? 'Hausa'),
     defaultStepSupportText: String((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportText ?? ''),
+    defaultStepSupportAudioMode: (() => {
+      const source = String(((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportAudio as Record<string, unknown> | null)?.source ?? '').trim();
+      return source === 'asset' || source === 'phrase-bank' ? source : 'none';
+    })(),
+    defaultStepSupportAudioAssetRef: String(((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportAudio as Record<string, unknown> | null)?.value ?? ''),
+    defaultStepSupportAudioPhraseId: String(((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportAudio as Record<string, unknown> | null)?.phraseId ?? ''),
+    defaultStepSupportAudioPhraseText: String(((duplicateLesson?.localization as Record<string, unknown> | null)?.defaultStepSupportAudio as Record<string, unknown> | null)?.phraseText ?? ''),
+    lessonTargetAudioAssetRef: String(((duplicateLesson?.localization as Record<string, unknown> | null)?.lessonTargetAudio as Record<string, unknown> | null)?.value ?? ''),
     localizationNotesText: asArray<string>((duplicateLesson?.localization as Record<string, unknown> | null)?.notes).join('\n'),
     assessmentTitle: String(duplicateLesson?.lessonAssessment?.title ?? ''),
     assessmentKind: String(duplicateLesson?.lessonAssessment?.kind ?? 'observational'),
@@ -310,8 +331,20 @@ export function LessonCreateForm({
     targetLanguage: 'en',
     targetLanguageLabel: 'English',
     defaultStepSupportText: defaultStepSupportText.trim() || undefined,
+    defaultStepSupportAudio: defaultStepSupportAudioMode === 'asset'
+      ? (defaultStepSupportAudioAssetRef.trim() ? { source: 'asset', value: defaultStepSupportAudioAssetRef.trim() } : undefined)
+      : defaultStepSupportAudioMode === 'phrase-bank'
+        ? ((defaultStepSupportAudioPhraseId.trim() || defaultStepSupportAudioPhraseText.trim())
+          ? {
+              source: 'phrase-bank',
+              ...(defaultStepSupportAudioPhraseId.trim() ? { phraseId: defaultStepSupportAudioPhraseId.trim() } : {}),
+              ...(defaultStepSupportAudioPhraseText.trim() ? { phraseText: defaultStepSupportAudioPhraseText.trim() } : {}),
+            }
+          : undefined)
+        : undefined,
+    lessonTargetAudio: lessonTargetAudioAssetRef.trim() ? { source: 'asset', value: lessonTargetAudioAssetRef.trim() } : undefined,
     notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
-  }), [supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText]);
+  }), [supportLanguage, supportLanguageLabel, defaultStepSupportText, defaultStepSupportAudioMode, defaultStepSupportAudioAssetRef, defaultStepSupportAudioPhraseId, defaultStepSupportAudioPhraseText, lessonTargetAudioAssetRef, localizationNotesText]);
   const lessonAssessment = useMemo(() => ({
     ...(duplicateLesson?.lessonAssessment && typeof duplicateLesson.lessonAssessment === 'object' ? duplicateLesson.lessonAssessment : {}),
     title: assessmentTitle,
@@ -325,6 +358,17 @@ export function LessonCreateForm({
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, step) => sum + (step.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
   const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getLessonStepTypeWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
+  const audioReferenceBlockers = useMemo(() => {
+    const blockers: string[] = [];
+    if (defaultStepSupportAudioMode === 'asset' && !defaultStepSupportAudioAssetRef.trim()) blockers.push('Default Hausa support audio is set to asset mode but has no asset reference.');
+    if (defaultStepSupportAudioMode === 'phrase-bank' && !defaultStepSupportAudioPhraseId.trim() && !defaultStepSupportAudioPhraseText.trim()) blockers.push('Default Hausa support audio is set to phrase-bank mode but has no phrase reference.');
+    activityDrafts.forEach((activity, index) => {
+      if (activity.targetAudioAssetRef.trim() === '' && activity.targetText.trim()) blockers.push(`Step ${index + 1}: add English target audio or clear the target text if this step is intentionally text-only.`);
+      if (activity.supportAudioMode === 'asset' && !activity.supportAudioAssetRef.trim()) blockers.push(`Step ${index + 1}: Hausa support audio is in asset mode but missing its reference.`);
+      if (activity.supportAudioMode === 'phrase-bank' && !activity.supportAudioPhraseId.trim() && !activity.supportAudioPhraseText.trim()) blockers.push(`Step ${index + 1}: Hausa support audio is in phrase-bank mode but missing its phrase reference.`);
+    });
+    return blockers;
+  }, [activityDrafts, defaultStepSupportAudioMode, defaultStepSupportAudioAssetRef, defaultStepSupportAudioPhraseId, defaultStepSupportAudioPhraseText]);
   const assetRuntimeBlockers = useMemo(() => activitySteps.flatMap((step, index) => {
     const runtime = getStepRuntimePreviewHints(step, assets);
     return runtime.hints
@@ -349,8 +393,9 @@ export function LessonCreateForm({
     Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing the lesson is bullshit until the lane is release-safe.',
     ...typeReadinessWarnings,
+    ...audioReferenceBlockers,
     ...assetRuntimeBlockers,
-  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings, assetRuntimeBlockers]);
+  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings, audioReferenceBlockers, assetRuntimeBlockers]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = dependencyBlockers.length > 0 || (publishIntent && readinessBlockers.length > 0);
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -366,6 +411,11 @@ export function LessonCreateForm({
     supportLanguage,
     supportLanguageLabel,
     defaultStepSupportText,
+    defaultStepSupportAudioMode,
+    defaultStepSupportAudioAssetRef,
+    defaultStepSupportAudioPhraseId,
+    defaultStepSupportAudioPhraseText,
+    lessonTargetAudioAssetRef,
     localizationNotesText,
     assessmentTitle,
     assessmentKind,
@@ -641,6 +691,38 @@ export function LessonCreateForm({
                 Default Hausa support cue for steps
                 <textarea value={defaultStepSupportText} onChange={(event) => setDefaultStepSupportText(event.target.value)} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
               </FieldLabel>
+              <div style={{ ...autoFitCompactFields, marginTop: 12 }}>
+                <FieldLabel>
+                  Default Hausa support audio source
+                  <select value={defaultStepSupportAudioMode} onChange={(event) => setDefaultStepSupportAudioMode(event.target.value as 'none' | 'asset' | 'phrase-bank')} style={inputStyle}>
+                    <option value="none">None</option>
+                    <option value="phrase-bank">Phrase bank reference</option>
+                    <option value="asset">Direct audio asset</option>
+                  </select>
+                </FieldLabel>
+                <FieldLabel>
+                  Lesson-level English target audio
+                  <input value={lessonTargetAudioAssetRef} onChange={(event) => setLessonTargetAudioAssetRef(event.target.value)} placeholder="asset:english-audio-... or URL" style={inputStyle} />
+                </FieldLabel>
+              </div>
+              {defaultStepSupportAudioMode === 'asset' ? (
+                <FieldLabel>
+                  Default Hausa support audio asset
+                  <input value={defaultStepSupportAudioAssetRef} onChange={(event) => setDefaultStepSupportAudioAssetRef(event.target.value)} placeholder="asset:hausa-support-... or URL" style={inputStyle} />
+                </FieldLabel>
+              ) : null}
+              {defaultStepSupportAudioMode === 'phrase-bank' ? (
+                <div style={{ ...autoFitCompactFields, marginTop: 12 }}>
+                  <FieldLabel>
+                    Default Hausa phrase-bank id
+                    <input value={defaultStepSupportAudioPhraseId} onChange={(event) => setDefaultStepSupportAudioPhraseId(event.target.value)} placeholder="ha-greet-and-model-once" style={inputStyle} />
+                  </FieldLabel>
+                  <FieldLabel>
+                    Default Hausa phrase-bank text
+                    <textarea value={defaultStepSupportAudioPhraseText} onChange={(event) => setDefaultStepSupportAudioPhraseText(event.target.value)} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+                  </FieldLabel>
+                </div>
+              ) : null}
               <FieldLabel>
                 Localization notes (one per line)
                 <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={{ ...inputStyle, minHeight: 144 }} />
@@ -835,6 +917,40 @@ export function LessonCreateForm({
                       <span style={{ color: '#64748B', fontSize: 12 }}>Optional step-specific Hausa coaching. Leave blank to rely on the lesson default support cue.</span>
                     </FieldLabel>
                   </div>
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      English target audio asset
+                      <input value={activity.targetAudioAssetRef} onChange={(event) => updateActivity(index, { targetAudioAssetRef: event.target.value })} placeholder="asset:english-target-audio or URL" style={inputStyle} />
+                      <span style={{ color: '#64748B', fontSize: 12 }}>Phase-1 keeps this practical: point at a prerecorded English asset, URL, or stable storage key.</span>
+                    </FieldLabel>
+                    <FieldLabel>
+                      Hausa support audio source
+                      <select value={activity.supportAudioMode} onChange={(event) => updateActivity(index, { supportAudioMode: event.target.value as ActivityDraft['supportAudioMode'] })} style={inputStyle}>
+                        <option value="none">None</option>
+                        <option value="phrase-bank">Phrase bank reference</option>
+                        <option value="asset">Direct audio asset</option>
+                      </select>
+                      <span style={{ color: '#64748B', fontSize: 12 }}>Use phrase bank for reusable Hausa coaching, or asset mode for uploaded step-specific support.</span>
+                    </FieldLabel>
+                  </div>
+                  {activity.supportAudioMode === 'asset' ? (
+                    <FieldLabel>
+                      Hausa support audio asset
+                      <input value={activity.supportAudioAssetRef} onChange={(event) => updateActivity(index, { supportAudioAssetRef: event.target.value })} placeholder="asset:hausa-support-audio or URL" style={inputStyle} />
+                    </FieldLabel>
+                  ) : null}
+                  {activity.supportAudioMode === 'phrase-bank' ? (
+                    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                      <FieldLabel>
+                        Hausa support phrase-bank id
+                        <input value={activity.supportAudioPhraseId} onChange={(event) => updateActivity(index, { supportAudioPhraseId: event.target.value })} placeholder="ha-step-coaching-..." style={inputStyle} />
+                      </FieldLabel>
+                      <FieldLabel>
+                        Hausa support phrase-bank text
+                        <textarea value={activity.supportAudioPhraseText} onChange={(event) => updateActivity(index, { supportAudioPhraseText: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+                      </FieldLabel>
+                    </div>
+                  ) : null}
                   <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
                     <FieldLabel>
                       Tags (comma separated)

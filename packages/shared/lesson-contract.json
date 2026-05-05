@@ -24,6 +24,8 @@
         "targetLanguage": { "type": ["string", "null"], "enum": ["en", null] },
         "targetLanguageLabel": { "type": ["string", "null"] },
         "defaultStepSupportText": { "type": ["string", "null"] },
+        "defaultStepSupportAudio": { "$ref": "#/$defs/audioReference" },
+        "lessonTargetAudio": { "$ref": "#/$defs/audioReference" },
         "notes": {
           "type": "array",
           "items": { "type": "string" }
@@ -46,6 +48,19 @@
     }
   },
   "$defs": {
+    "audioReference": {
+      "type": ["object", "null"],
+      "properties": {
+        "source": { "type": ["string", "null"], "enum": ["asset", "phrase-bank", null] },
+        "assetId": { "type": ["string", "null"] },
+        "value": { "type": ["string", "null"] },
+        "phraseId": { "type": ["string", "null"] },
+        "phraseText": { "type": ["string", "null"] },
+        "label": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
     "activityStep": {
       "type": "object",
       "required": ["id", "type", "prompt"],
@@ -70,6 +85,8 @@
         "hint": { "type": "string" },
         "targetText": { "type": "string" },
         "supportText": { "type": "string" },
+        "targetAudio": { "$ref": "#/$defs/audioReference" },
+        "supportAudio": { "$ref": "#/$defs/audioReference" },
         "expectedAnswers": {
           "type": "array",
           "items": { "type": "string" }

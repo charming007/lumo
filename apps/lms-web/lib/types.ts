@@ -300,6 +300,16 @@ export type LessonActivityDragTarget = {
   media?: LessonActivityMedia | null;
 };
 
+export type LessonAudioReference = {
+  source?: 'asset' | 'phrase-bank';
+  assetId?: string;
+  value?: string;
+  phraseId?: string;
+  phraseText?: string;
+  label?: string;
+  notes?: string;
+};
+
 export type LessonActivityStep = {
   id: string;
   type: string;
@@ -311,6 +321,8 @@ export type LessonActivityStep = {
   evidence?: string;
   targetText?: string;
   supportText?: string;
+  targetAudio?: LessonAudioReference | null;
+  supportAudio?: LessonAudioReference | null;
   expectedAnswers?: string[];
   media?: LessonActivityMedia[];
   choices?: LessonActivityChoice[];
@@ -348,6 +360,8 @@ export type Lesson = {
     targetLanguage?: string;
     targetLanguageLabel?: string;
     defaultStepSupportText?: string;
+    defaultStepSupportAudio?: LessonAudioReference | null;
+    lessonTargetAudio?: LessonAudioReference | null;
     notes?: string[];
     [key: string]: unknown;
   } | null;

@@ -1,4 +1,4 @@
-import type { Lesson, LessonActivityChoice, LessonActivityDragItem, LessonActivityDragTarget, LessonActivityStep, LessonActivityMedia } from '../lib/types';
+import type { Lesson, LessonActivityChoice, LessonActivityDragItem, LessonActivityDragTarget, LessonActivityStep, LessonActivityMedia, LessonAudioReference } from '../lib/types';
 import type { ActivityDraftLike } from './lesson-step-authoring';
 
 export type LessonActivityDraft = {
@@ -11,6 +11,11 @@ export type LessonActivityDraft = {
   evidence: string;
   targetText: string;
   supportText: string;
+  targetAudioAssetRef: string;
+  supportAudioMode: string;
+  supportAudioAssetRef: string;
+  supportAudioPhraseId: string;
+  supportAudioPhraseText: string;
   expectedAnswers: string;
   tags: string;
   facilitatorNotes: string;
@@ -98,6 +103,36 @@ function serializeInlineMedia(media: unknown) {
   const kind = typeof typed.kind === 'string' ? typed.kind : String(typed.kind ?? '');
   const value = 'value' in typed ? serializeMediaValue(typed.value) : '';
   return { kind, value };
+}
+
+function normalizeAudioReference(value: unknown): LessonAudioReference | null {
+  if (!value || typeof value !== 'object') return null;
+  const audio = value as Record<string, unknown>;
+  const source = audio.source === 'phrase-bank' ? 'phrase-bank' : audio.source === 'asset' ? 'asset' : undefined;
+  const assetId = typeof audio.assetId === 'string' ? audio.assetId.trim() : '';
+  const rawValue = typeof audio.value === 'string' ? audio.value.trim() : '';
+  const phraseId = typeof audio.phraseId === 'string' ? audio.phraseId.trim() : '';
+  const phraseText = typeof audio.phraseText === 'string' ? audio.phraseText.trim() : '';
+  const label = typeof audio.label === 'string' ? audio.label.trim() : '';
+  const notes = typeof audio.notes === 'string' ? audio.notes.trim() : '';
+
+  if (!source && !assetId && !rawValue && !phraseId && !phraseText && !label && !notes) return null;
+
+  return {
+    ...(source ? { source } : {}),
+    ...(assetId ? { assetId } : {}),
+    ...(rawValue ? { value: rawValue } : {}),
+    ...(phraseId ? { phraseId } : {}),
+    ...(phraseText ? { phraseText } : {}),
+    ...(label ? { label } : {}),
+    ...(notes ? { notes } : {}),
+  } satisfies LessonAudioReference;
+}
+
+function serializeAudioAssetRef(value: unknown) {
+  const audio = normalizeAudioReference(value);
+  if (!audio) return '';
+  return audio.value ?? (audio.assetId ? `asset:${audio.assetId}` : '');
 }
 
 export function countNonEmptyLines(value: string) {
@@ -217,6 +252,12 @@ export function serializeMediaLinesFromStep(step: LessonActivityStep) {
 }
 
 export function buildActivityDraftFromStep(step: LessonActivityStep, index: number): LessonActivityDraft {
+  const supportAudioMode: LessonActivityDraft['supportAudioMode'] = step.supportAudio?.source === 'phrase-bank'
+    ? 'phrase-bank'
+    : step.supportAudio?.source === 'asset'
+      ? 'asset'
+      : 'none';
+
   return {
     id: step.id || `activity-${index + 1}`,
     title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
@@ -227,15 +268,20 @@ export function buildActivityDraftFromStep(step: LessonActivityStep, index: numb
     evidence: step.evidence ?? '',
     targetText: step.targetText ?? '',
     supportText: step.supportText ?? '',
+    targetAudioAssetRef: serializeAudioAssetRef(step.targetAudio),
+    supportAudioMode,
+    supportAudioAssetRef: step.supportAudio?.source === 'asset' ? serializeAudioAssetRef(step.supportAudio) : '',
+    supportAudioPhraseId: step.supportAudio?.source === 'phrase-bank' ? String(step.supportAudio.phraseId ?? '') : '',
+    supportAudioPhraseText: step.supportAudio?.source === 'phrase-bank' ? String(step.supportAudio.phraseText ?? '') : '',
     expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
     tags: asArray<string>(step.tags).join(', '),
     facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
     choiceLines: serializeChoiceLinesFromStep(step),
     mediaLines: serializeMediaLinesFromStep(step),
-  };
+  } satisfies LessonActivityDraft;
 }
 
-export function buildActivityDraftsFromLesson(lesson?: Lesson | null) {
+export function buildActivityDraftsFromLesson(lesson?: Lesson | null): LessonActivityDraft[] {
   const source = asArray<LessonActivityStep>(lesson?.activitySteps ?? lesson?.activities);
   if (!source.length) return [];
 
@@ -243,6 +289,12 @@ export function buildActivityDraftsFromLesson(lesson?: Lesson | null) {
 }
 
 export function buildActivityStepFromDraft(draft: LessonActivityDraft, index: number): LessonActivityStep {
+  const targetAudioValue = String(draft.targetAudioAssetRef ?? '').trim();
+  const supportAudioMode = draft.supportAudioMode === 'phrase-bank' ? 'phrase-bank' : draft.supportAudioMode === 'asset' ? 'asset' : 'none';
+  const supportAudioAssetRef = String(draft.supportAudioAssetRef ?? '').trim();
+  const supportAudioPhraseId = String(draft.supportAudioPhraseId ?? '').trim();
+  const supportAudioPhraseText = String(draft.supportAudioPhraseText ?? '').trim();
+
   return {
     id: draft.id || `activity-${index + 1}`,
     order: index + 1,
@@ -254,6 +306,18 @@ export function buildActivityStepFromDraft(draft: LessonActivityDraft, index: nu
     evidence: draft.evidence,
     targetText: String(draft.targetText ?? '').trim() || undefined,
     supportText: String(draft.supportText ?? '').trim() || undefined,
+    targetAudio: targetAudioValue ? { source: 'asset', value: targetAudioValue } : undefined,
+    supportAudio: supportAudioMode === 'asset'
+      ? (supportAudioAssetRef ? { source: 'asset', value: supportAudioAssetRef } : undefined)
+      : supportAudioMode === 'phrase-bank'
+        ? ((supportAudioPhraseId || supportAudioPhraseText)
+          ? {
+              source: 'phrase-bank',
+              ...(supportAudioPhraseId ? { phraseId: supportAudioPhraseId } : {}),
+              ...(supportAudioPhraseText ? { phraseText: supportAudioPhraseText } : {}),
+            }
+          : undefined)
+        : undefined,
     expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
     tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
     facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),

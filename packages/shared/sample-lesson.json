@@ -17,6 +17,17 @@
     "targetLanguage": "en",
     "targetLanguageLabel": "English",
     "defaultStepSupportText": "Explain the task briefly in Hausa, then model the English target once before the learner answers.",
+    "defaultStepSupportAudio": {
+      "source": "phrase-bank",
+      "phraseId": "ha-greet-and-model-once",
+      "phraseText": "A Hausa reminder to explain the task briefly, then model the English target once."
+    },
+    "lessonTargetAudio": {
+      "source": "asset",
+      "assetId": "english-audio-lesson-001",
+      "value": "asset:english-audio-lesson-001",
+      "label": "Lesson target audio bed"
+    },
     "notes": [
       "Keep Hausa support short so English still carries the learning target."
     ]
@@ -57,7 +68,18 @@
       ],
       "successFeedback": "Good. A says /a/.",
       "targetText": "A",
-      "supportText": "Ka nuna harafin A sannan ka sa ɗalibi ya maimaita sautin Turanci a hankali."
+      "targetAudio": {
+        "source": "asset",
+        "assetId": "english-a-letter-a",
+        "value": "asset:english-a-letter-a",
+        "label": "Letter A target audio"
+      },
+      "supportText": "Ka nuna harafin A sannan ka sa ɗalibi ya maimaita sautin Turanci a hankali.",
+      "supportAudio": {
+        "source": "phrase-bank",
+        "phraseId": "ha-letter-a-support",
+        "phraseText": "Ka nuna harafin A sannan ka sa ɗalibi ya maimaita sautin Turanci a hankali."
+      }
     },
     {
       "id": "act-2",
@@ -94,7 +116,19 @@
       "successFeedback": "Yes. Apple starts with /a/.",
       "retryFeedback": "Listen again. Which word starts with /a/?",
       "targetText": "Apple starts with /a/.",
-      "supportText": "Ka tuna wa ɗalibi cewa yana neman hoton da yake fara sauti da /a/."
+      "targetAudio": {
+        "source": "asset",
+        "assetId": "english-apple-starts-with-a",
+        "value": "asset:english-apple-starts-with-a",
+        "label": "Apple starts with A audio"
+      },
+      "supportText": "Ka tuna wa ɗalibi cewa yana neman hoton da yake fara sauti da /a/.",
+      "supportAudio": {
+        "source": "asset",
+        "assetId": "ha-image-choice-a-support",
+        "value": "asset:ha-image-choice-a-support",
+        "label": "Image choice Hausa support"
+      }
     },
     {
       "id": "act-3",
@@ -145,7 +179,18 @@
       ],
       "successFeedback": "Nice sorting. Each word matched the right picture.",
       "targetText": "Apple, Ball",
-      "supportText": "Ka bayyana a Hausa yadda za a ja kowace kalma zuwa hoton da ya dace idan ɗalibi ya makale."
+      "targetAudio": {
+        "source": "asset",
+        "assetId": "english-apple-ball-pair",
+        "value": "asset:english-apple-ball-pair",
+        "label": "Apple / Ball target audio"
+      },
+      "supportText": "Ka bayyana a Hausa yadda za a ja kowace kalma zuwa hoton da ya dace idan ɗalibi ya makale.",
+      "supportAudio": {
+        "source": "phrase-bank",
+        "phraseId": "ha-drag-to-match-support",
+        "phraseText": "Ka bayyana a Hausa yadda za a ja kowace kalma zuwa hoton da ya dace idan ɗalibi ya makale."
+      }
     }
   ],
   "activities": [
