@@ -213,8 +213,9 @@ export function LessonEditorForm({
     subjectId: lesson.subjectId,
     subjectName: lesson.subjectName,
   }) ?? subjects[0] ?? null;
+  const recoveredInitialModule = findModuleForLesson(modules, lesson);
   const [subjectId, setSubjectId] = useState(initialSubject?.id ?? '');
-  const [moduleId, setModuleId] = useState(lesson.moduleId ?? findModuleForLesson(modules, lesson)?.id ?? modules[0]?.id ?? '');
+  const [moduleId, setModuleId] = useState(recoveredInitialModule?.id ?? lesson.moduleId ?? modules[0]?.id ?? '');
   const [title, setTitle] = useState(lesson.title);
   const [durationMinutes, setDurationMinutes] = useState(String(lesson.durationMinutes));
   const [mode, setMode] = useState(lesson.mode);
@@ -241,7 +242,7 @@ export function LessonEditorForm({
   );
   const initialSnapshot = useMemo(() => JSON.stringify({
     subjectId: initialSubject?.id ?? '',
-    moduleId: lesson.moduleId ?? findModuleForLesson(modules, lesson)?.id ?? modules[0]?.id ?? '',
+    moduleId: recoveredInitialModule?.id ?? lesson.moduleId ?? modules[0]?.id ?? '',
     title: lesson.title,
     durationMinutes: String(lesson.durationMinutes),
     mode: lesson.mode,
