@@ -3,25 +3,36 @@ import assert from 'node:assert/strict';
 
 import { resolveTopReleaseBlockerCta } from './dashboard-top-blocker.ts';
 
-test('launches lesson studio only when subject metadata is still trustworthy', () => {
+test('keeps multi-slot blockers on the bulk shell flow instead of dumping operators into single-lesson studio', () => {
   assert.deepEqual(resolveTopReleaseBlockerCta({
     missingLessons: 2,
     hasAuthoringContext: true,
     subjectMetadataDegraded: false,
   }), {
-    canLaunchLessonStudio: true,
-    label: 'Create 2 missing lessons',
+    canLaunchLessonStudio: false,
+    label: 'Open bulk lesson shell flow (2)',
   });
 });
 
-test('still launches lesson studio when the module already carries recoverable subject context', () => {
+test('still keeps multi-slot blockers on the bulk shell flow even when module subject context is recoverable', () => {
   assert.deepEqual(resolveTopReleaseBlockerCta({
     missingLessons: 2,
     hasAuthoringContext: true,
     subjectMetadataDegraded: true,
   }), {
+    canLaunchLessonStudio: false,
+    label: 'Open bulk lesson shell flow (2)',
+  });
+});
+
+test('launches lesson studio for a single missing lesson when authoring context is trustworthy', () => {
+  assert.deepEqual(resolveTopReleaseBlockerCta({
+    missingLessons: 1,
+    hasAuthoringContext: true,
+    subjectMetadataDegraded: false,
+  }), {
     canLaunchLessonStudio: true,
-    label: 'Create 2 missing lessons',
+    label: 'Create missing lesson',
   });
 });
 

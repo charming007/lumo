@@ -834,9 +834,11 @@ export default async function HomePage() {
                 <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
                   {canLaunchTopReleaseLessonCreate
                     ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
-                    : topReleaseBlockerSubjectMetadataMissing
-                      ? 'The subject feed is degraded, so the dashboard refuses to guess its way into Lesson Studio from partial metadata. Re-open the scoped blocker board first, then launch authoring from the real content surface.'
-                      : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
+                    : topReleaseBlocker.missingLessons > 1 && topReleaseBlocker.hasAuthoringContext
+                      ? 'This lane is missing multiple lessons. Dumping operators into single-lesson studio would fake progress, so the dashboard sends them back to the blocker board where the bulk shell flow already exists.'
+                      : topReleaseBlockerSubjectMetadataMissing
+                        ? 'The subject feed is degraded, so the dashboard refuses to guess its way into Lesson Studio from partial metadata. Re-open the scoped blocker board first, then launch authoring from the real content surface.'
+                        : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Link href={topReleaseBlockerPrimaryHref} style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>

@@ -3,13 +3,20 @@ export function resolveTopReleaseBlockerCta(params: {
   hasAuthoringContext: boolean;
   subjectMetadataDegraded: boolean;
 }) {
-  const canLaunchLessonStudio = params.missingLessons > 0
+  const canLaunchLessonStudio = params.missingLessons === 1
     && params.hasAuthoringContext;
 
   if (canLaunchLessonStudio) {
     return {
       canLaunchLessonStudio: true,
-      label: params.missingLessons === 1 ? 'Create missing lesson' : `Create ${params.missingLessons} missing lessons`,
+      label: 'Create missing lesson',
+    } as const;
+  }
+
+  if (params.missingLessons > 1 && params.hasAuthoringContext) {
+    return {
+      canLaunchLessonStudio: false,
+      label: `Open bulk lesson shell flow (${params.missingLessons})`,
     } as const;
   }
 
