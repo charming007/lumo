@@ -54,24 +54,24 @@ test('buildReviewBlockersHref falls back to the generic blocker board for non-co
   assert.equal(buildReviewBlockersHref('/assignments'), '/content?view=blocked');
 });
 
-test('buildAssessmentReviewHref keeps blocker-board subject scope when reviewing an assessment gate', () => {
+test('buildAssessmentReviewHref keeps blocker-board subject scope while routing back through the pilot-safe content assessments view', () => {
   assert.equal(
     buildAssessmentReviewHref({
       returnPath: '/content?view=blocked&subject=subject-english&status=draft',
       moduleTitle: 'Reading lane',
       subjectId: 'subject-english',
     }),
-    '/assessments?subject=subject-english&status=draft&q=Reading+lane',
+    '/content?view=assessments&subject=subject-english&status=draft&q=Reading+lane',
   );
 });
 
-test('buildAssessmentReviewHref recovers subject scope for non-content return paths', () => {
+test('buildAssessmentReviewHref recovers subject scope for non-content return paths without bouncing operators into the blocked assessments route', () => {
   assert.equal(
     buildAssessmentReviewHref({
       returnPath: '/assignments',
       moduleTitle: 'Numeracy Gate',
       subjectId: 'subject-math',
     }),
-    '/assessments?q=Numeracy+Gate&subject=subject-math',
+    '/content?view=assessments&q=Numeracy+Gate&subject=subject-math',
   );
 });

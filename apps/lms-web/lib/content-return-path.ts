@@ -63,12 +63,12 @@ export function buildAssessmentReviewHref({
   moduleTitle: string;
   subjectId?: string;
 }) {
-  const query = returnPath.includes('?')
+  const query = returnPath.startsWith('/content') && returnPath.includes('?')
     ? returnPath.split('?', 2)[1] ?? ''
     : '';
   const params = new URLSearchParams(query);
 
-  params.delete('view');
+  params.set('view', 'assessments');
   params.set('q', moduleTitle.trim());
 
   const normalizedSubjectId = subjectId?.trim();
@@ -76,5 +76,5 @@ export function buildAssessmentReviewHref({
     params.set('subject', normalizedSubjectId);
   }
 
-  return params.size ? `/assessments?${params.toString()}` : '/assessments';
+  return params.size ? `/content?${params.toString()}` : '/content?view=assessments';
 }

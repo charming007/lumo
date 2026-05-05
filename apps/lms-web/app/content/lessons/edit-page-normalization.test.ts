@@ -108,4 +108,14 @@ test('lesson edit page quick links reuse recovered curriculum ids instead of sta
     /content\/lessons\/new\?duplicate=\$\{encodeURIComponent\(lesson\.id\)\}&subjectId=\$\{encodeURIComponent\(resolvedSubjectId\)\}&moduleId=\$\{encodeURIComponent\(resolvedModuleId\)\}/,
     'duplicate-lesson handoff should use recovered subject/module ids so Lesson Studio opens in the real recovered lane',
   );
+  assert.match(
+    editPageSource,
+    /buildAssessmentReviewHref\(\{ returnPath: from, moduleTitle: selectedModule\?\.title \?\? lesson\.title, subjectId: resolvedSubjectId \}\)/,
+    'assessment review handoff should stay inside the pilot-safe content board and use the recovered subject context',
+  );
+  assert.doesNotMatch(
+    editPageSource,
+    /href=\{`\/assessments\?/,
+    'lesson edit page should not send operators back into the blocked assessments route',
+  );
 });
