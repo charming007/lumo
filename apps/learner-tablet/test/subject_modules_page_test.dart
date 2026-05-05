@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lumo_learner_tablet/app_state.dart';
+import 'package:lumo_learner_tablet/design_shell.dart';
 import 'package:lumo_learner_tablet/main.dart';
 import 'package:lumo_learner_tablet/models.dart';
+import 'package:lumo_learner_tablet/support_language.dart';
 
 void main() {
   testWidgets(
@@ -1255,6 +1257,52 @@ void main() {
         find.text('No learner-safe lessons are ready in English Reading yet.'),
         findsNothing,
       );
+    },
+  );
+
+  testWidgets(
+    'subject page language toggle updates shell copy between Hausa and English',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      addTearDown(state.dispose);
+      state.mallamSupportLanguage = MallamSupportLanguage.hausa;
+
+      final module = state.modules.first;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) => SubjectModulesPage(
+              state: state,
+              onChanged: () => setState(() {}),
+              module: module,
+              forceUnscopedLessons: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Tafiyar darasi'), findsWidgets);
+      expect(find.text('A sake jin Mallam'), findsOneWidget);
+
+      tester
+          .widget<MallamSupportLanguageToggle>(
+            find.byType(MallamSupportLanguageToggle).first,
+          )
+          .onChanged(MallamSupportLanguage.english);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await state.flushPersistence();
+
+      expect(state.mallamSupportLanguage, MallamSupportLanguage.english);
+      expect(find.text('Lesson journey'), findsWidgets);
+      expect(find.text('Hear Mallam again'), findsOneWidget);
     },
   );
 }

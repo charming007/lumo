@@ -209,6 +209,7 @@ class LumoAppState {
     if (mallamSupportLanguage == language) return;
     mallamSupportLanguage = language;
     persistStateSoon();
+    _notifyListeners();
   }
 
   static String? _normalizeDeviceIdentifier(String? raw) {

@@ -1781,7 +1781,10 @@ class HomePage extends StatelessWidget {
                                           constraints: BoxConstraints(
                                             maxHeight: mallamStageHeight,
                                           ),
-                                          child: _HomeMallamStage(state: state),
+                                          child: _HomeMallamStage(
+                                            state: state,
+                                            onChanged: onChanged,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1794,7 +1797,10 @@ class HomePage extends StatelessWidget {
                                         top: 0,
                                         right: compact ? 0 : 8,
                                       ),
-                                      child: _HomeMallamStage(state: state),
+                                      child: _HomeMallamStage(
+                                        state: state,
+                                        onChanged: onChanged,
+                                      ),
                                     ),
                                   ),
                                 SizedBox(
@@ -2297,8 +2303,9 @@ String _buildHomeMallamReplayPrompt(LumoAppState state) {
 
 class _HomeMallamStage extends StatelessWidget {
   final LumoAppState state;
+  final VoidCallback onChanged;
 
-  const _HomeMallamStage({required this.state});
+  const _HomeMallamStage({required this.state, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -2398,7 +2405,10 @@ class _HomeMallamStage extends StatelessWidget {
                 const SizedBox(height: 12),
                 MallamSupportLanguageToggle(
                   selectedLanguage: state.mallamSupportLanguage,
-                  onChanged: state.setMallamSupportLanguage,
+                  onChanged: (language) {
+                    state.setMallamSupportLanguage(language);
+                    onChanged();
+                  },
                 ),
               ],
               SizedBox(height: shortHeight ? 0 : (compact ? 2 : 4)),
@@ -4014,6 +4024,10 @@ class SubjectModulesPage extends StatelessWidget {
                           framelessStage: true,
                           framelessPortrait: true,
                           shellLanguage: state.mallamSupportLanguage,
+                          onLanguageChanged: (language) {
+                            state.setMallamSupportLanguage(language);
+                            onChanged();
+                          },
                         ),
                       ),
                     ),
@@ -4723,7 +4737,12 @@ class _RegisterPageState extends State<RegisterPage> {
                             widget.state.mallamSupportLanguage)
                         .replayButton,
                     shellLanguage: widget.state.mallamSupportLanguage,
-                    onLanguageChanged: widget.state.setMallamSupportLanguage,
+                    onLanguageChanged: (language) {
+                      setState(() {
+                        widget.state.setMallamSupportLanguage(language);
+                      });
+                      widget.onChanged();
+                    },
                     voiceHint:
                         'Keep Mallam visible and dominant on this screen so the facilitator can finish intake without losing the voice guide.',
                     centerPortraitLayout: true,
@@ -10745,6 +10764,11 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           framelessStage: true,
           framelessPortrait: true,
           shellLanguage: widget.state.mallamSupportLanguage,
+          onLanguageChanged: (language) {
+            widget.state.setMallamSupportLanguage(language);
+            widget.onChanged();
+            setState(() {});
+          },
         ),
       );
 
