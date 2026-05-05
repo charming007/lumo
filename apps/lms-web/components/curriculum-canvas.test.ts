@@ -12,3 +12,26 @@ test('curriculum canvas recovers subject selection from normalized context inste
   );
   assert.doesNotMatch(source, /data\.subjects\.find\(\(subject\) => subject\.id === nextSubjectId\)/);
 });
+
+test('curriculum canvas blocker and module handoffs carry exact module ids into content views', () => {
+  assert.match(
+    source,
+    /href=\{`\/content\?subject=\$\{selected\.subject\.id\}&moduleId=\$\{encodeURIComponent\(selected\.module\.id\)\}&q=\$\{encodeURIComponent\(selected\.module\.title\)\}`\}/,
+  );
+  assert.match(
+    source,
+    /href=\{`\/content\?view=blocked&subject=\$\{selected\.subject\.id\}&moduleId=\$\{encodeURIComponent\(selected\.module\.id\)\}&q=\$\{encodeURIComponent\(selected\.module\.title\)\}`\}/,
+  );
+  assert.match(
+    source,
+    /assessmentBoardHref\(\{ subjectId, moduleId: assessment\.moduleId \?\? undefined, query: moduleTitle \}\)/,
+  );
+  assert.match(
+    source,
+    /href=\{`\/content\?subject=\$\{encodeURIComponent\(subjectId\)\}\$\{assessment\.moduleId \? `&moduleId=\$\{encodeURIComponent\(assessment\.moduleId\)\}` : ''\}&q=\$\{encodeURIComponent\(moduleTitle\)\}`\}/,
+  );
+  assert.match(
+    source,
+    /href=\{`\/content\?view=blocked&subject=\$\{encodeURIComponent\(subjectId\)\}\$\{assessment\.moduleId \? `&moduleId=\$\{encodeURIComponent\(assessment\.moduleId\)\}` : ''\}&q=\$\{encodeURIComponent\(moduleTitle\)\}`\}/,
+  );
+});

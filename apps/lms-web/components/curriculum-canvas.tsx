@@ -93,10 +93,11 @@ function moduleUrl(subjectId: string, moduleId: string, searchTerm: string, read
   return `/canvas?${params.toString()}`;
 }
 
-function assessmentBoardHref({ subjectId, query, from }: { subjectId?: string; query?: string; from?: string }) {
+function assessmentBoardHref({ subjectId, moduleId, query, from }: { subjectId?: string; moduleId?: string; query?: string; from?: string }) {
   const params = new URLSearchParams();
   params.set('view', 'assessments');
   if (subjectId) params.set('subject', subjectId);
+  if (moduleId) params.set('moduleId', moduleId);
   if (query) params.set('q', query);
   if (from) params.set('from', from);
   return `/content?${params.toString()}`;
@@ -932,13 +933,13 @@ export function CurriculumCanvas({
                     >
                       {copiedState === 'copied' ? 'Copied node link' : 'Copy share link'}
                     </button>
-                    <Link href={`/content?subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                    <Link href={`/content?subject=${selected.subject.id}&moduleId=${encodeURIComponent(selected.module.id)}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                       Open module board
                     </Link>
                     <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(79,70,229,0.28)', border: '1px solid rgba(129,140,248,0.34)' }}>
                       Add lesson in module
                     </Link>
-                    <Link href={`/content?view=blocked&subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(254,243,199,0.14)', color: '#fde68a', border: '1px solid rgba(252,211,77,0.24)' }}>
+                    <Link href={`/content?view=blocked&subject=${selected.subject.id}&moduleId=${encodeURIComponent(selected.module.id)}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(254,243,199,0.14)', color: '#fde68a', border: '1px solid rgba(252,211,77,0.24)' }}>
                       Clear this blocker stack
                     </Link>
                   </div>
@@ -1732,9 +1733,9 @@ function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPa
       </form>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-        <Link href={assessmentBoardHref({ subjectId, query: moduleTitle })} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>
-        <Link href={`/content?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Open related module work</Link>
-        <Link href={`/content?view=blocked&subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>See blockers around this gate</Link>
+        <Link href={assessmentBoardHref({ subjectId, moduleId: assessment.moduleId ?? undefined, query: moduleTitle })} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>
+        <Link href={`/content?subject=${encodeURIComponent(subjectId)}${assessment.moduleId ? `&moduleId=${encodeURIComponent(assessment.moduleId)}` : ''}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Open related module work</Link>
+        <Link href={`/content?view=blocked&subject=${encodeURIComponent(subjectId)}${assessment.moduleId ? `&moduleId=${encodeURIComponent(assessment.moduleId)}` : ''}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>See blockers around this gate</Link>
       </div>
     </ModalShell>
   );
