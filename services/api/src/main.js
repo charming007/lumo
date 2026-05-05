@@ -2006,7 +2006,8 @@ app.post('/api/v1/learner-app/voice/replay', async (req, res, next) => {
   try {
     const text = String(req.body?.text || '').trim();
     const mode = String(req.body?.mode || 'guiding').trim().toLowerCase() || 'guiding';
-    const clip = await synthesizeTutorVoice({ text, mode });
+    const supportLanguage = String(req.body?.supportLanguage || '').trim();
+    const clip = await synthesizeTutorVoice({ text, mode, supportLanguage });
 
     if (!clip.ok) {
       if (clip.status === 204) {

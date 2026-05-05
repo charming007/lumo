@@ -191,13 +191,13 @@ class LumoApiClient {
     );
     final response = await _send(
       () => _client.get(
-            uri,
-            headers: _jsonHeadersWithDevice(
-              overrideDeviceIdentifier: overrideDeviceIdentifier,
-              includeContentType: false,
-              includeDeviceIdentifierHeader: false,
-            ),
-          ),
+        uri,
+        headers: _jsonHeadersWithDevice(
+          overrideDeviceIdentifier: overrideDeviceIdentifier,
+          includeContentType: false,
+          includeDeviceIdentifierHeader: false,
+        ),
+      ),
       action: 'load learner app bootstrap',
       uri: uri,
     );
@@ -366,6 +366,7 @@ class LumoApiClient {
   Future<TutorVoiceClip?> fetchTutorVoiceReplay({
     required String text,
     required SpeakerMode mode,
+    String? supportLanguage,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return null;
@@ -378,6 +379,8 @@ class LumoApiClient {
         body: jsonEncode({
           'text': trimmed,
           'mode': mode.name,
+          if (supportLanguage != null && supportLanguage.trim().isNotEmpty)
+            'supportLanguage': supportLanguage.trim(),
         }),
       ),
       action: 'load tutor voice replay audio',
@@ -433,7 +436,8 @@ class LumoApiClient {
       return RewardSnapshot.fromJson(snapshotPayload);
     }
     if (snapshotPayload is Map) {
-      return RewardSnapshot.fromJson(Map<String, dynamic>.from(snapshotPayload));
+      return RewardSnapshot.fromJson(
+          Map<String, dynamic>.from(snapshotPayload));
     }
     return RewardSnapshot.fromJson(decoded);
   }

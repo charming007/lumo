@@ -20,14 +20,17 @@ class VoiceReplayService {
     if (_configured) return;
     _configured = true;
 
-    await _tts.setLanguage('en-US');
     await _tts.setSpeechRate(kIsWeb ? 0.9 : 0.45);
     await _tts.setPitch(1.0);
     await _tts.awaitSpeakCompletion(true);
     await _remotePlayer.setReleaseMode(ReleaseMode.stop);
   }
 
-  Future<void> replay(String text, SpeakerMode mode) async {
+  Future<void> replay(
+    String text,
+    SpeakerMode mode, {
+    String? supportLanguage,
+  }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
@@ -38,6 +41,7 @@ class VoiceReplayService {
       final clip = await _apiClient.fetchTutorVoiceReplay(
         text: trimmed,
         mode: mode,
+        supportLanguage: supportLanguage,
       );
       if (clip != null) {
         await _playRemoteClip(clip.audioBytes);
@@ -47,8 +51,16 @@ class VoiceReplayService {
       // Remote voice is best-effort for now. Local TTS stays the hard fallback.
     }
 
+    await _tts.setLanguage(_ttsLanguageFor(supportLanguage));
     await _tts.setVolume(_volumeFor(mode));
     await _tts.speak(trimmed);
+  }
+
+  String _ttsLanguageFor(String? supportLanguage) {
+    final normalized = supportLanguage?.trim().toLowerCase() ?? '';
+    if (normalized == 'english') return 'en-US';
+    if (normalized.contains('hausa')) return 'ha-NG';
+    return 'en-US';
   }
 
   Future<void> _playRemoteClip(Uint8List bytes) async {

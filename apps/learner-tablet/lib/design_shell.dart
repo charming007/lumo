@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'dialogue.dart';
 import 'models.dart';
 import 'support_language.dart';
 import 'theme.dart';
@@ -131,7 +130,6 @@ class MallamPanel extends StatefulWidget {
   final bool framelessPortrait;
   final MallamSupportLanguage shellLanguage;
   final ValueChanged<MallamSupportLanguage>? onLanguageChanged;
-  final SupportLanguageProfile supportLanguageProfile;
 
   const MallamPanel({
     super.key,
@@ -150,7 +148,6 @@ class MallamPanel extends StatefulWidget {
     this.framelessPortrait = false,
     this.shellLanguage = MallamSupportLanguage.english,
     this.onLanguageChanged,
-    this.supportLanguageProfile = const SupportLanguageProfile(supportLanguage: 'English'),
   });
 
   @override
@@ -377,8 +374,8 @@ class _MallamPanelState extends State<MallamPanel>
         }
 
         final replayHelperText = _replayFeedbackActive
-            ? widget.supportLanguageProfile.replayHelperActive
-            : widget.supportLanguageProfile.replayHelperIdle;
+            ? shellCopy.replayHelperActive
+            : shellCopy.replayHelperIdle;
 
         final languageToggle = widget.onLanguageChanged == null
             ? const SizedBox.shrink()
@@ -406,7 +403,7 @@ class _MallamPanelState extends State<MallamPanel>
               ),
               label: Text(
                 _replayFeedbackActive
-                    ? widget.supportLanguageProfile.replayingLabel
+                    ? shellCopy.replayingLabel
                     : widget.voiceButtonLabel,
                 style: TextStyle(
                   color: speakerColor,
@@ -472,7 +469,7 @@ class _MallamPanelState extends State<MallamPanel>
                       color: speakerColor, size: 18),
                   const SizedBox(width: 8),
                   Text(
-                    widget.supportLanguageProfile.nextStepTitle,
+                    shellCopy.guidanceTitle,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF0F172A),
@@ -727,7 +724,6 @@ class _SpeakerSignalCard extends StatelessWidget {
     );
   }
 }
-
 
 class MallamSupportLanguageToggle extends StatelessWidget {
   final MallamSupportLanguage selectedLanguage;

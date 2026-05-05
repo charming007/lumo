@@ -2263,10 +2263,8 @@ String _buildLearnerHumanMoment(LearnerProfile learner) {
   return '${learner.name.split(' ').first} is ready for a calm, voice-first check-in.';
 }
 
-SupportLanguageProfile _homeSupportLanguageProfile(LumoAppState state) {
-  return SupportLanguageProfile(
-    supportLanguage: state.usesHausaMallamSupport ? 'Hausa' : 'English',
-  );
+MallamSupportCopy _homeSupportCopy(LumoAppState state) {
+  return MallamSupportCopy.forLanguage(state.mallamSupportLanguage);
 }
 
 String _buildHomeMallamReplayPrompt(LumoAppState state) {
@@ -2276,7 +2274,8 @@ String _buildHomeMallamReplayPrompt(LumoAppState state) {
       learner == null ? null : state.recommendedModuleForLearner(learner);
   final greeting = _timeAwareMallamGreeting();
   final registrationBlocked = state.registrationBlockerReason != null;
-  final supportCopy = MallamSupportCopy.forLanguage(state.mallamSupportLanguage);
+  final supportCopy =
+      MallamSupportCopy.forLanguage(state.mallamSupportLanguage);
 
   if (learner == null) {
     final body = registrationBlocked
@@ -2338,7 +2337,7 @@ class _HomeMallamStage extends StatelessWidget {
                 : nextLesson != null
                     ? '$learnerName can jump straight into ${nextLesson.title}. Open ${module?.title ?? nextLesson.subject} to keep the flow calm and continuous.'
                     : 'Open ${module?.title ?? 'a subject'} to keep $learnerName learning without hunting around the tablet.';
-        final supportLanguage = _homeSupportLanguageProfile(state);
+        final supportCopy = _homeSupportCopy(state);
         final portraitSize = math.min(
           shortHeight
               ? 176.0
@@ -2369,17 +2368,23 @@ class _HomeMallamStage extends StatelessWidget {
                 onPressed: () {
                   state.replayVisiblePrompt(
                     _buildHomeMallamReplayPrompt(state),
-                    supportLanguage: supportLanguage.supportLanguage,
+                    supportLanguage: supportCopy.isHausa ? 'Hausa' : 'English',
                   );
                 },
                 icon: const Icon(Icons.volume_up_rounded),
-                label: Text(supportLanguage.replayButtonLabel),
+                label: Text(
+                  supportCopy.replayButton,
+                  style: TextStyle(fontSize: shortHeight ? 13 : null),
+                ),
                 style: FilledButton.styleFrom(
                   foregroundColor: LumoTheme.primary,
                   backgroundColor: LumoTheme.primary.withValues(alpha: 0.1),
+                  visualDensity: shortHeight
+                      ? const VisualDensity(horizontal: -1, vertical: -2)
+                      : VisualDensity.standard,
                   padding: EdgeInsets.symmetric(
-                    horizontal: compact ? 16 : 18,
-                    vertical: compact ? 12 : 14,
+                    horizontal: shortHeight ? 14 : (compact ? 16 : 18),
+                    vertical: shortHeight ? 10 : (compact ? 12 : 14),
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
@@ -3931,9 +3936,8 @@ class SubjectModulesPage extends StatelessWidget {
                 orElse: () => lessons.isNotEmpty ? lessons.first : null,
               ),
         );
-    final subjectSupportLanguage = SupportLanguageProfile(
-      supportLanguage: state.usesHausaMallamSupport ? 'Hausa' : 'English',
-      targetLanguage: highlightedLesson?.targetLanguage ?? 'English',
+    final subjectSupportCopy = MallamSupportCopy.forLanguage(
+      state.mallamSupportLanguage,
     );
 
     void openLesson(LessonCardModel lesson) {
@@ -3984,29 +3988,32 @@ class SubjectModulesPage extends StatelessWidget {
                         eyebrow: 'Mallam',
                         frameless: true,
                         child: MallamPanel(
-                          instruction: MallamSupportCopy.forLanguage(state.mallamSupportLanguage).modulesInstruction(),
+                          instruction: MallamSupportCopy.forLanguage(
+                                  state.mallamSupportLanguage)
+                              .modulesInstruction(),
                           onVoiceTap: () {
                             state.replayVisiblePrompt(
-                              subjectSupportLanguage.usesHausaShell
-                                  ? 'Kin bude $subjectTitle. Ki fara da kumfar darasi na gaba, sannan ki bi hanyar darasi mataki daya bayan daya.'
-                                  : 'You opened $subjectTitle. Start with the next lesson bubble, then follow the lesson path one step at a time.',
-                              supportLanguage:
-                                  subjectSupportLanguage.supportLanguage,
+                              subjectSupportCopy.modulesReplayPrompt(
+                                subjectTitle,
+                              ),
+                              supportLanguage: subjectSupportCopy.isHausa
+                                  ? 'Hausa'
+                                  : 'English',
                             );
                           },
-                          prompt: subjectSupportLanguage.usesHausaShell
-                              ? 'Kin bude $subjectTitle. Ki zabi darasi a wannan fanni, sannan ki fara da mai koyon da zai dauke shi.'
-                              : 'You opened $subjectTitle. Choose a lesson in this subject, then start with the learner who is taking it.',
+                          prompt: subjectSupportCopy.modulesPrompt(
+                            subjectTitle,
+                          ),
                           speakerMode: SpeakerMode.guiding,
-                          statusLabel: subjectSupportLanguage.guidingStatus,
-                          secondaryStatus: subjectSupportLanguage.lessonPathStatus,
-                          voiceButtonLabel:
-                              subjectSupportLanguage.replayButtonLabel,
+                          statusLabel: 'Mallam',
+                          secondaryStatus:
+                              subjectSupportCopy.lessonJourneyTitle(),
+                          voiceButtonLabel: subjectSupportCopy.replayButton,
                           centerPortraitLayout: true,
                           minimalStageLayout: true,
                           framelessStage: true,
                           framelessPortrait: true,
-                          supportLanguageProfile: subjectSupportLanguage,
+                          shellLanguage: state.mallamSupportLanguage,
                         ),
                       ),
                     ),
@@ -4122,8 +4129,9 @@ class SubjectModulesPage extends StatelessWidget {
                               }
 
                               const showJourneyHeader = true;
-                              final journeyHint =
-                                  MallamSupportCopy.forLanguage(state.mallamSupportLanguage).lessonJourneyHint();
+                              final journeyHint = MallamSupportCopy.forLanguage(
+                                      state.mallamSupportLanguage)
+                                  .lessonJourneyHint();
 
                               return Container(
                                 width: double.infinity,
@@ -4137,7 +4145,9 @@ class SubjectModulesPage extends StatelessWidget {
                                   children: [
                                     if (showJourneyHeader) ...[
                                       Text(
-                                        MallamSupportCopy.forLanguage(state.mallamSupportLanguage).lessonJourneyTitle(),
+                                        MallamSupportCopy.forLanguage(
+                                                state.mallamSupportLanguage)
+                                            .lessonJourneyTitle(),
                                         style: TextStyle(
                                           fontSize: 30,
                                           fontWeight: FontWeight.w900,
@@ -4709,9 +4719,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     speakerMode: SpeakerMode.guiding,
                     statusLabel: 'Mallam is guiding registration',
                     secondaryStatus: 'Registration guide',
-                    voiceButtonLabel: MallamSupportCopy.forLanguage(widget.state.mallamSupportLanguage).replayButton,
-          shellLanguage: widget.state.mallamSupportLanguage,
-          onLanguageChanged: widget.state.setMallamSupportLanguage,
+                    voiceButtonLabel: MallamSupportCopy.forLanguage(
+                            widget.state.mallamSupportLanguage)
+                        .replayButton,
+                    shellLanguage: widget.state.mallamSupportLanguage,
+                    onLanguageChanged: widget.state.setMallamSupportLanguage,
                     voiceHint:
                         'Keep Mallam visible and dominant on this screen so the facilitator can finish intake without losing the voice guide.',
                     centerPortraitLayout: true,
@@ -10705,16 +10717,16 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     }
 
     Widget buildLessonGuidePane() {
-      final lessonSupportLanguage = SupportLanguageProfile(
-        supportLanguage:
-            widget.state.usesHausaMallamSupport ? 'Hausa' : 'English',
-        targetLanguage: step.targetLanguage,
+      final lessonSupportCopy = MallamSupportCopy.forLanguage(
+        widget.state.mallamSupportLanguage,
       );
       final lessonStage = _MallamStageShell(
         eyebrow: 'Mallam',
         frameless: true,
         child: MallamPanel(
-          instruction: MallamSupportCopy.forLanguage(widget.state.mallamSupportLanguage).lessonInstruction(),
+          instruction:
+              MallamSupportCopy.forLanguage(widget.state.mallamSupportLanguage)
+                  .lessonInstruction(),
           onVoiceTap: () async {
             _promptedCurrentStep = false;
             await _speakCurrentStepIfNeeded(force: true);
@@ -10725,14 +10737,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
           speakerMode: session.speakerMode,
           statusLabel: _speakerModeLabel(session.speakerMode),
           secondaryStatus: stepLabel,
-          voiceButtonLabel: lessonSupportLanguage.replayButtonLabel,
+          voiceButtonLabel: lessonSupportCopy.replayButton,
           speakerOutputMode: session.speakerOutputMode,
           voiceHint: null,
           centerPortraitLayout: true,
           minimalStageLayout: true,
           framelessStage: true,
           framelessPortrait: true,
-          supportLanguageProfile: lessonSupportLanguage,
+          shellLanguage: widget.state.mallamSupportLanguage,
         ),
       );
 
