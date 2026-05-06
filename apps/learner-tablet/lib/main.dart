@@ -3721,24 +3721,39 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                         SizedBox(
                                           width: double.infinity,
                                           child: FilledButton.tonalIcon(
-                                            onPressed:
-                                                lesson.isAssignmentPlaceholder
-                                                    ? null
-                                                    : () {
-                                                        state.selectLearner(
-                                                          learner,
-                                                        );
-                                                        launchLessonFlow(
-                                                          context: context,
-                                                          state: state,
-                                                          onChanged: () {},
-                                                          lesson: lesson,
-                                                          resumeFrom:
-                                                              matchesResumableSession
-                                                                  ? resumableSession
-                                                                  : null,
-                                                        );
-                                                      },
+                                            onPressed: () {
+                                              state.selectLearner(learner);
+                                              if (lesson.isAssignmentPlaceholder) {
+                                                final targetModule =
+                                                    resolveLessonModule(
+                                                  state: state,
+                                                  lesson: lesson,
+                                                );
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        LessonLaunchSetupPage(
+                                                      state: state,
+                                                      onChanged: () {},
+                                                      lesson: lesson,
+                                                      module: targetModule,
+                                                    ),
+                                                  ),
+                                                );
+                                                return;
+                                              }
+
+                                              launchLessonFlow(
+                                                context: context,
+                                                state: state,
+                                                onChanged: () {},
+                                                lesson: lesson,
+                                                resumeFrom:
+                                                    matchesResumableSession
+                                                        ? resumableSession
+                                                        : null,
+                                              );
+                                            },
                                             icon: Icon(
                                               lesson.isAssignmentPlaceholder
                                                   ? Icons.sync_rounded

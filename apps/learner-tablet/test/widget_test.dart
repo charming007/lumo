@@ -1916,13 +1916,15 @@ void main() {
         'Refresh sync before starting',
       );
       expect(refreshButton, findsOneWidget);
-      expect(tester.widget<FilledButton>(refreshButton).onPressed, isNull);
+      expect(tester.widget<FilledButton>(refreshButton).onPressed, isNotNull);
 
-      await tester.tap(refreshButton, warnIfMissed: false);
+      await tester.ensureVisible(refreshButton);
+      await tester.tap(refreshButton);
       await pumpForUi(tester);
 
-      expect(find.byType(LessonLaunchSetupPage), findsNothing);
-      expect(find.text('Select available learner'), findsNothing);
+      expect(find.byType(LessonLaunchSetupPage), findsOneWidget);
+      expect(find.textContaining('Lesson content not available yet'), findsWidgets);
+      expect(find.text('Select available learner'), findsOneWidget);
 
       state.dispose();
     },
