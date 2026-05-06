@@ -53,6 +53,19 @@ test('dashboard route map reflects the full LMS shell instead of the pilot contr
   );
 });
 
+test('dashboard bulk blocker handoff copy matches the direct canvas launch', () => {
+  assert.match(
+    dashboardPageSource,
+    /dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough\./,
+    'dashboard should describe the real direct bulk-flow launch instead of the old blocker-board detour',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /dashboard sends them back to the blocker board where the bulk shell flow already exists\./,
+    'dashboard should not keep shipping the stale blocker-board detour copy once the direct CTA exists',
+  );
+});
+
 test('dashboard deploy checklist CTA points at a shipped public document', () => {
   assert.match(
     dashboardPageSource,
