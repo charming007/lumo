@@ -88,17 +88,17 @@ curl -i "$API/admin/config/audit" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot
       <section style="display:grid;gap:12px;">
         <h2 style="margin:0;font-size:1.5rem;">Current target verdict</h2>
         <div style="padding:18px;border-radius:20px;background:#fef2f2;border:1px solid #fecaca;display:grid;gap:8px;">
-          <strong style="color:#991b1b;">Observed live responses point to a stale or wrong backend, not a bad LMS fetch pattern.</strong>
+          <strong style="color:#991b1b;">Observed live responses no longer support the old “stale or wrong backend” verdict.</strong>
           <ul style="margin:0;padding-left:20px;color:#7f1d1d;line-height:1.75;display:grid;gap:6px;">
             <li><code>/health</code> → <strong>200</strong></li>
+            <li><code>/readyz</code> → <strong>200</strong></li>
             <li><code>/api/v1/meta</code> → <strong>200</strong></li>
-            <li><code>/readyz</code> → <strong>404 Cannot GET /readyz</strong></li>
-            <li><code>/api/v1/assets</code> → <strong>404 Cannot GET /api/v1/assets</strong></li>
-            <li><code>/api/v1/admin/assets/runtime</code> → <strong>404 Cannot GET /api/v1/admin/assets/runtime</strong></li>
-            <li><code>/api/v1/admin/config/audit</code> → <strong>404 Cannot GET /api/v1/admin/config/audit</strong></li>
+            <li><code>/api/v1/assets</code> → <strong>200</strong></li>
+            <li><code>/api/v1/admin/assets/runtime</code> → <strong>401 Missing or invalid API key for protected endpoint.</strong></li>
+            <li><code>/api/v1/admin/config/audit</code> → <strong>401 Missing or invalid API key for protected endpoint.</strong></li>
             <li><code>/assets</code> → <strong>404 Cannot GET /assets</strong></li>
           </ul>
-          <div style="color:#7f1d1d;line-height:1.7;">One-line operator conclusion: if the LMS uses <code>NEXT_PUBLIC_API_BASE_URL=https://lumo-api-production-303a.up.railway.app</code>, then the leading problem is a stale or wrong API behind that host. The LMS already calls the right <code>/api/v1/*</code> paths.</div>
+          <div style="color:#7f1d1d;line-height:1.7;">One-line operator conclusion: if the LMS uses <code>NEXT_PUBLIC_API_BASE_URL=https://lumo-api-production-303a.up.railway.app</code>, the public Railway target now matches the major route surface this repo expects. Treat <code>401</code> on protected admin audit routes as an auth/config problem — usually a missing or wrong <code>LUMO_ADMIN_API_KEY</code> in the LMS deployment — not as proof the backend is stale or pointed at the wrong service.</div>
         </div>
       </section>
     </article>
