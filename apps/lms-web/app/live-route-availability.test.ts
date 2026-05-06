@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-function routeSource(route: 'canvas' | 'guide' | 'reports' | 'rewards') {
+function routeSource(route: 'canvas' | 'english' | 'guide' | 'reports' | 'rewards') {
   return readFileSync(fileURLToPath(new URL(`./${route}/page.tsx`, import.meta.url)), 'utf8');
 }
 
@@ -29,6 +29,16 @@ test('reports route renders live reports data instead of the pilot blocker', () 
   assert.match(source, /fetchReportsOverview/);
   assert.match(source, /fetchRewardsReport/);
   assert.match(source, /fetchOperationsReport/);
+});
+
+test('english route renders the live English authoring lane instead of the pilot blocker', () => {
+  const source = routeSource('english');
+  assert.doesNotMatch(source, /PilotScopeBlocker/);
+  assert.match(source, /EnglishStudioAuthoringForm/);
+  assert.match(source, /createLessonAction/);
+  assert.match(source, /fetchSubjects/);
+  assert.match(source, /fetchCurriculumModules/);
+  assert.match(source, /buildEnglishLessonBlueprints/);
 });
 
 test('guide route exposes shipped guide assets instead of the pilot blocker', () => {
