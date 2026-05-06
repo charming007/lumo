@@ -3,13 +3,24 @@ import assert from 'node:assert/strict';
 
 import { navigationItems } from './navigation.ts';
 
-test('pilot admin navigation only exposes the routes operators are meant to trust during deployment review', () => {
+test('admin navigation exposes the full LMS shell routes that are live in production', () => {
   const expectedRoutes = [
     ['dashboard', '/'],
     ['content', '/content'],
     ['assignments', '/assignments'],
     ['progress', '/progress'],
+    ['devices', '/devices'],
     ['settings', '/settings'],
+    ['canvas', '/canvas'],
+    ['english', '/english'],
+    ['students', '/students'],
+    ['mallams', '/mallams'],
+    ['pods', '/pods'],
+    ['attendance', '/attendance'],
+    ['assessments', '/assessments'],
+    ['rewards', '/rewards'],
+    ['reports', '/reports'],
+    ['guide', '/guide'],
   ] as const;
 
   assert.deepEqual(

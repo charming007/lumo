@@ -25,31 +25,31 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
   );
 });
 
-test('dashboard route map distinguishes live off-shell surfaces from truly blocked routes', () => {
+test('dashboard route map reflects the full LMS shell instead of the pilot control-plane copy', () => {
   assert.match(
     dashboardPageSource,
-    /PILOT_OFF_SHELL_ROUTE_LABELS\.map\(\(label\) => \(/,
-    'dashboard route map should derive live off-shell specialist pills from the shared route list',
+    /<Card title="LMS route map" eyebrow="Admin shell">/,
+    'dashboard should label the route map as the LMS admin shell',
   );
   assert.match(
     dashboardPageSource,
-    /label=\{`\$\{label\} live`\}/,
-    'dashboard route map should mark off-shell specialist surfaces as live instead of blocked',
+    /Admin routes/,
+    'dashboard should present the visible navigation as admin routes',
   );
   assert.match(
     dashboardPageSource,
-    /PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/,
-    'dashboard route map should still expose genuinely blocked specialist pills from the shared blocked list',
+    /The LMS dashboard should expose the full admin shell operators actually use\./,
+    'dashboard route map should explain that the full LMS shell is the intended production experience',
   );
   assert.match(
     dashboardPageSource,
-    /label=\{`\$\{label\} blocked`\}/,
-    'dashboard route map should mark every truly blocked specialist surface explicitly',
+    /Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed\./,
+    'dashboard should explain why route-map and sidebar scope must stay aligned',
   );
-  assert.match(
+  assert.doesNotMatch(
     dashboardPageSource,
-    /“Not in nav” is not the same thing as “blocked\.”/,
-    'dashboard route map should call out the difference between off-shell live routes and blocked ones',
+    /Pilot route map|Sidebar control plane|Not in nav” is not the same thing as “blocked\./,
+    'dashboard should no longer ship the control-plane route map copy on the landing page',
   );
 });
 
