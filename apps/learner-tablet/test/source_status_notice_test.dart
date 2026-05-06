@@ -64,6 +64,39 @@ void main() {
   });
 
   testWidgets(
+      'home trust banner stays visible on landscape tablets when sync warnings exist',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = true
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(hours: 8))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(hours: 2))
+      ..pendingSyncEvents.add(
+        const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+      );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tablet trust check'), findsOneWidget);
+    expect(find.text('Refresh sync'), findsOneWidget);
+    expect(find.text('Offline pack curriculum'), findsOneWidget);
+    expect(find.text('Sync stale'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
       'backend banner escalates unknown learner sync failures into a pilot blocker',
       (tester) async {
     tester.view.physicalSize = const Size(900, 1200);

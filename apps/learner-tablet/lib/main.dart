@@ -1326,9 +1326,7 @@ class HomePage extends StatelessWidget {
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null;
-    final canAffordTrustBanner = viewportWidth >= 700 && viewportHeight >= 900;
-    final showTrustBanner =
-        hasSyncWarnings && !ultraShortHeight && canAffordTrustBanner;
+    final showTrustBanner = hasSyncWarnings && !ultraShortHeight;
     final trustBannerCompact = viewportWidth < 900 || viewportHeight <= 1040;
 
     return Scaffold(
