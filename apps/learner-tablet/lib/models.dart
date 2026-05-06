@@ -161,11 +161,70 @@ class LessonActivityDragItem {
   }
 }
 
+class LessonAudioReference {
+  final String? source;
+  final String? assetId;
+  final String? value;
+  final String? phraseId;
+  final String? phraseText;
+  final String? label;
+  final String? notes;
+
+  const LessonAudioReference({
+    this.source,
+    this.assetId,
+    this.value,
+    this.phraseId,
+    this.phraseText,
+    this.label,
+    this.notes,
+  });
+
+  factory LessonAudioReference.fromBackend(Map<String, dynamic> json) {
+    return LessonAudioReference(
+      source: json['source']?.toString(),
+      assetId: json['assetId']?.toString(),
+      value: json['value']?.toString(),
+      phraseId: json['phraseId']?.toString(),
+      phraseText: json['phraseText']?.toString(),
+      label: json['label']?.toString(),
+      notes: json['notes']?.toString(),
+    );
+  }
+
+  String? get playbackValue {
+    final resolvedValue = value?.trim();
+    if (resolvedValue != null && resolvedValue.isNotEmpty) {
+      return resolvedValue;
+    }
+    final resolvedAssetId = assetId?.trim();
+    if (resolvedAssetId != null && resolvedAssetId.isNotEmpty) {
+      return 'asset:$resolvedAssetId';
+    }
+    return null;
+  }
+
+  String? get spokenFallbackText {
+    final resolvedPhraseText = phraseText?.trim();
+    if (resolvedPhraseText != null && resolvedPhraseText.isNotEmpty) {
+      return resolvedPhraseText;
+    }
+    final resolvedLabel = label?.trim();
+    if (resolvedLabel != null && resolvedLabel.isNotEmpty) {
+      return resolvedLabel;
+    }
+    return null;
+  }
+}
+
 class LessonActivity {
   final LessonActivityType type;
   final String prompt;
   final String? focusText;
+  final String? targetText;
   final String? supportText;
+  final LessonAudioReference? targetAudio;
+  final LessonAudioReference? supportAudio;
   final List<String> choices;
   final List<String> choiceEmoji;
   final String? targetResponse;
@@ -181,7 +240,10 @@ class LessonActivity {
     required this.type,
     required this.prompt,
     this.focusText,
+    this.targetText,
     this.supportText,
+    this.targetAudio,
+    this.supportAudio,
     this.choices = const [],
     this.choiceEmoji = const [],
     this.targetResponse,
@@ -973,6 +1035,59 @@ class LessonStep {
           : realWorldCheck;
 }
 
+class LessonLocalization {
+  final String supportLanguage;
+  final String targetLanguage;
+  final String? supportLanguageLabel;
+  final String? targetLanguageLabel;
+  final String? defaultStepSupportText;
+  final LessonAudioReference? defaultStepSupportAudio;
+  final LessonAudioReference? lessonTargetAudio;
+
+  const LessonLocalization({
+    this.supportLanguage = 'Hausa',
+    this.targetLanguage = 'English',
+    this.supportLanguageLabel,
+    this.targetLanguageLabel,
+    this.defaultStepSupportText,
+    this.defaultStepSupportAudio,
+    this.lessonTargetAudio,
+  });
+
+  factory LessonLocalization.fromBackend(Map<String, dynamic> json) {
+    final supportLanguage =
+        json['supportLanguageLabel']?.toString().trim().isNotEmpty == true
+            ? json['supportLanguageLabel'].toString().trim()
+            : json['supportLanguage']?.toString().trim().isNotEmpty == true
+                ? json['supportLanguage'].toString().trim()
+                : 'Hausa';
+    final targetLanguage =
+        json['targetLanguageLabel']?.toString().trim().isNotEmpty == true
+            ? json['targetLanguageLabel'].toString().trim()
+            : json['targetLanguage']?.toString().trim().isNotEmpty == true
+                ? json['targetLanguage'].toString().trim()
+                : 'English';
+
+    return LessonLocalization(
+      supportLanguage: supportLanguage,
+      targetLanguage: targetLanguage,
+      supportLanguageLabel: json['supportLanguageLabel']?.toString(),
+      targetLanguageLabel: json['targetLanguageLabel']?.toString(),
+      defaultStepSupportText: json['defaultStepSupportText']?.toString(),
+      defaultStepSupportAudio: json['defaultStepSupportAudio'] is Map
+          ? LessonAudioReference.fromBackend(
+              Map<String, dynamic>.from(json['defaultStepSupportAudio'] as Map),
+            )
+          : null,
+      lessonTargetAudio: json['lessonTargetAudio'] is Map
+          ? LessonAudioReference.fromBackend(
+              Map<String, dynamic>.from(json['lessonTargetAudio'] as Map),
+            )
+          : null,
+    );
+  }
+}
+
 class LessonCardModel {
   final String id;
   final String moduleId;
@@ -986,6 +1101,7 @@ class LessonCardModel {
   final List<LessonStep> steps;
   final String supportLanguage;
   final String targetLanguage;
+  final LessonLocalization localization;
 
   const LessonCardModel({
     required this.id,
@@ -1000,6 +1116,7 @@ class LessonCardModel {
     required this.steps,
     this.supportLanguage = 'Hausa',
     this.targetLanguage = 'English',
+    this.localization = const LessonLocalization(),
   });
 
   bool get isAssignmentPlaceholder => id.startsWith('assignment-placeholder:');
@@ -1008,18 +1125,27 @@ class LessonCardModel {
     final moduleId = json['moduleId']?.toString() ?? 'english';
     final title = json['title']?.toString() ?? 'Guided lesson';
     final subject = json['subject']?.toString() ?? 'Learning';
+    final localizationJson = json['localization'];
+    final localization = localizationJson is Map
+        ? LessonLocalization.fromBackend(
+            Map<String, dynamic>.from(localizationJson),
+          )
+        : const LessonLocalization();
     final supportLanguage =
         json['supportLanguage']?.toString().trim().isNotEmpty == true
             ? json['supportLanguage'].toString().trim()
-            : 'Hausa';
+            : localization.supportLanguage;
     final targetLanguage =
         json['targetLanguage']?.toString().trim().isNotEmpty == true
             ? json['targetLanguage'].toString().trim()
-            : 'English';
+            : localization.targetLanguage;
     final activitySteps = _readBackendActivitySteps(
       json,
       defaultSupportLanguage: supportLanguage,
       defaultTargetLanguage: targetLanguage,
+      defaultStepSupportText: localization.defaultStepSupportText,
+      defaultStepSupportAudio: localization.defaultStepSupportAudio,
+      lessonTargetAudio: localization.lessonTargetAudio,
     );
 
     return LessonCardModel(
@@ -1037,6 +1163,7 @@ class LessonCardModel {
       steps: activitySteps,
       supportLanguage: supportLanguage,
       targetLanguage: targetLanguage,
+      localization: localization,
     );
   }
 }
@@ -1547,6 +1674,9 @@ List<LessonStep> _readBackendActivitySteps(
   Map<String, dynamic> json, {
   required String defaultSupportLanguage,
   required String defaultTargetLanguage,
+  String? defaultStepSupportText,
+  LessonAudioReference? defaultStepSupportAudio,
+  LessonAudioReference? lessonTargetAudio,
 }) {
   final rawSteps = (json['activitySteps'] as List?) ??
       (json['activities'] as List?) ??
@@ -1570,6 +1700,9 @@ List<LessonStep> _readBackendActivitySteps(
           item,
           defaultSupportLanguage: defaultSupportLanguage,
           defaultTargetLanguage: defaultTargetLanguage,
+          defaultStepSupportText: defaultStepSupportText,
+          defaultStepSupportAudio: defaultStepSupportAudio,
+          lessonTargetAudio: lessonTargetAudio,
         ),
       )
       .toList();
@@ -1631,6 +1764,9 @@ LessonStep _lessonStepFromBackend(
   Map<String, dynamic> json, {
   required String defaultSupportLanguage,
   required String defaultTargetLanguage,
+  String? defaultStepSupportText,
+  LessonAudioReference? defaultStepSupportAudio,
+  LessonAudioReference? lessonTargetAudio,
 }) {
   final typeValue = json['type']?.toString() ?? 'listen_repeat';
   final activityType = _lessonActivityTypeFromBackend(typeValue);
@@ -1687,8 +1823,25 @@ LessonStep _lessonStepFromBackend(
             item?.kind == 'letter-card',
         orElse: () => mediaItems.isEmpty ? null : mediaItems.first,
       );
-  final focusText = focusMedia?.firstValue;
-  final supportText = hint ?? successFeedback ?? retryFeedback;
+  final targetText = json['targetText']?.toString();
+  final focusText = targetText?.trim().isNotEmpty == true
+      ? targetText
+      : focusMedia?.firstValue;
+  final supportText = json['supportText']?.toString().trim().isNotEmpty == true
+      ? json['supportText']?.toString()
+      : defaultStepSupportText?.trim().isNotEmpty == true
+          ? defaultStepSupportText
+          : hint ?? successFeedback ?? retryFeedback;
+  final targetAudio = json['targetAudio'] is Map
+      ? LessonAudioReference.fromBackend(
+          Map<String, dynamic>.from(json['targetAudio'] as Map),
+        )
+      : lessonTargetAudio;
+  final supportAudio = json['supportAudio'] is Map
+      ? LessonAudioReference.fromBackend(
+          Map<String, dynamic>.from(json['supportAudio'] as Map),
+        )
+      : defaultStepSupportAudio;
 
   return LessonStep(
     id: json['id']?.toString() ?? typeValue,
@@ -1714,7 +1867,10 @@ LessonStep _lessonStepFromBackend(
       type: activityType,
       prompt: prompt,
       focusText: focusText,
+      targetText: targetText,
       supportText: supportText,
+      targetAudio: targetAudio,
+      supportAudio: supportAudio,
       choices: choices.map((item) => item.label).toList(),
       choiceEmoji: choices.map((item) => _emojiForChoice(item)).toList(),
       targetResponse: expectedResponse,

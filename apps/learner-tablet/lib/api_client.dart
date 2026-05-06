@@ -23,6 +23,13 @@ class TutorVoiceClip {
   });
 }
 
+class LessonAssetRecord {
+  final String id;
+  final String? fileUrl;
+
+  const LessonAssetRecord({required this.id, this.fileUrl});
+}
+
 class LumoApiClient {
   LumoApiClient({http.Client? client, String? baseUrl, this.deviceIdentifier})
       : _client = client ?? http.Client(),
@@ -72,8 +79,7 @@ class LumoApiClient {
     bool hasExplicitConfig = true,
   }) {
     final normalized = normalizeBaseUrl(rawBaseUrl);
-    if (!hasExplicitConfig &&
-        normalized != kDefaultProductionApiBaseUrl) {
+    if (!hasExplicitConfig && normalized != kDefaultProductionApiBaseUrl) {
       return 'LUMO_API_BASE_URL is missing, and the build is not using the canonical production learner API. Set it explicitly before shipping tablets.';
     }
 
@@ -398,6 +404,33 @@ class LumoApiClient {
       contentType: response.headers['content-type'] ?? 'audio/mpeg',
       provider: response.headers['x-lumo-voice-provider'],
       model: response.headers['x-lumo-voice-model'],
+    );
+  }
+
+  Future<LessonAssetRecord?> fetchLessonAsset(String assetId) async {
+    final trimmed = assetId.trim();
+    if (trimmed.isEmpty) return null;
+
+    final uri = _learnerAppUri('/api/v1/assets/$trimmed');
+    final response = await _send(
+      () => _client.get(
+        uri,
+        headers: _jsonHeadersWithDevice(includeContentType: false),
+      ),
+      action: 'load lesson asset $trimmed',
+      uri: uri,
+    );
+
+    if (response.statusCode == 404) {
+      return null;
+    }
+
+    _ensureOk(response, 'load lesson asset $trimmed', uri);
+    final decoded = _decodeObject(response.body,
+        action: 'load lesson asset $trimmed', uri: uri);
+    return LessonAssetRecord(
+      id: decoded['id']?.toString() ?? trimmed,
+      fileUrl: decoded['fileUrl']?.toString(),
     );
   }
 

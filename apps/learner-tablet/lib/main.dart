@@ -7219,7 +7219,9 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     responseController = TextEditingController()
       ..addListener(_persistActiveResponseDraft);
     audioCaptureService = AudioCaptureService();
-    learnerAudioPlaybackService = LearnerAudioPlaybackService();
+    learnerAudioPlaybackService = LearnerAudioPlaybackService(
+      apiClient: LumoApiClient(baseUrl: widget.state.backendBaseUrl),
+    );
     speechTranscriptionService = SpeechTranscriptionService();
     uiFeedbackAudioService = UiFeedbackAudioService();
     browserRuntimeObserver = createBrowserRuntimeObserver();
@@ -8445,6 +8447,32 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     );
   }
 
+  Future<bool> _playAuthoredAudioReference(
+    LessonAudioReference? reference, {
+    String? spokenFallback,
+    SpeakerMode mode = SpeakerMode.guiding,
+  }) async {
+    final playbackValue = reference?.playbackValue?.trim();
+    if (playbackValue != null && playbackValue.isNotEmpty) {
+      await learnerAudioPlaybackService.play(playbackValue);
+      return true;
+    }
+
+    final fallback = reference?.spokenFallbackText?.trim();
+    if (fallback != null && fallback.isNotEmpty) {
+      await _speakActivityText(fallback, mode: mode);
+      return true;
+    }
+
+    final spoken = spokenFallback?.trim();
+    if (spoken != null && spoken.isNotEmpty) {
+      await _speakActivityText(spoken, mode: mode);
+      return true;
+    }
+
+    return false;
+  }
+
   String _normalizeLearnerAssetKind(String? value) {
     return (value ?? '').trim().toLowerCase();
   }
@@ -9236,10 +9264,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               runSpacing: 8,
               children: [
                 FilledButton.tonalIcon(
-                  onPressed: focusText == null && activity.mediaValue == null
+                  onPressed: (activity.targetAudio == null &&
+                          focusText == null &&
+                          activity.mediaValue == null)
                       ? null
-                      : () => _speakActivityText(
-                            _learnerFacingCueText(
+                      : () => _playAuthoredAudioReference(
+                            activity.targetAudio,
+                            spokenFallback: _learnerFacingCueText(
                                   focusText,
                                   activity.mediaValue,
                                 ) ??
@@ -9249,9 +9280,13 @@ class _LessonSessionPageState extends State<LessonSessionPage>
                   label: const Text('Hear letter'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: supportText == null
-                      ? null
-                      : () => _speakActivityText(supportText),
+                  onPressed:
+                      (activity.supportAudio == null && supportText == null)
+                          ? null
+                          : () => _playAuthoredAudioReference(
+                                activity.supportAudio,
+                                spokenFallback: supportText,
+                              ),
                   icon: const Icon(Icons.record_voice_over_rounded),
                   label: const Text('Hear cue'),
                 ),
@@ -9555,12 +9590,14 @@ class _LessonSessionPageState extends State<LessonSessionPage>
               runSpacing: 8,
               children: [
                 FilledButton.tonalIcon(
-                  onPressed: targetResponse == null
-                      ? null
-                      : () => _speakActivityText(
-                            targetResponse,
-                            mode: SpeakerMode.affirming,
-                          ),
+                  onPressed:
+                      (activity.targetAudio == null && targetResponse == null)
+                          ? null
+                          : () => _playAuthoredAudioReference(
+                                activity.targetAudio,
+                                spokenFallback: targetResponse,
+                                mode: SpeakerMode.affirming,
+                              ),
                   icon: const Icon(Icons.volume_up_rounded),
                   label: const Text('Hear target answer'),
                 ),

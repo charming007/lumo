@@ -3,14 +3,18 @@ import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
+import 'api_client.dart';
+
 class LearnerAudioPlaybackService {
-  LearnerAudioPlaybackService() {
+  LearnerAudioPlaybackService({LumoApiClient? apiClient})
+      : _apiClient = apiClient ?? LumoApiClient() {
     _player = AudioPlayer();
     _player.onPlayerComplete.listen((_) {
       _isPlaying = false;
     });
   }
 
+  final LumoApiClient _apiClient;
   late final AudioPlayer _player;
   bool _isPlaying = false;
   String? _currentSourcePath;
@@ -29,7 +33,8 @@ class LearnerAudioPlaybackService {
 
     await _player.stop();
 
-    final source = _sourceFor(trimmed);
+    final resolvedPath = await _resolvePlaybackPath(trimmed);
+    final source = _sourceFor(resolvedPath);
     await _player.play(source);
     _isPlaying = true;
     _currentSourcePath = trimmed;
@@ -45,6 +50,20 @@ class LearnerAudioPlaybackService {
     await _player.dispose();
     _isPlaying = false;
     _currentSourcePath = null;
+  }
+
+  Future<String> _resolvePlaybackPath(String path) async {
+    if (!path.startsWith('asset:')) return path;
+
+    final assetId = path.substring('asset:'.length).trim();
+    if (assetId.isEmpty) return path;
+
+    final asset = await _apiClient.fetchLessonAsset(assetId);
+    final fileUrl = asset?.fileUrl?.trim();
+    if (fileUrl != null && fileUrl.isNotEmpty) {
+      return fileUrl;
+    }
+    return path;
   }
 
   Source _sourceFor(String path) {
