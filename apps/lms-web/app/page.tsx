@@ -12,6 +12,7 @@ import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, Dash
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
 import { diagnoseBackendTargetMismatch, summarizeBackendTargetEvidence } from '../lib/backend-target-diagnosis';
 import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
+import { resolveTopReleaseBlockerPrimaryHref } from '../lib/dashboard-top-blocker-link';
 import { resolveTopReleaseBlockerCta } from '../lib/dashboard-top-blocker';
 
 const quickActionStyle = {
@@ -401,9 +402,11 @@ export default async function HomePage() {
       })
     : null;
   const canLaunchTopReleaseLessonCreate = Boolean(topReleaseBlockerCta?.canLaunchLessonStudio && topReleaseBlocker);
-  const topReleaseBlockerPrimaryHref = canLaunchTopReleaseLessonCreate && topReleaseBlocker
-    ? `/content/lessons/new?subjectId=${encodeURIComponent(topReleaseBlocker.subjectId)}&moduleId=${encodeURIComponent(topReleaseBlocker.id)}&from=${encodeURIComponent(topReleaseBlockerBoardHref)}&focus=blockers`
-    : topReleaseBlockerBoardHref;
+  const topReleaseBlockerPrimaryHref = resolveTopReleaseBlockerPrimaryHref({
+    blocker: topReleaseBlocker,
+    boardHref: topReleaseBlockerBoardHref,
+    canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
+  });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
 
   if (shouldBlockDashboardPage({

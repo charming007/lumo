@@ -60,6 +60,8 @@ test('dashboard release blockers recover the subject name from live subject meta
       lessonCount: 2,
       subjectId: 'subject-reading',
       subjectName: '',
+      level: 'foundations',
+      strandName: 'Reading',
     },
   ];
 
@@ -69,6 +71,8 @@ test('dashboard release blockers recover the subject name from live subject meta
       title: 'Lesson 1',
       status: 'approved',
       moduleId: 'module-reading-1',
+      durationMinutes: 12,
+      mode: 'guided',
     },
   ];
 
