@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 const rewardsPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
 
-test('rewards route is blocked behind the pilot scope guard', () => {
-  assert.match(rewardsPageSource, /PilotScopeBlocker/, 'rewards page should render the shared pilot blocker instead of a fake live control surface');
-  assert.match(rewardsPageSource, /title="Rewards"/, 'rewards blocker should identify the route clearly');
-  assert.match(rewardsPageSource, /that is garnish, not a control plane/, 'rewards blocker should explain why the route stays out of pilot nav');
+test('rewards route renders live admin surfaces instead of the pilot scope blocker', () => {
+  assert.doesNotMatch(rewardsPageSource, /PilotScopeBlocker/);
+  assert.match(rewardsPageSource, /RewardsAdminForm/);
+  assert.match(rewardsPageSource, /RewardRequestQueuePanel/);
+  assert.match(rewardsPageSource, /fetchRewardRequests/);
 });
