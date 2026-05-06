@@ -7,7 +7,7 @@ import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumM
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
 import { navigationItems } from '../lib/navigation';
-import { PILOT_BLOCKED_ROUTE_LABELS } from '../lib/pilot-nav';
+import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
@@ -957,7 +957,7 @@ export default async function HomePage() {
         <Card title="Pilot route map" eyebrow="Operator shell">
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Pilot routes</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Sidebar control plane</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {navigationItems.map((item) => (
                   <Pill
@@ -967,18 +967,31 @@ export default async function HomePage() {
                     text="#166534"
                   />
                 ))}
+              </div>
+              <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
+                These routes are the day-to-day pilot shell. Keep this list brutally honest so operators trust the front door instead of second-guessing which tabs are actually part of handoff.
+              </div>
+            </div>
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#1D4ED8', fontWeight: 800 }}>Live specialist surfaces</div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PILOT_OFF_SHELL_ROUTE_LABELS.map((label) => (
+                  <Pill key={label} label={`${label} live`} tone="#DBEAFE" text="#1D4ED8" />
+                ))}
+              </div>
+              <div style={{ marginTop: 10, color: '#1D4ED8', lineHeight: 1.6 }}>
+                These pages render real production UI, but they stay outside the slim sidebar on purpose. “Not in nav” is not the same thing as “blocked.”
+              </div>
+            </div>
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Hard-blocked routes</div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {PILOT_BLOCKED_ROUTE_LABELS.map((label) => (
                   <Pill key={label} label={`${label} blocked`} tone="#FFF7ED" text="#9A3412" />
                 ))}
               </div>
-              <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                The LMS dashboard should reflect the pilot control plane operators are actually supposed to trust. If a route is not part of day-to-day pilot delivery, it should not sit in nav pretending to be live-critical.
-              </div>
-            </div>
-            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why coherent scope matters</div>
               <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                Deployment review gets dangerous when shared shell copy says one thing and visible navigation does another. Keep the route map, sidebar, and dashboard aligned so operators trust the narrow pilot surface instead of wandering into side quests.
+                Deployment review gets dangerous when shared shell copy says a live page is blocked. Keep the route map honest so a real route outage does not get lost inside stale labeling.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

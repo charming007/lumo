@@ -25,16 +25,31 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
   );
 });
 
-test('dashboard route map names every pilot-blocked specialist surface', () => {
+test('dashboard route map distinguishes live off-shell surfaces from truly blocked routes', () => {
+  assert.match(
+    dashboardPageSource,
+    /PILOT_OFF_SHELL_ROUTE_LABELS\.map\(\(label\) => \(/,
+    'dashboard route map should derive live off-shell specialist pills from the shared route list',
+  );
+  assert.match(
+    dashboardPageSource,
+    /label=\{`\$\{label\} live`\}/,
+    'dashboard route map should mark off-shell specialist surfaces as live instead of blocked',
+  );
   assert.match(
     dashboardPageSource,
     /PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/,
-    'dashboard route map should derive blocked specialist pills from the shared pilot route list',
+    'dashboard route map should still expose genuinely blocked specialist pills from the shared blocked list',
   );
   assert.match(
     dashboardPageSource,
     /label=\{`\$\{label\} blocked`\}/,
-    'dashboard route map should mark every blocked specialist surface explicitly',
+    'dashboard route map should mark every truly blocked specialist surface explicitly',
+  );
+  assert.match(
+    dashboardPageSource,
+    /“Not in nav” is not the same thing as “blocked\.”/,
+    'dashboard route map should call out the difference between off-shell live routes and blocked ones',
   );
 });
 
