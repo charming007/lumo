@@ -72,8 +72,9 @@ class LumoApiClient {
     bool hasExplicitConfig = true,
   }) {
     final normalized = normalizeBaseUrl(rawBaseUrl);
-    if (!hasExplicitConfig) {
-      return 'LUMO_API_BASE_URL is missing. Set it explicitly for release tablets before shipping.';
+    if (!hasExplicitConfig &&
+        normalized != kDefaultProductionApiBaseUrl) {
+      return 'LUMO_API_BASE_URL is missing, and the build is not using the canonical production learner API. Set it explicitly before shipping tablets.';
     }
 
     final parsed = Uri.tryParse(normalized);
