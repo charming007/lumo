@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildAssessmentReviewHref, buildContentReturnPath, buildReviewBlockersHref, buildScopedLessonCreateHref, normalizeFilterValue } from './content-return-path.ts';
+import { buildAssessmentReviewHref, buildCanvasReturnPath, buildContentReturnPath, buildReviewBlockersHref, buildScopedLessonCreateHref, normalizeFilterValue } from './content-return-path.ts';
 
 test('normalizeFilterValue keeps the first query value when arrays arrive from Next search params', () => {
   assert.equal(normalizeFilterValue(['math', 'english']), 'math');
@@ -18,6 +18,17 @@ test('buildContentReturnPath preserves the active content filters', () => {
 
 test('buildContentReturnPath falls back to the root content board when no filters exist', () => {
   assert.equal(buildContentReturnPath(), '/content');
+});
+
+test('buildCanvasReturnPath preserves the exact canvas deep-link scope for blocker triage', () => {
+  assert.equal(
+    buildCanvasReturnPath({ subject: 'subject-math', module: 'module-8', readiness: 'blocked', q: 'Addition & Subtraction Stories' }),
+    '/canvas?subject=subject-math&module=module-8&readiness=blocked&q=Addition+%26+Subtraction+Stories',
+  );
+});
+
+test('buildCanvasReturnPath falls back to the root canvas when no deep-link filters exist', () => {
+  assert.equal(buildCanvasReturnPath(), '/canvas');
 });
 
 test('buildScopedLessonCreateHref keeps the full blocker-board return path instead of dumping operators into a generic board', () => {

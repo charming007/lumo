@@ -87,3 +87,23 @@ export function buildAssessmentReviewHref({
 
   return params.size ? `/content?${params.toString()}` : '/content?view=assessments';
 }
+
+export function buildCanvasReturnPath(query?: {
+  subject?: string | string[];
+  module?: string | string[];
+  readiness?: string | string[];
+  q?: string | string[];
+}) {
+  const params = new URLSearchParams();
+  const subject = normalizeFilterValue(query?.subject).trim();
+  const moduleId = normalizeFilterValue(query?.module).trim();
+  const readiness = normalizeFilterValue(query?.readiness).trim();
+  const q = normalizeFilterValue(query?.q).trim();
+
+  if (subject) params.set('subject', subject);
+  if (moduleId) params.set('module', moduleId);
+  if (readiness) params.set('readiness', readiness);
+  if (q) params.set('q', q);
+
+  return params.size ? `/canvas?${params.toString()}` : '/canvas';
+}
