@@ -23,10 +23,10 @@ const guideCards = [
 ];
 
 const repoDocs = [
-  { label: 'Operator runbook', href: 'https://github.com/charmingdata/lumo/blob/main/docs/OPERATOR_RUNBOOK.md' },
-  { label: 'Rewards system guide', href: 'https://github.com/charmingdata/lumo/blob/main/docs/REWARDS_SYSTEM_GUIDE.md' },
-  { label: 'Architecture notes', href: 'https://github.com/charmingdata/lumo/blob/main/docs/ARCHITECTURE.md' },
-  { label: 'Fallback failure catalog', href: 'https://github.com/charmingdata/lumo/blob/main/docs/LMS_FALLBACK_FAILURE_CATALOG.md' },
+  { label: 'Operator runbook', href: 'https://github.com/charming007/lumo/blob/main/docs/OPERATOR_RUNBOOK.md' },
+  { label: 'Rewards system guide', href: 'https://github.com/charming007/lumo/blob/main/docs/REWARDS_SYSTEM_GUIDE.md' },
+  { label: 'Architecture notes', href: 'https://github.com/charming007/lumo/blob/main/docs/ARCHITECTURE.md' },
+  { label: 'Fallback failure catalog', href: 'https://github.com/charming007/lumo/blob/main/docs/LMS_FALLBACK_FAILURE_CATALOG.md' },
 ];
 
 export default function GuidePage() {

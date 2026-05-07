@@ -47,4 +47,6 @@ test('guide route exposes shipped guide assets instead of the pilot blocker', ()
   assert.match(source, /LMS_DASHBOARD_GUIDE\.html/);
   assert.match(source, /DEPLOY_VERIFICATION_CHECKLIST\.html/);
   assert.match(source, /Live guide surfaces/);
+  assert.match(source, /github\.com\/charming007\/lumo\/blob\/main\/docs\/OPERATOR_RUNBOOK\.md/);
+  assert.doesNotMatch(source, /github\.com\/charmingdata\/lumo/);
 });
