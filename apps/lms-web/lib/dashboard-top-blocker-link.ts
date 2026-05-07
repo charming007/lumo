@@ -11,13 +11,18 @@ export function resolveTopReleaseBlockerPrimaryHref(params: {
     return boardHref;
   }
 
+  const normalizedSubjectId = blocker.subjectId.trim();
+  if (!normalizedSubjectId) {
+    return boardHref;
+  }
+
   if (canLaunchLessonStudio) {
-    return `/content/lessons/new?subjectId=${encodeURIComponent(blocker.subjectId)}&moduleId=${encodeURIComponent(blocker.id)}&from=${encodeURIComponent(boardHref)}&focus=blockers`;
+    return `/content/lessons/new?subjectId=${encodeURIComponent(normalizedSubjectId)}&moduleId=${encodeURIComponent(blocker.id)}&from=${encodeURIComponent(boardHref)}&focus=blockers`;
   }
 
   if (blocker.missingLessons > 1 && blocker.hasAuthoringContext) {
     const params = new URLSearchParams();
-    params.set('subject', blocker.subjectId);
+    params.set('subject', normalizedSubjectId);
     params.set('module', blocker.id);
     params.set('readiness', 'blocked');
     params.set('q', blocker.title);
