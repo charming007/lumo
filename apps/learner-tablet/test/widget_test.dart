@@ -1911,20 +1911,25 @@ void main() {
       );
       await pumpForUi(tester);
 
-      final refreshButton = find.widgetWithText(
+      final syncRequiredButton = find.widgetWithText(
         FilledButton,
-        'Refresh sync before starting',
+        'Sync required before starting',
       );
-      expect(refreshButton, findsOneWidget);
-      expect(tester.widget<FilledButton>(refreshButton).onPressed, isNotNull);
+      expect(syncRequiredButton, findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(syncRequiredButton).onPressed,
+        isNotNull,
+      );
 
-      await tester.ensureVisible(refreshButton);
-      await tester.tap(refreshButton);
+      await tester.ensureVisible(syncRequiredButton);
+      await tester.tap(syncRequiredButton);
       await pumpForUi(tester);
 
-      expect(find.byType(LessonLaunchSetupPage), findsOneWidget);
-      expect(find.textContaining('Lesson content not available yet'), findsWidgets);
-      expect(find.text('Select available learner'), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+      expect(
+        find.textContaining('Lesson content is still syncing.'),
+        findsOneWidget,
+      );
 
       state.dispose();
     },

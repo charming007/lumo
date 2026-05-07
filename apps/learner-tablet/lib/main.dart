@@ -3723,26 +3723,6 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           child: FilledButton.tonalIcon(
                                             onPressed: () {
                                               state.selectLearner(learner);
-                                              if (lesson.isAssignmentPlaceholder) {
-                                                final targetModule =
-                                                    resolveLessonModule(
-                                                  state: state,
-                                                  lesson: lesson,
-                                                );
-                                                Navigator.of(context).push(
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        LessonLaunchSetupPage(
-                                                      state: state,
-                                                      onChanged: () {},
-                                                      lesson: lesson,
-                                                      module: targetModule,
-                                                    ),
-                                                  ),
-                                                );
-                                                return;
-                                              }
-
                                               launchLessonFlow(
                                                 context: context,
                                                 state: state,
@@ -3756,7 +3736,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             },
                                             icon: Icon(
                                               lesson.isAssignmentPlaceholder
-                                                  ? Icons.sync_rounded
+                                                  ? Icons.sync_problem_rounded
                                                   : matchesResumableSession
                                                       ? Icons
                                                           .play_circle_fill_rounded
@@ -3765,7 +3745,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             ),
                                             label: Text(
                                               lesson.isAssignmentPlaceholder
-                                                  ? 'Refresh sync before starting'
+                                                  ? 'Sync required before starting'
                                                   : matchesResumableSession
                                                       ? 'Resume lesson'
                                                       : 'Open lesson',
