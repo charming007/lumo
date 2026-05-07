@@ -2106,7 +2106,7 @@ class _HomeTrustBanner extends StatelessWidget {
                         SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Pilot blocker to clear on this tablet',
+                            'Tablet blocker to clear before learner launch',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF9A3412),

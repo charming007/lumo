@@ -669,7 +669,7 @@ class RegistrationDraft {
     if (guardianPhone.trim().length < 10) {
       return 'Phone number should be verified';
     }
-    return 'No blocker for pilot';
+    return 'No learner-readiness blocker';
   }
 
   List<String> get missingFields {

@@ -254,7 +254,7 @@ void main() {
   );
 
   testWidgets(
-    'home screen keeps the trust banner visible on compact tablets when pilot warnings exist',
+    'home screen keeps the trust banner visible on compact tablets when deployment warnings exist',
     (tester) async {
       tester.view.physicalSize = const Size(800, 1280);
       tester.view.devicePixelRatio = 1.0;

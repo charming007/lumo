@@ -4937,7 +4937,7 @@ class LumoAppState {
     for (final warning in lastSyncWarnings) {
       final normalized = warning.toLowerCase();
       if (normalized.contains('unsupported_event_type')) {
-        return 'Runtime sync receipts show unsupported learner events. That means the tablet captured activity the backend does not currently honor, so pilot trust is broken until the contract is fixed.';
+        return 'Runtime sync receipts show unsupported learner events. That means the tablet captured activity the backend does not currently honor, so deployment trust is broken until the contract is fixed.';
       }
       if (normalized.contains('backend could not apply')) {
         return 'Runtime sync receipts show learner events the backend could not apply. Keep teaching if needed, but do not treat backend progress as trustworthy until ops clears the bad receipt.';

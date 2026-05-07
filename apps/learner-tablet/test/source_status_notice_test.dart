@@ -97,7 +97,7 @@ void main() {
   });
 
   testWidgets(
-      'backend banner escalates unknown learner sync failures into a pilot blocker',
+      'backend banner escalates unknown learner sync failures into a deployment-trust blocker',
       (tester) async {
     tester.view.physicalSize = const Size(900, 1200);
     tester.view.devicePixelRatio = 1.0;
