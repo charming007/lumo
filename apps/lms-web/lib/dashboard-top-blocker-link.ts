@@ -1,5 +1,23 @@
 import type { DashboardReleaseBlocker } from './dashboard-release.ts';
 
+export function buildTopReleaseBlockerBoardHref(blocker: DashboardReleaseBlocker | null) {
+  if (!blocker) {
+    return '/content?view=blocked';
+  }
+
+  const params = new URLSearchParams();
+  params.set('view', 'blocked');
+  params.set('moduleId', blocker.id);
+
+  const normalizedSubjectId = blocker.subjectId.trim();
+  if (normalizedSubjectId) {
+    params.set('subject', normalizedSubjectId);
+  }
+
+  params.set('q', blocker.title);
+  return `/content?${params.toString()}`;
+}
+
 export function resolveTopReleaseBlockerPrimaryHref(params: {
   blocker: DashboardReleaseBlocker | null;
   boardHref: string;

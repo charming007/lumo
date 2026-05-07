@@ -12,7 +12,7 @@ import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, Dash
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
 import { diagnoseBackendTargetMismatch, summarizeBackendTargetEvidence } from '../lib/backend-target-diagnosis';
 import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
-import { resolveTopReleaseBlockerPrimaryHref } from '../lib/dashboard-top-blocker-link';
+import { buildTopReleaseBlockerBoardHref, resolveTopReleaseBlockerPrimaryHref } from '../lib/dashboard-top-blocker-link';
 import { resolveTopReleaseBlockerCta } from '../lib/dashboard-top-blocker';
 
 const quickActionStyle = {
@@ -421,9 +421,7 @@ export default async function HomePage() {
   const missingLessonGapCount = releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0);
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
-  const topReleaseBlockerBoardHref = topReleaseBlocker
-    ? `/content?view=blocked&moduleId=${encodeURIComponent(topReleaseBlocker.id)}${topReleaseBlocker.subjectId ? `&subject=${encodeURIComponent(topReleaseBlocker.subjectId)}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`
-    : '/content?view=blocked';
+  const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref(topReleaseBlocker);
   const topReleaseBlockerSubjectMetadataMissing = Boolean(
     topReleaseBlocker?.missingLessons
     && !topReleaseBlocker.hasAuthoringContext

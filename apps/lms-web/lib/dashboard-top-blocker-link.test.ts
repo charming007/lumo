@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { DashboardReleaseBlocker } from './dashboard-release.ts';
-import { resolveTopReleaseBlockerPrimaryHref } from './dashboard-top-blocker-link.ts';
+import { buildTopReleaseBlockerBoardHref, resolveTopReleaseBlockerPrimaryHref } from './dashboard-top-blocker-link.ts';
 
 const blocker: DashboardReleaseBlocker = {
   id: 'module-reading-1',
@@ -16,6 +16,30 @@ const blocker: DashboardReleaseBlocker = {
   blockerCount: 2,
   priorityWeight: 3,
 };
+
+test('builds the scoped blocker board href with normalized subject context', () => {
+  const href = buildTopReleaseBlockerBoardHref({
+    ...blocker,
+    subjectId: '  subject-english  ',
+  });
+
+  assert.equal(
+    href,
+    '/content?view=blocked&moduleId=module-reading-1&subject=subject-english&q=Reading+lane',
+  );
+});
+
+test('drops blank subject context from the scoped blocker board href', () => {
+  const href = buildTopReleaseBlockerBoardHref({
+    ...blocker,
+    subjectId: '   ',
+  });
+
+  assert.equal(
+    href,
+    '/content?view=blocked&moduleId=module-reading-1&q=Reading+lane',
+  );
+});
 
 test('routes single-lesson blockers into lesson studio', () => {
   const href = resolveTopReleaseBlockerPrimaryHref({
