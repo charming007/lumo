@@ -6424,6 +6424,43 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 14),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: [
+                                    FilledButton.icon(
+                                      onPressed: state.isBootstrapping
+                                          ? null
+                                          : () async {
+                                              await state.bootstrap();
+                                              widget.onChanged();
+                                              if (!mounted) return;
+                                              setState(() {});
+                                            },
+                                      icon: const Icon(Icons.sync_rounded),
+                                      label: Text(
+                                        state.isBootstrapping
+                                            ? 'Refreshing live sync…'
+                                            : 'Refresh live sync',
+                                      ),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => AllStudentsPage(
+                                              state: state,
+                                              onChanged: widget.onChanged,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.groups_rounded),
+                                      label: const Text('Open student list'),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),

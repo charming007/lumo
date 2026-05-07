@@ -2562,6 +2562,73 @@ void main() {
   );
 
   testWidgets(
+    'lesson launch shows recovery actions when every learner on the tablet is blocked',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = true
+        ..backendError = 'Backend registration is offline.';
+      final module = state.modules.firstWhere((item) => item.id == 'english');
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+      );
+      final now = DateTime.now();
+      for (final learner in state.learners) {
+        state.recentRuntimeSessionsByLearnerId[learner.id] = [
+          BackendLessonSession(
+            id: 'completed-launch-blocked-${learner.id}',
+            sessionId: 'completed-launch-blocked-${learner.id}',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            moduleTitle: module.title,
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Completed on this tablet.',
+            currentStepIndex: lesson.steps.length,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: lesson.steps.length,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+            completedAt: now,
+            lastActivityAt: now,
+            startedAt: now,
+          ),
+        ];
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('No learner is launchable yet'), findsOneWidget);
+      expect(find.text('Refresh live sync'), findsOneWidget);
+      expect(find.text('Open student list'), findsOneWidget);
+
+      await tester.tap(find.text('Open student list').first);
+      await pumpForUi(tester);
+
+      expect(find.text('All learners'), findsOneWidget);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'lesson launch shows completed learners as unavailable and exposes absent CTA',
     (tester) async {
       final state = LumoAppState(includeSeedDemoContent: true);
