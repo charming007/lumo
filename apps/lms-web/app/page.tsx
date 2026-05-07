@@ -161,6 +161,40 @@ function describeGateWarning(moduleCount: number, liveModuleCount: number) {
   return `${moduleCount} draft module${moduleCount === 1 ? '' : 's'} ${moduleCount === 1 ? 'is' : 'are'} still missing a progression gate. Fix that before anybody gets cute with publish state.`;
 }
 
+function describeReleaseBlockerSnapshot({
+  blockerCount,
+  draftModuleCount,
+  missingLessonCount,
+  missingGateCount,
+}: {
+  blockerCount: number;
+  draftModuleCount: number;
+  missingLessonCount: number;
+  missingGateCount: number;
+}) {
+  if (!blockerCount) {
+    return 'No release blockers are visible in the live curriculum feeds. Open Content Library if you want the detailed board.';
+  }
+
+  const signals: string[] = [];
+
+  if (draftModuleCount > 0) {
+    signals.push(`${draftModuleCount} draft module${draftModuleCount === 1 ? '' : 's'} still need authoring follow-up`);
+  }
+  if (missingLessonCount > 0) {
+    signals.push(`${missingLessonCount} missing lesson gap${missingLessonCount === 1 ? '' : 's'} still block release coverage`);
+  }
+  if (missingGateCount > 0) {
+    signals.push(`${missingGateCount} module${missingGateCount === 1 ? '' : 's'} still need assessment gates`);
+  }
+
+  if (!signals.length) {
+    return `${blockerCount} blocked module${blockerCount === 1 ? '' : 's'} still need release triage. Open Content Library for the real blocker workflow.`;
+  }
+
+  return `${signals.join('. ')}. Open Content Library for the real blocker workflow.`;
+}
+
 function dashboardApiSourceDetail() {
   if (API_BASE_SOURCE === 'missing-production-env') {
     return {
@@ -384,6 +418,7 @@ export default async function HomePage() {
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
   const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
   const liveMissingGateBlockers = missingGateBlockers.filter((module) => !module.isDraftModule);
+  const missingLessonGapCount = releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0);
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
   const topReleaseBlockerBoardHref = topReleaseBlocker
@@ -778,9 +813,12 @@ export default async function HomePage() {
               <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{releaseFeedsAvailable ? releaseBlockers.length : '—'}</div>
               <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
                 {releaseFeedsAvailable
-                  ? releaseBlockers.length
-                    ? `${draftModuleBlockers.length} draft module${draftModuleBlockers.length === 1 ? '' : 's'} still need authoring follow-up. Open Content Library for the real blocker workflow.`
-                    : 'No release blockers are visible in the live curriculum feeds. Open Content Library if you want the detailed board.'
+                  ? describeReleaseBlockerSnapshot({
+                      blockerCount: releaseBlockers.length,
+                      draftModuleCount: draftModuleBlockers.length,
+                      missingLessonCount: missingLessonGapCount,
+                      missingGateCount: missingGateBlockers.length,
+                    })
                   : 'Curriculum release feeds are unavailable, so the dashboard is intentionally showing only a handoff summary.'}
               </div>
             </div>

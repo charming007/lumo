@@ -66,6 +66,29 @@ test('dashboard bulk blocker handoff copy matches the direct canvas launch', () 
   );
 });
 
+test('dashboard blocked modules snapshot summarizes all blocker types instead of draft-only copy', () => {
+  assert.match(
+    dashboardPageSource,
+    /function describeReleaseBlockerSnapshot\(/,
+    'dashboard should centralize blocked-module snapshot copy so it can describe the real blocker mix',
+  );
+  assert.match(
+    dashboardPageSource,
+    /missingLessonCount > 0[\s\S]*missing lesson gap/,
+    'dashboard blocked-modules snapshot should mention missing lesson gaps when they exist',
+  );
+  assert.match(
+    dashboardPageSource,
+    /missingGateCount > 0[\s\S]*assessment gates/,
+    'dashboard blocked-modules snapshot should mention missing assessment gates when they exist',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /releaseBlockers\.length\s*\?\s*`\$\{draftModuleBlockers\.length\} draft module/,
+    'dashboard should not reduce every blocked-module summary to draft-module copy when non-draft blockers exist',
+  );
+});
+
 test('dashboard deploy checklist CTA points at a shipped public document', () => {
   assert.match(
     dashboardPageSource,
