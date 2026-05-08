@@ -66,6 +66,24 @@ test('dashboard bulk blocker handoff copy matches the direct canvas launch', () 
   );
 });
 
+test('dashboard reuses the normalized blocker-board href helper instead of hand-building dashboard CTA links', () => {
+  assert.match(
+    dashboardPageSource,
+    /import \{ buildTopReleaseBlockerBoardHref, resolveTopReleaseBlockerPrimaryHref \} from '\.\.\/lib\/dashboard-top-blocker-link';/,
+    'dashboard should import the normalized blocker-board href helper alongside the primary CTA resolver',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlocker\);/,
+    'dashboard should build the scoped blocker-board CTA through the shared helper so subject/module normalization stays in one place',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /const topReleaseBlockerBoardHref = topReleaseBlocker\s*\? `\/content\?view=blocked&moduleId=/,
+    'dashboard should not hand-build scoped blocker-board query strings after the deep-link normalization fix',
+  );
+});
+
 test('dashboard blocked modules snapshot summarizes all blocker types instead of draft-only copy', () => {
   assert.match(
     dashboardPageSource,
