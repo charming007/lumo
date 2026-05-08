@@ -5997,35 +5997,36 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                       viewportConstraints.maxHeight < 900;
                   final qaCompletionResetVisible =
                       state.canUseQaCompletionReset;
-                  final qaCompletedTodayLearners =
-                      state.learners.where((learner) {
-                    final matchesRoster =
-                        state.learnerMatchesTabletPod(learner) ||
-                            (_resumeLocksLearner &&
-                                resumeLearner != null &&
-                                learner.id == resumeLearner.id);
-                    return matchesRoster &&
-                        state.lessonCompletedTodayForLearner(learner, lesson);
+                  final learnerChoices = state.learners.where((learner) {
+                    return state.learnerMatchesTabletPod(learner) ||
+                        (_resumeLocksLearner &&
+                            resumeLearner != null &&
+                            learner.id == resumeLearner.id);
                   }).toList(growable: false);
+                  final learnerAvailabilityById = {
+                    for (final learner in learnerChoices)
+                      learner.id: learnerLessonAvailability(
+                        state: state,
+                        learner: learner,
+                        lesson: lesson,
+                      ),
+                  };
+                  final launchableLearnerCount = learnerChoices
+                      .where(
+                        (learner) =>
+                            learnerAvailabilityById[learner.id]?.canLaunch ==
+                            true,
+                      )
+                      .length;
+                  final qaCompletedTodayLearners = learnerChoices
+                      .where(
+                        (learner) => state.lessonCompletedTodayForLearner(
+                            learner, lesson),
+                      )
+                      .toList(growable: false);
+                  final registrationBlocker = state.registrationBlockerReason;
 
                   Widget buildLearnerGrid({required bool shrinkWrap}) {
-                    final learnerChoices = state.learners.where((learner) {
-                      return state.learnerMatchesTabletPod(learner) ||
-                          (_resumeLocksLearner &&
-                              resumeLearner != null &&
-                              learner.id == resumeLearner.id);
-                    }).toList(growable: false);
-                    final launchableLearnerCount = learnerChoices
-                        .where(
-                          (learner) => learnerLessonAvailability(
-                            state: state,
-                            learner: learner,
-                            lesson: lesson,
-                          ).canLaunch,
-                        )
-                        .length;
-                    final registrationBlocker = state.registrationBlockerReason;
-
                     Widget buildLearnerCards() {
                       return LayoutBuilder(
                         builder: (context, constraints) {
@@ -6057,11 +6058,13 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             ),
                             itemBuilder: (context, index) {
                               final learner = learnerChoices[index];
-                              final availability = learnerLessonAvailability(
-                                state: state,
-                                learner: learner,
-                                lesson: lesson,
-                              );
+                              final availability =
+                                  learnerAvailabilityById[learner.id] ??
+                                      learnerLessonAvailability(
+                                        state: state,
+                                        learner: learner,
+                                        lesson: lesson,
+                                      );
                               final isSelected =
                                   selectedLearner?.id == learner.id;
                               final canResetCompletedToday =
@@ -6347,11 +6350,13 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     if (launchableLearnerCount == 0) {
                       final blockedByLabel = <String, int>{};
                       for (final learner in learnerChoices) {
-                        final availability = learnerLessonAvailability(
-                          state: state,
-                          learner: learner,
-                          lesson: lesson,
-                        );
+                        final availability =
+                            learnerAvailabilityById[learner.id] ??
+                                learnerLessonAvailability(
+                                  state: state,
+                                  learner: learner,
+                                  lesson: lesson,
+                                );
                         blockedByLabel[availability.label] =
                             (blockedByLabel[availability.label] ?? 0) + 1;
                       }
@@ -6548,8 +6553,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                 color: LumoTheme.accentGreen,
                               ),
                               StatusPill(
-                                text:
-                                    '${state.availableLearnersForLesson(lesson).length} learners ready',
+                                text: '$launchableLearnerCount learners ready',
                                 color: const Color(0xFF7C3AED),
                               ),
                               if (state.tabletPodLabel?.trim().isNotEmpty ==
@@ -6776,7 +6780,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                         ? () async {
                             await _refreshSyncPendingLesson();
                           }
-                        : state.availableLearnersForLesson(lesson).isEmpty ||
+                        : launchableLearnerCount == 0 ||
                                 resumeMissingLearner ||
                                 selectedAvailability?.canLaunch != true
                             ? null
@@ -6807,7 +6811,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                     label: Text(
                       syncPendingLesson
                           ? 'Refresh sync before starting'
-                          : state.availableLearnersForLesson(lesson).isEmpty
+                          : launchableLearnerCount == 0
                               ? 'No learner ready on this tablet'
                               : resumeMissingLearner
                                   ? 'Sync learner to resume'

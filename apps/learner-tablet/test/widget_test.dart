@@ -99,6 +99,15 @@ class _SeedApiClient extends LumoApiClient {
   }
 }
 
+class _FooterGateMismatchState extends LumoAppState {
+  _FooterGateMismatchState() : super(includeSeedDemoContent: true);
+
+  @override
+  List<LearnerProfile> availableLearnersForLesson(LessonCardModel lesson) {
+    return const <LearnerProfile>[];
+  }
+}
+
 class _UnregisteredTabletBootstrapApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap({
@@ -2670,6 +2679,55 @@ void main() {
       expect(find.byIcon(Icons.pets_rounded), findsWidgets);
 
       state.dispose();
+    },
+  );
+
+  testWidgets(
+    'lesson launch footer follows the selected learner availability even when helper gating drifts',
+    (tester) async {
+      final state = _FooterGateMismatchState()..usingFallbackData = true;
+      final module = state.modules.firstWhere((item) => item.id == 'english');
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+      );
+      final learner = state.learners.first;
+      addTearDown(state.dispose);
+
+      expect(
+        learnerLessonAvailability(
+          state: state,
+          learner: learner,
+          lesson: lesson,
+        ).canLaunch,
+        isTrue,
+      );
+      expect(state.availableLearnersForLesson(lesson), isEmpty);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.textContaining('learners ready'), findsOneWidget);
+      expect(find.text('No learner ready on this tablet'), findsNothing);
+      expect(find.text('Select learner to continue'), findsOneWidget);
+
+      await tester.tap(find.text(learner.name).first);
+      await pumpForUi(tester);
+
+      final startButton = find.widgetWithText(
+        FilledButton,
+        'Start with ${learner.name}',
+      );
+      expect(startButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(startButton).onPressed, isNotNull);
     },
   );
 
