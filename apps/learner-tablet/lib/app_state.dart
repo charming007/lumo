@@ -1659,9 +1659,25 @@ class LumoAppState {
   bool learnerMatchesTabletPod(LearnerProfile learner) {
     final podId = tabletPodId?.trim();
     if (podId == null || podId.isEmpty) return true;
+
     final learnerPodId = learner.podId?.trim();
-    if (learnerPodId == null || learnerPodId.isEmpty) return false;
-    return learnerPodId == podId;
+    if (learnerPodId != null && learnerPodId.isNotEmpty) {
+      return learnerPodId == podId;
+    }
+
+    String normalizeToken(String value) =>
+        value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+    final tabletLabel = tabletPodLabel?.trim();
+    final learnerLabel = learner.podLabel?.trim();
+    if (tabletLabel != null &&
+        tabletLabel.isNotEmpty &&
+        learnerLabel != null &&
+        learnerLabel.isNotEmpty) {
+      return normalizeToken(tabletLabel) == normalizeToken(learnerLabel);
+    }
+
+    return false;
   }
 
   bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
@@ -1951,9 +1967,35 @@ class LumoAppState {
   }
 
   void selectLearner(LearnerProfile learner) {
-    currentLearner = learner;
+    var resolvedLearner = learner;
+    if (learnerMatchesTabletPod(learner)) {
+      final scopedPodId = tabletPodId?.trim();
+      final scopedPodLabel = tabletPodLabel?.trim();
+      final needsPodId = (resolvedLearner.podId?.trim().isEmpty ?? true) &&
+          scopedPodId != null &&
+          scopedPodId.isNotEmpty;
+      final needsPodLabel =
+          (resolvedLearner.podLabel?.trim().isEmpty ?? true) &&
+              scopedPodLabel != null &&
+              scopedPodLabel.isNotEmpty;
+      if (needsPodId || needsPodLabel) {
+        resolvedLearner = resolvedLearner.copyWith(
+          podId: needsPodId ? scopedPodId : resolvedLearner.podId,
+          podLabel: needsPodLabel ? scopedPodLabel : resolvedLearner.podLabel,
+          village: (resolvedLearner.village.trim().isEmpty &&
+                  scopedPodLabel != null &&
+                  scopedPodLabel.isNotEmpty)
+              ? scopedPodLabel
+              : resolvedLearner.village,
+        );
+        _replaceLearner(resolvedLearner);
+      }
+    }
+
+    currentLearner = resolvedLearner;
     persistStateSoon();
-    unawaited(refreshLearnerRuntimeSessions(learner));
+    _notifyListeners();
+    unawaited(refreshLearnerRuntimeSessions(resolvedLearner));
   }
 
   void selectModule(LearningModule module) {

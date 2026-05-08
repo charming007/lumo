@@ -1832,6 +1832,89 @@ void main() {
     });
 
     test(
+      'tablet pod filter accepts cached learners whose pod label matches the scoped tablet pod',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false);
+        state.registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'device-1',
+            deviceIdentifier: 'lumo-tablet-kano-01',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+          ),
+        );
+
+        expect(
+          state.learnerMatchesTabletPod(
+            const LearnerProfile(
+              id: 'learner-cached',
+              name: 'Amina Bello',
+              age: 8,
+              cohort: 'Fallback',
+              podLabel: 'Pod 1',
+              streakDays: 0,
+              guardianName: 'Guardian',
+              preferredLanguage: 'Hausa',
+              readinessLabel: 'Voice-first beginner',
+              village: 'Pod 1',
+              guardianPhone: '',
+              sex: 'Girl',
+              baselineLevel: 'No prior exposure',
+              consentCaptured: true,
+              learnerCode: 'AMI-001',
+            ),
+          ),
+          isTrue,
+        );
+        state.dispose();
+      },
+    );
+
+    test(
+      'selecting an offline cached learner promotes the learner into the tablet pod scope',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = true
+          ..registrationContext = const RegistrationContext(
+            tabletRegistration: TabletRegistration(
+              id: 'device-1',
+              deviceIdentifier: 'lumo-tablet-kano-01',
+              podId: 'pod-1',
+              podLabel: 'Pod 1',
+            ),
+          );
+        const cachedLearner = LearnerProfile(
+          id: 'learner-cached',
+          name: 'Amina Bello',
+          age: 8,
+          cohort: 'Fallback',
+          podLabel: 'Pod 1',
+          streakDays: 0,
+          guardianName: 'Guardian',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Pod 1',
+          guardianPhone: '',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+        );
+        state.learners
+          ..clear()
+          ..add(cachedLearner);
+
+        state.selectLearner(cachedLearner);
+
+        expect(state.currentLearner?.id, cachedLearner.id);
+        expect(state.currentLearner?.podId, 'pod-1');
+        expect(state.learners.single.podId, 'pod-1');
+        expect(state.learners.single.podLabel, 'Pod 1');
+        state.dispose();
+      },
+    );
+
+    test(
       'bootstrap keeps pod-scoped learners when backend omits learner pod ids',
       () async {
         final state = LumoAppState(
@@ -3174,7 +3257,8 @@ void main() {
           learner: beginner,
           lesson: lesson,
         );
-        expect(blockedAvailability.kind, LearnerLessonAvailabilityKind.completed);
+        expect(
+            blockedAvailability.kind, LearnerLessonAvailabilityKind.completed);
         expect(blockedAvailability.label, 'Completed');
         expect(blockedAvailability.canLaunch, isFalse);
 
@@ -3185,7 +3269,8 @@ void main() {
           learner: beginner,
           lesson: lesson,
         );
-        expect(resetAvailability.kind, LearnerLessonAvailabilityKind.resumeReady);
+        expect(
+            resetAvailability.kind, LearnerLessonAvailabilityKind.resumeReady);
         expect(resetAvailability.canLaunch, isTrue);
       },
     );
