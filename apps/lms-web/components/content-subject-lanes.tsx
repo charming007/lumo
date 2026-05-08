@@ -56,6 +56,10 @@ const lifecycleOptions = [
   { value: 'published', label: 'Publish', activeBackground: '#BBF7D0', idleBackground: '#ECFDF5', color: '#166534', border: '#86EFAC' },
 ] as const;
 
+function sortByOrderThenName<T extends { order?: number | null; name?: string | null }>(items: T[]) {
+  return [...items].sort((left, right) => (left.order ?? 999) - (right.order ?? 999) || (left.name ?? '').localeCompare(right.name ?? ''));
+}
+
 function LessonReorderLane({
   module,
   lessons,
@@ -283,6 +287,107 @@ function LifecycleRail({
   );
 }
 
+function StrandReorderLane({
+  subject,
+  strands,
+}: {
+  subject: Subject;
+  strands: Strand[];
+}) {
+  const [orderedStrands, setOrderedStrands] = useState(strands);
+  const [draggedStrandId, setDraggedStrandId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setOrderedStrands(strands);
+  }, [strands]);
+
+  function moveStrand(targetStrandId: string) {
+    if (!draggedStrandId || draggedStrandId === targetStrandId) return;
+
+    const sourceIndex = orderedStrands.findIndex((strand) => strand.id === draggedStrandId);
+    const targetIndex = orderedStrands.findIndex((strand) => strand.id === targetStrandId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    const next = [...orderedStrands];
+    const [movedStrand] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, movedStrand);
+    setOrderedStrands(next);
+    setDraggedStrandId(null);
+    setFeedback('Saving strand order…');
+
+    startTransition(async () => {
+      const result = await reorderSubjectStrandsAction({
+        subjectId: subject.id,
+        orderedStrandIds: next.map((strand) => strand.id),
+      });
+
+      if (!result.ok) {
+        setOrderedStrands(strands);
+      }
+
+      setFeedback(result.message);
+    });
+  }
+
+  if (orderedStrands.length < 2 && !feedback) {
+    return null;
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {orderedStrands.length > 1 ? (
+        <div style={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+          Drag strands to reorder the lane. The old numeric order field is now just backup, not the main workflow.
+        </div>
+      ) : null}
+      {feedback ? (
+        <div style={{ color: feedback.toLowerCase().includes('updated') ? '#166534' : '#475569', fontSize: 12, fontWeight: 700 }}>
+          {feedback}
+        </div>
+      ) : null}
+      {orderedStrands.length > 1 ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {orderedStrands.map((strand, strandIndex) => {
+            const isDragging = draggedStrandId === strand.id;
+
+            return (
+              <div
+                key={strand.id}
+                draggable={!isPending}
+                onDragStart={() => setDraggedStrandId(strand.id)}
+                onDragEnd={() => setDraggedStrandId(null)}
+                onDragOver={(event) => {
+                  if (!draggedStrandId || draggedStrandId === strand.id) return;
+                  event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  moveStrand(strand.id);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 12px',
+                  borderRadius: 14,
+                  background: isDragging ? '#eef2ff' : '#ffffff',
+                  border: `1px solid ${isDragging ? '#c7d2fe' : '#e2e8f0'}`,
+                  opacity: isPending && isDragging ? 0.7 : 1,
+                }}
+              >
+                <span style={{ cursor: !isPending ? 'grab' : 'default', color: '#64748b', fontSize: 16 }}>⋮⋮</span>
+                <div style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{strandIndex + 1}. {strand.name}</div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ContentSubjectLanes({
   subjects,
   strands,
@@ -303,7 +408,7 @@ export function ContentSubjectLanes({
   const subjectSummaries = useMemo(() => subjects
     .map((subject) => {
       const palette = subjectPalette[subject.id] || subjectPalette.english;
-      const subjectStrands = strands.filter((strand) => subjectsIncludeId([subject], strand.subjectId));
+      const subjectStrands = sortByOrderThenName(strands.filter((strand) => subjectsIncludeId([subject], strand.subjectId)));
       const subjectModules = modules.filter((module) => subjectMatchesContext(subject, {
         subjectIds: [module.subjectId],
         subjectNames: [module.subjectName],
