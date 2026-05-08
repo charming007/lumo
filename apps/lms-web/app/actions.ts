@@ -1114,6 +1114,43 @@ export async function quickUpdateCanvasLessonAction(formData: FormData) {
   }));
 }
 
+export async function reorderSubjectStrandsAction(input: {
+  subjectId: string;
+  orderedStrandIds: string[];
+}) {
+  const subjectId = String(input?.subjectId || '').trim();
+  const orderedStrandIds = Array.isArray(input?.orderedStrandIds)
+    ? input.orderedStrandIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+
+  if (!subjectId) {
+    return { ok: false, message: 'Missing subject id' } as const;
+  }
+
+  if (orderedStrandIds.length < 2) {
+    return { ok: true, message: 'Nothing to reorder' } as const;
+  }
+
+  try {
+    await apiWrite('/api/v1/curriculum/canvas/reorder', 'POST', {
+      parentType: 'subject',
+      parentId: subjectId,
+      nodeType: 'strand',
+      orderedIds: orderedStrandIds,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: describeActionError(error, 'Strand order could not be updated'),
+    } as const;
+  }
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+
+  return { ok: true, message: 'Strand order updated' } as const;
+}
+
 export async function reorderModuleLessonsAction(input: {
   moduleId: string;
   orderedLessonIds: string[];

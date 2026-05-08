@@ -18,7 +18,7 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
-import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, reorderModuleLessonsAction, updateStrandAction } from '../app/actions';
+import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, reorderModuleLessonsAction, reorderSubjectStrandsAction, updateStrandAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { getModuleReleaseState } from '../lib/module-release';
@@ -554,18 +554,21 @@ export function ContentSubjectLanes({
                 </div>
 
                 <div id={`subject-panel-${subject.id}`} hidden={collapsed} style={{ display: collapsed ? 'none' : 'grid', gap: 12 }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a real strand directly from the curriculum canvas instead of bouncing to a separate admin surface." eyebrow="Create strand" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
-                      <CreateStrandForm subjects={subjects} initialSubjectId={subject.id} initialOrder={subjectStrands.length + 1} returnPath={returnPath} />
-                    </ModalLauncher>
-                    <Link href={`/content/lessons/new?subjectId=${subject.id}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none' }}>
-                      Open lesson studio for {subject.name} →
-                    </Link>
-                    {subjectAssignments.length ? (
-                      <Link href={`/assignments?q=${encodeURIComponent(subject.name)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>
-                        See learner delivery impact →
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a real strand directly from the curriculum canvas instead of bouncing to a separate admin surface." eyebrow="Create strand" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
+                        <CreateStrandForm subjects={subjects} initialSubjectId={subject.id} initialOrder={subjectStrands.length + 1} returnPath={returnPath} />
+                      </ModalLauncher>
+                      <Link href={`/content/lessons/new?subjectId=${subject.id}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none' }}>
+                        Open lesson studio for {subject.name} →
                       </Link>
-                    ) : null}
+                      {subjectAssignments.length ? (
+                        <Link href={`/assignments?q=${encodeURIComponent(subject.name)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>
+                          See learner delivery impact →
+                        </Link>
+                      ) : null}
+                    </div>
+                    <StrandReorderLane subject={subject} strands={subjectStrands} />
                   </div>
                   {subjectStrands.length > 0 ? subjectStrands.map((strand) => {
                     const strandModules = subjectModules.filter((module) => module.strandName === strand.name);
