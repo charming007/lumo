@@ -19,9 +19,24 @@ import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '..
 import { buildCanvasReturnPath } from '../../lib/content-return-path';
 import { Card, PageShell } from '../../lib/ui';
 
+function normalizeRouteParam(value?: string | string[]) {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+
+  return value ?? '';
+}
+
 export default async function CanvasPage({ searchParams }: { searchParams?: Promise<{ message?: string; subject?: string | string[]; module?: string | string[]; readiness?: string | string[]; q?: string | string[] }> }) {
   const query = await searchParams;
   const returnPath = buildCanvasReturnPath(query);
+  const requestedSubjectId = normalizeRouteParam(query?.subject).trim();
+  const requestedModuleId = normalizeRouteParam(query?.module).trim();
+  const createLessonHref = `/content/lessons/new?${new URLSearchParams({
+    ...(requestedSubjectId ? { subjectId: requestedSubjectId } : {}),
+    ...(requestedModuleId ? { moduleId: requestedModuleId } : {}),
+    from: returnPath,
+  }).toString()}`;
   const [subjectsResult, strandsResult, modulesResult, lessonsResult, assessmentsResult, treeResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchStrands(),
@@ -112,7 +127,7 @@ export default async function CanvasPage({ searchParams }: { searchParams?: Prom
               <Link href="/content" style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#0f172a', color: 'white', textDecoration: 'none' }}>
                 Open content board
               </Link>
-              <Link href={`/content/lessons/new?from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+              <Link href={createLessonHref} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
                 Create lesson
               </Link>
             </div>
