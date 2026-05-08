@@ -18,7 +18,7 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
-import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, reorderModuleLessonsAction, reorderSubjectStrandsAction, updateStrandAction } from '../app/actions';
+import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, reorderModuleLessonsAction, reorderStrandModulesAction, reorderSubjectStrandsAction, updateStrandAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { getModuleReleaseState } from '../lib/module-release';
@@ -287,107 +287,6 @@ function LifecycleRail({
   );
 }
 
-function StrandReorderLane({
-  subject,
-  strands,
-}: {
-  subject: Subject;
-  strands: Strand[];
-}) {
-  const [orderedStrands, setOrderedStrands] = useState(strands);
-  const [draggedStrandId, setDraggedStrandId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    setOrderedStrands(strands);
-  }, [strands]);
-
-  function moveStrand(targetStrandId: string) {
-    if (!draggedStrandId || draggedStrandId === targetStrandId) return;
-
-    const sourceIndex = orderedStrands.findIndex((strand) => strand.id === draggedStrandId);
-    const targetIndex = orderedStrands.findIndex((strand) => strand.id === targetStrandId);
-    if (sourceIndex === -1 || targetIndex === -1) return;
-
-    const next = [...orderedStrands];
-    const [movedStrand] = next.splice(sourceIndex, 1);
-    next.splice(targetIndex, 0, movedStrand);
-    setOrderedStrands(next);
-    setDraggedStrandId(null);
-    setFeedback('Saving strand order…');
-
-    startTransition(async () => {
-      const result = await reorderSubjectStrandsAction({
-        subjectId: subject.id,
-        orderedStrandIds: next.map((strand) => strand.id),
-      });
-
-      if (!result.ok) {
-        setOrderedStrands(strands);
-      }
-
-      setFeedback(result.message);
-    });
-  }
-
-  if (orderedStrands.length < 2 && !feedback) {
-    return null;
-  }
-
-  return (
-    <div style={{ display: 'grid', gap: 8 }}>
-      {orderedStrands.length > 1 ? (
-        <div style={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
-          Drag strands to reorder the lane. The old numeric order field is now just backup, not the main workflow.
-        </div>
-      ) : null}
-      {feedback ? (
-        <div style={{ color: feedback.toLowerCase().includes('updated') ? '#166534' : '#475569', fontSize: 12, fontWeight: 700 }}>
-          {feedback}
-        </div>
-      ) : null}
-      {orderedStrands.length > 1 ? (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {orderedStrands.map((strand, strandIndex) => {
-            const isDragging = draggedStrandId === strand.id;
-
-            return (
-              <div
-                key={strand.id}
-                draggable={!isPending}
-                onDragStart={() => setDraggedStrandId(strand.id)}
-                onDragEnd={() => setDraggedStrandId(null)}
-                onDragOver={(event) => {
-                  if (!draggedStrandId || draggedStrandId === strand.id) return;
-                  event.preventDefault();
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  moveStrand(strand.id);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 12px',
-                  borderRadius: 14,
-                  background: isDragging ? '#eef2ff' : '#ffffff',
-                  border: `1px solid ${isDragging ? '#c7d2fe' : '#e2e8f0'}`,
-                  opacity: isPending && isDragging ? 0.7 : 1,
-                }}
-              >
-                <span style={{ cursor: !isPending ? 'grab' : 'default', color: '#64748b', fontSize: 16 }}>⋮⋮</span>
-                <div style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{strandIndex + 1}. {strand.name}</div>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function ContentSubjectLanes({
   subjects,
   strands,
@@ -431,11 +330,27 @@ export function ContentSubjectLanes({
 
   const [collapsedSubjects, setCollapsedSubjects] = useState<Record<string, boolean>>({});
   const [collapsedStrands, setCollapsedStrands] = useState<Record<string, boolean>>({});
+  const [orderedStrandsBySubject, setOrderedStrandsBySubject] = useState<Record<string, Strand[]>>({});
+  const [draggedStrandBySubject, setDraggedStrandBySubject] = useState<Record<string, string | null>>({});
+  const [strandFeedbackBySubject, setStrandFeedbackBySubject] = useState<Record<string, string | null>>({});
+  const [orderedModulesByStrand, setOrderedModulesByStrand] = useState<Record<string, CurriculumModule[]>>({});
+  const [draggedModuleByStrand, setDraggedModuleByStrand] = useState<Record<string, string | null>>({});
+  const [moduleFeedbackByStrand, setModuleFeedbackByStrand] = useState<Record<string, string | null>>({});
+  const [isReorderPending, startStrandTransition] = useTransition();
+  const [, startModuleTransition] = [isReorderPending, startStrandTransition];
   const collapsedCount = subjectSummaries.filter(({ subject }) => collapsedSubjects[subject.id]).length;
   const strandIds = subjectSummaries.flatMap(({ subjectStrands }) => subjectStrands.map((strand) => strand.id));
   const collapsedStrandCount = strandIds.filter((strandId) => collapsedStrands[strandId]).length;
   const allCollapsed = subjectSummaries.length > 0 && collapsedCount === subjectSummaries.length && collapsedStrandCount === strandIds.length;
   const allExpanded = collapsedCount === 0 && collapsedStrandCount === 0;
+
+  useEffect(() => {
+    setOrderedStrandsBySubject(Object.fromEntries(subjectSummaries.map(({ subject, subjectStrands }) => [subject.id, subjectStrands])));
+  }, [subjectSummaries]);
+
+  useEffect(() => {
+    setOrderedModulesByStrand(Object.fromEntries(subjectSummaries.flatMap(({ subjectModules, subjectStrands }) => subjectStrands.map((strand) => [strand.id, subjectModules.filter((module) => module.strandName === strand.name)]))));
+  }, [subjectSummaries]);
 
   return (
     <section style={{ display: 'grid', gap: 14, marginBottom: 20 }}>
@@ -485,6 +400,37 @@ export function ContentSubjectLanes({
       <div style={{ display: 'grid', gap: 16 }}>
         {subjectSummaries.map(({ subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, subjectAssignments, publishedModules, readyLessons }) => {
           const collapsed = Boolean(collapsedSubjects[subject.id]);
+          const orderedStrands = orderedStrandsBySubject[subject.id] ?? subjectStrands;
+          const draggedStrandId = draggedStrandBySubject[subject.id] ?? null;
+          const strandFeedback = strandFeedbackBySubject[subject.id] ?? null;
+
+          function moveStrand(targetStrandId: string) {
+            if (!draggedStrandId || draggedStrandId === targetStrandId) return;
+
+            const sourceIndex = orderedStrands.findIndex((strand) => strand.id === draggedStrandId);
+            const targetIndex = orderedStrands.findIndex((strand) => strand.id === targetStrandId);
+            if (sourceIndex === -1 || targetIndex === -1) return;
+
+            const next = [...orderedStrands];
+            const [movedStrand] = next.splice(sourceIndex, 1);
+            next.splice(targetIndex, 0, movedStrand);
+            setOrderedStrandsBySubject((current) => ({ ...current, [subject.id]: next }));
+            setDraggedStrandBySubject((current) => ({ ...current, [subject.id]: null }));
+            setStrandFeedbackBySubject((current) => ({ ...current, [subject.id]: 'Saving strand order…' }));
+
+            startStrandTransition(async () => {
+              const result = await reorderSubjectStrandsAction({
+                subjectId: subject.id,
+                orderedStrandIds: next.map((strand) => strand.id),
+              });
+
+              if (!result.ok) {
+                setOrderedStrandsBySubject((current) => ({ ...current, [subject.id]: subjectStrands }));
+              }
+
+              setStrandFeedbackBySubject((current) => ({ ...current, [subject.id]: result.message }));
+            });
+          }
 
           return (
             <Card key={subject.id} title={subject.name} eyebrow="Subject lane">
@@ -568,14 +514,63 @@ export function ContentSubjectLanes({
                         </Link>
                       ) : null}
                     </div>
-                    <StrandReorderLane subject={subject} strands={subjectStrands} />
+                    {strandFeedback ? (
+                      <div style={{ color: strandFeedback.toLowerCase().includes('updated') ? '#166534' : '#475569', fontSize: 12, fontWeight: 700 }}>
+                        {strandFeedback}
+                      </div>
+                    ) : null}
                   </div>
-                  {subjectStrands.length > 0 ? subjectStrands.map((strand) => {
+                  {orderedStrands.length > 0 ? orderedStrands.map((strand) => {
                     const strandModules = subjectModules.filter((module) => module.strandName === strand.name);
                     const strandCollapsed = Boolean(collapsedStrands[strand.id]);
+                    const orderedModules = orderedModulesByStrand[strand.id] ?? strandModules;
+                    const draggedModuleId = draggedModuleByStrand[strand.id] ?? null;
+                    const moduleFeedback = moduleFeedbackByStrand[strand.id] ?? null;
+
+                    function moveModule(targetModuleId: string) {
+                      if (!draggedModuleId || draggedModuleId === targetModuleId) return;
+
+                      const sourceIndex = orderedModules.findIndex((module) => module.id === draggedModuleId);
+                      const targetIndex = orderedModules.findIndex((module) => module.id === targetModuleId);
+                      if (sourceIndex === -1 || targetIndex === -1) return;
+
+                      const next = [...orderedModules];
+                      const [movedModule] = next.splice(sourceIndex, 1);
+                      next.splice(targetIndex, 0, movedModule);
+                      setOrderedModulesByStrand((current) => ({ ...current, [strand.id]: next }));
+                      setDraggedModuleByStrand((current) => ({ ...current, [strand.id]: null }));
+                      setModuleFeedbackByStrand((current) => ({ ...current, [strand.id]: 'Saving module order…' }));
+
+                      startModuleTransition(async () => {
+                        const result = await reorderStrandModulesAction({
+                          strandId: strand.id,
+                          orderedModuleIds: next.map((module) => module.id),
+                        });
+
+                        if (!result.ok) {
+                          setOrderedModulesByStrand((current) => ({ ...current, [strand.id]: strandModules }));
+                        }
+
+                        setModuleFeedbackByStrand((current) => ({ ...current, [strand.id]: result.message }));
+                      });
+                    }
 
                     return (
-                      <div key={strand.id} style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', display: 'grid', gap: 12 }}>
+                      <div
+                        key={strand.id}
+                        draggable={orderedStrands.length > 1 && !isReorderPending}
+                        onDragStart={() => setDraggedStrandBySubject((current) => ({ ...current, [subject.id]: strand.id }))}
+                        onDragEnd={() => setDraggedStrandBySubject((current) => ({ ...current, [subject.id]: null }))}
+                        onDragOver={(event) => {
+                          if (!draggedStrandId || draggedStrandId === strand.id) return;
+                          event.preventDefault();
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          moveStrand(strand.id);
+                        }}
+                        style={{ padding: 14, borderRadius: 18, background: draggedStrandId === strand.id ? '#eef2ff' : '#f8fafc', border: `1px solid ${draggedStrandId === strand.id ? '#c7d2fe' : '#eef2f7'}`, display: 'grid', gap: 12, opacity: isReorderPending && draggedStrandId === strand.id ? 0.7 : 1 }}
+                      >
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                             <button
@@ -599,6 +594,7 @@ export function ContentSubjectLanes({
                             >
                               {strandCollapsed ? '▸' : '▾'}
                             </button>
+                            {orderedStrands.length > 1 ? <span style={{ cursor: !isReorderPending ? 'grab' : 'default', color: '#64748b', fontSize: 16, lineHeight: 1 }}>⋮⋮</span> : null}
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 700 }}>{strand.name}</div>
                               <div style={{ color: '#64748b', fontSize: 13 }}>{strandModules.length} module{strandModules.length === 1 ? '' : 's'} in this planning lane</div>
@@ -619,7 +615,12 @@ export function ContentSubjectLanes({
                         </div>
 
                         <div id={`strand-panel-${strand.id}`} hidden={strandCollapsed} style={{ display: strandCollapsed ? 'none' : 'grid', gap: 12 }}>
-                          {strandModules.length > 0 ? strandModules.map((module) => {
+                          {moduleFeedback ? (
+                            <div style={{ color: moduleFeedback.toLowerCase().includes('updated') ? '#166534' : '#475569', fontSize: 12, fontWeight: 700 }}>
+                              {moduleFeedback}
+                            </div>
+                          ) : null}
+                          {orderedModules.length > 0 ? orderedModules.map((module) => {
                             const moduleLessons = filterLessonsForModule(subjectLessons, module);
                             const moduleAssessments = subjectAssessments.filter((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment));
                             const moduleAssignments = assignments.filter((assignment) => moduleLessons.some((lesson) => lesson.title === assignment.lessonTitle));
@@ -635,9 +636,24 @@ export function ContentSubjectLanes({
                             const canLaunchLessonStudio = Boolean(moduleSubjectId && subjectsIncludeId(subjects, moduleSubjectId));
 
                             return (
-                              <div key={module.id} style={{ padding: 18, borderRadius: 20, border: '1px solid #e5e7eb', background: 'white', display: 'grid', gap: 12 }}>
+                              <div
+                                key={module.id}
+                                draggable={orderedModules.length > 1 && !isReorderPending}
+                                onDragStart={() => setDraggedModuleByStrand((current) => ({ ...current, [strand.id]: module.id }))}
+                                onDragEnd={() => setDraggedModuleByStrand((current) => ({ ...current, [strand.id]: null }))}
+                                onDragOver={(event) => {
+                                  if (!draggedModuleId || draggedModuleId === module.id) return;
+                                  event.preventDefault();
+                                }}
+                                onDrop={(event) => {
+                                  event.preventDefault();
+                                  moveModule(module.id);
+                                }}
+                                style={{ padding: 18, borderRadius: 20, border: `1px solid ${draggedModuleId === module.id ? '#c7d2fe' : '#e5e7eb'}`, background: draggedModuleId === module.id ? '#eef2ff' : 'white', display: 'grid', gap: 12, opacity: isReorderPending && draggedModuleId === module.id ? 0.7 : 1 }}
+                              >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                  <div>
+                                  <div style={{ display: 'grid', gap: 4 }}>
+                                    {orderedModules.length > 1 ? <span style={{ cursor: !isReorderPending ? 'grab' : 'default', color: '#64748b', fontSize: 16, lineHeight: 1 }}>⋮⋮</span> : null}
                                     <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{module.title}</div>
                                     <div style={{ color: '#64748b' }}>{module.level} • {module.lessonCount} planned lessons • {readyLessonCount} ready now • {moduleAssignments.length} live assignment{moduleAssignments.length === 1 ? '' : 's'}</div>
                                   </div>
