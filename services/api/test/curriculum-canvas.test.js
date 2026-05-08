@@ -195,6 +195,44 @@ test('canvas mutation endpoints create, update, reorder, and move curriculum nod
   assert.equal(createModule.status, 201, JSON.stringify(createModule.body));
   const moduleId = createModule.body.created.id;
 
+  const secondModule = await request('/api/v1/curriculum/canvas/children', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Canvas Admin',
+    },
+    body: JSON.stringify({
+      parentType: 'strand',
+      parentId: createdStrandId,
+      childType: 'module',
+      title: 'Story Lab',
+      level: 'beginner',
+    }),
+  });
+
+  assert.equal(secondModule.status, 201, JSON.stringify(secondModule.body));
+
+  const reorderModules = await request('/api/v1/curriculum/canvas/reorder', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Canvas Admin',
+    },
+    body: JSON.stringify({
+      parentType: 'strand',
+      parentId: createdStrandId,
+      nodeType: 'module',
+      orderedIds: [secondModule.body.created.id, moduleId],
+    }),
+  });
+
+  assert.equal(reorderModules.status, 201, JSON.stringify(reorderModules.body));
+  assert.deepEqual(reorderModules.body.items.map((item) => item.id), [secondModule.body.created.id, moduleId]);
+
+  const strandFocus = await request(`/api/v1/curriculum/canvas/focus/strand/${createdStrandId}`);
+  assert.equal(strandFocus.status, 200);
+  assert.deepEqual(strandFocus.body.children.filter((item) => item.nodeType === 'module').map((item) => item.id), [secondModule.body.created.id, moduleId]);
+
   const createLesson = await request('/api/v1/curriculum/canvas/children', {
     method: 'POST',
     headers: {

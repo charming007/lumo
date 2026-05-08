@@ -1151,6 +1151,43 @@ export async function reorderSubjectStrandsAction(input: {
   return { ok: true, message: 'Strand order updated' } as const;
 }
 
+export async function reorderStrandModulesAction(input: {
+  strandId: string;
+  orderedModuleIds: string[];
+}) {
+  const strandId = String(input?.strandId || '').trim();
+  const orderedModuleIds = Array.isArray(input?.orderedModuleIds)
+    ? input.orderedModuleIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+
+  if (!strandId) {
+    return { ok: false, message: 'Missing strand id' } as const;
+  }
+
+  if (orderedModuleIds.length < 2) {
+    return { ok: true, message: 'Nothing to reorder' } as const;
+  }
+
+  try {
+    await apiWrite('/api/v1/curriculum/canvas/reorder', 'POST', {
+      parentType: 'strand',
+      parentId: strandId,
+      nodeType: 'module',
+      orderedIds: orderedModuleIds,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: describeActionError(error, 'Module order could not be updated'),
+    } as const;
+  }
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+
+  return { ok: true, message: 'Module order updated' } as const;
+}
+
 export async function reorderModuleLessonsAction(input: {
   moduleId: string;
   orderedLessonIds: string[];
