@@ -61,6 +61,10 @@ function resolveBuiltAtLabel() {
   return 'build time unavailable';
 }
 
+export function hasTrustedCommitProvenance(commitShort: string) {
+  return commitShort !== 'source-archive' && !commitShort.startsWith('deploy:');
+}
+
 function resolveDeploymentLabel() {
   const vercelEnv = readFirstEnv('VERCEL_ENV');
   const vercelUrl = readFirstEnv('VERCEL_URL');
@@ -80,7 +84,8 @@ export function getBuildSignature(): BuildSignature {
   const commitShort = resolveCommitShort();
   const builtAtLabel = resolveBuiltAtLabel();
   const deploymentLabel = resolveDeploymentLabel();
-  const metadataTrusted = builtAtLabel !== 'build time unavailable' && commitShort !== 'source-archive';
+  const metadataTrusted = builtAtLabel !== 'build time unavailable'
+    && hasTrustedCommitProvenance(commitShort);
 
   return {
     version,

@@ -37,6 +37,20 @@ test('build signature never pretends request time is the build time when metadat
   assert.doesNotMatch(signature.summary, /\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC/);
 });
 
+test('deployment id fallback stays untrusted without real commit provenance', async () => {
+  clearBuildSignatureEnv();
+  process.env.VERCEL_GIT_COMMIT_DATE = '2026-05-09T12:34:56Z';
+  process.env.VERCEL_ENV = 'production';
+  process.env.VERCEL_URL = 'lumo-example.vercel.app';
+  process.env.npm_package_version = '0.1.0';
+
+  const { hasTrustedCommitProvenance } = await import(`${buildSignatureModulePath}?case=deployment-id-fallback-${Date.now()}`);
+
+  assert.equal(hasTrustedCommitProvenance('deploy:dpl_12345'), false);
+  assert.equal(hasTrustedCommitProvenance('source-archive'), false);
+  assert.equal(hasTrustedCommitProvenance('abcdef1'), true);
+});
+
 test('build signature uses explicit Vercel metadata when it exists', async () => {
   clearBuildSignatureEnv();
   process.env.VERCEL_GIT_COMMIT_SHA = 'abcdef1234567890';
@@ -51,4 +65,5 @@ test('build signature uses explicit Vercel metadata when it exists', async () =>
   assert.equal(signature.commitShort, 'abcdef1');
   assert.equal(signature.builtAtLabel, '2026-05-09 12:34 UTC');
   assert.equal(signature.deploymentLabel, 'vercel:production @ lumo-example.vercel.app');
+  assert.equal(signature.metadataTrusted, true);
 });
