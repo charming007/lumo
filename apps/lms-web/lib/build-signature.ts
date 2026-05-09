@@ -5,6 +5,7 @@ export type BuildSignature = {
   commitShort: string;
   builtAtLabel: string;
   deploymentLabel: string;
+  metadataTrusted: boolean;
   summary: string;
 };
 
@@ -33,7 +34,12 @@ function resolveCommitShort() {
       .toString()
       .trim();
   } catch {
-    return 'no-git';
+    const deploymentId = readFirstEnv('VERCEL_DEPLOYMENT_ID');
+    if (deploymentId) {
+      return `deploy:${deploymentId.slice(0, 8)}`;
+    }
+
+    return 'source-archive';
   }
 }
 
@@ -52,13 +58,14 @@ function resolveBuiltAtLabel() {
     }
   }
 
-  return new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+  return 'build time unavailable';
 }
 
 function resolveDeploymentLabel() {
   const vercelEnv = readFirstEnv('VERCEL_ENV');
+  const vercelUrl = readFirstEnv('VERCEL_URL');
   if (vercelEnv) {
-    return `vercel:${vercelEnv}`;
+    return vercelUrl ? `vercel:${vercelEnv} @ ${vercelUrl}` : `vercel:${vercelEnv}`;
   }
 
   if (process.env.NODE_ENV === 'production') {
@@ -73,12 +80,14 @@ export function getBuildSignature(): BuildSignature {
   const commitShort = resolveCommitShort();
   const builtAtLabel = resolveBuiltAtLabel();
   const deploymentLabel = resolveDeploymentLabel();
+  const metadataTrusted = builtAtLabel !== 'build time unavailable' && commitShort !== 'source-archive';
 
   return {
     version,
     commitShort,
     builtAtLabel,
     deploymentLabel,
+    metadataTrusted,
     summary: `build v${version} · ${commitShort} · ${builtAtLabel} · ${deploymentLabel}`,
   };
 }

@@ -124,6 +124,19 @@ test('dashboard deploy checklist CTA points at a shipped public document', () =>
   );
 });
 
+test('dashboard deployment trace tells the truth when provenance metadata is missing', () => {
+  assert.match(
+    dashboardPageSource,
+    /dashboard now says that plainly instead of faking a fresh timestamp/,
+    'dashboard should warn when deployment metadata is incomplete instead of implying a fake fresh build trace',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Treat missing commit\/build provenance as a release-trace gap until the deploy pipeline restores it\./,
+    'dashboard should call missing provenance a release-trace gap so deployment review does not treat source-archive builds as trustworthy',
+  );
+});
+
 test('wrong-backend blocker exposes route evidence and copy-paste verification commands', () => {
   assert.match(
     dashboardPageSource,

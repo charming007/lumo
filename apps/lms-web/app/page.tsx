@@ -748,6 +748,11 @@ export default async function HomePage() {
             <div style={{ color: '#94A3B8', lineHeight: 1.6 }}>
               When reviewers think they are staring at a stale deploy, these two facts should be visible without opening DevTools or guessing which environment won the roulette wheel.
             </div>
+            {!buildSignature.metadataTrusted ? (
+              <div style={{ color: '#FDE68A', lineHeight: 1.6 }}>
+                Deployment metadata is incomplete in this build, so the dashboard now says that plainly instead of faking a fresh timestamp. Treat missing commit/build provenance as a release-trace gap until the deploy pipeline restores it.
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
